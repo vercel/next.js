@@ -1,0 +1,4 @@
+globalThis.ws2MixedEvaluations = (globalThis.ws2MixedEvaluations ?? 0) + 1
+export const evaluation = globalThis.ws2MixedEvaluations
+export const value = 31
+export default { value }

@@ -6,7 +6,10 @@ import {
 import { lstat, readFile, realpath } from 'node:fs/promises'
 import type { WatchRegistrySnapshot } from '../incremental/registry-additions'
 import { coverageHash } from './artifact'
-import { assertStandardCoverageFacts } from './report-standard'
+import {
+  assertStandardCoverageFacts,
+  type StandardCoverageSourcePlans,
+} from './report-standard'
 import type { StandardFileCoverage } from './types'
 
 interface Generation {
@@ -271,6 +274,7 @@ export async function validateStandardWatchCoverage(options: {
   compilationFailures: ReadonlySet<string>
   fileOutcomes: ReadonlyMap<string, string>
   allowCompilationFailure: boolean
+  sourcePlans?: StandardCoverageSourcePlans
 }): Promise<StandardFileCoverage[] | undefined> {
   const supplied = options.facts
   const missing = Array.isArray(supplied)
@@ -301,7 +305,8 @@ export async function validateStandardWatchCoverage(options: {
     incomplete
       ? new Set([...options.expected].filter((id) => !missing.includes(id)))
       : options.expected,
-    options.revisions
+    options.revisions,
+    options.sourcePlans
   )
   // Never forward partial facts or infer zero counters for failed compilation.
   if (!incomplete) return options.facts as StandardFileCoverage[]

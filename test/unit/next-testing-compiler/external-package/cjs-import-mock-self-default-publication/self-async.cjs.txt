@@ -1,0 +1,2 @@
+globalThis.__ws2CallableAutomaticCounts??={};globalThis.__ws2CallableAutomaticCounts["self-async"]=(globalThis.__ws2CallableAutomaticCounts["self-async"]||0)+1;
+async function callable(input){return this.label+':'+input};callable.__esModule=true;callable.default=callable;callable.label='root';callable.method=function member(){return this.label};module.exports=callable;

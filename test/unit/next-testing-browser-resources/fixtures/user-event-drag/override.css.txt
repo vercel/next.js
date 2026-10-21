@@ -1,0 +1,2 @@
+html { padding: 5px; margin: 2px; }
+body { padding: 3px; margin: 12px; min-height: 10px; }

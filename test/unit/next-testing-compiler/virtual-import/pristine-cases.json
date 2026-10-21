@@ -1,0 +1,17 @@
+[
+  {
+    "name": "shares a registered missing bare factory with importMock and graph consumers",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "awaits a registered missing async factory through importMock",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "shares a scoped missing factory with importMock and later imports",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

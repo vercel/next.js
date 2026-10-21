@@ -1,0 +1,32 @@
+[
+  {
+    "name": "pending registration transition reject false replacement false",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "pending registration transition reject false replacement true",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "pending registration transition reject true replacement false",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "pending registration transition reject true replacement true",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "multiple replacements keep the real pending attempt until completion",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "immediate factories and originals retain actual Promise boundary order",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

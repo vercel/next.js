@@ -1,0 +1,5 @@
+import {test,expect,vi} from 'vitest'
+vi.mock('./dep.mjs',()=>({value:73}))
+import * as mocked from './dep.mjs'
+import * as native from 'ws2-genuine-external-original'
+test('combines compiled mock helpers with an ordinary native external namespace',async()=>{const helper=await vi.importMock('./dep.mjs');const actual=await vi.importActual('./dep.mjs');const dynamic=await import('ws2-genuine-external-original');const descriptor=Object.getOwnPropertyDescriptor(native,'value');console.log('WS2_EXTERNAL_COMPILED_PACKAGE:'+JSON.stringify({value:mocked.value,helperValue:helper.value,helperIdentity:helper===mocked,actual:actual.value,nativeValue:native.value,nativeIdentity:native===dynamic,tag:native[Symbol.toStringTag]??null,keys:Object.keys(native),descriptor}));expect(mocked.value).toBe(73);expect(actual.value).toBe(19);expect(native).toBe(dynamic)})

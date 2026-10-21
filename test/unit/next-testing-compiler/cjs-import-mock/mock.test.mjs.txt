@@ -1,0 +1,25 @@
+import { test, vi } from 'vitest'
+const observe = (label, value) => console.log('WS2_CJS_MOCK_RAW:' + JSON.stringify({ label, ...value }))
+test('automatic CommonJS object mocks preserve default and named export relationships', async () => {
+  const first = await vi.importMock('./object.cjs')
+  const second = await vi.importMock('././object.cjs')
+  first.fn('first')
+  first.default.fn('default')
+  const original = await vi.importActual('./object.cjs')
+  observe('object', { keys: Object.keys(first), namespaceType: typeof first, nullPrototype: Object.getPrototypeOf(first) === null, value: first.value, defaultValue: first.default.value, namedMock: vi.isMockFunction(first.fn), defaultMock: vi.isMockFunction(first.default.fn), linkedFunction: first.fn === first.default.fn, calls: first.fn.mock.calls, defaultCalls: first.default.fn.mock.calls, secondCalls: second.fn.mock.calls, freshNamespace: first !== second, sameMockFunction: first.fn === second.fn, originalMock: vi.isMockFunction(original.fn), originalResult: original.fn(2), evaluations: globalThis.__ws2CjsObjectEvaluations })
+})
+test('automatic CommonJS esModule mocks preserve default function and named values', async () => {
+  const first = await vi.importMock('./esmodule.cjs')
+  const second = await vi.importMock('./esmodule.cjs')
+  first.default(3)
+  observe('esmodule', { keys: Object.keys(first), namespaceType: typeof first, defaultType: typeof first.default, defaultMock: vi.isMockFunction(first.default), named: first.named, calls: first.default.mock.calls, secondCalls: second.default.mock.calls, freshNamespace: first !== second, sameMockFunction: first.default === second.default, result: String(first.default(4)) })
+})
+test('automatic CommonJS primitive mocks preserve the primitive default', async () => {
+  const first = await vi.importMock('./primitive.cjs')
+  const second = await vi.importMock('./primitive.cjs')
+  observe('primitive', { keys: Object.keys(first), namespaceType: typeof first, defaultType: typeof first.default, value: first.default, freshNamespace: first !== second })
+})
+test('automatic CommonJS mocks preserve an authored falsy esModule marker', async () => {
+  const mock = await vi.importMock('./falsy.cjs')
+  observe('falsy', { keys: Object.keys(mock), defaultKeys: Object.keys(mock.default), marker: mock.__esModule, defaultMarker: mock.default.__esModule, value: mock.value, defaultValue: mock.default.value })
+})

@@ -1,0 +1,13 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_GRAPH_ALIAS",
+    "value": {
+      "calls": 1,
+      "identities": [true, false, true, false],
+      "evaluations": [1, 2, 1, 2],
+      "values": [42, 42],
+      "unused": 0
+    }
+  }
+]

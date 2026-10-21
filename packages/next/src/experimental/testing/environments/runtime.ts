@@ -65,11 +65,19 @@ const happyOverrides = [
   'URLSearchParams',
   'FormData',
 ]
+// Some WindowProxy providers resolve these without exposing a descriptor.
+// matchMedia also has a configurable placeholder in the pinned DOM contract.
+const domProviderKeys = [
+  'addEventListener',
+  'removeEventListener',
+  'dispatchEvent',
+  'matchMedia',
+]
 
-function populateWindow(win: WindowRealm, happy: boolean) {
+function populateWindow(win: WindowRealm, happy: boolean, domProvider = false) {
   const realm = globalThis as Realm
   const overrides = new Set([...domOverrides, ...(happy ? happyOverrides : [])])
-  const keys = new Set<string>()
+  const keys = new Set<string>(domProvider ? domProviderKeys : [])
   for (
     let current = win;
     current && current !== Object.prototype;
@@ -100,7 +108,14 @@ function populateWindow(win: WindowRealm, happy: boolean) {
       bound = functionValue.bind(win)
     Object.defineProperty(realm, key, {
       configurable: true,
-      get: () => (assigned.has(key) ? assigned.get(key) : (bound ?? win[key])),
+      get() {
+        if (assigned.has(key)) return assigned.get(key)
+        if (bound) return bound
+        const value = win[key]
+        if (domProvider && typeof value === 'function' && /^[a-z]/.test(key))
+          return (bound = value.bind(win))
+        return value
+      },
       set(value) {
         assigned.set(key, value)
         win[key] = value
@@ -276,7 +291,7 @@ export async function openTestEnvironment(
           dom.window.close()
         }
       }
-      populateWindow(dom.window, false)
+      populateWindow(dom.window, false, true)
       Object.defineProperty(globalThis, 'jsdom', {
         configurable: true,
         writable: true,
@@ -314,7 +329,7 @@ export async function openTestEnvironment(
           await closeWindow()
         }
       }
-      populateWindow(win, true)
+      populateWindow(win, true, true)
     } else {
       const module = await load(
         selected.name.startsWith('.') || path.isAbsolute(selected.name)

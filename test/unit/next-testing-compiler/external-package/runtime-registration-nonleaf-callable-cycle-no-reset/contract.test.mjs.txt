@@ -1,0 +1,19 @@
+import { test, expect, vi } from 'vitest'
+import { types } from 'node:util'
+function shape(value) {
+ if (value===null || (typeof value!=='object'&&typeof value!=='function')) return {type:typeof value,value}
+ return {type:typeof value,nativeBrand:types.isModuleNamespaceObject(value),keys:Reflect.ownKeys(value).map(key=>typeof key==='symbol'?String(key):key),prototype:Object.getPrototypeOf(value)===null?'null':Object.getPrototypeOf(value)===Object.prototype?'Object.prototype':Object.getPrototypeOf(value)===Function.prototype?'Function.prototype':Object.prototype.toString.call(Object.getPrototypeOf(value)),tag:value[Symbol.toStringTag]??null,extensible:Object.isExtensible(value),sealed:Object.isSealed(value),frozen:Object.isFrozen(value),descriptors:Reflect.ownKeys(value).map(key=>{const d=Object.getOwnPropertyDescriptor(value,key);return {key:typeof key==='symbol'?String(key):key,valueType:typeof d.value,get:typeof d.get,set:typeof d.set,writable:d.writable??null,enumerable:d.enumerable,configurable:d.configurable}})}
+}
+function view(namespace) {const root=namespace?.default;return {namespace:shape(namespace),root:shape(root),dependency:root&&'dependency' in root?shape(root.dependency):null,evaluation:namespace?.evaluation??null,rootEvaluation:root?.evaluation??null,dependencyEvaluation:root?.dependency?.evaluation??null,call:typeof root==='function'?root.call(root,'held'):typeof root?.read==='function'?root.read.call(root,'held'):null,namedCall:typeof namespace?.read==='function'?namespace.read('named'):null}}
+function same(values) {return values.map(value=>values.map(other=>value===other))}
+function errorView(error,raw) {return {name:error?.name,message:error?.message,causeSame:error?.cause===raw,causeName:error?.cause?.name,causeMessage:error?.cause?.message,keys:Reflect.ownKeys(error).map(String),causeDescriptor:(()=>{const d=Object.getOwnPropertyDescriptor(error,'cause');return d?{writable:d.writable,enumerable:d.enumerable,configurable:d.configurable,valueSame:d.value===raw}:null})()}}
+function counts(){return {root:globalThis.__ws2CjsDependencyRoot??globalThis.__ws2CallableRoot??globalThis.__ws2RuntimeLeafRoot??0,dependency:globalThis.__ws2CjsDependencyLeaf??globalThis.__ws2CallableDependency??0}}
+function row(name,data){console.log('WS2_CJS_RUNTIME:'+JSON.stringify({name,...data}));expect(data).toBeDefined()}
+
+test('compiled CommonJS runtime registration initializes ownership without authored reset',async()=>{
+ let calls=0;const before=counts();vi.doMock('./root.cjs',()=>{calls++;return {evaluation:920,marker:{mock:true},read(value){return [920,this.evaluation??null,value]},default:{evaluation:920,read(value){return [920,this.evaluation,value]}}}})
+ const mock=await import('./root.cjs');const cached=await import('./root.cjs');const whileMocked=counts();vi.doUnmock('./root.cjs');const original=await import('./root.cjs');row('no-reset-import',{before,whileMocked,views:[mock,cached,original].map(view),identities:same([mock,cached,original]),calls,counts:counts()})
+})
+test('compiled CommonJS runtime unused target remains unevaluated without authored reset',async()=>{
+ const before=counts();let calls=0;vi.doMock('./unused.cjs',()=>{calls++;return {default:{unused:true}}});vi.doUnmock('./unused.cjs');row('no-reset-unused',{before,after:counts(),calls,unused:globalThis.__ws2RuntimeUnused??0})
+})

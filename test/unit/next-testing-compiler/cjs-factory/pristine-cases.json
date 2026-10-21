@@ -1,0 +1,17 @@
+[
+  {
+    "name": "explicit CJS object factory is the only evaluated replacement",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "CJS object factory original thunk retains one actual module",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "explicit factory replaces a callable CJS target with authored exports",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

@@ -34,7 +34,10 @@ import {
 } from '../experimental/testing/config'
 import { discoverTests } from '../experimental/testing/discovery'
 import { configDefaults } from '../experimental/testing/config-api'
-import { parseTestInspectAddress } from '../experimental/testing/execution/inspector'
+import {
+  parseTestInspectAddress,
+  parseTestInspectBrkAddress,
+} from '../experimental/testing/execution/inspector'
 import {
   acquireTestRunLock,
   parseMaxWorkers,
@@ -70,6 +73,7 @@ export interface NextTestRunnerOptions {
   'coverage.thresholds.branches'?: string
   'coverage.thresholds.lines'?: string
   inspect?: string | boolean
+  inspectBrk?: string | boolean
   fileParallelism?: boolean
   project?: string
   filter?: string[]
@@ -123,7 +127,11 @@ export async function nextTestRunner(
     options as unknown as Record<string, unknown>
   )
   if (standardCoverageOptions) options = { ...options, coverage: true }
-  const inspect = parseTestInspectAddress(options.inspect)
+  const breakAddress = parseTestInspectBrkAddress(options.inspectBrk)
+  const inspectBrk = breakAddress !== undefined
+  const inspect = inspectBrk
+    ? (parseTestInspectBrkAddress(options.inspect) ?? breakAddress)
+    : parseTestInspectAddress(options.inspect)
   const isTTY =
     process.stdout.isTTY === true &&
     !process.env.CI &&
@@ -185,17 +193,12 @@ export async function nextTestRunner(
     console.log(JSON.stringify(testCapabilities, null, 2))
     return
   }
-  if ((options.related || options.changed) && (options.watch || options.list))
+  if ((options.related || options.changed) && options.list)
     throw new Error(
       '--related and --changed currently require a one-shot execution.'
     )
-  if (
-    options.api !== undefined &&
-    (options.watch || options.list || options.mergeReports)
-  )
-    throw new Error(
-      '--api currently requires a one-shot execution without listing or report merging.'
-    )
+  if (options.api !== undefined && (options.list || options.mergeReports))
+    throw new Error('--api cannot be combined with listing or report merging.')
   if (options.json && !options.list)
     throw new Error('--json requires --list for collected test names.')
   if (options.staticParse !== undefined && !(options.list && options.json))
@@ -351,7 +354,7 @@ export async function nextTestRunner(
         : parsedConfig
     if (
       config.projects.some((project) => project.typecheck?.enabled) &&
-      (options.watch || options.list || options.inspect || options.coverage)
+      (options.watch || options.list || inspect || options.coverage)
     ) {
       throw new Error(
         'Type-test checking currently requires a one-shot execution without --watch, --list, --inspect, or --coverage.'
@@ -376,7 +379,7 @@ export async function nextTestRunner(
       project: options.project,
       files: options.filter,
     })
-    if (options.related || options.changed) {
+    if ((options.related || options.changed) && !options.watch) {
       const { findChangedTestSources, selectSourceRelatedProjects } =
         await import('../experimental/testing/incremental/source-selection.js')
       const related = options.related
@@ -450,7 +453,7 @@ export async function nextTestRunner(
       (maxWorkers !== 1 ||
         options.watch ||
         options.list ||
-        options.inspect ||
+        inspect ||
         options.coverage ||
         options.update ||
         projects.some((project) => project.typecheck?.enabled) ||
@@ -522,9 +525,12 @@ export async function nextTestRunner(
       if (!project.entries.length || project.profile.mode !== 'production')
         continue
       requireTestCapability('production')
-      if (project.profile.route !== undefined) {
+      if (
+        project.profile.route !== undefined &&
+        project.profile.environment !== 'rsc'
+      ) {
         throw new Error(
-          'Production test execution supports route-less profiles only; route and layout context is unsupported.'
+          'Production route context requires an explicit Node RSC profile.'
         )
       }
       if (
@@ -660,11 +666,26 @@ export async function nextTestRunner(
         const { watchTests } = await import(
           '../experimental/testing/watch-orchestrator.js'
         )
+        const watchRelatedSources =
+          options.changed && !options.related
+            ? await (
+                await import(
+                  '../experimental/testing/incremental/source-selection.js'
+                )
+              ).findChangedTestSources(projectDir, options.changed)
+            : options.related
+        let hasFailedWatchRun = false
         const result = await watchTests(projectDir, {
+          apiPort,
+          onEvent(event) {
+            if (event.type === 'run-end' && event.status === 'failed')
+              hasFailedWatchRun = true
+          },
           input: isTTY ? process.stdin : undefined,
           output: process.stdout,
           project: options.project,
           files: options.filter,
+          related: watchRelatedSources,
           testNamePattern: options.testNamePattern,
           maxWorkers: options.maxWorkers === undefined ? undefined : maxWorkers,
           standardCoverageOptions,
@@ -683,10 +704,10 @@ export async function nextTestRunner(
         })
         if (reporterFailure) throw reporterFailure
         process.exitCode =
-          result.status === 'cancelled'
-            ? 130
-            : result.status === 'failed'
-              ? 1
+          hasFailedWatchRun || result.status === 'failed'
+            ? 1
+            : result.status === 'cancelled'
+              ? 130
               : 0
         return
       }
@@ -695,7 +716,14 @@ export async function nextTestRunner(
         const { openTestDiscoveryApi } = await import(
           '../experimental/testing/editor-api.js'
         )
-        discoveryApi = await openTestDiscoveryApi(projectDir, entries, apiPort)
+        discoveryApi = await openTestDiscoveryApi(
+          projectDir,
+          entries,
+          apiPort,
+          {
+            cancelRun: cancel,
+          }
+        )
         process.stderr.write(
           'Next test discovery API: ' + discoveryApi.url + '\n'
         )
@@ -731,6 +759,7 @@ export async function nextTestRunner(
       )
       customExecutionStarted = customProjects.length > 0
       const summary = await runTests(projectDir, projects, {
+        captureTaskResults: machine.captureTaskResults,
         ...(configuration.compilerTransformNames.length
           ? { compilerTransforms: configuration.compilerTransforms(projects) }
           : {}),
@@ -758,6 +787,7 @@ export async function nextTestRunner(
         coverageInputs: configuration.watchInputs,
         ...(customProjects.length ? { customCoverageRequests } : {}),
         inspect,
+        ...(inspectBrk ? { inspectBrk: true } : {}),
         maxWorkers,
         isolateProjects: true,
         passWithNoTests: projects.every(
@@ -865,6 +895,7 @@ export async function nextTestRunner(
             ...pendingCoverage,
             signal: controller.signal,
           })
+          if (result.textSummary) process.stdout.write(result.textSummary)
           if (result.thresholdErrors.length) {
             for (const message of result.thresholdErrors) console.error(message)
             process.exitCode = 1

@@ -1,0 +1,153 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_NAMESPACE",
+    "value": {
+      "name": "getter",
+      "calls": [0, 1],
+      "defined": true,
+      "before": {
+        "keys": ["value", "read", "Symbol(Symbol.toStringTag)"],
+        "prototypeNull": true,
+        "extensible": true,
+        "tag": "[object Module]",
+        "descriptors": [
+          [
+            "value",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "read",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "Symbol(Symbol.toStringTag)",
+            {
+              "enumerable": false,
+              "configurable": false,
+              "writable": false,
+              "type": "string"
+            }
+          ]
+        ]
+      },
+      "root": {
+        "keys": ["value", "read", "Symbol(Symbol.toStringTag)"],
+        "prototypeNull": true,
+        "extensible": true,
+        "tag": "[object Module]",
+        "descriptors": [
+          [
+            "value",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "read",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "Symbol(Symbol.toStringTag)",
+            {
+              "enumerable": false,
+              "configurable": false,
+              "writable": false,
+              "type": "string"
+            }
+          ]
+        ]
+      },
+      "peer": {
+        "keys": ["value", "read", "Symbol(Symbol.toStringTag)"],
+        "prototypeNull": true,
+        "extensible": true,
+        "tag": "[object Module]",
+        "descriptors": [
+          [
+            "value",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "read",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "Symbol(Symbol.toStringTag)",
+            {
+              "enumerable": false,
+              "configurable": false,
+              "writable": false,
+              "type": "string"
+            }
+          ]
+        ]
+      },
+      "results": {
+        "direct": {
+          "name": "Error",
+          "message": "redefined namespace getter",
+          "raw": true
+        },
+        "published": {},
+        "publishedGetter": {},
+        "body": {
+          "name": "Error",
+          "message": "redefined namespace getter",
+          "raw": true
+        },
+        "mockBody": {
+          "name": "Error",
+          "message": "redefined namespace getter",
+          "raw": true
+        },
+        "local": {
+          "value": 0
+        }
+      },
+      "held": [
+        {
+          "name": "Error",
+          "message": "redefined namespace getter",
+          "raw": true
+        },
+        {},
+        {
+          "name": "Error",
+          "message": "redefined namespace getter",
+          "raw": true
+        }
+      ],
+      "fresh": [0, 0],
+      "freshDifferent": true
+    }
+  }
+]

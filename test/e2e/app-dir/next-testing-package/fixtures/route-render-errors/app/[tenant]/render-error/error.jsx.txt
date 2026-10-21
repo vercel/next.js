@@ -1,0 +1,2 @@
+'use client'
+export default function RootErrorBoundary({ error }) { return <p data-render-error-boundary="root" data-error-digest={error.digest}>{error.message}</p> }

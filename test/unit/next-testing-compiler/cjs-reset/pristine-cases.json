@@ -1,0 +1,17 @@
+[
+  {
+    "name": "resetModules preserves held CJS object and evaluates a fresh original",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "resetModules keeps held callable CJS values while producing a fresh function",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "resetModules replaces a Promise-valued CJS default while held promises settle",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

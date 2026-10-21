@@ -10,6 +10,7 @@ use next_core::{
     get_next_package,
     util::{file_content_rope, load_next_js_template_no_imports},
 };
+use next_taskless::NODE_EXTERNALS;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{Completion, FxIndexMap, OperationVc, ResolvedVc, ValueToString, Vc, fxindexmap};
 use turbo_tasks_fs::{File, FileContent, FileSystemEntryType, FileSystemPath};
@@ -34,9 +35,15 @@ use turbopack_core::{
         GraphEntries,
         binding_usage_info::ModuleExportUsageInfo,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
+        runtime_import_demands::{
+            RuntimeImportDemandGraph, RuntimeImportNamespaceCertificate, RuntimeImportNamespaceKind,
+        },
     },
     output::{OutputAsset, OutputAssets},
-    reference::{ModuleReference, all_assets_from_entries, primary_referenced_modules},
+    reference::{
+        ModuleReference, all_assets_from_entries, primary_chunkable_referenced_modules,
+        primary_referenced_modules,
+    },
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::{
         ResolveErrorMode, ResolveResult,
@@ -52,8 +59,17 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
+    EcmascriptModuleAsset,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
-    references::external_module::CachedExternalModule,
+    cjs_reset_export::{CommonJsResetExportShape, commonjs_callable_publication_certificate},
+    code_gen::CodeGen,
+    module_fragments::part::module::EcmascriptModulePartAsset,
+    references::{
+        cjs::CjsRequireAssetReference,
+        esm::EsmAsyncAssetReference,
+        external_module::{CachedExternalModule, ExternalsSymlinkAsset},
+    },
+    side_effect_optimization::locals::module::EcmascriptModuleLocalsModule,
 };
 use turbopack_resolve::{ecmascript::esm_resolve, resolve_options_context::ResolveOptionsContext};
 
@@ -63,10 +79,11 @@ use crate::{
     project::{Project, ProjectContainer},
     route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs},
     testing_mock_graph::{
-        MockActualSource, MockGraphTarget, MockGraphTargets, MockHoistedSource, MockImportKind,
-        MockImportSource, MockRegistrationSource, MockResolvePlugin,
-        mock_registration_source_with_helpers, mock_spec_source_with_imports,
-        mock_wrapper_source_with_original_cycle,
+        MockActualSource, MockBuiltinFactoryTarget, MockBuiltinResolvePlugin, MockGraphTarget,
+        MockGraphTargets, MockHoistedSource, MockImportKind, MockImportSource, MockOriginalSource,
+        MockRegistrationSource, MockResolvePlugin, mock_registration_source_with_helpers,
+        mock_spec_source_with_imports, mock_wrapper_source_with_original_cycle,
+        virtual_mock_wrapper_source,
     },
     testing_mock_source::{StaticMockPlan, extract_test_mocks},
 };
@@ -156,8 +173,32 @@ pub(crate) async fn test_resolve_options_context(
             .resolved_cell(),
         );
     }
+    // Vitest resolves a real JavaScript file first, then tries the corresponding
+    // TypeScript source. Keep this separate from NodeNext's TS-first resolver.
+    let mut fallbacks = ImportMap::empty();
+    for prefix in ["./", "../"] {
+        for (extension, replacements) in [
+            (".js", &[".ts", ".tsx"][..]),
+            (".mjs", &[".mts"][..]),
+            (".cjs", &[".cts"][..]),
+        ] {
+            fallbacks.insert_wildcard_alias_with_suffix(
+                prefix,
+                extension,
+                ImportMapping::primary_alternatives(
+                    replacements
+                        .iter()
+                        .map(|replacement| format!("{prefix}*{replacement}").into())
+                        .collect(),
+                    None,
+                )
+                .resolved_cell(),
+            );
+        }
+    }
     let mut extended = context
         .with_extended_import_map(imports.cell())
+        .with_extended_fallback_import_map(fallbacks.cell())
         .owned()
         .await?;
     for (_, nested) in &mut extended.rules {
@@ -307,8 +348,6 @@ pub(crate) async fn test_endpoint(
     }
     if *browser_client
         && (&**environment != "browser"
-            || !project.next_mode().await?.is_development()
-            || !setup_files.is_empty()
             || !snapshot_serializers.is_empty()
             || !cohort_files.is_empty()
             || *runtime_env
@@ -317,8 +356,8 @@ pub(crate) async fn test_endpoint(
     {
         return Err(test_input_error(
             project.project_path().owned().await?,
-            "Browser Mode requires an isolated development client entry without setup, \
-             serializers, cohorts, routes or Node features",
+            "Browser Mode requires an isolated client entry without serializers, cohorts, routes \
+             or Node features",
         ));
     }
     let file = file.clone();
@@ -332,12 +371,8 @@ pub(crate) async fn test_endpoint(
         &environment,
         project.next_mode().await?.is_development(),
     )?;
-    if route.is_some()
-        && (&*environment != "rsc"
-            || project.next_mode().await?.is_production()
-            || !cohort_files.is_empty())
-    {
-        bail!("Route-aware tests require one-shot development Node RSC entries");
+    if route.is_some() && (&*environment != "rsc" || !cohort_files.is_empty()) {
+        bail!("Route-aware tests require one-shot Node RSC entries");
     }
     if id.is_empty()
         || !id
@@ -469,7 +504,10 @@ pub(crate) async fn test_endpoint(
     }
     if *browser_client {
         return Ok(Vc::upcast(crate::testing_client::ClientTestEndpoint::new(
-            *project, path, id,
+            *project,
+            path,
+            id,
+            setup_paths,
         )));
     }
     if &*environment != "rsc" {
@@ -564,7 +602,7 @@ async fn emitted_test_source_identity(
 /// Authored inline maps use a canonical source URI before production codegen.
 /// The final native relative-map transform only rewrites Turbopack identities,
 /// so this preserves exact spec/factory locations without changing optimization.
-async fn canonical_test_source_identity(
+pub(crate) async fn canonical_test_source_identity(
     project: ResolvedVc<Project>,
     source: ResolvedVc<Box<dyn Source>>,
 ) -> Result<String> {
@@ -704,6 +742,9 @@ pub(crate) async fn test_module_options_context(
 ) -> Result<Vc<ModuleOptionsContext>> {
     let mut options = options.owned().await?;
     options.module_fragments_enabled = false;
+    // Test modules observe the window supplied by their actual execution realm.
+    // Normal application server/client contexts keep their own constant folding.
+    options.ecmascript.enable_typeof_window_inlining = None;
     if preserve_coverage_source {
         options.ecmascript.cross_module_constants = false;
         options.ecmascript.mangle_export_names = false;
@@ -739,6 +780,79 @@ async fn mock_resolve_options(
             .await?;
     }
     Ok(extended.cell())
+}
+
+#[turbo_tasks::function]
+async fn builtin_mock_resolve_options(
+    options: Vc<ResolveOptionsContext>,
+    plugin: ResolvedVc<MockBuiltinResolvePlugin>,
+) -> Result<Vc<ResolveOptionsContext>> {
+    let mut extended = options.owned().await?;
+    extended
+        .before_resolve_plugins
+        .insert(0, ResolvedVc::upcast(plugin));
+    for (_, nested) in &mut extended.rules {
+        *nested = builtin_mock_resolve_options(**nested, *plugin)
+            .to_resolved()
+            .await?;
+    }
+    Ok(extended.cell())
+}
+
+#[turbo_tasks::function]
+pub(crate) async fn registration_module_resolve_options(
+    options: Vc<ResolveOptionsContext>,
+    imports: ResolvedVc<ImportMap>,
+) -> Result<Vc<ResolveOptionsContext>> {
+    let mut options = options.with_extended_import_map(*imports).owned().await?;
+    for (_, nested) in &mut options.rules {
+        *nested = registration_module_resolve_options(**nested, *imports)
+            .to_resolved()
+            .await?;
+    }
+    Ok(options.cell())
+}
+
+fn builtin_factory_name(request: &str) -> Option<&str> {
+    let name = request.strip_prefix("node:").unwrap_or(request);
+    NODE_EXTERNALS.binary_search(&name).is_ok().then_some(name)
+}
+
+async fn builtin_factory_requests(
+    context: ResolvedVc<ModuleAssetContext>,
+    importer: &FileSystemPath,
+    authored_request: &str,
+    name: &str,
+) -> Result<Vec<RcStr>> {
+    let origin = PlainResolveOrigin::new(*ResolvedVc::upcast(context), importer.clone());
+    let mut requests = Vec::new();
+    for request in [
+        authored_request.to_owned(),
+        name.to_owned(),
+        format!("node:{name}"),
+    ] {
+        let request = RcStr::from(request);
+        if requests.contains(&request) {
+            continue;
+        }
+        let resolved = esm_resolve(
+            Vc::upcast(origin),
+            Request::parse(request.clone().into()),
+            EcmaScriptModulesReferenceSubType::Import,
+            ResolveErrorMode::Ignore,
+            None,
+        )
+        .await?;
+        let modules = resolved.await?.primary_modules().await?;
+        if modules.len() == 1
+            && let Some(external) =
+                ResolvedVc::try_downcast_type::<CachedExternalModule>(modules[0])
+            && builtin_factory_name(&external.await?.request()) == Some(name)
+        {
+            requests.push(request);
+        }
+    }
+    Ok(requests)
 }
 
 #[turbo_tasks::function]
@@ -866,10 +980,45 @@ async fn module_reset_manifest(
     context: ResolvedVc<ModuleAssetContext>,
     root_module: ResolvedVc<Box<dyn Module>>,
     path: &FileSystemPath,
+    native_modules: &[crate::testing_external_modules::NativeExternalCertificate],
+    native_protected: &[crate::testing_external_modules::NativeExternalCertificate],
+    compiled_modules: &[ResolvedVc<Box<dyn Module>>],
+    static_pairs: &[crate::testing_static_runtime::StaticMockPair],
+    commonjs_reset: Option<&crate::testing_cjs_reset::CommonJsResetPreparation>,
 ) -> Result<ResolvedVc<Box<dyn Module>>> {
     let root = project.project_path().owned().await?;
     let next_package = get_next_package(root.clone()).await?;
     let mut queue = vec![root_module];
+    queue.extend(native_modules.iter().map(|known| known.module));
+    queue.extend(
+        native_protected
+            .iter()
+            .flat_map(|known| [known.module, known.native]),
+    );
+    queue.extend(compiled_modules.iter().copied());
+    if let Some(commonjs) = commonjs_reset {
+        queue.extend(commonjs.protected.iter().copied());
+        queue.extend(commonjs.actual_seeds());
+        queue.extend(commonjs.runtime_seeds());
+    }
+    let static_protected = static_pairs
+        .iter()
+        .flat_map(|pair| pair.protected.iter().copied())
+        .collect::<HashSet<_>>();
+    queue.extend(
+        static_pairs
+            .iter()
+            .flat_map(|pair| pair.protected.iter().copied()),
+    );
+    if static_pairs
+        .iter()
+        .any(|pair| pair.initial == pair.provider || static_protected.contains(&pair.provider))
+    {
+        return Err(test_input_error(
+            path.clone(),
+            "Static namespace protection overlaps a native provider",
+        ));
+    }
     let mut seen = HashSet::new();
     let mut resettable = Vec::new();
     let mut protected = Vec::new();
@@ -878,8 +1027,100 @@ async fn module_reset_manifest(
             continue;
         }
         let ident = module.ident().await?;
-        if next_package.get_path_to(&ident.path).is_some() {
+        if static_protected.contains(&module) || next_package.get_path_to(&ident.path).is_some() {
             protected.push(module);
+            continue;
+        }
+        if let Some(commonjs) = commonjs_reset {
+            if commonjs.protected.contains(&module) {
+                protected.push(module);
+                continue;
+            }
+            if commonjs.contains_resettable(module) {
+                resettable.push(module);
+                queue.extend(primary_referenced_modules(*module).await?.iter().copied());
+                continue;
+            }
+        }
+        if let Some(certificate) = native_protected
+            .iter()
+            .find(|known| known.module == module || known.native == module)
+        {
+            let external =
+                ResolvedVc::try_downcast_type::<CachedExternalModule>(certificate.native)
+                    .ok_or_else(|| {
+                        test_input_error(
+                            path.clone(),
+                            "Protected native graph requires an actual external clone",
+                        )
+                    })?;
+            let native = external
+                .await?
+                .native_import_module()
+                .ok_or_else(|| {
+                    test_input_error(
+                        path.clone(),
+                        "Protected native graph has no native import factory",
+                    )
+                })?
+                .to_resolved()
+                .await?;
+            if ResolvedVc::upcast::<Box<dyn Module>>(native) != certificate.native
+                || certificate.builtin.is_none()
+                || (certificate.module != certificate.native
+                    && (certificate.kind
+                        != crate::testing_external_modules::NativeOriginalKind::CommonJs
+                        || !primary_referenced_modules(*certificate.module)
+                            .await?
+                            .contains(&certificate.native)))
+            {
+                return Err(test_input_error(
+                    path.clone(),
+                    "Protected native graph must retain its exact original provider edge",
+                ));
+            }
+            protected.push(module);
+            continue;
+        }
+        if let Some(certificate) = native_modules.iter().find(|known| known.module == module) {
+            let Some(external) =
+                ResolvedVc::try_downcast_type::<CachedExternalModule>(certificate.native)
+            else {
+                return Err(test_input_error(
+                    path.clone(),
+                    "Native reset allowlist requires actual external modules",
+                ));
+            };
+            let native = external
+                .await?
+                .native_import_module()
+                .ok_or_else(|| {
+                    test_input_error(
+                        path.clone(),
+                        "Native reset target has no native import factory",
+                    )
+                })?
+                .to_resolved()
+                .await?;
+            if ResolvedVc::upcast::<Box<dyn Module>>(native) != certificate.native {
+                return Err(test_input_error(
+                    path.clone(),
+                    "Native reset target is not its certified import module",
+                ));
+            }
+            if module != certificate.native
+                && (certificate.kind
+                    != crate::testing_external_modules::NativeOriginalKind::CommonJs
+                    || !primary_referenced_modules(*module)
+                        .await?
+                        .contains(&certificate.native))
+            {
+                return Err(test_input_error(
+                    path.clone(),
+                    "Native reset wrapper has no actual certified original edge",
+                ));
+            }
+            resettable.push(module);
             continue;
         }
         if let Some(external) = ResolvedVc::try_downcast_type::<CachedExternalModule>(module) {
@@ -912,14 +1153,30 @@ async fn module_reset_manifest(
             .ok_or_else(|| {
                 test_input_error(path.clone(), "Resettable modules must be compiled ESM")
             })?;
-        if !matches!(
-            *placeable.get_exports().await?,
-            EcmascriptExports::EsmExports(_)
-        ) {
-            return Err(test_input_error(
-                path.clone(),
-                "Module cache resets do not support CommonJS user modules",
-            ));
+        match *placeable.get_exports().await? {
+            EcmascriptExports::EsmExports(_) => {}
+            EcmascriptExports::CommonJs(_) | EcmascriptExports::EmptyCommonJs => {
+                // A require-backed dependency has a different cache lifetime in
+                // the reference runner. Only admit a leaf certified by the real
+                // compiled references, including unresolved executable edges.
+                // File-tracing and resolution metadata do not evaluate modules.
+                if !primary_chunkable_referenced_modules(*module, false, false)
+                    .await?
+                    .is_empty()
+                {
+                    return Err(test_input_error(
+                        ident.path.clone(),
+                        "Module cache resets currently require leaf CommonJS modules without \
+                         executable dependencies",
+                    ));
+                }
+            }
+            _ => {
+                return Err(test_input_error(
+                    path.clone(),
+                    "Module cache resets require compiled ESM or leaf CommonJS modules",
+                ));
+            }
         }
         let text = file_content_rope(ident.path.read())
             .await?
@@ -944,16 +1201,54 @@ async fn module_reset_manifest(
         for (index, module) in modules.iter().enumerate() {
             let request = format!("INNER_MODULE_CACHE_{kind}_{index}");
             assets.insert(request.clone().into(), *module);
-            // None suppresses ESM side-effect imports: observing an ID must not
-            // evaluate the subject or its transitive static dependencies.
-            code.push_str(&format!(
-                "import {{ __turbopack_module_id__ as {kind}_{index} }} from '{request}' with {{ \
-                 \"turbopack-chunking-type\": \"none\" }};\n"
-            ));
+            if static_pairs
+                .iter()
+                .any(|pair| pair.initial == *module || pair.provider == *module)
+                || commonjs_reset.is_some_and(|commonjs| {
+                    commonjs.protected.contains(module) || commonjs.contains_resettable(*module)
+                })
+            {
+                // require.resolve emits this exact ID and a Parallel factory
+                // edge without evaluating the retained static/native module.
+                code.push_str(&format!(
+                    "const {kind}_{index} = require.resolve('{request}');\n"
+                ));
+            } else {
+                // None suppresses ESM side-effect imports: observing an ID must not
+                // evaluate the subject or its transitive static dependencies.
+                code.push_str(&format!(
+                    "import {{ __turbopack_module_id__ as {kind}_{index} }} from '{request}' with \
+                     {{ \"turbopack-chunking-type\": \"none\" }};\n"
+                ));
+            }
         }
     }
+    let static_pairs_source = if static_pairs.is_empty() {
+        String::new()
+    } else {
+        format!(
+            ",staticMocks:[{}]",
+            static_pairs
+                .iter()
+                .map(|pair| {
+                    let initial = protected
+                        .iter()
+                        .position(|module| *module == pair.initial)
+                        .context("Static namespace must be compiler-protected")?;
+                    let provider = resettable
+                        .iter()
+                        .position(|module| *module == pair.provider)
+                        .context("Native static provider must be compiler-resettable")?;
+                    Ok(format!(
+                        "{{initial:protected_{initial},provider:resettable_{provider}}}"
+                    ))
+                })
+                .collect::<Result<Vec<_>>>()?
+                .join(",")
+        )
+    };
     code.push_str(&format!(
-        "export const manifest = {{version:1,resettable:[{}],protected:[{}]}};\n",
+        "export const manifest = {{version:1,resettable:[{}],protected:[{}]{}}};\n",
         (0..resettable.len())
             .map(|index| format!("resettable_{index}"))
             .collect::<Vec<_>>()
@@ -961,7 +1256,8 @@ async fn module_reset_manifest(
         (0..protected.len())
             .map(|index| format!("protected_{index}"))
             .collect::<Vec<_>>()
-            .join(",")
+            .join(","),
+        static_pairs_source
     ));
     let source = test_source(
         path.clone(),
@@ -990,8 +1286,10 @@ pub(crate) struct PreparedTestModule {
     pub module_reset: bool,
     pub coverage_sources: Vec<MockCoverageSource>,
     pub runtime_requests: Vec<String>,
+    pub static_runtime_origin: Option<ResolvedVc<ModuleAssetContext>>,
     pub cjs_named_spy: bool,
     pub mock_wrappers: Vec<ResolvedVc<Box<dyn Source>>>,
+    pub callable_originals: Vec<(String, ResolvedVc<EcmascriptModuleAsset>, bool)>,
 }
 
 async fn prepare_node_test(
@@ -1001,7 +1299,29 @@ async fn prepare_node_test(
     runtime_env: bool,
 ) -> Result<PreparedTestModule> {
     let context = node_test_input_context(project, path, runtime_env, None).await?;
-    prepare_test_module(project, path, id, context, true).await
+    let mut prepared = prepare_test_module(project, path, id, context, true).await?;
+    if let Some(entry) = project.await?.test_entry {
+        let entry = entry.await?;
+        if project.next_mode().await?.is_development()
+            && &*entry.environment == "node"
+            && entry.setup_files.is_empty()
+            && entry.snapshot_serializers.is_empty()
+            && entry.cohort_files.is_empty()
+            && !entry.source_coverage
+            && !entry.dependency_plan
+            && !prepared.module_reset
+        {
+            prepared.context = crate::testing_external_modules::native_external_context(
+                project.project_path().owned().await?,
+                prepared.context,
+                prepared.source,
+                prepared.registration,
+                &entry.id,
+            )
+            .await?;
+        }
+    }
+    Ok(prepared)
 }
 
 pub(crate) async fn node_test_input_context(
@@ -1186,18 +1506,253 @@ pub(crate) async fn prepare_browser_test_module(
     .await
 }
 
+/// Keep actual full-source owners separate from compiler parts and consumers.
+async fn commonjs_full_owner(
+    module: ResolvedVc<Box<dyn Module>>,
+) -> Result<Option<ResolvedVc<EcmascriptModuleAsset>>> {
+    if let Some(full) = ResolvedVc::try_downcast_type::<EcmascriptModuleAsset>(module) {
+        return Ok(Some(full));
+    }
+    if let Some(part) = ResolvedVc::try_downcast_type::<EcmascriptModulePartAsset>(module) {
+        return Ok(Some(part.await?.full_module));
+    }
+    if let Some(locals) = ResolvedVc::try_downcast_type::<EcmascriptModuleLocalsModule>(module) {
+        return Ok(Some(locals.await?.module));
+    }
+    Ok(None)
+}
+
+/// Optional exact leaf publication proof. Unsupported owners retain old codegen.
+async fn commonjs_callable_publication_source(
+    module: ResolvedVc<Box<dyn Module>>,
+) -> Result<Option<ResolvedVc<EcmascriptModuleAsset>>> {
+    let Some(full) = commonjs_full_owner(module).await? else {
+        return Ok(None);
+    };
+    if !matches!(*full.get_exports().await?, EcmascriptExports::CommonJs(_)) {
+        return Ok(None);
+    }
+    let certificate = commonjs_callable_publication_certificate(*full).await?;
+    if certificate.module != full || certificate.shape != CommonJsResetExportShape::FunctionBinding
+    {
+        return Ok(None);
+    }
+    let analysis = full.analyze().await?;
+    if !analysis.successful
+        || analysis
+            .code_generation
+            .await?
+            .code_gens
+            .iter()
+            .any(|code| matches!(code, CodeGen::DynamicExpression(_)))
+        || !primary_chunkable_referenced_modules(Vc::upcast(*full), false, false)
+            .await?
+            .is_empty()
+    {
+        return Ok(None);
+    }
+    Ok(Some(full))
+}
+
+/// Match compiler-owned original helper reads by actual module/reference pointers.
+/// An authored require consumer keeps the old namespace path for this first slice.
+async fn commonjs_callable_namespaces(
+    entry: ResolvedVc<Box<dyn Module>>,
+    registration: ResolvedVc<Box<dyn Module>>,
+    originals: &[(String, ResolvedVc<EcmascriptModuleAsset>, bool)],
+) -> Result<Vec<ResolvedVc<RuntimeImportNamespaceCertificate>>> {
+    if originals.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut helper_owners = HashSet::new();
+    let mut queue = vec![registration];
+    let mut seen = HashSet::new();
+    while let Some(owner) = queue.pop() {
+        if !seen.insert(owner) {
+            continue;
+        }
+        if let Some(full) = commonjs_full_owner(owner).await? {
+            helper_owners.insert(full);
+        }
+        for (reference, resolved) in primary_chunkable_referenced_modules(*owner, false, false)
+            .await?
+            .iter()
+        {
+            if ResolvedVc::try_downcast_type::<turbopack_ecmascript::EcmascriptModulePartReference>(
+                *reference,
+            )
+            .is_some()
+            {
+                queue.extend(resolved.modules.iter().copied());
+            }
+        }
+    }
+    let mut expected = Vec::new();
+    for (request, original, raw_required) in originals {
+        expected.push((
+            Request::parse(RcStr::from(request.as_str()).into())
+                .to_resolved()
+                .await?,
+            *original,
+            *raw_required,
+        ));
+    }
+    let mut dynamic = Vec::new();
+    let mut helper_requires = HashSet::new();
+    let mut helper_resolves = HashSet::new();
+    let mut authored_requires = HashSet::new();
+    queue.push(entry);
+    seen.clear();
+    while let Some(owner) = queue.pop() {
+        if !seen.insert(owner) {
+            continue;
+        }
+        let helper = commonjs_full_owner(owner)
+            .await?
+            .is_some_and(|full| helper_owners.contains(&full));
+        for (reference, resolved) in primary_chunkable_referenced_modules(*owner, false, false)
+            .await?
+            .iter()
+        {
+            if helper {
+                if let Some(reference) =
+                    ResolvedVc::try_downcast_type::<EsmAsyncAssetReference>(*reference)
+                {
+                    let request = reference.await?.request;
+                    if let Some((_, original, _)) =
+                        expected.iter().find(|(known, _, _)| *known == request)
+                    {
+                        anyhow::ensure!(
+                            resolved.modules.len() == 1,
+                            "Callable original helper requires one actual module"
+                        );
+                        let actual = resolved.modules[0];
+                        let full = commonjs_callable_publication_source(actual)
+                            .await?
+                            .context(
+                                "Callable original helper lost its exact leaf publication proof",
+                            )?;
+                        anyhow::ensure!(
+                            actual == ResolvedVc::upcast(full)
+                                && full.await?.source == original.await?.source,
+                            "Callable original helper must retain its actual full source owner"
+                        );
+                        dynamic.push((owner, request, full));
+                    }
+                }
+            }
+            if helper
+                && let Some(reference) = ResolvedVc::try_downcast_type::<
+                    turbopack_ecmascript::references::cjs::CjsRequireResolveAssetReference,
+                >(*reference)
+            {
+                let request = reference.await?.request();
+                if expected
+                    .iter()
+                    .any(|(known, _, raw_required)| *raw_required && *known == request)
+                {
+                    anyhow::ensure!(
+                        resolved.modules.len() == 1,
+                        "Callable original helper requires one actual module"
+                    );
+                    let actual = resolved.modules[0];
+                    let full = commonjs_full_owner(actual)
+                        .await?
+                        .context("Callable original resolve must retain its actual full owner")?;
+                    anyhow::ensure!(
+                        actual == ResolvedVc::upcast(full),
+                        "Callable original resolve must retain its actual full owner"
+                    );
+                    helper_resolves.insert((owner, request, full));
+                }
+            }
+            if let Some(reference) =
+                ResolvedVc::try_downcast_type::<CjsRequireAssetReference>(*reference)
+            {
+                if helper {
+                    let request = reference.await?.request();
+                    if expected
+                        .iter()
+                        .any(|(known, _, raw_required)| *raw_required && *known == request)
+                    {
+                        anyhow::ensure!(
+                            resolved.modules.len() == 1,
+                            "Callable original helper requires one actual module"
+                        );
+                        let actual = resolved.modules[0];
+                        let full = commonjs_full_owner(actual).await?.context(
+                            "Callable original require must retain its actual full owner",
+                        )?;
+                        anyhow::ensure!(
+                            actual == ResolvedVc::upcast(full),
+                            "Callable original require must retain its actual full owner"
+                        );
+                        helper_requires.insert((owner, request, full));
+                    }
+                } else {
+                    for actual in &resolved.modules {
+                        if let Some(full) = commonjs_full_owner(*actual).await? {
+                            authored_requires.insert(full);
+                        }
+                    }
+                }
+            }
+            queue.extend(resolved.modules.iter().copied());
+        }
+    }
+    let mut namespaces = Vec::new();
+    let mut certified = HashSet::new();
+    for (request, _, raw_required) in expected {
+        let sites = dynamic
+            .iter()
+            .filter(|(_, known, _)| *known == request)
+            .collect::<Vec<_>>();
+        anyhow::ensure!(
+            !sites.is_empty(),
+            "Callable original helper must retain its actual dynamic readsite"
+        );
+        let actual = sites[0].2;
+        anyhow::ensure!(
+            sites.iter().all(|(_, _, target)| *target == actual),
+            "Callable original request must retain one actual full target across its helpers"
+        );
+        for (owner, _, target) in sites {
+            anyhow::ensure!(
+                !raw_required
+                    || (helper_requires.contains(&(*owner, request, *target))
+                        && helper_resolves.contains(&(*owner, request, *target))),
+                "Callable original helper must retain its exact raw require target"
+            );
+        }
+        if authored_requires.contains(&actual) || !certified.insert(actual) {
+            continue;
+        }
+        namespaces.push(
+            RuntimeImportNamespaceCertificate {
+                kind: RuntimeImportNamespaceKind::CommonJsCallable,
+                module: ResolvedVc::upcast(actual),
+                export_order: Vec::new(),
+            }
+            .resolved_cell(),
+        );
+    }
+    Ok(namespaces)
+}
+
 /// Resolve new literal helpers from their authored input, before graph substitution.
 async fn resolve_mock_helper_target(
     context: ResolvedVc<ModuleAssetContext>,
     importer: &FileSystemPath,
     request: &str,
     api: &str,
+    allow_commonjs: bool,
+    allow_native: bool,
 ) -> Result<(FileSystemPath, ResolvedVc<Box<dyn Module>>)> {
     if matches!(request, "next" | "react" | "react-dom" | "vitest")
         || request.starts_with("next/")
         || request.starts_with("react/")
         || request.starts_with("react-dom/")
-        || request.starts_with("node:")
+        || (request.starts_with("node:") && !allow_native)
     {
         return Err(test_input_error(
             importer.clone(),
@@ -1208,9 +1763,12 @@ async fn resolve_mock_helper_target(
         ));
     }
     let origin = PlainResolveOrigin::new(*ResolvedVc::upcast(context), importer.clone());
+    let parsed_request = Request::parse(RcStr::from(request).into())
+        .to_resolved()
+        .await?;
     let resolved = esm_resolve(
         Vc::upcast(origin),
-        Request::parse(RcStr::from(request).into()),
+        *parsed_request,
         EcmaScriptModulesReferenceSubType::Import,
         ResolveErrorMode::Error,
         None,
@@ -1238,13 +1796,32 @@ async fn resolve_mock_helper_target(
             format!("The spec module cannot be its own {api} target: {request}"),
         ));
     }
-    if ResolvedVc::try_downcast_type::<CachedExternalModule>(original).is_some() {
+    if let Some(external) = ResolvedVc::try_downcast_type::<CachedExternalModule>(original) {
+        let external = external.await?;
+        let builtin = builtin_factory_name(&external.request()).is_some();
+        if allow_native
+            && (matches!(&*parsed_request.await?, Request::Module {query, fragment, ..}
+                if query.is_empty() && fragment.is_empty())
+                || (builtin
+                    && request.starts_with("node:")
+                    && matches!(&*parsed_request.await?, Request::Uri {query, fragment, ..}
+                        if query.is_empty() && fragment.is_empty())))
+            && external.native_import_module().is_some()
+        {
+            return Ok((target_path, original));
+        }
         return Err(test_input_error(
             importer.clone(),
             format!(
                 "{api} targets must be compiled by Next; configure the external package for \
                  compilation: {request}"
             ),
+        ));
+    }
+    if request.starts_with("node:") {
+        return Err(test_input_error(
+            importer.clone(),
+            format!("{api} node: targets require a certified native builtin: {request}"),
         ));
     }
     let target_source = file_content_rope(target_path.read())
@@ -1278,10 +1855,14 @@ async fn resolve_mock_helper_target(
                 format!("{api} target must be a compiled ESM module"),
             )
         })?;
-    if !matches!(
-        *placeable.get_exports().await?,
-        EcmascriptExports::EsmExports(_)
-    ) {
+    let exports = placeable.get_exports().await?;
+    if !matches!(*exports, EcmascriptExports::EsmExports(_))
+        && !(allow_commonjs
+            && matches!(
+                *exports,
+                EcmascriptExports::CommonJs(_) | EcmascriptExports::EmptyCommonJs
+            ))
+    {
         return Err(test_input_error(
             importer.clone(),
             format!("CommonJS/dynamic {api} targets are unsupported: {request}"),
@@ -1343,9 +1924,36 @@ async fn prepare_test_module_with_loading(
         ));
     }
     let has_inherited = earlier_plans.iter().any(|(_, plan)| !plan.is_empty());
+    let static_runtime = !plan.declarations.is_empty() && !plan.runtime_requests.is_empty();
+    let context = if static_runtime {
+        // Every captured replacement, registration and native-provider factory
+        // retains the same actual runtime owner before any derived contexts.
+        let root = project.project_path().owned().await?;
+        let base = context.await?;
+        let existing = base.transitions.await?;
+        let mut rules = existing.transition_rules.clone();
+        rules.push(crate::testing_external_modules::runtime_boundary_rule(root, context).await?);
+        let transitions = TransitionOptions {
+            named_transitions: existing.named_transitions.clone(),
+            transition_rules: rules,
+            ..Default::default()
+        }
+        .resolved_cell();
+        ModuleAssetContext::new(
+            *transitions,
+            *base.compile_time_info,
+            *base.module_options_context,
+            *base.resolve_options_context,
+            base.layer.clone(),
+        )
+        .to_resolved()
+        .await?
+    } else {
+        context
+    };
+    let static_runtime_origin = static_runtime.then_some(context);
     if (plan.is_empty() && !has_inherited)
-        || plan.reset_modules
-        || !plan.runtime_requests.is_empty()
+        || (!static_runtime && (plan.reset_modules || !plan.runtime_requests.is_empty()))
     {
         return Ok(PreparedTestModule {
             context,
@@ -1354,9 +1962,11 @@ async fn prepare_test_module_with_loading(
             registration: None,
             module_reset: plan.reset_modules || !plan.runtime_requests.is_empty(),
             runtime_requests: plan.runtime_requests,
+            static_runtime_origin: None,
             coverage_sources: Vec::new(),
             cjs_named_spy: false,
             mock_wrappers: Vec::new(),
+            callable_originals: Vec::new(),
         });
     }
     // Node setup files retain the supplied context's unmocked graph while the
@@ -1404,6 +2014,14 @@ async fn prepare_test_module_with_loading(
     let mut automatic_originals = FxIndexMap::default();
     let mut manual_redirects = FxIndexMap::default();
     let mut registrations = Vec::new();
+    let mut virtual_keys = FxIndexMap::default();
+    let mut builtin_keys = FxIndexMap::default();
+    let mut builtin_canonical_keys = FxIndexMap::default();
+    let mut builtin_targets = Vec::new();
+    let mut external_keys = FxIndexMap::default();
+    let mut external_originals = fxindexmap! {};
+    let mut external_modules: HashMap<ResolvedVc<Box<dyn Module>>, (String, String)> =
+        HashMap::new();
     let mut cjs_named_spy = false;
     let mut target_generations = FxIndexMap::default();
     let mut import_mock_modes = FxIndexMap::default();
@@ -1414,26 +2032,68 @@ async fn prepare_test_module_with_loading(
         .collect::<Vec<_>>();
     let mut unmock_cuts = FxIndexMap::default();
     let mut target_indexes = FxIndexMap::default();
+    let mut native_unmock_cuts = HashMap::new();
+    let mut builtin_unmock_cuts = HashMap::new();
+    let cache_actual_imports = allow_cjs_named_spy && inherited.is_empty();
+    let allow_native_actual_imports = if cache_actual_imports
+        && !layered_inputs
+        && loading == MockImportLoading::CachedOriginal
+        && project.next_mode().await?.is_development()
+        && let Some(entry) = project.await?.test_entry
+    {
+        let entry = entry.await?;
+        &*entry.environment == "node"
+            && !entry.browser_client
+            && entry.route.is_none()
+            && entry.setup_files.is_empty()
+            && entry.snapshot_serializers.is_empty()
+            && entry.cohort_files.is_empty()
+            && !entry.source_coverage
+            && !entry.import_coverage_roles
+            && !entry.dependency_plan
+    } else {
+        false
+    };
     if inputs.iter().any(|(_, input)| !input.unmocks.is_empty()) {
         for (input_index, (input_path, input)) in inputs.iter().enumerate() {
             // Retain first declaration indices even for cancelled targets. Setup
             // namespaces already evaluated under those keys remain unchanged.
             for declaration in &input.declarations {
-                let (target, _) = resolve_mock_helper_target(
+                let (target, original) = resolve_mock_helper_target(
                     context,
                     input_path,
                     &declaration.request,
                     "vi.mock",
+                    false,
+                    allow_native_actual_imports,
                 )
                 .await?;
-                let next = target_indexes.len();
-                target_indexes.entry(target).or_insert(next);
+                if ResolvedVc::try_downcast_type::<CachedExternalModule>(original).is_none() {
+                    let next = target_indexes.len();
+                    target_indexes.entry(target).or_insert(next);
+                }
             }
             for unmock in &input.unmocks {
-                let (target, _) =
-                    resolve_mock_helper_target(context, input_path, &unmock.request, "vi.unmock")
-                        .await?;
-                unmock_cuts.insert(target, (input_index, unmock.start));
+                let (target, original) = resolve_mock_helper_target(
+                    context,
+                    input_path,
+                    &unmock.request,
+                    "vi.unmock",
+                    false,
+                    allow_native_actual_imports,
+                )
+                .await?;
+                if let Some(external) =
+                    ResolvedVc::try_downcast_type::<CachedExternalModule>(original)
+                {
+                    if let Some(name) = builtin_factory_name(&external.await?.request()) {
+                        builtin_unmock_cuts.insert(name.to_owned(), (input_index, unmock.start));
+                    } else {
+                        native_unmock_cuts.insert(original, (input_index, unmock.start));
+                    }
+                } else {
+                    unmock_cuts.insert(target, (input_index, unmock.start));
+                }
             }
         }
     }
@@ -1442,11 +2102,17 @@ async fn prepare_test_module_with_loading(
             PlainResolveOrigin::new(*ResolvedVc::upcast(context), declaration_path.clone());
         for declaration in &declaration_plan.declarations {
             let request = declaration.request.as_str();
+            let explicit_node_factory = allow_cjs_named_spy
+                && !layered_inputs
+                && inherited.is_empty()
+                && !declaration.automatic
+                && declaration.has_object_return
+                && !declaration.has_spread;
             if matches!(request, "next" | "react" | "react-dom" | "vitest")
                 || request.starts_with("next/")
                 || request.starts_with("react/")
                 || request.starts_with("react-dom/")
-                || request.starts_with("node:")
+                || (request.starts_with("node:") && !explicit_node_factory)
             {
                 return Err(test_input_error(
                     path.clone(),
@@ -1455,15 +2121,61 @@ async fn prepare_test_module_with_loading(
                     ),
                 ));
             }
+            let parsed_request = Request::parse(RcStr::from(request).into());
+            let allow_virtual_factory = explicit_node_factory
+                && matches!(&*parsed_request.await?, Request::Module { query, fragment, .. }
+                    if query.is_empty() && fragment.is_empty());
+            let allow_builtin_factory = explicit_node_factory
+                && matches!(&*parsed_request.await?,
+                    Request::Module { query, fragment, .. } |
+                    Request::Uri { query, fragment, .. }
+                    if query.is_empty() && fragment.is_empty());
             let resolved = esm_resolve(
                 Vc::upcast(declaration_origin),
-                Request::parse(RcStr::from(request).into()),
+                parsed_request,
                 EcmaScriptModulesReferenceSubType::Import,
-                ResolveErrorMode::Error,
+                if allow_virtual_factory {
+                    ResolveErrorMode::Ignore
+                } else {
+                    ResolveErrorMode::Error
+                },
                 None,
             )
             .await?;
-            let modules = resolved.await?.primary_modules().await?;
+            let resolved = resolved.await?;
+            let modules = resolved.primary_modules().await?;
+            if allow_virtual_factory && resolved.primary.is_empty() {
+                let index = virtual_keys.len();
+                let key = virtual_keys
+                    .entry(request.to_owned())
+                    .or_insert_with(|| format!("next-test-node:{id}:virtual:{index}"))
+                    .clone();
+                let source = test_source(
+                    path.clone(),
+                    Some(format!("next-test-virtual-mock:{request}").into()),
+                    virtual_mock_wrapper_source(
+                        "next/dist/experimental/testing/mocking/runtime",
+                        &key,
+                    )?,
+                )
+                .await?;
+                imports.insert_exact_alias(
+                    request.to_owned(),
+                    ImportMapping::Direct(ResolveResult::source(source).resolved_cell())
+                        .resolved_cell(),
+                );
+                registrations.push((
+                    key,
+                    request.to_owned(),
+                    declaration.factory_source.clone(),
+                    declaration.factory_start,
+                    declaration.original_factory_source.clone(),
+                    false,
+                    false,
+                    true,
+                ));
+                continue;
+            }
             if modules.len() != 1 {
                 return Err(test_input_error(
                     path.clone(),
@@ -1473,6 +2185,121 @@ async fn prepare_test_module_with_loading(
                 ));
             }
             let original = modules[0];
+            if native_unmock_cuts
+                .get(&original)
+                .is_some_and(|cut| *cut > (input_index, declaration.factory_start))
+            {
+                continue;
+            }
+            if allow_builtin_factory
+                && let Some(external) =
+                    ResolvedVc::try_downcast_type::<CachedExternalModule>(original)
+            {
+                let external_request = external.await?.request().into_owned();
+                if let Some(name) = builtin_factory_name(&external_request) {
+                    if builtin_unmock_cuts
+                        .get(name)
+                        .is_some_and(|cut| *cut > (input_index, declaration.factory_start))
+                    {
+                        continue;
+                    }
+                    let requests =
+                        builtin_factory_requests(context, declaration_path, request, name).await?;
+                    let index = builtin_canonical_keys.len();
+                    let key = builtin_canonical_keys
+                        .entry(name.to_owned())
+                        .or_insert_with(|| format!("next-test-node:{id}:builtin:{index}"))
+                        .clone();
+                    for request in &requests {
+                        builtin_keys.insert(request.to_string(), key.clone());
+                    }
+                    let source = test_source(
+                        path.clone(),
+                        Some(format!("next-test-builtin-mock:{name}").into()),
+                        virtual_mock_wrapper_source(
+                            "next/dist/experimental/testing/mocking/runtime",
+                            &key,
+                        )?,
+                    )
+                    .await?;
+                    builtin_targets.push(
+                        MockBuiltinFactoryTarget {
+                            requests,
+                            wrapper_source: source,
+                        }
+                        .resolved_cell(),
+                    );
+                    registrations.push((
+                        key,
+                        external_request,
+                        declaration.factory_source.clone(),
+                        declaration.factory_start,
+                        declaration.original_factory_source.clone(),
+                        false,
+                        false,
+                        true,
+                    ));
+                    continue;
+                }
+            }
+            if allow_virtual_factory
+                && let Some(external) =
+                    ResolvedVc::try_downcast_type::<CachedExternalModule>(original)
+            {
+                let index = external_modules.len();
+                let (key, original_request) =
+                    if let Some(existing) = external_modules.get(&original) {
+                        existing.clone()
+                    } else {
+                        let native_original = external
+                            .await?
+                            .native_import_module()
+                            .ok_or_else(|| {
+                                test_input_error(
+                                    path.clone(),
+                                    "External factory originals require a native CJS or ESM module",
+                                )
+                            })?
+                            .to_resolved()
+                            .await?;
+                        let key = format!("next-test-node:{id}:external:{index}");
+                        let original_request = format!("next-test-external-original:{id}:{index}");
+                        external_originals.insert(
+                            RcStr::from(original_request.clone()),
+                            ResolvedVc::upcast(native_original),
+                        );
+                        external_modules.insert(original, (key.clone(), original_request.clone()));
+                        (key, original_request)
+                    };
+                external_keys.insert(request.to_owned(), key.clone());
+                let source = test_source(
+                    path.clone(),
+                    Some(format!("next-test-external-mock:{request}").into()),
+                    virtual_mock_wrapper_source(
+                        "next/dist/experimental/testing/mocking/runtime",
+                        &key,
+                    )?,
+                )
+                .await?;
+                builtin_targets.push(
+                    MockBuiltinFactoryTarget {
+                        requests: vec![RcStr::from(request)],
+                        wrapper_source: source,
+                    }
+                    .resolved_cell(),
+                );
+                registrations.push((
+                    key,
+                    original_request,
+                    declaration.factory_source.clone(),
+                    declaration.factory_start,
+                    declaration.original_factory_source.clone(),
+                    false,
+                    false,
+                    false,
+                ));
+                continue;
+            }
             let ident = original.ident().await?;
             if !ident.query.is_empty() || !ident.fragment.is_empty() {
                 return Err(test_input_error(
@@ -1579,6 +2406,17 @@ async fn prepare_test_module_with_loading(
                     crate::testing_cjs_mock::named_spy_exports(project, context, path, original)
                         .await?
                 }
+                EcmascriptExports::CommonJs(_) | EcmascriptExports::EmptyCommonJs
+                    if allow_cjs_named_spy
+                        && inherited.is_empty()
+                        && !declaration.automatic
+                        && declaration.has_object_return
+                        && !declaration.has_spread =>
+                {
+                    // The explicit object factory declares every replacement export.
+                    // Keep the actual compiled original behind its existing lazy thunk.
+                    Vec::new()
+                }
                 _ => {
                     return Err(test_input_error(
                         path.clone(),
@@ -1668,18 +2506,21 @@ async fn prepare_test_module_with_loading(
                     declaration.original_factory_source.clone(),
                     declaration.automatic,
                     declaration.spy,
+                    false,
                 ));
             }
         }
     }
     let mut actual_loaders = Vec::new();
+    let mut callable_originals = Vec::new();
+    let mut actual_requests: HashMap<ResolvedVc<Box<dyn Module>>, String> = HashMap::new();
     for (index, import) in plan.actual_imports.iter().enumerate() {
         let request = import.request.as_str();
         if matches!(request, "next" | "react" | "react-dom" | "vitest")
             || request.starts_with("next/")
             || request.starts_with("react/")
             || request.starts_with("react-dom/")
-            || request.starts_with("node:")
+            || (request.starts_with("node:") && !allow_native_actual_imports)
         {
             return Err(test_input_error(
                 path.clone(),
@@ -1689,9 +2530,12 @@ async fn prepare_test_module_with_loading(
                 ),
             ));
         }
+        let parsed_request = Request::parse(RcStr::from(request).into())
+            .to_resolved()
+            .await?;
         let resolved = esm_resolve(
             Vc::upcast(origin),
-            Request::parse(RcStr::from(request).into()),
+            *parsed_request,
             EcmaScriptModulesReferenceSubType::Import,
             ResolveErrorMode::Error,
             None,
@@ -1722,12 +2566,57 @@ async fn prepare_test_module_with_loading(
                 format!("The spec module cannot be its own vi.importActual target: {request}"),
             ));
         }
-        if ResolvedVc::try_downcast_type::<CachedExternalModule>(original).is_some() {
+        if let Some(external) = ResolvedVc::try_downcast_type::<CachedExternalModule>(original) {
+            let external = external.await?;
+            let builtin = builtin_factory_name(&external.request()).is_some();
+            if allow_native_actual_imports
+                && (matches!(&*parsed_request.await?, Request::Module {query, fragment, ..}
+                    if query.is_empty() && fragment.is_empty())
+                    || (builtin
+                        && request.starts_with("node:")
+                        && matches!(&*parsed_request.await?, Request::Uri {query, fragment, ..}
+                            if query.is_empty() && fragment.is_empty())))
+            {
+                let original_request = if let Some((_, request)) = external_modules.get(&original) {
+                    request.clone()
+                } else if let Some(request) = actual_requests.get(&original) {
+                    request.clone()
+                } else {
+                    let native_original = external
+                        .native_import_module()
+                        .ok_or_else(|| {
+                            test_input_error(
+                                path.clone(),
+                                "External importActual requires a native CJS or ESM module",
+                            )
+                        })?
+                        .to_resolved()
+                        .await?;
+                    let request = format!("next-test-external-actual:{id}:{index}");
+                    external_originals.insert(
+                        RcStr::from(request.clone()),
+                        ResolvedVc::upcast(native_original),
+                    );
+                    request
+                };
+                actual_requests.insert(original, original_request.clone());
+                actual_loaders.push((import.local.clone(), original_request));
+                continue;
+            }
             return Err(test_input_error(
                 path.clone(),
                 format!(
                     "vi.importActual targets must be compiled by Next; configure the external \
                      package for compilation: {request}"
+                ),
+            ));
+        }
+        if request.starts_with("node:") {
+            return Err(test_input_error(
+                path.clone(),
+                format!(
+                    "vi.importActual native URI targets require a certified Node builtin: \
+                     {request}"
                 ),
             ));
         }
@@ -1762,10 +2651,15 @@ async fn prepare_test_module_with_loading(
                     "vi.importActual target must be a compiled ESM module",
                 )
             })?;
-        if !matches!(
-            *placeable.get_exports().await?,
-            EcmascriptExports::EsmExports(_)
-        ) {
+        let exports = placeable.get_exports().await?;
+        if !matches!(*exports, EcmascriptExports::EsmExports(_))
+            && !(allow_cjs_named_spy
+                && inherited.is_empty()
+                && matches!(
+                    *exports,
+                    EcmascriptExports::CommonJs(_) | EcmascriptExports::EmptyCommonJs
+                ))
+        {
             return Err(test_input_error(
                 path.clone(),
                 format!("CommonJS/dynamic vi.importActual targets are unsupported: {request}"),
@@ -1773,6 +2667,8 @@ async fn prepare_test_module_with_loading(
         }
         let original_request = if let Some(target) = targets.get(&target_path) {
             target.1.clone()
+        } else if cache_actual_imports && let Some(request) = actual_requests.get(&original) {
+            request.clone()
         } else {
             let original_request = format!("next-test-actual:{id}:{index}");
             imports.insert_exact_alias(
@@ -1787,15 +2683,62 @@ async fn prepare_test_module_with_loading(
             );
             original_request
         };
+        if cache_actual_imports {
+            actual_requests.insert(original, original_request.clone());
+        }
+        if cache_actual_imports
+            && inherited.is_empty()
+            && project.next_mode().await?.is_development()
+            && plan.declarations.is_empty()
+            && plan.unmocks.is_empty()
+            && plan.hoisted.is_empty()
+            && plan.runtime_requests.is_empty()
+            && matches!(
+                *exports,
+                EcmascriptExports::CommonJs(_) | EcmascriptExports::EmptyCommonJs
+            )
+        {
+            if let Some(full) = commonjs_callable_publication_source(original).await? {
+                callable_originals.push((original_request.clone(), full, false));
+            }
+        }
         actual_loaders.push((import.local.clone(), original_request));
     }
     let mut mock_import_loaders = Vec::new();
+    let mut commonjs_originals = HashMap::new();
     // One dedicated source/request per resolved target keeps the native adapter
     // function stable across aliases and repeated helper callsites.
     let mut browser_originals: FxIndexMap<FileSystemPath, String> = FxIndexMap::default();
     for (index, import) in plan.mock_imports.iter().enumerate() {
-        let (target_path, _) =
-            resolve_mock_helper_target(context, path, &import.request, "vi.importMock").await?;
+        if let Some(key) = virtual_keys
+            .get(&import.request)
+            .or_else(|| builtin_keys.get(&import.request))
+            .or_else(|| external_keys.get(&import.request))
+        {
+            mock_import_loaders.push((
+                import.local.clone(),
+                import.request.clone(),
+                (Some(key.clone()), None),
+                false,
+            ));
+            continue;
+        }
+        let (target_path, original) = resolve_mock_helper_target(
+            context,
+            path,
+            &import.request,
+            "vi.importMock",
+            allow_cjs_named_spy && inherited.is_empty(),
+            false,
+        )
+        .await?;
+        let commonjs = matches!(
+            *ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(original)
+                .context("The resolved mock target must remain chunk-placeable")?
+                .get_exports()
+                .await?,
+            EcmascriptExports::CommonJs(_) | EcmascriptExports::EmptyCommonJs
+        );
         let (request, kind) = if let Some(target) = targets.get(&target_path) {
             if let Some((manual_source, _)) = manual_redirects.get(&target_path) {
                 let request = format!("next-test-import-mock:{id}:{index}:manual");
@@ -1869,12 +2812,64 @@ async fn prepare_test_module_with_loading(
         } else {
             request
         };
-        mock_import_loaders.push((import.local.clone(), request, kind));
+        let request = if commonjs && kind.1.is_some() {
+            commonjs_originals
+                .entry(original)
+                .or_insert(request)
+                .clone()
+        } else {
+            request
+        };
+        if commonjs
+            && kind.1.is_some()
+            && loading != MockImportLoading::BrowserStampedOriginal
+            && project.next_mode().await?.is_development()
+            && plan.declarations.is_empty()
+            && plan.unmocks.is_empty()
+            && plan.hoisted.is_empty()
+            && plan.runtime_requests.is_empty()
+        {
+            if let Some(full) = commonjs_callable_publication_source(original).await? {
+                callable_originals.push((request.clone(), full, true));
+            }
+        }
+        mock_import_loaders.push((import.local.clone(), request, kind, commonjs));
     }
     // After-resolve plugins receive the original request and a bare path, so
     // aliases can hide an effective query. Inspect the actual unspecialized
     // graph before replacing sources rather than collapsing distinct modules.
-    let spec = context
+    let builtin_plugin = if builtin_targets.is_empty() {
+        None
+    } else {
+        Some(
+            MockBuiltinResolvePlugin {
+                root: root.clone(),
+                next_package: get_next_package(root.clone()).await?,
+                targets: builtin_targets,
+            }
+            .resolved_cell(),
+        )
+    };
+    let inspection_context = if virtual_keys.is_empty() && builtin_plugin.is_none() {
+        context
+    } else {
+        let base = context.await?;
+        let mut options =
+            (*base.resolve_options_context).with_extended_import_map(imports.clone().cell());
+        if let Some(plugin) = builtin_plugin {
+            options = builtin_mock_resolve_options(options, *plugin);
+        }
+        ModuleAssetContext::new(
+            *base.transitions,
+            *base.compile_time_info,
+            *base.module_options_context,
+            options,
+            base.layer.clone(),
+        )
+        .to_resolved()
+        .await?
+    };
+    let spec = inspection_context
         .process(
             Vc::upcast(FileSource::new(path.clone())),
             ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
@@ -2095,9 +3090,14 @@ async fn prepare_test_module_with_loading(
                         original_factory_source,
                         automatic,
                         spy,
+                        native_external,
                     )| MockRegistrationSource {
                         key,
-                        original_request,
+                        original_request: if *native_external {
+                            MockOriginalSource::NativeExternal(original_request)
+                        } else {
+                            MockOriginalSource::Compiled(original_request)
+                        },
                         factory_source,
                         factory_start: *factory_start,
                         original_factory_source: Some(original_factory_source),
@@ -2121,25 +3121,38 @@ async fn prepare_test_module_with_loading(
                 .map(|(local, original_request)| MockActualSource {
                     local,
                     original_request,
+                    cache: cache_actual_imports,
                 })
                 .collect::<Vec<_>>(),
             &mock_import_loaders
                 .iter()
-                .map(|(local, request, (factory, spy))| MockImportSource {
-                    local,
-                    original_request: request,
-                    kind: if let Some(key) = factory {
-                        MockImportKind::Factory(key)
-                    } else if let Some(spy) = spy {
-                        if loading == MockImportLoading::BrowserStampedOriginal {
-                            MockImportKind::BrowserAutomatic { spy: *spy }
+                .map(
+                    |(local, request, (factory, spy), commonjs)| MockImportSource {
+                        local,
+                        original_request: request,
+                        kind: if let Some(key) = factory {
+                            MockImportKind::Factory(key)
+                        } else if let Some(spy) = spy {
+                            if loading == MockImportLoading::BrowserStampedOriginal {
+                                MockImportKind::BrowserAutomatic { spy: *spy }
+                            } else if *commonjs
+                                && callable_originals.iter().any(
+                                    |(original_request, _, raw_required)| {
+                                        *raw_required && original_request == request
+                                    },
+                                )
+                            {
+                                MockImportKind::CommonJsPublishedAutomatic { spy: *spy }
+                            } else if *commonjs {
+                                MockImportKind::CommonJsAutomatic { spy: *spy }
+                            } else {
+                                MockImportKind::Automatic { spy: *spy }
+                            }
                         } else {
-                            MockImportKind::Automatic { spy: *spy }
-                        }
-                    } else {
-                        MockImportKind::Redirect
+                            MockImportKind::Redirect
+                        },
                     },
-                })
+                )
                 .collect::<Vec<_>>(),
             &plan.api_bindings,
         )?,
@@ -2152,7 +3165,7 @@ async fn prepare_test_module_with_loading(
     );
     let imports = imports.cell().to_resolved().await?;
     let base = context.await?;
-    let resolve_options = if graph_targets.is_empty() {
+    let mut resolve_options = if graph_targets.is_empty() {
         (*base.resolve_options_context).with_extended_import_map(*imports)
     } else {
         let plugin = MockResolvePlugin::new(MockGraphTargets(graph_targets).cell())
@@ -2160,6 +3173,9 @@ async fn prepare_test_module_with_loading(
             .await?;
         mock_resolve_options(*base.resolve_options_context, *imports, *plugin)
     };
+    if let Some(plugin) = builtin_plugin {
+        resolve_options = builtin_mock_resolve_options(resolve_options, *plugin);
+    }
     let transitions = if browser_originals.is_empty() {
         base.transitions
     } else {
@@ -2189,14 +3205,84 @@ async fn prepare_test_module_with_loading(
     )
     .to_resolved()
     .await?;
+    let has_native_registration = !external_originals.is_empty()
+        || !native_unmock_cuts.is_empty()
+        || !builtin_unmock_cuts.is_empty();
+    let context = if has_native_registration {
+        // The eager registration and every derived spec context share this actual runtime owner.
+        let base = context.await?;
+        let existing = base.transitions.await?;
+        let mut rules = existing.transition_rules.clone();
+        rules.push(
+            crate::testing_external_modules::runtime_boundary_rule(root.clone(), context).await?,
+        );
+        let transitions = TransitionOptions {
+            named_transitions: existing.named_transitions.clone(),
+            transition_rules: rules,
+            ..Default::default()
+        }
+        .resolved_cell();
+        ModuleAssetContext::new(
+            *transitions,
+            *base.compile_time_info,
+            *base.module_options_context,
+            *base.resolve_options_context,
+            base.layer.clone(),
+        )
+        .to_resolved()
+        .await?
+    } else {
+        context
+    };
     let registration = context
         .process(
             *registration_source,
-            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
+            if external_originals.is_empty() {
+                ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined)
+            } else {
+                ReferenceType::Internal(ResolvedVc::cell(external_originals))
+            },
         )
         .module()
         .to_resolved()
         .await?;
+    let context = if has_native_registration {
+        let mut registration_import = ImportMap::empty();
+        let (registration_bridge, rule) = crate::testing_external_modules::resolved_module_bridge(
+            registration,
+            &format!("{id}/registration.mjs"),
+        )
+        .await?;
+        registration_import.insert_exact_alias(
+            registration_request.clone(),
+            ImportMapping::Direct(ResolveResult::source(registration_bridge).resolved_cell())
+                .resolved_cell(),
+        );
+        let base = context.await?;
+        let existing = base.transitions.await?;
+        let mut rules = vec![rule];
+        rules.extend(existing.transition_rules.iter().cloned());
+        let transitions = TransitionOptions {
+            named_transitions: existing.named_transitions.clone(),
+            transition_rules: rules,
+            ..Default::default()
+        }
+        .resolved_cell();
+        ModuleAssetContext::new(
+            *transitions,
+            *base.compile_time_info,
+            *base.module_options_context,
+            registration_module_resolve_options(
+                *base.resolve_options_context,
+                registration_import.cell(),
+            ),
+            base.layer.clone(),
+        )
+        .to_resolved()
+        .await?
+    } else {
+        context
+    };
     Ok(PreparedTestModule {
         context,
         setup_context,
@@ -2223,11 +3309,13 @@ async fn prepare_test_module_with_loading(
         )
         .await?,
         registration: Some(registration),
-        module_reset: false,
+        module_reset: plan.reset_modules || !plan.runtime_requests.is_empty(),
         coverage_sources,
-        runtime_requests: Vec::new(),
+        runtime_requests: plan.runtime_requests,
+        static_runtime_origin,
         cjs_named_spy,
         mock_wrappers,
+        callable_originals,
     })
 }
 
@@ -2247,10 +3335,21 @@ struct NodeTestEndpoint {
     import_coverage_roles: bool,
 }
 
+#[turbo_tasks::value(shared)]
+struct PreparedNodeTestEntry {
+    module: ResolvedVc<Box<dyn Module>>,
+    demand_graph: Option<ResolvedVc<RuntimeImportDemandGraph>>,
+}
+
 #[turbo_tasks::value_impl]
 impl NodeTestEndpoint {
     #[turbo_tasks::function]
-    async fn entry_module(&self) -> Result<Vc<Box<dyn Module>>> {
+    async fn entry_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
+        Ok(*self.prepared_entry().await?.module)
+    }
+
+    #[turbo_tasks::function]
+    async fn prepared_entry(&self) -> Result<Vc<PreparedNodeTestEntry>> {
         let environment_bootstrap = if self.runtime_env {
             crate::testing_env::bootstrap(self.project).await?
         } else {
@@ -2296,15 +3395,22 @@ impl NodeTestEndpoint {
             )
             .await?;
             let source = test_entry_source(source).await?;
-            return Ok(context
+            let module = context
                 .process(
                     source,
                     ReferenceType::Internal(ResolvedVc::cell(internal_assets)),
                 )
-                .module());
+                .module()
+                .to_resolved()
+                .await?;
+            return Ok(PreparedNodeTestEntry {
+                module,
+                demand_graph: None,
+            }
+            .cell());
         }
         if crate::testing_mock_inputs::has_mock_setups(&self.setup_paths).await? {
-            return crate::testing_mock_inputs::entry(
+            let module = crate::testing_mock_inputs::entry(
                 self.project,
                 &self.path,
                 &self.id,
@@ -2313,7 +3419,14 @@ impl NodeTestEndpoint {
                 self.runtime_env,
                 &environment_bootstrap,
             )
-            .await;
+            .await?
+            .to_resolved()
+            .await?;
+            return Ok(PreparedNodeTestEntry {
+                module,
+                demand_graph: None,
+            }
+            .cell());
         }
         if static_mock_plan(&self.path).await?.reset_modules
             && (!self.setup_paths.is_empty() || !self.snapshot_serializers.is_empty())
@@ -2333,19 +3446,208 @@ impl NodeTestEndpoint {
                 "CommonJS named-import spies do not support setup or serializers yet",
             ));
         }
-        let context = prepared.context;
+        let plan = static_mock_plan(&self.path).await?;
+        let isolated_node_runtime = if let Some(entry) = self.project.await?.test_entry {
+            let entry = entry.await?;
+            &*entry.environment == "node"
+                && !entry.browser_client
+                && entry.route.is_none()
+                && entry.setup_files.is_empty()
+                && entry.snapshot_serializers.is_empty()
+                && entry.cohort_files.is_empty()
+                && !entry.source_coverage
+                && !entry.import_coverage_roles
+                && !entry.dependency_plan
+        } else {
+            false
+        };
+        let commonjs_runtime = if prepared.module_reset
+            && !prepared.runtime_requests.is_empty()
+            && prepared.registration.is_none()
+            && plan.declarations.is_empty()
+            && plan.hoisted.is_empty()
+            && plan.mock_imports.is_empty()
+            && plan.actual_imports.is_empty()
+            && plan.unmocks.is_empty()
+            && isolated_node_runtime
+            && self.project.next_mode().await?.is_development()
+            && self.runtime_env
+            && self.setup_paths.is_empty()
+            && self.snapshot_serializers.is_empty()
+            && self.cohort_paths.is_empty()
+            && !self.source_coverage
+            && !self.dependency_plan
+        {
+            crate::testing_cjs_reset::prepare_runtime(
+                self.project,
+                prepared.context,
+                prepared.source,
+                &prepared.runtime_requests,
+                &self.id,
+            )
+            .await?
+        } else {
+            None
+        };
+        let native_runtime = if commonjs_runtime.is_none()
+            && !prepared.runtime_requests.is_empty()
+            && self.project.next_mode().await?.is_development()
+            && let Some(entry) = self.project.await?.test_entry
+        {
+            let entry = entry.await?;
+            if &*entry.environment == "node"
+                && !entry.browser_client
+                && entry.route.is_none()
+                && entry.setup_files.is_empty()
+                && entry.snapshot_serializers.is_empty()
+                && entry.cohort_files.is_empty()
+                && !entry.source_coverage
+                && !entry.import_coverage_roles
+                && !entry.dependency_plan
+            {
+                Some(if let Some(origin) = prepared.static_runtime_origin {
+                    let static_native = crate::testing_static_runtime::prepare(
+                        self.project.project_path().owned().await?,
+                        origin,
+                        prepared.context,
+                        prepared.source,
+                        prepared
+                            .registration
+                            .context("Static runtime requires actual eager registration")?,
+                        &self.path,
+                        &prepared.runtime_requests,
+                        &self.id,
+                    )
+                    .await?;
+                    (
+                        static_native.context,
+                        static_native.certificates,
+                        static_native.pairs,
+                    )
+                } else {
+                    let native = crate::testing_external_modules::runtime_native_external_context(
+                        self.project.project_path().owned().await?,
+                        prepared.context,
+                        prepared.source,
+                        &self.id,
+                        &self.path,
+                        &prepared.runtime_requests,
+                    )
+                    .await?;
+                    let native = if native.certificates.is_empty() {
+                        crate::testing_dynamic_mock::graph_native_external_context(
+                            self.project.project_path().owned().await?,
+                            native.context,
+                            prepared.source,
+                            &self.path,
+                            &prepared.runtime_requests,
+                            &self.id,
+                        )
+                        .await?
+                    } else {
+                        native
+                    };
+                    (native.context, native.certificates, Vec::new())
+                })
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        let context = native_runtime
+            .as_ref()
+            .map_or(prepared.context, |native| native.0);
+        let native_certificates = native_runtime
+            .as_ref()
+            .map_or(&[][..], |native| native.1.as_slice());
+        let static_pairs = native_runtime
+            .as_ref()
+            .map_or(&[][..], |native| native.2.as_slice());
+        let commonjs_reset = if commonjs_runtime.is_some() {
+            commonjs_runtime
+        } else if prepared.module_reset
+            && prepared.runtime_requests.is_empty()
+            && prepared.registration.is_none()
+            && plan.declarations.is_empty()
+            && plan.hoisted.is_empty()
+            && plan.mock_imports.is_empty()
+            && plan.unmocks.is_empty()
+            && self.project.next_mode().await?.is_development()
+            && self.runtime_env
+            && self.setup_paths.is_empty()
+            && self.snapshot_serializers.is_empty()
+            && self.cohort_paths.is_empty()
+            && !self.source_coverage
+            && !self.dependency_plan
+        {
+            crate::testing_cjs_reset::prepare(self.project, context, prepared.source, &self.id)
+                .await?
+        } else {
+            None
+        };
+        if !plan.actual_imports.is_empty() && prepared.module_reset && commonjs_reset.is_none() {
+            return Err(test_input_error(
+                self.path.clone(),
+                "CommonJS actual-import resets require an isolated development Node certified \
+                 nonleaf object or callable graph",
+            ));
+        }
+        let context = commonjs_reset
+            .as_ref()
+            .map_or(context, |commonjs| commonjs.context);
         let setup_context = prepared.setup_context;
         let module = context
             .process(
-                *prepared.source,
+                *commonjs_reset
+                    .as_ref()
+                    .map_or(prepared.source, |commonjs| commonjs.source),
                 ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
             )
             .module()
             .to_resolved()
             .await?;
+        if let Some(commonjs) = &commonjs_reset {
+            commonjs.validate_owner(module).await?;
+        }
         let mut internal_assets = fxindexmap! { rcstr!("INNER_TEST_MODULE") => module };
+        let dynamic_manifest = if !prepared.runtime_requests.is_empty() {
+            Some(
+                crate::testing_dynamic_mock::manifest(
+                    self.project,
+                    context,
+                    module,
+                    &self.path,
+                    &prepared.runtime_requests,
+                    native_certificates,
+                    static_pairs,
+                    commonjs_reset.as_ref(),
+                )
+                .await?,
+            )
+        } else {
+            None
+        };
+        let native_resettable = dynamic_manifest
+            .as_ref()
+            .map_or(&[][..], |manifest| manifest.native_resettable.as_slice());
         let module_runtime = if prepared.module_reset {
-            let manifest = module_reset_manifest(self.project, context, module, &self.path).await?;
+            let manifest = module_reset_manifest(
+                self.project,
+                context,
+                module,
+                &self.path,
+                native_resettable,
+                dynamic_manifest
+                    .as_ref()
+                    .map_or(&[][..], |manifest| manifest.native_protected.as_slice()),
+                dynamic_manifest
+                    .as_ref()
+                    .map_or(&[][..], |manifest| manifest.compiled_resettable.as_slice()),
+                static_pairs,
+                commonjs_reset.as_ref(),
+            )
+            .await?;
             internal_assets.insert(rcstr!("INNER_TEST_MODULE_CACHE"), manifest);
             "export const moduleTesting = \
              require('next/dist/experimental/testing/mocking/module-cache');\nexport function \
@@ -2357,16 +3659,50 @@ impl NodeTestEndpoint {
             ""
         };
 
-        let dynamic_runtime = if !prepared.runtime_requests.is_empty() {
-            let manifest = crate::testing_dynamic_mock::manifest(
-                self.project,
-                context,
+        let mut demand_graph = dynamic_manifest
+            .as_ref()
+            .and_then(|manifest| manifest.demand_graph);
+        if !prepared.callable_originals.is_empty()
+            && self.runtime_env
+            && self.project.next_mode().await?.is_development()
+            && self.setup_paths.is_empty()
+            && self.snapshot_serializers.is_empty()
+            && self.cohort_paths.is_empty()
+            && !self.source_coverage
+            && !self.dependency_plan
+        {
+            let certificates = commonjs_callable_namespaces(
                 module,
-                &self.path,
-                &prepared.runtime_requests,
+                prepared
+                    .registration
+                    .context("Callable namespace requires its actual compiler helper")?,
+                &prepared.callable_originals,
             )
             .await?;
-            internal_assets.insert(rcstr!("INNER_TEST_DYNAMIC_MOCKS"), manifest);
+            if !certificates.is_empty() {
+                let (edges, native_imports, mut namespaces) = if let Some(graph) = demand_graph {
+                    let graph = graph.await?;
+                    (
+                        graph.edges.clone(),
+                        graph.native_imports.clone(),
+                        graph.namespaces.clone(),
+                    )
+                } else {
+                    (Vec::new(), Vec::new(), Vec::new())
+                };
+                namespaces.extend(certificates);
+                demand_graph = Some(
+                    RuntimeImportDemandGraph {
+                        edges,
+                        native_imports,
+                        namespaces,
+                    }
+                    .resolved_cell(),
+                );
+            }
+        }
+        let dynamic_runtime = if let Some(manifest) = dynamic_manifest {
+            internal_assets.insert(rcstr!("INNER_TEST_DYNAMIC_MOCKS"), manifest.module);
             "export function initializeDynamicModuleMocking(options) { return \
              require('next/dist/experimental/testing/mocking/dynamic').\
              initializeDynamicModuleMocking(__turbopack_context__, \
@@ -2455,18 +3791,32 @@ impl NodeTestEndpoint {
         )
         .await?;
         let source = test_entry_source(source).await?;
-        Ok(context
+        let module = context
             .process(
                 source,
                 ReferenceType::Internal(ResolvedVc::cell(internal_assets)),
             )
-            .module())
+            .module()
+            .to_resolved()
+            .await?;
+        Ok(PreparedNodeTestEntry {
+            module,
+            demand_graph,
+        }
+        .cell())
     }
 
     #[turbo_tasks::function]
     async fn output_assets(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
-        let module = self.entry_module().to_resolved().await?;
+        let prepared = self.prepared_entry().await?;
+        let module = prepared.module;
+        let graph = this.project.module_graph(*module);
+        let graph = if let Some(demands) = prepared.demand_graph {
+            graph.with_runtime_import_demands(*demands)
+        } else {
+            graph
+        };
         let chunking_context = this.project.server_chunking_context(false);
         let chunking_context = if this.source_coverage {
             chunking_context.with_source_coverage()
@@ -2485,7 +3835,7 @@ impl NodeTestEndpoint {
                     .await?
                     .join(&format!("server/next-test/{}.js", this.id))?,
                 ChunkGroup::Entry(vec![module]),
-                this.project.module_graph(*module),
+                graph,
                 OutputAssets::empty(),
                 OutputAssets::empty(),
                 AvailabilityInfo::root(),
@@ -2614,9 +3964,31 @@ impl NodeTestEndpoint {
                         FileContent::Content(File::from(if setup_mocks {
                             crate::testing_mock_inputs::metadata(this.project, &this.path, &this.id, &this.setup_paths, this.runtime_env).await?
                         } else if !plan.runtime_requests.is_empty() {
-                            "{\"moduleCache\":{\"version\":1},\"dynamicModuleMocking\":{\"version\"\
-                             :1}}"
-                                .to_string()
+                            if plan.declarations.is_empty() {
+                                "{\"moduleCache\":{\"version\":1},\"dynamicModuleMocking\":{\"version\"\
+                                 :1}}".to_string()
+                            } else {
+                                let prepared = prepare_node_test(
+                                    this.project,
+                                    &this.path,
+                                    &this.id,
+                                    this.runtime_env,
+                                ).await?;
+                                let paired = crate::testing_static_runtime::prepare(
+                                    this.project.project_path().owned().await?,
+                                    prepared.static_runtime_origin.context("Static runtime requires the original compiler context")?,
+                                    prepared.context,
+                                    prepared.source,
+                                    prepared.registration.context("Static runtime requires actual eager registration")?,
+                                    &this.path,
+                                    &prepared.runtime_requests,
+                                    &this.id,
+                                ).await?;
+                                if paired.pairs.is_empty() {
+                                    return Err(test_input_error(this.path.clone(), "Static runtime activation requires actual compiler namespace/provider pairs"));
+                                }
+                                "{\"moduleCache\":{\"version\":1},\"dynamicModuleMocking\":{\"version\":1,\"staticMocks\":1},\"moduleMocking\":{\"version\":1}}".to_string()
+                            }
                         } else if plan.reset_modules {
                             "{\"moduleCache\":{\"version\":1}}".to_string()
                         } else {
@@ -2767,6 +4139,8 @@ pub async fn snapshot_endpoint_operation(
     let client_root = project.client_relative_path().owned().await?;
     let destination = node_root.parent().join(&directory)?;
     let mut assets = vec![];
+    let mut external_links = vec![];
+    let mut replaced_external_paths = HashSet::new();
     for asset in all_assets_from_entries(*output.output_assets).await?.iter() {
         let path = asset.path().await?;
         let relative = node_root
@@ -2780,7 +4154,12 @@ pub async fn snapshot_endpoint_operation(
             )
         })?;
         let content = asset.content();
-        if matches!(&*content.await?, AssetContent::Redirect(_)) {
+        if let AssetContent::Redirect(link) = &*content.await? {
+            if ResolvedVc::try_downcast_type::<ExternalsSymlinkAsset>(*asset).is_some() {
+                external_links.push((relative.to_owned(), link.target.clone()));
+                replaced_external_paths.insert(relative.to_owned());
+                continue;
+            }
             bail!(
                 "Test artifacts do not yet support external package links or other symbolic-link \
                  output assets: {}. Pinning external dependency contents is required before this \
@@ -2795,6 +4174,36 @@ pub async fn snapshot_endpoint_operation(
         ));
     }
     let mut snapshot_output_paths = None;
+    if !external_links.is_empty() {
+        let entry =
+            config_entry.context("External package capture requires a native test entry")?;
+        let external_assets = crate::testing_external_packages::capture_external_packages(
+            external_links,
+            &destination,
+            &entry.await?.id,
+        )
+        .await?;
+        let captured_paths = all_asset_paths(
+            Vc::cell(external_assets.clone()),
+            destination.clone(),
+            Some(HashAlgorithm::Sha256Base64),
+        )
+        .owned()
+        .await?;
+        let mut output_paths = output.output_paths.owned().await?;
+        let EndpointOutputPaths::NodeJs { server_paths, .. } = &mut output_paths else {
+            bail!("External package capture requires a Node snapshot output");
+        };
+        server_paths.retain(|path| !replaced_external_paths.contains(path.path.as_str()));
+        for captured in captured_paths {
+            if server_paths.iter().any(|path| path.path == captured.path) {
+                bail!("Captured external package duplicates an existing output asset");
+            }
+            server_paths.push(captured);
+        }
+        snapshot_output_paths = Some(output_paths.cell());
+        assets.extend(external_assets);
+    }
     if let Some(operation) = observed_output {
         use turbo_tasks::CollectiblesSource;
         let entry = config_entry.context("Native config input entry disappeared")?;
@@ -2811,7 +4220,10 @@ pub async fn snapshot_endpoint_operation(
         if receipt_paths.len() != 1 {
             bail!("Native config receipt must expose exactly one actual output asset");
         }
-        let mut output_paths = output.output_paths.owned().await?;
+        let mut output_paths = snapshot_output_paths
+            .unwrap_or(*output.output_paths)
+            .owned()
+            .await?;
         let EndpointOutputPaths::NodeJs { server_paths, .. } = &mut output_paths else {
             bail!("Native config receipt requires a Node snapshot output");
         };
@@ -2870,5 +4282,309 @@ mod production_factory_tests {
                 assert!(!production_factory_plan(&plan), "{body}");
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod typescript_fallback_tests {
+    use anyhow::{Context, Result};
+    use turbo_rcstr::{RcStr, rcstr};
+    use turbo_tasks::{TurboTasks, Vc};
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+    use turbo_tasks_fs::{DiskFileSystem, FileSystem};
+    use turbopack::{
+        ModuleAssetContext,
+        module_options::{
+            EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions,
+        },
+        transition::TransitionOptions,
+    };
+    use turbopack_core::{
+        compile_time_info::CompileTimeInfo,
+        condition::ContextCondition,
+        environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+        ident::Layer,
+        module::Module,
+        reference_type::EcmaScriptModulesReferenceSubType,
+        resolve::{
+            ResolveErrorMode,
+            options::{ImportMap, ImportMapping},
+            origin::PlainResolveOrigin,
+            parse::Request,
+        },
+    };
+    use turbopack_resolve::{
+        ecmascript::esm_resolve, resolve_options_context::ResolveOptionsContext,
+    };
+
+    use crate::testing::test_resolve_options_context;
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn relative_typescript_fallbacks_use_actual_test_context_and_keep_javascript()
+    -> Result<()> {
+        #[turbo_tasks::function(operation, root)]
+        async fn operation(disk_root: RcStr, project_name: RcStr) -> Result<()> {
+            let root =
+                DiskFileSystem::new(rcstr!("test-typescript-fallbacks"), Vc::cell(disk_root))
+                    .root()
+                    .owned()
+                    .await?;
+            let project = root.join(&project_name)?;
+            let nested = project.join("nested")?;
+            let mut existing = ImportMap::empty();
+            existing.insert_exact_alias(
+                "./configured.js",
+                ImportMapping::PrimaryAlternative(rcstr!("./override.ts"), None).resolved_cell(),
+            );
+            let leaf = ResolveOptionsContext {
+                enable_typescript: true,
+                enable_react: true,
+                fallback_import_map: Some(existing.resolved_cell()),
+                ..Default::default()
+            }
+            .resolved_cell();
+            let base = ResolveOptionsContext {
+                enable_typescript: true,
+                enable_react: true,
+                rules: vec![(ContextCondition::InPath(nested.clone()), leaf)],
+                ..Default::default()
+            }
+            .resolved_cell();
+            let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
+                NodeJsEnvironment::default().resolved_cell(),
+            ));
+            let info = CompileTimeInfo::new(environment).to_resolved().await?;
+            for decorated in [false, true] {
+                let options = if decorated {
+                    test_resolve_options_context(*base, project.clone(), false)
+                } else {
+                    *base
+                };
+                let context = ModuleAssetContext::new(
+                    TransitionOptions::default().cell(),
+                    *info,
+                    ModuleOptionsContext {
+                        ecmascript: EcmascriptOptionsContext {
+                            enable_typescript_transform: Some(
+                                TypescriptTransformOptions::default().resolved_cell(),
+                            ),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    }
+                    .cell(),
+                    options,
+                    Layer::new(rcstr!("test-typescript-fallbacks")),
+                )
+                .to_resolved()
+                .await?;
+                for (directory, requests) in [
+                    (
+                        project.clone(),
+                        vec![
+                            ("./both.js", Some("both.js")),
+                            ("./prefer-ts.js", decorated.then_some("prefer-ts.ts")),
+                            ("./only-tsx.js", decorated.then_some("only-tsx.tsx")),
+                            ("./only-mts.mjs", decorated.then_some("only-mts.mts")),
+                            ("./only-cts.cjs", decorated.then_some("only-cts.cts")),
+                            ("./missing.js", None),
+                        ],
+                    ),
+                    (
+                        nested.clone(),
+                        vec![
+                            ("./configured.js", Some("override.ts")),
+                            ("../prefer-ts.js", decorated.then_some("../prefer-ts.ts")),
+                            ("../both.js", Some("../both.js")),
+                        ],
+                    ),
+                ] {
+                    let origin = PlainResolveOrigin::new(
+                        Vc::upcast(*context),
+                        directory.join("entry.test.ts")?,
+                    );
+                    for (request, expected) in requests {
+                        // This is the production ESM import path: it asks the actual
+                        // ModuleAssetContext for parent-directory resolve options.
+                        let resolved = esm_resolve(
+                            Vc::upcast(origin),
+                            Request::parse_string(request.into()),
+                            EcmaScriptModulesReferenceSubType::Import,
+                            ResolveErrorMode::Ignore,
+                            None,
+                        )
+                        .await?;
+                        let modules = resolved.await?.primary_modules().await?;
+                        if let Some(expected) = expected {
+                            assert_eq!(modules.len(), 1, "{decorated}: {request}");
+                            assert_eq!(
+                                modules[0].ident().await?.path,
+                                directory.join(expected)?,
+                                "{decorated}: {request}"
+                            );
+                        } else {
+                            assert!(modules.is_empty(), "{decorated}: {request}");
+                        }
+                    }
+                }
+            }
+            Ok(())
+        }
+        let repository = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .context("crates directory")?
+            .parent()
+            .context("repository directory")?;
+        let directory = tempfile::Builder::new()
+            .prefix(".next-test-ts-fallback-")
+            .tempdir_in(repository)?;
+        std::fs::create_dir(directory.path().join("nested"))?;
+        std::fs::write(
+            directory.path().join("package.json"),
+            "{\"private\":true,\"type\":\"module\"}\n",
+        )?;
+        std::fs::write(
+            directory.path().join("tsconfig.json"),
+            "{\"compilerOptions\":{\"moduleResolution\":\"bundler\"}}\n",
+        )?;
+        for file in [
+            "entry.test.ts",
+            "both.js",
+            "both.ts",
+            "prefer-ts.ts",
+            "prefer-ts.tsx",
+            "only-tsx.tsx",
+            "only-mts.mts",
+            "only-cts.cts",
+            "nested/entry.test.ts",
+            "nested/configured.ts",
+            "nested/override.ts",
+        ] {
+            std::fs::write(directory.path().join(file), "export const source = 1;\n")?;
+        }
+        let disk_root = repository
+            .canonicalize()?
+            .to_str()
+            .context("UTF-8 repository")?
+            .into();
+        let project_name = directory
+            .path()
+            .file_name()
+            .context("fixture name")?
+            .to_str()
+            .context("UTF-8 fixture name")?
+            .into();
+        let tasks = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tasks
+            .run_once(async move {
+                operation(disk_root, project_name)
+                    .read_strongly_consistent()
+                    .await
+            })
+            .await?;
+        Ok(())
+    }
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn callable_publication_keeps_actual_strict_certificate_identity() -> Result<()> {
+        #[turbo_tasks::function(operation, root)]
+        async fn operation(disk_root: RcStr, project_name: RcStr) -> Result<()> {
+            let root = DiskFileSystem::new(
+                rcstr!("test-callable-publication-certificate"),
+                Vc::cell(disk_root),
+            )
+            .root()
+            .owned()
+            .await?;
+            let project = root.join(&project_name)?;
+            let info = CompileTimeInfo::new(Environment::new(ExecutionEnvironment::NodeJsLambda(
+                NodeJsEnvironment::default().resolved_cell(),
+            )))
+            .to_resolved()
+            .await?;
+            let context = ModuleAssetContext::new(
+                TransitionOptions::default().cell(),
+                *info,
+                ModuleOptionsContext::default().cell(),
+                ResolveOptionsContext::default().cell(),
+                Layer::new(rcstr!("test-callable-publication-certificate")),
+            )
+            .to_resolved()
+            .await?;
+            for (request, expected_strict, extended) in [
+                ("./ordinary.cjs", turbopack_ecmascript::cjs_reset_export::CommonJsResetExportShape::FunctionBinding, false),
+                ("./object.cjs", turbopack_ecmascript::cjs_reset_export::CommonJsResetExportShape::ObjectLiteral, false),
+                ("./unknown.cjs", turbopack_ecmascript::cjs_reset_export::CommonJsResetExportShape::Unsupported, false),
+                ("./self.cjs", turbopack_ecmascript::cjs_reset_export::CommonJsResetExportShape::Unsupported, true),
+            ] {
+                let origin = PlainResolveOrigin::new(Vc::upcast(*context), project.join("entry.test.mjs")?);
+                let resolved = esm_resolve(Vc::upcast(origin), Request::parse_string(request.into()), EcmaScriptModulesReferenceSubType::Import, ResolveErrorMode::Ignore, None).await?;
+                let modules = resolved.await?.primary_modules().await?;
+                assert_eq!(modules.len(), 1, "{request}");
+                let full = crate::testing::commonjs_full_owner(modules[0]).await?.context("actual resolved CJS full owner")?;
+                let strict = turbopack_ecmascript::cjs_reset_export::commonjs_reset_export_certificate(*full).to_resolved().await?;
+                let optional = turbopack_ecmascript::cjs_reset_export::commonjs_callable_publication_certificate(*full).to_resolved().await?;
+                let strict_again = turbopack_ecmascript::cjs_reset_export::commonjs_reset_export_certificate(*full).to_resolved().await?;
+                assert_eq!(strict, strict_again, "{request}: strict task identity changed");
+                assert_eq!(strict.await?.shape, expected_strict, "{request}");
+                assert_eq!(strict.await?.module, full);
+                assert_eq!(optional.await?.module, full);
+                assert_eq!(strict == optional, !extended, "{request}: optional certificate replaced an existing result");
+                assert_eq!(optional.await?.shape, if extended { turbopack_ecmascript::cjs_reset_export::CommonJsResetExportShape::FunctionBinding } else { expected_strict });
+            }
+            Ok(())
+        }
+        let repository = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .context("crates directory")?
+            .parent()
+            .context("repository directory")?;
+        let directory = tempfile::Builder::new()
+            .prefix(".next-test-cjs-certificate-")
+            .tempdir_in(repository)?;
+        for (file, source) in [
+            ("package.json", "{\"private\":true,\"type\":\"module\"}\n"),
+            ("entry.test.mjs", "export {};\n"),
+            (
+                "ordinary.cjs",
+                "function exported(value) { return value }; exported.label='root'; \
+                 module.exports=exported;\n",
+            ),
+            ("object.cjs", "module.exports={value:1};\n"),
+            ("unknown.cjs", "module.exports=Promise.resolve(1);\n"),
+            (
+                "self.cjs",
+                "function exported(value) { return value }; exported.__esModule=true; \
+                 exported.default=exported; module.exports=exported;\n",
+            ),
+        ] {
+            std::fs::write(directory.path().join(file), source)?;
+        }
+        let disk_root = repository
+            .canonicalize()?
+            .to_str()
+            .context("UTF-8 repository")?
+            .into();
+        let project_name = directory
+            .path()
+            .file_name()
+            .context("fixture name")?
+            .to_str()
+            .context("UTF-8 fixture name")?
+            .into();
+        let tasks = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tasks
+            .run_once(async move {
+                operation(disk_root, project_name)
+                    .read_strongly_consistent()
+                    .await
+            })
+            .await?;
+        Ok(())
     }
 }

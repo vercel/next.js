@@ -1,0 +1,11 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_CJS_UNUSED",
+    "value": {
+      "root": null,
+      "dependency": null,
+      "loader": "function"
+    }
+  }
+]

@@ -1,0 +1,11 @@
+import { test, expect, vi } from 'vitest'
+import { types } from 'node:util'
+function shape(namespace) {
+ return { nativeBrand: types.isModuleNamespaceObject(namespace), keys: Reflect.ownKeys(namespace).map(key => typeof key === 'symbol' ? String(key) : key), prototypeNull: Object.getPrototypeOf(namespace) === null, tag: namespace[Symbol.toStringTag] ?? null, extensible: Object.isExtensible(namespace), sealed: Object.isSealed(namespace), frozen: Object.isFrozen(namespace), descriptors: Reflect.ownKeys(namespace).map(key => { const d = Object.getOwnPropertyDescriptor(namespace,key); return { key: typeof key === 'symbol' ? String(key) : key, valueType: typeof d.value, get: typeof d.get, set: typeof d.set, writable: d.writable ?? null, enumerable: d.enumerable, configurable: d.configurable } }) }
+}
+const dormant=()=>vi.importActual('./root.cjs')
+test('keeps an unused CommonJS actual graph lazy through reset',()=>{
+ vi.resetModules();vi.resetModules()
+ console.log('WS2_CJS_ACTUAL_RESET:'+JSON.stringify({helperType:typeof dormant,counts:[globalThis.__ws2CjsDependencyRoot??globalThis.__ws2CallableRoot??0,globalThis.__ws2CjsDependencyLeaf??globalThis.__ws2CallableDependency??0]}))
+ expect(typeof dormant).toBe('function')
+})

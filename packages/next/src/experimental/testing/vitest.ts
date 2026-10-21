@@ -1,3 +1,8 @@
+import { createSnapshotHelpers } from './assertions/snapshot-helpers'
+export type {
+  DomainMatchResult,
+  DomainSnapshotAdapter,
+} from './assertions/snapshot-helpers'
 export { recordArtifact } from './runner/artifacts'
 import { defineHelper } from './assertions/define-helper'
 import { when, isWhenChain, type WhenApi } from './assertions/when'
@@ -13,10 +18,25 @@ import {
   getAssertionRuntime,
   getAssertionRuntimeForAssertions,
   getProvidedValue,
+  registerTestSuiteAlias,
 } from './runner'
 import type { TestExpect } from './assertions'
 import type { spies } from '../../compiled/next-test-primitives'
-export type { TestContext, TestBody } from './runner/collector'
+import type { File, Suite } from './runner/tasks'
+export type {
+  TestContext,
+  TestBody,
+  TestOptions,
+  SuiteOptions,
+  OnTestFinishedHandler,
+  OnTestFailedHandler,
+} from './runner/collector'
+export type SuiteFactory<ExtraContext = object> = (
+  test: TestDeclaration<ExtraContext & object>
+) => void | PromiseLike<void>
+export type TestFunction<ExtraContext = object> = (
+  context: TestContext & ExtraContext
+) => any
 export type {
   Test,
   Suite,
@@ -39,7 +59,8 @@ export type {
   TestArtifactLocation,
   TestAnnotationLocation,
 } from './runner/tasks'
-export type TestAPI = TestDeclaration
+export type TestAPI<ExtraContext extends object = {}> =
+  TestDeclaration<ExtraContext>
 export interface ProvidedContext {}
 export function inject<Key extends keyof ProvidedContext & string>(
   key: Key
@@ -62,6 +83,9 @@ import {
   type TestDeclaration,
   type SuiteDeclaration,
   type TestBody,
+  type TestContext,
+  type OnTestFinishedHandler,
+  type OnTestFailedHandler,
   type AroundEachBody,
   type AroundAllBody,
 } from './runner/collector'
@@ -80,19 +104,43 @@ function declaration(name: 'test' | 'describe'): any {
   )
 }
 
+export const Snapshots = createSnapshotHelpers((method, state, args) =>
+  getAssertionRuntimeForAssertions().callSnapshotHelper(method, state, args)
+)
+
 export const test: TestDeclaration = declaration('test')
 export const it = test
 export const describe: SuiteDeclaration = declaration('describe')
 export const suite = describe
-export const beforeAll = (fn: TestBody, timeout?: number) =>
-  getTestApi().beforeAll(fn, timeout)
-export const afterAll = (fn: TestBody, timeout?: number) =>
-  getTestApi().afterAll(fn, timeout)
-export const beforeEach = (fn: TestBody, timeout?: number) =>
-  getTestApi().beforeEach(fn, timeout)
-export const afterEach = (fn: TestBody, timeout?: number) =>
-  getTestApi().afterEach(fn, timeout)
-export function onTestFinished(handler: TestBody, timeout?: number) {
+registerTestSuiteAlias(describe)
+type TestHookBody<ExtraContext> = (
+  context: TestContext & ExtraContext,
+  suite: Readonly<Suite>
+) => unknown
+type SuiteHookBody<ExtraContext> = (
+  context: ExtraContext,
+  suite: Readonly<Suite | File>
+) => unknown
+export const beforeAll = <ExtraContext = object>(
+  fn: SuiteHookBody<ExtraContext>,
+  timeout?: number
+) => getTestApi().beforeAll(fn as TestBody, timeout)
+export const afterAll = <ExtraContext = object>(
+  fn: SuiteHookBody<ExtraContext>,
+  timeout?: number
+) => getTestApi().afterAll(fn as TestBody, timeout)
+export const beforeEach = <ExtraContext = object>(
+  fn: TestHookBody<ExtraContext>,
+  timeout?: number
+) => getTestApi().beforeEach(fn as TestBody, timeout)
+export const afterEach = <ExtraContext = object>(
+  fn: TestHookBody<ExtraContext>,
+  timeout?: number
+) => getTestApi().afterEach(fn as TestBody, timeout)
+export function onTestFinished(
+  handler: OnTestFinishedHandler,
+  timeout?: number
+) {
   const context = getActiveAttempt()
   if (!context) throw new Error('onTestFinished requires an active test.')
   context.onTestFinished(handler, timeout)
@@ -157,9 +205,18 @@ type SpyApi = Pick<
 }
 type BackendUtilities = ReturnType<typeof getAssertionRuntime>['utilities']
 type UtilityApi = Pick<BackendUtilities, 'waitFor' | 'waitUntil'> & {
+  stubEnv<T extends string>(
+    name: T,
+    value: T extends 'DEV' | 'PROD' | 'SSR'
+      ? boolean | undefined
+      : string | undefined
+  ): VitestUtils
+  setTimerTickMode: ((mode: 'manual' | 'nextTimerAsync') => VitestUtils) &
+    ((mode: 'interval', interval?: number) => VitestUtils)
+} & {
   [Key in keyof Omit<
     BackendUtilities,
-    'dispose'
+    'dispose' | 'stubEnv' | 'setTimerTickMode'
   >]: BackendUtilities[Key] extends (...args: infer Args) => infer Result
     ? (
         ...args: Args
@@ -371,11 +428,23 @@ export const vi: VitestUtils = new Proxy({} as VitestUtils, {
   },
 })
 export const vitest = vi
-export const aroundEach = (fn: AroundEachBody, timeout?: number) =>
-  getTestApi().aroundEach(fn, timeout)
-export const aroundAll = (fn: AroundAllBody, timeout?: number) =>
-  getTestApi().aroundAll(fn, timeout)
-export function onTestFailed(handler: TestBody, timeout?: number) {
+export const aroundEach = <ExtraContext = object>(
+  fn: (
+    runTest: () => Promise<void>,
+    context: TestContext & ExtraContext,
+    suite: Readonly<Suite>
+  ) => unknown,
+  timeout?: number
+) => getTestApi().aroundEach(fn as AroundEachBody, timeout)
+export const aroundAll = <ExtraContext = object>(
+  fn: (
+    runSuite: () => Promise<void>,
+    context: ExtraContext,
+    suite: Readonly<Suite | File>
+  ) => unknown,
+  timeout?: number
+) => getTestApi().aroundAll(fn as AroundAllBody, timeout)
+export function onTestFailed(handler: OnTestFailedHandler, timeout?: number) {
   const context = getActiveAttempt()
   if (!context) throw new Error('onTestFailed requires an active test.')
   context.onTestFailed(handler, timeout)

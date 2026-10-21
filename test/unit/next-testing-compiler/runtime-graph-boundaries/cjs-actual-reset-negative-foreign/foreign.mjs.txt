@@ -1,0 +1,1 @@
+export function loadForeign() { return require('./dependency.cjs') }

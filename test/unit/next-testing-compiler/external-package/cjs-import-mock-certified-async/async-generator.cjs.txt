@@ -1,0 +1,3 @@
+globalThis.__ws2CallableAutomaticCounts??={};globalThis.__ws2CallableAutomaticCounts["async-generator"]=(globalThis.__ws2CallableAutomaticCounts["async-generator"]||0)+1;
+async function* callable(input){yield this.label+':'+input};
+callable.label='root';callable.method=function member(){return this.label};module.exports=callable;

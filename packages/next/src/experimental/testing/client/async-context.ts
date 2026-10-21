@@ -552,6 +552,21 @@ export function createDeclarationStorage<T>() {
 export function assertScopeActive() {
   current()
 }
+/** Console attribution observes the actual origin without reopening an API scope. */
+export function getConsoleTask() {
+  const scope = active
+  if (scope?.kind === 'attempt') {
+    const context = scope.context
+    return {
+      taskId: context.testId,
+      caseId: context.testId,
+      attempt: { id: context.id, retry: context.retry, repeat: context.repeat },
+    }
+  }
+  if (scope?.kind === 'hook') return { taskId: scope.context.suiteId }
+  return undefined
+}
+
 export function getOriginatingAttempt() {
   const scope = current()
   return scope?.kind === 'attempt' ? scope.context : undefined

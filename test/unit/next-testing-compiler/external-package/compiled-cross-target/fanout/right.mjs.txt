@@ -1,0 +1,1 @@
+globalThis.__ws2Cross??={};globalThis.__ws2Cross['fanout-right']=(globalThis.__ws2Cross['fanout-right']??0)+1;export const token={count:0}

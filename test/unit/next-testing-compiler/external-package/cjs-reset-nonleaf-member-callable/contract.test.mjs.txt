@@ -1,0 +1,15 @@
+import { test, expect, vi } from 'vitest'
+import { types } from 'node:util'
+function shape(namespace) {
+ return { nativeBrand: types.isModuleNamespaceObject(namespace), keys: Reflect.ownKeys(namespace).map(key => typeof key === 'symbol' ? String(key) : key), prototypeNull: Object.getPrototypeOf(namespace) === null, tag: namespace[Symbol.toStringTag] ?? null, extensible: Object.isExtensible(namespace), sealed: Object.isSealed(namespace), frozen: Object.isFrozen(namespace), descriptors: Reflect.ownKeys(namespace).map(key => { const d = Object.getOwnPropertyDescriptor(namespace,key); return { key: typeof key === 'symbol' ? String(key) : key, valueType: typeof d.value, get: typeof d.get, set: typeof d.set, writable: d.writable ?? null, enumerable: d.enumerable, configurable: d.configurable } }) }
+}
+test('retains live namespace members and authored receiver calls across require lifetime resets', async () => {
+ expect(globalThis.__ws2CjsDependencyRoot).toBeUndefined()
+ const first=await import('./root.cjs'); const raw=first.default
+ const before={namespace:shape(first),raw:shape(raw),read:first.read.call(raw,'before'),call:typeof raw==='function'?raw.call({tag:'receiver'},'before'):null}
+ raw.evaluation=41;raw.dependency.evaluation=23
+ const mutation={named:first.evaluation,read:first.read.call(raw,'mutated'),sameRead:first.read===raw.read,dependency:first.dependency===raw.dependency,namespace:shape(first),raw:shape(raw),call:typeof raw==='function'?raw.call({tag:'receiver'},'mutated'):null}
+ vi.resetModules();const second=await import('./root.cjs');const fresh=second.default
+ console.log('WS2_CJS_NONLEAF_MEMBERS:'+JSON.stringify({kind:"callable",before,mutation,after:{namespace:shape(second),raw:shape(fresh),read:second.read.call(fresh,'after'),call:typeof fresh==='function'?fresh.call({tag:'fresh'},'after'):null},held:{value:first.evaluation,read:first.read.call(raw,'held')},identities:[first===second,raw===fresh,raw.dependency===fresh.dependency],counts:[globalThis.__ws2CjsDependencyRoot,globalThis.__ws2CjsDependencyLeaf]}))
+ expect(first.evaluation).toBe(41);expect(second.evaluation).toBe(2);expect(raw.dependency).toBe(fresh.dependency)
+})

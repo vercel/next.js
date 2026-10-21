@@ -1,0 +1,52 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_CONTROL",
+    "value": {
+      "commonValue": 19,
+      "commonDefault": 19,
+      "commonTag": "Module",
+      "commonKeys": ["default", "fn", "module.exports", "object", "value"],
+      "esmValue": 37,
+      "esmDefault": 41
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_DESCRIPTORS",
+    "value": {
+      "dynamicIdentity": true,
+      "consumerIdentity": true,
+      "consumerFunction": true,
+      "prototypeNull": true,
+      "extensible": false,
+      "sealed": true,
+      "frozen": false,
+      "value": {
+        "value": 19,
+        "writable": true,
+        "enumerable": true,
+        "configurable": false
+      },
+      "defaultDescriptor": {
+        "writable": true,
+        "enumerable": true,
+        "configurable": false
+      },
+      "tag": {
+        "value": "Module",
+        "writable": false,
+        "enumerable": false,
+        "configurable": false
+      },
+      "ownKeys": [
+        "default",
+        "fn",
+        "module.exports",
+        "object",
+        "value",
+        "Symbol(Symbol.toStringTag)"
+      ]
+    }
+  }
+]

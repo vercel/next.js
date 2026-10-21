@@ -1,0 +1,8 @@
+globalThis.__ws2FRoot=(globalThis.__ws2FRoot||0)+1;
+export const evaluation=globalThis.__ws2FRoot;
+export let state={value:evaluation,token:{}};
+export {state as alias};
+export function replace(value){state=value}
+export function read(value){return [state.value,this?.state===state,value]}
+export function fail(error){throw error}
+export {state as default};

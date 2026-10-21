@@ -1,0 +1,14 @@
+import { test, expect, beforeEach } from 'vitest'
+import { page, userEvent } from 'vitest/browser'
+import { createElement, useState } from 'react'
+import { createRoot } from 'react-dom/client'
+import { flushSync } from 'react-dom'
+beforeEach(()=>{document.body.innerHTML=''})
+function scrollBox(){const el=document.createElement('div');el.setAttribute('aria-label','scroll area');el.style.cssText='width:200px;height:140px;overflow:scroll;';const content=document.createElement('div');content.style.cssText='width:1000px;height:1000px';el.append(content);document.body.append(el);return el}
+const trace=el=>{const rows=[];el.addEventListener('wheel',event=>rows.push({deltaX:event.deltaX,deltaY:event.deltaY,deltaMode:event.deltaMode,trusted:event.isTrusted,buttons:event.buttons,ctrl:event.ctrlKey,shift:event.shiftKey}));return rows}
+const record=(name,el,events,extra={})=>console.log('WHEEL_RAW '+JSON.stringify({name,scrollLeft:el.scrollLeft,scrollTop:el.scrollTop,events,...extra}))
+test('native wheel applies exact pixel deltas to a hovered element',async()=>{const el=scrollBox();const events=trace(el);await userEvent.wheel(el,{delta:{x:40,y:120}});await expect.poll(()=>[el.scrollLeft,el.scrollTop]).toEqual([40,120]);record('wheel pixel delta',el,events)})
+test('direction options work through userEvent and locator wheel',async()=>{const el=scrollBox();const events=trace(el);await userEvent.wheel(page.getByLabelText('scroll area'),{direction:'down'});await expect.poll(()=>el.scrollTop).toBe(100);await page.getByLabelText('scroll area').wheel({direction:'right'});await expect.poll(()=>el.scrollLeft).toBe(100);record('wheel directions',el,events)})
+test('native wheel drives controlled component render turns',async()=>{const host=document.createElement('div');document.body.append(host);function Counter(){const [value,setValue]=useState(0);return createElement('div',null,createElement('div',{'aria-label':'wheel counter',style:{width:200,height:140},onWheel:event=>setValue(old=>old+event.deltaY)},'Wheel'),createElement('output',{'data-testid':'wheel result'},String(value)))}const root=createRoot(host);flushSync(()=>root.render(createElement(Counter)));try{const el=page.getByLabelText('wheel counter').element();const events=trace(el);await userEvent.wheel(el,{direction:'down'});await expect.element(page.getByTestId('wheel result')).toHaveTextContent('100');record('wheel component turns',el,events,{output:host.querySelector('output').textContent})}finally{flushSync(()=>root.unmount())}})
+
+test('native wheel repeats the requested number of pixel steps',async()=>{const el=scrollBox();const events=trace(el);await userEvent.wheel(el,{delta:{y:90},times:2});await expect.poll(()=>el.scrollTop).toBe(180);record('wheel repeated steps',el,events)})

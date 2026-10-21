@@ -1,0 +1,2 @@
+globalThis.__ws2FactoryActualEvaluations = (globalThis.__ws2FactoryActualEvaluations || 0) + 1
+module.exports = { value: 13, add(a, b) { return a + b } }

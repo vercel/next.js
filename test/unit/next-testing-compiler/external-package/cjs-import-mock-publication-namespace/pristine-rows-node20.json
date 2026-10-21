@@ -1,0 +1,1282 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CALLABLE_MUTATION",
+    "value": {
+      "name": "ordinary",
+      "before": {
+        "namespace": {
+          "type": "object",
+          "tag": "[object Module]",
+          "nullPrototype": true,
+          "objectPrototype": false,
+          "functionPrototype": false,
+          "keys": ["label", "method", "default", "symbol:Symbol.toStringTag"],
+          "descriptors": [
+            {
+              "key": "label",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "value": {
+                "type": "function",
+                "name": "callable",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.toStringTag",
+              "value": {
+                "type": "string",
+                "value": "Module"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ],
+          "prototype": null
+        },
+        "default": {
+          "type": "function",
+          "tag": "[object Function]",
+          "nullPrototype": false,
+          "objectPrototype": false,
+          "functionPrototype": true,
+          "keys": ["length", "name", "prototype", "label", "method"],
+          "descriptors": [
+            {
+              "key": "length",
+              "value": {
+                "type": "number",
+                "value": 1
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "value": {
+                "type": "string",
+                "value": "callable"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "value": {
+                "type": "object",
+                "tag": "[object Object]",
+                "keys": ["constructor"]
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            },
+            {
+              "key": "label",
+              "value": {
+                "type": "string",
+                "value": "root"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "function",
+                "name": "member",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ],
+          "prototype": {
+            "keys": ["constructor"],
+            "descriptors": [
+              {
+                "key": "constructor",
+                "value": {
+                  "type": "function",
+                  "name": "callable",
+                  "length": 1,
+                  "tag": "[object Function]",
+                  "mock": false
+                },
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          }
+        },
+        "tag": {
+          "value": {
+            "type": "string",
+            "value": "Module"
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": false,
+          "enumerable": false,
+          "configurable": false
+        }
+      },
+      "after": {
+        "namespace": {
+          "type": "object",
+          "tag": "[object Module]",
+          "nullPrototype": true,
+          "objectPrototype": false,
+          "functionPrototype": false,
+          "keys": ["label", "method", "default", "symbol:Symbol.toStringTag"],
+          "descriptors": [
+            {
+              "key": "label",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "value": {
+                "type": "function",
+                "name": "callable",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.toStringTag",
+              "value": {
+                "type": "string",
+                "value": "Module"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ],
+          "prototype": null
+        },
+        "default": {
+          "type": "function",
+          "tag": "[object Function]",
+          "nullPrototype": false,
+          "objectPrototype": false,
+          "functionPrototype": true,
+          "keys": ["length", "name", "prototype", "method", "late"],
+          "descriptors": [
+            {
+              "key": "length",
+              "value": {
+                "type": "number",
+                "value": 1
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "value": {
+                "type": "string",
+                "value": "callable"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "value": {
+                "type": "object",
+                "tag": "[object Object]",
+                "keys": ["constructor"]
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "function",
+                "name": "member",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "late",
+              "value": {
+                "type": "string",
+                "value": "late"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ],
+          "prototype": {
+            "keys": ["constructor"],
+            "descriptors": [
+              {
+                "key": "constructor",
+                "value": {
+                  "type": "function",
+                  "name": "callable",
+                  "length": 1,
+                  "tag": "[object Function]",
+                  "mock": false
+                },
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          }
+        },
+        "dynamicSame": true,
+        "actualSame": true,
+        "defaultSame": true,
+        "actualDefaultSame": true,
+        "namedLabel": {
+          "type": "undefined"
+        },
+        "namedMethodSame": true,
+        "lateNamed": {
+          "type": "undefined"
+        },
+        "tag": {
+          "value": {
+            "type": "string",
+            "value": "Module"
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": false,
+          "enumerable": false,
+          "configurable": false
+        }
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CALLABLE_MUTATION",
+    "value": {
+      "name": "async",
+      "before": {
+        "namespace": {
+          "type": "object",
+          "tag": "[object Module]",
+          "nullPrototype": true,
+          "objectPrototype": false,
+          "functionPrototype": false,
+          "keys": ["label", "method", "default", "symbol:Symbol.toStringTag"],
+          "descriptors": [
+            {
+              "key": "label",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "value": {
+                "type": "function",
+                "name": "callable",
+                "length": 1,
+                "tag": "[object AsyncFunction]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.toStringTag",
+              "value": {
+                "type": "string",
+                "value": "Module"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ],
+          "prototype": null
+        },
+        "default": {
+          "type": "function",
+          "tag": "[object AsyncFunction]",
+          "nullPrototype": false,
+          "objectPrototype": false,
+          "functionPrototype": false,
+          "keys": ["length", "name", "label", "method"],
+          "descriptors": [
+            {
+              "key": "length",
+              "value": {
+                "type": "number",
+                "value": 1
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "value": {
+                "type": "string",
+                "value": "callable"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "label",
+              "value": {
+                "type": "string",
+                "value": "root"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "function",
+                "name": "member",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ],
+          "prototype": null
+        },
+        "tag": {
+          "value": {
+            "type": "string",
+            "value": "Module"
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": false,
+          "enumerable": false,
+          "configurable": false
+        }
+      },
+      "after": {
+        "namespace": {
+          "type": "object",
+          "tag": "[object Module]",
+          "nullPrototype": true,
+          "objectPrototype": false,
+          "functionPrototype": false,
+          "keys": ["label", "method", "default", "symbol:Symbol.toStringTag"],
+          "descriptors": [
+            {
+              "key": "label",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "value": {
+                "type": "function",
+                "name": "callable",
+                "length": 1,
+                "tag": "[object AsyncFunction]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.toStringTag",
+              "value": {
+                "type": "string",
+                "value": "Module"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ],
+          "prototype": null
+        },
+        "default": {
+          "type": "function",
+          "tag": "[object AsyncFunction]",
+          "nullPrototype": false,
+          "objectPrototype": false,
+          "functionPrototype": false,
+          "keys": ["length", "name", "method", "late"],
+          "descriptors": [
+            {
+              "key": "length",
+              "value": {
+                "type": "number",
+                "value": 1
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "value": {
+                "type": "string",
+                "value": "callable"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "function",
+                "name": "member",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "late",
+              "value": {
+                "type": "string",
+                "value": "late"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ],
+          "prototype": null
+        },
+        "dynamicSame": true,
+        "actualSame": true,
+        "defaultSame": true,
+        "actualDefaultSame": true,
+        "namedLabel": {
+          "type": "undefined"
+        },
+        "namedMethodSame": true,
+        "lateNamed": {
+          "type": "undefined"
+        },
+        "tag": {
+          "value": {
+            "type": "string",
+            "value": "Module"
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": false,
+          "enumerable": false,
+          "configurable": false
+        }
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CALLABLE_MUTATION",
+    "value": {
+      "name": "generator",
+      "before": {
+        "namespace": {
+          "type": "object",
+          "tag": "[object Module]",
+          "nullPrototype": true,
+          "objectPrototype": false,
+          "functionPrototype": false,
+          "keys": ["label", "method", "default", "symbol:Symbol.toStringTag"],
+          "descriptors": [
+            {
+              "key": "label",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "value": {
+                "type": "function",
+                "name": "callable",
+                "length": 1,
+                "tag": "[object GeneratorFunction]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.toStringTag",
+              "value": {
+                "type": "string",
+                "value": "Module"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ],
+          "prototype": null
+        },
+        "default": {
+          "type": "function",
+          "tag": "[object GeneratorFunction]",
+          "nullPrototype": false,
+          "objectPrototype": false,
+          "functionPrototype": false,
+          "keys": ["length", "name", "prototype", "label", "method"],
+          "descriptors": [
+            {
+              "key": "length",
+              "value": {
+                "type": "number",
+                "value": 1
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "value": {
+                "type": "string",
+                "value": "callable"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "value": {
+                "type": "object",
+                "tag": "[object Generator]",
+                "keys": []
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            },
+            {
+              "key": "label",
+              "value": {
+                "type": "string",
+                "value": "root"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "function",
+                "name": "member",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ],
+          "prototype": {
+            "keys": [],
+            "descriptors": []
+          }
+        },
+        "tag": {
+          "value": {
+            "type": "string",
+            "value": "Module"
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": false,
+          "enumerable": false,
+          "configurable": false
+        }
+      },
+      "after": {
+        "namespace": {
+          "type": "object",
+          "tag": "[object Module]",
+          "nullPrototype": true,
+          "objectPrototype": false,
+          "functionPrototype": false,
+          "keys": ["label", "method", "default", "symbol:Symbol.toStringTag"],
+          "descriptors": [
+            {
+              "key": "label",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "value": {
+                "type": "function",
+                "name": "callable",
+                "length": 1,
+                "tag": "[object GeneratorFunction]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.toStringTag",
+              "value": {
+                "type": "string",
+                "value": "Module"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ],
+          "prototype": null
+        },
+        "default": {
+          "type": "function",
+          "tag": "[object GeneratorFunction]",
+          "nullPrototype": false,
+          "objectPrototype": false,
+          "functionPrototype": false,
+          "keys": ["length", "name", "prototype", "method", "late"],
+          "descriptors": [
+            {
+              "key": "length",
+              "value": {
+                "type": "number",
+                "value": 1
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "value": {
+                "type": "string",
+                "value": "callable"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "value": {
+                "type": "object",
+                "tag": "[object Generator]",
+                "keys": []
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "function",
+                "name": "member",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "late",
+              "value": {
+                "type": "string",
+                "value": "late"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ],
+          "prototype": {
+            "keys": [],
+            "descriptors": []
+          }
+        },
+        "dynamicSame": true,
+        "actualSame": true,
+        "defaultSame": true,
+        "actualDefaultSame": true,
+        "namedLabel": {
+          "type": "undefined"
+        },
+        "namedMethodSame": true,
+        "lateNamed": {
+          "type": "undefined"
+        },
+        "tag": {
+          "value": {
+            "type": "string",
+            "value": "Module"
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": false,
+          "enumerable": false,
+          "configurable": false
+        }
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CALLABLE_MUTATION",
+    "value": {
+      "name": "async-generator",
+      "before": {
+        "namespace": {
+          "type": "object",
+          "tag": "[object Module]",
+          "nullPrototype": true,
+          "objectPrototype": false,
+          "functionPrototype": false,
+          "keys": ["label", "method", "default", "symbol:Symbol.toStringTag"],
+          "descriptors": [
+            {
+              "key": "label",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "value": {
+                "type": "function",
+                "name": "callable",
+                "length": 1,
+                "tag": "[object AsyncGeneratorFunction]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.toStringTag",
+              "value": {
+                "type": "string",
+                "value": "Module"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ],
+          "prototype": null
+        },
+        "default": {
+          "type": "function",
+          "tag": "[object AsyncGeneratorFunction]",
+          "nullPrototype": false,
+          "objectPrototype": false,
+          "functionPrototype": false,
+          "keys": ["length", "name", "prototype", "label", "method"],
+          "descriptors": [
+            {
+              "key": "length",
+              "value": {
+                "type": "number",
+                "value": 1
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "value": {
+                "type": "string",
+                "value": "callable"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "value": {
+                "type": "object",
+                "tag": "[object AsyncGenerator]",
+                "keys": []
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            },
+            {
+              "key": "label",
+              "value": {
+                "type": "string",
+                "value": "root"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "function",
+                "name": "member",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ],
+          "prototype": {
+            "keys": [],
+            "descriptors": []
+          }
+        },
+        "tag": {
+          "value": {
+            "type": "string",
+            "value": "Module"
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": false,
+          "enumerable": false,
+          "configurable": false
+        }
+      },
+      "after": {
+        "namespace": {
+          "type": "object",
+          "tag": "[object Module]",
+          "nullPrototype": true,
+          "objectPrototype": false,
+          "functionPrototype": false,
+          "keys": ["label", "method", "default", "symbol:Symbol.toStringTag"],
+          "descriptors": [
+            {
+              "key": "label",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "value": {
+                "type": "function",
+                "name": "callable",
+                "length": 1,
+                "tag": "[object AsyncGeneratorFunction]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.toStringTag",
+              "value": {
+                "type": "string",
+                "value": "Module"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ],
+          "prototype": null
+        },
+        "default": {
+          "type": "function",
+          "tag": "[object AsyncGeneratorFunction]",
+          "nullPrototype": false,
+          "objectPrototype": false,
+          "functionPrototype": false,
+          "keys": ["length", "name", "prototype", "method", "late"],
+          "descriptors": [
+            {
+              "key": "length",
+              "value": {
+                "type": "number",
+                "value": 1
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "value": {
+                "type": "string",
+                "value": "callable"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "value": {
+                "type": "object",
+                "tag": "[object AsyncGenerator]",
+                "keys": []
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "function",
+                "name": "member",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "late",
+              "value": {
+                "type": "string",
+                "value": "late"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ],
+          "prototype": {
+            "keys": [],
+            "descriptors": []
+          }
+        },
+        "dynamicSame": true,
+        "actualSame": true,
+        "defaultSame": true,
+        "actualDefaultSame": true,
+        "namedLabel": {
+          "type": "undefined"
+        },
+        "namedMethodSame": true,
+        "lateNamed": {
+          "type": "undefined"
+        },
+        "tag": {
+          "value": {
+            "type": "string",
+            "value": "Module"
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": false,
+          "enumerable": false,
+          "configurable": false
+        }
+      }
+    }
+  }
+]

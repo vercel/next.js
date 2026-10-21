@@ -500,7 +500,12 @@ describe('compiler-owned runtime mock dispatch components (not native conformanc
       const dynamic = require(process.argv[1])
       const {createModuleImportTracker} = require(path.join(path.dirname(process.argv[1]),'../runner/imports'))
       const errors = []
-      process.on('unhandledRejection', error => errors.push(String(error)))
+      const wrappers = []
+      const cause = new Error('owned factory rejection')
+      process.on('unhandledRejection', error => {
+        errors.push(String(error.cause))
+        wrappers.push({name:error.name,message:error.message,causeIdentity:error.cause===cause,rawIdentity:error===cause})
+      })
       const prototype = {
         i() { throw new Error('actual target evaluated') },
         r() { return load => Promise.resolve().then(() => load(2)) },
@@ -509,17 +514,17 @@ describe('compiler-owned runtime mock dispatch components (not native conformanc
       const context = Object.assign(Object.create(prototype), {m:{id:1}, c:new Map(), M:new Map([[2,()=>{}]])})
       const tracker = createModuleImportTracker(context)
       const binding = dynamic.initializeDynamicModuleMocking(context,{version:1,owners:[1],targets:[{id:2,requests:['./subject']}]},{trackImport:tracker.trackImport,onLateFailure:error=>errors.push('late:'+String(error))})
-      dynamic.doMock('./subject',()=>{throw new Error('owned factory rejection')})
+      dynamic.doMock('./subject',()=>{throw cause})
       if(process.argv[2] === 'caught') context.A(3).catch(()=>{})
       else void context.A(3)
       ;(async()=>{
         await tracker.waitForImports()
         await new Promise(setImmediate)
         binding.dispose();tracker.dispose()
-        process.stdout.write(JSON.stringify(errors))
+        process.stdout.write(JSON.stringify({errors,wrappers}))
       })().catch(error=>{console.error(error);process.exitCode=1})
     `
-      const errors = JSON.parse(
+      const { errors, wrappers } = JSON.parse(
         execFileSync(
           process.execPath,
           [
@@ -533,6 +538,19 @@ describe('compiler-owned runtime mock dispatch components (not native conformanc
       )
       expect(errors).toEqual(
         mode === 'ignored' ? ['Error: owned factory rejection'] : []
+      )
+      expect(wrappers).toEqual(
+        mode === 'ignored'
+          ? [
+              {
+                name: 'Error',
+                message:
+                  '[vitest] There was an error when mocking a module. If you are using "vi.mock" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock',
+                causeIdentity: true,
+                rawIdentity: false,
+              },
+            ]
+          : []
       )
     }
   )
@@ -739,6 +757,60 @@ describe('compiler-owned runtime mock dispatch components (not native conformanc
       fresh.tracker.dispose()
     }
   })
+  it.each(['resolve', 'reject'])(
+    'keeps replaced pending %s work in its disposed owner',
+    async (mode) => {
+      const h = host()
+      let start!: () => void
+      let release!: (value: Record<string, unknown>) => void
+      let reject!: (error: Error) => void
+      let reportLate!: () => void
+      const started = new Promise<void>((resolve) => {
+        start = resolve
+      })
+      const reported = new Promise<void>((resolve) => {
+        reportLate = resolve
+      })
+      const held = new Promise<Record<string, unknown>>((resolve, fail) => {
+        release = resolve
+        reject = fail
+      })
+      h.late.mockImplementation(reportLate)
+      const replacement = jest.fn(() => ({ value: 'old replacement' }))
+      dynamic.doMock('./subject', () => {
+        start()
+        return held
+      })
+      const result = h.context.A(3).catch((error: Error) => error)
+      await started
+      dynamic.doMock('./subject', replacement)
+      expect(() => h.binding.dispose()).toThrow('cancelled during file cleanup')
+      expect(await result).toMatchObject({
+        message: expect.stringContaining('cancelled during file cleanup'),
+      })
+      h.tracker.dispose()
+      const fresh = host()
+      try {
+        const factory = jest.fn(() => ({ value: 'fresh' }))
+        dynamic.doMock('./subject', factory)
+        const first = await fresh.context.A(3)
+        if (mode === 'resolve') release({ value: 'stale' })
+        else reject(new RangeError('disposed replacement raw'))
+        await reported
+        expect(await fresh.context.A(3)).toBe(first)
+        expect(first.value).toBe('fresh')
+        expect(factory).toHaveBeenCalledTimes(1)
+        expect(replacement).not.toHaveBeenCalled()
+        expect(h.late).toHaveBeenCalledTimes(1)
+        expect(fresh.late).not.toHaveBeenCalled()
+        expect(h.evaluations()).toBe(0)
+        expect(fresh.evaluations()).toBe(0)
+      } finally {
+        fresh.binding.dispose()
+        fresh.tracker.dispose()
+      }
+    }
+  )
 })
 
 describe('compiler importMock runtime selections (not native compiler conformance)', () => {
@@ -1292,4 +1364,1571 @@ describe('Browser stamped-original cache components (not native compiler conform
       }
     }
   )
+})
+
+describe('native runtime manifest ownership schema', () => {
+  const dynamic: typeof import('next/dist/experimental/testing/mocking/dynamic') = require('next/dist/experimental/testing/mocking/dynamic')
+  const cache: typeof import('next/dist/experimental/testing/mocking/module-cache') = require('next/dist/experimental/testing/mocking/module-cache')
+  function context() {
+    const prototype = {
+      i(this: any, id: number) {
+        let record = this.c.get(id)
+        if (!record) {
+          record = { exports: { value: 19 } }
+          this.c.set(id, record)
+        }
+        return record.exports
+      },
+      r() {
+        return (load: (id: number) => unknown) =>
+          Promise.resolve().then(() => load(2))
+      },
+      A(this: any, id: number) {
+        return this.r(id)(this.i.bind(this))
+      },
+    }
+    return Object.assign(Object.create(prototype), {
+      m: { id: 1 },
+      c: new Map(),
+      M: new Map([
+        [2, () => {}],
+        [3, () => {}],
+      ]),
+    })
+  }
+  const options = () => ({ trackImport: jest.fn(), onLateFailure: jest.fn() })
+  it.each(['commonjs', 'esm'])(
+    'retains the %s native schema without evaluating targets',
+    async (kind) => {
+      const host = context()
+      const cacheOwner = cache.initializeModuleCache(
+        host,
+        { version: 1, resettable: [2, 3], protected: [1] },
+        () => {}
+      )
+      const manifest = JSON.parse(
+        JSON.stringify({
+          version: 1,
+          owners: [1],
+          targets: [
+            {
+              id: 2,
+              aliases: [3],
+              requests: ['package'],
+              nativeOriginal: kind,
+            },
+          ],
+        })
+      )
+      const encoded = JSON.stringify(manifest)
+      const binding = dynamic.initializeDynamicModuleMocking(
+        host,
+        manifest,
+        options()
+      )
+      try {
+        expect(host.c.size).toBe(0)
+        const factory = jest.fn(() => ({ value: 73 }))
+        dynamic.doMock('package', factory)
+        expect(factory).not.toHaveBeenCalled()
+        expect(await host.A(4)).toEqual({ value: 73 })
+        expect(factory).toHaveBeenCalledTimes(1)
+        expect(host.c.size).toBe(0)
+        expect(JSON.stringify(manifest)).toBe(encoded)
+      } finally {
+        binding.dispose()
+        cacheOwner.dispose()
+      }
+    }
+  )
+  it.each([null, 'cjs', '', 1, {}])(
+    'rejects an invalid native kind %p',
+    (kind) => {
+      const host = context()
+      const cacheOwner = cache.initializeModuleCache(
+        host,
+        { version: 1, resettable: [2, 3], protected: [1] },
+        () => {}
+      )
+      try {
+        expect(() =>
+          dynamic.initializeDynamicModuleMocking(
+            host,
+            {
+              version: 1,
+              owners: [1],
+              targets: [{ id: 2, requests: ['package'], nativeOriginal: kind }],
+            } as any,
+            options()
+          )
+        ).toThrow('Invalid runtime mock target identity')
+        expect(host.c.size).toBe(0)
+      } finally {
+        cacheOwner.dispose()
+      }
+    }
+  )
+  it.each([
+    { id: 99, requests: ['package'], nativeOriginal: 'commonjs' },
+    { id: 2, aliases: [99], requests: ['package'], nativeOriginal: 'esm' },
+  ])('rejects a foreign native target or alias %p', (target) => {
+    const host = context()
+    const cacheOwner = cache.initializeModuleCache(
+      host,
+      { version: 1, resettable: [2, 3], protected: [1] },
+      () => {}
+    )
+    try {
+      expect(() =>
+        dynamic.initializeDynamicModuleMocking(
+          host,
+          { version: 1, owners: [1], targets: [target] } as any,
+          options()
+        )
+      ).toThrow('not owned by this module cache')
+      expect(host.c.size).toBe(0)
+    } finally {
+      cacheOwner.dispose()
+    }
+  })
+  it('rejects another active cache owner even when maps and target IDs match', () => {
+    const host = context()
+    const cacheOwner = cache.initializeModuleCache(
+      host,
+      { version: 1, resettable: [2, 3], protected: [1] },
+      () => {}
+    )
+    const foreign = Object.assign(
+      Object.create(Object.getPrototypeOf(host)),
+      host
+    )
+    try {
+      expect(() =>
+        dynamic.initializeDynamicModuleMocking(
+          foreign,
+          {
+            version: 1,
+            owners: [1],
+            targets: [
+              { id: 2, requests: ['package'], nativeOriginal: 'commonjs' },
+            ],
+          },
+          options()
+        )
+      ).toThrow('not owned by this module cache')
+      expect(host.c.size).toBe(0)
+    } finally {
+      cacheOwner.dispose()
+    }
+  })
+  it.each([
+    { id: 1, requests: ['package'], nativeOriginal: 'esm' },
+    { id: 2, aliases: [1], requests: ['package'], nativeOriginal: 'commonjs' },
+  ])('rejects native owner and alias overlap %p', (target) => {
+    const host = context()
+    const cacheOwner = cache.initializeModuleCache(
+      host,
+      { version: 1, resettable: [2, 3], protected: [1] },
+      () => {}
+    )
+    try {
+      expect(() =>
+        dynamic.initializeDynamicModuleMocking(
+          host,
+          { version: 1, owners: [1], targets: [target] } as any,
+          options()
+        )
+      ).toThrow(/Invalid runtime mock (target identity|part ownership)/)
+      expect(host.c.size).toBe(0)
+    } finally {
+      cacheOwner.dispose()
+    }
+  })
+  it('round-trips the unchanged compiled manifest without a native cache owner', async () => {
+    const host = context()
+    const manifest = JSON.parse(
+      '{"version":1,"owners":[1],"targets":[{"id":2,"aliases":[3],"requests":["./subject"]}]}'
+    )
+    const encoded = JSON.stringify(manifest)
+    const binding = dynamic.initializeDynamicModuleMocking(
+      host,
+      manifest,
+      options()
+    )
+    try {
+      dynamic.doMock('./subject', () => ({ value: 73 }))
+      expect(await host.A(4)).toEqual({ value: 73 })
+      expect(JSON.stringify(manifest)).toBe(encoded)
+      expect(manifest.targets[0]).not.toHaveProperty('nativeOriginal')
+    } finally {
+      binding.dispose()
+    }
+  })
+  it('keeps the exact static namespace protected while runtime providers and registrations change', async () => {
+    const host = context()
+    const initial = Object.assign(Object.create(null), { value: 5 })
+    host.c.set(3, { exports: initial })
+    const cacheOwner = cache.initializeModuleCache(
+      host,
+      {
+        version: 1,
+        resettable: [2],
+        protected: [1, 3],
+        staticMocks: [{ initial: 3, provider: 2 }],
+      },
+      () => {}
+    )
+    const manifest = {
+      version: 1,
+      owners: [1],
+      targets: [
+        {
+          id: 2,
+          requests: ['package'],
+          nativeOriginal: 'commonjs',
+          staticMock: { initial: 3, provider: 2 },
+        },
+      ],
+    } as const
+    const encoded = JSON.stringify(manifest)
+    const binding = dynamic.initializeDynamicModuleMocking(
+      host,
+      manifest,
+      options()
+    )
+    try {
+      expect(await host.A(4)).toBe(initial)
+      let original: unknown
+      const factory = jest.fn(
+        async (load: () => Promise<Record<string, unknown>>) => {
+          original = await load()
+          return { value: 73 }
+        }
+      )
+      dynamic.doMock('package', factory)
+      expect(factory).not.toHaveBeenCalled()
+      const mocked = await host.A(4)
+      cache.resetModules()
+      expect(await host.A(4)).toBe(mocked)
+      expect(host.c.get(3).exports).toBe(initial)
+      expect(factory).toHaveBeenCalledTimes(1)
+      dynamic.doUnmock('package')
+      const released = await host.A(4)
+      expect(released).not.toBe(initial)
+      expect(released).not.toBe(original)
+      expect(released).toEqual({ value: 19 })
+      cache.resetModules()
+      const afterReset = await host.A(4)
+      expect(afterReset).not.toBe(released)
+      expect(afterReset).not.toBe(initial)
+      expect(initial.value).toBe(5)
+      expect(JSON.stringify(manifest)).toBe(encoded)
+    } finally {
+      binding.dispose()
+      cacheOwner.dispose()
+    }
+  })
+
+  it.each([
+    null,
+    {},
+    [{ initial: 2, provider: 2 }],
+    [{ initial: 1, provider: 2 }],
+    [{ initial: 99, provider: 2 }],
+    [{ initial: 3, provider: 99 }],
+    [
+      { initial: 3, provider: 2 },
+      { initial: 3, provider: 2 },
+    ],
+    [{ initial: 2, provider: 3 }],
+    [{ initial: 4, provider: 2 }],
+  ])(
+    'rejects malformed or foreign compiler cache pair records %p without evaluation',
+    (staticMocks) => {
+      const host = context()
+      const evaluate = jest.fn()
+      host.M.set(2, evaluate)
+      expect(() =>
+        cache.initializeModuleCache(
+          host,
+          {
+            version: 1,
+            resettable: [2],
+            protected: [1, 3, 4],
+            staticMocks,
+          } as any,
+          () => {}
+        )
+      ).toThrow('Invalid compiler-owned static mock pairs')
+      expect(evaluate).not.toHaveBeenCalled()
+      expect(host.c.size).toBe(0)
+    }
+  )
+
+  it.each([
+    null,
+    'pair',
+    [],
+    { initial: 2, provider: 2 },
+    { initial: 1, provider: 2 },
+    { initial: 99, provider: 2 },
+    { initial: 3, provider: 99 },
+    { initial: 4, provider: 2 },
+  ])(
+    'rejects unissued runtime namespace/provider pairs %p without evaluation',
+    (staticMock) => {
+      const host = context()
+      host.M.set(4, () => {})
+      const cacheOwner = cache.initializeModuleCache(
+        host,
+        {
+          version: 1,
+          resettable: [2],
+          protected: [1, 3, 4],
+          staticMocks: [{ initial: 3, provider: 2 }],
+        },
+        () => {}
+      )
+      try {
+        expect(() =>
+          dynamic.initializeDynamicModuleMocking(
+            host,
+            {
+              version: 1,
+              owners: [1],
+              targets: [
+                {
+                  id: 2,
+                  requests: ['package'],
+                  nativeOriginal: 'commonjs',
+                  staticMock,
+                },
+              ],
+            } as any,
+            options()
+          )
+        ).toThrow(
+          /Invalid runtime static mock pair identity|not owned by this module cache/
+        )
+        expect(host.c.size).toBe(0)
+      } finally {
+        cacheOwner.dispose()
+      }
+    }
+  )
+
+  it('rejects a protected initial namespace reused as another runtime target', () => {
+    const host = context()
+    const cacheOwner = cache.initializeModuleCache(
+      host,
+      {
+        version: 1,
+        resettable: [2],
+        protected: [1, 3],
+        staticMocks: [{ initial: 3, provider: 2 }],
+      },
+      () => {}
+    )
+    try {
+      expect(() =>
+        dynamic.initializeDynamicModuleMocking(
+          host,
+          {
+            version: 1,
+            owners: [1],
+            targets: [
+              {
+                id: 2,
+                requests: ['package'],
+                nativeOriginal: 'commonjs',
+                staticMock: { initial: 3, provider: 2 },
+              },
+              { id: 3, requests: ['./other'] },
+            ],
+          },
+          options()
+        )
+      ).toThrow('Runtime static namespaces overlap target groups')
+      expect(host.c.size).toBe(0)
+    } finally {
+      cacheOwner.dispose()
+    }
+  })
+})
+
+describe('compiler-certified static runtime import edge components', () => {
+  const dynamic: typeof import('next/dist/experimental/testing/mocking/dynamic') = require('next/dist/experimental/testing/mocking/dynamic')
+  const cache: typeof import('next/dist/experimental/testing/mocking/module-cache') = require('next/dist/experimental/testing/mocking/module-cache')
+  function host(
+    staticImports: unknown = [{ owner: 4, target: 2 }],
+    target: object = { id: 2, requests: ['./subject'] },
+    cacheIds = [1, 2, 4]
+  ) {
+    const original = { value: 'original' }
+    const prototype = {
+      i(this: any, id: number) {
+        return id === 2 ? original : { id }
+      },
+      A(this: any, id: number) {
+        return this.r(id)((target: number) => this.i(target))
+      },
+      r() {
+        return (load: (id: number) => unknown) =>
+          Promise.resolve().then(() => load(2))
+      },
+    }
+    const context = Object.assign(Object.create(prototype), {
+      m: { id: 0 },
+      c: new Map(),
+      M: new Map([1, 2, 4, 5].map((id) => [id, () => {}])),
+    })
+    const cacheOwner = cache.initializeModuleCache(
+      context,
+      { version: 1, resettable: cacheIds, protected: [] },
+      () => {}
+    )
+    const manifest = {
+      version: 1,
+      owners: [1],
+      targets: [target],
+      ...(staticImports === 'absent' ? {} : { staticImports }),
+    }
+    const options = { trackImport() {}, onLateFailure() {} }
+    const before = Object.getOwnPropertyDescriptor(prototype, 'i')
+    let binding: ReturnType<typeof dynamic.initializeDynamicModuleMocking>
+    try {
+      binding = dynamic.initializeDynamicModuleMocking(
+        context,
+        manifest as any,
+        options
+      )
+    } catch (error) {
+      cacheOwner.dispose()
+      throw error
+    }
+    const importer = (id: number) =>
+      Object.assign(Object.create(prototype), {
+        m: { id },
+        c: context.c,
+        M: context.M,
+      })
+    return {
+      context,
+      prototype,
+      original,
+      before,
+      binding,
+      cacheOwner,
+      entry: importer(1),
+      consumer: importer(4),
+      foreign: importer(5),
+    }
+  }
+  it('selects the exact completed factory exports only at a certified static edge and restores its descriptor', async () => {
+    const h = host()
+    try {
+      expect(h.consumer.i(2)).toBe(h.original)
+      const value = { value: 'mock' }
+      let release!: () => void
+      const gate = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      const factory = jest.fn(async () => {
+        await gate
+        return value
+      })
+      dynamic.doMock('./subject', factory)
+      const pending = h.entry.A(3)
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+      expect(factory).toHaveBeenCalledTimes(1)
+      expect(h.consumer.i(2)).toBe(h.original)
+      release()
+      expect(await pending).toBe(value)
+      expect(h.consumer.i(2)).toBe(value)
+      expect(h.foreign.i(2)).toBe(h.original)
+      expect(h.consumer.i(5)).toEqual({ id: 5 })
+      cache.resetModules()
+      expect(h.consumer.i(2)).toBe(value)
+      dynamic.doUnmock('./subject')
+      expect(h.consumer.i(2)).toBe(h.original)
+      expect(factory).toHaveBeenCalledTimes(1)
+    } finally {
+      h.binding.dispose()
+      h.cacheOwner.dispose()
+    }
+    expect(Object.getOwnPropertyDescriptor(h.prototype, 'i')).toEqual(h.before)
+  })
+  it('leaves the original static import method and descriptor exact when edges are absent', () => {
+    const h = host('absent')
+    try {
+      expect(Object.getOwnPropertyDescriptor(h.prototype, 'i')).toEqual(
+        h.before
+      )
+    } finally {
+      h.binding.dispose()
+      h.cacheOwner.dispose()
+    }
+  })
+  it.each([
+    null,
+    [],
+    {},
+    [{ owner: 4, target: 99 }],
+    [{ owner: 99, target: 2 }],
+    [{ owner: 1, target: 2 }],
+    [{ owner: 2, target: 2 }],
+    [
+      { owner: 4, target: 2 },
+      { owner: 4, target: 2 },
+    ],
+    [{ owner: '', target: 2 }],
+    [{ owner: 4, target: -1 }],
+  ])(
+    'rejects malformed, foreign, entry or duplicate exact static edges %p',
+    (edges) => {
+      expect(() => host(edges)).toThrow(
+        /Invalid runtime static import|not owned by this module cache/
+      )
+    }
+  )
+  it('rejects a native target on a compiled static edge', () => {
+    expect(() =>
+      host([{ owner: 4, target: 2 }], {
+        id: 2,
+        requests: ['./subject'],
+        nativeOriginal: 'commonjs',
+      })
+    ).toThrow('Invalid runtime static import edge identity')
+  })
+  it('rejects a protected consumer without evaluating any factory', () => {
+    expect(() => host([{ owner: 4, target: 2 }], undefined, [1, 2])).toThrow(
+      'not owned by this module cache'
+    )
+  })
+  it('retains static importer ownership during cleanup', () => {
+    const h = host()
+    h.prototype.i = () => ({ value: 'foreign' })
+    try {
+      expect(() => h.binding.dispose()).toThrow(
+        'Runtime static import ownership changed before disposal'
+      )
+    } finally {
+      h.cacheOwner.dispose()
+    }
+  })
+  it('rejects a different active cache owner even with the same actual maps and edge IDs', () => {
+    const h = host('absent')
+    h.binding.dispose()
+    const foreign = Object.assign(Object.create(h.prototype), h.context)
+    try {
+      expect(() =>
+        dynamic.initializeDynamicModuleMocking(
+          foreign,
+          {
+            version: 1,
+            owners: [1],
+            targets: [{ id: 2, requests: ['./subject'] }],
+            staticImports: [{ owner: 4, target: 2 }],
+          },
+          { trackImport() {}, onLateFailure() {} }
+        )
+      ).toThrow('not owned by this module cache')
+      expect(Object.getOwnPropertyDescriptor(h.prototype, 'i')).toEqual(
+        h.before
+      )
+      expect(h.context.c.size).toBe(0)
+    } finally {
+      h.cacheOwner.dispose()
+    }
+  })
+})
+
+describe('compiler-certified ordered runtime demand components', () => {
+  const dynamic: typeof import('next/dist/experimental/testing/mocking/dynamic') = require('next/dist/experimental/testing/mocking/dynamic')
+  const cache: typeof import('next/dist/experimental/testing/mocking/module-cache') = require('next/dist/experimental/testing/mocking/module-cache')
+  function deferred<T>() {
+    let resolve!: (value: T) => void
+    let reject!: (error: unknown) => void
+    const promise = new Promise<T>((yes, no) => {
+      resolve = yes
+      reject = no
+    })
+    return { promise, resolve, reject }
+  }
+  function host(
+    edges: unknown = [{ owner: 4, target: 2, site: 0 }],
+    ids = [1, 2, 3, 4, 5, 6],
+    targets: object[] = [
+      { id: 2, requests: ['./a'] },
+      { id: 3, requests: ['./b'] },
+    ],
+    hasPendingNamespace = true
+  ) {
+    const evaluated: number[] = []
+    const values = new Map<number, any>(
+      [2, 3, 4, 5, 6].map((id) => [id, { id }])
+    )
+    const bodies = new Map<number, (importer: any) => any>()
+    const prototype = {
+      i(this: any, id: number): any {
+        let record = this.c.get(id)
+        if (record) return record.result ?? record.exports
+        const exports = values.get(id)
+        record = { id, exports }
+        this.c.set(id, record)
+        evaluated.push(id)
+        const body = bodies.get(id)
+        if (body) {
+          const importer = Object.assign(Object.create(prototype), {
+            m: record,
+            c: this.c,
+            M: this.M,
+          })
+          record.result = Promise.resolve().then(() => body(importer))
+          record.pending = true
+          record.result.then(
+            () => {
+              record.pending = false
+            },
+            () => {
+              record.pending = false
+            }
+          )
+          return record.result
+        }
+        return exports
+      },
+      A(this: any, id: number) {
+        return this.r(id)((target: number) => this.i(target))
+      },
+      r(id: number) {
+        return (load: (id: number) => unknown) =>
+          Promise.resolve().then(() => load(id - 10))
+      },
+      E(this: any, id: number, expected: unknown) {
+        const record = this.c.get(id)
+        return record === expected && record.pending
+          ? record.exports
+          : undefined
+      },
+    }
+    if (!hasPendingNamespace) Reflect.deleteProperty(prototype, 'E')
+    const context = Object.assign(Object.create(prototype), {
+      m: { id: 0 },
+      c: new Map(),
+      M: new Map([1, 2, 3, 4, 5, 6].map((id) => [id, () => {}])),
+    })
+    const cacheOwner = cache.initializeModuleCache(
+      context,
+      { version: 1, resettable: ids, protected: [] },
+      () => {}
+    )
+    const before = Object.getOwnPropertyDescriptors(prototype)
+    const late: Error[] = []
+    let binding: ReturnType<typeof dynamic.initializeDynamicModuleMocking>
+    try {
+      binding = dynamic.initializeDynamicModuleMocking(
+        context,
+        {
+          version: 1,
+          owners: [1],
+          targets,
+          ...(edges === 'absent' ? {} : { staticDemands: edges }),
+        } as any,
+        {
+          trackImport() {},
+          onLateFailure(error) {
+            late.push(error)
+          },
+        }
+      )
+    } catch (error) {
+      cacheOwner.dispose()
+      throw error
+    }
+    const importer = (id: number) => {
+      let record = context.c.get(id)
+      if (!record) {
+        record = { id, exports: values.get(id) }
+        context.c.set(id, record)
+      }
+      return Object.assign(Object.create(prototype), {
+        m: record,
+        c: context.c,
+        M: context.M,
+      })
+    }
+    return {
+      context,
+      prototype,
+      before,
+      evaluated,
+      values,
+      bodies,
+      late,
+      binding,
+      cacheOwner,
+      importer,
+      close() {
+        binding.dispose()
+        cacheOwner.dispose()
+      },
+    }
+  }
+  it('keeps registration lazy, shares a dependency-started pending result and preserves exact exports descriptors', async () => {
+    const h = host()
+    try {
+      const gate = deferred<void>()
+      const started = deferred<void>()
+      const value = Object.create(null, {
+        token: { value: {}, enumerable: false, configurable: true },
+        live: { get: () => 7, enumerable: true },
+      })
+      const factory = jest.fn(async () => {
+        started.resolve()
+        await gate.promise
+        return value
+      })
+      dynamic.doMock('./a', factory)
+      expect(h.evaluated).toEqual([])
+      expect(factory).not.toHaveBeenCalled()
+      const pending = h.importer(4).D(0, 2)
+      await started.promise
+      const independent = h.importer(1).A(12)
+      gate.resolve()
+      expect(await pending).toBe(value)
+      expect(await independent).toBe(value)
+      expect(await h.importer(4).D(0, 2)).toBe(value)
+      expect(Object.getOwnPropertyDescriptors(await pending)).toEqual(
+        Object.getOwnPropertyDescriptors(value)
+      )
+      expect(Object.getPrototypeOf(await pending)).toBeNull()
+      expect(factory).toHaveBeenCalledTimes(1)
+      expect(h.evaluated).toEqual([])
+      cache.resetModules()
+      expect(await h.importer(4).D(0, 2)).toBe(value)
+      dynamic.doUnmock('./a')
+      expect(await h.importer(4).D(0, 2)).toBe(h.values.get(2))
+      expect(h.evaluated).toEqual([2])
+    } finally {
+      h.close()
+    }
+    expect(Object.getOwnPropertyDescriptors(h.prototype)).toEqual(h.before)
+  })
+  it('holds later ordinary evaluation behind the actual earlier dependency demand', async () => {
+    const h = host([
+      { owner: 4, target: 2, site: 0 },
+      { owner: 4, target: 5, site: 1 },
+    ])
+    try {
+      const gate = deferred<void>()
+      const started = deferred<void>()
+      dynamic.doMock('./a', async () => {
+        started.resolve()
+        await gate.promise
+        return { token: 'a' }
+      })
+      const consumer = h.importer(4)
+      const body = (async () => {
+        const first = await consumer.D(0, 2)
+        const second = await consumer.D(1, 5)
+        return { first, second }
+      })()
+      await started.promise
+      expect(h.evaluated).toEqual([])
+      gate.resolve()
+      expect(await body).toEqual({
+        first: { token: 'a' },
+        second: h.values.get(5),
+      })
+      expect(h.evaluated).toEqual([5])
+    } finally {
+      h.close()
+    }
+  })
+  it('carries the actual ancestor cache record across an awaited ordinary module in a cycle', async () => {
+    const h = host([
+      { owner: 2, target: 5, site: 0 },
+      { owner: 5, target: 3, site: 0 },
+      { owner: 3, target: 2, site: 0 },
+    ])
+    try {
+      const gate = deferred<void>()
+      const reached = deferred<void>()
+      let observed: unknown
+      h.bodies.set(2, async (importer) => {
+        await importer.D(0, 5)
+        return h.values.get(2)
+      })
+      h.bodies.set(5, async (importer) => {
+        reached.resolve()
+        await gate.promise
+        await importer.D(0, 3)
+        return h.values.get(5)
+      })
+      h.bodies.set(3, async (importer) => {
+        observed = await importer.D(0, 2)
+        return h.values.get(3)
+      })
+      dynamic.doMock('./a', async (original) => {
+        await original()
+        return { token: 'mock-a' }
+      })
+      dynamic.doMock('./b', async (original) => {
+        await original()
+        return { token: 'mock-b' }
+      })
+      const pending = h.importer(1).A(12)
+      await reached.promise
+      expect(h.evaluated).toEqual([2, 5])
+      gate.resolve()
+      expect(await pending).toEqual({ token: 'mock-a' })
+      expect(observed).toBe(h.values.get(2))
+      expect(h.evaluated).toEqual([2, 5, 3])
+    } finally {
+      h.close()
+    }
+  })
+  it('retries a failed dependency factory with fresh wrappers and its exact raw cause', async () => {
+    const h = host()
+    try {
+      const raw = new Error('dependency body')
+      const factory = jest.fn(() => {
+        throw raw
+      })
+      dynamic.doMock('./a', factory)
+      const consumer = h.importer(4)
+      const first = await consumer.D(0, 2).catch((error: Error) => error)
+      const second = await consumer.D(0, 2).catch((error: Error) => error)
+      expect(first).toBeInstanceOf(Error)
+      expect(first.message).toContain(
+        '[vitest] There was an error when mocking'
+      )
+      expect(second).not.toBe(first)
+      expect(first.cause).toBe(raw)
+      expect(second.cause).toBe(raw)
+      expect(factory).toHaveBeenCalledTimes(2)
+      expect(h.evaluated).toEqual([])
+    } finally {
+      h.close()
+    }
+  })
+  it.each(['entry', 'dependency'] as const)(
+    'retries a throwing then getter through the %s public import boundary',
+    async (path) => {
+      const h = host()
+      try {
+        const raw = new Error('then getter')
+        let reads = 0
+        const value = { token: {} }
+        let attempts = 0
+        const factory = jest.fn(() =>
+          ++attempts === 1
+            ? Object.create(null, {
+                then: {
+                  get() {
+                    reads++
+                    throw raw
+                  },
+                },
+              })
+            : value
+        )
+        dynamic.doMock('./a', factory)
+        const load = () =>
+          path === 'entry' ? h.importer(1).A(12) : h.importer(4).D(0, 2)
+        const error = await load().catch((failure: Error) => failure)
+        expect(error).toBeInstanceOf(Error)
+        expect(error.cause).toBe(raw)
+        expect(error).not.toBe(raw)
+        expect(await load()).toBe(value)
+        expect(await load()).toBe(value)
+        expect(reads).toBe(1)
+        expect(factory).toHaveBeenCalledTimes(2)
+        expect(h.evaluated).toEqual([])
+      } finally {
+        h.close()
+      }
+    }
+  )
+  it.each(['entry', 'dependency'] as const)(
+    'preserves the then receiver and retries adoption rejection through %s',
+    async (path) => {
+      const h = host()
+      try {
+        const raw = new Error('then rejection')
+        const value = { token: {} }
+        const receivers: unknown[] = []
+        const thenable = {
+          then(
+            this: unknown,
+            _resolve: unknown,
+            reject: (error: Error) => void
+          ) {
+            receivers.push(this)
+            reject(raw)
+          },
+        }
+        let attempts = 0
+        const factory = jest.fn((): any =>
+          ++attempts === 1 ? thenable : value
+        )
+        dynamic.doMock('./a', factory)
+        const load = () =>
+          path === 'entry' ? h.importer(1).A(12) : h.importer(4).D(0, 2)
+        const error = await load().catch((failure: Error) => failure)
+        expect(error.cause).toBe(raw)
+        expect(receivers).toEqual([thenable])
+        expect(await load()).toBe(value)
+        expect(await load()).toBe(value)
+        expect(factory).toHaveBeenCalledTimes(2)
+        expect(h.evaluated).toEqual([])
+      } finally {
+        h.close()
+      }
+    }
+  )
+  it.each([{ invalid: null }, { invalid: undefined }, { invalid: [] }])(
+    'clears a rejected invalid return before retrying the same registration: $invalid',
+    async ({ invalid }) => {
+      const h = host()
+      try {
+        const value = { token: {} }
+        let attempts = 0
+        const factory = jest.fn((): any => (++attempts === 1 ? invalid : value))
+        dynamic.doMock('./a', factory)
+        const error = await h
+          .importer(4)
+          .D(0, 2)
+          .catch((failure: Error) => failure)
+        expect(error.cause).toBeInstanceOf(TypeError)
+        expect(error.cause.message).toContain('exports object')
+        expect(await h.importer(4).D(0, 2)).toBe(value)
+        expect(await h.importer(1).A(12)).toBe(value)
+        expect(factory).toHaveBeenCalledTimes(2)
+        expect(h.evaluated).toEqual([])
+      } finally {
+        h.close()
+      }
+    }
+  )
+  it('retains distinct registration objects while an older dependency factory settles', async () => {
+    const h = host()
+    try {
+      const gate = deferred<void>()
+      const started = deferred<void>()
+      const old = { version: 'old' }
+      const next = { version: 'next' }
+      dynamic.doMock('./a', async () => {
+        started.resolve()
+        await gate.promise
+        return old
+      })
+      const pending = h.importer(4).D(0, 2)
+      await started.promise
+      dynamic.doMock('./a', () => next)
+      expect(await h.importer(1).A(12)).toBe(next)
+      gate.resolve()
+      expect(await pending).toBe(old)
+      expect(await h.importer(4).D(0, 2)).toBe(old)
+    } finally {
+      h.close()
+    }
+  })
+  it('retains a failed original dependency evaluation until actual cache reset while retrying factory wrappers', async () => {
+    const h = host([{ owner: 2, target: 3, site: 0 }])
+    try {
+      let failing = true
+      const raw = new Error('retained dependency original')
+      const a = jest.fn(async (original) => ({
+        dependency: (await original()).dependency,
+      }))
+      const value = { token: {} }
+      const b = jest.fn(() => {
+        if (failing) throw raw
+        return value
+      })
+      h.bodies.set(2, async (importer) => ({
+        dependency: await importer.D(0, 3),
+      }))
+      dynamic.doMock('./a', a)
+      dynamic.doMock('./b', b)
+      const first = await h
+        .importer(1)
+        .A(12)
+        .catch((error: Error) => error)
+      const second = await h
+        .importer(1)
+        .A(12)
+        .catch((error: Error) => error)
+      expect(first).not.toBe(second)
+      expect(first.cause).toBe(second.cause)
+      expect(first.cause.cause).toBe(raw)
+      expect(a).toHaveBeenCalledTimes(2)
+      expect(b).toHaveBeenCalledTimes(1)
+      failing = false
+      expect(await h.importer(1).A(13)).toBe(value)
+      const third = await h
+        .importer(1)
+        .A(12)
+        .catch((error: Error) => error)
+      expect(third.cause).toBe(first.cause)
+      cache.resetModules()
+      expect((await h.importer(1).A(12)).dependency).toBe(value)
+      expect(a).toHaveBeenCalledTimes(4)
+      expect(b).toHaveBeenCalledTimes(2)
+      expect(h.evaluated).toEqual([2, 2])
+    } finally {
+      h.close()
+    }
+  })
+  it('keeps a held dependency registration and its actual pending owner result across reset', async () => {
+    const h = host([{ owner: 2, target: 3, site: 0 }])
+    try {
+      const gate = deferred<void>()
+      const started = deferred<void>()
+      const value = { token: {} }
+      h.bodies.set(2, async (importer) => ({
+        dependency: await importer.D(0, 3),
+      }))
+      dynamic.doMock('./a', async (original) => ({
+        dependency: (await original()).dependency,
+      }))
+      dynamic.doMock('./b', async () => {
+        started.resolve()
+        await gate.promise
+        return value
+      })
+      const pending = h.importer(1).A(12)
+      await started.promise
+      const oldRecord = h.context.c.get(2)
+      cache.resetModules()
+      expect(h.context.c.has(2)).toBe(false)
+      gate.resolve()
+      const result = await pending
+      expect(result.dependency).toBe(value)
+      expect(await h.importer(1).A(12)).toBe(result)
+      expect(h.context.c.get(2)).not.toBe(oldRecord)
+      expect(h.evaluated).toEqual([2])
+    } finally {
+      h.close()
+    }
+  })
+  it('continues a previously current source record after reset without admitting an unrelated stale caller', async () => {
+    const h = host([
+      { owner: 2, target: 3, site: 0 },
+      { owner: 2, target: 5, site: 1 },
+    ])
+    try {
+      const gate = deferred<void>()
+      const started = deferred<void>()
+      const value = { token: {} }
+      h.bodies.set(2, async (importer) => {
+        const dependency = await importer.D(0, 3)
+        const ordinary = await importer.D(1, 5)
+        return { dependency, ordinary }
+      })
+      dynamic.doMock('./a', async (original) => ({ ...(await original()) }))
+      dynamic.doMock('./b', async () => {
+        started.resolve()
+        await gate.promise
+        return value
+      })
+      const pending = h.importer(1).A(12)
+      await started.promise
+      const retained = h.context.c.get(2)
+      cache.resetModules()
+      const foreign = Object.assign(Object.create(h.prototype), {
+        m: retained,
+        c: h.context.c,
+        M: h.context.M,
+      })
+      expect(() => foreign.D(1, 5)).toThrow(
+        'actual owner and retained factories'
+      )
+      gate.resolve()
+      const result = await pending
+      expect(result.dependency).toBe(value)
+      expect(result.ordinary).toBe(h.values.get(5))
+      expect(h.evaluated).toEqual([2, 5])
+    } finally {
+      h.close()
+    }
+  })
+  it('retains only a newly created real original owner across a wait before its first demand', async () => {
+    const h = host([{ owner: 2, target: 3, site: 0 }])
+    const gate = deferred<void>(),
+      started = deferred<void>()
+    const value = { token: {} }
+    try {
+      h.bodies.set(2, async (importer) => {
+        started.resolve()
+        await gate.promise
+        return { dependency: await importer.D(0, 3) }
+      })
+      dynamic.doMock('./a', async (original) => ({ ...(await original()) }))
+      dynamic.doMock('./b', () => value)
+      const pending = h.importer(1).A(12)
+      await started.promise
+      const retained = h.context.c.get(2)
+      cache.resetModules()
+      expect(h.context.c.has(2)).toBe(false)
+      const foreign = Object.assign(Object.create(h.prototype), {
+        m: retained,
+        c: h.context.c,
+        M: h.context.M,
+      })
+      expect(() => foreign.D(0, 3)).toThrow(
+        'actual owner and retained factories'
+      )
+      gate.resolve()
+      expect((await pending).dependency).toBe(value)
+      expect(h.evaluated).toEqual([2])
+    } finally {
+      gate.resolve()
+      h.close()
+    }
+  })
+  it('does not capture a preexisting unrelated owner into a real original activation', async () => {
+    const h = host([{ owner: 4, target: 3, site: 0 }])
+    const gate = deferred<void>(),
+      started = deferred<void>()
+    const unrelated = h.importer(4),
+      factory = jest.fn(() => ({ token: {} }))
+    try {
+      h.bodies.set(2, async () => {
+        started.resolve()
+        await gate.promise
+        return unrelated.D(0, 3)
+      })
+      dynamic.doMock('./a', async (original) => ({ ...(await original()) }))
+      dynamic.doMock('./b', factory)
+      const pending = h
+        .importer(1)
+        .A(12)
+        .catch((error: Error) => error)
+      await started.promise
+      cache.resetModules()
+      gate.resolve()
+      expect(await pending).toMatchObject({
+        cause: {
+          message:
+            'Runtime static demand has no actual owner and retained factories.',
+        },
+      })
+      expect(factory).not.toHaveBeenCalled()
+      expect(h.evaluated).toEqual([2])
+    } finally {
+      gate.resolve()
+      h.close()
+    }
+  })
+  it('uses the genuine enumerable cause descriptor while preserving the exact raw cause', async () => {
+    const h = host()
+    try {
+      const raw = new Error('enumerable genuine cause')
+      dynamic.doMock('./a', () => {
+        throw raw
+      })
+      const error = await h
+        .importer(1)
+        .A(12)
+        .catch((error: Error) => error)
+      expect(Object.getOwnPropertyDescriptor(error, 'cause')).toEqual({
+        value: raw,
+        writable: true,
+        enumerable: true,
+        configurable: true,
+      })
+      expect(error.cause).toBe(raw)
+    } finally {
+      h.close()
+    }
+  })
+  it('rejects foreign readsites and replaced cache records before any target evaluation', () => {
+    const h = host()
+    try {
+      const consumer = h.importer(4)
+      expect(() => h.importer(6).D(0, 2)).toThrow('compiler readsite')
+      expect(() => consumer.D(1, 2)).toThrow('compiler readsite')
+      expect(() => consumer.D(0, 3)).toThrow('compiler readsite')
+      h.context.c.set(4, { id: 4, exports: {} })
+      expect(() => consumer.D(0, 2)).toThrow(
+        'actual owner and retained factories'
+      )
+      expect(h.evaluated).toEqual([])
+    } finally {
+      h.close()
+    }
+  })
+  it('leaves the complete prototype unchanged when demands are absent', () => {
+    const h = host('absent')
+    try {
+      expect(Object.getOwnPropertyDescriptor(h.prototype, 'D')).toBeUndefined()
+    } finally {
+      h.close()
+    }
+    expect(Object.getOwnPropertyDescriptors(h.prototype)).toEqual(h.before)
+  })
+  it.each([
+    null,
+    [],
+    {},
+    [{ owner: 4, target: 2 }],
+    [{ owner: 4, target: 2, site: -1 }],
+    [{ owner: 4, target: 2, site: 0.5 }],
+    [{ owner: 4, target: 2, site: Number.MAX_SAFE_INTEGER + 1 }],
+    [{ owner: 1, target: 2, site: 0 }],
+    [{ owner: 4, target: 1, site: 0 }],
+    [{ owner: 2, target: 2, site: 0 }],
+    [{ owner: 99, target: 2, site: 0 }],
+    [{ owner: 4, target: 99, site: 0 }],
+    [
+      { owner: 4, target: 2, site: 0 },
+      { owner: 4, target: 2, site: 0 },
+    ],
+  ])('rejects malformed or unowned ordered demand metadata %p', (edges) => {
+    expect(() => host(edges)).toThrow(
+      /Invalid runtime static demand|not owned by this module cache/
+    )
+  })
+  it('rejects a protected graph owner without evaluating any source', () => {
+    expect(() => host(undefined, [1, 2, 3, 5, 6])).toThrow(
+      'not owned by this module cache'
+    )
+  })
+  it('requires the pending-native helper only for a nonempty demand graph', () => {
+    expect(() => host(undefined, undefined, undefined, false)).toThrow(
+      'Invalid runtime static demand graph'
+    )
+    const h = host('absent', undefined, undefined, false)
+    try {
+      expect(Object.getOwnPropertyDescriptor(h.prototype, 'D')).toBeUndefined()
+    } finally {
+      h.close()
+    }
+  })
+  it('rejects native target demand metadata at the existing cache owner', () => {
+    expect(() =>
+      host(undefined, undefined, [
+        { id: 2, requests: ['./a'], nativeOriginal: 'esm' },
+      ])
+    ).toThrow('Invalid runtime static demand edge identity')
+  })
+  it('requires both retained actual factories before demanding a target', () => {
+    const h = host()
+    try {
+      const consumer = h.importer(4)
+      h.context.M.delete(2)
+      expect(() => consumer.D(0, 2)).toThrow(
+        'actual owner and retained factories'
+      )
+      expect(h.evaluated).toEqual([])
+    } finally {
+      h.close()
+    }
+  })
+  it('rejects a different module-cache context even when its maps and IDs match', () => {
+    const h = host('absent')
+    h.binding.dispose()
+    try {
+      const foreign = Object.assign(Object.create(h.prototype), h.context)
+      expect(() =>
+        dynamic.initializeDynamicModuleMocking(
+          foreign,
+          {
+            version: 1,
+            owners: [1],
+            targets: [{ id: 2, requests: ['./a'] }],
+            staticDemands: [{ owner: 4, target: 2, site: 0 }],
+          },
+          { trackImport() {}, onLateFailure() {} }
+        )
+      ).toThrow('not owned by this module cache')
+      expect(Object.getOwnPropertyDescriptor(h.prototype, 'D')).toBeUndefined()
+      expect(h.evaluated).toEqual([])
+    } finally {
+      h.cacheOwner.dispose()
+    }
+  })
+  it('detects replacement of its demand method before restoring prototype ownership', () => {
+    const h = host()
+    Reflect.set(h.prototype, 'D', () => ({ foreign: true }))
+    try {
+      expect(() => h.binding.dispose()).toThrow(
+        'Runtime static demand ownership changed before disposal'
+      )
+    } finally {
+      h.cacheOwner.dispose()
+    }
+  })
+  it('cancels a held dependency import as its raw ownership failure and restores D', async () => {
+    const h = host()
+    const gate = deferred<void>()
+    const started = deferred<void>()
+    dynamic.doMock('./a', async () => {
+      started.resolve()
+      await gate.promise
+      return { token: 'late' }
+    })
+    const pending = h.importer(4).D(0, 2)
+    const observed = pending.catch((error: Error) => error)
+    await started.promise
+    expect(() => h.binding.dispose()).toThrow('cancelled during file cleanup')
+    const failure = await observed
+    expect(failure.message).toContain('cancelled during file cleanup')
+    expect(failure.cause).toBeUndefined()
+    expect(Object.getOwnPropertyDescriptors(h.prototype)).toEqual(h.before)
+    gate.resolve()
+    await Promise.resolve()
+    await Promise.resolve()
+    h.cacheOwner.dispose()
+  })
+  it('cancels an actual D waiter on an A-started factory without borrowing a fresh owner', async () => {
+    const h = host()
+    const started = deferred<void>()
+    const gate = deferred<void>()
+    const reported = deferred<void>()
+    const push = h.late.push.bind(h.late)
+    h.late.push = (...errors) => {
+      const size = push(...errors)
+      reported.resolve()
+      return size
+    }
+    dynamic.doMock('./a', async () => {
+      started.resolve()
+      await gate.promise
+      return { token: 'stale' }
+    })
+    const entry = h
+      .importer(1)
+      .A(12)
+      .catch((error: Error) => error)
+    await started.promise
+    const dependency = h
+      .importer(4)
+      .D(0, 2)
+      .catch((error: Error) => error)
+    expect(() => h.binding.dispose()).toThrow('cancelled during file cleanup')
+    for (const error of await Promise.all([entry, dependency])) {
+      expect(error.message).toContain('cancelled during file cleanup')
+      expect(error.cause).toBeUndefined()
+    }
+    h.cacheOwner.dispose()
+    const fresh = host()
+    try {
+      const factory = jest.fn(() => ({ token: 'fresh' }))
+      dynamic.doMock('./a', factory)
+      const first = await fresh.importer(4).D(0, 2)
+      gate.resolve()
+      await reported.promise
+      expect(await fresh.importer(1).A(12)).toBe(first)
+      expect(first.token).toBe('fresh')
+      expect(factory).toHaveBeenCalledTimes(1)
+      expect(h.late).toHaveLength(1)
+      expect(fresh.late).toEqual([])
+      expect(fresh.evaluated).toEqual([])
+    } finally {
+      fresh.close()
+    }
+  })
+})
+
+describe('native pending namespace primitive with actual async runtime state', () => {
+  function runtime() {
+    const fs = require('node:fs')
+    const path = require('node:path')
+    const vm = require('node:vm')
+    const ts = require('typescript')
+    const source = fs.readFileSync(
+      path.resolve(
+        __dirname,
+        '../../../../turbopack/crates/turbopack-ecmascript-runtime/js/src/shared/runtime/async-module.ts'
+      ),
+      'utf8'
+    )
+    const prototype: any = {}
+    vm.runInNewContext(
+      ts.transpileModule(source, {
+        compilerOptions: { target: ts.ScriptTarget.ES2022 },
+      }).outputText,
+      {
+        contextPrototype: prototype,
+        Promise,
+        createPromise() {
+          let resolve!: (value?: unknown) => void
+          let reject!: (error: unknown) => void
+          const promise = new Promise((yes, no) => {
+            resolve = yes
+            reject = no
+          })
+          return { promise, resolve, reject }
+        },
+      }
+    )
+    return prototype
+  }
+  it('retains actual original Promise metadata so an unregistered dependency cycle finishes', async () => {
+    const dynamic = require('next/dist/experimental/testing/mocking/dynamic')
+    const cache = require('next/dist/experimental/testing/mocking/module-cache')
+    const prototype = runtime()
+    const records = new Map<number, any>([[1, { id: 1, exports: {} }]])
+    const factories = new Map([1, 2, 3].map((id) => [id, () => {}]))
+    const context = Object.assign(Object.create(prototype), {
+      m: records.get(1),
+      c: records,
+      M: factories,
+    })
+    const completed: number[] = []
+    const reads: Array<{
+      same: boolean
+      symbols: symbol[]
+      originalSymbols: symbol[]
+    }> = []
+    prototype.i = function (this: any, id: number) {
+      if (records.has(id)) return records.get(id).exports
+      const record: any = { id, exports: { id } }
+      records.set(id, record)
+      const self = Object.assign(Object.create(prototype), {
+        m: record,
+        c: records,
+        M: factories,
+      })
+      prototype.a.call(
+        self,
+        async (handle: any, result: any) => {
+          try {
+            const peer = id === 2 ? 3 : 2
+            const value = self.D(0, peer)
+            const original = records.get(peer).exports
+            reads.push({
+              same: value === original,
+              symbols: Object.getOwnPropertySymbols(value),
+              originalSymbols: Object.getOwnPropertySymbols(original),
+            })
+            const dependencies = handle([value])
+            if (dependencies.then) (await dependencies)()
+            completed.push(id)
+            result()
+          } catch (error) {
+            result(error)
+          }
+        },
+        true
+      )
+      return record.exports
+    }
+    prototype.r = (id: number) => (load: (target: number) => unknown) =>
+      Promise.resolve().then(() => load(id - 10))
+    prototype.A = function (this: any, id: number) {
+      return this.r(id)(this.i.bind(this))
+    }
+    const owner = cache.initializeModuleCache(
+      context,
+      { version: 1, resettable: [2, 3], protected: [1] },
+      () => {}
+    )
+    const tracked = jest.fn()
+    const late = jest.fn()
+    const binding = dynamic.initializeDynamicModuleMocking(
+      context,
+      {
+        version: 1,
+        owners: [1],
+        targets: [
+          { id: 2, requests: ['./a'] },
+          { id: 3, requests: ['./b'] },
+        ],
+        staticDemands: [
+          { owner: 2, target: 3, site: 0 },
+          { owner: 3, target: 2, site: 0 },
+        ],
+      },
+      { trackImport: tracked, onLateFailure: late }
+    )
+    try {
+      expect(await prototype.i.call(context, 2)).toEqual({ id: 2 })
+      expect(completed).toEqual([3, 2])
+      expect(reads).toHaveLength(2)
+      expect(reads.every((read) => read.same)).toBe(true)
+      for (const read of reads) {
+        expect(read.symbols).toEqual(read.originalSymbols)
+        expect(read.symbols.map(String)).toEqual(
+          expect.arrayContaining([
+            'Symbol(turbopack async module id)',
+            'Symbol(turbopack async settled)',
+            'Symbol(turbopack exports)',
+            'Symbol(turbopack queues)',
+          ])
+        )
+      }
+      expect(tracked).not.toHaveBeenCalled()
+      expect(late).not.toHaveBeenCalled()
+    } finally {
+      binding.dispose()
+      owner.dispose()
+    }
+  })
+  it('reads the exact pending namespace only for the same actual cache record and never instantiates a missing module', async () => {
+    const prototype = runtime()
+    const value = Object.create(null, {
+      token: { enumerable: true, get: () => 7 },
+    })
+    const module = { id: 2, exports: value }
+    const context = { m: { id: 1 }, c: new Map([[2, module]]) }
+    let settle!: (error?: unknown) => void
+    prototype.a.call(
+      { m: module },
+      (_handle: unknown, result: typeof settle) => {
+        settle = result
+      },
+      true
+    )
+    expect(prototype.E.call(context, 2, module)).toBe(value)
+    expect(
+      prototype.E.call(context, 2, { id: 2, exports: value })
+    ).toBeUndefined()
+    expect(prototype.E.call(context, 99, module)).toBeUndefined()
+    context.c.delete(2)
+    expect(prototype.E.call(context, 2, module)).toBeUndefined()
+    context.c.set(2, { id: 2, exports: value })
+    expect(prototype.E.call(context, 2, module)).toBeUndefined()
+    context.c.set(2, module)
+    module.id = 3
+    expect(prototype.E.call(context, 2, module)).toBeUndefined()
+    module.id = 2
+    expect(prototype.E.call(context, 2, module)).toBe(value)
+    settle()
+    expect(await module.exports).toBe(value)
+    expect(prototype.E.call(context, 2, module)).toBeUndefined()
+    expect(context.c.size).toBe(1)
+  })
+  it('refuses settled rejected and ordinary module records while preserving the real rejection', async () => {
+    const prototype = runtime()
+    const module = { id: 'pending', exports: { token: {} } }
+    const context = {
+      c: new Map<string, { id: string; exports: unknown }>([
+        ['pending', module],
+        ['ordinary', { id: 'ordinary', exports: {} }],
+      ]),
+    }
+    let settle!: (error?: unknown) => void
+    prototype.a.call(
+      { m: module },
+      (_handle: unknown, result: typeof settle) => {
+        settle = result
+      },
+      true
+    )
+    const cause = new Error('actual async evaluation')
+    const rejected = Promise.resolve(module.exports).catch((error) => error)
+    settle(cause)
+    expect(await rejected).toBe(cause)
+    expect(prototype.E.call(context, 'pending', module)).toBeUndefined()
+    expect(
+      prototype.E.call(context, 'ordinary', context.c.get('ordinary'))
+    ).toBeUndefined()
+  })
 })

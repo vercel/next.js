@@ -1,0 +1,109 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {
+      "offset": {
+        "line": 5,
+        "column": 0
+      },
+      "map": {
+        "version": 3,
+        "sources": [
+          "file:///private/tmp/next-testing-parallel-20261019/authoring-hooks163/.next-test-conditional164-production/ordinary-control.case.mjs"
+        ],
+        "sourcesContent": [
+          "import {test,expect} from 'vitest'\nimport {subject} from './subject.mjs'\ntest('ordinary exact branch control',()=>{expect(subject(-1)).toBe(0);expect(subject(1)).toBe(3);expect(subject(2)).toBe(6)})\n"
+        ],
+        "names": ["toBe"],
+        "mappings": "A;AAAA;AACA;;;AACA,IAAA,6CAAI,EAAC,iCAAgC;IAAK,IAAA,+CAAM,EAAC,IAAA,gDAAO,EAAC,CAAC,IAAIA,IAAI,CAAC;IAAG,IAAA,+CAAM,EAAC,IAAA,gDAAO,EAAC,IAAIA,IAAI,CAAC;IAAG,IAAA,+CAAM,EAAC,IAAA,gDAAO,EAAC,IAAIA,IAAI,CAAC;AAAE"
+      }
+    },
+    {
+      "offset": {
+        "line": 19,
+        "column": 0
+      },
+      "map": {
+        "version": 3,
+        "sources": [
+          "file:///private/tmp/next-testing-parallel-20261019/authoring-hooks163/.next-test-conditional164-production/subject.mjs"
+        ],
+        "sourcesContent": [
+          "export function subject(value) {\n  return value > 0 ? value * 3 : 0\n}\n"
+        ],
+        "names": ["subject", "value"],
+        "mappings": "A;;;;AAAO,SAASA,QAAQC,KAAK;IAC3B,OAAOA,QAAQ,IAAIA,QAAQ,IAAI;AACjC"
+      }
+    },
+    {
+      "offset": {
+        "line": 30,
+        "column": 0
+      },
+      "map": {
+        "version": 3,
+        "sources": [
+          "file:///private/tmp/next-testing-parallel-20261019/authoring-hooks163/packages/next/dist/esm/build/templates/node-test.js"
+        ],
+        "sourcesContent": [
+          "// Explicit Node unit/browser-driver entry. Collection and imports share one\n// runtime; no React server condition or App Router renderer is installed here.\n\nexport const testRunner = // eslint-disable-next-line @next/internal/typechecked-require\nrequire('next/dist/experimental/testing/runner/index');\nexport const browserTesting = // eslint-disable-next-line @next/internal/typechecked-require\nrequire('next/dist/experimental/testing/browser/index');\n\n\n\nexport async function loadTestModule() {\n    \n    // eslint-disable-next-line @next/internal/typechecked-require\n    return require(/*turbopackChunkingType: shared*/ \"INNER_TEST_MODULE\");\n}\n// These imports are compiled in the spec context and evaluated after collection starts.\nexport async function loadSetupModules(setupFilesSequence = 'list') {\n    void setupFilesSequence // Referenced by the compiler-injected setup loaders.\n    ;\nconst setupLoaders = [];\nif (setupFilesSequence === 'parallel') {\nawait Promise.all(setupLoaders.map(load => load()));\n} else { for (const load of setupLoaders) await load(); }\n\n}\nexport function initializeModuleImportTracking() {\n    return testRunner.createModuleImportTracker(__turbopack_context__);\n}\n\n"
+        ],
+        "names": [
+          "testRunner",
+          "browserTesting",
+          "loadTestModule",
+          "loadSetupModules",
+          "setupFilesSequence",
+          "setupLoaders",
+          "Promise",
+          "all",
+          "map",
+          "load",
+          "initializeModuleImportTracking",
+          "createModuleImportTracker",
+          "__turbopack_context__"
+        ],
+        "mappings": "AAAA,4EAA4E;AAC5E,+EAA+E;A;;;;;;;;;;;;AAExE,MAAMA;AAEN,MAAMC;AAKN,eAAeC;IAElB,8DAA8D;IAC9D;AACJ;AAEO,eAAeC,iBAAiBC,qBAAqB,MAAM;IAC9D,KAAKA,mBAAmB,qDAAqD;;IAEjF,MAAMC,eAAe,EAAE;IACvB,IAAID,uBAAuB,YAAY;QACvC,MAAME,QAAQC,GAAG,CAACF,aAAaG,GAAG,CAACC,CAAAA,OAAQA;IAC3C,OAAO;QAAE,KAAK,MAAMA,QAAQJ,aAAc,MAAMI;IAAQ;AAExD;AACO,SAASC;IACZ,OAAOV,WAAWW,yBAAyB,CAACC;AAChD"
+      }
+    },
+    {
+      "offset": {
+        "line": 67,
+        "column": 0
+      },
+      "map": {
+        "version": 3,
+        "sources": [
+          "file:///private/tmp/next-testing-parallel-20261019/authoring-hooks163/packages/next/src/experimental/testing/browser/index.ts"
+        ],
+        "sourcesContent": [
+          "import type { createBrowserFixture } from './fixture'\n\ntype BrowserAttemptContext = Parameters<\n  typeof createBrowserFixture\n>[0]['attempt']\ntype BrowserFixture = Awaited<ReturnType<typeof createBrowserFixture>>\n\nexport type BrowserTestAttempt = BrowserAttemptContext & {\n  readonly id: string\n  readonly fileId: string\n  readonly testId: string\n  readonly retry: number\n  readonly repeat: number\n}\n\ninterface BrowserTestingBinding {\n  getActiveAttempt(): BrowserTestAttempt | undefined\n  createFixture(attempt: BrowserTestAttempt): Promise<BrowserFixture>\n  fixtures: WeakMap<BrowserTestAttempt, Promise<BrowserFixture>>\n}\n\nlet binding: BrowserTestingBinding | undefined\n// Retain only the actual C scope guard after revocation. A caught late call\n// must still reach C's originating-scope error sink during the worker's drain.\nlet getOriginatingAttempt: BrowserTestingBinding['getActiveAttempt'] | undefined\n\n/** Called through the emitted entry with that entry's actual C API instance. */\nexport function initializeBrowserTesting(options: {\n  getActiveAttempt(): BrowserTestAttempt | undefined\n  createFixture(attempt: BrowserTestAttempt): Promise<BrowserFixture>\n}): { dispose(): void } {\n  if (binding) throw new Error('Next browser testing is already initialized')\n  const current: BrowserTestingBinding = {\n    ...options,\n    fixtures: new WeakMap(),\n  }\n  binding = current\n  getOriginatingAttempt = options.getActiveAttempt\n  return {\n    dispose() {\n      if (binding === current) binding = undefined\n    },\n  }\n}\n\n/** One browser fixture per actual test attempt, including retries. */\nexport function browser(): Promise<BrowserFixture> {\n  const current = binding\n  const attempt = getOriginatingAttempt?.()\n  if (!current) {\n    throw new Error(\n      'Browser fixtures require an initialized Next browser test environment'\n    )\n  }\n  if (!attempt) {\n    throw new Error('Browser fixtures require an active Next test attempt')\n  }\n  attempt.signal.throwIfAborted()\n  let fixture = current.fixtures.get(attempt)\n  if (!fixture) {\n    fixture = current.createFixture(attempt)\n    current.fixtures.set(attempt, fixture)\n  }\n  return fixture\n}\n"
+        ],
+        "names": [
+          "browser",
+          "initializeBrowserTesting",
+          "binding",
+          "getOriginatingAttempt",
+          "options",
+          "Error",
+          "current",
+          "fixtures",
+          "WeakMap",
+          "getActiveAttempt",
+          "dispose",
+          "undefined",
+          "attempt",
+          "signal",
+          "throwIfAborted",
+          "fixture",
+          "get",
+          "createFixture",
+          "set"
+        ],
+        "mappings": ";;;;;;;;;;;;;;IA8CgBA,OAAO,EAAA;eAAPA;;IAnBAC,wBAAwB,EAAA;eAAxBA;;;AANhB,IAAIC;AACJ,4EAA4E;AAC5E,+EAA+E;AAC/E,IAAIC;AAGG,SAASF,yBAAyBG,OAGxC;IACC,IAAIF,SAAS,MAAM,IAAIG,MAAM;IAC7B,MAAMC,UAAiC;QACrC,GAAGF,OAAO;QACVG,UAAU,IAAIC;IAChB;IACAN,UAAUI;IACVH,wBAAwBC,QAAQK,gBAAgB;IAChD,OAAO;QACLC;YACE,IAAIR,YAAYI,SAASJ,UAAUS;QACrC;IACF;AACF;AAGO,SAASX;IACd,MAAMM,UAAUJ;IAChB,MAAMU,UAAUT,yBAAAA,OAAAA,KAAAA,IAAAA;IAChB,IAAI,CAACG,SAAS;QACZ,MAAM,IAAID,MACR;IAEJ;IACA,IAAI,CAACO,SAAS;QACZ,MAAM,IAAIP,MAAM;IAClB;IACAO,QAAQC,MAAM,CAACC,cAAc;IAC7B,IAAIC,UAAUT,QAAQC,QAAQ,CAACS,GAAG,CAACJ;IACnC,IAAI,CAACG,SAAS;QACZA,UAAUT,QAAQW,aAAa,CAACL;QAChCN,QAAQC,QAAQ,CAACW,GAAG,CAACN,SAASG;IAChC;IACA,OAAOA;AACT",
+        "ignoreList": [0]
+      }
+    }
+  ]
+}

@@ -6,10 +6,15 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { setTimeout as delay } from 'node:timers/promises'
 
-function state(pid) {
+function states(pids) {
+  const ids = [...new Set(pids)]
+  const records = new Map()
+  if (!ids.length) return records
   const result = spawnSync(
     '/bin/ps',
     [
+      '-o',
+      'pid=',
       '-o',
       'lstart=',
       '-o',
@@ -19,18 +24,22 @@ function state(pid) {
       '-o',
       'stat=',
       '-p',
-      String(pid),
+      ids.join(','),
     ],
     { encoding: 'utf8', timeout: 1000 }
   )
-  if (result.status === 1 && !result.stdout.trim()) return undefined
+  if (result.status === 1 && !result.stdout.trim()) return records
   if (result.status !== 0)
-    throw new Error(`Cannot inspect owned process ${pid}: ${result.stderr}`)
-  const fields = result.stdout.trim().split(/\s+/)
-  const status = fields.pop()
-  const pgid = Number(fields.pop())
-  const ppid = Number(fields.pop())
-  return { started: fields.join(' '), ppid, pgid, status }
+    throw new Error(`Cannot inspect owned processes: ${result.stderr}`)
+  for (const line of result.stdout.trim().split('\n')) {
+    const fields = line.trim().split(/\s+/)
+    const status = fields.pop()
+    const pgid = Number(fields.pop())
+    const ppid = Number(fields.pop())
+    const pid = Number(fields.shift())
+    records.set(pid, { started: fields.join(' '), ppid, pgid, status })
+  }
+  return records
 }
 
 /** Outer verifier ownership, independent of the product's process supervisor. */
@@ -96,8 +105,15 @@ export async function runOwnedNode(
   }
   function living() {
     readStarts()
+    const observed = states([
+      ...[...known.values()].map((record) => record.pid),
+      ...[...pendingSpawns.values()].flatMap((record) => [
+        record.pid,
+        record.ppid,
+      ]),
+    ])
     for (const record of pendingSpawns.values()) {
-      const current = state(record.pid)
+      const current = observed.get(record.pid)
       // Parent-side syscall evidence scopes a pending registration. Reconcile
       // only a process born at that spawn and still parented by that owner (or
       // reparented after the audited owner exited); never adopt an arbitrary PID.
@@ -108,7 +124,7 @@ export async function runOwnedNode(
       const matchesParent =
         current &&
         (current.ppid === record.ppid ||
-          (current.ppid === 1 && parent && !state(record.ppid)))
+          (current.ppid === 1 && parent && !observed.has(record.ppid)))
       if (
         matchesParent &&
         born >= Math.floor(record.createdAt / 1000) * 1000 - 1000 &&
@@ -119,7 +135,7 @@ export async function runOwnedNode(
       }
     }
     return [...known.values()].flatMap((record) => {
-      const current = state(record.pid)
+      const current = observed.get(record.pid)
       return current?.started === record.started
         ? [{ ...record, pgid: current.pgid, status: current.status }]
         : []
@@ -139,8 +155,9 @@ export async function runOwnedNode(
     }
     // A worker may have changed groups after startup. Recheck PID identity before
     // signalling the individual process using its recorded start identity.
+    const observed = states([...known.values()].map((record) => record.pid))
     for (const record of known.values()) {
-      if (state(record.pid)?.started !== record.started) continue
+      if (observed.get(record.pid)?.started !== record.started) continue
       try {
         process.kill(record.pid, signal)
       } catch (error) {

@@ -1,0 +1,311 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_ESM_NAMESPACE",
+    "value": {
+      "name": "ordinary-hygiene",
+      "namespace": {
+        "type": "object",
+        "brand": false,
+        "keys": [
+          "Object",
+          "Symbol",
+          "__turbopack_namespace__",
+          "__esModule",
+          "default",
+          "Symbol(Symbol.toStringTag)"
+        ],
+        "prototype": "null",
+        "tag": "Module",
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "Object",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "Symbol",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "__turbopack_namespace__",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "__esModule",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "default",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "Symbol(Symbol.toStringTag)",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": false
+          }
+        ]
+      },
+      "root": {
+        "type": "object",
+        "brand": false,
+        "keys": ["kind", "evaluation"],
+        "prototype": "Object.prototype",
+        "tag": null,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "kind",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "evaluation",
+            "valueType": "number",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          }
+        ]
+      },
+      "values": ["authored-object", "authored-symbol", "authored-name", false],
+      "defaultSame": true,
+      "count": 1
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_ESM_NAMESPACE",
+    "value": {
+      "name": "ordinary-hygiene-reset",
+      "before": {
+        "type": "object",
+        "brand": false,
+        "keys": [
+          "Object",
+          "Symbol",
+          "__turbopack_namespace__",
+          "__esModule",
+          "default",
+          "Symbol(Symbol.toStringTag)"
+        ],
+        "prototype": "null",
+        "tag": "Module",
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "Object",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "Symbol",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "__turbopack_namespace__",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "__esModule",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "default",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "Symbol(Symbol.toStringTag)",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": false
+          }
+        ]
+      },
+      "after": {
+        "type": "object",
+        "brand": false,
+        "keys": [
+          "Object",
+          "Symbol",
+          "__turbopack_namespace__",
+          "__esModule",
+          "default",
+          "Symbol(Symbol.toStringTag)"
+        ],
+        "prototype": "null",
+        "tag": "Module",
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "Object",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "Symbol",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "__turbopack_namespace__",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "__esModule",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "default",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "Symbol(Symbol.toStringTag)",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": false
+          }
+        ]
+      },
+      "held": {
+        "type": "object",
+        "brand": false,
+        "keys": ["kind", "evaluation"],
+        "prototype": "Object.prototype",
+        "tag": null,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "kind",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "evaluation",
+            "valueType": "number",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          }
+        ]
+      },
+      "namespaceIdentity": [
+        [true, false],
+        [false, true]
+      ],
+      "defaultIdentity": [
+        [true, true, false, false],
+        [true, true, false, false],
+        [false, false, true, true],
+        [false, false, true, true]
+      ],
+      "values": ["authored-object", false, false],
+      "calls": 0,
+      "count": 3
+    }
+  }
+]

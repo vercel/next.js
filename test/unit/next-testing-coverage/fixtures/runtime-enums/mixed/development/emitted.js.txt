@@ -1,0 +1,38 @@
+(()=>{"use strict";module.exports = [
+"[project]/.next-test-ts-runtime176-mixed-development/contract.case.mjs [next-test-node] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/packages/next/dist/experimental/testing/vitest.js [next-test-node] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$ts$2d$runtime176$2d$mixed$2d$development$2f$subject$2e$ts__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/.next-test-ts-runtime176-mixed-development/subject.ts [next-test-node] (ecmascript)");
+;
+;
+(0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["test"])("runtime enum", ()=>{
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])((0, __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$ts$2d$runtime176$2d$mixed$2d$development$2f$subject$2e$ts__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["choose"])(__TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$ts$2d$runtime176$2d$mixed$2d$development$2f$subject$2e$ts__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["Kind"].First)).toBe(4);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])((0, __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$ts$2d$runtime176$2d$mixed$2d$development$2f$subject$2e$ts__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["choose"])(__TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$ts$2d$runtime176$2d$mixed$2d$development$2f$subject$2e$ts__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["Kind"].Next)).toBe("word");
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])(__TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$ts$2d$runtime176$2d$mixed$2d$development$2f$subject$2e$ts__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["Kind"][4]).toBe("Next");
+});
+}),
+"[project]/.next-test-ts-runtime176-mixed-development/subject.ts [next-test-node] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "Kind",
+    ()=>Kind,
+    "choose",
+    ()=>choose
+]);
+var Kind = /*#__PURE__*/ function(Kind) {
+    Kind[Kind["First"] = 0] = "First";
+    Kind[Kind["Next"] = 4] = "Next";
+    Kind["Word"] = "word";
+    return Kind;
+}({});
+function choose(value) {
+    if (value === 0) return 4;
+    return "word";
+}
+}),
+];})()
+
+//# sourceMappingURL=_next-test-ts-runtime176-mixed-development_1dciimtsl0mpl._.js.map

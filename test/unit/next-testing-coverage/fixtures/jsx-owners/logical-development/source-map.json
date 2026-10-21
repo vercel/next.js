@@ -1,0 +1,13 @@
+{
+  "version": 3,
+  "sources": [
+    "/private/tmp/next-testing-parallel-20261019/tooling-editor143/.next-test-jsx144-logical-development/helper.js",
+    "/private/tmp/next-testing-parallel-20261019/tooling-editor143/.next-test-jsx144-logical-development/subject.tsx"
+  ],
+  "names": [],
+  "mappings": ";;;;A;A;A;;;A,I,+K,E,oC;I,I,iL,E,I,mL,E;Q,Q;I,G,K,C,Q,C,K,C,Q,E,I,C;I,I,iL,E,I,mL,E;Q,Q;I,G,K,C,Q,E,I,C;A;;;;;A;;;;AAAO,SAAS,MAAM,KAAK;IAAI,OAAO,QAAQ;AAAI;;;;;A;;;;;ACClD;;;AAEO,SAAS,QAAQ,EAAE,MAAM,EAAS;IACvC,qBAAO,6PAAC,WAAD;kBAAU,wBAAU,6PAAC,QAAD;sBAAO,IAAA,+KAAK,EAAC;QAAgB;;;;;IAAW;;;;;AACrE",
+  "sourcesContent": [
+    "export function label(value) { return value + '!' }\n",
+    "import React from 'react'\nimport { label } from './helper.js'\ntype Props = { active: boolean }\nexport function Logical({ active }: Props) {\n  return <section>{active && <span>{label('active')}</span>}</section>\n}\n"
+  ]
+}

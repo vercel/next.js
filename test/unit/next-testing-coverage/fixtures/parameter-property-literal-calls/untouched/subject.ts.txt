@@ -1,0 +1,13 @@
+throw new Error("coverage-only source must never evaluate")
+function initial(value: number): number { return value }
+export class Counter {
+  constructor(public value: number = initial(3)) {}
+  add(delta: number): number {
+    this.value += delta
+    return this.value
+  }
+}
+export function exercise(): number[] {
+  const counter = new Counter()
+  return [counter.value, counter.add(2)]
+}

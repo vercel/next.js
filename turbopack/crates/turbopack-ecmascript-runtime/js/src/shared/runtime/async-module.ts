@@ -316,3 +316,24 @@ function importDeferredOriginal(
   }
 }
 contextPrototype.B = importDeferredOriginal
+
+/** Read the real pending namespace only while its exact cache record is held. */
+function pendingOriginalNamespace(
+  this: TurbopackBaseContext<Module>,
+  id: ModuleId,
+  expected: Module
+): Exports | undefined {
+  const module = this.c.get(id)
+  if (!module || module !== expected || module.id !== id) return undefined
+  const namespace = module.namespaceObject ?? module.exports
+  if (
+    namespace !== null &&
+    (typeof namespace === 'object' || typeof namespace === 'function') &&
+    isAsyncModuleExt(namespace) &&
+    namespace[turbopackAsyncModuleId] === id &&
+    !namespace[turbopackAsyncSettled]
+  )
+    return namespace[turbopackExports]
+  return undefined
+}
+contextPrototype.E = pendingOriginalNamespace

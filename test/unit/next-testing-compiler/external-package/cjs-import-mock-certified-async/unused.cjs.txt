@@ -1,0 +1,1 @@
+globalThis.__ws2AsyncUnused=(globalThis.__ws2AsyncUnused||0)+1;async function unused(){return 1};unused.label='unused';module.exports=unused;

@@ -1,0 +1,330 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CJS_NONLEAF_MEMBERS",
+    "value": {
+      "kind": "object",
+      "before": {
+        "namespace": {
+          "nativeBrand": false,
+          "keys": [
+            "evaluation",
+            "dependency",
+            "read",
+            "default",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototypeNull": true,
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "evaluation",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "dependency",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "read",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "raw": {
+          "nativeBrand": false,
+          "keys": ["evaluation", "dependency", "read"],
+          "prototypeNull": false,
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "evaluation",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "dependency",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "read",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "read": [1, 1, "before"],
+        "call": null
+      },
+      "mutation": {
+        "named": 41,
+        "read": [41, 23, "mutated"],
+        "sameRead": true,
+        "dependency": true,
+        "namespace": {
+          "nativeBrand": false,
+          "keys": [
+            "evaluation",
+            "dependency",
+            "read",
+            "default",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototypeNull": true,
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "evaluation",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "dependency",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "read",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "raw": {
+          "nativeBrand": false,
+          "keys": ["evaluation", "dependency", "read"],
+          "prototypeNull": false,
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "evaluation",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "dependency",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "read",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "call": null
+      },
+      "after": {
+        "namespace": {
+          "nativeBrand": false,
+          "keys": [
+            "evaluation",
+            "dependency",
+            "read",
+            "default",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototypeNull": true,
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "evaluation",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "dependency",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "read",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "raw": {
+          "nativeBrand": false,
+          "keys": ["evaluation", "dependency", "read"],
+          "prototypeNull": false,
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "evaluation",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "dependency",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "read",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "read": [2, 23, "after"],
+        "call": null
+      },
+      "held": {
+        "value": 41,
+        "read": [41, 23, "held"]
+      },
+      "identities": [false, false, true],
+      "counts": [2, 1]
+    }
+  }
+]

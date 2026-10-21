@@ -1,0 +1,28 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_COMPILED_FAST_PARALLEL",
+    "value": {
+      "factory": "synchronous",
+      "calls": 1,
+      "values": [83, 19],
+      "same": false,
+      "firstOriginal": false,
+      "secondOriginal": true,
+      "releasedOriginal": true
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_COMPILED_FAST_PARALLEL",
+    "value": {
+      "factory": "immediate async",
+      "calls": 1,
+      "values": [83, 19],
+      "same": false,
+      "firstOriginal": false,
+      "secondOriginal": true,
+      "releasedOriginal": true
+    }
+  }
+]

@@ -1,0 +1,26 @@
+import { test, expect, vi } from 'vitest'
+import { types } from 'node:util'
+import * as heldStatic from 'node:fs'
+vi.mock('node:fs', () => ({ value: 5 }))
+function shape(namespace) {
+ return { nativeBrand: types.isModuleNamespaceObject(namespace), keys: Reflect.ownKeys(namespace).map(key => typeof key === 'symbol' ? String(key) : key), prototypeNull: Object.getPrototypeOf(namespace) === null, tag: namespace[Symbol.toStringTag] ?? null, extensible: Object.isExtensible(namespace), sealed: Object.isSealed(namespace), frozen: Object.isFrozen(namespace), descriptors: Reflect.ownKeys(namespace).map(key => { const d = Object.getOwnPropertyDescriptor(namespace,key); return { key: typeof key === 'symbol' ? String(key) : key, valueType: typeof d.value, get: typeof d.get, set: typeof d.set, writable: d.writable ?? null, enumerable: d.enumerable, configurable: d.configurable } }) }
+}
+test('native BUILTIN static and runtime registrations retain authored ordering', async () => {
+ const before = await import('node:fs')
+ let calls = 0
+ let actual
+ vi.doMock('node:fs', async original => { calls++; actual = await original(); return { value: 73, actualValue: actual.value ?? null, actualReadFile: typeof actual.readFile, sameStatic: actual === heldStatic } })
+ const mocked = await import('node:fs')
+ vi.resetModules()
+ const afterMockReset = await import('node:fs')
+ vi.doUnmock('node:fs')
+ const released = await import('node:fs')
+ vi.doMock('node:fs', () => ({ value: 91 }))
+ const replacement = await import('node:fs')
+ vi.resetModules()
+ vi.doUnmock('node:fs')
+ const final = await import('node:fs')
+ console.log('WS2_EXTERNAL_STATIC_RUNTIME_BUILTIN:' + JSON.stringify({ calls, values: [before.value,mocked.value,replacement.value,heldStatic.value], actualValue: mocked.actualValue, actualReadFile: mocked.actualReadFile, actualBrand: types.isModuleNamespaceObject(actual), sameActualStatic: mocked.sameStatic, staticBefore: heldStatic === before, mockReset: mocked === afterMockReset, releasedValue: released.value ?? null, releasedReadFile: typeof released.readFile, releasedActual: released === actual, finalReleased: final === released, heldMockValue: mocked.value, staticShape: shape(heldStatic), beforeShape: shape(before), actualShape: shape(actual), mockedShape: shape(mocked), afterMockResetShape: shape(afterMockReset), releasedShape: shape(released), replacementShape: shape(replacement), finalShape: shape(final), actualDefaultReleased: actual.default === released.default, actualFnReleased: actual.fn === released.fn, releasedDefaultFinal: released.default === final.default, releasedFnFinal: released.fn === final.fn }))
+ expect(mocked.value).toBe(73)
+ expect(replacement.value).toBe(91)
+})

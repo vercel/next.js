@@ -1,0 +1,7 @@
+[
+  {
+    "name": "observes the actual CommonJS require cache for cycle across repeated resets",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

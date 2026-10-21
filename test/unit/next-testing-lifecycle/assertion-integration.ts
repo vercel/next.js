@@ -21,6 +21,7 @@ import {
   beforeAll,
   afterAll,
   aroundAll,
+  aroundEach,
   onTestFinished,
   onTestFailed,
 } from 'next/dist/experimental/testing/vitest'
@@ -37,6 +38,126 @@ const options = () => ({
   runId: 'integration',
   signal: new AbortController().signal,
 })
+
+it('publishes fresh suite factory test APIs through the public facade', () =>
+  withFile(async (runner) => {
+    const trace: unknown[] = []
+    await runner.collect(async () => {
+      describe('factory', (provided) => {
+        assert.notEqual(provided, test)
+        assert.equal(provided.describe, describe)
+        provided.beforeEach(() => {
+          trace.push('setup')
+        })
+        provided.extend({ value: 42 })('fixture', ({ value }) => {
+          expect(value).toBe(42)
+          trace.push(value)
+        })
+        describe('nested', (nested) => {
+          assert.notEqual(nested, provided)
+          nested('child', () => {
+            trace.push('child')
+          })
+        })
+      })
+      describe('async factory', async (provided) => {
+        await Promise.resolve()
+        provided('after await', () => {
+          trace.push('async')
+        })
+      })
+    })
+    const result = await runner.run(options())
+    assert.deepEqual(result.errors, [])
+    assert.deepEqual(
+      result.cases.map(({ status }) => status),
+      ['passed', 'passed', 'passed']
+    )
+    assert.deepEqual(trace, ['setup', 42, 'setup', 'child', 'async'])
+  }))
+
+it('retains public suite facade identities through extended and modified tests', () =>
+  withFile(async (runner) => {
+    await runner.collect(async () => {
+      const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      assert.equal(test.scoped({}), test)
+      assert.equal(warning.mock.calls.length, 1)
+      warning.mockRestore()
+      const owned = test.extend({ value: 'fixture' })
+      owned.describe('public alias', () => {
+        owned('identities', ({ value }) => {
+          expect(owned.describe).toBe(describe)
+          expect(owned.suite).toBe(describe)
+          expect(owned.skip.describe).toBe(describe)
+          expect(owned.concurrent.suite).toBe(describe)
+          expect(value).toBe('fixture')
+        })
+      })
+      owned.skip.suite('independent suite', () => {
+        owned('runs', ({ value }) => expect(value).toBe('fixture'))
+      })
+    })
+    const result = await runner.run(options())
+    assert.deepEqual(
+      result.cases.map((test) => test.status),
+      ['passed', 'passed']
+    )
+  }))
+
+it('forwards generic public lifecycle hooks without replacing their fixture contexts', () =>
+  withFile(async (runner) => {
+    interface Values {
+      value: number
+    }
+    const trace: unknown[] = []
+    await runner.collect(async () => {
+      beforeAll<object>(({}, owner) => {
+        trace.push(['beforeAll', owner.type])
+      })
+      afterAll<object>(({}, owner) => {
+        trace.push(['afterAll', owner.type])
+      })
+      beforeEach<Values>(({ value, task }, owner) => {
+        trace.push(['beforeEach', value, task.type, owner])
+      })
+      afterEach<Values>(({ value }, owner) => {
+        trace.push(['afterEach', value, owner])
+      })
+      aroundEach<Values>(async (runTest, { value }, owner) => {
+        trace.push(['aroundEach:before', value, owner.type])
+        await runTest()
+        trace.push(['aroundEach:after', value])
+      })
+      aroundAll<object>(async (runSuite, {}, owner) => {
+        trace.push(['aroundAll:before', owner.type])
+        await runSuite()
+        trace.push(['aroundAll:after', owner.type])
+      })
+      const extended = test.extend<Values>({ value: 42 })
+      extended('generic hook fixtures', ({ value }) => {
+        expect(value).toBe(42)
+        trace.push(['body', value])
+      })
+    })
+    const result = await runner.run(options())
+    assert.deepEqual(result.errors, [])
+    assert.deepEqual(
+      result.cases.map(({ status }) => status),
+      ['passed']
+    )
+    assert.deepEqual(trace, [
+      ['aroundAll:before', 'suite'],
+      ['beforeAll', 'suite'],
+      ['aroundEach:before', 42, 'suite'],
+      // The pinned fixture wrapper invokes before/afterEach with context only.
+      ['beforeEach', 42, 'test', undefined],
+      ['body', 42],
+      ['afterEach', 42, undefined],
+      ['aroundEach:after', 42],
+      ['afterAll', 'suite'],
+      ['aroundAll:after', 'suite'],
+    ])
+  }))
 
 // Actual C and D implementations in a fresh process. No Jest matcher globals,
 // mocked assertion adapter, Vite server, or Vitest execution runtime is involved.
@@ -1862,6 +1983,432 @@ it('releases shared worker staged snapshots only after clean worker disposal', a
     )
     await assert.rejects(access(join(directory, '__snapshots__')))
   } finally {
+    await worker.dispose().catch(() => {})
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+it('keeps file-fixture assertions live through concurrent setup and deferred cleanup', async () => {
+  await withFile(async (runner) => {
+    const events: unknown[] = []
+    const barrier = deferred()
+    let arrived = 0
+    await runner.collect(async () => {
+      beforeAll(() => {
+        events.push(['beforeAll', expect.getState().currentTestName])
+      })
+      const owned = test.extend<{ $file: { shared: string } }>({
+        shared: [
+          async ({}, provide) => {
+            await expect(Promise.resolve('setup')).resolves.toBe('setup')
+            const retained = expect('retained')
+            events.push(['setup', expect.getState().currentTestName])
+            await provide('shared')
+            retained.toBe('retained')
+            await expect(Promise.resolve('cleanup')).resolves.toBe('cleanup')
+            events.push(['cleanup', expect.getState().currentTestName])
+          },
+          { scope: 'file' },
+        ],
+      })
+      ;['first', 'second'].forEach((name) => {
+        owned.concurrent(
+          name,
+          async ({ task, expect: localExpect, shared, onTestFinished }) => {
+            localExpect.assertions(2)
+            onTestFinished(({ task: finishedTask }) => {
+              localExpect(finishedTask).toBe(task)
+              events.push(['finished', task.name])
+            })
+            localExpect(shared).toBe('shared')
+            events.push(['enter', task.name])
+            if (++arrived === 2) barrier.resolve()
+            await barrier.promise
+            localExpect(task.name).toBe(name)
+            events.push(['leave', task.name])
+          }
+        )
+      })
+      afterAll(() => {
+        events.push(['afterAll', expect.getState().currentTestName])
+      })
+    })
+    const result = await runner.run(options())
+    assert.deepEqual(
+      result.cases.map(({ status }) => status),
+      ['passed', 'passed']
+    )
+    assert.deepEqual(result.errors, [])
+    assert.deepEqual(events, [
+      ['beforeAll', undefined],
+      ['setup', 'second'],
+      ['enter', 'first'],
+      ['enter', 'second'],
+      ['leave', 'first'],
+      ['leave', 'second'],
+      ['finished', 'first'],
+      ['finished', 'second'],
+      ['afterAll', 'second'],
+      ['cleanup', 'second'],
+    ])
+  })
+})
+
+it('attributes shared setup soft assertions to the currently live concurrent test', async () => {
+  await withFile(async (runner) => {
+    const barrier = deferred()
+    let arrived = 0
+    await runner.collect(async () => {
+      const owned = test.extend<{ $file: { shared: string } }>({
+        shared: [
+          async ({}, provide) => {
+            expect.soft('setup').toBe('different')
+            await provide('shared')
+            expect('cleanup').toBe('cleanup')
+          },
+          { scope: 'file' },
+        ],
+      })
+      ;['first', 'second'].forEach((name) =>
+        owned.concurrent(name, async ({ shared, expect: localExpect }) => {
+          localExpect(shared).toBe('shared')
+          if (++arrived === 2) barrier.resolve()
+          await barrier.promise
+        })
+      )
+    })
+    const result = await runner.run(options())
+    assert.deepEqual(
+      result.cases.map(({ status }) => status),
+      ['passed', 'failed']
+    )
+    assert.deepEqual(result.errors, [])
+    assert.match(
+      (result.cases[1].errors[0].error as Error).message,
+      /expected 'setup' to be 'different'/
+    )
+  })
+})
+
+for (const mode of ['soft', 'async', 'snapshot', 'poll'] as const) {
+  it(`retains file-fixture ${mode} teardown failures after cases have finished`, async () => {
+    await withFile(async (runner) => {
+      await runner.collect(async () => {
+        const owned = test.extend<{ $file: { shared: string } }>({
+          shared: [
+            async ({}, provide) => {
+              expect('setup').toBe('setup')
+              await provide('shared')
+              if (mode === 'soft') expect.soft('cleanup').toBe('different')
+              else if (mode === 'async')
+                await expect(Promise.resolve('cleanup')).resolves.toBe(
+                  'different'
+                )
+              else if (mode === 'snapshot') expect('cleanup').toMatchSnapshot()
+              else await expect.poll(() => 'cleanup').toBe('cleanup')
+            },
+            { scope: 'file' },
+          ],
+        })
+        owned('body', ({ shared }) => expect(shared).toBe('shared'))
+      })
+      const result = await runner.run(options())
+      assert.deepEqual(
+        result.cases.map(({ status }) => status),
+        ['passed']
+      )
+      assert.equal(result.errors.length, 1)
+      assert.equal(result.errors[0].phase, 'cleanup')
+      assert.match(
+        String(result.errors[0].error),
+        mode === 'soft'
+          ? /expect.soft\(\) can only be used inside a test/
+          : mode === 'async'
+            ? /expected 'cleanup' to be 'different'/
+            : mode === 'snapshot'
+              ? /without a test identity/
+              : /expect.poll\(\) must be called inside a test/
+      )
+    })
+  })
+}
+
+it('rejects late file-fixture assertions through their closed original scope', async () => {
+  await withFile(async (runner) => {
+    const gate = deferred()
+    let pending!: Promise<unknown>
+    await runner.collect(async () => {
+      const owned = test.extend<{ $file: { shared: string } }>({
+        shared: [
+          async ({}, provide) => {
+            pending = gate.promise.then(() => expect('late').toBe('late'))
+            void pending.catch(() => {})
+            await provide('shared')
+            expect('cleanup').toBe('cleanup')
+          },
+          { scope: 'file' },
+        ],
+      })
+      owned('body', ({ shared }) => expect(shared).toBe('shared'))
+    })
+    const result = await runner.run(options())
+    assert.deepEqual(result.errors, [])
+    gate.resolve()
+    await assert.rejects(pending, /closed file-fixtures scope/)
+    assert.deepEqual(result.errors, [])
+    await assert.rejects(runner.dispose(), /closed file-fixtures scope/)
+    assert.deepEqual(
+      result.cases.map(({ status }) => status),
+      ['passed']
+    )
+  })
+})
+
+it('does not lend a finalized test task to a still-live file-fixture callback', async () => {
+  await withFile(async (runner) => {
+    const gate = deferred()
+    let pending!: Promise<void>
+    await runner.collect(async () => {
+      const owned = test.extend<{ $file: { shared: string } }>({
+        shared: [
+          async ({}, provide) => {
+            pending = gate.promise.then(() => {
+              expect.soft('live fixture').toBe('live fixture')
+            })
+            void pending.catch(() => {})
+            await provide('shared')
+            expect('cleanup').toBe('cleanup')
+          },
+          { scope: 'file' },
+        ],
+      })
+      owned('body', ({ shared }) => expect(shared).toBe('shared'))
+    })
+    const result = await runner.run({
+      ...options(),
+      beginAttempt: () => ({
+        async finalize() {},
+        async dispose() {
+          gate.resolve()
+          await assert.rejects(
+            pending,
+            /expect.soft\(\) can only be used inside a test/
+          )
+        },
+      }),
+    })
+    assert.deepEqual(result.errors, [])
+    assert.deepEqual(
+      result.cases.map(({ status }) => status),
+      ['passed']
+    )
+  })
+})
+
+it('publishes only the successful body retry snapshots after actual disposal', async () => {
+  const directory = await mkdtemp(
+    join(tmpdir(), 'next-recovered-body-snapshot-')
+  )
+  const file = initializeTestFile({
+    fileId: 'recovered-body-snapshot',
+    filePath: join(directory, 'file.test.ts'),
+    updateSnapshots: true,
+  })
+  let bodies = 0
+  try {
+    await file.collect(async () => {
+      test(
+        'recovered',
+        { timeout: 5, retry: 1 },
+        async ({ expect: local, onTestFailed }) => {
+          if (bodies++ === 0) {
+            local('failed value').toMatchSnapshot()
+            local('failed addition').toMatchSnapshot('failed-only')
+            await new Promise<void>((resolve) => onTestFailed(() => resolve()))
+          } else local('final value').toMatchSnapshot()
+        }
+      )
+    })
+    const result = await file.run(options())
+    assert.deepEqual(
+      result.cases.map(({ status }) => status),
+      ['failed', 'passed']
+    )
+    assert.equal(result.interrupted, false)
+    assert.throws(
+      () => file.takeSnapshotUpdates(),
+      /successful execution and disposal/
+    )
+    await file.dispose()
+    const updates = file.takeSnapshotUpdates()
+    assert.equal(updates.length, 1)
+    assert.match(updates[0].content!, /final value/)
+    assert.doesNotMatch(updates[0].content!, /failed value|failed addition/)
+  } finally {
+    await file.dispose()
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+it('still refuses old assertion origins after a timeout retry logically succeeds', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'next-recovered-body-origin-'))
+  const file = initializeTestFile({
+    fileId: 'recovered-body-origin',
+    filePath: join(directory, 'file.test.ts'),
+    updateSnapshots: true,
+  })
+  let bodies = 0
+  let releaseOld!: () => void
+  const gate = new Promise<void>((resolve) => {
+    releaseOld = resolve
+  })
+  let old!: Promise<void>
+  try {
+    await file.collect(async () => {
+      test('recovered', { timeout: 5, retry: 1 }, async (context) => {
+        const { expect: local, onTestFailed } = context
+        if (bodies++ === 0) {
+          old = gate.then(() => {
+            context.expect('old owner').toMatchSnapshot()
+          })
+          await new Promise<void>((resolve) => onTestFailed(() => resolve()))
+        } else {
+          releaseOld()
+          await assert.rejects(
+            old,
+            /closed attempt scope|after.*finished|different.*attempt/
+          )
+          local('final value').toMatchSnapshot()
+        }
+      })
+    })
+    const result = await file.run(options())
+    assert.deepEqual(
+      result.cases.map(({ status }) => status),
+      ['failed', 'passed']
+    )
+    assert.equal(result.errors.length, 1)
+    assert.match(
+      String(result.errors[0].error),
+      /closed attempt scope|after.*finished|different.*attempt/
+    )
+    assert.equal(result.interrupted, false)
+    await file.dispose()
+    assert.throws(
+      () => file.takeSnapshotUpdates(),
+      /successful execution and disposal/
+    )
+  } finally {
+    await file.dispose()
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+it('retains disposal failure veto after an otherwise recovered body retry', async () => {
+  const directory = await mkdtemp(
+    join(tmpdir(), 'next-recovered-body-cleanup-')
+  )
+  const file = initializeTestFile({
+    fileId: 'recovered-body-cleanup',
+    filePath: join(directory, 'file.test.ts'),
+    updateSnapshots: true,
+  })
+  let bodies = 0
+  try {
+    await file.collect(async () => {
+      const owned = test.extend(
+        'value',
+        { scope: 'worker' },
+        ({}, { onCleanup }) => {
+          onCleanup(() => {
+            throw new Error('recovered worker cleanup')
+          })
+          return 'final value'
+        }
+      )
+      owned(
+        'recovered',
+        { timeout: 5, retry: 1 },
+        async ({ expect: local, value, onTestFailed }) => {
+          if (bodies++ === 0)
+            await new Promise<void>((resolve) => onTestFailed(() => resolve()))
+          else local(value).toMatchSnapshot()
+        }
+      )
+    })
+    const result = await file.run(options())
+    assert.deepEqual(
+      result.cases.map(({ status }) => status),
+      ['failed', 'passed']
+    )
+    assert.equal(result.interrupted, false)
+    assert.deepEqual(result.errors, [])
+    await assert.rejects(file.dispose(), /recovered worker cleanup/)
+    assert.throws(
+      () => file.takeSnapshotUpdates(),
+      /successful execution and disposal/
+    )
+  } finally {
+    await file.dispose()
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+it('admits a safely recovered retry in a shared worker and holds updates through worker disposal', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'next-shared-recovered-body-'))
+  const worker = initializeTestWorker({ workerId: 'recovered-body-worker' })
+  const first = worker.createFile({
+    fileId: 'first',
+    filePath: join(directory, 'first.test.ts'),
+    updateSnapshots: true,
+  })
+  let second: ReturnType<typeof worker.createFile> | undefined
+  let bodies = 0
+  try {
+    await first.collect(async () => {
+      test(
+        'recovered',
+        { timeout: 5, retry: 1 },
+        async ({ expect: local, onTestFailed }) => {
+          if (bodies++ === 0)
+            await new Promise<void>((resolve) => onTestFailed(() => resolve()))
+          else local('first final').toMatchSnapshot()
+        }
+      )
+    })
+    const recovered = await first.run(options())
+    assert.equal(recovered.interrupted, false)
+    await first.dispose()
+    assert.deepEqual(worker.getFailures(), [])
+    assert.throws(
+      () => first.takeSnapshotUpdates(),
+      /successful execution and disposal/
+    )
+    second = worker.createFile({
+      fileId: 'second',
+      filePath: join(directory, 'second.test.ts'),
+      updateSnapshots: true,
+    })
+    await second.collect(async () => {
+      test('following file', () => expect('second final').toMatchSnapshot())
+    })
+    const following = await second.run(options())
+    assert.deepEqual(
+      following.cases.map(({ status }) => status),
+      ['passed']
+    )
+    await second.dispose()
+    assert.throws(
+      () => second!.takeSnapshotUpdates(),
+      /successful execution and disposal/
+    )
+    await worker.dispose()
+    assert.deepEqual(worker.getFailures(), [])
+    assert.match(first.takeSnapshotUpdates()[0].content!, /first final/)
+    assert.match(second.takeSnapshotUpdates()[0].content!, /second final/)
+  } finally {
+    await first.dispose()
+    await second?.dispose()
     await worker.dispose().catch(() => {})
     await rm(directory, { recursive: true, force: true })
   }

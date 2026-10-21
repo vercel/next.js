@@ -127,6 +127,8 @@ export function createAttemptUtilities(
     }
     if (!envValues.has(name)) envValues.set(name, process.env[name])
     if (value === undefined) delete process.env[name]
+    else if (['DEV', 'PROD', 'SSR'].includes(name))
+      process.env[name] = value ? '1' : ''
     else process.env[name] = String(value)
     return api
   }

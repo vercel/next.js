@@ -1,0 +1,2231 @@
+{
+  "reference": {
+    "runner": "vitest@5.0.4 / @vitest/browser-playwright@5.0.4 / playwright@1.64.0 Chromium / React19.2.0",
+    "platform": "Darwin arm64",
+    "scope": "Real native drag/DataTransfer events, source/target identities and positions, controlled component render, native timeout recovery. Exact default document geometry and authored CSS override. No cross-engine/platform or broader drag option claim."
+  },
+  "phases": {
+    "drag-development": {
+      "mode": "development",
+      "files": [
+        {
+          "source": "drag.test.mjs.txt",
+          "target": "drag.test.mjs",
+          "sha256": "c942ec93e3b216e3918d5095d4257259496dc98a308fbf292e60eabd3b3d4dc8"
+        }
+      ],
+      "prefix": "DRAG_RAW ",
+      "cases": [
+        {
+          "fullName": "dragAndDrop moves real DataTransfer values from an element to a locator",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "dropTo retains native source and target positions for two locators",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "native drag without an accepting target does not invent a drop",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "a setup instance drives real drop events and controlled component rendering",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "a native target timeout rejects the action and permits following drag work",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "native payload",
+            "events": [
+              {
+                "target": "source",
+                "type": "dragstart",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": false,
+                "point": [50, 25],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": true,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "native-é東京✓",
+                  "html": "<b>owned markup</b>",
+                  "custom": "owned-custom",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "none"
+                }
+              },
+              {
+                "target": "target",
+                "type": "dragenter",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": false,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "move"
+                }
+              },
+              {
+                "target": "target",
+                "type": "dragover",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": true,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "copy"
+                }
+              },
+              {
+                "target": "target",
+                "type": "drop",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": true,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "native-é東京✓",
+                  "html": "<b>owned markup</b>",
+                  "custom": "owned-custom",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "copy"
+                }
+              },
+              {
+                "target": "source",
+                "type": "dragend",
+                "trusted": true,
+                "cancelable": false,
+                "defaultPrevented": false,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": true,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "copy"
+                }
+              }
+            ],
+            "output": "native-é東京✓",
+            "returnedUndefined": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "locator positions",
+            "events": [
+              {
+                "target": "source",
+                "type": "dragstart",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": false,
+                "point": [5, 5],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": true,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "native-é東京✓",
+                  "html": "<b>owned markup</b>",
+                  "custom": "owned-custom",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "none"
+                }
+              },
+              {
+                "target": "target",
+                "type": "dragenter",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": false,
+                "point": [30, 170],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "move"
+                }
+              },
+              {
+                "target": "target",
+                "type": "dragover",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": true,
+                "point": [30, 170],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "copy"
+                }
+              },
+              {
+                "target": "target",
+                "type": "drop",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": true,
+                "point": [30, 170],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "native-é東京✓",
+                  "html": "<b>owned markup</b>",
+                  "custom": "owned-custom",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "copy"
+                }
+              },
+              {
+                "target": "source",
+                "type": "dragend",
+                "trusted": true,
+                "cancelable": false,
+                "defaultPrevented": false,
+                "point": [30, 170],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": true,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "copy"
+                }
+              }
+            ],
+            "output": "native-é東京✓",
+            "returnedUndefined": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "nonaccepting target",
+            "events": [
+              {
+                "target": "source",
+                "type": "dragstart",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": false,
+                "point": [50, 25],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": true,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "native-é東京✓",
+                  "html": "<b>owned markup</b>",
+                  "custom": "owned-custom",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "none"
+                }
+              },
+              {
+                "target": "target",
+                "type": "dragenter",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": false,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "move"
+                }
+              },
+              {
+                "target": "target",
+                "type": "dragover",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": false,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "move"
+                }
+              },
+              {
+                "target": "source",
+                "type": "dragend",
+                "trusted": true,
+                "cancelable": false,
+                "defaultPrevented": false,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": true,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "none"
+                }
+              }
+            ],
+            "output": "idle",
+            "sourceConnected": true,
+            "targetConnected": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "controlled setup component",
+            "events": [
+              {
+                "target": "source",
+                "type": "dragstart",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": false,
+                "point": [50, 25],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": true,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "native-é東京✓",
+                  "html": "<b>owned markup</b>",
+                  "custom": "owned-custom",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "none"
+                }
+              },
+              {
+                "target": "target",
+                "type": "dragenter",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": false,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "move"
+                }
+              },
+              {
+                "target": "target",
+                "type": "dragover",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": true,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "copy"
+                }
+              },
+              {
+                "target": "target",
+                "type": "drop",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": true,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "native-é東京✓",
+                  "html": "<b>owned markup</b>",
+                  "custom": "owned-custom",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "copy"
+                }
+              },
+              {
+                "target": "source",
+                "type": "dragend",
+                "trusted": true,
+                "cancelable": false,
+                "defaultPrevented": false,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": true,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "copy"
+                }
+              }
+            ],
+            "output": "native-é東京✓"
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "recoverable native timeout",
+            "events": [
+              {
+                "target": "source",
+                "type": "dragstart",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": false,
+                "point": [50, 25],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": true,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "native-é東京✓",
+                  "html": "<b>owned markup</b>",
+                  "custom": "owned-custom",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "none"
+                }
+              },
+              {
+                "target": "target",
+                "type": "dragenter",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": false,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "move"
+                }
+              },
+              {
+                "target": "target",
+                "type": "dragover",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": true,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "copy"
+                }
+              },
+              {
+                "target": "target",
+                "type": "drop",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": true,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "native-é東京✓",
+                  "html": "<b>owned markup</b>",
+                  "custom": "owned-custom",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "copy"
+                }
+              },
+              {
+                "target": "source",
+                "type": "dragend",
+                "trusted": true,
+                "cancelable": false,
+                "defaultPrevented": false,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": true,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "copy"
+                }
+              }
+            ],
+            "output": "native-é東京✓",
+            "failureName": "TimeoutError"
+          }
+        }
+      ]
+    },
+    "geometry-development": {
+      "mode": "development",
+      "files": [
+        {
+          "source": "geometry.test.mjs.txt",
+          "target": "environment.test.mjs",
+          "sha256": "bee260a7d0a91a0035f333ca244c67a6c792f16d2dd56c67580f2176337c0ecd"
+        }
+      ],
+      "prefix": "DRAGENV_RAW ",
+      "cases": [
+        {
+          "fullName": "records the actual Browser document baseline",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "html": {
+              "margin": "0px",
+              "padding": "0px",
+              "fontFamily": "Times",
+              "fontSize": "16px",
+              "lineHeight": "normal",
+              "boxSizing": "content-box",
+              "display": "block",
+              "backgroundColor": "rgba(0, 0, 0, 0)",
+              "overflow": "visible",
+              "width": "640px",
+              "height": "480px",
+              "minHeight": "0px",
+              "position": "static"
+            },
+            "body": {
+              "margin": "0px",
+              "padding": "0px",
+              "fontFamily": "Times",
+              "fontSize": "16px",
+              "lineHeight": "normal",
+              "boxSizing": "content-box",
+              "display": "block",
+              "backgroundColor": "rgba(0, 0, 0, 0)",
+              "overflow": "visible",
+              "width": "640px",
+              "height": "480px",
+              "minHeight": "480px",
+              "position": "static"
+            },
+            "htmlStyleAttribute": null,
+            "bodyStyleAttribute": null,
+            "marker": {
+              "left": 0,
+              "top": 0,
+              "width": 100,
+              "height": 50
+            },
+            "viewport": [640, 480]
+          }
+        }
+      ]
+    },
+    "override-development": {
+      "mode": "development",
+      "files": [
+        {
+          "source": "override.test.mjs.txt",
+          "target": "environment.test.mjs",
+          "sha256": "994c019e6685dd80c9600bdd5d60089200ba01855e6c0586439037994cd04358"
+        },
+        {
+          "source": "override.css.txt",
+          "target": "override.css",
+          "sha256": "2c78818067ddd469bba280f052702ea7d69fc3db1b4ed75144b0a26ae9f196f0"
+        }
+      ],
+      "prefix": "DRAGENV_RAW ",
+      "cases": [
+        {
+          "fullName": "records the actual Browser document baseline",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "html": {
+              "margin": "2px",
+              "padding": "5px",
+              "fontFamily": "Times",
+              "fontSize": "16px",
+              "lineHeight": "normal",
+              "boxSizing": "content-box",
+              "display": "block",
+              "backgroundColor": "rgba(0, 0, 0, 0)",
+              "overflow": "visible",
+              "width": "626px",
+              "height": "80px",
+              "minHeight": "0px",
+              "position": "static"
+            },
+            "body": {
+              "margin": "12px",
+              "padding": "3px",
+              "fontFamily": "Times",
+              "fontSize": "16px",
+              "lineHeight": "normal",
+              "boxSizing": "content-box",
+              "display": "block",
+              "backgroundColor": "rgba(0, 0, 0, 0)",
+              "overflow": "visible",
+              "width": "596px",
+              "height": "50px",
+              "minHeight": "10px",
+              "position": "static"
+            },
+            "htmlStyleAttribute": null,
+            "bodyStyleAttribute": null,
+            "marker": {
+              "left": 22,
+              "top": 22,
+              "width": 100,
+              "height": 50
+            },
+            "viewport": [640, 480]
+          }
+        }
+      ]
+    },
+    "drag-production": {
+      "mode": "production",
+      "files": [
+        {
+          "source": "drag.test.mjs.txt",
+          "target": "drag.test.mjs",
+          "sha256": "c942ec93e3b216e3918d5095d4257259496dc98a308fbf292e60eabd3b3d4dc8"
+        }
+      ],
+      "prefix": "DRAG_RAW ",
+      "cases": [
+        {
+          "fullName": "dragAndDrop moves real DataTransfer values from an element to a locator",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "dropTo retains native source and target positions for two locators",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "native drag without an accepting target does not invent a drop",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "a setup instance drives real drop events and controlled component rendering",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "a native target timeout rejects the action and permits following drag work",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "native payload",
+            "events": [
+              {
+                "target": "source",
+                "type": "dragstart",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": false,
+                "point": [50, 25],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": true,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "native-é東京✓",
+                  "html": "<b>owned markup</b>",
+                  "custom": "owned-custom",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "none"
+                }
+              },
+              {
+                "target": "target",
+                "type": "dragenter",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": false,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "move"
+                }
+              },
+              {
+                "target": "target",
+                "type": "dragover",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": true,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "copy"
+                }
+              },
+              {
+                "target": "target",
+                "type": "drop",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": true,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "native-é東京✓",
+                  "html": "<b>owned markup</b>",
+                  "custom": "owned-custom",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "copy"
+                }
+              },
+              {
+                "target": "source",
+                "type": "dragend",
+                "trusted": true,
+                "cancelable": false,
+                "defaultPrevented": false,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": true,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "copy"
+                }
+              }
+            ],
+            "output": "native-é東京✓",
+            "returnedUndefined": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "locator positions",
+            "events": [
+              {
+                "target": "source",
+                "type": "dragstart",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": false,
+                "point": [5, 5],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": true,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "native-é東京✓",
+                  "html": "<b>owned markup</b>",
+                  "custom": "owned-custom",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "none"
+                }
+              },
+              {
+                "target": "target",
+                "type": "dragenter",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": false,
+                "point": [30, 170],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "move"
+                }
+              },
+              {
+                "target": "target",
+                "type": "dragover",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": true,
+                "point": [30, 170],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "copy"
+                }
+              },
+              {
+                "target": "target",
+                "type": "drop",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": true,
+                "point": [30, 170],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "native-é東京✓",
+                  "html": "<b>owned markup</b>",
+                  "custom": "owned-custom",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "copy"
+                }
+              },
+              {
+                "target": "source",
+                "type": "dragend",
+                "trusted": true,
+                "cancelable": false,
+                "defaultPrevented": false,
+                "point": [30, 170],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": true,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "copy"
+                }
+              }
+            ],
+            "output": "native-é東京✓",
+            "returnedUndefined": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "nonaccepting target",
+            "events": [
+              {
+                "target": "source",
+                "type": "dragstart",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": false,
+                "point": [50, 25],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": true,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "native-é東京✓",
+                  "html": "<b>owned markup</b>",
+                  "custom": "owned-custom",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "none"
+                }
+              },
+              {
+                "target": "target",
+                "type": "dragenter",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": false,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "move"
+                }
+              },
+              {
+                "target": "target",
+                "type": "dragover",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": false,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "move"
+                }
+              },
+              {
+                "target": "source",
+                "type": "dragend",
+                "trusted": true,
+                "cancelable": false,
+                "defaultPrevented": false,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": true,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "none"
+                }
+              }
+            ],
+            "output": "idle",
+            "sourceConnected": true,
+            "targetConnected": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "controlled setup component",
+            "events": [
+              {
+                "target": "source",
+                "type": "dragstart",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": false,
+                "point": [50, 25],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": true,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "native-é東京✓",
+                  "html": "<b>owned markup</b>",
+                  "custom": "owned-custom",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "none"
+                }
+              },
+              {
+                "target": "target",
+                "type": "dragenter",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": false,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "move"
+                }
+              },
+              {
+                "target": "target",
+                "type": "dragover",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": true,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "copy"
+                }
+              },
+              {
+                "target": "target",
+                "type": "drop",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": true,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "native-é東京✓",
+                  "html": "<b>owned markup</b>",
+                  "custom": "owned-custom",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "copy"
+                }
+              },
+              {
+                "target": "source",
+                "type": "dragend",
+                "trusted": true,
+                "cancelable": false,
+                "defaultPrevented": false,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": true,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "copy"
+                }
+              }
+            ],
+            "output": "native-é東京✓"
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "recoverable native timeout",
+            "events": [
+              {
+                "target": "source",
+                "type": "dragstart",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": false,
+                "point": [50, 25],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": true,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "native-é東京✓",
+                  "html": "<b>owned markup</b>",
+                  "custom": "owned-custom",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "none"
+                }
+              },
+              {
+                "target": "target",
+                "type": "dragenter",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": false,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "move"
+                }
+              },
+              {
+                "target": "target",
+                "type": "dragover",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": true,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "copy"
+                }
+              },
+              {
+                "target": "target",
+                "type": "drop",
+                "trusted": true,
+                "cancelable": true,
+                "defaultPrevented": true,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": false,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "native-é東京✓",
+                  "html": "<b>owned markup</b>",
+                  "custom": "owned-custom",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "copy"
+                }
+              },
+              {
+                "target": "source",
+                "type": "dragend",
+                "trusted": true,
+                "cancelable": false,
+                "defaultPrevented": false,
+                "point": [70, 190],
+                "transfer": {
+                  "native": true,
+                  "originalIdentity": true,
+                  "types": [
+                    "text/plain",
+                    "text/html",
+                    "application/x-next-test"
+                  ],
+                  "items": [
+                    {
+                      "kind": "string",
+                      "type": "text/plain"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "text/html"
+                    },
+                    {
+                      "kind": "string",
+                      "type": "application/x-next-test"
+                    }
+                  ],
+                  "files": [],
+                  "plain": "",
+                  "html": "",
+                  "custom": "",
+                  "effectAllowed": "copyMove",
+                  "dropEffect": "copy"
+                }
+              }
+            ],
+            "output": "native-é東京✓",
+            "failureName": "TimeoutError"
+          }
+        }
+      ]
+    },
+    "geometry-production": {
+      "mode": "production",
+      "files": [
+        {
+          "source": "geometry.test.mjs.txt",
+          "target": "environment.test.mjs",
+          "sha256": "bee260a7d0a91a0035f333ca244c67a6c792f16d2dd56c67580f2176337c0ecd"
+        }
+      ],
+      "prefix": "DRAGENV_RAW ",
+      "cases": [
+        {
+          "fullName": "records the actual Browser document baseline",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "html": {
+              "margin": "0px",
+              "padding": "0px",
+              "fontFamily": "Times",
+              "fontSize": "16px",
+              "lineHeight": "normal",
+              "boxSizing": "content-box",
+              "display": "block",
+              "backgroundColor": "rgba(0, 0, 0, 0)",
+              "overflow": "visible",
+              "width": "640px",
+              "height": "480px",
+              "minHeight": "0px",
+              "position": "static"
+            },
+            "body": {
+              "margin": "0px",
+              "padding": "0px",
+              "fontFamily": "Times",
+              "fontSize": "16px",
+              "lineHeight": "normal",
+              "boxSizing": "content-box",
+              "display": "block",
+              "backgroundColor": "rgba(0, 0, 0, 0)",
+              "overflow": "visible",
+              "width": "640px",
+              "height": "480px",
+              "minHeight": "480px",
+              "position": "static"
+            },
+            "htmlStyleAttribute": null,
+            "bodyStyleAttribute": null,
+            "marker": {
+              "left": 0,
+              "top": 0,
+              "width": 100,
+              "height": 50
+            },
+            "viewport": [640, 480]
+          }
+        }
+      ]
+    },
+    "override-production": {
+      "mode": "production",
+      "files": [
+        {
+          "source": "override.test.mjs.txt",
+          "target": "environment.test.mjs",
+          "sha256": "994c019e6685dd80c9600bdd5d60089200ba01855e6c0586439037994cd04358"
+        },
+        {
+          "source": "override.css.txt",
+          "target": "override.css",
+          "sha256": "2c78818067ddd469bba280f052702ea7d69fc3db1b4ed75144b0a26ae9f196f0"
+        }
+      ],
+      "prefix": "DRAGENV_RAW ",
+      "cases": [
+        {
+          "fullName": "records the actual Browser document baseline",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "html": {
+              "margin": "2px",
+              "padding": "5px",
+              "fontFamily": "Times",
+              "fontSize": "16px",
+              "lineHeight": "normal",
+              "boxSizing": "content-box",
+              "display": "block",
+              "backgroundColor": "rgba(0, 0, 0, 0)",
+              "overflow": "visible",
+              "width": "626px",
+              "height": "80px",
+              "minHeight": "0px",
+              "position": "static"
+            },
+            "body": {
+              "margin": "12px",
+              "padding": "3px",
+              "fontFamily": "Times",
+              "fontSize": "16px",
+              "lineHeight": "normal",
+              "boxSizing": "content-box",
+              "display": "block",
+              "backgroundColor": "rgba(0, 0, 0, 0)",
+              "overflow": "visible",
+              "width": "596px",
+              "height": "50px",
+              "minHeight": "10px",
+              "position": "static"
+            },
+            "htmlStyleAttribute": null,
+            "bodyStyleAttribute": null,
+            "marker": {
+              "left": 22,
+              "top": 22,
+              "width": 100,
+              "height": 50
+            },
+            "viewport": [640, 480]
+          }
+        }
+      ]
+    }
+  }
+}

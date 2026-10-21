@@ -1,0 +1,20 @@
+import { test, expect, vi } from 'vitest'
+import { types } from 'node:util'
+function shape(value) {
+ if (value===null || (typeof value!=='object'&&typeof value!=='function')) return {type:typeof value,value}
+ return {type:typeof value,nativeBrand:types.isModuleNamespaceObject(value),keys:Reflect.ownKeys(value).map(key=>typeof key==='symbol'?String(key):key),prototype:Object.getPrototypeOf(value)===null?'null':Object.getPrototypeOf(value)===Object.prototype?'Object.prototype':Object.getPrototypeOf(value)===Function.prototype?'Function.prototype':Object.prototype.toString.call(Object.getPrototypeOf(value)),tag:value[Symbol.toStringTag]??null,extensible:Object.isExtensible(value),sealed:Object.isSealed(value),frozen:Object.isFrozen(value),descriptors:Reflect.ownKeys(value).map(key=>{const d=Object.getOwnPropertyDescriptor(value,key);return {key:typeof key==='symbol'?String(key):key,valueType:typeof d.value,get:typeof d.get,set:typeof d.set,writable:d.writable??null,enumerable:d.enumerable,configurable:d.configurable}})}
+}
+function view(namespace) {if(namespace==null)return null;const root=namespace?.default;return {namespace:shape(namespace),root:shape(root),dependency:root&&'dependency' in root?shape(root.dependency):null,evaluation:namespace?.evaluation??null,rootEvaluation:root?.evaluation??null,dependencyEvaluation:root?.dependency?.evaluation??null,call:typeof root==='function'?root.call(root,'held'):typeof root?.read==='function'?root.read.call(root,'held'):null,namedCall:Object.prototype.hasOwnProperty.call(namespace,'read')&&typeof namespace.read==='function'?namespace.read('named'):null}}
+function same(values) {return values.map(value=>values.map(other=>value===other))}
+function errorView(error,raw) {return {name:error?.name,message:error?.message,causeSame:error?.cause===raw,causeName:error?.cause?.name,causeMessage:error?.cause?.message,keys:Reflect.ownKeys(error).map(String),causeDescriptor:(()=>{const d=Object.getOwnPropertyDescriptor(error,'cause');return d?{writable:d.writable,enumerable:d.enumerable,configurable:d.configurable,valueSame:d.value===raw}:null})()}}
+function counts(){return {root:globalThis.__ws2CjsDependencyRoot??globalThis.__ws2CallableRoot??globalThis.__ws2RuntimeLeafRoot??0,dependency:globalThis.__ws2CjsDependencyLeaf??globalThis.__ws2CallableDependency??0}}
+function row(name,data){console.log('WS2_CJS_RUNTIME:'+JSON.stringify({name,...data}));expect(data).toBeDefined()}
+function clean(){vi.doUnmock('./root.mjs');vi.resetModules()}
+
+
+for(const rejectFactory of [false,true]) test('pending compiled original loader rejection '+rejectFactory,async()=>{
+ vi.doUnmock('./throws.mjs');vi.resetModules();let calls=0,entered,release,reject;const started=new Promise(resolve=>entered=resolve),held=new Promise((resolve,fail)=>{release=resolve;reject=fail}),factoryRaw=new SyntaxError('held factory raw');
+ vi.doMock('./throws.mjs',async()=>{calls++;entered();await held;return {ready:'mock',evaluation:970,default:{evaluation:970}}});const first=import('./throws.mjs').then(value=>({value}),error=>({error}));await started;
+ const capture=()=>import('./throws.mjs').then(value=>({value}),error=>({error}));const a=await capture(),b=await capture();vi.resetModules();const c=await capture();if(rejectFactory)reject(factoryRaw);else release();const f=await first;const after=await capture();vi.doUnmock('./throws.mjs');const unmock=await capture();vi.resetModules();const reset=await capture();
+ const values=[a,b,c,f,after,unmock,reset],raws=globalThis.__ws2LoaderErrors;row('loader-error-'+rejectFactory,{calls,loaderCount:globalThis.__ws2LoaderCount,views:values.map(x=>x.value?view(x.value):null),errors:values.map(x=>x.error?errorView(x.error,factoryRaw):null),identities:same(values.map(x=>x.error??x.value)),originalErrorIdentities:values.map(x=>raws.map(raw=>x.error===raw)),factoryCauseIdentities:values.map(x=>x.error?.cause===factoryRaw)})
+});

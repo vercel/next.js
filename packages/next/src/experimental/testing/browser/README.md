@@ -1,5 +1,12 @@
 # Browser resources for the Next-owned test runtime
 
+This document retains resource architecture and initial bring-up notes. The early
+capability limits below predate later implementation. Consult
+[`../capabilities.ts`](../capabilities.ts) and
+[`../compatibility-inventory.json`](../compatibility-inventory.json) for current
+qualified functionality and remaining gaps. Stable release requirements remain
+in [`NEXT_TESTING_STABLE_RELEASE.md`](../../../../../../NEXT_TESTING_STABLE_RELEASE.md).
+
 These internal resource primitives do not start Playwright Test, Vitest, or Vite.
 The test project supplies `playwright` and `@next/playwright`. Chromium is the
 initial browser target.
@@ -166,3 +173,13 @@ connection, process and HTTP cleanup completes and original source/output bytes
 are revalidated. Cleanup uncertainty or late RPC facts veto publication. This
 bounded lane does not qualify general asynchronous Browser Mode ownership or
 other browsers.
+
+
+Missing role/label query targets for client click and fill retain an action-owned
+query callback in the live file realm. The actual project Playwright binding
+registers a main-world selector engine before page creation. Native locators own
+query retries, actionability, events, timeout and cancellation; callbacks run
+only under their captured live scope and are released after the native request
+settles. Present nodes and disconnected element checks retain their existing ID
+path. Other actions and replacement after an initially present match remain
+separate compatibility work.

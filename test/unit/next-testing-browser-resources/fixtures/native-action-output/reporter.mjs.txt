@@ -1,0 +1,8 @@
+import { appendFileSync, writeFileSync } from 'node:fs'
+export default class NativeDragReporter {
+  onUserConsoleLog(log) {
+    appendFileSync(process.env.DRAG_CANCEL_LOG, JSON.stringify(log) + '\n')
+    for (const line of log.content.split('\n')) if (line.startsWith('DRAG_NATIVE_DOWN ')) writeFileSync(process.env.DRAG_CANCEL_ACTIVE, line.slice('DRAG_NATIVE_DOWN '.length))
+  }
+  onTestCaseResult() {}
+}

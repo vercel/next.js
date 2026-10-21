@@ -1,0 +1,3 @@
+import { test, expect } from 'vitest'
+import { sum } from './subject.ts'
+test('typed callbacks execute through the actual compiler', () => expect(sum([1, 2])).toBe(6))

@@ -711,13 +711,13 @@ program
   )
   .option(
     '--api [port]',
-    'Open a loopback, read-only discovery API for a one-shot run (0 selects a free port).'
+    'Open a loopback discovery and cancellation API for a one-shot run (0 selects a free port).'
   )
   .option('--capabilities', 'Print the supported test capabilities as JSON.')
   .option('--coverage', 'Collect one-shot development Node line coverage.')
   .option(
     '--coverage.reporter <name>',
-    'Standard coverage reporter: json or lcov.',
+    'Standard coverage reporter: json, json-summary, text-summary, or lcov.',
     (value: string, previous?: string[]) => [...(previous ?? []), value]
   )
   .option(
@@ -743,20 +743,24 @@ program
     'Publish complete standard coverage after failed test execution.'
   )
   .option(
-    '--coverage.thresholds.statements <percent>',
-    'Global standard statement coverage threshold.'
+    '--coverage.thresholds.perFile [boolean]',
+    'Apply global standard coverage thresholds to each source file.'
   )
   .option(
-    '--coverage.thresholds.functions <percent>',
-    'Global standard function coverage threshold.'
+    '--coverage.thresholds.statements <number>',
+    'Global standard statement coverage percentage or negative maximum uncovered count.'
   )
   .option(
-    '--coverage.thresholds.branches <percent>',
-    'Global standard branch coverage threshold.'
+    '--coverage.thresholds.functions <number>',
+    'Global standard function coverage percentage or negative maximum uncovered count.'
   )
   .option(
-    '--coverage.thresholds.lines <percent>',
-    'Global standard line coverage threshold.'
+    '--coverage.thresholds.branches <number>',
+    'Global standard branch coverage percentage or negative maximum uncovered count.'
+  )
+  .option(
+    '--coverage.thresholds.lines <number>',
+    'Global standard line coverage percentage or negative maximum uncovered count.'
   )
   .option(
     '--typecheck',
@@ -771,6 +775,11 @@ program
     '--inspect [address]',
     'Inspect the actual test worker at [host:]port (default 127.0.0.1:9229).'
   )
+  .option(
+    '--inspectBrk [address]',
+    'Inspect and pause the test worker before entry evaluation (default 127.0.0.1:9229).'
+  )
+  .option('--inspect-brk [address]', 'Alias for --inspectBrk.')
   .option('--no-file-parallelism', 'Run one file worker at a time.')
   .option('--retry <count>', 'Retry a failing test up to this many times.')
   .option('--bail <count>', 'Stop starting tests after this many failed tests.')
@@ -792,8 +801,9 @@ program
   .option('--project <name>', 'Select a project from next.test.config.json.')
   .option(
     '--max-workers <count>',
-    'Maximum concurrent file workers (1–64; default 1). Browser files remain serial.'
+    'Maximum concurrent file workers (1–64 or a host-relative percentage; default 1). Browser files remain serial.'
   )
+  .option('--maxWorkers <count>', 'Alias for --max-workers.')
   .option(
     '--shard <index/count>',
     'Run a deterministic, one-based shard of the selected files.'

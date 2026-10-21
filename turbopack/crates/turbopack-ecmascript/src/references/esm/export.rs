@@ -39,7 +39,10 @@ use crate::{
         base::{EsmAssetReference, ImportSource, ReferencedAsset, ReferencedAssetIdent},
         mangle::mangled_export_names,
     },
-    runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM, TURBOPACK_ESM_REEXPORT},
+    runtime_functions::{
+        TURBOPACK_DYNAMIC, TURBOPACK_ESM, TURBOPACK_ESM_REEXPORT, TURBOPACK_EXPORT_NAMESPACE,
+        TURBOPACK_GLOBAL,
+    },
     side_effect_optimization::reference::EcmascriptModulePartReference,
     utils::module_id_to_lit,
 };
@@ -1007,12 +1010,20 @@ impl EsmExports {
         export_registration_mode: ExportRegistrationMode,
         synthetic_references: Option<SyntheticReexportReferences<'_>>,
         is_async_module: bool,
+        namespace_order: Option<&[RcStr]>,
     ) -> Result<(CodeGeneration, SubsumedImports)> {
         let unused_references = chunking_context.unused_references().await?;
         let export_usage_info = chunking_context
             .module_export_usage(*ResolvedVc::upcast(module))
             .await?;
         let expanded = self.expand_exports(*export_usage_info.export_usage).await?;
+        if namespace_order.is_some()
+            && (scope_hoisting_context.module().is_some()
+                || scope_hoisting_context.skip_module_exports()
+                || !expanded.dynamic_exports.is_empty())
+        {
+            bail!("Certified public namespaces require unmerged statically known ESM exports");
+        }
 
         if scope_hoisting_context.skip_module_exports() && expanded.dynamic_exports.is_empty() {
             // If the current module is not exposed, no need to generate exports.
@@ -1066,9 +1077,17 @@ impl EsmExports {
         }
 
         let mut getters = Vec::new();
+        let mut namespace_getters = Vec::new();
         // The keys this module's exports are emitted under. Consumers resolve the same map for this
         // module (see `ReferencedAsset::get_ident_inner`), so both sides always agree.
         let mangled_names = mangled_export_names(*module, chunking_context).await?;
+        if namespace_order.is_some()
+            && mangled_names
+                .as_ref()
+                .is_some_and(|names| !names.is_empty())
+        {
+            bail!("Certified public namespace export names cannot be mangled");
+        }
 
         // A module whose exports are *only* forwarded from other modules can register them all in
         // one compact call instead of one arrow function per binding. `export_registration_mode`
@@ -1076,11 +1095,13 @@ impl EsmExports {
         // modules may yield a promise from `i()`. A known circuit breaker must expose its getters
         // before importing the other side of the cycle, and a module without analysis must do the
         // same conservatively, so all three stay on the general registration.
-        let compact = if compact_registration_is_safe(CompactRegistrationSafety {
-            mode: export_registration_mode,
-            is_circuit_breaker: export_usage_info.is_circuit_breaker,
-            is_async_module,
-        }) && expanded.dynamic_exports.is_empty()
+        let compact = if namespace_order.is_none()
+            && compact_registration_is_safe(CompactRegistrationSafety {
+                mode: export_registration_mode,
+                is_circuit_breaker: export_usage_info.is_circuit_breaker,
+                is_async_module,
+            })
+            && expanded.dynamic_exports.is_empty()
             && !expanded.exports.is_empty()
         {
             build_compact_reexports(
@@ -1101,7 +1122,18 @@ impl EsmExports {
             return emit_compact_reexports(compact, chunking_context, scope_hoisting_context).await;
         }
 
-        for (exported, local) in &expanded.exports {
+        let mut ordered_exports = expanded.exports.iter().collect::<Vec<_>>();
+        if let Some(order) = namespace_order {
+            if ordered_exports
+                .iter()
+                .any(|(name, _)| !order.contains(name))
+            {
+                bail!("Certified public namespace has an uncertified actual export");
+            }
+            ordered_exports
+                .sort_by_key(|(name, _)| order.iter().position(|known| known == *name).unwrap());
+        }
+        for (exported, local) in ordered_exports {
             if let EsmExport::ImportedBinding(reference, ..)
             | EsmExport::ImportedNamespace(reference) = local
                 && unused_references.contains_key(reference)
@@ -1245,6 +1277,29 @@ impl EsmExports {
                         .unwrap_or(ExportBinding::None)
                 }
             };
+            if namespace_order.is_some() {
+                let expression = match exprs {
+                    ExportBinding::Getter(getter) => {
+                        quote!("($getter)()" as Expr, getter: Expr = getter)
+                    }
+                    ExportBinding::Value(value) => value,
+                    ExportBinding::GetterSetter(..) => {
+                        bail!("Certified public namespace setters are not qualified")
+                    }
+                    ExportBinding::None => continue,
+                };
+                // The pinned runner publishes live export getters with this precise
+                // early-read rule. Authored function bodies are never wrapped.
+                let getter = quote!("() => { try { return $value; } catch {} }" as Expr,
+                    value: Expr = expression);
+                namespace_getters.push(quote_expr!(
+                    "$global.Object.defineProperty(__turbopack_namespace__, $name, { enumerable: true, configurable: true, get: (0, $getter) })",
+                    global: Expr = TURBOPACK_GLOBAL.unmapped_expr(),
+                    name: Expr = Expr::Lit(Lit::Str(Str { span: DUMMY_SP, value: exported.as_str().into(), raw: None })),
+                    getter: Expr = getter
+                ));
+                continue;
+            }
             if exprs != ExportBinding::None {
                 getters.push(Some(
                     Expr::Lit(Lit::Str(Str {
@@ -1278,6 +1333,26 @@ impl EsmExports {
                     ExportBinding::None => {}
                 };
             }
+        }
+        if namespace_order.is_some() {
+            let registrations = if namespace_getters.is_empty() {
+                quote!("void 0" as Expr)
+            } else {
+                *Expr::from_exprs(namespace_getters)
+            };
+            let statement = CodeGenerationHoistedStmt::new(
+                rcstr!("__turbopack_esm__"),
+                quote!(
+                    "$export_namespace((() => { const __turbopack_namespace__ = $global.Object.create(null); $registrations; $global.Object.defineProperty(__turbopack_namespace__, $global.Symbol.toStringTag, { value: 'Module' }); return __turbopack_namespace__; })());" as Stmt,
+                    export_namespace: Expr = TURBOPACK_EXPORT_NAMESPACE.unmapped_expr(),
+                    global: Expr = TURBOPACK_GLOBAL.unmapped_expr(),
+                    registrations: Expr = registrations
+                ),
+            );
+            return Ok((
+                CodeGeneration::new(vec![], vec![], vec![statement], vec![], vec![]),
+                Default::default(),
+            ));
         }
         let getters = Expr::Array(ArrayLit {
             span: DUMMY_SP,

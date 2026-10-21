@@ -1,0 +1,4 @@
+import{vi,test,expect}from'vitest'
+vi.mock('ws2-external-conditions',async(importOriginal)=>{const first=await importOriginal();const second=await importOriginal();return{branch:first.branch,object:first.object,default:first.default,info:{same:first===second,tag:first[Symbol.toStringTag],keys:Object.keys(first)}}})
+import*as subject from'ws2-external-conditions'
+test('uses the native import condition for external factory originals',()=>{const row={branch:subject.branch,object:subject.object,default:subject.default,info:subject.info};console.log('WS2_EXTERNAL_CONDITIONS:'+JSON.stringify(row));expect(row).toEqual({branch:'native-import',object:{value:47},default:{value:53},info:{same:true,tag:'Module',keys:['branch','default','object']}})})

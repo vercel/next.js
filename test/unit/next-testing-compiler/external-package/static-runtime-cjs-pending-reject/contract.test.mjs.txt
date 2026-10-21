@@ -1,0 +1,38 @@
+import { test, expect, vi } from 'vitest'
+import { types } from 'node:util'
+import * as heldStatic from "ws2-genuine-external-original"
+vi.mock("ws2-genuine-external-original", () => ({value:5}))
+function shape(namespace) {
+ return { nativeBrand: types.isModuleNamespaceObject(namespace), keys: Reflect.ownKeys(namespace).map(key => typeof key === 'symbol' ? String(key) : key), prototypeNull: Object.getPrototypeOf(namespace) === null, tag: namespace[Symbol.toStringTag] ?? null, extensible: Object.isExtensible(namespace), sealed: Object.isSealed(namespace), frozen: Object.isFrozen(namespace), descriptors: Reflect.ownKeys(namespace).map(key => { const d = Object.getOwnPropertyDescriptor(namespace,key); return { key: typeof key === 'symbol' ? String(key) : key, valueType: typeof d.value, get: typeof d.get, set: typeof d.set, writable: d.writable ?? null, enumerable: d.enumerable, configurable: d.configurable } }) }
+}
+test("native cjs static and runtime pending-reject",async()=>{
+const before=await import("ws2-genuine-external-original")
+let release
+const held=new Promise((resolve,reject)=>{release=reject})
+const failure=new Error('static runtime native pending failure')
+let calls=0
+let actual
+vi.doMock("ws2-genuine-external-original", async original=>{const index=++calls;actual=await original();await held;return {value:73,index}})
+const firstPending=import("ws2-genuine-external-original").then(value=>({value}),error=>({error}))
+await vi.waitFor(()=>expect(actual).toBeDefined())
+let secondSettled=false
+const secondPending=import("ws2-genuine-external-original").then(value=>{secondSettled=true;return {value}},error=>{secondSettled=true;return {error}})
+let settledBeforeRelease=false
+try {await vi.waitFor(()=>expect(secondSettled).toBe(true),{timeout:250,interval:10});settledBeforeRelease=true}catch{}
+const callsWhileHeld=calls
+const heldActual=actual
+release(failure)
+const first=await firstPending
+const second=await secondPending
+const later=await import("ws2-genuine-external-original").then(value=>({value}),error=>({error}))
+vi.resetModules()
+const afterReset=await import("ws2-genuine-external-original").then(value=>({value}),error=>({error}))
+vi.doUnmock("ws2-genuine-external-original")
+const released=await import("ws2-genuine-external-original")
+const errorShape = error => error ? {name:error.name,message:error.message,causeIdentity:error.cause===failure,causeName:error.cause?.name??null,causeMessage:error.cause?.message??null,rawIdentity:error===failure}:null
+
+const row={calls,callsWhileHeld,settledBeforeRelease,beforeStatic:before===heldStatic,staticValue:heldStatic.value,secondOriginal:second.value===heldActual,secondStatic:second.value===heldStatic,values:[first,second,later,afterReset].map(item=>item.value?.value??null),mockIdentity:[first.value===later.value,later.value===afterReset.value],errorIdentity:[first.error===later.error,later.error===afterReset.error],errors:[first,second,later,afterReset].map(item=>errorShape(item.error)),shapes:[before,heldStatic,heldActual,first.value,second.value,later.value,afterReset.value,released].map(item=>item?shape(item):null),releasedActual:released===actual,releasedHeldActual:released===heldActual,releasedValue:released.value??null,heldOriginalDefault:heldActual.default===released.default,heldOriginalFunction:heldActual.fn===released.fn}
+console.log('WS2_EXTERNAL_STATIC_RUNTIME_PENDING:'+JSON.stringify(row))
+expect(callsWhileHeld).toBe(1)
+expect(heldStatic.value).toBe(5)
+})

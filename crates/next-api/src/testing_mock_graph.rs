@@ -15,7 +15,10 @@ use turbopack_core::{
     resolve::{
         ResolveResult, ResolveResultOption,
         parse::Request,
-        plugin::{AfterResolvePlugin, AfterResolvePluginCondition},
+        plugin::{
+            AfterResolvePlugin, AfterResolvePluginCondition, BeforeResolvePlugin,
+            BeforeResolvePluginCondition,
+        },
     },
     source::Source,
 };
@@ -135,12 +138,100 @@ impl AfterResolvePlugin for MockResolvePlugin {
     }
 }
 
+#[turbo_tasks::value(shared)]
+pub(crate) struct MockBuiltinFactoryTarget {
+    pub requests: Vec<RcStr>,
+    pub wrapper_source: ResolvedVc<Box<dyn Source>>,
+}
+
+#[turbo_tasks::value(shared)]
+pub(crate) struct MockBuiltinResolvePlugin {
+    pub root: FileSystemPath,
+    pub next_package: FileSystemPath,
+    pub targets: Vec<ResolvedVc<MockBuiltinFactoryTarget>>,
+}
+
+#[turbo_tasks::value_impl]
+impl BeforeResolvePlugin for MockBuiltinResolvePlugin {
+    fn before_resolve_condition(&self) -> Vc<BeforeResolvePluginCondition> {
+        BeforeResolvePluginCondition::Always.cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn before_resolve(
+        self: Vc<Self>,
+        lookup_path: FileSystemPath,
+        reference_type: ReferenceType,
+        request: Vc<Request>,
+    ) -> Result<Vc<ResolveResultOption>> {
+        let this = self.await?;
+        let relative = if this.root == lookup_path {
+            Some("")
+        } else {
+            this.root.get_path_to(&lookup_path)
+        };
+        let Some(relative) = relative else {
+            return Ok(Vc::cell(None));
+        };
+        if this.next_package == lookup_path
+            || this.next_package.get_path_to(&lookup_path).is_some()
+            || relative.split('/').any(|part| part == "node_modules")
+        {
+            return Ok(Vc::cell(None));
+        }
+        let request = request.await?;
+        let Some(original_request) = request.request() else {
+            return Ok(Vc::cell(None));
+        };
+        for target in &this.targets {
+            let target = target.await?;
+            if !target.requests.contains(&original_request) {
+                continue;
+            }
+            if matches!(&*request,
+                Request::Module { query, fragment, .. } |
+                Request::Uri { query, fragment, .. }
+                if !query.is_empty() || !fragment.is_empty()
+            ) {
+                return Err(crate::testing::test_input_error(
+                    lookup_path,
+                    "Builtin factory mock consumers do not support queries or fragments",
+                ));
+            }
+            if !matches!(
+                reference_type,
+                ReferenceType::EcmaScriptModules(
+                    EcmaScriptModulesReferenceSubType::Import
+                        | EcmaScriptModulesReferenceSubType::ImportPart(_)
+                        | EcmaScriptModulesReferenceSubType::DynamicImport
+                        | EcmaScriptModulesReferenceSubType::Undefined
+                )
+            ) {
+                return Err(crate::testing::test_input_error(
+                    lookup_path,
+                    "Builtin factory mocks currently require project-local ESM consumers",
+                ));
+            }
+            return Ok(Vc::cell(Some(
+                ResolveResult::source(target.wrapper_source).resolved_cell(),
+            )));
+        }
+        Ok(Vc::cell(None))
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum MockOriginalSource<'a> {
+    Compiled(&'a str),
+    NativeExternal(&'a str),
+}
+
 pub(crate) struct MockRegistrationSource<'a> {
     pub key: &'a str,
     pub factory_source: &'a str,
     pub original_factory_source: Option<&'a str>,
     pub factory_start: usize,
-    pub original_request: &'a str,
+    pub original_request: MockOriginalSource<'a>,
     pub automatic: bool,
     pub spy: bool,
 }
@@ -154,12 +245,15 @@ pub(crate) struct MockHoistedSource<'a> {
 pub(crate) struct MockActualSource<'a> {
     pub local: &'a str,
     pub original_request: &'a str,
+    pub cache: bool,
 }
 
 #[derive(Clone, Copy)]
 pub(crate) enum MockImportKind<'a> {
     Factory(&'a str),
     Automatic { spy: bool },
+    CommonJsAutomatic { spy: bool },
+    CommonJsPublishedAutomatic { spy: bool },
     BrowserAutomatic { spy: bool },
     Redirect,
 }
@@ -276,9 +370,14 @@ pub(crate) fn mock_registration_source_with_helpers(
         automatic_api.push('_');
     }
     if declarations.iter().any(|declaration| declaration.automatic)
-        || mock_imports
-            .iter()
-            .any(|import| matches!(import.kind, MockImportKind::Automatic { .. }))
+        || mock_imports.iter().any(|import| {
+            matches!(
+                import.kind,
+                MockImportKind::Automatic { .. }
+                    | MockImportKind::CommonJsAutomatic { .. }
+                    | MockImportKind::CommonJsPublishedAutomatic { .. }
+            )
+        })
     {
         append_unmapped(
             &mut source,
@@ -300,19 +399,47 @@ pub(crate) fn mock_registration_source_with_helpers(
             &format!("import {{ {names} }} from 'vitest';\n"),
         );
     }
+    let mut cached_actuals = std::collections::HashMap::new();
     for import in actual_imports {
-        append_unmapped(
-            &mut source,
-            &mut generated,
-            &mut map,
-            &format!(
+        let code = if import.cache {
+            if let Some(local) = cached_actuals.get(import.original_request) {
+                format!("export const {} = {local};\n", import.local)
+            } else {
+                cached_actuals.insert(import.original_request, import.local);
+                format!(
+                    "export const {} = (() => {{ let loaded; return async () => await (loaded ??= \
+                     import({})); }})();\n",
+                    import.local,
+                    serde_json::to_string(import.original_request)?
+                )
+            }
+        } else {
+            format!(
                 "export const {} = () => import({});\n",
                 import.local,
                 serde_json::to_string(import.original_request)?
-            ),
-        );
+            )
+        };
+        append_unmapped(&mut source, &mut generated, &mut map, &code);
     }
+    let mut cached_commonjs_mocks = std::collections::HashMap::new();
     for (index, import) in mock_imports.iter().enumerate() {
+        if matches!(
+            import.kind,
+            MockImportKind::CommonJsAutomatic { .. }
+                | MockImportKind::CommonJsPublishedAutomatic { .. }
+        ) {
+            if let Some(local) = cached_commonjs_mocks.get(import.original_request) {
+                append_unmapped(
+                    &mut source,
+                    &mut generated,
+                    &mut map,
+                    &format!("export const {} = {local};\n", import.local),
+                );
+                continue;
+            }
+            cached_commonjs_mocks.insert(import.original_request, import.local);
+        }
         let mut browser_loader = format!("__next_browser_mock_original_{index}");
         if matches!(import.kind, MockImportKind::BrowserAutomatic { .. }) {
             while original_source.contains(&browser_loader)
@@ -347,6 +474,46 @@ pub(crate) fn mock_registration_source_with_helpers(
                 automatic_api,
                 if spy { ", { spy: true }" } else { "" }
             ),
+            MockImportKind::CommonJsAutomatic { spy }
+            | MockImportKind::CommonJsPublishedAutomatic { spy } => {
+                let request = serde_json::to_string(import.original_request)?;
+                let options = if spy { ", { spy: true }" } else { "" };
+                let publication = if matches!(
+                    import.kind,
+                    MockImportKind::CommonJsPublishedAutomatic { .. }
+                ) {
+                    format!(
+                        "const __next_record = \
+                         __turbopack_context__.c.get(require.resolve({request})); if \
+                         (__next_record != null && __next_record.exports === __next_commonjs && \
+                         __next_record.namespaceObject === __next_original && \
+                         Object.getOwnPropertyDescriptor(__next_record, \
+                         'commonJsNamespacePublished')?.value === true) return \
+                         {automatic_api}.mockObject(__next_original{options}); "
+                    )
+                } else {
+                    String::new()
+                };
+                format!(
+                    "{import_mock_api}(() => (loaded ??= import({request})), (__next_original) => \
+                     {{ const __next_commonjs = require({request}); {publication}if \
+                     (!__next_commonjs?.__esModule && __next_original != null && \
+                     __next_original[Symbol.toStringTag] === 'Module') {{ const __next_namespace \
+                     = typeof __next_commonjs === 'function' ? {{}} : {{ default: __next_commonjs \
+                     }}; for (const name of Object.getOwnPropertyNames(__next_original)) {{ if \
+                     (name !== 'default' && (name !== '__esModule' || name in \
+                     Object(__next_commonjs)) && (name === '__esModule' || \
+                     Object.prototype.propertyIsEnumerable.call(__next_original, name))) \
+                     Object.defineProperty(__next_namespace, name, {{ enumerable: true, \
+                     configurable: true, get: () => name === '__esModule' ? __next_commonjs[name] \
+                     : __next_original[name] }}); }} if (typeof __next_commonjs === 'function') \
+                     Object.defineProperty(__next_namespace, 'default', {{ value: \
+                     __next_commonjs, writable: true, enumerable: true, configurable: true }}); \
+                     Object.defineProperty(__next_namespace, Symbol.toStringTag, {{ value: \
+                     'Module' }}); return {automatic_api}.mockObject(__next_namespace{options}); \
+                     }} return {automatic_api}.mockObject(__next_original{options}); }})"
+                )
+            }
             MockImportKind::BrowserAutomatic { spy } => {
                 format!("{fresh_import_api}({browser_loader}, {{ spy: {spy} }})")
             }
@@ -355,15 +522,22 @@ pub(crate) fn mock_registration_source_with_helpers(
                 serde_json::to_string(import.original_request)?
             ),
         };
-        append_unmapped(
-            &mut source,
-            &mut generated,
-            &mut map,
-            &format!(
+        let code = if matches!(
+            import.kind,
+            MockImportKind::CommonJsAutomatic { .. }
+                | MockImportKind::CommonJsPublishedAutomatic { .. }
+        ) {
+            format!(
+                "export const {} = (() => {{ let loaded; return async () => {}; }})();\n",
+                import.local, expression
+            )
+        } else {
+            format!(
                 "export const {} = async () => {};\n",
                 import.local, expression
-            ),
-        );
+            )
+        };
+        append_unmapped(&mut source, &mut generated, &mut map, &code);
     }
     let mut events = declarations
         .iter()
@@ -439,14 +613,24 @@ pub(crate) fn mock_registration_source_with_helpers(
                     declaration.factory_source,
                 )?;
             }
+            let original_loader = match declaration.original_request {
+                MockOriginalSource::Compiled(request) => {
+                    format!("import({})", serde_json::to_string(request)?)
+                }
+                MockOriginalSource::NativeExternal(request) => {
+                    // Keep a missing original as a real native import failure,
+                    // deferred separately for every call of importOriginal.
+                    format!(
+                        "__turbopack_context__.y({})",
+                        serde_json::to_string(request)?
+                    )
+                }
+            };
             append_unmapped(
                 &mut source,
                 &mut generated,
                 &mut map,
-                &format!(
-                    "), () => import({}));\n",
-                    serde_json::to_string(declaration.original_request)?
-                ),
+                &format!("), () => {original_loader});\n"),
             );
         }
     }
@@ -640,6 +824,16 @@ pub(crate) fn mock_wrapper_source(
     )
 }
 
+pub(crate) fn virtual_mock_wrapper_source(runtime_request: &str, key: &str) -> Result<String> {
+    Ok(format!(
+        r#"const {{ importModuleMock }} = require({});
+__turbopack_context__.n(new Proxy(await importModuleMock({}), {{}}));
+"#,
+        serde_json::to_string(runtime_request)?,
+        serde_json::to_string(key)?,
+    ))
+}
+
 pub(crate) fn mock_wrapper_source_with_original_cycle(
     runtime_request: &str,
     key: &str,
@@ -707,9 +901,43 @@ pub(crate) fn mock_wrapper_source_with_original_cycle(
 #[cfg(test)]
 mod tests {
     use crate::testing_mock_graph::{
-        MockRegistrationSource, mock_registration_source, mock_registration_source_with_helpers,
-        mock_spec_source, mock_wrapper_source,
+        MockOriginalSource, MockRegistrationSource, mock_registration_source,
+        mock_registration_source_with_helpers, mock_spec_source, mock_wrapper_source,
+        virtual_mock_wrapper_source,
     };
+
+    #[test]
+    fn parses_virtual_namespace_wrapper_with_escaped_identifiers() {
+        let source = virtual_mock_wrapper_source("runtime\"path\n", "virtual:\"key\n").unwrap();
+        crate::testing_mock_source::validate_mock_target_source(&source, "virtual.mjs").unwrap();
+        assert!(!source.contains("import {"));
+    }
+
+    #[test]
+    fn defers_missing_bare_originals_to_each_real_native_import() {
+        let source = "import{vi}from'vitest';vi.mock('absent',()=>({value:73}))";
+        let plan = crate::testing_mock_source::extract_static_mocks(source, "spec.mjs").unwrap();
+        let declaration = &plan.declarations[0];
+        let generated = mock_registration_source(
+            "runtime",
+            "spec.mjs",
+            source,
+            &[MockRegistrationSource {
+                key: "virtual:absent",
+                factory_source: &declaration.factory_source,
+                original_factory_source: Some(&declaration.original_factory_source),
+                factory_start: declaration.factory_start,
+                original_request: MockOriginalSource::NativeExternal("absent"),
+                automatic: false,
+                spy: false,
+            }],
+        )
+        .unwrap();
+        assert!(generated.contains("), () => __turbopack_context__.y(\"absent\"));"));
+        assert!(!generated.contains("import(\"absent\")"));
+        assert!(!generated.contains("loaded ??="));
+        assert!(!generated.contains("throw new Error"));
+    }
 
     #[test]
     fn cyclic_original_uses_id_only_edges_and_the_native_owner_thunk() {
@@ -755,7 +983,7 @@ mod tests {
                 automatic: declaration.automatic,
                 spy: declaration.spy,
                 factory_start: declaration.factory_start,
-                original_request: "original:dep",
+                original_request: MockOriginalSource::Compiled("original:dep"),
             }],
             &[MockHoistedSource {
                 source: &hoisted.source,
@@ -766,6 +994,7 @@ mod tests {
             &[MockActualSource {
                 local: &actual.local,
                 original_request: "original:dep",
+                cache: false,
             }],
             &[],
             &plan.api_bindings,
@@ -805,7 +1034,7 @@ mod tests {
                 factory_source: "",
                 original_factory_source: Some(""),
                 factory_start: original.find("vi.mock").unwrap(),
-                original_request: "original:dep",
+                original_request: MockOriginalSource::Compiled("original:dep"),
                 automatic: true,
                 spy: false,
             }],
@@ -832,7 +1061,7 @@ mod tests {
                 factory_source: "",
                 original_factory_source: Some(""),
                 factory_start: original.find("vi.mock").unwrap(),
-                original_request: "original:dep",
+                original_request: MockOriginalSource::Compiled("original:dep"),
                 automatic: true,
                 spy: true,
             }],
@@ -857,7 +1086,7 @@ mod tests {
                 factory_source: factory,
                 original_factory_source: Some(factory),
                 factory_start: original.find(factory).unwrap(),
-                original_request: "original:dep",
+                original_request: MockOriginalSource::Compiled("original:dep"),
                 automatic: false,
                 spy: false,
             }],
@@ -905,7 +1134,7 @@ mod tests {
                 automatic: false,
                 spy: false,
                 factory_start: "vi.mock('./dep', ".len(),
-                original_request: "original:dep",
+                original_request: MockOriginalSource::Compiled("original:dep"),
             }],
         )
         .unwrap();
@@ -944,7 +1173,7 @@ mod tests {
                 automatic: false,
                 spy: false,
                 factory_start: prefix.len(),
-                original_request: "original:dep",
+                original_request: MockOriginalSource::Compiled("original:dep"),
             }],
         )
         .unwrap();
@@ -1004,7 +1233,7 @@ mod tests {
                 automatic: false,
                 spy: false,
                 factory_start: original.find(factory).unwrap(),
-                original_request: "original:dep",
+                original_request: MockOriginalSource::Compiled("original:dep"),
             }],
         )
         .unwrap();
@@ -1054,7 +1283,7 @@ mod tests {
                     automatic: false,
                     spy: false,
                     factory_start: 0,
-                    original_request: "original:dep",
+                    original_request: MockOriginalSource::Compiled("original:dep"),
                 }]
             )
             .is_err()
@@ -1309,5 +1538,100 @@ mod browser_import_mock_helper_tests {
              __next_automatic_mock_api.mockObject(__next_original))"
         ));
         assert!(generated.contains("__next_import_mock(() => import(\"manual:target\"))"));
+    }
+}
+
+#[cfg(test)]
+mod builtin_resolve_tests {
+    use anyhow::Result;
+    use turbo_rcstr::{RcStr, rcstr};
+    use turbo_tasks::{ResolvedVc, TurboTasks, Vc};
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+    use turbo_tasks_fs::{DiskFileSystem, File, FileContent, FileSystem};
+    use turbopack_core::{
+        asset::AssetContent,
+        reference_type::{
+            CommonJsReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceType,
+        },
+        resolve::{parse::Request, plugin::BeforeResolvePlugin},
+        source::Source,
+        virtual_source::VirtualSource,
+    };
+
+    use crate::testing_mock_graph::{MockBuiltinFactoryTarget, MockBuiltinResolvePlugin};
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn resolves_root_and_nested_consumers_without_replacing_framework_loaders() -> Result<()>
+    {
+        #[turbo_tasks::function(operation, root)]
+        async fn operation(disk_root: RcStr) -> Result<()> {
+            let root = DiskFileSystem::new(rcstr!("builtin-mock-scope"), Vc::cell(disk_root))
+                .root()
+                .owned()
+                .await?;
+            let project = root.join("project")?;
+            let framework = project.join("framework")?;
+            let source: ResolvedVc<Box<dyn Source>> = ResolvedVc::upcast(
+                VirtualSource::new(
+                    project.join("replacement.js")?,
+                    AssetContent::file(FileContent::Content(File::from("")).cell()),
+                )
+                .to_resolved()
+                .await?,
+            );
+            let plugin = MockBuiltinResolvePlugin {
+                root: project.clone(),
+                next_package: framework.clone(),
+                targets: vec![
+                    MockBuiltinFactoryTarget {
+                        requests: vec![rcstr!("fs")],
+                        wrapper_source: source,
+                    }
+                    .resolved_cell(),
+                ],
+            }
+            .resolved_cell();
+            for (lookup, expected) in [
+                (project.clone(), true),
+                (project.join("nested")?, true),
+                (project.join("node_modules/dependency")?, false),
+                (framework.clone(), false),
+                (framework.join("nested")?, false),
+                (root.join("outside")?, false),
+            ] {
+                let resolved = plugin
+                    .before_resolve(
+                        lookup,
+                        ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Import),
+                        Request::parse(rcstr!("fs").into()),
+                    )
+                    .await?;
+                assert_eq!(resolved.is_some(), expected);
+            }
+            assert!(
+                plugin
+                    .before_resolve(
+                        project,
+                        ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
+                        Request::parse(rcstr!("fs").into()),
+                    )
+                    .await
+                    .is_err()
+            );
+            Ok(())
+        }
+
+        let directory = tempfile::tempdir()?;
+        let disk_root: RcStr = directory.path().canonicalize()?.to_str().unwrap().into();
+        let tasks = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tasks
+            .run_once(async move {
+                operation(disk_root).read_strongly_consistent().await?;
+                Ok(())
+            })
+            .await
     }
 }

@@ -22,6 +22,11 @@ snapshots, or reporting. Hook order uses Vitest's default stack ordering. Setup
 runs outside-in; teardown runs inside-out in reverse registration order. Cleanup
 continues after individual failures and retains each error. Before-all failures
 block descendants; after-all failures fail the file.
+Each direct suite factory receives its own base test API. It supports fixture
+extensions and hooks during synchronous or asynchronous collection. The Node
+development and production corpus covers nested and skipped factories and
+preserves parameter-table callback arguments.
+
 Suite hooks and their returned cleanup have separate assertion scopes, without a
 case/attempt identity. Assertions finalize even when the hook fails or times out;
 hook errors retain their phase. Snapshots require a real case and are rejected in
@@ -30,15 +35,36 @@ cases until file disposal restores them.
 
 `test.extend<T>()` supports static values and asynchronous `use` factories with
 test/file/worker scopes and automatic fixtures. Factories resolve lazily from
-object-destructured dependencies, including aliases and defaults. Dependencies
-finish setup before their consumers, and teardown reverses that order. Test
+object-destructured dependencies, including Unicode identifiers, aliases and
+defaults. Dependencies finish setup before their consumers, and teardown reverses
+that order. Test
 fixtures are recreated for every retry and repeat; file fixtures live until the
-file finishes. `test.override({...})` replaces known fixtures for the current
+file finishes. File-fixture assertions retain their own live asynchronous owner
+through deferred cleanup. Global assertions keep the target's current test name
+and use a currently running case for soft assertions and snapshots; completed
+cases cannot provide that identity during file teardown. Local `context.expect`
+instances and their assertion counts remain case-owned. File-fixture cleanup
+failures fail the file, and late asynchronous work retains its closed fixture
+origin. Worker-fixture assertion integration remains separate.
+`test.override({...})` replaces known fixtures for the current
 suite and descendants, can depend on the base fixture by its own name, and
 inherits the original scope and automatic setting when omitted. A wider scope
-cannot depend on a narrower scope or attempt context. Rest/nested/computed
-destructuring and fixture options beyond `scope`/`auto` remain unsupported. The
+cannot depend on a narrower scope or attempt context. Rest/computed
+destructuring and fixture options beyond `scope`/`auto`/`injected` remain unsupported. The
 stable additions below describe builder forms and worker lifetimes.
+
+The Node development/production Unicode corpus covers ordinary factories,
+aliases and nested bindings for a resolved value, builder dependencies, suite
+overrides and reverse dependency cleanup. Fixture names that shadow object
+prototype properties remain own registrations across extensions and overrides;
+`__proto__` values also remain ordinary factory and builder dependencies.
+
+Node fixture tuples with `injected: true` read the project's provided value when
+the fixture is registered. Nullish provided values retain the declared value or
+factory; `false`, `0` and empty strings remain provided values. A plain override
+uses its own value, while an explicit injected override reads the provided value
+again. The Node development and production corpus covers values, lazy factories,
+dependency reuse and cleanup. Browser fixture execution remains unsupported.
 
 Other unsupported modifiers/options fail explicitly. The facade
 exposes D's `expect` runtime and the verified spy, global/environment stub, and
@@ -47,6 +73,14 @@ snapshot serializers are supported. Polling and every runner/parent deadline
 retain captured real timers, so a case's fake clock cannot stall scheduling,
 cancellation, or cleanup. Unsupported named exports fail during compilation.
 There is no fallback to the actual Vitest runtime.
+
+Extended test APIs expose `test.describe` and `test.suite` as the same global
+suite declaration API. Test modifiers do not carry over to these aliases; suite
+modifiers and parameter tables use the suite API itself. The deprecated
+`test.scoped({...})` form emits the target warning and delegates to
+`test.override({...})`, preserving its receiver and existing fixture scopes.
+The public `TestAPI<Context>` type retains the supplied fixture context and
+object extensions expose the combined fields through that type.
 
 Each internal attempt context remains the resource owner for one retry. The
 public test context, its local expectation instance and its signal retain case

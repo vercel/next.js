@@ -1,0 +1,1 @@
+globalThis.__ws2Graph??={};globalThis.__ws2Graph['recovery-peer']=(globalThis.__ws2Graph['recovery-peer']??0)+1;export const peer={kind:'peer',count:0};

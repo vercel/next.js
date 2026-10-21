@@ -1,0 +1,35 @@
+module.exports = [
+"[project]/.next-test-constructor-literal-arguments200-actual14-untouched-development/subject.ts [next-test-node] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "Counter",
+    ()=>Counter,
+    "exercise",
+    ()=>exercise
+]);
+throw new Error("coverage-only source must never evaluate");
+function initial(value) {
+    return value;
+}
+class Counter {
+    value;
+    constructor(value = initial(3)){
+        this.value = value;
+    }
+    add(delta) {
+        this.value += delta;
+        return this.value;
+    }
+}
+function exercise() {
+    const counter = new Counter();
+    return [
+        counter.value,
+        counter.add(2)
+    ];
+}
+}),
+];
+
+//# sourceMappingURL=03qx_tor-literal-arguments200-actual14-untouched-development_subject_ts_00sfjkhh55f1-._.js.map

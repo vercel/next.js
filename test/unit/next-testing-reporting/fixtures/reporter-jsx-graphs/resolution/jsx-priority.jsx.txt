@@ -1,0 +1,1 @@
+export default 'jsx-before-tsx'

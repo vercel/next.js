@@ -1,0 +1,182 @@
+{
+  "helper.ts": {
+    "path": "helper.ts",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": null
+        }
+      },
+      "1": {
+        "start": {
+          "line": 2,
+          "column": 30
+        },
+        "end": {
+          "line": 2,
+          "column": null
+        }
+      },
+      "2": {
+        "start": {
+          "line": 3,
+          "column": 48
+        },
+        "end": {
+          "line": 3,
+          "column": 66
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "prefix",
+        "decl": {
+          "start": {
+            "line": 3,
+            "column": 16
+          },
+          "end": {
+            "line": 3,
+            "column": 23
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 3,
+            "column": 46
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "line": 3
+      }
+    },
+    "branchMap": {},
+    "s": {
+      "0": 0,
+      "1": 0,
+      "2": 0
+    },
+    "f": {
+      "0": 0
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 1,
+      "lastStatement": 3,
+      "seen": {
+        "s:1:0:1:Infinity": 0,
+        "s:2:30:2:Infinity": 1,
+        "f:3:16:3:23": 0,
+        "s:3:48:3:66": 2
+      },
+      "fnNames": {}
+    }
+  },
+  "subject.ts": {
+    "path": "subject.ts",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 3,
+          "column": 32
+        },
+        "end": {
+          "line": 3,
+          "column": 63
+        }
+      },
+      "1": {
+        "start": {
+          "line": 5,
+          "column": 50
+        },
+        "end": {
+          "line": 5,
+          "column": 83
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "read",
+        "decl": {
+          "start": {
+            "line": 3,
+            "column": 2
+          },
+          "end": {
+            "line": 3,
+            "column": 7
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 3,
+            "column": 30
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "line": 3
+      },
+      "1": {
+        "name": "exercise",
+        "decl": {
+          "start": {
+            "line": 5,
+            "column": 16
+          },
+          "end": {
+            "line": 5,
+            "column": 25
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 5,
+            "column": 48
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        },
+        "line": 5
+      }
+    },
+    "branchMap": {},
+    "s": {
+      "0": 0,
+      "1": 0
+    },
+    "f": {
+      "0": 0,
+      "1": 0
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 2,
+      "lastStatement": 2,
+      "seen": {
+        "f:3:2:3:7": 0,
+        "s:3:32:3:63": 0,
+        "f:5:16:5:25": 1,
+        "s:5:50:5:83": 1
+      },
+      "fnNames": {}
+    }
+  }
+}

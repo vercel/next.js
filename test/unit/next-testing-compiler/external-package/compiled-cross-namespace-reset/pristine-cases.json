@@ -1,0 +1,7 @@
+[
+  {
+    "name": "held mutable original namespace stays distinct from reset source generation",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

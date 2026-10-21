@@ -1,0 +1,112 @@
+[
+  {
+    "variant": "missing",
+    "format": "html",
+    "pathname": "/acme/missing/alpha/c",
+    "search": "?tag=one&tag=two&unicode=%E2%9C%93&missing=1",
+    "status": 404,
+    "contentType": "text/html; charset=utf-8",
+    "subject": {
+      "fallback": {
+        "root": "acme",
+        "header": "request-value",
+        "cookie": "session-value",
+        "request": "missing-html"
+      }
+    },
+    "subjectTransport": "embedded-flight",
+    "rootLayout": false,
+    "nestedLayout": false,
+    "rootProvider": false,
+    "nestedProvider": false,
+    "providerContext": null,
+    "clientReference": true,
+    "robotsNoIndex": true,
+    "notFoundDigest": true,
+    "after": "missing-html"
+  },
+  {
+    "variant": "missing",
+    "format": "flight",
+    "pathname": "/acme/missing/alpha/c",
+    "search": "?tag=one&tag=two&unicode=%E2%9C%93&missing=1&_rsc=",
+    "status": 200,
+    "contentType": "text/x-component",
+    "subject": {
+      "fallback": {
+        "root": "acme",
+        "header": "request-value",
+        "cookie": "session-value",
+        "request": "missing-flight"
+      }
+    },
+    "subjectTransport": "flight",
+    "rootLayout": true,
+    "nestedLayout": true,
+    "rootProvider": true,
+    "nestedProvider": true,
+    "providerContext": null,
+    "clientReference": true,
+    "robotsNoIndex": false,
+    "notFoundDigest": true,
+    "after": "missing-flight"
+  },
+  {
+    "variant": "following",
+    "format": "html",
+    "pathname": "/acme/missing/alpha/c",
+    "search": "?tag=one&tag=two&unicode=%E2%9C%93",
+    "status": 200,
+    "contentType": "text/html; charset=utf-8",
+    "subject": {
+      "params": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"]
+      },
+      "query": {
+        "tag": ["one", "two"],
+        "unicode": "✓"
+      },
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value",
+      "request": "following-html"
+    },
+    "subjectTransport": "html",
+    "rootLayout": true,
+    "nestedLayout": true,
+    "rootProvider": true,
+    "nestedProvider": true,
+    "providerContext": "nested:acme",
+    "clientReference": true,
+    "robotsNoIndex": false,
+    "notFoundDigest": false,
+    "after": "following-html"
+  },
+  {
+    "variant": "following",
+    "format": "flight",
+    "pathname": "/acme/missing/alpha/c",
+    "search": "?tag=one&tag=two&unicode=%E2%9C%93&_rsc=",
+    "status": 200,
+    "contentType": "text/x-component",
+    "subject": {
+      "fallback": {
+        "root": "acme",
+        "header": "request-value",
+        "cookie": "session-value",
+        "request": "following-flight"
+      }
+    },
+    "subjectTransport": "flight",
+    "rootLayout": true,
+    "nestedLayout": true,
+    "rootProvider": true,
+    "nestedProvider": true,
+    "providerContext": null,
+    "clientReference": true,
+    "robotsNoIndex": false,
+    "notFoundDigest": false,
+    "after": "following-flight"
+  }
+]

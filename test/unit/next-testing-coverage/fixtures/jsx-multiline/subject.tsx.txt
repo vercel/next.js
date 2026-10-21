@@ -1,0 +1,8 @@
+import React from 'react'
+import { label } from './helper.js'
+type Props = { name: string }
+export const MultilineArrow = ({ name }: Props): React.ReactElement => (
+  <p data-name={name}>
+    <span>{label(name)}</span>
+  </p>
+)

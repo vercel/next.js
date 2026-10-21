@@ -1,0 +1,8 @@
+import {test,expect,vi} from 'vitest'
+vi.mock('ws2-genuine-external-original',()=>{globalThis.__ws2NativeCjsCalls=(globalThis.__ws2NativeCjsCalls??0)+1;return {value:73}})
+vi.mock('ws2-genuine-external-esm',()=>{globalThis.__ws2NativeEsmCalls=(globalThis.__ws2NativeEsmCalls??0)+1;return {value:74}})
+vi.unmock('ws2-genuine-external-original')
+vi.unmock('ws2-genuine-external-esm')
+import * as common from 'ws2-genuine-external-original'
+import * as esm from 'ws2-genuine-external-esm'
+test('cancels every native factory without evaluating replacements',async()=>{const commonDynamic=await import('ws2-genuine-external-original');const esmDynamic=await import('ws2-genuine-external-esm');console.log('WS2_EXTERNAL_UNMOCK_ONLY:'+JSON.stringify({cjsCalls:globalThis.__ws2NativeCjsCalls??0,esmCalls:globalThis.__ws2NativeEsmCalls??0,activeCalls:globalThis.__ws2NativeActiveCalls??0,common:common.value,esm:esm.value,commonIdentity:commonDynamic===common,esmIdentity:esmDynamic===esm,commonTag:common[Symbol.toStringTag]??null,commonKeys:Object.keys(common),esmTag:esm[Symbol.toStringTag]??null,esmKeys:Object.keys(esm)}));expect(common.value).toBe(19);expect(esm.value).toBe(37)})

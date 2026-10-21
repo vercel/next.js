@@ -1,0 +1,58 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_ACTUAL",
+    "value": {
+      "name": "actual-cjs",
+      "mockValue": 73,
+      "value": 19,
+      "defaultValue": 19,
+      "same": true,
+      "lazyOriginal": true,
+      "objectIdentity": true,
+      "tag": "Module",
+      "keys": ["default", "fn", "object", "value"],
+      "prototypeNull": true,
+      "valueDescriptor": {
+        "value": 19,
+        "writable": true,
+        "enumerable": true,
+        "configurable": false
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_ACTUAL",
+    "value": {
+      "name": "actual-esm",
+      "mockValue": 74,
+      "value": 37,
+      "defaultValue": 41,
+      "same": true,
+      "lazyOriginal": true,
+      "tag": "Module",
+      "keys": ["default", "value"],
+      "prototypeNull": true
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_ACTUAL",
+    "value": {
+      "name": "actual-conditional",
+      "branch": "native-import",
+      "object": {
+        "value": 47
+      },
+      "default": {
+        "value": 53
+      },
+      "same": true,
+      "staticIdentity": true,
+      "dynamicIdentity": true,
+      "tag": "Module",
+      "keys": ["branch", "default", "object"]
+    }
+  }
+]

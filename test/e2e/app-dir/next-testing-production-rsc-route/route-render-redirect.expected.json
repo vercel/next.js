@@ -1,0 +1,130 @@
+{
+  "cases": [
+    {
+      "fullName": "temporary redirect boundary as html",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "fullName": "temporary redirect boundary as flight",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "fullName": "permanent redirect boundary as html",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "fullName": "permanent redirect boundary as flight",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "fullName": "following redirect boundary as html",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "fullName": "following redirect boundary as flight",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "rows": [
+    {
+      "variant": "temporary",
+      "format": "html",
+      "pathname": "/acme/redirect/alpha/c",
+      "search": "?tag=one&tag=two&unicode=%E2%9C%93&redirect=temporary",
+      "status": 307,
+      "contentType": "text/html; charset=utf-8",
+      "location": "/acme/redirect/target?from=temporary",
+      "redirectDigest": true,
+      "refresh": null,
+      "subject": null,
+      "after": "temporary-html"
+    },
+    {
+      "variant": "temporary",
+      "format": "flight",
+      "pathname": "/acme/redirect/alpha/c",
+      "search": "?tag=one&tag=two&unicode=%E2%9C%93&redirect=temporary&_rsc=",
+      "status": 200,
+      "contentType": "text/x-component",
+      "location": null,
+      "redirectDigest": true,
+      "refresh": null,
+      "subject": null,
+      "after": "temporary-flight"
+    },
+    {
+      "variant": "permanent",
+      "format": "html",
+      "pathname": "/acme/redirect/alpha/c",
+      "search": "?tag=one&tag=two&unicode=%E2%9C%93&redirect=permanent",
+      "status": 308,
+      "contentType": "text/html; charset=utf-8",
+      "location": "/acme/redirect/target?from=permanent",
+      "redirectDigest": true,
+      "refresh": null,
+      "subject": null,
+      "after": "permanent-html"
+    },
+    {
+      "variant": "permanent",
+      "format": "flight",
+      "pathname": "/acme/redirect/alpha/c",
+      "search": "?tag=one&tag=two&unicode=%E2%9C%93&redirect=permanent&_rsc=",
+      "status": 200,
+      "contentType": "text/x-component",
+      "location": null,
+      "redirectDigest": true,
+      "refresh": null,
+      "subject": null,
+      "after": "permanent-flight"
+    },
+    {
+      "variant": "following",
+      "format": "html",
+      "pathname": "/acme/redirect/alpha/c",
+      "search": "?tag=one&tag=two&unicode=%E2%9C%93",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "location": null,
+      "redirectDigest": false,
+      "refresh": null,
+      "subject": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"],
+        "root": "acme",
+        "tag": ["one", "two"],
+        "unicode": "✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "after": "following-html"
+    },
+    {
+      "variant": "following",
+      "format": "flight",
+      "pathname": "/acme/redirect/alpha/c",
+      "search": "?tag=one&tag=two&unicode=%E2%9C%93&_rsc=",
+      "status": 200,
+      "contentType": "text/x-component",
+      "location": null,
+      "redirectDigest": false,
+      "refresh": null,
+      "subject": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"],
+        "root": "acme",
+        "tag": ["one", "two"],
+        "unicode": "✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "after": "following-flight"
+    }
+  ]
+}

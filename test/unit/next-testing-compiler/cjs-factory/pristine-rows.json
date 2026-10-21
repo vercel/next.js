@@ -1,0 +1,35 @@
+[
+  {
+    "stream": "stdout",
+    "value": {
+      "name": "unevaluated",
+      "default": "mock-default",
+      "named": 61,
+      "namedMock": true,
+      "namespaceDefault": true,
+      "namespaceNamed": true,
+      "originalEvaluated": false
+    }
+  },
+  {
+    "stream": "stdout",
+    "value": {
+      "name": "actual",
+      "value": 13,
+      "result": 5,
+      "sameOriginal": true,
+      "originalMock": false,
+      "evaluations": 1
+    }
+  },
+  {
+    "stream": "stdout",
+    "value": {
+      "name": "callable",
+      "result": 29,
+      "defaultMock": true,
+      "named": "mock-callable",
+      "originalEvaluated": false
+    }
+  }
+]

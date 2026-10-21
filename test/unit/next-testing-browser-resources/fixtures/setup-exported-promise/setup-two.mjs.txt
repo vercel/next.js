@@ -1,0 +1,3 @@
+import {expect} from 'vitest'
+expect(globalThis.__setupPromiseEvents).toEqual(['first-start','first-end'])
+globalThis.__setupPromiseEvents.push('second')

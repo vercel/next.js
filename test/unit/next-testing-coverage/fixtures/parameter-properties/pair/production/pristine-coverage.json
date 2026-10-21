@@ -1,0 +1,111 @@
+{
+  "subject.ts": {
+    "path": "subject.ts",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 2,
+          "column": 21
+        },
+        "end": {
+          "line": 2,
+          "column": 36
+        }
+      },
+      "1": {
+        "start": {
+          "line": 2,
+          "column": 44
+        },
+        "end": {
+          "line": 2,
+          "column": 58
+        }
+      },
+      "2": {
+        "start": {
+          "line": 3,
+          "column": 11
+        },
+        "end": {
+          "line": 3,
+          "column": 41
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "constructor",
+        "decl": {
+          "start": {
+            "line": 2,
+            "column": 2
+          },
+          "end": {
+            "line": 2,
+            "column": 14
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 58
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "line": 2
+      },
+      "1": {
+        "name": "read",
+        "decl": {
+          "start": {
+            "line": 3,
+            "column": 2
+          },
+          "end": {
+            "line": 3,
+            "column": 9
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 3,
+            "column": 9
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "line": 3
+      }
+    },
+    "branchMap": {},
+    "s": {
+      "0": 1,
+      "1": 1,
+      "2": 1
+    },
+    "f": {
+      "0": 1,
+      "1": 1
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 2,
+      "lastStatement": 3,
+      "seen": {
+        "f:2:2:2:14": 0,
+        "s:2:21:2:36": 0,
+        "s:2:44:2:58": 1,
+        "f:3:2:3:9": 1,
+        "s:3:11:3:41": 2
+      },
+      "fnNames": {}
+    }
+  }
+}

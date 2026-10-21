@@ -15,6 +15,7 @@ import type {
 } from './coverage/types'
 import type { WorkStoreContext } from '../../server/async-storage/work-store'
 import type { NextConfigComplete } from '../../server/config-shared'
+import type { RenderOptsPartial } from '../../server/app-render/types'
 import type { SnapshotUpdate, SnapshotUpdateMode } from './assertions/snapshots'
 
 /** Requested Next compilation context, not a replacement compiler configuration. */
@@ -36,6 +37,8 @@ export interface TestExecutionEnvironment {
 }
 
 export interface TestEntry {
+  /** Authored project label; compilation identity remains profile.id. */
+  projectName?: string
   /** Current-file import.meta.vitest marker requires native substitution. */
   inSource?: true
   /** Exact raw source bytes from marker discovery. */
@@ -74,6 +77,8 @@ export interface RegisteredBrowserFixture {
   /** Absolute, real, project-contained source file after discovery. */
   module: string
   exportName: string
+  /** Explicit default layout module; omission keeps the standalone fixture root. */
+  layout?: string
 }
 
 /** Private host registration, passed only to the owned development app compiler. */
@@ -159,6 +164,35 @@ export interface CompiledTestRequestContext {
       'authInterrupts' | 'useCacheTimeout' | 'durableUseCacheEntries'
     >
   }
+  /** Actual resolved application options for the explicit full-route renderer. */
+  routeRenderOpts?: CompiledTestRouteRenderOpts
+}
+
+/** The remaining normal AppPage render options that cross the compiler boundary. */
+export type CompiledTestRouteRenderOpts = Pick<
+  RenderOptsPartial,
+  | 'basePath'
+  | 'trailingSlash'
+  | 'images'
+  | 'crossOrigin'
+  | 'enableTainting'
+  | 'reactMaxHeadersLength'
+  | 'nextConfigOutput'
+  | 'partialPrefetching'
+  | 'serverActions'
+  | 'logServerFunctions'
+> & {
+  clientAssetToken: string
+  htmlLimitedBots: NextConfigComplete['htmlLimitedBots']
+  /** Actual development option controlling AppPage's separate debug channel. */
+  reactDebugChannel: boolean
+  experimental: Omit<
+    RenderOptsPartial['experimental'],
+    | 'isRoutePPREnabled'
+    | 'authInterrupts'
+    | 'useCacheTimeout'
+    | 'durableUseCacheEntries'
+  >
 }
 
 /** Common immutable closure; v1 artifacts are deliberately not accepted by v2 hosts. */
@@ -255,6 +289,10 @@ export interface CompiledRscTestArtifact
     /** Both additional manifests are required for request/cache execution. */
     previewProps?: string
     prerender?: string
+    /** Actual native AppProject manifests for full-route rendering. */
+    routeBuild?: string
+    routeFont?: string
+    routeLoadable?: string
   }
   /** Request rendering must reject absent metadata, never fabricate defaults. */
   requestContext?: CompiledTestRequestContext
@@ -289,7 +327,7 @@ export interface CompiledNodeTestArtifact
   /** Native-issued actual module-ID manifest, never a public reset option. */
   moduleCache?: { version: 1 }
   /** Native-issued dynamic target IDs and entry ownership, separate from static mocks. */
-  dynamicModuleMocking?: { version: 1 }
+  dynamicModuleMocking?: { version: 1; staticMocks?: 1 }
   /** Present only for a compiler-created shared Node worker cohort. */
   cohort?: CompiledTestCohortIdentity
   /** Browser drivers only: resolved evidence required before app-server startup. */
@@ -344,9 +382,18 @@ export type TestExecutionResult = FileResult & {
   collection?: TestFileCollection
 }
 
+export interface BrowserViewport {
+  width: number
+  height: number
+}
+
 export interface ExecuteTestOptions {
+  /** Opt-in live reporter snapshots from actual logical-case producers. */
+  captureTaskResults?: boolean
   /** Address for an explicitly requested inspector on this file worker. */
   inspect?: string
+  /** Pause the explicitly inspected file worker before entry evaluation. */
+  inspectBrk?: boolean
   collectOnly?: boolean
   runId: string
   coverage?: TestCoverageRequest
@@ -384,6 +431,8 @@ export interface ExecuteTestOptions {
   sequence?: import('./runner/sequence').TestSequenceOptions
   provide?: Record<string, unknown>
   env?: Record<string, string>
+  /** Resolved viewport for Browser Mode clients, independent of app drivers. */
+  browserViewport?: BrowserViewport
   testTimeout: number
   hookTimeout: number
   /** Outer process deadline, independent of the case/hook timeout. */

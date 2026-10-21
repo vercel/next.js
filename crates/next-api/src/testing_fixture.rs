@@ -29,6 +29,7 @@ struct Fixture {
     id: String,
     module: String,
     export_name: String,
+    layout: Option<String>,
 }
 
 fn safe_segment(value: &str) -> bool {
@@ -99,6 +100,14 @@ pub(crate) async fn fixture_routes(
                 .any(|part| part.is_empty() || part == "." || part == "..")
             || fixture.module.contains('\\')
             || fixture.module.contains(':')
+            || fixture.layout.as_ref().is_some_and(|layout| {
+                layout.is_empty()
+                    || layout
+                        .split('/')
+                        .any(|part| part.is_empty() || part == "." || part == "..")
+                    || layout.contains('\\')
+                    || layout.contains(':')
+            })
             || fixture.export_name.is_empty()
             || !fixture
                 .export_name
@@ -165,17 +174,28 @@ pub(crate) async fn fixture_routes(
             global_metadata,
             static_siblings: vec![],
         };
+        // An explicit layout stays a normal project module. Omitting it retains
+        // the standalone virtual root rather than inheriting application routes.
+        let (fixture_layout_path, fixture_layout_sources) =
+            if let Some(layout_module) = fixture.layout {
+                (root.join(&layout_module)?, FxIndexMap::default())
+            } else {
+                (
+                    layout_path.clone(),
+                    fxindexmap! { layout_path.clone() => layout },
+                )
+            };
         let tree = AppPageLoaderTree {
             page: page.clone(),
             segment: rcstr!(""),
             parallel_routes: fxindexmap! { rcstr!("children") => prefix_segment },
             modules: AppDirModules {
-                layout: Some(layout_path.clone()),
+                layout: Some(fixture_layout_path),
                 global_error: Some(builtin.join("global-error.js")?),
                 not_found: Some(builtin.join("not-found.js")?),
                 forbidden: Some(builtin.join("forbidden.js")?),
                 unauthorized: Some(builtin.join("unauthorized.js")?),
-                sources: fxindexmap! { layout_path.clone() => layout },
+                sources: fixture_layout_sources,
                 ..Default::default()
             },
             global_metadata,

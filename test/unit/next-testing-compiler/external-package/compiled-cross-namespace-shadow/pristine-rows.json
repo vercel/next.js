@@ -1,0 +1,74 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_SHADOW",
+    "value": {
+      "name": "shadow",
+      "shape": {
+        "keys": [
+          "Object",
+          "Symbol",
+          "__turbopack_namespace__",
+          "peer",
+          "Symbol(Symbol.toStringTag)"
+        ],
+        "prototypeNull": true,
+        "objectPrototype": false,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "tag": "[object Module]",
+        "brand": false,
+        "descriptors": [
+          [
+            "Object",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "Symbol",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "__turbopack_namespace__",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "peer",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "Symbol(Symbol.toStringTag)",
+            {
+              "enumerable": false,
+              "configurable": false,
+              "writable": false,
+              "type": "string"
+            }
+          ]
+        ]
+      },
+      "values": ["authored-object", "authored-symbol", "authored-name"],
+      "same": true
+    }
+  }
+]

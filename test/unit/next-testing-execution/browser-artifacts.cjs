@@ -70,6 +70,7 @@ replace(runtimePath, './snapshot-environment', {
   installBrowserSnapshotBridge() {},
 })
 replace(runtimePath, './browser-context', {
+  cleanupBrowserKeyboard() {},
   initializeBrowserContext: () => ({ install() {}, dispose() {} }),
   cleanupBrowserContext() {},
 })

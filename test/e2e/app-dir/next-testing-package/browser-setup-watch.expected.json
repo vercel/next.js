@@ -1,0 +1,643 @@
+{
+  "reference": {
+    "vitest": "5.0.4",
+    "browserPlaywright": "5.0.4",
+    "playwright": "1.64.0",
+    "include": ["a.test.mjs"],
+    "sourceSHA256": {
+      "setup-label.mjs": "72ad812107bb36259a0a925acaffdd13541788ba28956c24cf0064bc71da6f83",
+      "setup-two.mjs": "6d7bc28df5d2c375becab67af9b61454c845214be2841fbd1b8f7ec776c8ec1c",
+      "a.test.mjs": "b28e6adcd67dfb279d355a1ac958cefaf81c1de3d5fef6369bde646c24ace3f7",
+      "package.json": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+      "setup-state.mjs": "f5ee65f0baa8e67c8260beb5b16b087b44e180ca1ccaa0964f4064f9247ba379",
+      "control.mjs": "6cd564d3c467fa17e7cce2d464482ffd9c2eba354f95c503b520b7549b6cee5f",
+      "setup-one.mjs": "e5a456178c78667f3d0a7b1254cb436472edaec150d2e18d5064cac5cad09f62",
+      "setup.css": "f19db88cd28c18e83f2e861ea5852c253f00f12345c5880533adfd5a9246e049"
+    },
+    "notes": "Both genuine watch modes preserve the same case/setup bodies across setup-only dependency and setup-CSS updates, followed by active cancellation."
+  },
+  "modes": {
+    "development": {
+      "generations": [
+        {
+          "cases": [
+            {
+              "fullName": "a setup creates a real styled interactive DOM",
+              "status": "passed",
+              "failureMessages": []
+            },
+            {
+              "fullName": "a setup hooks create fresh DOM for the following case",
+              "status": "passed",
+              "failureMessages": []
+            }
+          ],
+          "rows": [
+            {
+              "kind": "BROWSER_SETUP_WATCH_CASE",
+              "row": {
+                "file": "a",
+                "label": "one",
+                "case": 1,
+                "events": [
+                  "setup-one-start",
+                  "setup-one-end",
+                  "setup-two",
+                  "before-all-one",
+                  "before-all-two",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-one",
+                  "button-click"
+                ],
+                "branch": "browser-development",
+                "mode": "development",
+                "setupRuns": 1,
+                "text": "clicked-one",
+                "color": "rgb(17, 34, 51)"
+              }
+            },
+            {
+              "kind": "BROWSER_SETUP_WATCH_CASE",
+              "row": {
+                "file": "a",
+                "label": "one",
+                "case": 2,
+                "events": [
+                  "setup-one-start",
+                  "setup-one-end",
+                  "setup-two",
+                  "before-all-one",
+                  "before-all-two",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-one",
+                  "button-click",
+                  "after-each-two",
+                  "after-each-one",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-two"
+                ],
+                "branch": "browser-development",
+                "mode": "development",
+                "setupRuns": 1,
+                "text": "ready-one",
+                "color": "rgb(17, 34, 51)"
+              }
+            },
+            {
+              "kind": "BROWSER_SETUP_WATCH_FILE",
+              "row": {
+                "file": "a",
+                "label": "one",
+                "events": [
+                  "setup-one-start",
+                  "setup-one-end",
+                  "setup-two",
+                  "before-all-one",
+                  "before-all-two",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-one",
+                  "button-click",
+                  "after-each-two",
+                  "after-each-one",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-two",
+                  "after-each-two",
+                  "after-each-one",
+                  "after-all-two",
+                  "after-all-one"
+                ],
+                "branch": "browser-development",
+                "mode": "development",
+                "setupRuns": 1,
+                "domCount": 0,
+                "setupGlobalRemoved": true
+              }
+            }
+          ]
+        },
+        {
+          "cases": [
+            {
+              "fullName": "a setup creates a real styled interactive DOM",
+              "status": "passed",
+              "failureMessages": []
+            },
+            {
+              "fullName": "a setup hooks create fresh DOM for the following case",
+              "status": "passed",
+              "failureMessages": []
+            }
+          ],
+          "rows": [
+            {
+              "kind": "BROWSER_SETUP_WATCH_CASE",
+              "row": {
+                "file": "a",
+                "label": "two",
+                "case": 1,
+                "events": [
+                  "setup-one-start",
+                  "setup-one-end",
+                  "setup-two",
+                  "before-all-one",
+                  "before-all-two",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-one",
+                  "button-click"
+                ],
+                "branch": "browser-development",
+                "mode": "development",
+                "setupRuns": 1,
+                "text": "clicked-two",
+                "color": "rgb(17, 34, 51)"
+              }
+            },
+            {
+              "kind": "BROWSER_SETUP_WATCH_CASE",
+              "row": {
+                "file": "a",
+                "label": "two",
+                "case": 2,
+                "events": [
+                  "setup-one-start",
+                  "setup-one-end",
+                  "setup-two",
+                  "before-all-one",
+                  "before-all-two",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-one",
+                  "button-click",
+                  "after-each-two",
+                  "after-each-one",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-two"
+                ],
+                "branch": "browser-development",
+                "mode": "development",
+                "setupRuns": 1,
+                "text": "ready-two",
+                "color": "rgb(17, 34, 51)"
+              }
+            },
+            {
+              "kind": "BROWSER_SETUP_WATCH_FILE",
+              "row": {
+                "file": "a",
+                "label": "two",
+                "events": [
+                  "setup-one-start",
+                  "setup-one-end",
+                  "setup-two",
+                  "before-all-one",
+                  "before-all-two",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-one",
+                  "button-click",
+                  "after-each-two",
+                  "after-each-one",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-two",
+                  "after-each-two",
+                  "after-each-one",
+                  "after-all-two",
+                  "after-all-one"
+                ],
+                "branch": "browser-development",
+                "mode": "development",
+                "setupRuns": 1,
+                "domCount": 0,
+                "setupGlobalRemoved": true
+              }
+            }
+          ]
+        },
+        {
+          "cases": [
+            {
+              "fullName": "a setup creates a real styled interactive DOM",
+              "status": "passed",
+              "failureMessages": []
+            },
+            {
+              "fullName": "a setup hooks create fresh DOM for the following case",
+              "status": "passed",
+              "failureMessages": []
+            }
+          ],
+          "rows": [
+            {
+              "kind": "BROWSER_SETUP_WATCH_CASE",
+              "row": {
+                "file": "a",
+                "label": "two",
+                "case": 1,
+                "events": [
+                  "setup-one-start",
+                  "setup-one-end",
+                  "setup-two",
+                  "before-all-one",
+                  "before-all-two",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-one",
+                  "button-click"
+                ],
+                "branch": "browser-development",
+                "mode": "development",
+                "setupRuns": 1,
+                "text": "clicked-two",
+                "color": "rgb(67, 45, 23)"
+              }
+            },
+            {
+              "kind": "BROWSER_SETUP_WATCH_CASE",
+              "row": {
+                "file": "a",
+                "label": "two",
+                "case": 2,
+                "events": [
+                  "setup-one-start",
+                  "setup-one-end",
+                  "setup-two",
+                  "before-all-one",
+                  "before-all-two",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-one",
+                  "button-click",
+                  "after-each-two",
+                  "after-each-one",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-two"
+                ],
+                "branch": "browser-development",
+                "mode": "development",
+                "setupRuns": 1,
+                "text": "ready-two",
+                "color": "rgb(67, 45, 23)"
+              }
+            },
+            {
+              "kind": "BROWSER_SETUP_WATCH_FILE",
+              "row": {
+                "file": "a",
+                "label": "two",
+                "events": [
+                  "setup-one-start",
+                  "setup-one-end",
+                  "setup-two",
+                  "before-all-one",
+                  "before-all-two",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-one",
+                  "button-click",
+                  "after-each-two",
+                  "after-each-one",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-two",
+                  "after-each-two",
+                  "after-each-one",
+                  "after-all-two",
+                  "after-all-one"
+                ],
+                "branch": "browser-development",
+                "mode": "development",
+                "setupRuns": 1,
+                "domCount": 0,
+                "setupGlobalRemoved": true
+              }
+            }
+          ]
+        }
+      ],
+      "activeCancellation": {
+        "active": true,
+        "bodySourcesHeld": true
+      }
+    },
+    "production": {
+      "generations": [
+        {
+          "cases": [
+            {
+              "fullName": "a setup creates a real styled interactive DOM",
+              "status": "passed",
+              "failureMessages": []
+            },
+            {
+              "fullName": "a setup hooks create fresh DOM for the following case",
+              "status": "passed",
+              "failureMessages": []
+            }
+          ],
+          "rows": [
+            {
+              "kind": "BROWSER_SETUP_WATCH_CASE",
+              "row": {
+                "file": "a",
+                "label": "one",
+                "case": 1,
+                "events": [
+                  "setup-one-start",
+                  "setup-one-end",
+                  "setup-two",
+                  "before-all-one",
+                  "before-all-two",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-one",
+                  "button-click"
+                ],
+                "branch": "browser-production",
+                "mode": "production",
+                "setupRuns": 1,
+                "text": "clicked-one",
+                "color": "rgb(17, 34, 51)"
+              }
+            },
+            {
+              "kind": "BROWSER_SETUP_WATCH_CASE",
+              "row": {
+                "file": "a",
+                "label": "one",
+                "case": 2,
+                "events": [
+                  "setup-one-start",
+                  "setup-one-end",
+                  "setup-two",
+                  "before-all-one",
+                  "before-all-two",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-one",
+                  "button-click",
+                  "after-each-two",
+                  "after-each-one",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-two"
+                ],
+                "branch": "browser-production",
+                "mode": "production",
+                "setupRuns": 1,
+                "text": "ready-one",
+                "color": "rgb(17, 34, 51)"
+              }
+            },
+            {
+              "kind": "BROWSER_SETUP_WATCH_FILE",
+              "row": {
+                "file": "a",
+                "label": "one",
+                "events": [
+                  "setup-one-start",
+                  "setup-one-end",
+                  "setup-two",
+                  "before-all-one",
+                  "before-all-two",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-one",
+                  "button-click",
+                  "after-each-two",
+                  "after-each-one",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-two",
+                  "after-each-two",
+                  "after-each-one",
+                  "after-all-two",
+                  "after-all-one"
+                ],
+                "branch": "browser-production",
+                "mode": "production",
+                "setupRuns": 1,
+                "domCount": 0,
+                "setupGlobalRemoved": true
+              }
+            }
+          ]
+        },
+        {
+          "cases": [
+            {
+              "fullName": "a setup creates a real styled interactive DOM",
+              "status": "passed",
+              "failureMessages": []
+            },
+            {
+              "fullName": "a setup hooks create fresh DOM for the following case",
+              "status": "passed",
+              "failureMessages": []
+            }
+          ],
+          "rows": [
+            {
+              "kind": "BROWSER_SETUP_WATCH_CASE",
+              "row": {
+                "file": "a",
+                "label": "two",
+                "case": 1,
+                "events": [
+                  "setup-one-start",
+                  "setup-one-end",
+                  "setup-two",
+                  "before-all-one",
+                  "before-all-two",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-one",
+                  "button-click"
+                ],
+                "branch": "browser-production",
+                "mode": "production",
+                "setupRuns": 1,
+                "text": "clicked-two",
+                "color": "rgb(17, 34, 51)"
+              }
+            },
+            {
+              "kind": "BROWSER_SETUP_WATCH_CASE",
+              "row": {
+                "file": "a",
+                "label": "two",
+                "case": 2,
+                "events": [
+                  "setup-one-start",
+                  "setup-one-end",
+                  "setup-two",
+                  "before-all-one",
+                  "before-all-two",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-one",
+                  "button-click",
+                  "after-each-two",
+                  "after-each-one",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-two"
+                ],
+                "branch": "browser-production",
+                "mode": "production",
+                "setupRuns": 1,
+                "text": "ready-two",
+                "color": "rgb(17, 34, 51)"
+              }
+            },
+            {
+              "kind": "BROWSER_SETUP_WATCH_FILE",
+              "row": {
+                "file": "a",
+                "label": "two",
+                "events": [
+                  "setup-one-start",
+                  "setup-one-end",
+                  "setup-two",
+                  "before-all-one",
+                  "before-all-two",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-one",
+                  "button-click",
+                  "after-each-two",
+                  "after-each-one",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-two",
+                  "after-each-two",
+                  "after-each-one",
+                  "after-all-two",
+                  "after-all-one"
+                ],
+                "branch": "browser-production",
+                "mode": "production",
+                "setupRuns": 1,
+                "domCount": 0,
+                "setupGlobalRemoved": true
+              }
+            }
+          ]
+        },
+        {
+          "cases": [
+            {
+              "fullName": "a setup creates a real styled interactive DOM",
+              "status": "passed",
+              "failureMessages": []
+            },
+            {
+              "fullName": "a setup hooks create fresh DOM for the following case",
+              "status": "passed",
+              "failureMessages": []
+            }
+          ],
+          "rows": [
+            {
+              "kind": "BROWSER_SETUP_WATCH_CASE",
+              "row": {
+                "file": "a",
+                "label": "two",
+                "case": 1,
+                "events": [
+                  "setup-one-start",
+                  "setup-one-end",
+                  "setup-two",
+                  "before-all-one",
+                  "before-all-two",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-one",
+                  "button-click"
+                ],
+                "branch": "browser-production",
+                "mode": "production",
+                "setupRuns": 1,
+                "text": "clicked-two",
+                "color": "rgb(67, 45, 23)"
+              }
+            },
+            {
+              "kind": "BROWSER_SETUP_WATCH_CASE",
+              "row": {
+                "file": "a",
+                "label": "two",
+                "case": 2,
+                "events": [
+                  "setup-one-start",
+                  "setup-one-end",
+                  "setup-two",
+                  "before-all-one",
+                  "before-all-two",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-one",
+                  "button-click",
+                  "after-each-two",
+                  "after-each-one",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-two"
+                ],
+                "branch": "browser-production",
+                "mode": "production",
+                "setupRuns": 1,
+                "text": "ready-two",
+                "color": "rgb(67, 45, 23)"
+              }
+            },
+            {
+              "kind": "BROWSER_SETUP_WATCH_FILE",
+              "row": {
+                "file": "a",
+                "label": "two",
+                "events": [
+                  "setup-one-start",
+                  "setup-one-end",
+                  "setup-two",
+                  "before-all-one",
+                  "before-all-two",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-one",
+                  "button-click",
+                  "after-each-two",
+                  "after-each-one",
+                  "before-each-one",
+                  "before-each-two",
+                  "case-two",
+                  "after-each-two",
+                  "after-each-one",
+                  "after-all-two",
+                  "after-all-one"
+                ],
+                "branch": "browser-production",
+                "mode": "production",
+                "setupRuns": 1,
+                "domCount": 0,
+                "setupGlobalRemoved": true
+              }
+            }
+          ]
+        }
+      ],
+      "activeCancellation": {
+        "active": true,
+        "bodySourcesHeld": true
+      }
+    }
+  }
+}

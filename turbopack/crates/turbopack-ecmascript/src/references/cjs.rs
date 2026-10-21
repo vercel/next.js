@@ -106,6 +106,11 @@ pub struct CjsRequireAssetReference {
 }
 
 impl CjsRequireAssetReference {
+    /// The actual authored request, without resolving or evaluating the target.
+    pub fn request(&self) -> ResolvedVc<Request> {
+        self.request
+    }
+
     pub fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
@@ -264,6 +269,11 @@ pub struct CjsRequireResolveAssetReference {
 }
 
 impl CjsRequireResolveAssetReference {
+    /// The actual authored request, without resolving or evaluating the target.
+    pub fn request(&self) -> ResolvedVc<Request> {
+        self.request
+    }
+
     pub fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,

@@ -1,0 +1,10 @@
+import React from 'react'
+import priority from './priority'
+import jsxPriority from './jsx-priority'
+import jsOutput from './js-output.js'
+import jsxOutput from './jsx-output.jsx'
+import directory from './directory'
+import nativeJs from './native-js.js'
+import nativeJsx from './native-jsx.jsx'
+import fileBeforeIndex from './file-before-index'
+export function createMarker() { return <mark data-profile={'reporter-jsx'} data-resolution={[priority, jsxPriority, jsOutput, jsxOutput, directory, nativeJs, nativeJsx, fileBeforeIndex]}/> }

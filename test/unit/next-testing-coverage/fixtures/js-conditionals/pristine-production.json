@@ -1,0 +1,101 @@
+{
+  "subject.mjs": {
+    "path": "subject.mjs",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 2,
+          "column": 2
+        },
+        "end": {
+          "line": 2,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "subject",
+        "decl": {
+          "start": {
+            "line": 1,
+            "column": 16
+          },
+          "end": {
+            "line": 1,
+            "column": 23
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 31
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "line": 1
+      }
+    },
+    "branchMap": {
+      "0": {
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 9
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "type": "cond-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 2,
+              "column": 21
+            },
+            "end": {
+              "line": 2,
+              "column": 30
+            }
+          },
+          {
+            "start": {
+              "line": 2,
+              "column": 33
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          }
+        ],
+        "line": 2
+      }
+    },
+    "s": {
+      "0": 3
+    },
+    "f": {
+      "0": 3
+    },
+    "b": {
+      "0": [2, 1]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 1,
+      "lastStatement": 1,
+      "seen": {
+        "f:1:16:1:23": 0,
+        "s:2:2:2:Infinity": 0,
+        "b:2:21:2:30:2:33:2:Infinity": 0
+      },
+      "fnNames": {}
+    }
+  }
+}

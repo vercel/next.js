@@ -1,0 +1,117 @@
+{
+  "numTotalTestSuites": 4,
+  "numPassedTestSuites": 1,
+  "numFailedTestSuites": 3,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 6,
+  "numPassedTests": 3,
+  "numFailedTests": 1,
+  "numPendingTests": 1,
+  "numTodoTests": 1,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1792504930854,
+  "success": false,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": ["outer"],
+          "fullName": "outer pass",
+          "status": "passed",
+          "title": "pass",
+          "duration": 0.9804579999999987,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": ["outer"],
+          "fullName": "outer skip",
+          "status": "skipped",
+          "title": "skip",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": ["outer"],
+          "fullName": "outer todo",
+          "status": "todo",
+          "title": "todo",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": ["outer", "nested"],
+          "fullName": "outer nested retry",
+          "status": "passed",
+          "title": "retry",
+          "duration": 1.392583000000002,
+          "failureMessages": [
+            "Error: first retry failure\n    at /private/tmp/next-testing-vitest-blob-slice/nested-pass-fail-retry-s56rZr/pass.case.mjs:1:335\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1632:35\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:2794:26\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3334:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3329:10)\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3314:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3272:10)\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3895:64"
+          ],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": ["outer", "nested"],
+          "fullName": "outer nested failure",
+          "status": "failed",
+          "title": "failure",
+          "duration": 2.2758330000000058,
+          "failureMessages": [
+            "AssertionError: expected { actual: 1 } to deeply equal { actual: 2 }\n    at /private/tmp/next-testing-vitest-blob-slice/nested-pass-fail-retry-s56rZr/pass.case.mjs:1:408\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1632:35\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:2794:26\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3334:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3329:10)\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3314:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3272:10)\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3895:64"
+          ],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1792064562377,
+      "endTime": 1792064562382.276,
+      "status": "failed",
+      "message": "",
+      "name": "/private/tmp/next-testing-vitest-blob-slice/nested-pass-fail-retry-s56rZr/pass.case.mjs"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [],
+          "fullName": "other pass",
+          "status": "passed",
+          "title": "other pass",
+          "duration": 0.8137079999999983,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1792064562462,
+      "endTime": 1792064562462.8137,
+      "status": "passed",
+      "message": "",
+      "name": "/private/tmp/next-testing-vitest-blob-slice/nested-pass-fail-retry-s56rZr/other.case.mjs"
+    }
+  ]
+}

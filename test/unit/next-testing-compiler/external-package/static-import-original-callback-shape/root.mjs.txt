@@ -1,0 +1,2 @@
+globalThis.__ws2StaticOriginalEvaluations=(globalThis.__ws2StaticOriginalEvaluations??0)+1;
+export const value=1;

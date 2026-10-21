@@ -1,0 +1,32 @@
+[
+  {
+    "name": "complete publication deleted-label before automatic helper",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete publication hidden-label before automatic helper",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete publication late-label before automatic helper",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete publication deleted-method before automatic helper",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete publication hidden-method before automatic helper",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete publication reinserted-label before automatic helper",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

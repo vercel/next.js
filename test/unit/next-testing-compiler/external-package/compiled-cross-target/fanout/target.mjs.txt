@@ -1,0 +1,1 @@
+import {token as left} from './left.mjs';import {token as right} from './right.mjs';globalThis.__ws2Cross??={};globalThis.__ws2Cross['fanout-root']=(globalThis.__ws2Cross['fanout-root']??0)+1;export {left,right};export function read(){return [left.count,right.count]}

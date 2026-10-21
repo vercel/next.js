@@ -1,0 +1,1 @@
+import {token as third} from './third.mjs';import {getRoot} from './target.mjs';globalThis.__ws2Cross??={};globalThis.__ws2Cross['async-cycle-peer']=(globalThis.__ws2Cross['async-cycle-peer']??0)+1;export const token={kind:'peer',count:0};export function read(){return third.count};export function root(){return getRoot()}

@@ -1,0 +1,7 @@
+[
+  {
+    "name": "combines compiled mock helpers with an ordinary native external namespace",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

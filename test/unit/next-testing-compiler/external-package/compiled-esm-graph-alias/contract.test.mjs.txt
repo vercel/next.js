@@ -1,0 +1,7 @@
+import {test,expect,vi} from 'vitest'
+test('runtime graph certificates preserve configured resolver target and unused physical source',async()=>{
+ let calls=0;let actual
+ vi.doMock('./target.mjs',async importOriginal=>{calls++;actual=await importOriginal();return {peer:actual.peer,evaluation:actual.evaluation}})
+ const first=await import('./target.mjs');const dependency=await import('./actual-peer.mjs');vi.resetModules();const held=await import('./target.mjs');vi.doUnmock('./target.mjs');const released=await import('./target.mjs')
+ console.log('WS2_EXTERNAL_GRAPH_ALIAS:'+JSON.stringify({calls,identities:[first===held,actual===first,first.peer===dependency.peer,released.peer===first.peer],evaluations:[first.evaluation,released.evaluation,first.peer.evaluation,released.peer.evaluation],values:[first.peer.value,released.peer.value],unused:globalThis.__ws2AliasUnused??0}));expect(calls).toBe(1);expect(first.peer.value).toBe(42);expect(globalThis.__ws2AliasUnused??0).toBe(0)
+})

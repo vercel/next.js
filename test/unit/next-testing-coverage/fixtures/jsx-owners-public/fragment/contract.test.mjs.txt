@@ -1,0 +1,10 @@
+import { expect, test } from 'vitest'
+import { Fragment, Arrow } from './subject.tsx'
+test('renders fragment logical child branches', () => {
+  expect(Fragment({ active: true, name: 'first' }).props.children.map(child => child.props.children)).toEqual(['first!', 'tail!'])
+  expect(Fragment({ active: false, name: 'second' }).props.children[0]).toBe(false)
+})
+test('renders parenthesized typed fragment arrow', () => {
+  expect(Arrow({ name: 'first' }).props.children.props).toEqual({ 'data-name': 'first', children: 'first!' })
+  expect(Arrow({ name: 'second' }).props.children.props.children).toBe('second!')
+})

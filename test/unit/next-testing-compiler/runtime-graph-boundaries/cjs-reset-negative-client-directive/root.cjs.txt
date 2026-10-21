@@ -1,0 +1,2 @@
+'use client'
+module.exports = {value: 1}

@@ -1,8 +1,10 @@
+import { createReporterTaskUpdates } from '../reporting/task-updates'
+import { captureReporterTaskTree } from '../reporting/live-tasks'
 import '../../../server/require-hook'
 import '../../../server/node-environment'
 import { isAbsolute } from 'node:path'
 import { lstat } from 'node:fs/promises'
-import type { ResultEvent, ResultStatus } from '../reporting/events'
+import type { CaseResult, ResultEvent, ResultStatus } from '../reporting/events'
 import type { RunnerFailure } from '../runner/lifecycle'
 import type {
   WorkerInput,
@@ -18,8 +20,10 @@ import {
 } from '../reporting/source-mapped-diagnostics'
 import { mapTestArtifactLocation } from '../reporting/artifact-location'
 import { getFinalCaseResults } from '../reporting/final-cases'
+import { installTestConsole } from './console'
 import { setBundlerFindSourceMapImplementation } from '../../../server/patch-error-inspect'
 import { createArtifactSourceMapLookup } from './source-maps'
+import { createArtifactRegistrationOriginMapper } from './registration-origin'
 import {
   assertCohortArtifact,
   cohortArtifactPath,
@@ -83,7 +87,11 @@ function send(message: WorkerLeaseMessage): Promise<void> {
 async function flush() {
   for (const message of pendingMessages) await message
 }
-function event(owner: OwnedFile, payload: EventPayload) {
+function event(
+  owner: OwnedFile,
+  payload: EventPayload,
+  timestamp = realDateNow()
+) {
   return send({
     type: 'file-message',
     leaseId: lease!.leaseId,
@@ -94,7 +102,7 @@ function event(owner: OwnedFile, payload: EventPayload) {
         ...payload,
         version: 1,
         runId: lease!.runId,
-        timestamp: realDateNow(),
+        timestamp,
       } as ResultEvent,
     },
   })
@@ -192,13 +200,36 @@ async function runFile(requestId: number, input: WorkerInput) {
   files.set(requestId, owner)
   byFile.set(artifact.entryId, owner)
   const started = performance.now()
+  let consoleCapture: ReturnType<typeof installTestConsole> | undefined
   let phase: 'collection' | 'runtime' = 'collection'
   let collection: TestFileCollection | undefined
+  let registrationOrigin:
+    | ReturnType<typeof createArtifactRegistrationOriginMapper>
+    | undefined
   const runnerFailure = (failure: RunnerFailure) =>
     serializeDiagnostic(failure.error, {
       phase: failure.phase === 'cleanup' ? 'cleanup' : 'runtime',
+      registrationOrigin: failure.registrationError
+        ? registrationOrigin?.(failure.registrationError)
+        : undefined,
     })
+  const taskUpdates = options.captureTaskResults
+    ? createReporterTaskUpdates<CaseResult>({
+        onUpdate: (update) =>
+          event(owner, {
+            type: 'task-update',
+            entryId: artifact.entryId,
+            revision: artifact.revision,
+            ...update,
+            caseResults: update.caseResults,
+          }),
+      })
+    : undefined
   try {
+    registrationOrigin = createArtifactRegistrationOriginMapper(
+      artifact,
+      options.entry.file
+    )
     if (!entry) {
       await validateCohortFiles(artifact)
       closure = identity
@@ -250,6 +281,21 @@ async function runFile(requestId: number, input: WorkerInput) {
         void report(owner, reason, 'runtime', true).catch(fatal)
       },
     }))
+    consoleCapture = installTestConsole({
+      fileId: artifact.entryId,
+      getTask: () => entry!.testRunner.getConsoleTask?.(),
+      publish: ({ timestamp, ...output }) =>
+        event(
+          owner,
+          {
+            type: 'output',
+            entryId: artifact.entryId,
+            revision: artifact.revision,
+            ...output,
+          },
+          timestamp
+        ),
+    })
     await file.collect(() => entry!.loadTestModule(artifact.cohort.index))
     controller.signal.throwIfAborted()
     if (options.collectOnly) {
@@ -316,15 +362,41 @@ async function runFile(requestId: number, input: WorkerInput) {
           failed = true
           void report(owner, error, 'runtime').catch(fatal)
         },
-        onSuiteEnd(suiteResult) {
-          return event(owner, {
+        onCollected: taskUpdates
+          ? async (actualFile) => {
+              await event(owner, {
+                type: 'file-collected',
+                entryId: artifact.entryId,
+                revision: artifact.revision,
+                taskTree: captureReporterTaskTree(actualFile),
+              })
+              taskUpdates.collected(actualFile)
+            }
+          : undefined,
+        onSuiteEnd(suiteResult, task) {
+          const completion = event(owner, {
             type: 'suite-end',
             ...suiteResult,
             revision: artifact.revision,
             errors: suiteResult.errors.map(runnerFailure),
           })
+          return taskUpdates
+            ? completion.then(() => taskUpdates.suiteEnd(task))
+            : completion
         },
+        onCaseResult: taskUpdates
+          ? (task, caseResult) =>
+              taskUpdates.caseResult(
+                task,
+                structuredClone({
+                  ...caseResult,
+                  revision: artifact.revision,
+                  errors: caseResult.errors.map(runnerFailure),
+                })
+              )
+          : undefined,
         onCaseStart(context) {
+          taskUpdates?.caseStart(context.testId)
           return event(owner, {
             type: 'case-start',
             entryId: artifact.entryId,
@@ -372,6 +444,17 @@ async function runFile(requestId: number, input: WorkerInput) {
     owner.status = controller.signal.aborted ? 'cancelled' : 'failed'
     await report(owner, error, phase)
   } finally {
+    if (taskUpdates) {
+      try {
+        await taskUpdates.finish()
+      } catch (error) {
+        failed = true
+        owner.status = 'failed'
+        await report(owner, error, 'cleanup')
+      } finally {
+        taskUpdates.dispose()
+      }
+    }
     try {
       await owner.file?.dispose()
     } catch (error) {
@@ -393,6 +476,13 @@ async function runFile(requestId: number, input: WorkerInput) {
       owner.status = 'failed'
       await report(owner, error, 'cleanup')
     }
+  }
+  try {
+    await consoleCapture?.dispose()
+  } catch (error) {
+    failed = true
+    owner.status = 'failed'
+    await report(owner, error, 'cleanup')
   }
   await turn()
   await flush()
@@ -507,7 +597,7 @@ process.on(
   }
 )
 process.once('disconnect', () => process.exit(1))
-process.on('unhandledRejection', (reason) => {
+process.on('unhandledRejection', (reason, promise) => {
   // Use the emitted runtime's actual ALS origin; never an active-file callback.
-  if (!entry?.testRunner.routeUnhandledRejection(reason)) fatal(reason)
+  if (!entry?.testRunner.routeUnhandledRejection(reason, promise)) fatal(reason)
 })

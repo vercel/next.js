@@ -1,0 +1,92 @@
+[
+  {
+    "name": "complete async publication deleted-label before automatic helper",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete async publication deleted-method before automatic helper",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete async publication hidden-label before automatic helper",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete async publication hidden-method before automatic helper",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete async publication late-label before automatic helper",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete async publication reinserted-label before automatic helper",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete generator publication deleted-label before automatic helper",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete generator publication deleted-method before automatic helper",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete generator publication hidden-label before automatic helper",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete generator publication hidden-method before automatic helper",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete generator publication late-label before automatic helper",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete generator publication reinserted-label before automatic helper",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete async-generator publication deleted-label before automatic helper",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete async-generator publication deleted-method before automatic helper",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete async-generator publication hidden-label before automatic helper",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete async-generator publication hidden-method before automatic helper",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete async-generator publication late-label before automatic helper",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete async-generator publication reinserted-label before automatic helper",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

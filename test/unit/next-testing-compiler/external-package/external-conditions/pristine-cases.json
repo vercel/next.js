@@ -1,0 +1,7 @@
+[
+  {
+    "name": "uses the native import condition for external factory originals",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

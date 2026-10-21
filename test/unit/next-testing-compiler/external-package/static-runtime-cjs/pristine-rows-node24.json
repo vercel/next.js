@@ -1,0 +1,395 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_STATIC_RUNTIME_CJS",
+    "value": {
+      "calls": 1,
+      "values": [5, 73, 91, 5],
+      "actualValue": 19,
+      "actualReadFile": "undefined",
+      "actualBrand": false,
+      "sameActualStatic": false,
+      "staticBefore": true,
+      "mockReset": true,
+      "releasedValue": 19,
+      "releasedReadFile": "undefined",
+      "releasedActual": false,
+      "finalReleased": false,
+      "heldMockValue": 73,
+      "staticShape": {
+        "nativeBrand": false,
+        "keys": ["value"],
+        "prototypeNull": false,
+        "tag": null,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "value",
+            "valueType": "number",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          }
+        ]
+      },
+      "beforeShape": {
+        "nativeBrand": false,
+        "keys": ["value"],
+        "prototypeNull": false,
+        "tag": null,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "value",
+            "valueType": "number",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          }
+        ]
+      },
+      "actualShape": {
+        "nativeBrand": false,
+        "keys": [
+          "default",
+          "fn",
+          "module.exports",
+          "object",
+          "value",
+          "Symbol(Symbol.toStringTag)"
+        ],
+        "prototypeNull": true,
+        "tag": "Module",
+        "extensible": false,
+        "sealed": true,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "default",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "fn",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "module.exports",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "object",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "value",
+            "valueType": "number",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "Symbol(Symbol.toStringTag)",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": false
+          }
+        ]
+      },
+      "mockedShape": {
+        "nativeBrand": false,
+        "keys": ["value", "actualValue", "actualReadFile", "sameStatic"],
+        "prototypeNull": false,
+        "tag": null,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "value",
+            "valueType": "number",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "actualValue",
+            "valueType": "number",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "actualReadFile",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "sameStatic",
+            "valueType": "boolean",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          }
+        ]
+      },
+      "afterMockResetShape": {
+        "nativeBrand": false,
+        "keys": ["value", "actualValue", "actualReadFile", "sameStatic"],
+        "prototypeNull": false,
+        "tag": null,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "value",
+            "valueType": "number",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "actualValue",
+            "valueType": "number",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "actualReadFile",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "sameStatic",
+            "valueType": "boolean",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          }
+        ]
+      },
+      "releasedShape": {
+        "nativeBrand": false,
+        "keys": [
+          "default",
+          "fn",
+          "module.exports",
+          "object",
+          "value",
+          "Symbol(Symbol.toStringTag)"
+        ],
+        "prototypeNull": true,
+        "tag": "Module",
+        "extensible": false,
+        "sealed": true,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "default",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "fn",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "module.exports",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "object",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "value",
+            "valueType": "number",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "Symbol(Symbol.toStringTag)",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": false
+          }
+        ]
+      },
+      "replacementShape": {
+        "nativeBrand": false,
+        "keys": ["value"],
+        "prototypeNull": false,
+        "tag": null,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "value",
+            "valueType": "number",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          }
+        ]
+      },
+      "finalShape": {
+        "nativeBrand": false,
+        "keys": [
+          "default",
+          "fn",
+          "module.exports",
+          "object",
+          "value",
+          "Symbol(Symbol.toStringTag)"
+        ],
+        "prototypeNull": true,
+        "tag": "Module",
+        "extensible": false,
+        "sealed": true,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "default",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "fn",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "module.exports",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "object",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "value",
+            "valueType": "number",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "Symbol(Symbol.toStringTag)",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": false
+          }
+        ]
+      },
+      "actualDefaultReleased": true,
+      "actualFnReleased": true,
+      "releasedDefaultFinal": true,
+      "releasedFnFinal": true
+    }
+  }
+]

@@ -1,0 +1,567 @@
+//! A bounded final export proof for compiled CommonJS require-lifetime roots.
+use anyhow::Result;
+use bincode::{Decode, Encode};
+use swc_core::{
+    common::{GLOBALS, Mark},
+    ecma::{
+        ast::{
+            AssignOp, AssignTarget, BinExpr, BinaryOp, Decl, Expr, Id, Lit, MemberProp, ModuleItem,
+            ObjectLit, Pat, Program, Prop, PropName, PropOrSpread, SimpleAssignTarget, Stmt,
+        },
+        visit::{Visit, VisitWith},
+    },
+};
+use turbo_tasks::{ResolvedVc, Vc};
+
+use crate::{
+    EcmascriptModuleAsset, EcmascriptParsable,
+    analyzer::cjs_ast::{is_global, is_module_dot_exports},
+    parse::ParseResult,
+};
+
+#[turbo_tasks::task_input]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Encode, Decode)]
+pub enum CommonJsResetExportShape {
+    Unsupported,
+    ObjectLiteral,
+    FunctionBinding,
+    AnonymousFunctionExpression,
+}
+
+#[turbo_tasks::value(shared)]
+pub struct CommonJsResetExportCertificate {
+    pub module: ResolvedVc<EcmascriptModuleAsset>,
+    pub shape: CommonJsResetExportShape,
+}
+
+fn permitted_key(key: &str) -> bool {
+    !matches!(
+        key,
+        "then" | "__proto__" | "prototype" | "caller" | "arguments" | "name" | "length"
+    )
+}
+fn property_key(key: &PropName) -> Option<&str> {
+    match key {
+        PropName::Ident(key) => Some(&key.sym),
+        PropName::Str(key) => key.value.as_str(),
+        _ => None,
+    }
+}
+fn ordinary_object(object: &ObjectLit) -> bool {
+    object.props.iter().all(|property| match property {
+        PropOrSpread::Prop(property) => match &**property {
+            Prop::KeyValue(property) => property_key(&property.key).is_some_and(permitted_key),
+            Prop::Shorthand(name) => permitted_key(&name.sym),
+            Prop::Method(property) => property_key(&property.key).is_some_and(permitted_key),
+            _ => false,
+        },
+        PropOrSpread::Spread(_) => false,
+    })
+}
+struct ForbiddenUse<'a> {
+    unresolved: Mark,
+    function: Option<&'a Id>,
+    found: bool,
+}
+impl Visit for ForbiddenUse<'_> {
+    fn visit_bin_expr(&mut self, expression: &BinExpr) {
+        let exact_binding = |value: &Expr| matches!(value, Expr::Ident(ident) if self.function.is_some_and(|binding| *binding == ident.to_id()));
+        if matches!(expression.op, BinaryOp::EqEqEq | BinaryOp::NotEqEq)
+            && ((matches!(&*expression.left, Expr::This(_)) && exact_binding(&expression.right))
+                || (matches!(&*expression.right, Expr::This(_)) && exact_binding(&expression.left)))
+        {
+            // These two leaves produce only an identity boolean; neither publishes the binding.
+            return;
+        }
+        expression.visit_children_with(self);
+    }
+
+    fn visit_ident(&mut self, ident: &swc_core::ecma::ast::Ident) {
+        if is_global(ident, "module", self.unresolved)
+            || is_global(ident, "exports", self.unresolved)
+            || self
+                .function
+                .is_some_and(|binding| *binding == ident.to_id())
+        {
+            self.found = true;
+        }
+    }
+}
+fn clean<'a>(
+    node: &impl VisitWith<ForbiddenUse<'a>>,
+    unresolved: Mark,
+    function: Option<&'a Id>,
+) -> bool {
+    let mut visitor = ForbiddenUse {
+        unresolved,
+        function,
+        found: false,
+    };
+    node.visit_with(&mut visitor);
+    !visitor.found
+}
+fn assignment(statement: &Stmt) -> Option<&swc_core::ecma::ast::AssignExpr> {
+    let Stmt::Expr(statement) = statement else {
+        return None;
+    };
+    let Expr::Assign(value) = &*statement.expr else {
+        return None;
+    };
+    (value.op == AssignOp::Assign).then_some(value)
+}
+fn certify(program: &Program, unresolved: Mark) -> CommonJsResetExportShape {
+    certify_for_callable_publication(program, unresolved, false)
+}
+
+fn certify_for_callable_publication(
+    program: &Program,
+    unresolved: Mark,
+    allow_self_default: bool,
+) -> CommonJsResetExportShape {
+    let unsupported = CommonJsResetExportShape::Unsupported;
+    let statements: Vec<&Stmt> = match program {
+        Program::Script(script) => script.body.iter().collect(),
+        Program::Module(module) => {
+            let mut statements = Vec::new();
+            for item in &module.body {
+                let ModuleItem::Stmt(statement) = item else {
+                    return unsupported;
+                };
+                statements.push(statement);
+            }
+            statements
+        }
+    };
+    let Some(last) = statements
+        .iter()
+        .rposition(|statement| !matches!(statement, Stmt::Empty(_)))
+    else {
+        return unsupported;
+    };
+    let Some(publication) = assignment(statements[last]) else {
+        return unsupported;
+    };
+    let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &publication.left else {
+        return unsupported;
+    };
+    if !is_module_dot_exports(member, unresolved) {
+        return unsupported;
+    }
+    let (shape, binding) = match &*publication.right {
+        Expr::Object(object) if ordinary_object(object) => {
+            (CommonJsResetExportShape::ObjectLiteral, None)
+        }
+        Expr::Fn(function)
+            if function.ident.is_none()
+                && function.function.body.is_some()
+                && !function.function.is_async
+                && !function.function.is_generator
+                && function
+                    .function
+                    .params
+                    .iter()
+                    .all(|parameter| matches!(&parameter.pat, Pat::Ident(_))) =>
+        {
+            (CommonJsResetExportShape::AnonymousFunctionExpression, None)
+        }
+        Expr::Ident(ident) => {
+            let binding = ident.to_id();
+            let declarations = statements.iter().filter(|statement| matches!(statement, Stmt::Decl(Decl::Fn(function)) if function.ident.to_id() == binding && function.function.body.is_some())).count();
+            if declarations != 1 {
+                return unsupported;
+            }
+            (CommonJsResetExportShape::FunctionBinding, Some(binding))
+        }
+        _ => return unsupported,
+    };
+    let mut self_default_assignments = 0;
+    let mut default_assignments = 0;
+    let mut flag_assignments = 0;
+    let mut true_flag_assignments = 0;
+    for (index, statement) in statements.iter().enumerate() {
+        if index == last {
+            if binding.is_none() && !clean(&*publication.right, unresolved, None) {
+                return unsupported;
+            }
+            continue;
+        }
+        if let Some(binding) = &binding {
+            if let Stmt::Decl(Decl::Fn(function)) = statement
+                && function.ident.to_id() == *binding
+            {
+                if !clean(&function.function, unresolved, Some(binding)) {
+                    return unsupported;
+                }
+                continue;
+            }
+            if let Some(assignment) = assignment(statement)
+                && let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &assignment.left
+                && matches!(&*member.obj, Expr::Ident(ident) if ident.to_id() == *binding)
+                && matches!(&member.prop, MemberProp::Ident(key) if permitted_key(&key.sym))
+            {
+                if allow_self_default {
+                    if matches!(&member.prop, MemberProp::Ident(key) if key.sym == "default") {
+                        default_assignments += 1;
+                        if matches!(&*assignment.right, Expr::Ident(ident) if ident.to_id() == *binding)
+                        {
+                            self_default_assignments += 1;
+                            continue;
+                        }
+                    }
+                    if matches!(&member.prop, MemberProp::Ident(key) if key.sym == "__esModule") {
+                        flag_assignments += 1;
+                        if matches!(&*assignment.right, Expr::Lit(Lit::Bool(value)) if value.value)
+                        {
+                            true_flag_assignments += 1;
+                        }
+                    }
+                }
+                if !clean(&*assignment.right, unresolved, Some(binding)) {
+                    return unsupported;
+                }
+                continue;
+            }
+        }
+        if !clean(*statement, unresolved, binding.as_ref()) {
+            return unsupported;
+        }
+    }
+    if self_default_assignments != 0
+        && !(self_default_assignments == 1
+            && default_assignments == 1
+            && flag_assignments == 1
+            && true_flag_assignments == 1)
+    {
+        return unsupported;
+    }
+    shape
+}
+
+/// The certificate belongs to this exact parsed full owner and resolver globals.
+#[turbo_tasks::function]
+pub async fn commonjs_reset_export_certificate(
+    module: ResolvedVc<EcmascriptModuleAsset>,
+) -> Result<Vc<CommonJsResetExportCertificate>> {
+    let parsed = module.failsafe_parse().await?;
+    let shape = if let ParseResult::Ok {
+        program,
+        eval_context,
+        globals,
+        ..
+    } = &*parsed
+    {
+        GLOBALS.set(&globals, || certify(&program, eval_context.unresolved_mark))
+    } else {
+        CommonJsResetExportShape::Unsupported
+    };
+    Ok(CommonJsResetExportCertificate { module, shape }.cell())
+}
+
+/// Optional leaf-callable publication may retain one exact self-default data edge.
+/// Existing supported/unsupported reset certificates keep their original identity.
+#[turbo_tasks::function]
+pub async fn commonjs_callable_publication_certificate(
+    module: ResolvedVc<EcmascriptModuleAsset>,
+) -> Result<Vc<CommonJsResetExportCertificate>> {
+    let strict = commonjs_reset_export_certificate(*module);
+    if strict.await?.shape != CommonJsResetExportShape::Unsupported {
+        return Ok(strict);
+    }
+    let parsed = module.failsafe_parse().await?;
+    let shape = if let ParseResult::Ok {
+        program,
+        eval_context,
+        globals,
+        ..
+    } = &*parsed
+    {
+        GLOBALS.set(&globals, || {
+            certify_for_callable_publication(&program, eval_context.unresolved_mark, true)
+        })
+    } else {
+        CommonJsResetExportShape::Unsupported
+    };
+    if shape == CommonJsResetExportShape::Unsupported {
+        return Ok(strict);
+    }
+    Ok(CommonJsResetExportCertificate { module, shape }.cell())
+}
+
+#[cfg(test)]
+mod tests {
+    use swc_core::{
+        common::{FileName, GLOBALS, Mark, SourceMap, sync::Lrc},
+        ecma::{
+            ast::EsVersion,
+            parser::{EsSyntax, Syntax, parse_file_as_program},
+            transforms::base::resolver,
+            visit::VisitMutWith,
+        },
+    };
+
+    use crate::cjs_reset_export::{
+        CommonJsResetExportShape, certify, certify_for_callable_publication,
+    };
+
+    fn check(source: &str, expected: CommonJsResetExportShape) {
+        GLOBALS.set(&Default::default(), || {
+            let map = Lrc::new(SourceMap::default());
+            let file = map.new_source_file(Lrc::new(FileName::Anon), source.to_owned());
+            let mut errors = Vec::new();
+            let mut program = parse_file_as_program(
+                &file,
+                Syntax::Es(EsSyntax::default()),
+                EsVersion::latest(),
+                None,
+                &mut errors,
+            )
+            .expect("valid literal certificate control");
+            assert!(errors.is_empty(), "{source}: {errors:?}");
+            let unresolved = Mark::new();
+            program.visit_mut_with(&mut resolver(unresolved, Mark::new(), false));
+            assert_eq!(certify(&program, unresolved), expected, "{source}");
+        });
+    }
+
+    #[test]
+    fn accepts_final_object_and_exact_callable_bindings() {
+        for source in [
+            "const dependency = require('./dependency.cjs'); module.exports = { dependency, \
+             value: 1, read() { return dependency.value } }",
+            "module.exports = { '__esModule': true, default: 1, value: 2 }",
+            "function read(module) { return module.exports }; module.exports = {read}",
+        ] {
+            check(source, CommonJsResetExportShape::ObjectLiteral);
+        }
+        for source in [
+            "const dependency = require('./dependency.cjs'); function exported(value) { return \
+             [dependency.value, value] }; exported.dependency = dependency; module.exports = \
+             exported",
+            "function exported() { function exported() { return 1 }; return exported() }; \
+             module.exports = exported",
+        ] {
+            check(source, CommonJsResetExportShape::FunctionBinding);
+        }
+    }
+
+    #[test]
+    fn rejects_unknown_export_shape_and_publication_history() {
+        for source in [
+            "module.exports = Promise.resolve(1)",
+            "module.exports = []",
+            "module.exports = Object.create(null)",
+            "module.exports = {then() {}}",
+            "module.exports = {__proto__: null, value: 1}",
+            "module.exports = {['value']: 1}",
+            "module.exports = {...{value: 1}}",
+            "module.exports = {get value() { return 1 }}",
+            "module.exports = {value: 1}; module.exports.value = 2",
+            "module.exports = {}; module.exports = {value: 1}",
+            "exports.value = 1; module.exports = {value: 1}",
+            "if (globalThis.choice) module.exports = {}; module.exports = {value: 1}",
+            "const module = {}; module.exports = {value: 1}",
+            "const escaped = module; module.exports = {value: 1}",
+        ] {
+            check(source, CommonJsResetExportShape::Unsupported);
+        }
+    }
+
+    #[test]
+    fn rejects_callable_aliases_escapes_reassignments_and_prototype_writes() {
+        for source in [
+            "function exported() {}; const alias = exported; module.exports = exported",
+            "function exported() {}; consume(exported); module.exports = exported",
+            "function exported() {}; exported = () => 1; module.exports = exported",
+            "function exported() {}; exported.prototype.value = 1; module.exports = exported",
+            "function exported() {}; exported['value'] = 1; module.exports = exported",
+            "function exported() {}; exported.then = () => 1; module.exports = exported",
+            "function exported() {}; Object.setPrototypeOf(exported, {}); module.exports = \
+             exported",
+            "function exported() { return exported }; module.exports = exported",
+            "function exported() { return module.exports }; module.exports = exported",
+            "function exported() {}; if (globalThis.choice) exported.value = 1; module.exports = \
+             exported",
+        ] {
+            check(source, CommonJsResetExportShape::Unsupported);
+        }
+    }
+
+    #[test]
+    fn accepts_only_exact_callable_this_identity_comparisons() {
+        for comparison in [
+            "this === exported",
+            "exported === this",
+            "this !== exported",
+            "exported !== this",
+        ] {
+            check(
+                &format!(
+                    "function exported() {{ return {comparison} }}; module.exports = exported"
+                ),
+                CommonJsResetExportShape::FunctionBinding,
+            );
+        }
+        for source in [
+            "function exported() { return this == exported }; module.exports = exported",
+            "function exported() { return this != exported }; module.exports = exported",
+            "function exported() { return exported === other }; module.exports = exported",
+            "function exported() { return receiver() === exported }; module.exports = exported",
+            "function exported() { return this === exported.value }; module.exports = exported",
+            "function exported() { return this === (exported = this) }; module.exports = exported",
+            "function exported() { return this === exported || exported }; module.exports = \
+             exported",
+            "function exported() { return exported === this && module.exports }; module.exports = \
+             exported",
+            "function exported() { return (function(exported) { return this === exported \
+             })(exported) }; module.exports = exported",
+            "function exported() { function inner(exported) { return this !== exported }; return \
+             exported }; module.exports = exported",
+        ] {
+            check(source, CommonJsResetExportShape::Unsupported);
+        }
+        check(
+            "function exported(exported) { return this === exported }; module.exports = exported",
+            CommonJsResetExportShape::FunctionBinding,
+        );
+    }
+
+    #[test]
+    fn accepts_terminal_anonymous_plain_parameter_functions() {
+        for source in [
+            "const dependency = require('./dependency.cjs'); module.exports = function(value, \
+             receiver) { return [dependency.value, this === receiver, value] }",
+            "module.exports = function() { return 1 }",
+            "const dependency = require('./dependency.cjs'); module.exports = function(module, \
+             exports) { return [module.exports, exports, dependency.value] }",
+            "module.exports = function(value) { function read(module) { return module.exports }; \
+             return read(value) }",
+        ] {
+            check(
+                source,
+                CommonJsResetExportShape::AnonymousFunctionExpression,
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_unmeasured_function_expression_forms_and_global_publication_use() {
+        for source in [
+            "module.exports = function named() { return 1 }",
+            "module.exports = async function() { return 1 }",
+            "module.exports = function*() { yield 1 }",
+            "module.exports = async function*() { yield 1 }",
+            "module.exports = () => 1",
+            "module.exports = class {}",
+            "module.exports = function(value = 1) { return value }",
+            "module.exports = function(...values) { return values }",
+            "module.exports = function({value}) { return value }",
+            "module.exports = function([value]) { return value }",
+            "module.exports = function() { return module.exports }",
+            "module.exports = function() { module.exports = 1 }",
+            "module.exports = function() { return exports.value }",
+            "module.exports = function() { exports.value = 1 }",
+            "module.exports = function() { const escaped = module; return escaped }",
+            "module.exports = function() { function read() { return exports }; return read() }",
+            "module.exports = function() {}; module.exports.value = 1",
+            "module.exports = {}; module.exports = function() {}",
+            "const module = {}; module.exports = function() {}",
+            "const escaped = exports; module.exports = function() {}",
+        ] {
+            check(source, CommonJsResetExportShape::Unsupported);
+        }
+    }
+
+    fn check_publication(source: &str, expected: CommonJsResetExportShape) {
+        GLOBALS.set(&Default::default(), || {
+            let map = Lrc::new(SourceMap::default());
+            let file = map.new_source_file(Lrc::new(FileName::Anon), source.to_owned());
+            let mut errors = Vec::new();
+            let mut program = parse_file_as_program(
+                &file,
+                Syntax::Es(EsSyntax::default()),
+                EsVersion::latest(),
+                None,
+                &mut errors,
+            )
+            .expect("valid literal publication control");
+            assert!(errors.is_empty(), "{source}: {errors:?}");
+            let unresolved = Mark::new();
+            program.visit_mut_with(&mut resolver(unresolved, Mark::new(), false));
+            assert_eq!(
+                certify(&program, unresolved),
+                CommonJsResetExportShape::Unsupported,
+                "strict reset certificate changed: {source}"
+            );
+            assert_eq!(
+                certify_for_callable_publication(&program, unresolved, true),
+                expected,
+                "{source}"
+            );
+        });
+    }
+
+    #[test]
+    fn publication_accepts_one_exact_self_default_and_true_flag_without_reset_admission() {
+        for kind in ["function", "async function", "function*", "async function*"] {
+            for members in [
+                "exported.__esModule=true; exported.default=exported; exported.label='root'",
+                "exported.label='root'; exported.default=exported; exported.__esModule=true",
+            ] {
+                check_publication(
+                    &format!(
+                        "{kind} exported(value) {{ return this.label }}; {members}; \
+                         module.exports=exported"
+                    ),
+                    CommonJsResetExportShape::FunctionBinding,
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn publication_rejects_other_self_escapes_flag_forms_and_default_reassignments() {
+        for source in [
+            "function exported() {}; exported.default=exported; module.exports=exported",
+            "function exported() {}; exported.__esModule=false; exported.default=exported; \
+             module.exports=exported",
+            "function exported() {}; exported.__esModule=1; exported.default=exported; \
+             module.exports=exported",
+            "function exported() {}; exported.__esModule=globalThis.flag; \
+             exported.default=exported; module.exports=exported",
+            "function exported() {}; exported.__esModule=true; exported.__esModule=false; \
+             exported.default=exported; module.exports=exported",
+            "function exported() {}; exported.__esModule=true; exported.default=exported; \
+             exported.default=7; module.exports=exported",
+            "function exported() {}; exported.__esModule=true; exported.default=7; \
+             exported.default=exported; module.exports=exported",
+            "function exported() {}; exported.__esModule=true; exported.default=exported; \
+             exported.default=exported; module.exports=exported",
+            "function exported() {}; exported.__esModule=true; exported['default']=exported; \
+             module.exports=exported",
+            "function exported() {}; exported.__esModule=true; exported.default=exported; \
+             consume(exported); module.exports=exported",
+            "function exported() {}; exported.__esModule=true; exported.default=exported; const \
+             alias=exported; module.exports=exported",
+            "function exported() { return exported }; exported.__esModule=true; \
+             exported.default=exported; module.exports=exported",
+            "function exported() {}; exported.__esModule=true; if(globalThis.flag) \
+             exported.default=exported; module.exports=exported",
+            "function exported() {}; exported.__esModule=true; \
+             Object.defineProperty(exported,'default',{value:exported}); module.exports=exported",
+            "function exported() {}; Object.defineProperty(exported,'__esModule',{value:true}); \
+             exported.default=exported; module.exports=exported",
+            "function exported() {}; Object.defineProperty(exported,'__esModule',{get(){return \
+             true}}); exported.default=exported; module.exports=exported",
+            "function exported() {}; exported.__esModule=true; exported.default=exported.other; \
+             module.exports=exported",
+            "function exported() {}; exported.__esModule=true; exported.default=exported; \
+             exported.then=()=>1; module.exports=exported",
+            "const module={}; function exported() {}; exported.__esModule=true; \
+             exported.default=exported; module.exports=exported",
+            "function exported() {}; exported.__esModule=true; { let exported={}; \
+             exported.default=exported }; module.exports=exported.default",
+        ] {
+            check_publication(source, CommonJsResetExportShape::Unsupported);
+        }
+    }
+}

@@ -4151,6 +4151,7 @@ dependencies = [
  "indexmap 2.14.0",
  "itertools 0.10.5",
  "next-core",
+ "next-taskless",
  "regex",
  "roaring",
  "rustc-hash 2.1.1",

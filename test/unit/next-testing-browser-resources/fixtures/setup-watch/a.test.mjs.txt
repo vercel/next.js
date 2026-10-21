@@ -1,0 +1,23 @@
+import { expect, test } from 'vitest'
+import { page } from 'vitest/browser'
+import { state } from './setup-state.mjs'
+const file = 'a'
+state.file = file
+test('a setup creates a real styled interactive DOM', async () => {
+  state.events.push('case-one')
+  expect(globalThis.__browserSetupValue).toBe(state.label)
+  expect(globalThis.__browserSetupRuns).toBe(1)
+  await page.getByRole('button', { name: 'ready-' + state.label }).click()
+  expect(state.button.textContent).toBe('clicked-' + state.label)
+  if (state.hold) { console.log('BROWSER_SETUP_WATCH_ACTIVE ' + JSON.stringify({file, text: state.button.textContent})); await new Promise(() => {}) }
+  console.log('BROWSER_SETUP_WATCH_CASE ' + JSON.stringify({ file, label: state.label, case: 1, events: state.events, branch: state.branch, mode: state.mode, setupRuns: globalThis.__browserSetupRuns, text: state.button.textContent, color: getComputedStyle(state.button).color }))
+})
+test('a setup hooks create fresh DOM for the following case', async () => {
+  state.events.push('case-two')
+  expect(globalThis.__browserSetupValue).toBe(state.label)
+  expect(globalThis.__browserSetupRuns).toBe(1)
+  expect(document.querySelectorAll('#setup-button').length).toBe(1)
+  expect(state.button.textContent).toBe('ready-' + state.label)
+  if (state.hold) { console.log('BROWSER_SETUP_WATCH_ACTIVE ' + JSON.stringify({file, text: state.button.textContent})); await new Promise(() => {}) }
+  console.log('BROWSER_SETUP_WATCH_CASE ' + JSON.stringify({ file, label: state.label, case: 2, events: state.events, branch: state.branch, mode: state.mode, setupRuns: globalThis.__browserSetupRuns, text: state.button.textContent, color: getComputedStyle(state.button).color }))
+})

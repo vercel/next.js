@@ -1,0 +1,30 @@
+import {expect,test,vi} from 'vitest'
+const state=vi.hoisted(()=>({calls:0}))
+vi.mock('fs',()=>{state.calls++;return {readFileSync:()=>23,label:'bare-fs'}})
+import * as bare from 'fs'
+import * as prefixed from 'node:fs'
+import {readFileSync as throughConsumer} from './fs-consumer.mjs'
+test('mocks a real bare Node builtin across graph consumers',async()=>{
+ const dynamic=await import('fs')
+ const helper=await vi.importMock('fs')
+ const result={name:'bare-fs',value:bare.readFileSync(),throughConsumer:throughConsumer(),dynamicIdentity:bare===dynamic,prefixedIdentity:bare===prefixed,prefixedLabel:prefixed.label??null,helperIdentity:bare===helper,helperDefaultShared:bare.readFileSync===helper.readFileSync,calls:state.calls,keys:Object.keys(bare),prototype:Object.getPrototypeOf(bare)===Object.prototype,tag:bare[Symbol.toStringTag]??null}
+ console.log('WS2_BUILTIN_RAW:'+JSON.stringify(result));expect(result.value).toBe(23);expect(result.throughConsumer).toBe(23)
+})
+
+vi.mock('node:os',()=>({platform:()=> 'mock-platform',label:'prefixed-os'}))
+import {platform} from 'node:os'
+import * as osPrefix from 'node:os'
+import * as osBare from 'os'
+test('mocks a prefixed Node builtin with bare and helper consumers',async()=>{
+ const helper=await vi.importMock('node:os')
+ const dynamic=await import('node:os')
+ const result={name:'prefixed-os',value:platform(),bareLabel:osBare.label??null,bareIdentity:osBare===osPrefix,dynamicIdentity:osPrefix===dynamic,helperIdentity:helper===osPrefix,helperFunctionShared:helper.platform===platform,keys:Object.keys(osPrefix)}
+ console.log('WS2_BUILTIN_RAW:'+JSON.stringify(result));expect(platform()).toBe('mock-platform')
+})
+
+vi.mock('node:path',async(importOriginal)=>{const first=await importOriginal();const second=await importOriginal();return {join:()=> 'mock-join',original:{joinType:typeof first.join,defaultJoinIdentity:first.default.join===first.join,tag:first[Symbol.toStringTag]??null,same:first===second}}})
+import {join,original} from 'node:path'
+test('loads a real builtin original lazily through an explicit async factory',()=>{
+ const result={name:'builtin-original',value:join(),original}
+ console.log('WS2_BUILTIN_RAW:'+JSON.stringify(result));expect(join()).toBe('mock-join');expect(original.joinType).toBe('function')
+})

@@ -1,0 +1,22 @@
+[
+  {
+    "name": "declared source export order and live namespace identity",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "explicit aliases preserve source registration order and values",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "forwarded live bindings and namespace retain real peer identity",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "namespace configurable getters expose real deletion and redefinition behavior",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

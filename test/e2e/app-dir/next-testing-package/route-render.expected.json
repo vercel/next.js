@@ -1,0 +1,76 @@
+{
+  "reference": {
+    "runner": "normal Next App Router application",
+    "modes": ["development", "production"],
+    "route": "/[tenant]/ancestor/[...slug]",
+    "htmlAndFlightActualApplicationResponses": true
+  },
+  "rows": [
+    {
+      "format": "html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "subject": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"],
+        "root": "acme",
+        "tag": ["one", "two"],
+        "unicode": "\u2713",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "after": "html"
+    },
+    {
+      "format": "flight",
+      "status": 200,
+      "contentType": "text/x-component",
+      "subject": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"],
+        "root": "acme",
+        "tag": ["one", "two"],
+        "unicode": "\u2713",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "after": "flight"
+    },
+    {
+      "kind": "missing",
+      "format": "html",
+      "status": 404,
+      "contentType": "text/html; charset=utf-8",
+      "subjectAbsent": true,
+      "after": "html-missing"
+    },
+    {
+      "kind": "missing",
+      "format": "flight",
+      "status": 200,
+      "contentType": "text/x-component",
+      "subjectAbsent": true,
+      "after": "flight-missing"
+    }
+  ],
+  "cases": [
+    "renders the selected route and ancestors as html",
+    "renders the selected route and ancestors as flight",
+    "keeps the normal html not-found response status",
+    "keeps the normal flight not-found response status"
+  ],
+  "cancellationCases": [
+    {
+      "fullName": "cancels an active streamed route at its attempt deadline",
+      "status": "failed"
+    },
+    {
+      "fullName": "drains cancelled request after work and retains the next route",
+      "status": "passed"
+    }
+  ],
+  "cancellationRow": {
+    "followingStatus": 200,
+    "after": ["cancelled", "following"]
+  }
+}

@@ -1,0 +1,6 @@
+import { expect, test } from 'vitest'
+import { Arrow } from './subject.tsx'
+test('renders typed arrow component returns', () => {
+  expect(Arrow({ name: 'first' }).props).toEqual({ 'data-name': 'first', children: 'first!' })
+  expect(Arrow({ name: 'second' }).props.children).toBe('second!')
+})

@@ -1,0 +1,4 @@
+globalThis.__ws2CjsDependencyRoot=(globalThis.__ws2CjsDependencyRoot||0)+1
+const evaluation=globalThis.__ws2CjsDependencyRoot
+const dependency=require('./dependency.cjs')
+module.exports={evaluation, dependency, read(value){return [this.evaluation,this.dependency.evaluation,value]}}

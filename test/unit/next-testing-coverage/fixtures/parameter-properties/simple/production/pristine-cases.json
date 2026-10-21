@@ -1,0 +1,150 @@
+{
+  "numTotalTestSuites": 1,
+  "numPassedTestSuites": 1,
+  "numFailedTestSuites": 0,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 1,
+  "numPassedTests": 1,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1792521407918,
+  "success": true,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [],
+          "fullName": "constructor properties",
+          "status": "passed",
+          "title": "constructor properties",
+          "duration": 2.021708999999987,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1792521408131,
+      "endTime": 1792521408133.0217,
+      "status": "passed",
+      "message": "",
+      "name": "/private/tmp/next-testing-ws5-runtime-typescript174/reference09/simple-production/contract.test.mjs"
+    }
+  ],
+  "coverageMap": {
+    "/private/tmp/next-testing-ws5-runtime-typescript174/reference09/simple-production/subject.ts": {
+      "path": "/private/tmp/next-testing-ws5-runtime-typescript174/reference09/simple-production/subject.ts",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 2,
+            "column": 21
+          },
+          "end": {
+            "line": 2,
+            "column": 36
+          }
+        },
+        "1": {
+          "start": {
+            "line": 3,
+            "column": 11
+          },
+          "end": {
+            "line": 3,
+            "column": 29
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "constructor",
+          "decl": {
+            "start": {
+              "line": 2,
+              "column": 2
+            },
+            "end": {
+              "line": 2,
+              "column": 14
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 2,
+              "column": 36
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "line": 2
+        },
+        "1": {
+          "name": "read",
+          "decl": {
+            "start": {
+              "line": 3,
+              "column": 2
+            },
+            "end": {
+              "line": 3,
+              "column": 9
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 3,
+              "column": 9
+            },
+            "end": {
+              "line": 3,
+              "column": null
+            }
+          },
+          "line": 3
+        }
+      },
+      "branchMap": {},
+      "s": {
+        "0": 1,
+        "1": 1
+      },
+      "f": {
+        "0": 1,
+        "1": 1
+      },
+      "b": {},
+      "meta": {
+        "lastBranch": 0,
+        "lastFunction": 2,
+        "lastStatement": 2,
+        "seen": {
+          "f:2:2:2:14": 0,
+          "s:2:21:2:36": 0,
+          "f:3:2:3:9": 1,
+          "s:3:11:3:29": 1
+        },
+        "fnNames": {}
+      }
+    }
+  }
+}

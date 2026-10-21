@@ -1,0 +1,21 @@
+import { test, expect, vi } from 'vitest'
+test('compiled synchronous factory parallel imports', async () => {
+ const original = await import('./dependency.mjs')
+ let calls = 0
+ vi.doMock('./dependency.mjs', () => { calls++; return { value: 83 } })
+ const [first,second] = await Promise.all([import('./dependency.mjs'),import('./dependency.mjs')])
+ vi.doUnmock('./dependency.mjs')
+ const released = await import('./dependency.mjs')
+ console.log('WS2_EXTERNAL_COMPILED_FAST_PARALLEL:' + JSON.stringify({ factory: 'synchronous',calls,values:[first.value,second.value],same:first===second,firstOriginal:first===original,secondOriginal:second===original,releasedOriginal:released===original }))
+ expect(calls).toBe(1)
+})
+test('compiled immediate async factory parallel imports', async () => {
+ const original = await import('./dependency.mjs')
+ let calls = 0
+ vi.doMock('./dependency.mjs', async () => { calls++; return { value: 83 } })
+ const [first,second] = await Promise.all([import('./dependency.mjs'),import('./dependency.mjs')])
+ vi.doUnmock('./dependency.mjs')
+ const released = await import('./dependency.mjs')
+ console.log('WS2_EXTERNAL_COMPILED_FAST_PARALLEL:' + JSON.stringify({ factory: 'immediate async',calls,values:[first.value,second.value],same:first===second,firstOriginal:first===original,secondOriginal:second===original,releasedOriginal:released===original }))
+ expect(calls).toBe(1)
+})

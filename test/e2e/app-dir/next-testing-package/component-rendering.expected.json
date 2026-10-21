@@ -1,0 +1,215 @@
+{
+  "reference": "Vitest 5.0.4, Chromium; installed React/DOM19.2.0, RTL16.3.3/DOM10.4.2 and vitest-browser-react2.3.0",
+  "phases": {
+    "rtl-development": {
+      "kind": "rtl",
+      "mode": "development",
+      "cases": [
+        {
+          "fullName": "Testing Library renders client JSX CSS and updates with native browser interactions",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "Testing Library cleanup removes component roots and effects before another render",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "Testing Library renderHook and act retain state and component cleanup",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "React act availability follows the real dependency mode",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "component",
+            "row": {
+              "text": "Clicks: 1",
+              "color": "rgb(23, 45, 67)",
+              "effects": ["mount", "unmount"],
+              "connectedAfterUnmount": false
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "cleanup",
+            "row": {
+              "effects": ["mount", "unmount", "mount", "unmount"],
+              "remainingButtons": 0
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "hook",
+            "row": {
+              "count": 5,
+              "remainingButtons": 0
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "act-boundary",
+            "row": {
+              "mode": "development",
+              "act": "function"
+            }
+          }
+        }
+      ]
+    },
+    "helper-development": {
+      "kind": "helper",
+      "mode": "development",
+      "cases": [
+        {
+          "fullName": "published React Browser helper renders rerenders and unmounts actual client components",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "published Browser page render supports providers fragments and component cleanup",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "published Browser renderHook exposes committed hook state and its own act helper",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "helper-rendered locators compose intersections and DOM ordered unions before native input",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "helper-component",
+            "row": {
+              "text": "Rerendered: 1",
+              "color": "rgb(23, 45, 67)",
+              "effects": ["mount", "unmount"],
+              "connectedAfterUnmount": false
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "helper-provider",
+            "row": {
+              "text": "provided",
+              "remainingButtons": 0
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "helper-hook",
+            "row": {
+              "count": 5,
+              "remainingButtons": 0
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "helper-locators",
+            "row": {
+              "ordered": ["One", "Two"],
+              "clicks": [["One", true]]
+            }
+          }
+        }
+      ]
+    },
+    "helper-production": {
+      "kind": "helper",
+      "mode": "production",
+      "cases": [
+        {
+          "fullName": "published React Browser helper renders rerenders and unmounts actual client components",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "published Browser page render supports providers fragments and component cleanup",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "published Browser renderHook exposes committed hook state and its own act helper",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "helper-rendered locators compose intersections and DOM ordered unions before native input",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "helper-component",
+            "row": {
+              "text": "Rerendered: 1",
+              "color": "rgb(23, 45, 67)",
+              "effects": ["mount", "unmount"],
+              "connectedAfterUnmount": false
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "helper-provider",
+            "row": {
+              "text": "provided",
+              "remainingButtons": 0
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "helper-hook",
+            "row": {
+              "count": 5,
+              "remainingButtons": 0
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "helper-locators",
+            "row": {
+              "ordered": ["One", "Two"],
+              "clicks": [["One", true]]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

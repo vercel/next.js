@@ -1,0 +1,370 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_STATIC_RUNTIME_FAILURE",
+    "value": {
+      "calls": 3,
+      "staticValue": 5,
+      "beforeStatic": true,
+      "beforeShape": {
+        "nativeBrand": false,
+        "keys": ["value"],
+        "prototypeNull": false,
+        "tag": null,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "value",
+            "valueType": "number",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          }
+        ]
+      },
+      "staticShape": {
+        "nativeBrand": false,
+        "keys": ["value"],
+        "prototypeNull": false,
+        "tag": null,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "value",
+            "valueType": "number",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          }
+        ]
+      },
+      "errors": [
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "causeIdentity": true,
+          "causeName": "Error",
+          "causeMessage": "static runtime native failure",
+          "rawIdentity": false
+        },
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "causeIdentity": true,
+          "causeName": "Error",
+          "causeMessage": "static runtime native failure",
+          "rawIdentity": false
+        },
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "causeIdentity": true,
+          "causeName": "Error",
+          "causeMessage": "static runtime native failure",
+          "rawIdentity": false
+        }
+      ],
+      "errorIdentity": [false, false, false],
+      "originalIdentity": [true, false, true],
+      "originalShapes": [
+        {
+          "nativeBrand": false,
+          "keys": [
+            "default",
+            "fn",
+            "module.exports",
+            "object",
+            "value",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototypeNull": true,
+          "tag": "Module",
+          "extensible": false,
+          "sealed": true,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "default",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fn",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "module.exports",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "object",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "value",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        {
+          "nativeBrand": false,
+          "keys": [
+            "default",
+            "fn",
+            "module.exports",
+            "object",
+            "value",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototypeNull": true,
+          "tag": "Module",
+          "extensible": false,
+          "sealed": true,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "default",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fn",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "module.exports",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "object",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "value",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        {
+          "nativeBrand": false,
+          "keys": [
+            "default",
+            "fn",
+            "module.exports",
+            "object",
+            "value",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototypeNull": true,
+          "tag": "Module",
+          "extensible": false,
+          "sealed": true,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "default",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fn",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "module.exports",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "object",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "value",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        }
+      ],
+      "releasedShape": {
+        "nativeBrand": false,
+        "keys": [
+          "default",
+          "fn",
+          "module.exports",
+          "object",
+          "value",
+          "Symbol(Symbol.toStringTag)"
+        ],
+        "prototypeNull": true,
+        "tag": "Module",
+        "extensible": false,
+        "sealed": true,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "default",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "fn",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "module.exports",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "object",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "value",
+            "valueType": "number",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "Symbol(Symbol.toStringTag)",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": false
+          }
+        ]
+      },
+      "releasedValue": 19
+    }
+  }
+]

@@ -1,4 +1,5 @@
-import { relative, isAbsolute, sep } from 'path'
+import { relative } from 'path'
+import { serializeBrowserFixtureHost } from './browser-fixtures'
 import type { BrowserFixtureHost } from '../../experimental/testing/contracts'
 import { createDefineEnv, getBindingsSync } from './index'
 import type { NextConfigComplete } from '../../server/config-shared'
@@ -64,24 +65,7 @@ export async function createDevTurbopackProject({
   const projectOptions: ProjectOptions = {
     rootPath,
     browserFixtureHost: browserFixtureHost
-      ? JSON.stringify({
-          routePrefix: browserFixtureHost.routePrefix,
-          fixtures: browserFixtureHost.fixtures.map((fixture) => {
-            const module = relative(projectPath, fixture.module)
-            if (
-              !isAbsolute(fixture.module) ||
-              !module ||
-              isAbsolute(module) ||
-              module === '..' ||
-              module.startsWith(`..${sep}`)
-            ) {
-              throw new Error(
-                'Browser fixture modules must be contained in the application project'
-              )
-            }
-            return { ...fixture, module: module.split(sep).join('/') }
-          }),
-        })
+      ? serializeBrowserFixtureHost(projectPath, browserFixtureHost)
       : undefined,
     projectPath: normalizePath(relative(rootPath, projectPath) || '.'),
     distDir,

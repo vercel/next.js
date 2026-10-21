@@ -3,6 +3,8 @@ import { mkdir, open, rename, unlink, writeFile } from 'node:fs/promises'
 import { dirname, posix, resolve, win32 } from 'node:path'
 import { createHash, randomUUID } from 'node:crypto'
 import type { ResultReporter } from './machine'
+import { isCustomResultReporter, openCustomReporters } from './custom-reporter'
+import { assertReporterTaskTree, type ReporterTaskSnapshot } from './live-tasks'
 
 const VERSION = '5.0.4'
 const MAX_BYTES = 16 * 1024 * 1024
@@ -20,12 +22,23 @@ interface ForeignTask {
   id: string
   type: 'suite' | 'test'
   name: string
+  fullName?: string
+  fullTestName?: string
   mode: 'run' | 'skip' | 'todo' | 'queued'
   file: ForeignTask
   suite?: ForeignTask
   tasks?: ForeignTask[]
   meta: Record<string, unknown>
   tags?: string[]
+  each?: boolean
+  concurrent?: boolean
+  shuffle?: boolean
+  retry?: ReporterTaskSnapshot['retry']
+  repeats?: number
+  fails?: boolean
+  timeout?: number
+  annotations?: ReporterTaskSnapshot['annotations']
+  artifacts?: ReporterTaskSnapshot['artifacts']
   benchmarks?: unknown[]
   location?: { file: string; line: number; column: number }
   filepath?: string
@@ -294,14 +307,65 @@ function importBlob(
   }
 }
 
-/** A foreign final-state projection deliberately does not emit Next execution events. */
-function projectImportedBlobs(blobs: ImportedBlob[], started: number) {
-  const files = blobs
+function orderedImportedFiles(blobs: ImportedBlob[]) {
+  return blobs
     .flatMap((blob) => blob.files)
     .sort(
       (left, right) =>
         (left.result?.startTime || 0) - (right.result?.startTime || 0)
     )
+}
+
+/** Capture actual native final declarations without inventing Next run events. */
+function importedReporterTree(file: ForeignTask): ReporterTaskSnapshot {
+  function visit(task: ForeignTask): ReporterTaskSnapshot {
+    if (
+      typeof task.fullName !== 'string' ||
+      (task.fullTestName !== undefined && typeof task.fullTestName !== 'string')
+    )
+      return invalid('reporter replay requires native full-name facts')
+    if (
+      (['each', 'concurrent', 'shuffle', 'fails'] as const).some(
+        (field) => task[field] !== undefined && typeof task[field] !== 'boolean'
+      ) ||
+      (task.timeout !== undefined && !finite(task.timeout)) ||
+      (task.repeats !== undefined &&
+        (!Number.isSafeInteger(task.repeats) || task.repeats < 0))
+    )
+      return invalid('reporter replay requires native declaration options')
+    return {
+      id: task.id,
+      type: task.type,
+      name: task.name,
+      fullName: task.fullName,
+      fullTestName: task.fullTestName,
+      mode: task.mode,
+      meta: task.meta,
+      tags: task.tags!,
+      each: task.each,
+      concurrent: task.concurrent,
+      shuffle: task.shuffle,
+      retry: task.retry,
+      repeats: task.repeats,
+      fails: task.fails,
+      timeout: task.timeout,
+      result: task.result,
+      ...(task.type === 'suite'
+        ? { tasks: task.tasks!.map(visit) }
+        : { annotations: task.annotations, artifacts: task.artifacts }),
+      ...(task === file
+        ? { filepath: file.filepath, projectName: file.projectName }
+        : {}),
+    }
+  }
+  const tree = visit(file)
+  assertReporterTaskTree(tree, file.id)
+  return tree
+}
+
+/** A foreign final-state projection deliberately does not emit Next execution events. */
+function projectImportedBlobs(blobs: ImportedBlob[], started: number) {
+  const files = orderedImportedFiles(blobs)
   const suites: ForeignTask[] = []
   const tests: { task: ForeignTask; ancestors: string[] }[] = []
   function visit(task: ForeignTask, ancestors: string[]) {
@@ -468,9 +532,14 @@ export async function tryMergeVitestBlobReports(
   }
   if (!foreign) return undefined
   if (bytes > 64 * 1024 * 1024) return invalid('oversized imported blob set')
-  if (options.reporters.length !== 1 || options.reporters[0] !== 'json')
+  if (
+    options.reporters.filter((reporter) => reporter === 'json').length !== 1 ||
+    options.reporters.some(
+      (reporter) => reporter !== 'json' && !isCustomResultReporter(reporter)
+    )
+  )
     throw new Error(
-      'Imported Vitest blob output currently requires the JSON reporter; other foreign reporter adapters remain unimplemented.'
+      'Imported Vitest blob output requires the JSON reporter, optionally with JavaScript reporter paths; other foreign reporter adapters remain unimplemented.'
     )
   const specifications = new Set<string>()
   const digests = new Set<string>()
@@ -485,6 +554,39 @@ export async function tryMergeVitestBlobReports(
     return blob
   })
   const report = projectImportedBlobs(blobs, Date.now())
+  const errors = blobs.flatMap((blob) => blob.errors)
+  const custom = options.reporters.filter(isCustomResultReporter)
+  const adapterErrors: unknown[] = []
+  if (custom.length) {
+    // Complete validation and projection before loading any reporter.
+    const files = orderedImportedFiles(blobs).map((file) => ({
+      taskTree: importedReporterTree(file),
+      relativeModuleId: file.name,
+    }))
+    const adapter = await openCustomReporters({
+      projectDir: options.projectDir,
+      reporters: custom,
+      write: (text) => process.stdout.write(text),
+      writeError: (text) => process.stderr.write(text),
+    })
+    try {
+      for (const file of files)
+        await adapter.replayImportedFile(file.taskTree, file.relativeModuleId)
+      await adapter.finishImportedRun(
+        files.map((file) => file.taskTree.id),
+        errors,
+        report.success ? 'passed' : 'failed'
+      )
+    } catch (error) {
+      adapterErrors.push(error)
+    } finally {
+      try {
+        await adapter.dispose()
+      } catch (error) {
+        adapterErrors.push(error)
+      }
+    }
+  }
   const content = JSON.stringify(report, null, 2) + '\n'
   if (options.outputFile) {
     const target = resolve(options.projectDir, options.outputFile)
@@ -499,10 +601,16 @@ export async function tryMergeVitestBlobReports(
       })
     }
   } else process.stdout.write(content)
-  const errors = blobs.flatMap((blob) => blob.errors)
   if (errors.length)
     process.stderr.write(
       errors.map((error) => error.stack || error.message).join('\n') + '\n'
     )
-  return report.success && !errors.length ? 'passed' : 'failed'
+  for (const error of adapterErrors)
+    process.stderr.write(
+      (error instanceof Error ? error.stack || error.message : String(error)) +
+        '\n'
+    )
+  return report.success && !errors.length && !adapterErrors.length
+    ? 'passed'
+    : 'failed'
 }

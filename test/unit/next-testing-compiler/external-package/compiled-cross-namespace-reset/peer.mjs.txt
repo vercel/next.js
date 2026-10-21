@@ -1,0 +1,1 @@
+import * as target from './target.mjs';globalThis.__ws2NsPeer=(globalThis.__ws2NsPeer??0)+1;export const evaluation=globalThis.__ws2NsPeer;export function read(){return target.value};export function peek(){return target};

@@ -1,0 +1,13 @@
+{
+  "version": 3,
+  "sources": [
+    "/private/tmp/next-testing-parallel-20261019/coverage149/.next-test-fragment149-development/helper.js",
+    "/private/tmp/next-testing-parallel-20261019/coverage149/.next-test-fragment149-development/subject.tsx"
+  ],
+  "names": [],
+  "mappings": ";;;;A;A;A;;;A,I,+K,E,2C;I,I,iL,E,I,8K,E;Q,Q;Q,M;I,G,K,C,Q,C,G,C,C,Q,M,K,C,Q,G,O,C;Q;Q;K;I,I,iL,E,I,8K,E;Q,Q;Q,M;I,G,K,C,Q,C,E,E,I,C;A;A,I,+K,E,8C;I,I,iL,E,I,2K,E;Q,M;I,G,K,C,Q,C,K,E,O,C;Q,a;Q,U;I;I,I,iL,E,I,2K,E;Q,M;I,G,K,C,Q,C,K,C,Q,E,I,C;A;;;;;A;;;;AAAO,SAAS,MAAM,KAAK;IAAI,OAAO,QAAQ;AAAI;;;;;A;;;;;;;ACClD;;;AAEO,SAAS,SAAS,EAAE,MAAM,EAAE,IAAI,EAAS;IAC9C,qBAAO,wfAAA;;YAAG,wBAAU,6PAAC,QAAD;0BAAO,IAAA,yKAAK,EAAC;YAAY;;;;;0BAAE,6PAAC,MAAD;0BAAK,IAAA,yKAAK,EAAC;YAAY;;;;;;IAAG;;;;;AAC3E;AACO,MAAM,QAAQ,CAAC,EAAE,IAAI,EAAS,iBACnC,wfAAA;kBACE,cAAA,6PAAC,KAAD;YAAG,aAAW;sBAAO,IAAA,yKAAK,EAAC;QAAS;;;;;IACpC",
+  "sourcesContent": [
+    "export function label(value) { return value + '!' }\n",
+    "import React from 'react'\nimport { label } from './helper.js'\ntype Props = { active: boolean; name: string }\nexport function Fragment({ active, name }: Props) {\n  return <>{active && <span>{label(name)}</span>}<em>{label('tail')}</em></>\n}\nexport const Arrow = ({ name }: Props): React.ReactElement => (\n  <>\n    <p data-name={name}>{label(name)}</p>\n  </>\n)\n"
+  ]
+}

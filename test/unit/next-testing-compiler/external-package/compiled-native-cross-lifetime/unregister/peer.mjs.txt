@@ -1,0 +1,1 @@
+globalThis.__ws2Cross??={};globalThis.__ws2Cross['unregister-peer']=(globalThis.__ws2Cross['unregister-peer']??0)+1;export const evaluation=globalThis.__ws2Cross['unregister-peer'];export const token={kind:'peer',count:0};export function read(){return token.count}

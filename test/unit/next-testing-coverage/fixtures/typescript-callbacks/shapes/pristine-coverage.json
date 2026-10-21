@@ -1,0 +1,287 @@
+{
+  "path": "<subject.ts>",
+  "statementMap": {
+    "0": {
+      "start": {
+        "line": 1,
+        "column": 54
+      },
+      "end": {
+        "line": 1,
+        "column": 67
+      }
+    },
+    "1": {
+      "start": {
+        "line": 2,
+        "column": 24
+      },
+      "end": {
+        "line": 2,
+        "column": 66
+      }
+    },
+    "2": {
+      "start": {
+        "line": 2,
+        "column": 55
+      },
+      "end": {
+        "line": 2,
+        "column": 64
+      }
+    },
+    "3": {
+      "start": {
+        "line": 3,
+        "column": 42
+      },
+      "end": {
+        "line": 3,
+        "column": 101
+      }
+    },
+    "4": {
+      "start": {
+        "line": 3,
+        "column": 81
+      },
+      "end": {
+        "line": 3,
+        "column": 98
+      }
+    },
+    "5": {
+      "start": {
+        "line": 4,
+        "column": 55
+      },
+      "end": {
+        "line": 4,
+        "column": 122
+      }
+    },
+    "6": {
+      "start": {
+        "line": 4,
+        "column": 110
+      },
+      "end": {
+        "line": 4,
+        "column": 119
+      }
+    }
+  },
+  "fnMap": {
+    "0": {
+      "name": "call",
+      "decl": {
+        "start": {
+          "line": 1,
+          "column": 16
+        },
+        "end": {
+          "line": 1,
+          "column": 21
+        }
+      },
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 52
+        },
+        "end": {
+          "line": 1,
+          "column": null
+        }
+      },
+      "line": 1
+    },
+    "1": {
+      "name": "run",
+      "decl": {
+        "start": {
+          "line": 2,
+          "column": 16
+        },
+        "end": {
+          "line": 2,
+          "column": 22
+        }
+      },
+      "loc": {
+        "start": {
+          "line": 2,
+          "column": 22
+        },
+        "end": {
+          "line": 2,
+          "column": null
+        }
+      },
+      "line": 2
+    },
+    "2": {
+      "name": "(anonymous_2)",
+      "decl": {
+        "start": {
+          "line": 2,
+          "column": 31
+        },
+        "end": {
+          "line": 2,
+          "column": 37
+        }
+      },
+      "loc": {
+        "start": {
+          "line": 2,
+          "column": 55
+        },
+        "end": {
+          "line": 2,
+          "column": 64
+        }
+      },
+      "line": 2
+    },
+    "3": {
+      "name": "block",
+      "decl": {
+        "start": {
+          "line": 3,
+          "column": 16
+        },
+        "end": {
+          "line": 3,
+          "column": 22
+        }
+      },
+      "loc": {
+        "start": {
+          "line": 3,
+          "column": 40
+        },
+        "end": {
+          "line": 3,
+          "column": null
+        }
+      },
+      "line": 3
+    },
+    "4": {
+      "name": "(anonymous_4)",
+      "decl": {
+        "start": {
+          "line": 3,
+          "column": 56
+        },
+        "end": {
+          "line": 3,
+          "column": 61
+        }
+      },
+      "loc": {
+        "start": {
+          "line": 3,
+          "column": 79
+        },
+        "end": {
+          "line": 3,
+          "column": 99
+        }
+      },
+      "line": 3
+    },
+    "5": {
+      "name": "asynchronous",
+      "decl": {
+        "start": {
+          "line": 4,
+          "column": 22
+        },
+        "end": {
+          "line": 4,
+          "column": 35
+        }
+      },
+      "loc": {
+        "start": {
+          "line": 4,
+          "column": 53
+        },
+        "end": {
+          "line": 4,
+          "column": null
+        }
+      },
+      "line": 4
+    },
+    "6": {
+      "name": "(anonymous_6)",
+      "decl": {
+        "start": {
+          "line": 4,
+          "column": 85
+        },
+        "end": {
+          "line": 4,
+          "column": 92
+        }
+      },
+      "loc": {
+        "start": {
+          "line": 4,
+          "column": 110
+        },
+        "end": {
+          "line": 4,
+          "column": 119
+        }
+      },
+      "line": 4
+    }
+  },
+  "branchMap": {},
+  "s": {
+    "0": 1,
+    "1": 1,
+    "2": 1,
+    "3": 1,
+    "4": 2,
+    "5": 1,
+    "6": 2
+  },
+  "f": {
+    "0": 1,
+    "1": 1,
+    "2": 1,
+    "3": 1,
+    "4": 2,
+    "5": 1,
+    "6": 2
+  },
+  "b": {},
+  "meta": {
+    "lastBranch": 0,
+    "lastFunction": 7,
+    "lastStatement": 7,
+    "seen": {
+      "f:1:16:1:21": 0,
+      "s:1:54:1:67": 0,
+      "f:2:16:2:22": 1,
+      "s:2:24:2:66": 1,
+      "f:2:31:2:37": 2,
+      "s:2:55:2:64": 2,
+      "f:3:16:3:22": 3,
+      "s:3:42:3:101": 3,
+      "f:3:56:3:61": 4,
+      "s:3:81:3:98": 4,
+      "f:4:22:4:35": 5,
+      "s:4:55:4:122": 5,
+      "f:4:85:4:92": 6,
+      "s:4:110:4:119": 6
+    },
+    "fnNames": {}
+  }
+}

@@ -1,0 +1,1 @@
+{"name": "ws2-external-a", "main": "index.cjs", "dependencies": {"ws2-external-b": "*", "ws2-external-c": "*"}, "optionalDependencies": {"ws2-external-optional-absent": "*"}, "peerDependencies": {"ws2-external-peer-absent": "*"}}

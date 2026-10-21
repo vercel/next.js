@@ -1,3 +1,5 @@
+import { createReporterTaskUpdates } from '../reporting/task-updates'
+import { captureReporterTaskTree } from '../reporting/live-tasks'
 import { captureProductionStaticMockClosure } from '../mocking/production-artifact'
 import type { CustomCoverageCompletion } from '../coverage/custom-types'
 import '../../../server/require-hook'
@@ -18,18 +20,21 @@ import {
   serializeSourceMappedDiagnostic as serializeDiagnostic,
 } from '../reporting/source-mapped-diagnostics'
 import { mapTestArtifactLocation } from '../reporting/artifact-location'
-import type { ResultEvent, ResultStatus } from '../reporting/events'
+import type { CaseResult, ResultEvent, ResultStatus } from '../reporting/events'
 import { getFinalCaseResults } from '../reporting/final-cases'
 import type { RunnerFailure } from '../runner/lifecycle'
 import type { WorkerInput, WorkerMessage } from './protocol'
 import type { TestCoverageCompletion, TestFileCollection } from '../contracts'
+import type { RscTestingBindings } from '../rsc'
 import { setBundlerFindSourceMapImplementation } from '../../../server/patch-error-inspect'
 import { createArtifactSourceMapLookup } from './source-maps'
+import { createArtifactRegistrationOriginMapper } from './registration-origin'
 import { createLateFailureSink } from './late-failures'
 import { browserOutputDirectory } from './browser-output'
 import { assertArtifactProfile } from './artifact-profile'
 import { assertCompiledSetup } from './setup'
 import { openTestEnvironment } from '../environments/runtime'
+import { installTestConsole } from './console'
 
 type EventPayload<T = ResultEvent> = T extends ResultEvent
   ? Omit<T, 'version' | 'runId' | 'timestamp'>
@@ -38,7 +43,10 @@ type EventPayload<T = ResultEvent> = T extends ResultEvent
 const realDateNow = Date.now.bind(Date)
 const controller = new AbortController()
 let running = false
-let reportUnhandledRejection: ((reason: unknown) => void) | undefined
+let releaseNativeAssertionRecords: (() => void) | undefined
+let reportUnhandledRejection:
+  | ((reason: unknown, promise: Promise<unknown>) => void)
+  | undefined
 
 function send(message: WorkerMessage): Promise<void> {
   return new Promise((resolveSend, reject) => {
@@ -67,14 +75,14 @@ function artifactPath(root: string, file: string): string {
 
 async function run({ artifact, options, cacheScope }: WorkerInput) {
   const started = performance.now()
-  const event = (payload: EventPayload) =>
+  const event = (payload: EventPayload, timestamp = realDateNow()) =>
     send({
       type: 'event',
       event: {
         ...payload,
         version: 1,
         runId: options.runId,
-        timestamp: realDateNow(),
+        timestamp,
       } as ResultEvent,
     })
   const diagnostic = (
@@ -91,10 +99,33 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
         ...(unhandled ? { unhandled } : {}),
       },
     })
+  let registrationOrigin:
+    | ReturnType<typeof createArtifactRegistrationOriginMapper>
+    | undefined
   const runnerFailure = (failure: RunnerFailure) =>
     serializeDiagnostic(failure.error, {
       phase: failure.phase === 'cleanup' ? 'cleanup' : 'runtime',
+      registrationOrigin: failure.registrationError
+        ? registrationOrigin?.(failure.registrationError)
+        : undefined,
     })
+  const reportedSuiteErrors: {
+    failure: RunnerFailure
+    suiteId: string
+    index: number
+  }[] = []
+  const taskUpdates = options.captureTaskResults
+    ? createReporterTaskUpdates<CaseResult>({
+        onUpdate: (update) =>
+          event({
+            type: 'task-update',
+            entryId: artifact.entryId,
+            revision: artifact.revision,
+            ...update,
+            caseResults: update.caseResults,
+          }),
+      })
+    : undefined
   const unhandledRejections = new Set<unknown>()
   const lateFailures = createLateFailureSink<unknown>((error) =>
     diagnostic(
@@ -103,12 +134,31 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       unhandledRejections.has(error) ? 'rejection' : undefined
     )
   )
+  let snapshotUnhandledClean = true
+  const reportLateFailure = (reason: unknown) => {
+    snapshotUnhandledClean = false
+    lateFailures.report(reason)
+  }
+  let routeRuntimeUnhandled:
+    | ((reason: unknown, promise: Promise<unknown>) => boolean)
+    | undefined
+  let activeNativeRejection:
+    | { reason: unknown; promise: Promise<unknown>; recordedBody: boolean }
+    | undefined
   let collection: TestFileCollection | undefined
   let publishingResult = false
   // Keep the process handler installed through cleanup and terminal IPC. A
   // rejection fails the file without discarding already completed case facts.
-  reportUnhandledRejection = (reason) => {
+  reportUnhandledRejection = (reason, promise) => {
     unhandledRejections.add(reason)
+    activeNativeRejection = { reason, promise, recordedBody: false }
+    try {
+      routeRuntimeUnhandled?.(reason, promise)
+      if (!activeNativeRejection.recordedBody || publishingResult)
+        snapshotUnhandledClean = false
+    } finally {
+      activeNativeRejection = undefined
+    }
     if (publishingResult) process.exitCode = 1
     lateFailures.report(reason)
   }
@@ -126,6 +176,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
   let customCoverage: CustomCoverageCompletion | undefined
   let coverage: TestCoverageCompletion | undefined
   let coverageComplete = true
+  let snapshotHostComplete = true
   const unfinishedAttempts = new Set<string>()
   let file:
     | ReturnType<typeof import('../runner').initializeTestFile>
@@ -136,7 +187,16 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
   let browserBinding:
     | ReturnType<typeof import('../browser').initializeBrowserTesting>
     | undefined
+  const canPublishNativeBodyFacts = () =>
+    artifact.kind === 'node' &&
+    artifact.profile.environment === 'node' &&
+    snapshotUnhandledClean &&
+    file?.hasCompletedBodyExecution?.() === true
   let environment: Awaited<ReturnType<typeof openTestEnvironment>> | undefined
+  let consoleCapture: ReturnType<typeof installTestConsole> | undefined
+  let readConsoleTask:
+    | (() => import('./console').ConsoleTask | undefined)
+    | undefined
   let phase: 'collection' | 'runtime' = 'collection'
   let importBinding:
     | ReturnType<typeof import('../runner/imports').createModuleImportTracker>
@@ -154,6 +214,15 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
     | undefined
   let verifyProductionStaticMock: (() => Promise<void>) | undefined
   try {
+    const staticRuntimeMocks =
+      artifact.kind === 'node' &&
+      artifact.dynamicModuleMocking?.staticMocks === 1
+    if (
+      staticRuntimeMocks &&
+      (artifact.moduleMocking?.version !== 1 ||
+        Object.keys(artifact.moduleMocking).length !== 1)
+    )
+      throw new Error('Unsupported native static/runtime mock activation')
     if (
       options.collectOnly &&
       (options.coverage ||
@@ -218,6 +287,20 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
         'Test environment pragmas changed after discovery; discover the file again.'
       )
     }
+    consoleCapture = installTestConsole({
+      fileId: artifact.entryId,
+      getTask: () => readConsoleTask?.(),
+      publish: ({ timestamp, ...output }) =>
+        event(
+          {
+            type: 'output',
+            entryId: artifact.entryId,
+            revision: artifact.revision,
+            ...output,
+          },
+          timestamp
+        ),
+    })
     if (options.entry.executionEnvironment) {
       if (
         options.coverage &&
@@ -233,7 +316,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       environment = await openTestEnvironment(
         options.projectDir,
         options.entry.executionEnvironment,
-        (error) => lateFailures.report(error)
+        (error) => reportLateFailure(error)
       )
     }
     if (
@@ -251,7 +334,9 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
         (artifact.profile.mode !== 'development' &&
           !artifact.moduleMocking.productionStaticFactory) ||
         (options.coverage && artifact.moduleMocking.coverage?.version !== 1) ||
-        ('moduleCache' in artifact && artifact.moduleCache !== undefined) ||
+        ('moduleCache' in artifact &&
+          artifact.moduleCache !== undefined &&
+          !staticRuntimeMocks) ||
         (artifact.kind === 'rsc' &&
           (artifact.profile.route !== undefined ||
             options.setupFiles.length ||
@@ -271,7 +356,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       (artifact.moduleCache.version !== 1 ||
         artifact.profile.environment !== 'node' ||
         artifact.profile.mode !== 'development' ||
-        artifact.moduleMocking ||
+        (artifact.moduleMocking && !staticRuntimeMocks) ||
         artifact.cohort ||
         options.coverage ||
         options.collectOnly ||
@@ -285,8 +370,10 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       if (
         artifact.kind !== 'node' ||
         artifact.dynamicModuleMocking.version !== 1 ||
+        (artifact.dynamicModuleMocking.staticMocks !== undefined &&
+          !staticRuntimeMocks) ||
         !artifact.moduleCache ||
-        artifact.moduleMocking ||
+        (artifact.moduleMocking && !staticRuntimeMocks) ||
         artifact.cohort ||
         options.inspect
       )
@@ -329,6 +416,10 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
     // copies. Keep the revision's files alive until this process has closed.
     setBundlerFindSourceMapImplementation(
       createArtifactSourceMapLookup(artifact)
+    )
+    registrationOrigin = createArtifactRegistrationOriginMapper(
+      artifact,
+      options.entry.file
     )
     if (options.customCoverage) {
       const { startCustomCoverage } = await import(
@@ -382,6 +473,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
         ComponentMod: typeof import('../../../server/app-render/entry-base')
         ConsumerMod: typeof import('../rsc/consumer')
         rscTesting?: typeof import('../rsc')
+        createRouteEntrypoint?: typeof import('../../../build/templates/app-test').createRouteEntrypoint
         initializeRuntime(): void
         setManifestsSingleton: typeof import('../../../server/app-render/manifests-singleton').setManifestsSingleton
       }
@@ -437,12 +529,72 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
           prerenderManifestPath: optionalManifestPath(
             artifact.manifests.prerender
           ),
+          ...(artifact.route && artifact.requestContext?.routeRenderOpts
+            ? {
+                routeRendering: {
+                  ComponentMod: (() => {
+                    if (typeof rscEntry.createRouteEntrypoint !== 'function') {
+                      throw new Error(
+                        'Full route rendering requires the emitted AppPage entrypoint.'
+                      )
+                    }
+                    return rscEntry.createRouteEntrypoint(
+                      artifact.route.page,
+                      artifact.route.pathname
+                    )
+                  })(),
+                  buildManifest: loadManifest<
+                    NonNullable<
+                      RscTestingBindings['routeRendering']
+                    >['buildManifest']
+                  >(optionalManifestPath(artifact.manifests.routeBuild)!),
+                  nextFontManifest: loadManifest<
+                    NonNullable<
+                      NonNullable<
+                        RscTestingBindings['routeRendering']
+                      >['nextFontManifest']
+                    >
+                  >(optionalManifestPath(artifact.manifests.routeFont)!),
+                  reactLoadableManifest: loadManifest<
+                    NonNullable<
+                      RscTestingBindings['routeRendering']
+                    >['reactLoadableManifest']
+                  >(optionalManifestPath(artifact.manifests.routeLoadable)!),
+                },
+              }
+            : {}),
         })
       }
     }
     controller.signal.throwIfAborted()
     importBinding = entry.initializeModuleImportTracking?.()
+    readConsoleTask = entry.testRunner.getConsoleTask
+    routeRuntimeUnhandled =
+      artifact.kind === 'node' && artifact.profile.environment === 'node'
+        ? entry.testRunner.routeUnhandledRejection
+        : undefined
     file = entry.testRunner.initializeTestFile({
+      ...(artifact.kind === 'node' && artifact.profile.environment === 'node'
+        ? {
+            onUnhandledRejection(reason, promise, recordedBody) {
+              const active = activeNativeRejection
+              if (
+                active &&
+                active.reason === reason &&
+                active.promise === promise
+              )
+                active.recordedBody = recordedBody === true
+            },
+          }
+        : {}),
+      snapshotBodyFailures:
+        artifact.kind === 'node' && artifact.profile.environment === 'node',
+      nativeBeforeEachAssertions:
+        artifact.kind === 'node' && artifact.profile.environment === 'node',
+      nativeAfterEachAssertions:
+        artifact.kind === 'node' && artifact.profile.environment === 'node',
+      nativeBeforeEachCleanupAssertions:
+        artifact.kind === 'node' && artifact.profile.environment === 'node',
       fileId: artifact.entryId,
       filePath: options.entry.file,
       collectOnly: options.collectOnly,
@@ -465,6 +617,8 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       sequence: options.sequence,
       provide: options.provide,
     })
+    releaseNativeAssertionRecords = () =>
+      file?.releaseNativeBodyRejectionRecords?.()
     if (
       options.updateSnapshots &&
       typeof file.takeSnapshotUpdates !== 'function'
@@ -490,7 +644,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       dynamicMockBinding = entry.initializeDynamicModuleMocking({
         trackImport: importBinding.trackImport,
         onLateFailure(error) {
-          lateFailures.report(error)
+          reportLateFailure(error)
           if (publishingResult) process.exitCode = 1
         },
       })
@@ -498,7 +652,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
     if (artifact.moduleMocking) {
       mockBinding = entry.mockTesting!.initializeModuleMocking({
         onLateFailure(error) {
-          lateFailures.report(error)
+          reportLateFailure(error)
           if (publishingResult) process.exitCode = 1
         },
       })
@@ -588,7 +742,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       const result = await file.run({
         runId: options.runId,
         signal: controller.signal,
-        projectName: options.entry.profile.id,
+        projectName: options.entry.projectName ?? options.entry.profile.id,
         projectDir: options.projectDir,
         attachmentsDir: options.attachmentsDir,
         getAnnotationLocation: (error) =>
@@ -637,17 +791,55 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
           // A callback arriving while the terminal message is in flight must still
           // make the parent reject a stale successful result at process close.
           if (publishingResult) process.exitCode = 1
-          lateFailures.report(error)
+          reportLateFailure(error)
         },
-        onSuiteEnd(suiteResult) {
-          return event({
+        onCollected: taskUpdates
+          ? async (actualFile) => {
+              await event({
+                type: 'file-collected',
+                entryId: artifact.entryId,
+                revision: artifact.revision,
+                taskTree: captureReporterTaskTree(actualFile),
+              })
+              taskUpdates.collected(actualFile)
+            }
+          : undefined,
+        onSuiteEnd(suiteResult, task) {
+          if (
+            artifact.kind === 'node' &&
+            artifact.profile.environment === 'node' &&
+            (!options.entry.executionEnvironment ||
+              options.entry.executionEnvironment.name === 'node')
+          )
+            for (const [index, failure] of suiteResult.errors.entries())
+              reportedSuiteErrors.push({
+                failure,
+                suiteId: suiteResult.suiteId,
+                index,
+              })
+          const completion = event({
             type: 'suite-end',
             ...suiteResult,
             revision: artifact.revision,
             errors: suiteResult.errors.map(runnerFailure),
           })
+          return taskUpdates
+            ? completion.then(() => taskUpdates.suiteEnd(task))
+            : completion
         },
+        onCaseResult: taskUpdates
+          ? (task, caseResult) =>
+              taskUpdates.caseResult(
+                task,
+                structuredClone({
+                  ...caseResult,
+                  revision: artifact.revision,
+                  errors: caseResult.errors.map(runnerFailure),
+                })
+              )
+          : undefined,
         onCaseStart(context) {
+          taskUpdates?.caseStart(context.testId)
           unfinishedAttempts.add(context.id)
           return event({
             type: 'case-start',
@@ -675,8 +867,10 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
                 error.phase === 'afterEach' ||
                 error.phase === 'runtime'
             )
-          )
+          ) {
+            snapshotHostComplete = false
             coverageComplete = false
+          }
           return event({
             type: 'case-end',
             ...caseResult,
@@ -688,25 +882,40 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       if (
         (options.coverage || options.customCoverage) &&
         result.interrupted !== false
-      )
+      ) {
+        snapshotHostComplete = false
         coverageComplete = false
+      }
       for (const failure of result.errors) {
         if (
           failure.phase === 'cleanup' ||
           failure.phase === 'afterAll' ||
           failure.phase === 'runtime'
-        )
+        ) {
+          snapshotHostComplete = false
           coverageComplete = false
+        }
         if (lateFailures.has(failure.error)) continue
+        const owners = reportedSuiteErrors.filter(
+          (item) => item.failure === failure
+        )
         await event({
           type: 'diagnostic',
           entryId: artifact.entryId,
           revision: artifact.revision,
+          ...(owners.length === 1
+            ? {
+                suiteError: {
+                  suiteId: owners[0].suiteId,
+                  index: owners[0].index,
+                },
+              }
+            : {}),
           diagnostic: runnerFailure(failure),
         })
       }
       // A successful retry replaces its failure; an earlier failed repeat still
-      // fails the file and must veto snapshot publication.
+      // fails the logical file result.
       const finalCases = getFinalCaseResults(result.cases)
       status =
         result.errors.length ||
@@ -721,13 +930,27 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       if (controller.signal.aborted) status = 'cancelled'
     }
   } catch (error) {
+    snapshotHostComplete = false
     coverageComplete = false
     if (controller.signal.aborted) status = 'cancelled'
     else if (!lateFailures.has(error)) await diagnostic(error, phase)
   } finally {
+    if (taskUpdates) {
+      try {
+        await taskUpdates.finish()
+      } catch (error) {
+        snapshotHostComplete = false
+        coverageComplete = false
+        status = 'failed'
+        if (!lateFailures.has(error)) await diagnostic(error, 'cleanup')
+      } finally {
+        taskUpdates.dispose()
+      }
+    }
     try {
       await file?.dispose()
     } catch (error) {
+      snapshotHostComplete = false
       coverageComplete = false
       status = 'failed'
       if (!lateFailures.has(error)) await diagnostic(error, 'cleanup')
@@ -744,6 +967,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
           snapshot,
         })
     } catch (error) {
+      snapshotHostComplete = false
       coverageComplete = false
       status = 'failed'
       if (!lateFailures.has(error)) await diagnostic(error, 'cleanup')
@@ -754,6 +978,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       // disk lease only after this worker has exited.
       await rscBinding?.dispose()
     } catch (error) {
+      snapshotHostComplete = false
       coverageComplete = false
       status = 'failed'
       await diagnostic(error, 'cleanup')
@@ -761,6 +986,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
     try {
       await browserBinding?.dispose()
     } catch (error) {
+      snapshotHostComplete = false
       coverageComplete = false
       status = 'failed'
       await diagnostic(error, 'cleanup')
@@ -770,6 +996,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       // registry alive through all file/request/browser teardown, then seal it.
       await mockBinding?.dispose()
     } catch (error) {
+      snapshotHostComplete = false
       coverageComplete = false
       status = 'failed'
       await diagnostic(error, 'cleanup')
@@ -777,6 +1004,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
     try {
       dynamicMockBinding?.dispose()
     } catch (error) {
+      snapshotHostComplete = false
       coverageComplete = false
       status = 'failed'
       await diagnostic(error, 'cleanup')
@@ -784,6 +1012,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
     try {
       moduleCacheBinding?.dispose()
     } catch (error) {
+      snapshotHostComplete = false
       coverageComplete = false
       status = 'failed'
       await diagnostic(error, 'cleanup')
@@ -791,6 +1020,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
     try {
       importBinding?.dispose()
     } catch (error) {
+      snapshotHostComplete = false
       coverageComplete = false
       status = 'failed'
       await diagnostic(error, 'cleanup')
@@ -798,6 +1028,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
     try {
       await environment?.dispose()
     } catch (error) {
+      snapshotHostComplete = false
       coverageComplete = false
       status = 'failed'
       await diagnostic(error, 'cleanup')
@@ -807,6 +1038,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
     // Factory/original callbacks have retired; no publication precedes this check.
     await verifyProductionStaticMock?.()
   } catch (error) {
+    snapshotHostComplete = false
     coverageComplete = false
     status = 'failed'
     await diagnostic(error, 'cleanup')
@@ -836,7 +1068,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       if (
         !coverageComplete ||
         controller.signal.aborted ||
-        lateFailures.failed ||
+        (lateFailures.failed && !canPublishNativeBodyFacts()) ||
         unfinishedAttempts.size
       ) {
         throw new Error(
@@ -845,6 +1077,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       }
       coverage = { ...identity, complete: true, data }
     } catch (error) {
+      snapshotHostComplete = false
       status =
         captured && controller.signal.aborted && status !== 'failed'
           ? 'cancelled'
@@ -859,6 +1092,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       try {
         await coverageCollector?.dispose()
       } catch (error) {
+        snapshotHostComplete = false
         status = 'failed'
         await diagnostic(error, 'cleanup')
         coverage = {
@@ -897,6 +1131,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
         )
       customCoverage = { ...identity, complete: true, payload }
     } catch (error) {
+      snapshotHostComplete = false
       status =
         captured && controller.signal.aborted && status !== 'failed'
           ? 'cancelled'
@@ -911,6 +1146,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       try {
         await customCollector?.dispose()
       } catch (error) {
+        snapshotHostComplete = false
         status = 'failed'
         await diagnostic(error, 'cleanup')
         customCoverage = {
@@ -921,11 +1157,50 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       }
     }
   }
+  try {
+    await consoleCapture?.dispose()
+  } catch (error) {
+    snapshotHostComplete = false
+    coverageComplete = false
+    status = 'failed'
+    await diagnostic(error, 'cleanup')
+  }
+  // Data captured earlier remains provisional through the final host drain.
+  // Only the same closed BODY records can account for actual native events.
+  if (
+    coverage?.complete &&
+    (!coverageComplete ||
+      controller.signal.aborted ||
+      (lateFailures.failed && !canPublishNativeBodyFacts()) ||
+      unfinishedAttempts.size)
+  )
+    coverage = {
+      version: 1,
+      runId: options.runId,
+      entryId: artifact.entryId,
+      revision: artifact.revision,
+      complete: false,
+      error: serializeDiagnostic(
+        new Error(
+          'Test coverage is incomplete after interrupted execution or failed cleanup'
+        ),
+        { phase: 'runtime' }
+      ),
+    }
   publishingResult = true
   // Serialize staged bytes only. The parent owns the authoritative exit/cleanup
   // decision and commits after this realm has exited successfully.
   const snapshotUpdates =
-    options.updateSnapshots && status === 'passed' && !controller.signal.aborted
+    options.updateSnapshots &&
+    !controller.signal.aborted &&
+    (status === 'passed' ||
+      (status === 'failed' &&
+        artifact.kind === 'node' &&
+        artifact.profile.environment === 'node' &&
+        snapshotHostComplete &&
+        snapshotUnhandledClean &&
+        !unfinishedAttempts.size &&
+        file?.canPublishSnapshots()))
       ? file?.takeSnapshotUpdates()
       : undefined
   await send({
@@ -950,19 +1225,24 @@ process.on('message', (message: { type: string; input?: WorkerInput }) => {
     controller.abort(new Error('Test file cancelled'))
   else if (message.type === 'run' && message.input && !running) {
     running = true
-    run(message.input).then(
-      () => process.exit(process.exitCode ?? 0),
-      (error) => {
-        console.error(error)
-        process.exit(1)
-      }
-    )
+    run(message.input)
+      .finally(() => {
+        releaseNativeAssertionRecords?.()
+        releaseNativeAssertionRecords = undefined
+      })
+      .then(
+        () => process.exit(process.exitCode ?? 0),
+        (error) => {
+          console.error(error)
+          process.exit(1)
+        }
+      )
   }
 })
 process.once('disconnect', () => process.exit(1))
 
-process.on('unhandledRejection', (error) => {
-  if (reportUnhandledRejection) reportUnhandledRejection(error)
+process.on('unhandledRejection', (error, promise) => {
+  if (reportUnhandledRejection) reportUnhandledRejection(error, promise)
   else {
     console.error(error)
     process.exit(1)

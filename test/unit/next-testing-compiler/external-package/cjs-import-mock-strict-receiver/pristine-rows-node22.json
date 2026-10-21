@@ -1,0 +1,342 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CALLABLE_MUTATION",
+    "value": {
+      "name": "ordinary",
+      "namespace": {
+        "type": "object",
+        "tag": "[object Module]",
+        "nullPrototype": true,
+        "objectPrototype": false,
+        "functionPrototype": false,
+        "keys": ["label", "method", "default", "symbol:Symbol.toStringTag"],
+        "descriptors": [
+          {
+            "key": "label",
+            "value": {
+              "type": "undefined"
+            },
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "method",
+            "value": {
+              "type": "undefined"
+            },
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "default",
+            "value": {
+              "type": "function",
+              "name": "callable",
+              "length": 0,
+              "tag": "[object Function]",
+              "mock": false
+            },
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "symbol:Symbol.toStringTag",
+            "value": {
+              "type": "string",
+              "value": "Module"
+            },
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": false
+          }
+        ],
+        "prototype": null
+      },
+      "raw": {
+        "type": "function",
+        "tag": "[object Function]",
+        "nullPrototype": false,
+        "objectPrototype": false,
+        "functionPrototype": true,
+        "keys": ["length", "name", "prototype", "label", "method"],
+        "descriptors": [
+          {
+            "key": "length",
+            "value": {
+              "type": "number",
+              "value": 0
+            },
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": true
+          },
+          {
+            "key": "name",
+            "value": {
+              "type": "string",
+              "value": "callable"
+            },
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": true
+          },
+          {
+            "key": "prototype",
+            "value": {
+              "type": "object",
+              "tag": "[object Object]",
+              "keys": ["constructor"]
+            },
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": false,
+            "configurable": false
+          },
+          {
+            "key": "label",
+            "value": {
+              "type": "string",
+              "value": "root"
+            },
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "method",
+            "value": {
+              "type": "function",
+              "name": "member",
+              "length": 0,
+              "tag": "[object Function]",
+              "mock": false
+            },
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          }
+        ],
+        "prototype": {
+          "keys": ["constructor"],
+          "descriptors": [
+            {
+              "key": "constructor",
+              "value": {
+                "type": "function",
+                "name": "callable",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            }
+          ]
+        }
+      },
+      "defaultDescriptor": {
+        "value": {
+          "type": "function",
+          "name": "callable",
+          "length": 0,
+          "tag": "[object Function]",
+          "mock": false
+        },
+        "get": "undefined",
+        "set": "undefined",
+        "writable": true,
+        "enumerable": true,
+        "configurable": true
+      },
+      "same": true,
+      "rawSame": true,
+      "unbound": {
+        "error": {
+          "name": "TypeError",
+          "message": "Cannot read properties of undefined (reading 'label')"
+        }
+      },
+      "bound": "bound",
+      "methodBound": "member-bound",
+      "rawLabel": "root"
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CALLABLE_MUTATION",
+    "value": {
+      "name": "async",
+      "namespace": {
+        "type": "object",
+        "tag": "[object Module]",
+        "nullPrototype": true,
+        "objectPrototype": false,
+        "functionPrototype": false,
+        "keys": ["label", "method", "default", "symbol:Symbol.toStringTag"],
+        "descriptors": [
+          {
+            "key": "label",
+            "value": {
+              "type": "undefined"
+            },
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "method",
+            "value": {
+              "type": "undefined"
+            },
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "default",
+            "value": {
+              "type": "function",
+              "name": "callable",
+              "length": 0,
+              "tag": "[object AsyncFunction]",
+              "mock": false
+            },
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "symbol:Symbol.toStringTag",
+            "value": {
+              "type": "string",
+              "value": "Module"
+            },
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": false
+          }
+        ],
+        "prototype": null
+      },
+      "raw": {
+        "type": "function",
+        "tag": "[object AsyncFunction]",
+        "nullPrototype": false,
+        "objectPrototype": false,
+        "functionPrototype": false,
+        "keys": ["length", "name", "label", "method"],
+        "descriptors": [
+          {
+            "key": "length",
+            "value": {
+              "type": "number",
+              "value": 0
+            },
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": true
+          },
+          {
+            "key": "name",
+            "value": {
+              "type": "string",
+              "value": "callable"
+            },
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": true
+          },
+          {
+            "key": "label",
+            "value": {
+              "type": "string",
+              "value": "root"
+            },
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "method",
+            "value": {
+              "type": "function",
+              "name": "member",
+              "length": 0,
+              "tag": "[object Function]",
+              "mock": false
+            },
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          }
+        ],
+        "prototype": null
+      },
+      "defaultDescriptor": {
+        "value": {
+          "type": "function",
+          "name": "callable",
+          "length": 0,
+          "tag": "[object AsyncFunction]",
+          "mock": false
+        },
+        "get": "undefined",
+        "set": "undefined",
+        "writable": true,
+        "enumerable": true,
+        "configurable": true
+      },
+      "same": true,
+      "rawSame": true,
+      "unbound": {
+        "error": {
+          "name": "TypeError",
+          "message": "Cannot read properties of undefined (reading 'label')"
+        }
+      },
+      "bound": "bound",
+      "methodBound": "member-bound",
+      "rawLabel": "root"
+    }
+  }
+]

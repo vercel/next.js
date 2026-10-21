@@ -1,0 +1,1 @@
+export let mutable=0;export function bump(){mutable++;return mutable}export const token={name:'peer'};

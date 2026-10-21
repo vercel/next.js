@@ -1,0 +1,7 @@
+[
+  {
+    "name": "retains the actual CommonJS factory graph without evaluating unused sources",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

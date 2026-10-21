@@ -1,0 +1,211 @@
+{
+  "path": "<subject.ts>",
+  "statementMap": {
+    "0": {
+      "start": {
+        "line": 2,
+        "column": 2
+      },
+      "end": {
+        "line": 2,
+        "column": null
+      }
+    },
+    "1": {
+      "start": {
+        "line": 2,
+        "column": 39
+      },
+      "end": {
+        "line": 2,
+        "column": 48
+      }
+    },
+    "2": {
+      "start": {
+        "line": 2,
+        "column": 90
+      },
+      "end": {
+        "line": 2,
+        "column": 104
+      }
+    },
+    "3": {
+      "start": {
+        "line": 5,
+        "column": 2
+      },
+      "end": {
+        "line": 5,
+        "column": null
+      }
+    },
+    "4": {
+      "start": {
+        "line": 5,
+        "column": 42
+      },
+      "end": {
+        "line": 5,
+        "column": 51
+      }
+    }
+  },
+  "fnMap": {
+    "0": {
+      "name": "sum",
+      "decl": {
+        "start": {
+          "line": 1,
+          "column": 16
+        },
+        "end": {
+          "line": 1,
+          "column": 20
+        }
+      },
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 38
+        },
+        "end": {
+          "line": 3,
+          "column": null
+        }
+      },
+      "line": 1
+    },
+    "1": {
+      "name": "(anonymous_1)",
+      "decl": {
+        "start": {
+          "line": 2,
+          "column": 16
+        },
+        "end": {
+          "line": 2,
+          "column": 21
+        }
+      },
+      "loc": {
+        "start": {
+          "line": 2,
+          "column": 39
+        },
+        "end": {
+          "line": 2,
+          "column": 48
+        }
+      },
+      "line": 2
+    },
+    "2": {
+      "name": "(anonymous_2)",
+      "decl": {
+        "start": {
+          "line": 2,
+          "column": 50
+        },
+        "end": {
+          "line": 2,
+          "column": 58
+        }
+      },
+      "loc": {
+        "start": {
+          "line": 2,
+          "column": 90
+        },
+        "end": {
+          "line": 2,
+          "column": 104
+        }
+      },
+      "line": 2
+    },
+    "3": {
+      "name": "unused",
+      "decl": {
+        "start": {
+          "line": 4,
+          "column": 16
+        },
+        "end": {
+          "line": 4,
+          "column": 23
+        }
+      },
+      "loc": {
+        "start": {
+          "line": 4,
+          "column": 41
+        },
+        "end": {
+          "line": 6,
+          "column": null
+        }
+      },
+      "line": 4
+    },
+    "4": {
+      "name": "(anonymous_4)",
+      "decl": {
+        "start": {
+          "line": 5,
+          "column": 16
+        },
+        "end": {
+          "line": 5,
+          "column": 24
+        }
+      },
+      "loc": {
+        "start": {
+          "line": 5,
+          "column": 42
+        },
+        "end": {
+          "line": 5,
+          "column": 51
+        }
+      },
+      "line": 5
+    }
+  },
+  "branchMap": {},
+  "s": {
+    "0": 1,
+    "1": 2,
+    "2": 2,
+    "3": 0,
+    "4": 0
+  },
+  "f": {
+    "0": 1,
+    "1": 2,
+    "2": 2,
+    "3": 0,
+    "4": 0
+  },
+  "b": {},
+  "meta": {
+    "lastBranch": 0,
+    "lastFunction": 5,
+    "lastStatement": 5,
+    "seen": {
+      "f:1:16:1:20": 0,
+      "s:2:2:2:Infinity": 0,
+      "f:2:16:2:21": 1,
+      "s:2:39:2:48": 1,
+      "f:2:50:2:58": 2,
+      "s:2:90:2:104": 2,
+      "f:4:16:4:23": 3,
+      "s:5:2:5:Infinity": 3,
+      "f:5:16:5:24": 4,
+      "s:5:42:5:51": 4
+    },
+    "fnNames": {}
+  }
+}

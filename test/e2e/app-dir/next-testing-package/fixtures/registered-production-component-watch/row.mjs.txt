@@ -1,0 +1,12 @@
+export function serverValues(body) {
+  const button = body.match(/<button\b([^>]*)>([\s\S]*?)<\/button>/)
+  if (!button) throw Error('Missing actual SSR button')
+  const attributes = new Map(
+    [...button[1].matchAll(/([a-z-]+)="([^"]*)"/g)].map((match) => [match[1], match[2]])
+  )
+  return {
+    before: button[2].replace(/<!--[\s\S]*?-->/g, ''),
+    environment: attributes.get('data-env') ?? null,
+    provider: attributes.get('data-provider') ?? null,
+  }
+}

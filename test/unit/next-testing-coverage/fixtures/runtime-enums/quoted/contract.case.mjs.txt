@@ -1,0 +1,8 @@
+import { test, expect } from 'vitest'
+import { Status, choose } from './subject.ts'
+test('quoted enum member names', () => {
+  expect(Status[3]).toBe('in progress')
+  expect(Status[8]).toBe('done')
+  expect(choose(true)).toBe(3)
+  expect(choose(false)).toBe(8)
+})

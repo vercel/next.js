@@ -1,0 +1,30 @@
+import { afterEach, expect, test } from 'vitest'
+import { page } from 'vitest/browser'
+import { createElement, useState } from 'react'
+import { createRoot } from 'react-dom/client'
+import { flushSync } from 'react-dom'
+let root
+afterEach(() => { if (root) { flushSync(() => root.unmount()); root=undefined } document.body.replaceChildren() })
+function trace(element) { const events=[]; for(const type of ['pointerdown','mousedown','pointerup','mouseup','click','dblclick']) element.addEventListener(type,event=>events.push({type:event.type,constructor:event.constructor.name,target:event.target===element,currentTarget:event.currentTarget===element,trusted:event.isTrusted,bubbles:event.bubbles,composed:event.composed,detail:event.detail,button:event.button,buttons:event.buttons,text:element.textContent}));return events }
+function settled(promise){return promise.then(value=>({returnedUndefined:value===undefined}),error=>({name:error.name,message:error.message}))}
+for(const [method,count]of [['dblClick',2],['tripleClick',3]]) {
+ test('late native '+method+' DOM',async()=>{
+  const label='Late '+method+' DOM'
+  const pending=settled(page.getByRole('button',{name:label,exact:true})[method]({timeout:500}))
+  await Promise.resolve()
+  const button=document.createElement('button');button.textContent=label;button.style.width='160px';button.style.height='40px';let clicks=0;button.addEventListener('click',()=>clicks++);const events=trace(button);document.body.append(button)
+  const outcome=await pending
+  console.log('MULTICLICK_RAW '+JSON.stringify({name:method+' DOM',mode:process.env.NODE_ENV,connected:button.isConnected,label:button.getAttribute('aria-label'),text:button.textContent,clicks,events,outcome}))
+  expect(outcome).toEqual({returnedUndefined:true});expect(clicks).toBe(count);expect(events.filter(event=>event.type==='click').map(event=>event.detail)).toEqual(Array.from({length:count},(_,i)=>i+1));expect(events.every(event=>event.trusted&&event.target&&event.currentTarget)).toBe(true)
+ })
+ test('late native '+method+' React',async()=>{
+  const label='Late '+method+' React'
+  function Button(){const [value,setValue]=useState(0);return createElement('button',{'aria-label':label,onClick:()=>setValue(previous=>previous+1),style:{width:'160px',height:'40px'}},'Count '+value)}
+  const pending=settled(page.getByRole('button',{name:label,exact:true})[method]({timeout:500}))
+  await Promise.resolve()
+  const container=document.createElement('div');document.body.append(container);root=createRoot(container);flushSync(()=>root.render(createElement(Button)));const button=container.querySelector('button'),events=trace(button)
+  const outcome=await pending
+  console.log('MULTICLICK_RAW '+JSON.stringify({name:method+' React',mode:process.env.NODE_ENV,connected:button.isConnected,label:button.getAttribute('aria-label'),text:button.textContent,clicks:events.filter(event=>event.type==='click').length,events,outcome}))
+  expect(outcome).toEqual({returnedUndefined:true});expect(button.textContent).toBe('Count '+count);expect(events.filter(event=>event.type==='click').map(event=>event.detail)).toEqual(Array.from({length:count},(_,i)=>i+1));expect(events.every(event=>event.trusted&&event.target&&event.currentTarget)).toBe(true)
+ })
+}

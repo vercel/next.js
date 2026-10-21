@@ -1,0 +1,1 @@
+export {value,default as fallback} from 'ws2-import-mock-absent-package'

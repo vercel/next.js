@@ -1,0 +1,7 @@
+import {test,expect,vi} from 'vitest'
+test('does not execute an uncertified CommonJS actual reset graph',async()=>{
+console.log('WS2_CJS_NEGATIVE_BODY')
+vi.resetModules()
+await vi.importActual("./leaf.cjs")
+expect(true).toBe(true)
+})

@@ -1,0 +1,10 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CJS_ACTUAL_RESET",
+    "value": {
+      "helperType": "function",
+      "counts": [0, 0]
+    }
+  }
+]

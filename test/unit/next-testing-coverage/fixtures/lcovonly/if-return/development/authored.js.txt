@@ -1,0 +1,2 @@
+export function choose(value) { if (value > 1) return value + 1; return value - 1 }
+export const double = value => value * 2

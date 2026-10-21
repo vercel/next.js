@@ -21,7 +21,8 @@ export function assertArtifactProfile(
     (artifact.kind === 'browser' &&
       (artifact.profile.environment !== 'browser' ||
         artifact.profile.browserClient !== true ||
-        artifact.profile.mode !== 'development')) ||
+        (artifact.profile.mode !== 'development' &&
+          artifact.profile.mode !== 'production'))) ||
     (artifact.kind === 'node' &&
       artifact.profile.browserClient !== undefined) ||
     (artifact.kind === 'rsc' && artifact.profile.environment !== 'rsc') ||

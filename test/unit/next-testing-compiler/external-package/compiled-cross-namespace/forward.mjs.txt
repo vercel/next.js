@@ -1,0 +1,1 @@
+export const first='first';export {token as renamed,mutable,bump} from './peer.mjs';export * as namespace from './peer.mjs';export const last='last';

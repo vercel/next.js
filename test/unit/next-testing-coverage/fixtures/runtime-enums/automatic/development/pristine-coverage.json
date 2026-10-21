@@ -1,0 +1,193 @@
+{
+  "subject.ts": {
+    "path": "subject.ts",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 1,
+          "column": 7
+        },
+        "end": {
+          "line": 5,
+          "column": null
+        }
+      },
+      "1": {
+        "start": {
+          "line": 2,
+          "column": 2
+        },
+        "end": {
+          "line": 2,
+          "column": null
+        }
+      },
+      "2": {
+        "start": {
+          "line": 3,
+          "column": 2
+        },
+        "end": {
+          "line": 3,
+          "column": null
+        }
+      },
+      "3": {
+        "start": {
+          "line": 4,
+          "column": 2
+        },
+        "end": {
+          "line": 4,
+          "column": null
+        }
+      },
+      "4": {
+        "start": {
+          "line": 7,
+          "column": 2
+        },
+        "end": {
+          "line": 7,
+          "column": null
+        }
+      },
+      "5": {
+        "start": {
+          "line": 7,
+          "column": 14
+        },
+        "end": {
+          "line": 7,
+          "column": null
+        }
+      },
+      "6": {
+        "start": {
+          "line": 8,
+          "column": 2
+        },
+        "end": {
+          "line": 8,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "(anonymous_0)",
+        "decl": {
+          "start": {
+            "line": 1,
+            "column": 7
+          },
+          "end": {
+            "line": 1,
+            "column": 12
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 7
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        },
+        "line": 1
+      },
+      "1": {
+        "name": "choose",
+        "decl": {
+          "start": {
+            "line": 6,
+            "column": 16
+          },
+          "end": {
+            "line": 6,
+            "column": 23
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 6,
+            "column": 40
+          },
+          "end": {
+            "line": 9,
+            "column": null
+          }
+        },
+        "line": 6
+      }
+    },
+    "branchMap": {
+      "0": {
+        "loc": {
+          "start": {
+            "line": 7,
+            "column": 2
+          },
+          "end": {
+            "line": 7,
+            "column": null
+          }
+        },
+        "type": "if",
+        "locations": [
+          {
+            "start": {
+              "line": 7,
+              "column": 2
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          },
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 7
+      }
+    },
+    "s": {
+      "0": 1,
+      "1": 1,
+      "2": 1,
+      "3": 1,
+      "4": 2,
+      "5": 1,
+      "6": 1
+    },
+    "f": {
+      "0": 1,
+      "1": 2
+    },
+    "b": {
+      "0": [1, 1]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 2,
+      "lastStatement": 7,
+      "seen": {
+        "s:1:7:5:Infinity": 0,
+        "f:1:7:1:12": 0,
+        "s:2:2:2:Infinity": 1,
+        "s:3:2:3:Infinity": 2,
+        "s:4:2:4:Infinity": 3,
+        "f:6:16:6:23": 1,
+        "b:7:2:7:Infinity:undefined:undefined:undefined:undefined": 0,
+        "s:7:2:7:Infinity": 4,
+        "s:7:14:7:Infinity": 5,
+        "s:8:2:8:Infinity": 6
+      },
+      "fnNames": {}
+    }
+  }
+}

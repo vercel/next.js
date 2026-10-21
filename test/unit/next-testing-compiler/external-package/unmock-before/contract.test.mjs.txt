@@ -1,0 +1,10 @@
+import {test,expect,vi} from 'vitest'
+vi.unmock('ws2-genuine-external-original')
+vi.unmock('ws2-genuine-external-esm')
+vi.mock('ws2-genuine-external-original',()=>{globalThis.__ws2NativeCjsCalls=(globalThis.__ws2NativeCjsCalls??0)+1;return {value:73}})
+vi.mock('ws2-genuine-external-esm',()=>{globalThis.__ws2NativeEsmCalls=(globalThis.__ws2NativeEsmCalls??0)+1;return {value:74}})
+vi.mock('ws2-external-conditions',()=>{globalThis.__ws2NativeActiveCalls=(globalThis.__ws2NativeActiveCalls??0)+1;return {branch:'mock-active'}})
+import * as common from 'ws2-genuine-external-original'
+import * as esm from 'ws2-genuine-external-esm'
+import * as active from 'ws2-external-conditions'
+test('preserves native factory and unmock ordering',async()=>{const actual=await vi.importActual('ws2-genuine-external-original');const commonDynamic=await import('ws2-genuine-external-original');const esmDynamic=await import('ws2-genuine-external-esm');console.log('WS2_EXTERNAL_UNMOCK:'+JSON.stringify({cjsCalls:globalThis.__ws2NativeCjsCalls??0,esmCalls:globalThis.__ws2NativeEsmCalls??0,activeCalls:globalThis.__ws2NativeActiveCalls??0,common:common.value,esm:esm.value,active:active.branch,commonIdentity:commonDynamic===common,esmIdentity:esmDynamic===esm,actual:actual.value,actualIdentity:actual===common,commonTag:common[Symbol.toStringTag]??null,commonKeys:Object.keys(common),esmTag:esm[Symbol.toStringTag]??null,esmKeys:Object.keys(esm)}));expect(active.branch).toBe('mock-active')})

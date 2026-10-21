@@ -1,0 +1,48 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_RAW",
+    "value": {
+      "name": "external-cjs",
+      "value": 73,
+      "defaultValue": 11,
+      "label": "mocked-cjs",
+      "namespaceIdentity": true,
+      "helperIdentity": false,
+      "defaultIdentity": true,
+      "keys": ["value", "default", "label"]
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_RAW",
+    "value": {
+      "name": "external-original",
+      "value": 20,
+      "info": {
+        "value": 19,
+        "defaultValue": 19,
+        "fnType": "function",
+        "tag": "Module",
+        "keys": ["default", "fn", "object", "value"],
+        "same": true,
+        "objectIdentity": true
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_RAW",
+    "value": {
+      "name": "external-esm",
+      "value": 38,
+      "info": {
+        "value": 37,
+        "defaultValue": 41,
+        "tag": "Module",
+        "keys": ["default", "value"],
+        "same": true
+      }
+    }
+  }
+]

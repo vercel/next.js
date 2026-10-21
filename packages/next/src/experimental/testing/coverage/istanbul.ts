@@ -1,3 +1,4 @@
+import { assertCoverageCompletion } from '../execution/coverage'
 import {
   retainNativeCompilerSourceAuthorization,
   validateNativeCompilerSourceBefore,
@@ -11,10 +12,29 @@ import {
 } from './source-authorization'
 import type { CoverageSourceAuthorization } from './source-analysis'
 import type { CompiledCoverageSource, CompilerSourceCoverage } from './types'
+import type { CoverageSourcePlan } from './source-analysis-plan'
+import type {
+  RuntimeConfigurationPlan,
+  RuntimeConfigurationReceipt,
+} from './runtime-configuration'
+import { bindJsxConditionalEnds } from './jsx-boundaries'
+import { bindIfReturnEnds } from './if-return-boundaries'
+import { bindConditionalOperandEnds } from './conditional-operands'
+import { bindParameterPropertyModel } from './parameter-properties'
+import { bindNamespaceModel } from './namespaces'
+import { bindEnumModel, hasEnumDeclaration } from './enums'
+import {
+  bindJsxArrowInitializerEnds,
+  bindJsxLogicalChildEnds,
+  bindJsxReturnEnds,
+} from './jsx-owners'
 import {
   associateArrowBindings,
   arrowBindingMap,
   bindOriginalArrowLocations,
+  bindEmptyParameterDeclarationEnds,
+  bindFunctionExpressionCallbackEnds,
+  bindClassFunctionExpressionEnds,
 } from './arrow-bindings'
 import { parse as parseAuthored } from 'next/dist/compiled/babel/parser'
 import {
@@ -30,8 +50,12 @@ import {
 import { convert } from '../../../compiled/next-test-coverage'
 import { join } from 'path'
 import { isDeepStrictEqual } from 'util'
-import { pathToFileURL } from 'url'
-import type { CompiledTestArtifact, TestCoverageCompletion } from '../contracts'
+import { fileURLToPath, pathToFileURL } from 'url'
+import type {
+  CompiledTestArtifact,
+  TestCoverageCompletion,
+  TestEntry,
+} from '../contracts'
 import {
   assertCompilerRuntimeCoverage,
   retainRuntimeCoverageAuthorization,
@@ -56,6 +80,12 @@ import type {
 interface CompilerSyntax {
   jsxFile?: string
   jsxFiles?: ReadonlySet<string>
+  nativeImportFiles?: ReadonlySet<string>
+}
+
+/** Each conversion needs fresh nodes because the converter retains traversal state. */
+function convertCoverage(options: Parameters<typeof convert>[0]) {
+  return convert({ ...options, ast: structuredClone(options.ast) })
 }
 
 /** Convert only retained compiler bytes, V8 counts and allowlisted source maps. */
@@ -69,6 +99,138 @@ export async function remapStandardCoverage(
       'Native TypeScript config inputs require separate parent authorization'
     )
   return remapCompiledStandardCoverage(artifact, capture, selectSource)
+}
+
+/** Ordinary Node coverage reuses the current parent source/config selections. */
+export async function remapPlannedStandardCoverage(
+  artifact: CompiledTestArtifact,
+  completion: TestCoverageCompletion,
+  expected: {
+    runId: string
+    entry: TestEntry
+    sourcePlan: CoverageSourcePlan
+    runtimeConfigurationPlan: RuntimeConfigurationPlan
+    runtimeConfigurationReceipt: RuntimeConfigurationReceipt
+    assertLease(): void
+  },
+  signal: AbortSignal,
+  selectSource?: (file: string) => boolean
+): Promise<StandardFileCoverage> {
+  const assertLease = expected.assertLease
+  const { assertLease: _lease, ...authorization } = expected
+  const retained = structuredClone(authorization)
+  const [{ assertCoverageSourcePlan }, configuration, imports] =
+    await Promise.all([
+      import('./source-analysis-plan.js'),
+      import('./runtime-configuration.js'),
+      import('./import-roles.js'),
+    ])
+  const selected = new Set<string>()
+  const selectedTypeScriptImports = new Set<string>()
+  async function validate() {
+    signal.throwIfAborted()
+    if (assertLease() !== undefined)
+      throw new Error(
+        'Planned standard coverage requires a live artifact lease'
+      )
+    if (!isDeepStrictEqual(authorization, retained))
+      throw new Error('Planned standard coverage selection changed')
+    assertCoverageCompletion(completion, artifact, retained.runId)
+    if (
+      !completion.complete ||
+      artifact.kind !== 'node' ||
+      artifact.entryId !== retained.entry.id ||
+      artifact.profile.environment !== 'node' ||
+      artifact.profile.runtime !== 'nodejs' ||
+      artifact.profile.bundler !== 'turbopack' ||
+      !['development', 'production'].includes(artifact.profile.mode) ||
+      artifact.profile.route !== undefined ||
+      artifact.profile.browserClient !== undefined ||
+      !isDeepStrictEqual(artifact.profile, retained.entry.profile) ||
+      !isDeepStrictEqual(
+        artifact.profile,
+        retained.runtimeConfigurationReceipt.authority.profile
+      ) ||
+      retained.runtimeConfigurationReceipt.compiler.rootDir !==
+        artifact.rootDir ||
+      retained.runtimeConfigurationReceipt.authority.entry.file !==
+        retained.entry.file ||
+      retained.runtimeConfigurationReceipt.authority.entry.sha256 !==
+        artifact.sourceHash ||
+      Object.hasOwn(artifact, 'nativeTsConfigInputs')
+    )
+      throw new Error('Incompatible planned standard coverage artifact')
+    await assertCoverageSourcePlan(retained.sourcePlan, signal)
+    await configuration.assertRuntimeConfigurationReceipts({
+      receipts: [retained.runtimeConfigurationReceipt],
+      facts: [{ entryId: artifact.entryId, revision: artifact.revision }],
+      plan: retained.runtimeConfigurationPlan,
+      signal,
+    })
+    await imports.verifyImportCoverageArtifact(artifact)
+    const allowed = retained.sourcePlan.requests.filter(
+      (request) =>
+        isDeepStrictEqual(request.profile, artifact.profile) &&
+        /\.[jt]sx$/.test(request.source.file)
+    )
+    if (!allowed.length)
+      allowed.push(
+        ...retained.sourcePlan.requests.filter(
+          (request) =>
+            isDeepStrictEqual(request.profile, artifact.profile) &&
+            /\.[cm]?ts$/.test(request.source.file) &&
+            !/\.d\.[cm]?ts$/.test(request.source.file)
+        )
+      )
+    if (!allowed.length)
+      throw new Error('Missing planned JSX coverage source selection')
+    for (const source of Object.values(artifact.coverage!.sources)) {
+      if (!source) continue
+      const jsx = /\.[jt]sx$/.test(source.file)
+      if (
+        (!jsx &&
+          !allowed.some((request) => request.source.file === source.file)) ||
+        (selectSource && !selectSource(source.file))
+      )
+        continue
+      const matching = allowed.filter(
+        (request) => request.source.file === source.file
+      )
+      if (matching.length !== 1 || matching[0].source.sha256 !== source.sha256)
+        throw new Error(
+          jsx
+            ? 'JSX runtime source differs from its parent selection'
+            : 'TypeScript runtime source differs from its parent selection'
+        )
+      if (jsx) selected.add(source.file)
+      else selectedTypeScriptImports.add(source.file)
+    }
+    signal.throwIfAborted()
+    if (assertLease() !== undefined)
+      throw new Error(
+        'Planned standard coverage requires a live artifact lease'
+      )
+  }
+  await validate()
+  if (!completion.complete)
+    throw new Error('Incomplete planned standard coverage')
+  const result = await remapCompiledStandardCoverage(
+    artifact,
+    completion.data,
+    selectSource,
+    {
+      jsxFiles: selected,
+      ...(retained.sourcePlan.requests.some(
+        (request) =>
+          isDeepStrictEqual(request.profile, artifact.profile) &&
+          /\.[jt]sx$/.test(request.source.file)
+      )
+        ? {}
+        : { nativeImportFiles: selectedTypeScriptImports }),
+    }
+  )
+  await validate()
+  return result
 }
 
 /** Private actual-runtime path; declaration-only artifacts cannot enter here. */
@@ -308,11 +470,17 @@ async function convertCompiledScript(
     code,
     rawMap,
     ast,
-    selectedSources: sourceContent,
+    selectedSources: declarationSyntax?.nativeImportFiles
+      ? new Map(
+          [...sourceContent].filter(([file]) =>
+            declarationSyntax.nativeImportFiles!.has(file)
+          )
+        )
+      : sourceContent,
     metadata,
   })
   if (!sourceMap.sources.length) return []
-  const mapped = await convert({
+  const mapped = await convertCoverage({
     code,
     sourceMap,
     ast: native.ast,
@@ -322,7 +490,7 @@ async function convertCompiledScript(
     },
   })
   if (native.excluded.length) {
-    const unfiltered = await convert({
+    const unfiltered = await convertCoverage({
       code,
       sourceMap,
       ast,
@@ -353,6 +521,7 @@ async function convertCompiledScript(
         {
           code,
           ast: native.ast,
+          mode: artifact.profile.mode,
           sourceMap,
           coverage: {
             url: pathToFileURL(join(artifact.rootDir, metadata.path)).href,
@@ -565,7 +734,8 @@ function identityMap(file: string, source: string) {
 function authoredAst(
   file: string,
   source: string,
-  declarationSyntax?: CompilerSyntax
+  declarationSyntax?: CompilerSyntax,
+  emitted?: { ast: unknown }
 ) {
   const jsx =
     (declarationSyntax?.jsxFile === file ||
@@ -593,11 +763,8 @@ function authoredAst(
     )
   }
   const forbidden = new Set([
-    'TSEnumDeclaration',
-    'TSModuleDeclaration',
     'TSImportEqualsDeclaration',
     'TSExportAssignment',
-    'TSParameterProperty',
     'Decorator',
   ])
   function visit(value: unknown): void {
@@ -610,7 +777,16 @@ function authoredAst(
       type?: string
       loc?: { start: { line: number; column: number } }
     }
-    if (node.type && forbidden.has(node.type))
+    if (
+      node.type &&
+      (forbidden.has(node.type) ||
+        ([
+          'TSParameterProperty',
+          'TSModuleDeclaration',
+          'TSEnumDeclaration',
+        ].includes(node.type) &&
+          !emitted))
+    )
       throw new Error(
         `Standard coverage cannot associate generated ${node.type} bodies: ${file}:${node.loc?.start.line}:${node.loc?.start.column}`
       )
@@ -625,15 +801,26 @@ function authoredAst(
 async function createOriginalSourceModel(
   file: string,
   source: string,
-  declarationSyntax?: CompilerSyntax
+  declarationSyntax?: CompilerSyntax,
+  emitted?: {
+    code: string
+    ast: unknown
+    sourceMap: RawSourceMap
+    data: StandardCoverageData
+    coverage: {
+      url: string
+      functions: CoverageCapture['scripts'][number]['functions']
+    }
+  }
 ) {
   if (/\.[cm]?js$/.test(file))
     return {
       data: await createUncoveredJavaScript(file, source),
       ast: undefined,
+      observed: undefined,
     }
-  const ast = authoredAst(file, source, declarationSyntax)
-  const data = await convert({
+  const ast = authoredAst(file, source, declarationSyntax, emitted)
+  const data = await convertCoverage({
     code: source,
     ast,
     sourceMap: identityMap(file, source),
@@ -654,7 +841,63 @@ async function createOriginalSourceModel(
     throw new Error(
       `Authored coverage descriptors returned an unexpected source identity: ${file}`
     )
-  return { data: result as StandardCoverageData, ast }
+  const bound = emitted
+    ? bindParameterPropertyModel(
+        file,
+        source,
+        ast,
+        emitted.ast,
+        emitted.sourceMap,
+        result as StandardCoverageData,
+        emitted.data
+      )
+    : undefined
+  const namespace = emitted
+    ? bindNamespaceModel(
+        file,
+        source,
+        ast,
+        emitted.ast,
+        emitted.sourceMap,
+        bound?.original ?? (result as StandardCoverageData),
+        bound?.observed ?? emitted.data
+      )
+    : undefined
+  let enumeration: ReturnType<typeof bindEnumModel> | undefined
+  if (emitted && hasEnumDeclaration(ast)) {
+    // Native lowering may merge source locations, but its actual V8 member
+    // counters remain distinct in generated coordinates.
+    const generatedFile = fileURLToPath(emitted.coverage.url)
+    const converted = await convertCoverage({
+      ...emitted,
+      sourceMap: identityMap(generatedFile, emitted.code),
+    })
+    if (Object.keys(converted).length !== 1 || !converted[generatedFile])
+      throw new Error(
+        'Generated enum coverage returned an unexpected source identity'
+      )
+    enumeration = bindEnumModel(
+      file,
+      source,
+      ast,
+      emitted.ast,
+      emitted.sourceMap,
+      namespace?.original ??
+        bound?.original ??
+        (result as StandardCoverageData),
+      namespace?.observed ?? bound?.observed ?? emitted.data,
+      converted[generatedFile] as StandardCoverageData
+    )
+  }
+  return {
+    data:
+      enumeration?.original ??
+      namespace?.original ??
+      bound?.original ??
+      (result as StandardCoverageData),
+    observed: enumeration?.observed ?? namespace?.observed ?? bound?.observed,
+    ast,
+  }
 }
 
 /** Unexecuted typed sources need metadata from the effective Next compiler context. */
@@ -695,7 +938,7 @@ export async function createUncoveredJavaScript(
       { cause }
     )
   }
-  const data = await convert({
+  const data = await convertCoverage({
     code: source,
     ast,
     sourceMap: identityMap(file, source),
@@ -728,6 +971,7 @@ async function recoverJavaScriptLocations(
   emitted?: {
     code: string
     ast: unknown
+    mode: 'development' | 'production'
     sourceMap: RawSourceMap
     coverage: {
       url: string
@@ -736,7 +980,13 @@ async function recoverJavaScriptLocations(
   },
   declarationSyntax?: CompilerSyntax
 ): Promise<StandardCoverageData> {
-  const model = await createOriginalSourceModel(file, source, declarationSyntax)
+  const model = await createOriginalSourceModel(
+    file,
+    source,
+    declarationSyntax,
+    emitted && { ...emitted, data }
+  )
+  data = model.observed ?? data
   const original = model.data
   if (model.ast) {
     const associations = associateArrowBindings(
@@ -750,7 +1000,7 @@ async function recoverJavaScriptLocations(
         throw new Error(
           'Arrow binding association requires actual emitted compiler bytes'
         )
-      const mapped = await convert({
+      const mapped = await convertCoverage({
         ...emitted,
         sourceMap: arrowBindingMap(file, emitted.sourceMap, associations),
       })
@@ -767,7 +1017,87 @@ async function recoverJavaScriptLocations(
         )
       data = rebound
       bindOriginalArrowLocations(file, original, data, associations)
+      bindJsxArrowInitializerEnds(
+        file,
+        original,
+        data,
+        associations,
+        emitted.sourceMap
+      )
     }
+    if (emitted) {
+      bindJsxReturnEnds(
+        file,
+        original,
+        data,
+        model.ast,
+        emitted.ast,
+        emitted.sourceMap
+      )
+      bindJsxLogicalChildEnds(
+        file,
+        data,
+        model.ast,
+        emitted.ast,
+        emitted.sourceMap,
+        emitted.mode,
+        original
+      )
+      bindJsxConditionalEnds(
+        file,
+        data,
+        model.ast,
+        emitted.ast,
+        emitted.sourceMap
+      )
+      bindFunctionExpressionCallbackEnds(
+        file,
+        original,
+        data,
+        model.ast,
+        emitted.ast,
+        emitted.sourceMap
+      )
+      bindClassFunctionExpressionEnds(
+        file,
+        original,
+        data,
+        model.ast,
+        emitted.ast,
+        emitted.sourceMap
+      )
+      bindEmptyParameterDeclarationEnds(
+        file,
+        original,
+        data,
+        model.ast,
+        emitted.ast,
+        emitted.sourceMap
+      )
+    }
+  }
+  if (emitted && /\.[cm]?js$/.test(file)) {
+    const authored = parse(source, {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      locations: true,
+    })
+    bindIfReturnEnds(
+      file,
+      original,
+      data,
+      authored,
+      emitted.ast,
+      emitted.sourceMap
+    )
+    bindConditionalOperandEnds(
+      file,
+      original,
+      data,
+      authored,
+      emitted.ast,
+      emitted.sourceMap
+    )
   }
   if (Object.keys(original.fnMap).length !== Object.keys(data.fnMap).length)
     throw new Error(

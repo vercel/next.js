@@ -1,0 +1,201 @@
+{
+  "file": "/private/tmp/next-testing-parallel-20261019/tooling-editor143/.next-test-jsx144-logical-production/subject.tsx",
+  "observed": {
+    "path": "/private/tmp/next-testing-parallel-20261019/tooling-editor143/.next-test-jsx144-logical-production/subject.tsx",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 5,
+          "column": 2
+        },
+        "end": {
+          "line": 5,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "Logical",
+        "decl": {
+          "start": {
+            "line": 4,
+            "column": 16
+          },
+          "end": {
+            "line": 4,
+            "column": 24
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 4,
+            "column": 41
+          },
+          "end": {
+            "line": 6,
+            "column": null
+          }
+        },
+        "line": 4
+      }
+    },
+    "branchMap": {
+      "0": {
+        "loc": {
+          "start": {
+            "line": 5,
+            "column": 19
+          },
+          "end": {
+            "line": 5,
+            "column": 69
+          }
+        },
+        "type": "binary-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 5,
+              "column": 19
+            },
+            "end": {
+              "line": 5,
+              "column": 29
+            }
+          },
+          {
+            "start": {
+              "line": 5,
+              "column": 29
+            },
+            "end": {
+              "line": 5,
+              "column": 69
+            }
+          }
+        ],
+        "line": 5
+      }
+    },
+    "s": {
+      "0": 2
+    },
+    "f": {
+      "0": 2
+    },
+    "b": {
+      "0": [2, 1]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 1,
+      "lastStatement": 1,
+      "seen": {
+        "f:4:16:4:24": 0,
+        "s:5:2:5:Infinity": 0,
+        "b:5:19:5:29:5:29:5:69": 0
+      },
+      "fnNames": {}
+    }
+  },
+  "model": {
+    "path": "/private/tmp/next-testing-parallel-20261019/tooling-editor143/.next-test-jsx144-logical-production/subject.tsx",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 5,
+          "column": 2
+        },
+        "end": {
+          "line": 5,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "Logical",
+        "decl": {
+          "start": {
+            "line": 4,
+            "column": 16
+          },
+          "end": {
+            "line": 4,
+            "column": 23
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 4,
+            "column": 43
+          },
+          "end": {
+            "line": 6,
+            "column": null
+          }
+        },
+        "line": 4
+      }
+    },
+    "branchMap": {
+      "0": {
+        "loc": {
+          "start": {
+            "line": 5,
+            "column": 19
+          },
+          "end": {
+            "line": 5,
+            "column": 59
+          }
+        },
+        "type": "binary-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 5,
+              "column": 19
+            },
+            "end": {
+              "line": 5,
+              "column": 25
+            }
+          },
+          {
+            "start": {
+              "line": 5,
+              "column": 29
+            },
+            "end": {
+              "line": 5,
+              "column": 59
+            }
+          }
+        ],
+        "line": 5
+      }
+    },
+    "s": {
+      "0": 0
+    },
+    "f": {
+      "0": 0
+    },
+    "b": {
+      "0": [0, 0]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 1,
+      "lastStatement": 1,
+      "seen": {
+        "f:4:16:4:23": 0,
+        "s:5:2:5:Infinity": 0,
+        "b:5:19:5:25:5:29:5:59": 0
+      },
+      "fnNames": {}
+    }
+  }
+}

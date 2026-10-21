@@ -20,6 +20,8 @@ import {
   type ConfigurationImportAuthorization,
 } from './config-import-proof'
 import { withCompilerAliases } from './aliases'
+import { materializeExternalLayout } from './external-layout'
+import { createCompiledRouteRenderOpts } from './route-render'
 import { readNativeMockCoverageSources } from '../coverage/mock-sources'
 import {
   readCreatorClientDescriptor as readClientDescriptor,
@@ -1015,14 +1017,9 @@ export async function createTestCompilerSession(
       throw new Error(
         'Transform-only compiler plugins cannot yet combine with compiler helpers, setup files, serializers, coverage or shared cohorts.'
       )
-    if (
-      dependencyPlan &&
-      (profile.environment !== 'node' ||
-        profile.mode !== 'development' ||
-        cohortEntries)
-    )
+    if (dependencyPlan && (profile.environment !== 'node' || cohortEntries))
       throw new Error(
-        'Dependency planning currently requires isolated development Node entries'
+        'Dependency planning currently requires isolated Node entries'
       )
     validateTestProfile(entry.profile)
     if (
@@ -1102,7 +1099,8 @@ export async function createTestCompilerSession(
       )
     if (
       profile.browserClient &&
-      (setupFiles.length ||
+      (setupFilesSequence !== 'list' ||
+        (setupFiles.length && coverage) ||
         snapshotSerializers.length ||
         cohortEntries ||
         entry.executionEnvironment ||
@@ -1110,7 +1108,7 @@ export async function createTestCompilerSession(
         entry.typecheck)
     )
       throw new Error(
-        'Client Browser Mode currently requires one isolated runtime file without setup, serializers or custom realms.'
+        'Client Browser Mode currently requires one isolated runtime file with list-ordered setup and without setup coverage, serializers or custom realms.'
       )
     const file = projectFile(entry.file)
     const source = await readFile(entry.file)
@@ -1342,6 +1340,7 @@ export async function createTestCompilerSession(
       directories.add(staging)
       directories.add(rootDir)
     }
+    let published = false
     try {
       signal.throwIfAborted()
       // Native emission reads one strongly consistent output graph, including
@@ -1380,6 +1379,13 @@ export async function createTestCompilerSession(
               )),
               clientReference: `server/app${manifestPage}_client-reference-manifest.js`,
               serverActions: `server/app${manifestPage}/server-reference-manifest.json`,
+              ...(profile.route !== undefined
+                ? {
+                    routeBuild: `server/app${manifestPage}/build-manifest.json`,
+                    routeFont: `server/app${manifestPage}/next-font-manifest.json`,
+                    routeLoadable: `server/app${manifestPage}/react-loadable-manifest.json`,
+                  }
+                : {}),
             }
           : undefined
       const nativeInventory = nativeRequest
@@ -1487,23 +1493,33 @@ export async function createTestCompilerSession(
       const mockMetadataPath = `server/next-test/${nativeId}.metadata.json`
       let moduleMocking: CompiledTestArtifact['moduleMocking']
       let moduleCache: { version: 1 } | undefined
-      let dynamicModuleMocking: { version: 1 } | undefined
+      let dynamicModuleMocking: { version: 1; staticMocks?: 1 } | undefined
       if (files.includes(mockMetadataPath)) {
         const nativeMockBytes = await readFile(
           artifactPath(staging, mockMetadataPath)
         )
         const metadata = JSON.parse(nativeMockBytes.toString('utf8'))
+        const staticRuntimeMocks =
+          metadata.dynamicModuleMocking?.staticMocks === 1
         if (metadata.dynamicModuleMocking !== undefined) {
           if (
             metadata.dynamicModuleMocking?.version !== 1 ||
             metadata.moduleCache?.version !== 1 ||
-            metadata.moduleMocking ||
+            (metadata.dynamicModuleMocking.staticMocks !== undefined &&
+              !staticRuntimeMocks) ||
+            (staticRuntimeMocks
+              ? metadata.moduleMocking?.version !== 1 ||
+                Object.keys(metadata.moduleMocking).length !== 1
+              : metadata.moduleMocking) ||
             profile.environment !== 'node'
           )
             throw new Error(
               'Invalid native runtime module mock ownership metadata'
             )
-          dynamicModuleMocking = { version: 1 }
+          dynamicModuleMocking = {
+            version: 1,
+            ...(staticRuntimeMocks ? { staticMocks: 1 as const } : {}),
+          }
         }
         if (metadata.moduleCache !== undefined) {
           if (
@@ -1511,7 +1527,7 @@ export async function createTestCompilerSession(
             profile.environment !== 'node' ||
             profile.mode !== 'development' ||
             cohortInputs ||
-            metadata.moduleMocking ||
+            (metadata.moduleMocking && !staticRuntimeMocks) ||
             setupFiles.length ||
             snapshotSerializers.length ||
             coverage ||
@@ -1522,6 +1538,7 @@ export async function createTestCompilerSession(
               'Module cache resets require isolated development Node without setup, serializers, coverage or custom realms'
             )
           moduleCache = { version: 1 }
+          if (staticRuntimeMocks) moduleMocking = { version: 1 }
         } else {
           const productionStaticFactory =
             profile.mode === 'production' &&
@@ -1737,8 +1754,10 @@ export async function createTestCompilerSession(
           }
         : undefined
       await rename(staging, rootDir)
+      published = true
       directories.delete(staging)
       if (!configuredArtifactAllocator) directories.add(rootDir)
+      await materializeExternalLayout(rootDir, files, nativeId)
       const sourceDependencies = dependencyPlan
         ? await readSourceDependencyAsset(
             rootDir,
@@ -1842,6 +1861,14 @@ export async function createTestCompilerSession(
                     ),
                   },
                 },
+                ...(route
+                  ? {
+                      routeRenderOpts: createCompiledRouteRenderOpts(
+                        config,
+                        profile.mode
+                      ),
+                    }
+                  : {}),
               },
             }
           : {
@@ -1967,6 +1994,10 @@ export async function createTestCompilerSession(
       if (!configuredArtifactAllocator) {
         await rm(staging, { recursive: true, force: true })
         directories.delete(staging)
+        if (published) {
+          await rm(rootDir, { recursive: true, force: true })
+          directories.delete(rootDir)
+        }
       }
       throw error
     }

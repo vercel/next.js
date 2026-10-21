@@ -600,6 +600,8 @@ pub struct ChunkItems(pub Vec<ResolvedVc<Box<dyn ChunkItem>>>);
 #[turbo_tasks::value]
 pub struct AsyncModuleInfo {
     pub referenced_async_modules: AutoSet<ResolvedVc<Box<dyn Module>>>,
+    pub runtime_import_demands:
+        Option<ResolvedVc<crate::module_graph::runtime_import_demands::RuntimeImportDemandGraph>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -608,8 +610,21 @@ impl AsyncModuleInfo {
     pub fn new(referenced_async_modules: Vec<ResolvedVc<Box<dyn Module>>>) -> Result<Vc<Self>> {
         Ok(Self {
             referenced_async_modules: referenced_async_modules.into_iter().collect(),
+            runtime_import_demands: None,
         }
         .cell())
+    }
+
+    #[turbo_tasks::function]
+    pub fn with_runtime_import_demands(
+        referenced_async_modules: Vec<ResolvedVc<Box<dyn Module>>>,
+        demands: ResolvedVc<crate::module_graph::runtime_import_demands::RuntimeImportDemandGraph>,
+    ) -> Vc<Self> {
+        Self {
+            referenced_async_modules: referenced_async_modules.into_iter().collect(),
+            runtime_import_demands: Some(demands),
+        }
+        .cell()
     }
 }
 

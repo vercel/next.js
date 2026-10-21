@@ -1,0 +1,6 @@
+import { expect, test } from 'vitest'
+import { MultilineReturn } from './subject.tsx'
+test('renders a parenthesized multiline JSX return', () => {
+  expect(MultilineReturn({ name: 'first' }).props.children.props.children).toBe('first!')
+  expect(MultilineReturn({ name: 'second' }).props['data-name']).toBe('second')
+})

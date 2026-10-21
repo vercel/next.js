@@ -140,7 +140,7 @@ blob merges validate and retain each fragment's specification ordering evidence.
 ## Custom completion adapters
 
 A JavaScript file selected with `--reporter ./reporter.mjs` can export a custom
-reporter constructor with `onInit` and `onTestRunEnd`. Initialization finishes
+reporter constructor with `onInit`, `onTestModuleEnd` and `onTestRunEnd`. Initialization finishes
 before one-shot execution; completion receives retained final module, suite and
 test views with real hierarchy, names, final outcomes, errors, test metadata and
 annotations. Child collections support iteration and test/suite filtering.
@@ -149,14 +149,40 @@ coordinator and test realms. Asynchronous completion and `context.onClose`
 callbacks are awaited before releasing the reporter process. Publication or
 cleanup failure fails the command while preserving the test results themselves.
 
-This is a completion adapter. Live hooks and collection/start specifications need
-actual additional producer events and are rejected explicitly. Context currently
+Module completion callbacks consume the actual file-end result, after its tests
+and cleanup finish. Their module and child test objects retain identity at run
+completion. The development/production Node corpus checks passed, retried,
+repeated, failed, skipped and todo cases, including failed retry errors on a
+passing result. Rejected asynchronous module callbacks drain through later
+files, run completion and close; the command fails while passing machine test
+results stay intact. A fresh installed package matches the complete pinned
+reference rows without a Vitest or Vite installation.
+
+Other live hooks and collection/start specifications need actual additional
+producer events and are rejected explicitly. Context currently
 provides the real configured root and close registration; compiler/Vite/control
 APIs are unavailable. Module/suite metadata, task diagnostics/logs/artifacts,
-complete retry-error task history, package/TypeScript reporter loading and watch
+richer task history APIs and watch
 lifecycle adapters remain release work. Unknown task APIs are not filled with
 fabricated compiler timings or Vite objects. The standard Next result events and
 machine reports retain their existing complete execution evidence.
+
+Custom completion reporters can also be selected by package name, including
+scoped packages and exported subpaths: `--reporter @scope/reporter/custom`.
+Package entries resolve from the configured project root with Node's native
+import conditions. JavaScript ES modules and CommonJS packages retain their
+native dependency resolution and module identity. The same supported completion
+hooks and close callbacks apply to file and package reporters.
+
+File reporters can use `.ts` or `.mts` entries and their qualified relative
+TypeScript import graphs. `.jsx` and `.tsx` file entries evaluate JSX using the
+classic React transform and the reporter's own React import. Owned relative
+JSX and TSX graphs support explicit and extensionless files, index files and
+qualified JavaScript output suffix fallbacks, preserving native file precedence
+and the pinned source suffix order. Other TypeScript profiles, package
+configuration adapters, reporter options and watch lifecycle adapters still need
+separate qualification. Package loading does not supply additional reporter hooks or
+compiler control APIs.
 
 ## Importing pristine final-task blobs
 
@@ -166,6 +192,11 @@ final-state projection: it validates the foreign task ownership graph and
 preserves structural names, final statuses/timings, metadata and errors. A passing
 retry can retain failed retry errors, and unhandled errors fail the merge command
 without changing passing case results or the pinned JSON success calculation.
+
+The unchanged six-case runtime-skip corpus also retains complete pinned merge
+JSON, including skips after failed retry/repeat attempts, static skip/todo
+controls and metadata assigned before a runtime skip. These are terminal foreign
+tasks; nonterminal collected-task imports remain unqualified.
 
 Imported results have a `vitest` provenance extension containing each source
 name, digest, execution time and original flatted table. They do not contain

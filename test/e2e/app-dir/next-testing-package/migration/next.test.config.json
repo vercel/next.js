@@ -1,0 +1,26 @@
+{
+  "compatibility": "vitest",
+  "maxWorkers": 1,
+  "projects": [
+    {
+      "name": "node-dev",
+      "environment": "node",
+      "mode": "development",
+      "include": ["tests/*.case.*"],
+      "setupFiles": ["./setup.ts"],
+      "provide": {
+        "label": "installed consumer"
+      }
+    },
+    {
+      "name": "node-production",
+      "environment": "node",
+      "mode": "production",
+      "include": ["tests/*.case.*"],
+      "setupFiles": ["./setup.ts"],
+      "provide": {
+        "label": "installed consumer"
+      }
+    }
+  ]
+}

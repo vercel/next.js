@@ -1,0 +1,1005 @@
+{
+  "file": "/private/tmp/next-testing-parallel-20261019/coverage-imports194/.next-test-class-functions196-observed12-local-functions-production/subject.ts",
+  "sourceMap": {
+    "version": 3,
+    "sources": [
+      "/private/tmp/next-testing-parallel-20261019/coverage-imports194/.next-test-class-functions196-observed12-local-functions-production/subject.ts"
+    ],
+    "names": [],
+    "mappings": ";;;;;A;A;A;;;A,I,6C,E,yB;I,I,+C,E,I,iD,E,I,I,C;I,I,+C,E,I,iD,E,I,I,C;A;;;;;A;;;;;;AAAA,MAAM,SAAiB;AACvB,SAAS,OAAO,KAAa;IAAY,OAAO,QAAQ;AAAG;AACpD,MAAM;IAEX,YAAY,KAAa,CAAE;QAAE,IAAI,CAAC,KAAK,GAAG;IAAO;IACxC,OAAO,SAAU,KAAa;QAAY,OAAO,IAAI,CAAC,KAAK,GAAG;IAAO,EAAE;IAChF,OAAgB,UAAU,SAAU,KAAa;QAAY,OAAO,QAAQ;IAAG,EAAE;IACjF,OAAO,KAAa,EAAU;QAAE,OAAO,IAAI,CAAC,KAAK,GAAG;IAAO;AAC7D;AACO,SAAS,SAAS,KAAa;IACpC,MAAM,UAAU,IAAI,QAAQ,OAAO;IACnC,OAAO,QAAQ,IAAI,CAAC,UAAU,QAAQ,OAAO,CAAC,SAAS,QAAQ,MAAM,CAAC;AACxE;;;;;A,4E;A,+E;A;;;;;;;;;;;;A,M;A,M;A,e;I,8D;I;A;A,e,iB,qB,M;I,K,mB,qD;;I,M,e,E;I,I,uB,Y;Q,M,Q,G,C,a,G,C,C,O;I,O;Q,K,M,Q,a,M;I;A;A,S;I,O,W,yB,C;A;;;;;A;;;;;;;;;;;;;;I,O,E;e;;I,wB,E;e;;;A,I;A,4E;A,+E;A,I;A,S,yB,O;I,I,S,M,I,M;I,M,U;Q,G,O;Q,U,I;I;I,U;I,wB,Q,gB;I,O;Q;Y,I,Y,S,U;Q;I;A;A,S;I,M,U;I,M,U,yB,O,K,I;I,I,C,S;Q,M,I,M;I;I,I,C,S;Q,M,I,M;I;I,Q,M,C,c;I,I,U,Q,Q,C,G,C;I,I,C,S;Q,U,Q,a,C;Q,Q,Q,C,G,C,S;I;I,O;A",
+    "sourcesContent": [
+      "const offset: number = 2;\nfunction prefix(value: number): number { return value + 1; }\nexport class Counter {\n  declare total: number;\n  constructor(value: number) { this.total = value; }\n  readonly read = function (delta: number): number { return this.total + delta; };\n  static readonly combine = function (value: number): number { return value * 2; };\n  method(delta: number): number { return this.total + delta; }\n}\nexport function exercise(value: number): number {\n  const counter = new Counter(prefix(value));\n  return counter.read(offset) + Counter.combine(value) + counter.method(offset);\n}\n"
+    ]
+  },
+  "coverage": {
+    "url": "file:///private/tmp/next-testing-parallel-20261019/coverage-imports194/.next-test-class-functions196-observed12-local-functions-production/.next-test-94b816fb-aa4b-442f-b814-753f7a6f022d/server/chunks/_1e7o4c97jm7f_._.js",
+    "functions": [
+      {
+        "functionName": "",
+        "ranges": [
+          {
+            "startOffset": 0,
+            "endOffset": 4470,
+            "count": 1
+          }
+        ],
+        "isBlockCoverage": true
+      },
+      {
+        "functionName": "",
+        "ranges": [
+          {
+            "startOffset": 20,
+            "endOffset": 4243,
+            "count": 1
+          }
+        ],
+        "isBlockCoverage": true
+      },
+      {
+        "functionName": "",
+        "ranges": [
+          {
+            "startOffset": 53,
+            "endOffset": 618,
+            "count": 1
+          }
+        ],
+        "isBlockCoverage": true
+      },
+      {
+        "functionName": "",
+        "ranges": [
+          {
+            "startOffset": 356,
+            "endOffset": 614,
+            "count": 1
+          }
+        ],
+        "isBlockCoverage": true
+      },
+      {
+        "functionName": "",
+        "ranges": [
+          {
+            "startOffset": 628,
+            "endOffset": 1275,
+            "count": 1
+          }
+        ],
+        "isBlockCoverage": true
+      },
+      {
+        "functionName": "module.exports.offset",
+        "ranges": [
+          {
+            "startOffset": 717,
+            "endOffset": 728,
+            "count": 0
+          }
+        ],
+        "isBlockCoverage": false
+      },
+      {
+        "functionName": "",
+        "ranges": [
+          {
+            "startOffset": 750,
+            "endOffset": 762,
+            "count": 2
+          }
+        ],
+        "isBlockCoverage": true
+      },
+      {
+        "functionName": "prefix",
+        "ranges": [
+          {
+            "startOffset": 785,
+            "endOffset": 833,
+            "count": 2
+          }
+        ],
+        "isBlockCoverage": true
+      },
+      {
+        "functionName": "Counter",
+        "ranges": [
+          {
+            "startOffset": 854,
+            "endOffset": 907,
+            "count": 2
+          }
+        ],
+        "isBlockCoverage": true
+      },
+      {
+        "functionName": "<instance_members_initializer>",
+        "ranges": [
+          {
+            "startOffset": 912,
+            "endOffset": 977,
+            "count": 2
+          }
+        ],
+        "isBlockCoverage": true
+      },
+      {
+        "functionName": "read",
+        "ranges": [
+          {
+            "startOffset": 919,
+            "endOffset": 977,
+            "count": 2
+          }
+        ],
+        "isBlockCoverage": true
+      },
+      {
+        "functionName": "<static_initializer>",
+        "ranges": [
+          {
+            "startOffset": 983,
+            "endOffset": 1049,
+            "count": 1
+          }
+        ],
+        "isBlockCoverage": true
+      },
+      {
+        "functionName": "combine",
+        "ranges": [
+          {
+            "startOffset": 1000,
+            "endOffset": 1049,
+            "count": 2
+          }
+        ],
+        "isBlockCoverage": true
+      },
+      {
+        "functionName": "method",
+        "ranges": [
+          {
+            "startOffset": 1055,
+            "endOffset": 1111,
+            "count": 2
+          }
+        ],
+        "isBlockCoverage": true
+      },
+      {
+        "functionName": "exercise",
+        "ranges": [
+          {
+            "startOffset": 1114,
+            "endOffset": 1273,
+            "count": 2
+          }
+        ],
+        "isBlockCoverage": true
+      },
+      {
+        "functionName": "",
+        "ranges": [
+          {
+            "startOffset": 1285,
+            "endOffset": 2502,
+            "count": 1
+          }
+        ],
+        "isBlockCoverage": true
+      },
+      {
+        "functionName": "",
+        "ranges": [
+          {
+            "startOffset": 1538,
+            "endOffset": 1556,
+            "count": 0
+          }
+        ],
+        "isBlockCoverage": false
+      },
+      {
+        "functionName": "",
+        "ranges": [
+          {
+            "startOffset": 1600,
+            "endOffset": 1634,
+            "count": 2
+          }
+        ],
+        "isBlockCoverage": true
+      },
+      {
+        "functionName": "",
+        "ranges": [
+          {
+            "startOffset": 1664,
+            "endOffset": 1684,
+            "count": 2
+          }
+        ],
+        "isBlockCoverage": true
+      },
+      {
+        "functionName": "",
+        "ranges": [
+          {
+            "startOffset": 1712,
+            "endOffset": 1730,
+            "count": 1
+          }
+        ],
+        "isBlockCoverage": true
+      },
+      {
+        "functionName": "",
+        "ranges": [
+          {
+            "startOffset": 1754,
+            "endOffset": 1768,
+            "count": 3
+          }
+        ],
+        "isBlockCoverage": true
+      },
+      {
+        "functionName": "loadTestModule",
+        "ranges": [
+          {
+            "startOffset": 1877,
+            "endOffset": 2021,
+            "count": 1
+          }
+        ],
+        "isBlockCoverage": true
+      },
+      {
+        "functionName": "loadSetupModules",
+        "ranges": [
+          {
+            "startOffset": 2022,
+            "endOffset": 2382,
+            "count": 1
+          },
+          {
+            "startOffset": 2245,
+            "endOffset": 2313,
+            "count": 0
+          },
+          {
+            "startOffset": 2361,
+            "endOffset": 2374,
+            "count": 0
+          }
+        ],
+        "isBlockCoverage": true
+      },
+      {
+        "functionName": "",
+        "ranges": [
+          {
+            "startOffset": 2290,
+            "endOffset": 2304,
+            "count": 0
+          }
+        ],
+        "isBlockCoverage": false
+      },
+      {
+        "functionName": "initializeModuleImportTracking",
+        "ranges": [
+          {
+            "startOffset": 2383,
+            "endOffset": 2500,
+            "count": 1
+          }
+        ],
+        "isBlockCoverage": true
+      },
+      {
+        "functionName": "",
+        "ranges": [
+          {
+            "startOffset": 2512,
+            "endOffset": 4238,
+            "count": 1
+          },
+          {
+            "startOffset": 2642,
+            "endOffset": 2721,
+            "count": 0
+          }
+        ],
+        "isBlockCoverage": true
+      },
+      {
+        "functionName": "_export",
+        "ranges": [
+          {
+            "startOffset": 2723,
+            "endOffset": 2875,
+            "count": 1
+          },
+          {
+            "startOffset": 2779,
+            "endOffset": 2873,
+            "count": 2
+          }
+        ],
+        "isBlockCoverage": true
+      },
+      {
+        "functionName": "browser",
+        "ranges": [
+          {
+            "startOffset": 2908,
+            "endOffset": 2950,
+            "count": 0
+          }
+        ],
+        "isBlockCoverage": false
+      },
+      {
+        "functionName": "initializeBrowserTesting",
+        "ranges": [
+          {
+            "startOffset": 2982,
+            "endOffset": 3041,
+            "count": 0
+          }
+        ],
+        "isBlockCoverage": false
+      },
+      {
+        "functionName": "initializeBrowserTesting",
+        "ranges": [
+          {
+            "startOffset": 3243,
+            "endOffset": 3637,
+            "count": 0
+          }
+        ],
+        "isBlockCoverage": false
+      },
+      {
+        "functionName": "browser",
+        "ranges": [
+          {
+            "startOffset": 3638,
+            "endOffset": 4236,
+            "count": 0
+          }
+        ],
+        "isBlockCoverage": false
+      },
+      {
+        "functionName": "",
+        "ranges": [
+          {
+            "startOffset": 4255,
+            "endOffset": 4419,
+            "count": 0
+          }
+        ],
+        "isBlockCoverage": true
+      }
+    ]
+  },
+  "model": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-imports194/.next-test-class-functions196-observed12-local-functions-production/subject.ts",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 1,
+          "column": 23
+        },
+        "end": {
+          "line": 1,
+          "column": 24
+        }
+      },
+      "1": {
+        "start": {
+          "line": 2,
+          "column": 41
+        },
+        "end": {
+          "line": 2,
+          "column": 58
+        }
+      },
+      "2": {
+        "start": {
+          "line": 6,
+          "column": 18
+        },
+        "end": {
+          "line": 6,
+          "column": 81
+        }
+      },
+      "3": {
+        "start": {
+          "line": 7,
+          "column": 28
+        },
+        "end": {
+          "line": 7,
+          "column": 82
+        }
+      },
+      "4": {
+        "start": {
+          "line": 5,
+          "column": 31
+        },
+        "end": {
+          "line": 5,
+          "column": 50
+        }
+      },
+      "5": {
+        "start": {
+          "line": 6,
+          "column": 53
+        },
+        "end": {
+          "line": 6,
+          "column": 79
+        }
+      },
+      "6": {
+        "start": {
+          "line": 7,
+          "column": 63
+        },
+        "end": {
+          "line": 7,
+          "column": 80
+        }
+      },
+      "7": {
+        "start": {
+          "line": 8,
+          "column": 34
+        },
+        "end": {
+          "line": 8,
+          "column": 60
+        }
+      },
+      "8": {
+        "start": {
+          "line": 11,
+          "column": 18
+        },
+        "end": {
+          "line": 11,
+          "column": 44
+        }
+      },
+      "9": {
+        "start": {
+          "line": 12,
+          "column": 2
+        },
+        "end": {
+          "line": 12,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "prefix",
+        "decl": {
+          "start": {
+            "line": 2,
+            "column": 9
+          },
+          "end": {
+            "line": 2,
+            "column": 15
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 39
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "line": 2
+      },
+      "1": {
+        "name": "constructor",
+        "decl": {
+          "start": {
+            "line": 5,
+            "column": 2
+          },
+          "end": {
+            "line": 5,
+            "column": 13
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 5,
+            "column": 29
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        },
+        "line": 5
+      },
+      "2": {
+        "name": "(anonymous_2)",
+        "decl": {
+          "start": {
+            "line": 6,
+            "column": 18
+          },
+          "end": {
+            "line": 6,
+            "column": 26
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 6,
+            "column": 51
+          },
+          "end": {
+            "line": 6,
+            "column": 81
+          }
+        },
+        "line": 6
+      },
+      "3": {
+        "name": "(anonymous_3)",
+        "decl": {
+          "start": {
+            "line": 7,
+            "column": 28
+          },
+          "end": {
+            "line": 7,
+            "column": 36
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 7,
+            "column": 61
+          },
+          "end": {
+            "line": 7,
+            "column": 82
+          }
+        },
+        "line": 7
+      },
+      "4": {
+        "name": "method",
+        "decl": {
+          "start": {
+            "line": 8,
+            "column": 2
+          },
+          "end": {
+            "line": 8,
+            "column": 8
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 8,
+            "column": 32
+          },
+          "end": {
+            "line": 8,
+            "column": null
+          }
+        },
+        "line": 8
+      },
+      "5": {
+        "name": "exercise",
+        "decl": {
+          "start": {
+            "line": 10,
+            "column": 16
+          },
+          "end": {
+            "line": 10,
+            "column": 24
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 10,
+            "column": 48
+          },
+          "end": {
+            "line": 13,
+            "column": null
+          }
+        },
+        "line": 10
+      }
+    },
+    "branchMap": {},
+    "s": {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0,
+      "9": 0
+    },
+    "f": {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 6,
+      "lastStatement": 10,
+      "seen": {
+        "s:1:23:1:24": 0,
+        "f:2:9:2:15": 0,
+        "s:2:41:2:58": 1,
+        "s:6:18:6:81": 2,
+        "s:7:28:7:82": 3,
+        "f:5:2:5:13": 1,
+        "s:5:31:5:50": 4,
+        "f:6:18:6:26": 2,
+        "s:6:53:6:79": 5,
+        "f:7:28:7:36": 3,
+        "s:7:63:7:80": 6,
+        "f:8:2:8:8": 4,
+        "s:8:34:8:60": 7,
+        "f:10:16:10:24": 5,
+        "s:11:18:11:44": 8,
+        "s:12:2:12:Infinity": 9
+      },
+      "fnNames": {}
+    }
+  },
+  "observed": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-imports194/.next-test-class-functions196-observed12-local-functions-production/subject.ts",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 1,
+          "column": 23
+        },
+        "end": {
+          "line": 1,
+          "column": null
+        }
+      },
+      "1": {
+        "start": {
+          "line": 2,
+          "column": 41
+        },
+        "end": {
+          "line": 2,
+          "column": 59
+        }
+      },
+      "2": {
+        "start": {
+          "line": 6,
+          "column": 18
+        },
+        "end": {
+          "line": 6,
+          "column": 82
+        }
+      },
+      "3": {
+        "start": {
+          "line": 7,
+          "column": 28
+        },
+        "end": {
+          "line": 7,
+          "column": 83
+        }
+      },
+      "4": {
+        "start": {
+          "line": 5,
+          "column": 31
+        },
+        "end": {
+          "line": 5,
+          "column": 51
+        }
+      },
+      "5": {
+        "start": {
+          "line": 6,
+          "column": 53
+        },
+        "end": {
+          "line": 6,
+          "column": 80
+        }
+      },
+      "6": {
+        "start": {
+          "line": 7,
+          "column": 63
+        },
+        "end": {
+          "line": 7,
+          "column": 81
+        }
+      },
+      "7": {
+        "start": {
+          "line": 8,
+          "column": 34
+        },
+        "end": {
+          "line": 8,
+          "column": 61
+        }
+      },
+      "8": {
+        "start": {
+          "line": 11,
+          "column": 18
+        },
+        "end": {
+          "line": 11,
+          "column": null
+        }
+      },
+      "9": {
+        "start": {
+          "line": 12,
+          "column": 2
+        },
+        "end": {
+          "line": 12,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "prefix",
+        "decl": {
+          "start": {
+            "line": 2,
+            "column": 9
+          },
+          "end": {
+            "line": 2,
+            "column": 16
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 29
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "line": 2
+      },
+      "1": {
+        "name": "constructor",
+        "decl": {
+          "start": {
+            "line": 5,
+            "column": 2
+          },
+          "end": {
+            "line": 5,
+            "column": 14
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 5,
+            "column": 29
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        },
+        "line": 5
+      },
+      "2": {
+        "name": "(anonymous_2)",
+        "decl": {
+          "start": {
+            "line": 6,
+            "column": 18
+          },
+          "end": {
+            "line": 6,
+            "column": 28
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 6,
+            "column": 41
+          },
+          "end": {
+            "line": 6,
+            "column": 82
+          }
+        },
+        "line": 6
+      },
+      "3": {
+        "name": "(anonymous_3)",
+        "decl": {
+          "start": {
+            "line": 7,
+            "column": 28
+          },
+          "end": {
+            "line": 7,
+            "column": 38
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 7,
+            "column": 51
+          },
+          "end": {
+            "line": 7,
+            "column": 83
+          }
+        },
+        "line": 7
+      },
+      "4": {
+        "name": "method",
+        "decl": {
+          "start": {
+            "line": 8,
+            "column": 2
+          },
+          "end": {
+            "line": 8,
+            "column": 9
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 8,
+            "column": 32
+          },
+          "end": {
+            "line": 8,
+            "column": null
+          }
+        },
+        "line": 8
+      },
+      "5": {
+        "name": "exercise",
+        "decl": {
+          "start": {
+            "line": 10,
+            "column": 16
+          },
+          "end": {
+            "line": 10,
+            "column": 25
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 10,
+            "column": 38
+          },
+          "end": {
+            "line": 13,
+            "column": null
+          }
+        },
+        "line": 10
+      }
+    },
+    "branchMap": {},
+    "s": {
+      "0": 1,
+      "1": 2,
+      "2": 2,
+      "3": 2,
+      "4": 2,
+      "5": 2,
+      "6": 2,
+      "7": 2,
+      "8": 2,
+      "9": 2
+    },
+    "f": {
+      "0": 2,
+      "1": 2,
+      "2": 2,
+      "3": 2,
+      "4": 2,
+      "5": 2
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 6,
+      "lastStatement": 10,
+      "seen": {
+        "s:1:23:1:Infinity": 0,
+        "f:2:9:2:16": 0,
+        "s:2:41:2:59": 1,
+        "s:6:18:6:82": 2,
+        "s:7:28:7:83": 3,
+        "f:5:2:5:14": 1,
+        "s:5:31:5:51": 4,
+        "f:6:18:6:28": 2,
+        "s:6:53:6:80": 5,
+        "f:7:28:7:38": 3,
+        "s:7:63:7:81": 6,
+        "f:8:2:8:9": 4,
+        "s:8:34:8:61": 7,
+        "f:10:16:10:25": 5,
+        "s:11:18:11:Infinity": 8,
+        "s:12:2:12:Infinity": 9
+      },
+      "fnNames": {}
+    }
+  },
+  "actualNative": {
+    "profile": {
+      "id": "class-callables",
+      "environment": "node",
+      "mode": "production",
+      "runtime": "nodejs",
+      "bundler": "turbopack"
+    },
+    "sourceHash": "521d6e174f4ba5dc24535b870bcdd2e5f2ee7d779a681c9ea716b57d1b3c0c41",
+    "entryId": "class-callables:contract.case.mjs",
+    "revision": "3613ae97-d238-471f-bc14-36584cf3d76d"
+  },
+  "rawFiles": {
+    "compiledInput": "99269-convert-4-input.v8",
+    "authoredInput": "99260-convert-5-input.v8",
+    "nativeInput": "99269-native-3-input.v8"
+  },
+  "codeSHA256": "635139ac861d468510ace78794bd1264b10ac83bea195c536eed64fe07b28899",
+  "sourceSHA256": "d4a3d1732b92d5de905010b6162f30755bbd61b6c5add11304af40893a9f0cbc",
+  "allRawCountsHeld": true
+}

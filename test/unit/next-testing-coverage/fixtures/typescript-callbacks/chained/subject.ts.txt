@@ -1,0 +1,6 @@
+export function sum(values: number[]) {
+  return values.map((value: number) => value * 2).reduce((left: number, right: number) => left + right, 0)
+}
+export function unused(values: number[]) {
+  return values.filter((value: number) => value > 0)
+}

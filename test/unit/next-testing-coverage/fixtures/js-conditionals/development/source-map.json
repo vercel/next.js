@@ -1,0 +1,40 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {
+      "offset": {
+        "line": 4,
+        "column": 0
+      },
+      "map": {
+        "version": 3,
+        "sources": [
+          "file:///private/tmp/next-testing-parallel-20261019/authoring-hooks163/.next-test-conditional164-development/ordinary-control.case.mjs"
+        ],
+        "sourcesContent": [
+          "import {test,expect} from 'vitest'\nimport {subject} from './subject.mjs'\ntest('ordinary exact branch control',()=>{expect(subject(-1)).toBe(0);expect(subject(1)).toBe(3);expect(subject(2)).toBe(6)})\n"
+        ],
+        "names": ["toBe"],
+        "mappings": "A;AAAA;AACA;;;AACA,IAAA,+KAAI,EAAC,iCAAgC;IAAK,IAAA,iLAAM,EAAC,IAAA,gLAAO,EAAC,CAAC,IAAIA,IAAI,CAAC;IAAG,IAAA,iLAAM,EAAC,IAAA,gLAAO,EAAC,IAAIA,IAAI,CAAC;IAAG,IAAA,iLAAM,EAAC,IAAA,gLAAO,EAAC,IAAIA,IAAI,CAAC;AAAE"
+      }
+    },
+    {
+      "offset": {
+        "line": 18,
+        "column": 0
+      },
+      "map": {
+        "version": 3,
+        "sources": [
+          "file:///private/tmp/next-testing-parallel-20261019/authoring-hooks163/.next-test-conditional164-development/subject.mjs"
+        ],
+        "sourcesContent": [
+          "export function subject(value) {\n  return value > 0 ? value * 3 : 0\n}\n"
+        ],
+        "names": ["subject", "value"],
+        "mappings": "A;;;;AAAO,SAASA,QAAQC,KAAK;IAC3B,OAAOA,QAAQ,IAAIA,QAAQ,IAAI;AACjC"
+      }
+    }
+  ]
+}

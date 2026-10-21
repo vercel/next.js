@@ -1,0 +1,2 @@
+import * as value from "./root.mjs"
+export {value}

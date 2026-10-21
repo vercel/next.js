@@ -1,0 +1,132 @@
+{
+  "helper.js": {
+    "path": "helper.js",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 1,
+          "column": 31
+        },
+        "end": {
+          "line": 1,
+          "column": 49
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "label",
+        "decl": {
+          "start": {
+            "line": 1,
+            "column": 16
+          },
+          "end": {
+            "line": 1,
+            "column": 21
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 29
+          },
+          "end": {
+            "line": 1,
+            "column": null
+          }
+        },
+        "line": 1
+      }
+    },
+    "branchMap": {},
+    "s": {
+      "0": 2
+    },
+    "f": {
+      "0": 2
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 1,
+      "lastStatement": 1,
+      "seen": {
+        "f:1:16:1:21": 0,
+        "s:1:31:1:49": 0
+      },
+      "fnNames": {}
+    }
+  },
+  "subject.tsx": {
+    "path": "subject.tsx",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 4,
+          "column": 13
+        },
+        "end": {
+          "line": 7,
+          "column": null
+        }
+      },
+      "1": {
+        "start": {
+          "line": 5,
+          "column": 2
+        },
+        "end": {
+          "line": 7,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "(anonymous_0)",
+        "decl": {
+          "start": {
+            "line": 4,
+            "column": 13
+          },
+          "end": {
+            "line": 4,
+            "column": 31
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 5,
+            "column": 2
+          },
+          "end": {
+            "line": 7,
+            "column": null
+          }
+        },
+        "line": 5
+      }
+    },
+    "branchMap": {},
+    "s": {
+      "0": 1,
+      "1": 2
+    },
+    "f": {
+      "0": 2
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 1,
+      "lastStatement": 2,
+      "seen": {
+        "s:4:13:7:Infinity": 0,
+        "f:4:13:4:31": 0,
+        "s:5:2:7:Infinity": 1
+      },
+      "fnNames": {}
+    }
+  }
+}

@@ -31,6 +31,7 @@ import type { SnapshotStateOptions } from '../../../compiled/next-test-primitive
 import { getSourceMappedStackFrames } from '../../../server/patch-error-inspect'
 import { serializeDiagnostic, type DiagnosticOptions } from './diagnostics'
 import type { SerializedDiagnostic } from './events'
+import type { RegistrationOrigin } from '../execution/registration-origin'
 
 function sourceExcerpt(
   source: string | null,
@@ -74,10 +75,13 @@ function sourceExcerpt(
 /** Call in the execution realm while its artifact source maps are still leased. */
 export function serializeSourceMappedDiagnostic(
   error: unknown,
-  options: Omit<DiagnosticOptions, 'mapStack'>
+  options: Omit<DiagnosticOptions, 'mapStack'> & {
+    registrationOrigin?: RegistrationOrigin
+  }
 ): SerializedDiagnostic {
+  const { registrationOrigin, ...diagnosticOptions } = options
   return serializeDiagnostic(error, {
-    ...options,
+    ...diagnosticOptions,
     mapStack(stack) {
       const frames = getSourceMappedStackFrames(stack, {
         includeSourceContent: true,
@@ -86,9 +90,28 @@ export function serializeSourceMappedDiagnostic(
         frame.methodName?.includes('__VITEST_HELPER__')
       )
       let capturedExcerpt = false
+      const selected = frames.find((frame) => frame.original && !frame.ignored)
       return frames.slice(helperIndex + 1).flatMap((frame) => {
         if (frame.file === null) return []
+        const origin =
+          registrationOrigin &&
+          error instanceof Error &&
+          stack === error.stack &&
+          frame === selected &&
+          (frame.file.startsWith('file:')
+            ? fileURLToPath(frame.file)
+            : resolve(frame.file)) === registrationOrigin.location.file
+            ? registrationOrigin
+            : undefined
         let codeFrame: string | undefined
+        if (origin) {
+          codeFrame = sourceExcerpt(
+            origin.source,
+            origin.location.line,
+            origin.location.column
+          )
+          capturedExcerpt = codeFrame !== undefined
+        }
         if (!capturedExcerpt && frame.getSourceContent) {
           try {
             codeFrame = sourceExcerpt(
@@ -104,8 +127,8 @@ export function serializeSourceMappedDiagnostic(
         return [
           {
             file: frame.file,
-            line: frame.line1 ?? undefined,
-            column: frame.column1 ?? undefined,
+            line: origin?.location.line ?? frame.line1 ?? undefined,
+            column: origin?.location.column ?? frame.column1 ?? undefined,
             methodName: frame.methodName,
             original: frame.original,
             ignored: frame.ignored,

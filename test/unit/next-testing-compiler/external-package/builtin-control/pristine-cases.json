@@ -1,0 +1,12 @@
+[
+  {
+    "name": "preserves an ordinary builtin native namespace across request spellings",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "preserves an ordinary prefixed builtin native namespace",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

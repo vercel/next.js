@@ -14,6 +14,7 @@ pub mod async_chunk;
 pub mod bytes_source_transform;
 pub mod chunk;
 pub mod chunk_list;
+pub mod cjs_reset_export;
 pub mod code_gen;
 mod collect_module;
 mod directive;
@@ -101,7 +102,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
-    reference::ModuleReferences,
+    reference::{ModuleReference, ModuleReferences},
     reference_type::InnerAssets,
     resolve::{FindContextFileResult, find_context_file, origin::ResolveOrigin, package_json},
     source::Source,
@@ -130,12 +131,12 @@ use crate::{
         esm::{UrlRewriteBehavior, base::EsmAssetReferences, export},
         exports::compute_ecmascript_module_exports,
     },
-    side_effect_optimization::reference::EcmascriptModulePartReference,
     swc_comments::{CowComments, ImmutableComments},
     transform::{remove_directives, remove_shebang},
 };
 pub use crate::{
     references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER},
+    side_effect_optimization::reference::EcmascriptModulePartReference,
     static_code::StaticEcmascriptCode,
     swc_comments::swc_comments_to_single_threaded,
     transform::{
@@ -514,6 +515,13 @@ pub trait EcmascriptAnalyzableExt {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Vc<EcmascriptModuleContent>;
+
+    fn module_content_with_graph(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        module_graph: Vc<ModuleGraph>,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+    ) -> Vc<EcmascriptModuleContent>;
 }
 
 impl<T> EcmascriptAnalyzableExt for T
@@ -529,6 +537,41 @@ where
         let own_options = analyzable.module_content_options(chunking_context, async_module_info);
         EcmascriptModuleContent::new(own_options)
     }
+
+    fn module_content_with_graph(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        module_graph: Vc<ModuleGraph>,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+    ) -> Vc<EcmascriptModuleContent> {
+        let analyzable = Vc::upcast_non_strict::<Box<dyn EcmascriptAnalyzable>>(self);
+        let own_options = analyzable.module_content_options(chunking_context, async_module_info);
+        module_content_with_graph(own_options, module_graph)
+    }
+}
+
+#[turbo_tasks::function]
+async fn module_content_with_graph(
+    options: Vc<EcmascriptModuleContentOptions>,
+    module_graph: Vc<ModuleGraph>,
+) -> Result<Vc<EcmascriptModuleContent>> {
+    let mut options = (*options.await?).clone();
+    let module = ResolvedVc::upcast(options.module);
+    // Namespace publication belongs to the actual module, independently of its
+    // async classification. In particular, a synchronous leaf has no async info.
+    let info = module_graph.referenced_async_modules(*module).await?;
+    if let Some(graph) = info.runtime_import_demands {
+        for certificate in &graph.await?.namespaces {
+            if certificate.await?.module == module {
+                anyhow::ensure!(
+                    options.runtime_namespace.is_none(),
+                    "Public namespace has duplicate actual certificates"
+                );
+                options.runtime_namespace = Some(*certificate);
+            }
+        }
+    }
+    Ok(EcmascriptModuleContent::new(options.cell()))
 }
 
 impl EcmascriptModuleAsset {
@@ -723,6 +766,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
             // Derived from this module's own `ImportMap` during code generation.
             export_registration_mode: None,
             async_module_info,
+            runtime_namespace: None,
         }
         .cell())
     }
@@ -1042,7 +1086,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     async fn chunk_item_content(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        _module_graph: Vc<ModuleGraph>,
+        module_graph: Vc<ModuleGraph>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
@@ -1052,7 +1096,8 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
         );
         async {
             let async_module_options = self.get_async_module().module_options(async_module_info);
-            let content = self.module_content(chunking_context, async_module_info);
+            let content =
+                self.module_content_with_graph(chunking_context, module_graph, async_module_info);
             EcmascriptChunkItemContent::new(content, chunking_context, async_module_options)
                 .to_resolved()
                 .await
@@ -1137,6 +1182,11 @@ pub struct EcmascriptModuleContentOptions {
     /// there is no `ImportMap` to classify them from.
     export_registration_mode: Option<ExportRegistrationMode>,
     async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
+    runtime_namespace: Option<
+        ResolvedVc<
+            turbopack_core::module_graph::runtime_import_demands::RuntimeImportNamespaceCertificate,
+        >,
+    >,
 }
 
 /// Generate the code of a processed virtual module under the identity of the module in the
@@ -1194,6 +1244,23 @@ impl EcmascriptModuleContentOptions {
         async {
             let async_module_ref = async_module.await?;
             let esm_references_ref = esm_references.await?;
+            let demand_graph = if let Some(info) = async_module_info {
+                info.await?.runtime_import_demands
+            } else {
+                None
+            };
+            let namespace_order = if let Some(certificate) = self.runtime_namespace {
+                let certificate = certificate.await?;
+                anyhow::ensure!(
+                    certificate.module == ResolvedVc::upcast(*module),
+                    "Public namespace certificate must retain its actual chunk-content owner"
+                );
+                if certificate.kind == turbopack_core::module_graph::runtime_import_demands::RuntimeImportNamespaceKind::Esm {
+                    Some(certificate.export_order.clone())
+                } else { None }
+            } else {
+                None
+            };
             // The export registration is computed first: when it can spell the whole module's
             // exports as one compact call, it also performs those imports, and reports which
             // references it subsumed so they don't emit them a second time.
@@ -1210,6 +1277,7 @@ impl EcmascriptModuleContentOptions {
                             export_registration_mode
                                 .map(|_| (part_references.as_ref(), esm_references_ref.as_ref())),
                             async_module_info.is_some(),
+                            namespace_order.as_deref(),
                         )
                         .await?;
                     (Some(code_gen), subsumed)
@@ -1217,22 +1285,46 @@ impl EcmascriptModuleContentOptions {
                     (None, Default::default())
                 };
 
-            let additional_code_gens = [
-                if let Some(async_module) = &*async_module_ref {
-                    Some(
-                        async_module
-                            .code_generation(
-                                async_module_info.map(|info| *info),
-                                **references,
-                                **chunking_context,
-                            )
-                            .await?,
+            let async_code_gens = if let Some(async_module) = &*async_module_ref {
+                Some(
+                    async_module
+                        .code_generation(
+                            async_module_info.map(|info| *info),
+                            **references,
+                            part_references,
+                            **chunking_context,
+                        )
+                        .await?,
+                )
+            } else {
+                None
+            };
+            let (before_static_demands, async_code_gen) = async_code_gens
+                .map(|generated| {
+                    (
+                        Some(generated.before_static_demands),
+                        Some(generated.after_imports),
                     )
-                } else {
-                    None
-                },
-                exports_code_gen,
-            ];
+                })
+                .unwrap_or_default();
+            let commonjs_publication = if let Some(certificate) = self.runtime_namespace {
+                let certificate = certificate.await?;
+                if certificate.kind == turbopack_core::module_graph::runtime_import_demands::RuntimeImportNamespaceKind::CommonJsCallable {
+                    anyhow::ensure!(certificate.export_order.is_empty() && matches!(*exports.await?, EcmascriptExports::CommonJs(_)), "Callable namespace must retain its CommonJS export kind");
+                    let actual = ResolvedVc::try_downcast_type::<EcmascriptModuleAsset>(ResolvedVc::upcast::<Box<dyn Module>>(*module)).context("Callable namespace requires its exact full owner")?;
+                    let proof = cjs_reset_export::commonjs_callable_publication_certificate(*actual).await?;
+                    let analysis = actual.analyze().await?;
+                    anyhow::ensure!(proof.module == actual && proof.shape == cjs_reset_export::CommonJsResetExportShape::FunctionBinding && analysis.successful
+                        && !analysis.code_generation.await?.code_gens.iter().any(|code| matches!(code, code_gen::CodeGen::DynamicExpression(_)))
+                        && turbopack_core::reference::primary_chunkable_referenced_modules(Vc::upcast(*actual), false, false).await?.is_empty(),
+                        "Callable namespace must retain its exact successful leaf publication proof");
+                    let statement = quote!("((module, global) => { if (module.namespaceObject === undefined) { const raw = module.exports; if (typeof raw === 'function') { const namespace = global.Object.create(null); for (const key in raw) { if (key !== 'default' && !(key in namespace)) global.Object.defineProperty(namespace, key, {enumerable:true, configurable:true, get: () => raw[key]}); } global.Object.defineProperty(namespace, 'default', {value:raw, writable:true, enumerable:true, configurable:true}); global.Object.defineProperty(namespace, global.Symbol.toStringTag, {value:'Module'}); module.namespaceObject = namespace; global.Object.defineProperty(module, 'commonJsNamespacePublished', {value:true, configurable:true}); } } })($module, $global);" as Stmt,
+                        module: Expr = runtime_functions::TURBOPACK_MODULE.unmapped_expr(),
+                        global: Expr = runtime_functions::TURBOPACK_GLOBAL.unmapped_expr());
+                    Some(CodeGeneration { late_stmts: vec![CodeGenerationHoistedStmt::new(rcstr!("commonjs callable namespace publication"), statement)], ..Default::default() })
+                } else { None }
+            } else { None };
+            let additional_code_gens = [async_code_gen, exports_code_gen, commonjs_publication];
 
             let part_code_gens = part_references
                 .iter()
@@ -1246,13 +1338,114 @@ impl EcmascriptModuleContentOptions {
                 .try_join()
                 .await?;
 
-            let esm_code_gens = esm_references_ref
+            let demand_edges = if let Some(graph) = demand_graph {
+                graph
+                    .await?
+                    .iter()
+                    .map(|edge| async move { edge.await })
+                    .try_join()
+                    .await?
+            } else {
+                Vec::new()
+            };
+            let native_edges = if let Some(graph) = demand_graph {
+                graph
+                    .await?
+                    .native_imports
+                    .iter()
+                    .map(async |edge| edge.await)
+                    .try_join()
+                    .await?
+            } else {
+                Vec::new()
+            };
+            let mut ordered_references = esm_references_ref.iter().copied().collect::<Vec<_>>();
+            for native in &native_edges {
+                if let Some(part) = native.via_part {
+                    let part = part.await?;
+                    anyhow::ensure!(
+                        native.owner == ResolvedVc::upcast(*module)
+                            && part_references
+                                .iter()
+                                .any(|reference| ResolvedVc::upcast(*reference) == part.reference),
+                        "Native prerequisite must retain its actual facade part reference"
+                    );
+                    let resolved = part.reference.resolve_reference().await?;
+                    anyhow::ensure!(
+                        resolved.primary_modules().await?.as_slice() == [part.module]
+                            && part.module.references().await?.contains(&native.reference),
+                        "Native prerequisite must retain its actual locals owner and native \
+                         reference"
+                    );
+                    let resolved = native.reference.resolve_reference().await?;
+                    anyhow::ensure!(
+                        resolved.primary_modules().await?.as_slice() == [native.target],
+                        "Native prerequisite must retain its exact native provider"
+                    );
+                    let reference = ResolvedVc::try_downcast_type::<
+                        crate::references::esm::EsmAssetReference,
+                    >(native.reference)
+                    .ok_or_else(|| {
+                        anyhow::anyhow!("Native prerequisite requires its actual ESM reference")
+                    })?;
+                    if !ordered_references.contains(&reference) {
+                        ordered_references.push(reference);
+                    }
+                }
+            }
+
+            if !demand_edges.is_empty() || !native_edges.is_empty() {
+                let mut positioned = Vec::new();
+                for reference in ordered_references {
+                    let span = reference
+                        .await?
+                        .issue_source
+                        .to_swc_offsets()
+                        .await?
+                        .ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "Ordered runtime imports require actual source positions"
+                            )
+                        })?;
+                    for source_order in demand_edges
+                        .iter()
+                        .filter(|edge| edge.reference == ResolvedVc::upcast(reference))
+                        .map(|edge| edge.source_order)
+                        .chain(
+                            native_edges
+                                .iter()
+                                .filter(|edge| edge.reference == ResolvedVc::upcast(reference))
+                                .map(|edge| edge.source_order),
+                        )
+                    {
+                        anyhow::ensure!(
+                            source_order == span.0,
+                            "Runtime import order must retain its actual reference span"
+                        );
+                    }
+                    positioned.push((span, reference));
+                }
+                positioned.sort_by_key(|(span, _)| *span);
+                ordered_references = positioned
+                    .into_iter()
+                    .map(|(_, reference)| reference)
+                    .collect();
+            }
+            let esm_code_gens = ordered_references
                 .iter()
                 .map(|r| {
+                    let demand = demand_edges
+                        .iter()
+                        .find(|edge| edge.reference == ResolvedVc::upcast(*r));
                     r.code_generation(
                         **chunking_context,
                         scope_hoisting_context,
                         &subsumed_imports,
+                        demand.map(|edge| &**edge),
+                        native_edges
+                            .iter()
+                            .find(|edge| edge.reference == ResolvedVc::upcast(*r))
+                            .map(|edge| &**edge),
                     )
                 })
                 .try_join()
@@ -1277,6 +1470,7 @@ impl EcmascriptModuleContentOptions {
             anyhow::Ok((
                 part_code_gens
                     .into_iter()
+                    .chain(before_static_demands)
                     .chain(esm_code_gens)
                     .chain(additional_code_gens.into_iter().flatten())
                     .chain(code_gens)
@@ -2243,7 +2437,14 @@ async fn process_parse_result(
                     extra_comments,
                 },
                 is_esm,
-                strict,
+                // Vite's compiled CJS evaluator publishes functions from a strict factory.
+                // Keep actual require-side/unmarked factories under their existing mode.
+                strict: strict || if let Some(options) = options {
+                    if let Some(certificate) = options.runtime_namespace {
+                        let certificate = certificate.await?;
+                        certificate.kind == turbopack_core::module_graph::runtime_import_demands::RuntimeImportNamespaceKind::CommonJsCallable
+                    } else { false }
+                } else { false },
                 original_source_map: CodeGenResultOriginalSourceMap::Single(original_source_map),
                 minify,
                 native_import_coverage,

@@ -1,0 +1,29 @@
+import { test, expect, vi } from 'vitest'
+import { types } from 'node:util'
+function shape(value) {
+ if (value===null || (typeof value!=='object'&&typeof value!=='function')) return {type:typeof value,value}
+ return {type:typeof value,nativeBrand:types.isModuleNamespaceObject(value),keys:Reflect.ownKeys(value).map(key=>typeof key==='symbol'?String(key):key),prototype:Object.getPrototypeOf(value)===null?'null':Object.getPrototypeOf(value)===Object.prototype?'Object.prototype':Object.getPrototypeOf(value)===Function.prototype?'Function.prototype':Object.prototype.toString.call(Object.getPrototypeOf(value)),tag:value[Symbol.toStringTag]??null,extensible:Object.isExtensible(value),sealed:Object.isSealed(value),frozen:Object.isFrozen(value),descriptors:Reflect.ownKeys(value).map(key=>{const d=Object.getOwnPropertyDescriptor(value,key);return {key:typeof key==='symbol'?String(key):key,valueType:typeof d.value,get:typeof d.get,set:typeof d.set,writable:d.writable??null,enumerable:d.enumerable,configurable:d.configurable}})}
+}
+function view(namespace) {const root=namespace?.default;return {namespace:shape(namespace),root:shape(root),dependency:root&&'dependency' in root?shape(root.dependency):null,evaluation:namespace?.evaluation??null,rootEvaluation:root?.evaluation??null,dependencyEvaluation:root?.dependency?.evaluation??null,call:typeof root==='function'?root.call(root,'held'):typeof root?.read==='function'?root.read.call(root,'held'):null,namedCall:Object.prototype.hasOwnProperty.call(namespace,'read')&&typeof namespace.read==='function'?namespace.read('named'):null}}
+function same(values) {return values.map(value=>values.map(other=>value===other))}
+function errorView(error,raw) {return {name:error?.name,message:error?.message,causeSame:error?.cause===raw,causeName:error?.cause?.name,causeMessage:error?.cause?.message,keys:Reflect.ownKeys(error).map(String),causeDescriptor:(()=>{const d=Object.getOwnPropertyDescriptor(error,'cause');return d?{writable:d.writable,enumerable:d.enumerable,configurable:d.configurable,valueSame:d.value===raw}:null})()}}
+function counts(){return {root:globalThis.__ws2CjsDependencyRoot??globalThis.__ws2CallableRoot??globalThis.__ws2RuntimeLeafRoot??0,dependency:globalThis.__ws2CjsDependencyLeaf??globalThis.__ws2CallableDependency??0}}
+function row(name,data){console.log('WS2_CJS_RUNTIME:'+JSON.stringify({name,...data}));expect(data).toBeDefined()}
+function clean(){vi.doUnmock('./root.cjs');vi.resetModules()}
+
+test('compiled CJS reset during held factory retains registration and raw original generations',async()=>{
+ clean();let calls=0;let entered;let release;const started=new Promise(resolve=>entered=resolve);const held=new Promise(resolve=>release=resolve)
+ vi.doMock('./root.cjs',async()=>{calls++;entered();await held;return {evaluation:910,marker:{mock:true},read(value){return [910,this.evaluation??null,value]},default:{evaluation:910,read(value){return [910,this.evaluation,value]}}}})
+ const first=import('./root.cjs');await started;const original=await import('./root.cjs');vi.resetModules();const resetOriginal=await import('./root.cjs');release();const mock=await first;const later=await import('./root.cjs');vi.doUnmock('./root.cjs');const unmocked=await import('./root.cjs');row('held-reset',{views:[original,resetOriginal,mock,later,unmocked].map(view),identities:same([original,resetOriginal,mock,later,unmocked]),rootIdentities:same([original,resetOriginal,mock,later,unmocked].map(value=>value.default)),calls,counts:counts()})
+})
+test('compiled CJS reset and reregistration while held keeps actual pending ownership',async()=>{
+ clean();let calls=0;let replacementCalls=0;let entered;let release;const started=new Promise(resolve=>entered=resolve);const held=new Promise(resolve=>release=resolve)
+ vi.doMock('./root.cjs',async()=>{calls++;entered();await held;return {evaluation:911,default:{evaluation:911}}})
+ const first=import('./root.cjs');await started;vi.resetModules();vi.doMock('./root.cjs',()=>{replacementCalls++;return {evaluation:912,default:{evaluation:912}}});const replacement=await import('./root.cjs');release();const old=await first;const later=await import('./root.cjs');vi.doUnmock('./root.cjs');const original=await import('./root.cjs');row('held-reset-reregister',{views:[replacement,old,later,original].map(view),identities:same([replacement,old,later,original]),calls,replacementCalls,counts:counts()})
+})
+test('compiled CJS raw namespace getter receiver and member mutation survive held reset',async()=>{
+ clean();const first=await import('./root.cjs');const originalView=view(first);first.default.evaluation=1900;const mutated=view(first);let calls=0;vi.doMock('./root.cjs',()=>{calls++;return {evaluation:913,default:{evaluation:913}}});const mock=await import('./root.cjs');vi.resetModules();const stillMock=await import('./root.cjs');vi.doUnmock('./root.cjs');const fresh=await import('./root.cjs');row('getter-mutation',{originalView,mutated,heldAfterReset:view(first),views:[mock,stillMock,fresh].map(view),identities:same([first,mock,stillMock,fresh]),calls,counts:counts()})
+})
+test('compiled CJS literal normalized alias uses one actual runtime namespace',async()=>{
+ clean();let calls=0;vi.doMock('././root.cjs',()=>{calls++;return {evaluation:914,default:{evaluation:914}}});const first=await import('./root.cjs');const second=await import('././root.cjs');vi.resetModules();const reset=await import('./root.cjs');vi.doUnmock('./root.cjs');const original=await import('././root.cjs');row('literal-alias',{views:[first,second,reset,original].map(view),identities:same([first,second,reset,original]),calls,counts:counts()})
+})

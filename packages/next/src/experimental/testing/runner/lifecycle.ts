@@ -7,6 +7,7 @@ import { registerTaskArtifactRecorder } from './artifacts'
 import {
   createTaskTree,
   serializeTaskError,
+  type File,
   type Test,
   type Suite,
   type Task,
@@ -42,6 +43,7 @@ import {
   type TestCase,
   type TestBody,
   type TestContext,
+  type InternalTestContext,
   type TestOptions,
   type AroundHook,
   type AroundHookName,
@@ -50,7 +52,7 @@ import {
   type TestSuite,
 } from './collector'
 
-export interface AttemptContext extends TestContext {
+export interface AttemptContext extends InternalTestContext {
   readonly id: string
   readonly fileId: string
   readonly testId: string
@@ -67,8 +69,10 @@ export interface AttemptContext extends TestContext {
 
 export interface AttemptIntegration {
   readonly expect?: TestExpect
+  awaitBodyAssertions?<T>(invoke: () => Promise<T>): Promise<T>
   suspend?<T>(runInner: () => Promise<T>): Promise<T>
   finishTest?(failed: boolean): Promise<void>
+  consumeBodyAssertionFailure?(error: unknown): boolean
   markSkipped?(): unknown[]
   checkpoint?(): Promise<void>
   finalize(): Promise<void>
@@ -85,6 +89,10 @@ export interface SuiteHookContext {
 }
 
 export interface SuiteHookLifecycle {
+  beginFileFixtures?(context: {
+    readonly id: string
+    readonly name: string
+  }): AttemptIntegration | Promise<AttemptIntegration>
   beginHook(
     context: SuiteHookContext
   ): AttemptIntegration | Promise<AttemptIntegration>
@@ -92,6 +100,10 @@ export interface SuiteHookLifecycle {
 }
 
 export interface RunnerFailure {
+  /** Private execution-realm carrier; consumed before diagnostic IPC. */
+  readonly registrationError?: Error
+  /** Private attempt-owned assertion fact, consumed before returning the result. */
+  readonly snapshotBodyAssertion?: string
   phase:
     | 'beforeAll'
     | 'afterAll'
@@ -141,7 +153,7 @@ export interface RunnerSuiteResult {
 export interface RunnerResult {
   cases: RunnerCaseResult[]
   errors: RunnerFailure[]
-  /** An execution timeout vetoes publication even after cooperative recovery. */
+  /** Unrecovered execution deadlines or cancellation veto publication. */
   interrupted: boolean
 }
 
@@ -177,14 +189,23 @@ export interface RunnerOptions {
   testNamePattern?: string | RegExp
   maxConcurrency?: number
   sequence?: TestSequenceOptions
+  runWithCasePhase?<T>(
+    phase: RunnerFailure['phase'],
+    fn: () => T,
+    authoredCallback?: boolean
+  ): T
   beginAttempt?(
     context: AttemptContext
   ): AttemptIntegration | Promise<AttemptIntegration>
   onLateFailure?(error: Error): void
   onUnhandledFailure?(reason: unknown): void
+  /** Actual task graph, before authored fixtures, hooks or bodies start. */
+  onCollected?(file: File): void | Promise<void>
   onCaseStart?(context: AttemptContext): void | Promise<void>
   onCaseEnd?(result: RunnerCaseResult): void | Promise<void>
-  onSuiteEnd?(result: RunnerSuiteResult): void | Promise<void>
+  /** Once per logical case, after retries, repeats and owned attempt closure. */
+  onCaseResult?(task: Test, result: RunnerCaseResult): void | Promise<void>
+  onSuiteEnd?(result: RunnerSuiteResult, task: Suite): void | Promise<void>
 }
 
 class PendingError extends Error {
@@ -214,7 +235,8 @@ class DeadlineError extends Error {
 
 async function bounded<T>(
   fn: () => T | Promise<T>,
-  timeout: number
+  timeout: number,
+  onTimeout?: (error: DeadlineError) => void
 ): Promise<T> {
   if (timeout === 0) return fn()
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -232,16 +254,14 @@ async function bounded<T>(
     return await Promise.race([
       work,
       new Promise<never>((_, reject) => {
-        timer = frameworkSetTimeout(
-          () =>
-            reject(
-              new DeadlineError(
-                `Next test timed out after ${timeout}ms.`,
-                operation
-              )
-            ),
-          timeout
-        )
+        timer = frameworkSetTimeout(() => {
+          const error = new DeadlineError(
+            `Next test timed out after ${timeout}ms.`,
+            operation
+          )
+          onTimeout?.(error)
+          reject(error)
+        }, timeout)
       }),
     ])
   } finally {
@@ -302,21 +322,24 @@ export async function runCollected(
   function concurrencyLimit() {
     let active = 0
     const queued: (() => void)[] = []
-    return <T>(fn: () => Promise<T>): Promise<T> =>
-      new Promise<T>((resolve, reject) => {
+    return async <T>(fn: () => Promise<T>): Promise<T> => {
+      await new Promise<void>((resolve) => {
         const start = () => {
           active++
-          void Promise.resolve()
-            .then(fn)
-            .then(resolve, reject)
-            .finally(() => {
-              active--
-              queued.shift()?.()
-            })
+          resolve()
         }
         if (active < maxConcurrency) start()
         else queued.push(start)
       })
+      // Reserve the FIFO slot before resuming its original continuation. A
+      // queued callback must not inherit the releasing sibling's async owner.
+      try {
+        return await fn()
+      } finally {
+        active--
+        queued.shift()?.()
+      }
+    }
   }
   const limitCase = concurrencyLimit()
   const selected = selectedCases(root)
@@ -337,10 +360,15 @@ export async function runCollected(
     ((error: Error) => {
       result.errors.push({ phase: 'runtime', error })
     })
+  const fixtureContext = {
+    id: `${options.runId}/${root.id}/fixtures`,
+    name: root.name,
+  }
+  let fixtureAssertions: AttemptIntegration | undefined
   const fixtureScope = createAsyncScope(
     {
       kind: 'file-fixtures',
-      context: { id: `${options.runId}/${root.id}/fixtures`, name: root.name },
+      context: fixtureContext,
     },
     onLateFailure,
     options.onUnhandledFailure
@@ -360,7 +388,10 @@ export async function runCollected(
   const fixtureFile = createFixtureFile((fn) => fixtureScope.run(fn), worker)
   const hookTimeout = options.hookTimeout ?? 10000
   const testTimeout = options.testTimeout ?? 5000
-  const { tasks } = createTaskTree(root, { ...options, testTimeout })
+  const { file: collectedFile, tasks } = createTaskTree(root, {
+    ...options,
+    testTimeout,
+  })
   let artifactFileOpen = true
   const isArtifactFileOpen = () => artifactFileOpen
   const artifactRecorders = new Map<Task, () => void>()
@@ -386,8 +417,10 @@ export async function runCollected(
   // A timed-out promise can still be running. Do not run another case in its realm.
   let poisoned = false
   let hadDeadline = false
+  let hadNonBodyDeadline = false
+  const bodyDeadlines = { total: 0, accounted: 0 }
   let unrecoverableDeadline = false
-  const timedOutBodies = new Set<TimedOperation>()
+  const timedOutOperations = new Set<TimedOperation>()
   let bailed = false
   let failedCases = 0
   // The published collector fails each reachable .only task before execution.
@@ -440,21 +473,36 @@ export async function runCollected(
     }
     const failures: unknown[] = []
     const callback = name === 'aroundEach' ? 'runTest()' : 'runSuite()'
-    function deadline(timeout: number, phase: 'setup' | 'teardown') {
+    function deadline(
+      timeout: number,
+      phase: 'setup' | 'teardown',
+      hook: AroundHook,
+      operation: TimedOperation
+    ) {
       let timer: ReturnType<typeof setTimeout> | undefined
       let expired = false
       const promise = new Promise<never>((_, reject) => {
         if (timeout > 0 && Number.isFinite(timeout))
           timer = frameworkSetTimeout(() => {
             expired = true
+            hadNonBodyDeadline = true
             poisoned = true
+            timedOutOperations.add(operation)
+            if (name === 'aroundAll') unrecoverableDeadline = true
             const error = new DeadlineError(
-              `The ${phase} phase of "${name}" hook timed out after ${timeout}ms.`
+              `The ${phase} phase of "${name}" hook timed out after ${timeout}ms.`,
+              operation
             )
             error.name =
               phase === 'setup'
                 ? 'AroundHookSetupError'
                 : 'AroundHookTeardownError'
+            const registration = hook.registrationErrors?.[phase]
+            if (registration) {
+              registration.message = error.message
+              const stack = registration.stack
+              if (stack) error.stack = stack
+            }
             onTimeout?.(error)
             reject(error)
           }, timeout)
@@ -478,7 +526,13 @@ export async function runCollected(
         resolveReturned = resolve
       })
       const setupRelease = await acquireHookSlot()
-      const setup = deadline(hook.timeout ?? hookTimeout, 'setup')
+      const operation: TimedOperation = { settled: false }
+      const setup = deadline(
+        hook.timeout ?? hookTimeout,
+        'setup',
+        hook,
+        operation
+      )
       let teardown: ReturnType<typeof deadline> | undefined
       let teardownRelease: (() => void) | undefined
       const use = async () => {
@@ -497,7 +551,12 @@ export async function runCollected(
         setupRelease()
         await next(index + 1).catch((error) => failures.push(error))
         teardownRelease = await acquireHookSlot()
-        teardown = deadline(hook.timeout ?? hookTimeout, 'teardown')
+        teardown = deadline(
+          hook.timeout ?? hookTimeout,
+          'teardown',
+          hook,
+          operation
+        )
         resolveReturned()
       }
       const complete = Promise.resolve().then(async () => {
@@ -513,6 +572,7 @@ export async function runCollected(
         } finally {
           setupRelease()
           teardownRelease?.()
+          operation.settled = true
         }
       })
       try {
@@ -538,17 +598,19 @@ export async function runCollected(
     fn: () => unknown | Promise<unknown>,
     errors: RunnerFailure[],
     timeout = hookTimeout,
-    handleControl?: (error: unknown) => boolean
+    handleControl?: (error: unknown) => boolean,
+    onTimeout?: (error: DeadlineError) => void
   ) {
     try {
-      return await bounded(fn, timeout)
+      return await bounded(fn, timeout, onTimeout)
     } catch (error) {
       if (handleControl?.(error)) return
       if (error instanceof DeadlineError) {
         hadDeadline = true
+        if (phase !== 'test') hadNonBodyDeadline = true
         poisoned = true
-        if (phase === 'test' && error.operation)
-          timedOutBodies.add(error.operation)
+        if ((phase === 'test' || phase === 'aroundEach') && error.operation)
+          timedOutOperations.add(error.operation)
         else unrecoverableDeadline = true
       }
       errors.push(
@@ -563,9 +625,15 @@ export async function runCollected(
   async function clean(
     stack: Cleanup[],
     errors: RunnerFailure[],
-    captureCleanup = capture,
+    captureCleanup: (
+      phase: RunnerFailure['phase'],
+      fn: () => unknown | Promise<unknown>,
+      errors: RunnerFailure[],
+      timeout?: number
+    ) => Promise<unknown> = capture,
     order: 'stack' | 'list' | 'parallel' = 'stack',
-    shouldStop?: () => boolean
+    shouldStop?: () => boolean,
+    timeout = hookTimeout
   ) {
     if (order === 'parallel') {
       const callbacks = stack.splice(0)
@@ -582,18 +650,40 @@ export async function runCollected(
       await captureCleanup(
         'cleanup',
         (order === 'stack' ? stack.pop() : stack.shift())!,
-        errors
+        errors,
+        timeout
       )
       if (shouldStop?.()) break
     }
   }
 
+  const prepareRegisteredHookDeadline = (
+    hook: Hook,
+    timeout: number,
+    error: DeadlineError
+  ) => {
+    error.message = `Hook timed out in ${timeout}ms.\nIf this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".`
+    const registration = hook.registrationError
+    if (registration) {
+      registration.message = error.message
+      const stack = registration.stack
+      if (stack) error.stack = stack
+    }
+  }
+
   async function invokeSuiteHook(
     context: SuiteHookContext,
-    fn: (integration?: AttemptIntegration) => unknown | Promise<unknown>,
+    fn: (
+      integration: AttemptIntegration | undefined,
+      registeredDeadline: (
+        hook: Hook,
+        timeout: number
+      ) => (error: DeadlineError) => void
+    ) => unknown | Promise<unknown>,
     errors: RunnerFailure[],
     timeout: number,
-    bodyTimeout = timeout
+    bodyTimeout = timeout,
+    declaration?: Hook
   ) {
     const asyncScope = createAsyncScope(
       { kind: 'hook', context },
@@ -614,12 +704,32 @@ export async function runCollected(
             timeout
           )
           if (!integration && suiteHooks) return
+          const registeredDeadlines: DeadlineError[] = []
+          const registeredDeadline =
+            (hook: Hook, registeredTimeout: number) =>
+            (error: DeadlineError) => {
+              prepareRegisteredHookDeadline(hook, registeredTimeout, error)
+              registeredDeadlines.push(error)
+            }
+          const previous = errors.length
           const value = await capture(
             context.hook,
-            () => fn(integration),
+            () => fn(integration, registeredDeadline),
             errors,
-            bodyTimeout
+            bodyTimeout,
+            undefined,
+            declaration
+              ? registeredDeadline(declaration, bodyTimeout)
+              : undefined
           )
+          for (const failure of errors.slice(previous)) {
+            if (
+              registeredDeadlines.some((deadline) => deadline === failure.error)
+            )
+              Object.defineProperty(failure, 'registrationError', {
+                value: failure.error,
+              })
+          }
           // Only setup cleanup functions escape this assertion scope. Returning
           // a Chai assertion would probe its then property after finalization.
           return context.hook === 'beforeAll' &&
@@ -662,7 +772,11 @@ export async function runCollected(
     publicTask.mode = mode ?? 'skip'
     let currentContext: AttemptContext | undefined
     let lastAttemptId: string | undefined
-    const caseState = { timedOut: false }
+    const caseState = {
+      timedOut: false,
+      recoveredBodyDeadline: false,
+      pendingBodyDeadlines: 0,
+    }
     const ownedContext = (api = 'test context'): AttemptContext => {
       const origin = getOriginatingAttempt()
       if (!origin || origin !== currentContext || origin.testId !== test.id) {
@@ -741,6 +855,14 @@ export async function runCollected(
         let skipNote: string | undefined
         let skipSignals = 0
         let currentlyFailed = errors.length > 0
+        let attemptTimedOut = false
+        const bodyDeadlineOperations = new Set<TimedOperation>()
+        const historicalBodyAbort =
+          caseState.recoveredBodyDeadline && controller.signal.aborted
+        const isAttemptAborted = () =>
+          options.signal.aborted ||
+          attemptTimedOut ||
+          (controller.signal.aborted && !historicalBodyAbort)
         const forwardedSoftErrors = new Set<unknown>()
         const publishedFailures = new Set<RunnerFailure>()
         const annotationOperations: {
@@ -790,14 +912,24 @@ export async function runCollected(
           ownedSkips.add(error)
           throw error
         }) as TestContext['skip']
+        const abortHookDeadline = (error: DeadlineError) =>
+          controller.abort(error)
+        const registeredHookDeadline =
+          (hook: Hook, timeout: number) => (error: DeadlineError) => {
+            prepareRegisteredHookDeadline(hook, timeout, error)
+            abortHookDeadline(error)
+          }
         const captureCase = async (
           phase: RunnerFailure['phase'],
           fn: () => unknown | Promise<unknown>,
           failures: RunnerFailure[],
-          timeout = hookTimeout
+          timeout = hookTimeout,
+          declaration?: Hook
         ) => {
           const previous = failures.length
           let handledSkip = false
+          let bodyDeadline: DeadlineError | undefined
+          let hookDeadline: DeadlineError | undefined
           const hook =
             phase === 'beforeEach' || phase === 'afterEach' ? phase : undefined
           if (hook && publicTask.result) {
@@ -805,22 +937,76 @@ export async function runCollected(
             if (publicTask.result.hooks[hook] !== 'fail')
               publicTask.result.hooks[hook] = 'run'
           }
-          const value = await capture(phase, fn, failures, timeout, (error) => {
-            if (error && typeof error === 'object' && ownedSkips.has(error)) {
-              skipSignals++
-              handledSkip = true
-              for (const assertionError of integration?.markSkipped?.() ?? [])
-                failures.push({ phase: 'assertion', error: assertionError })
-              currentlyFailed = false
-              return true
-            }
-            if (phase === 'test' && error instanceof DeadlineError)
-              caseState.timedOut = true
-            // Even an empty thrown array fails the attempt without diagnostics.
-            currentlyFailed = true
-            return false
-          })
+          const operation =
+            phase === 'test' || !options.runWithCasePhase
+              ? fn
+              : () => options.runWithCasePhase!(phase, fn)
+          const value = await capture(
+            phase,
+            operation,
+            failures,
+            timeout,
+            (error) => {
+              if (error && typeof error === 'object' && ownedSkips.has(error)) {
+                skipSignals++
+                handledSkip = true
+                for (const assertionError of integration?.markSkipped?.() ?? [])
+                  failures.push({ phase: 'assertion', error: assertionError })
+                currentlyFailed = false
+                return true
+              }
+              if (error instanceof DeadlineError) {
+                if (
+                  phase === 'beforeEach' ||
+                  phase === 'afterEach' ||
+                  phase === 'cleanup'
+                )
+                  hookDeadline = error
+                attemptTimedOut = true
+                if (phase === 'aroundEach') caseState.timedOut = true
+                if (phase === 'test') {
+                  bodyDeadline = error
+                  bodyDeadlines.total++
+                  caseState.pendingBodyDeadlines++
+                  caseState.timedOut = true
+                  if (error.operation)
+                    bodyDeadlineOperations.add(error.operation)
+                  error.message = `Test timed out in ${timeout}ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".`
+                  const registration = test.registrationError
+                  if (registration) {
+                    // Format the captured Error only after the effective body
+                    // timeout is known; its stack retains the real declaration.
+                    registration.message = error.message
+                    const stack = registration.stack
+                    if (stack) error.stack = stack
+                  }
+                }
+              }
+              // Even an empty thrown array fails the attempt without diagnostics.
+              currentlyFailed = true
+              return false
+            },
+            hook
+              ? declaration
+                ? registeredHookDeadline(declaration, timeout)
+                : abortHookDeadline
+              : undefined
+          )
           const added = failures.slice(previous)
+          if (bodyDeadline && test.registrationError) {
+            const failure = added.find(({ error }) => error === bodyDeadline)
+            if (failure)
+              Object.defineProperty(failure, 'registrationError', {
+                value: test.registrationError,
+              })
+          }
+          if (hookDeadline) {
+            const failure = added.find(({ error }) => error === hookDeadline)
+            if (failure)
+              Object.defineProperty(failure, 'registrationError', {
+                value: hookDeadline,
+              })
+          }
           publishFailures(added)
           if (hook && publicTask.result) {
             publicTask.result.hooks ??= {}
@@ -1076,10 +1262,43 @@ export async function runCollected(
                   undefined,
                   true
                 )
-                const invoke = (fn: Function) =>
-                  Object.keys(definitions).length
-                    ? fixtures.invoke(fn)
-                    : invokeTestCallback(fn, publicContext, context)
+                const invoke = (
+                  fn: Function,
+                  body = false,
+                  authoredHook?: 'beforeEach' | 'afterEach' | 'cleanup'
+                ) => {
+                  const runCallback =
+                    (body || authoredHook) && options.runWithCasePhase
+                      ? <T>(callback: () => T) =>
+                          options.runWithCasePhase!(
+                            body ? 'test' : authoredHook!,
+                            callback,
+                            authoredHook !== undefined
+                          )
+                      : undefined
+                  if (Object.keys(definitions).length) {
+                    const invokeFixtures = () =>
+                      fixtures.invoke(fn, runCallback)
+                    return body && integration?.awaitBodyAssertions
+                      ? integration.awaitBodyAssertions(invokeFixtures)
+                      : invokeFixtures()
+                  }
+                  const callback = () =>
+                    invokeTestCallback(fn, publicContext, context)
+                  const invokeCallback = () =>
+                    runCallback ? runCallback(callback) : callback()
+                  return body && integration?.awaitBodyAssertions
+                    ? integration.awaitBodyAssertions(async () =>
+                        invokeCallback()
+                      )
+                    : invokeCallback()
+                }
+                const invokeBeforeEachCleanup = (cleanup: Function) => {
+                  const callback = () => Reflect.apply(cleanup, undefined, [])
+                  return options.runWithCasePhase
+                    ? options.runWithCasePhase('cleanup', callback, true)
+                    : callback()
+                }
                 const integrationErrors = errors.length
                 await captureCase(
                   'runtime',
@@ -1102,14 +1321,23 @@ export async function runCollected(
                               parent.hooks.beforeEach.map((hook) =>
                                 limited(async () => {
                                   const cleanup = await bounded(
-                                    () => invoke(hook.fn),
-                                    hook.timeout ?? hookTimeout
+                                    () => invoke(hook.fn, false, 'beforeEach'),
+                                    hook.timeout ?? hookTimeout,
+                                    registeredHookDeadline(
+                                      hook,
+                                      hook.timeout ?? hookTimeout
+                                    )
                                   )
                                   return typeof cleanup === 'function'
                                     ? () =>
                                         bounded(
-                                          () => invoke(cleanup),
-                                          hook.timeout ?? hookTimeout
+                                          () =>
+                                            invokeBeforeEachCleanup(cleanup),
+                                          hook.timeout ?? hookTimeout,
+                                          registeredHookDeadline(
+                                            hook,
+                                            hook.timeout ?? hookTimeout
+                                          )
                                         )
                                     : undefined
                                 })
@@ -1128,12 +1356,22 @@ export async function runCollected(
                       for (const hook of parent.hooks.beforeEach) {
                         const cleanup = await captureCase(
                           'beforeEach',
-                          () => invoke(hook.fn),
+                          () => invoke(hook.fn, false, 'beforeEach'),
                           errors,
-                          hook.timeout ?? hookTimeout
+                          hook.timeout ?? hookTimeout,
+                          hook
                         )
                         if (typeof cleanup === 'function')
-                          hookCleanups.push(cleanup as Cleanup)
+                          hookCleanups.push(() =>
+                            bounded(
+                              () => invokeBeforeEachCleanup(cleanup),
+                              hook.timeout ?? hookTimeout,
+                              registeredHookDeadline(
+                                hook,
+                                hook.timeout ?? hookTimeout
+                              )
+                            )
+                          )
                         if (currentlyFailed || skipSignals) break
                       }
                       if (currentlyFailed || skipSignals) break
@@ -1144,11 +1382,11 @@ export async function runCollected(
                     if (
                       !currentlyFailed &&
                       !skipSignals &&
-                      !controller.signal.aborted
+                      !isAttemptAborted()
                     ) {
                       await captureCase(
                         'test',
-                        () => invoke(test.fn!),
+                        () => invoke(test.fn!, true),
                         errors,
                         test.options.timeout ?? testTimeout
                       )
@@ -1157,21 +1395,35 @@ export async function runCollected(
                     errors.push({ phase: 'runtime', error })
                     currentlyFailed = true
                   } finally {
-                    if (poisoned)
+                    if (attemptTimedOut)
                       controller.abort(new Error('Attempt timed out.'))
                     await captureCase('assertion', drainAnnotations, errors)
                     if (integration?.finishTest) {
                       const scope = integration
+                      const previous = errors.length
                       await captureCase(
                         'assertion',
                         () =>
                           scope.finishTest!(
                             currentlyFailed ||
                               skipSignals > 0 ||
-                              controller.signal.aborted
+                              isAttemptAborted()
                           ),
                         errors
                       )
+                      // Only this settled native finish emission can supply the
+                      // body assertion fact; later checkpoints cannot borrow it.
+                      for (const failure of errors.slice(previous)) {
+                        if (scope.consumeBodyAssertionFailure?.(failure.error))
+                          Object.defineProperty(
+                            failure,
+                            'snapshotBodyAssertion',
+                            {
+                              value: context.id,
+                              configurable: true,
+                            }
+                          )
+                      }
                     }
                     if (publicTask.result && !currentlyFailed)
                       publicTask.result.state = 'pass'
@@ -1191,8 +1443,12 @@ export async function runCollected(
                               parent.hooks.afterEach.map((hook) =>
                                 limited(() =>
                                   bounded(
-                                    () => invoke(hook.fn),
-                                    hook.timeout ?? hookTimeout
+                                    () => invoke(hook.fn, false, 'afterEach'),
+                                    hook.timeout ?? hookTimeout,
+                                    registeredHookDeadline(
+                                      hook,
+                                      hook.timeout ?? hookTimeout
+                                    )
                                   )
                                 )
                               )
@@ -1215,9 +1471,10 @@ export async function runCollected(
                         const previousErrors = errors.length
                         await captureCase(
                           'afterEach',
-                          () => invoke(hook.fn),
+                          () => invoke(hook.fn, false, 'afterEach'),
                           errors,
-                          hook.timeout ?? hookTimeout
+                          hook.timeout ?? hookTimeout,
+                          hook
                         )
                         if (skipSignals !== previousSkips) {
                           skippedTeardown = true
@@ -1239,7 +1496,8 @@ export async function runCollected(
                         hookSequence(),
                         () =>
                           errors.length !== previousErrors ||
-                          skipSignals !== previousSkips
+                          skipSignals !== previousSkips,
+                        0
                       )
                       skippedTeardown = skipSignals !== previousSkips
                       failedTeardown = errors.length !== previousErrors
@@ -1355,7 +1613,7 @@ export async function runCollected(
                 }
                 caseResult.status = currentlyFailed
                   ? 'failed'
-                  : controller.signal.aborted
+                  : isAttemptAborted()
                     ? 'cancelled'
                     : 'passed'
               }
@@ -1425,7 +1683,42 @@ export async function runCollected(
         }
         result.cases.push(caseResult)
         await options.onCaseEnd?.(caseResult)
-        if (pending) return
+        // Only this attempt's real body deadlines can admit its next retry or
+        // repeat. Foreign and around-hook poison must retain their own fences.
+        if (
+          bodyDeadlineOperations.size > 0 &&
+          !options.signal.aborted &&
+          !unrecoverableDeadline &&
+          [...bodyDeadlineOperations].every((operation) => operation.settled) &&
+          [...timedOutOperations].every((operation) =>
+            bodyDeadlineOperations.has(operation)
+          )
+        ) {
+          poisoned = false
+          timedOutOperations.clear()
+          caseState.recoveredBodyDeadline = true
+          if (test.options.fails && caseResult.status === 'passed') {
+            // A successful expected-failure attempt accounts only for its own
+            // body operations after they and all attempt cleanup have settled.
+            bodyDeadlines.accounted += bodyDeadlineOperations.size
+            caseState.pendingBodyDeadlines -= bodyDeadlineOperations.size
+          }
+        }
+        if (
+          historicalBodyAbort &&
+          !test.options.fails &&
+          retry > 0 &&
+          !attemptTimedOut &&
+          caseResult.status === 'passed'
+        ) {
+          bodyDeadlines.accounted += caseState.pendingBodyDeadlines
+          caseState.pendingBodyDeadlines = 0
+        }
+        if (pending) {
+          if (options.onCaseResult)
+            await options.onCaseResult(publicTask, caseResult)
+          return
+        }
         if (
           caseResult.status !== 'failed' ||
           poisoned ||
@@ -1494,15 +1787,19 @@ export async function runCollected(
       [...finalResults.values()].some((value) => value.status === 'failed')
     )
       bailed = ++failedCases >= options.bail
-    // Recovery is permitted only after the original timed-out body settled and
+    // Recovery is permitted only after the original timed-out body or wrapper settled and
     // the attempt's assertion, fixture, cleanup and async scopes have all closed.
-    // Retry/repeat behavior for the timed-out case retains the existing policy.
+    // Around-hook recovery remains at this logical-case boundary.
     if (
       caseState.timedOut &&
       !unrecoverableDeadline &&
-      [...timedOutBodies].every((operation) => operation.settled)
-    )
+      [...timedOutOperations].every((operation) => operation.settled)
+    ) {
       poisoned = false
+      timedOutOperations.clear()
+    }
+    if (options.onCaseResult)
+      await options.onCaseResult(publicTask, finalResults.get(test.id)!)
   }
 
   const suiteResults = new Map<string, RunnerSuiteResult>()
@@ -1638,13 +1935,14 @@ export async function runCollected(
         const hooks = node.hooks.beforeAll
         const callbacks = await invokeSuiteHook(
           hookContext('beforeAll', 0),
-          () =>
+          (_integration, registeredDeadline) =>
             Promise.all(
               hooks.map((hook) =>
                 limited(async () => {
                   const cleanup = await bounded(
                     () => invokeSuiteCallback(hook, 'beforeAll'),
-                    hook.timeout ?? hookTimeout
+                    hook.timeout ?? hookTimeout,
+                    registeredDeadline(hook, hook.timeout ?? hookTimeout)
                   )
                   return typeof cleanup === 'function' ? cleanup : undefined
                 })
@@ -1670,7 +1968,9 @@ export async function runCollected(
             hookContext('beforeAll', index),
             () => invokeSuiteCallback(hook, 'beforeAll'),
             errors,
-            hook.timeout ?? hookTimeout
+            hook.timeout ?? hookTimeout,
+            hook.timeout ?? hookTimeout,
+            hook
           )
           if (typeof cleanup === 'function')
             cleanups.push({
@@ -1752,13 +2052,14 @@ export async function runCollected(
           if (afterAllSequence === 'parallel' && node.hooks.afterAll.length)
             await invokeSuiteHook(
               hookContext('afterAll', 0),
-              () =>
+              (_integration, registeredDeadline) =>
                 Promise.all(
                   node.hooks.afterAll.map((hook) =>
                     limited(() =>
                       bounded(
                         () => invokeSuiteCallback(hook, 'afterAll'),
-                        hook.timeout ?? hookTimeout
+                        hook.timeout ?? hookTimeout,
+                        registeredDeadline(hook, hook.timeout ?? hookTimeout)
                       )
                     )
                   )
@@ -1774,7 +2075,9 @@ export async function runCollected(
               hookContext('afterAll', index),
               () => invokeSuiteCallback(hook, 'afterAll'),
               teardownErrors,
-              hook.timeout ?? hookTimeout
+              hook.timeout ?? hookTimeout,
+              hook.timeout ?? hookTimeout,
+              hook
             )
             if (teardownErrors.length) break
           }
@@ -1933,9 +2236,13 @@ export async function runCollected(
           .map((error) => serializeTaskError(error))
     }
     suiteResults.set(node.id, suiteResult)
-    await options.onSuiteEnd?.(suiteResult)
+    await options.onSuiteEnd?.(suiteResult, publicSuite)
   }
   try {
+    if (options.onCollected) await options.onCollected(collectedFile)
+    await fixtureScope.run(async () => {
+      fixtureAssertions = await suiteHooks?.beginFileFixtures?.(fixtureContext)
+    })
     await runSuite(root, [], [])
   } finally {
     try {
@@ -1943,7 +2250,14 @@ export async function runCollected(
         // Promise.all preserves first-rejection phase transitions. Remaining owned
         // hook work must still settle before fixtures and publication are released.
         while (pendingHooks.size) await Promise.allSettled([...pendingHooks])
-        await fixtureScope.run(() => clean(fixtureFile.cleanups, result.errors))
+        await fixtureScope.run(async () => {
+          await clean(fixtureFile.cleanups, result.errors)
+          if (fixtureAssertions) {
+            const scope = fixtureAssertions
+            await capture('cleanup', () => scope.finalize(), result.errors)
+            await capture('cleanup', () => scope.dispose(), result.errors)
+          }
+        })
       } finally {
         fixtureScope.close()
         if (!workerFixtures) {
@@ -1961,6 +2275,22 @@ export async function runCollected(
       for (const release of artifactRecorders.values()) release()
     }
   }
-  result.interrupted = hadDeadline || poisoned || options.signal.aborted
+  // Settled expected-failure attempts account for their own BODY deadlines;
+  // ordinary cases require successful later retries of the same logical case.
+  // Failed final outcomes and any non-body deadline still veto publication.
+  const accountedBodyDeadlines =
+    bodyDeadlines.total > 0 &&
+    bodyDeadlines.total === bodyDeadlines.accounted &&
+    !hadNonBodyDeadline &&
+    !unrecoverableDeadline &&
+    timedOutOperations.size === 0 &&
+    result.errors.length === 0 &&
+    [...getFinalCaseResults(result.cases).values()].every(
+      ({ status }) => status === 'passed' || status === 'skipped'
+    )
+  result.interrupted =
+    poisoned ||
+    options.signal.aborted ||
+    (hadDeadline && !accountedBodyDeadlines)
   return result
 }

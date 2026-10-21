@@ -1,0 +1,23 @@
+import { test, expect, vi } from 'vitest'
+import { types } from 'node:util'
+function shape(value) {
+ if (value===null || (typeof value!=='object'&&typeof value!=='function')) return {type:typeof value,value}
+ return {type:typeof value,nativeBrand:types.isModuleNamespaceObject(value),keys:Reflect.ownKeys(value).map(key=>typeof key==='symbol'?String(key):key),prototype:Object.getPrototypeOf(value)===null?'null':Object.getPrototypeOf(value)===Object.prototype?'Object.prototype':Object.getPrototypeOf(value)===Function.prototype?'Function.prototype':Object.prototype.toString.call(Object.getPrototypeOf(value)),tag:value[Symbol.toStringTag]??null,extensible:Object.isExtensible(value),sealed:Object.isSealed(value),frozen:Object.isFrozen(value),descriptors:Reflect.ownKeys(value).map(key=>{const d=Object.getOwnPropertyDescriptor(value,key);return {key:typeof key==='symbol'?String(key):key,valueType:typeof d.value,get:typeof d.get,set:typeof d.set,writable:d.writable??null,enumerable:d.enumerable,configurable:d.configurable}})}
+}
+function view(namespace) {if(namespace==null)return null;const root=namespace?.default;return {namespace:shape(namespace),root:shape(root),dependency:root&&'dependency' in root?shape(root.dependency):null,evaluation:namespace?.evaluation??null,rootEvaluation:root?.evaluation??null,dependencyEvaluation:root?.dependency?.evaluation??null,call:typeof root==='function'?root.call(root,'held'):typeof root?.read==='function'?root.read.call(root,'held'):null,namedCall:Object.prototype.hasOwnProperty.call(namespace,'read')&&typeof namespace.read==='function'?namespace.read('named'):null}}
+function same(values) {return values.map(value=>values.map(other=>value===other))}
+function errorView(error,raw) {return {name:error?.name,message:error?.message,causeSame:error?.cause===raw,causeName:error?.cause?.name,causeMessage:error?.cause?.message,keys:Reflect.ownKeys(error).map(String),causeDescriptor:(()=>{const d=Object.getOwnPropertyDescriptor(error,'cause');return d?{writable:d.writable,enumerable:d.enumerable,configurable:d.configurable,valueSame:d.value===raw}:null})()}}
+function counts(){return {root:globalThis.__ws2CjsDependencyRoot??globalThis.__ws2CallableRoot??globalThis.__ws2RuntimeLeafRoot??0,dependency:globalThis.__ws2CjsDependencyLeaf??globalThis.__ws2CallableDependency??0}}
+function row(name,data){console.log('WS2_CJS_RUNTIME:'+JSON.stringify({name,...data}));expect(data).toBeDefined()}
+function clean(){vi.doUnmock('./root.mjs');vi.resetModules()}
+
+
+for(const warm of [false,true]) for(const kind of ['sync','immediate','held-resolve','held-reject']) test('compiled pending original completion '+warm+' '+kind,async()=>{
+ clean();const before=warm?await import('./root.mjs'):null,stages=[];let calls=0,entered,release,reject;const started=new Promise(resolve=>entered=resolve),held=new Promise((resolve,fail)=>{release=resolve;reject=fail}),raw=new SyntaxError('compiled pending raw');
+ if(kind==='sync') vi.doMock('./root.mjs',()=>{calls++;stages.push('factory-enter');queueMicrotask(()=>stages.push('factory-queued'));entered();return {evaluation:961,default:{evaluation:961}}});
+ else vi.doMock('./root.mjs',async()=>{calls++;stages.push('factory-enter');queueMicrotask(()=>stages.push('factory-queued'));entered();if(kind.startsWith('held-'))await held;return {evaluation:962,default:{evaluation:962}}});
+ const first=import('./root.mjs').then(value=>{stages.push('first');return {value}},error=>{stages.push('first-error');return {error}}),second=import('./root.mjs').then(value=>{stages.push('second');return {value}},error=>{stages.push('second-error');return {error}});queueMicrotask(()=>stages.push('caller-queued'));
+ if(kind.startsWith('held-')){await started;await second;stages.push('release');if(kind==='held-reject')reject(raw);else release()};const [a,b]=await Promise.all([first,second]);
+ const later=await import('./root.mjs').then(value=>({value}),error=>({error}));vi.resetModules();const reset=await import('./root.mjs').then(value=>({value}),error=>({error}));vi.doUnmock('./root.mjs');const original=await import('./root.mjs');
+ row('compiled-completion-'+warm+'-'+kind,{stages,views:[before,a.value??null,b.value??null,later.value??null,reset.value??null,original].map(view),identities:same([before,a.value??null,b.value??null,later.value??null,reset.value??null,original]),errors:[a.error,b.error,later.error,reset.error].map(error=>error?errorView(error,raw):null),errorIdentity:same([a.error??null,b.error??null,later.error??null,reset.error??null]),calls,counts:counts()})
+});

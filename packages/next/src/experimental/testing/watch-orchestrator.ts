@@ -12,7 +12,11 @@ import { readdir } from 'node:fs/promises'
 import { dirname, resolve } from 'path'
 import { serialize } from 'node:v8'
 import type { SnapshotUpdateMode } from './assertions/snapshots'
-import { snapshotWatchRegistry } from './incremental/registry-additions'
+import {
+  matchesRetainedSetupChange,
+  snapshotWatchRegistry,
+} from './incremental/registry-additions'
+import { selectSourceRelatedProjects } from './incremental/source-selection'
 import {
   createWatchKeyboard,
   type WatchCommand,
@@ -27,6 +31,7 @@ import {
   createWatchSession,
   type WatchDiscovery,
   type WatchRunResult,
+  type WatchSessionOptions,
 } from './incremental/watch-session'
 import {
   watchTestFiles,
@@ -57,6 +62,7 @@ export async function watchTests(
     output?: NodeJS.WriteStream
     project?: string
     files?: string[]
+    related?: readonly string[]
     testNamePattern?: string | RegExp
     maxWorkers?: number
     standardCoverageOptions?: StandardCoverageOptions
@@ -75,6 +81,7 @@ export async function watchTests(
     reporter?: Omit<TestReporterOptions, 'write' | 'projectDir' | 'fileCount'>
     /** Observe the parent-sealed results, including authoritative cleanup failures. */
     onEvent?: (event: ResultEvent) => void
+    apiPort?: number
   }
 ): Promise<{ status: 'passed' | 'failed' | 'cancelled' }> {
   // Caller-owned option objects cannot alter a retained generation's source selection.
@@ -82,11 +89,16 @@ export async function watchTests(
     ? structuredClone(options.standardCoverageOptions)
     : undefined
   const controller = new AbortController()
+  const configurationLifetime = new AbortController()
   const cancel = () => controller.abort(options.signal.reason)
   if (options.signal.aborted) cancel()
   else options.signal.addEventListener('abort', cancel, { once: true })
   let selectedProject = options.project
   let selectedFiles = options.files
+  const initialRelatedSources = options.related?.map((file) =>
+    resolve(projectDir, file)
+  )
+  let initialRelatedPending = initialRelatedSources !== undefined
   let testNamePattern = options.testNamePattern
   let clearConfiguredNamePattern = false
   const machineEnabled =
@@ -107,30 +119,50 @@ export async function watchTests(
   let keyboard: ReturnType<typeof createWatchKeyboard> | undefined
   let fatal = false
   let hasRun = false
+  let editorFileRerun: string | undefined
   let coverageHasPublished = false
   let coverageAllTestsRun = false
   const coverageCache = createStandardCoverageGenerationCache(projectDir)
   const failures: unknown[] = []
   let watcher: Awaited<ReturnType<typeof watchTestFiles>> | undefined
   let session: ReturnType<typeof createWatchSession<Discovery>> | undefined
+  let editorApi:
+    | Awaited<ReturnType<typeof import('./editor-api').openTestDiscoveryApi>>
+    | undefined
 
   let configuration:
     | Awaited<ReturnType<typeof openTestConfiguration>>
     | undefined
 
+  async function retainConfigurationForWatch(requireCurrent = false) {
+    if (!configuration) return false
+    if (
+      await configuration.retainCompilerTransformsForWatch(
+        controller.signal,
+        requireCurrent
+      )
+    )
+      return true
+    return (
+      !standardCoverageOptions &&
+      configuration.retainGlobalSetupForWatch(
+        configurationLifetime.signal,
+        applyTestConfigOverrides(
+          configuration.config,
+          options.configOverrides ?? {}
+        ).projects,
+        requireCurrent
+      )
+    )
+  }
+
   async function discover(signal: AbortSignal): Promise<Discovery> {
     signal.throwIfAborted()
-    if (
-      !configuration ||
-      !(await configuration.retainCompilerTransformsForWatch(controller.signal))
-    ) {
+    if (!configuration || !(await retainConfigurationForWatch())) {
       await configuration?.dispose()
       configuration = undefined
       configuration = await openTestConfiguration(projectDir, signal)
-      await configuration.retainCompilerTransformsForWatch(
-        controller.signal,
-        true
-      )
+      await retainConfigurationForWatch(true)
     }
     const config = applyTestConfigOverrides(
       configuration.config,
@@ -150,15 +182,22 @@ export async function watchTests(
     }
     if (
       projects.some(
-        ({ profile }) =>
-          profile.mode !== 'development' ||
+        ({ profile, browserFixtures }) =>
+          (profile.mode !== 'development' &&
+            !(
+              profile.mode === 'production' &&
+              (profile.environment === 'node' ||
+                (profile.environment === 'browser' &&
+                  (profile.browserClient === true ||
+                    (browserFixtures?.length ?? 0) > 0)))
+            )) ||
           profile.runtime !== 'nodejs' ||
           profile.bundler !== 'turbopack' ||
           profile.route !== undefined
       )
     ) {
       throw new Error(
-        'Test watch supports route-less development profiles with Turbopack only.'
+        'Test watch supports route-less development profiles and production Browser client profiles, plus ordinary production Node profiles and registered production component drivers, with Turbopack Node.js only.'
       )
     }
     const metadata = await runWatchProcess(
@@ -310,6 +349,7 @@ export async function watchTests(
 
   function onCommand(command: WatchCommand) {
     if (controller.signal.aborted) return
+    if (command.type !== 'cancel') editorFileRerun = undefined
     switch (command.type) {
       case 'cancel':
         keyboardCancelled = true
@@ -393,6 +433,31 @@ export async function watchTests(
       })
     }
     const initial = await discover(controller.signal)
+    if (options.apiPort !== undefined) {
+      const { openTestDiscoveryApi } = await import('./editor-api.js')
+      editorApi = await openTestDiscoveryApi(
+        projectDir,
+        initial.projects.flatMap((project) => project.entries),
+        options.apiPort,
+        {
+          cancelRun: () => onCommand({ type: 'cancel' }),
+          rerun: () => onCommand({ type: 'rerun' }),
+          ...(!standardCoverageOptions
+            ? {
+                rerunFile(entryId: string) {
+                  editorFileRerun = entryId
+                  coverageAllTestsRun = false
+                  failedOnly = false
+                  session?.invalidate({ invalidateAll: true })
+                },
+              }
+            : {}),
+        }
+      )
+      ;(options.writeError ?? options.write)(
+        'Next test discovery API: ' + editorApi.url + '\n'
+      )
+    }
     watcher = await watchTestFiles({
       ...initial.directories,
       // Paths can establish the matching-new-test policy after byte validation;
@@ -424,8 +489,145 @@ export async function watchTests(
     session = createWatchSession<Discovery>({
       signal: controller.signal,
       runEmpty: machineEnabled || !!standardCoverageOptions,
+      ...(initialRelatedSources
+        ? {
+            async selectTests({
+              discovery,
+              changedPaths,
+              invalidateAll,
+              signal,
+            }: Parameters<
+              NonNullable<WatchSessionOptions<Discovery>['selectTests']>
+            >[0]) {
+              // Related paths constrain the initial settled generation only.
+              // Later filesystem edits use their own actual compiler consumers.
+              const sources = initialRelatedPending
+                ? [...initialRelatedSources, ...(changedPaths ?? [])]
+                : !invalidateAll && changedPaths?.length
+                  ? changedPaths
+                  : undefined
+              if (!sources) return undefined
+              const result = await runWatchProcess(
+                {
+                  operation: 'plan',
+                  projectDir,
+                  projects: discovery.projects,
+                  certifiedTestConfig:
+                    configuration?.watchInputs.every((file) =>
+                      file.endsWith('.json')
+                    ) ?? false,
+                },
+                { signal, write: options.write, reporter: options.reporter }
+              ).catch((error) => {
+                if (error instanceof WatchOwnershipError) {
+                  fatal = true
+                  controller.abort(error)
+                }
+                throw error
+              })
+              signal.throwIfAborted()
+              if (result.operation !== 'plan')
+                throw new Error('Invalid watch source selection plan.')
+              const selected = await selectSourceRelatedProjects(
+                discovery.projects,
+                sources,
+                result.plan
+              )
+              signal.throwIfAborted()
+              return {
+                entryIds: selected.flatMap((project) =>
+                  project.entries.map((entry) => entry.id)
+                ),
+                reason: 'compiler-dependencies' as const,
+              }
+            },
+          }
+        : {}),
+      async canSkipUnchangedRun({
+        discovery,
+        previousRegistry,
+        changedPaths,
+        signal,
+      }) {
+        const owner = configuration
+        if (
+          standardCoverageOptions ||
+          !owner ||
+          !(await owner.retainGlobalSetupForWatch(
+            configurationLifetime.signal,
+            discovery.projects,
+            false,
+            true
+          )) ||
+          !matchesRetainedSetupChange({
+            previous: previousRegistry,
+            current: discovery.registry,
+            changedPaths,
+            setupFiles: discovery.projects.flatMap((project) =>
+              (project.globalSetup ?? []).map((file) =>
+                resolve(projectDir, file)
+              )
+            ),
+          })
+        )
+          return false
+        signal.throwIfAborted()
+        try {
+          const result = await runWatchProcess(
+            {
+              operation: 'plan',
+              projectDir,
+              projects: discovery.projects,
+              certifiedTestConfig: owner.watchInputs.every((file) =>
+                file.endsWith('.json')
+              ),
+              retainedGlobalSetup: true,
+            },
+            { signal, write: options.write, reporter: options.reporter }
+          )
+          signal.throwIfAborted()
+          if (result.operation !== 'plan') return false
+          const related = await selectSourceRelatedProjects(
+            discovery.projects,
+            changedPaths!,
+            result.plan
+          )
+          if (related.some((project) => project.entries.length)) return false
+          const registry = discovery.registry!
+          const current = await snapshotWatchRegistry({
+            configurationRevision: registry.configurationRevision,
+            entries: registry.entries,
+            inputs: registry.inputs.map((input) => input.file),
+            signal,
+          })
+          signal.throwIfAborted()
+          if (
+            owner !== configuration ||
+            current === undefined ||
+            !serialize(current).equals(serialize(registry))
+          )
+            return false
+          const retained = await owner.retainGlobalSetupForWatch(
+            configurationLifetime.signal,
+            discovery.projects,
+            false,
+            true
+          )
+          signal.throwIfAborted()
+          return retained && owner === configuration
+        } catch (error) {
+          if (error instanceof WatchOwnershipError) {
+            fatal = true
+            controller.abort(error)
+            throw error
+          }
+          signal.throwIfAborted()
+          return false
+        }
+      },
       onRunSettled(status, discovery) {
         if (status !== 'passed' && status !== 'failed') return
+        initialRelatedPending = false
         if (!discovery.entryIds.length) {
           options.write(
             `No test files matched. Watching for file changes.${keyboard?.enabled ? ' Press h for help.' : ''}\n`
@@ -481,6 +683,8 @@ export async function watchTests(
       },
       async run({ discovery, selection, signal }) {
         running = true
+        const requestedEditorFile = editorFileRerun
+        editorFileRerun = undefined
         const coverageConfig = standardCoverageOptions
         const selected = new Set(
           coverageConfig
@@ -494,6 +698,14 @@ export async function watchTests(
               })
             : selection.entryIds
         )
+        if (requestedEditorFile !== undefined) {
+          for (const entryId of selected) {
+            if (entryId !== requestedEditorFile) selected.delete(entryId)
+          }
+        }
+        const missingEditorFile =
+          requestedEditorFile !== undefined &&
+          !selected.has(requestedEditorFile)
         // Initial starts and explicit full reruns include untouched sources.
         // A cancelled generation cannot consume this publication intent.
         const includeUnimported =
@@ -504,6 +716,9 @@ export async function watchTests(
           ...project,
           entries: project.entries.filter((entry) => selected.has(entry.id)),
         }))
+        editorApi?.prepareRun(
+          discovery.projects.flatMap((project) => project.entries)
+        )
         const coverageSourcePlan = coverageConfig
           ? await createCoverageSourcePlan({
               projectDir,
@@ -562,6 +777,7 @@ export async function watchTests(
               fileOutcomes.set(event.entryId, event.status)
             }
             options.onEvent?.(event)
+            editorApi?.onEvent(event)
           } catch (error) {
             reporterFailed = true
             throw error
@@ -641,6 +857,7 @@ export async function watchTests(
               : {}),
             signal,
           })
+          if (coverage.textSummary) options.write(coverage.textSummary)
           for (const error of coverage.thresholdErrors) {
             ;(options.writeError ?? options.write)(error + '\n')
             coverageDiagnostic(error)
@@ -652,12 +869,20 @@ export async function watchTests(
           return coverage.thresholdErrors.length > 0
         }
         try {
-          if (!selected.size && !coverageSourcePlan?.requests.length) {
-            let status = projects.every(
-              (project) => project.passWithNoTests === true
-            )
-              ? ('passed' as const)
-              : ('failed' as const)
+          await machine?.initialize({ signal })
+          if (
+            missingEditorFile ||
+            (!selected.size && !coverageSourcePlan?.requests.length)
+          ) {
+            if (missingEditorFile)
+              options.write(
+                'Requested editor file is no longer discoverable.\n'
+              )
+            let status =
+              !missingEditorFile &&
+              projects.every((project) => project.passWithNoTests === true)
+                ? ('passed' as const)
+                : ('failed' as const)
             const envelope = {
               version: 1 as const,
               runId: randomUUID(),
@@ -680,7 +905,8 @@ export async function watchTests(
             return completedResult
           }
           await configuration?.setup(
-            projects.filter((project) => project.entries.length)
+            projects.filter((project) => project.entries.length),
+            signal
           )
           signal.throwIfAborted()
           const rerun = hasRun
@@ -688,6 +914,7 @@ export async function watchTests(
           const response = await runWatchProcess(
             {
               operation: 'run',
+              captureTaskResults: machine?.captureTaskResults,
               projectDir,
               projects,
               ...(configuration?.compilerTransformNames.length
@@ -848,6 +1075,7 @@ export async function watchTests(
           throw failure
         } finally {
           await machine?.dispose()
+          if (signal.aborted) editorApi?.cancelledRunSettled()
           running = false
           committingSnapshots = false
           if (keyboardCancelled && !controller.signal.aborted) {
@@ -891,9 +1119,16 @@ export async function watchTests(
       failures.push(error)
     } finally {
       try {
+        await editorApi?.dispose()
+      } catch (error) {
+        failures.push(error)
+      }
+      try {
         await configuration?.dispose()
       } catch (error) {
         failures.push(error)
+      } finally {
+        configurationLifetime.abort()
       }
       options.signal.removeEventListener('abort', cancel)
     }

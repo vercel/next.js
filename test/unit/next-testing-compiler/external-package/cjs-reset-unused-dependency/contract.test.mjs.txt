@@ -1,0 +1,9 @@
+import { test, expect, vi } from 'vitest'
+const load = () => import('./root.cjs')
+globalThis.__ws2UnusedCjsLoader = load
+test('retains the actual CommonJS factory graph without evaluating unused sources', () => {
+ vi.resetModules()
+ console.log('WS2_EXTERNAL_CJS_UNUSED:' + JSON.stringify({ root:globalThis.__ws2CjsDependencyRoot ?? null, dependency:globalThis.__ws2CjsDependencyLeaf ?? null, loader:typeof globalThis.__ws2UnusedCjsLoader }))
+ expect(globalThis.__ws2CjsDependencyRoot).toBeUndefined()
+ expect(globalThis.__ws2CjsDependencyLeaf).toBeUndefined()
+})

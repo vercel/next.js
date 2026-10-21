@@ -102,6 +102,31 @@ fn hashed_package_name(folder: &FileSystemPath) -> String {
 }
 
 impl CachedExternalModule {
+    /// Retain the resolved target and tracing origin while loading its native import namespace.
+    pub fn native_import_module(&self) -> Option<Vc<Self>> {
+        let native = self.native_import_value()?;
+        Some(Self::new(
+            native.request,
+            native.target,
+            native.external_type,
+            native.analyze_mode,
+        ))
+    }
+
+    fn native_import_value(&self) -> Option<Self> {
+        match self.external_type {
+            CachedExternalType::CommonJs
+            | CachedExternalType::EcmaScriptViaRequire
+            | CachedExternalType::EcmaScriptViaImport => Some(Self {
+                request: self.request.clone(),
+                target: self.target.clone(),
+                external_type: CachedExternalType::EcmaScriptViaImport,
+                analyze_mode: self.analyze_mode.clone(),
+            }),
+            CachedExternalType::Global | CachedExternalType::Script => None,
+        }
+    }
+
     /// Rewrites `self.request` to include the hashed package name if `self.target` is set.
     pub fn request(&self) -> Cow<'_, str> {
         if let Some(target) = &self.target {
@@ -503,5 +528,158 @@ impl Asset for ExternalsSymlinkAsset {
             target_type: WriteLinkTargetType::DirectoryOrJunctionPoint,
         })
         .cell())
+    }
+}
+
+#[cfg(test)]
+mod native_import_tests {
+    use anyhow::{Context, Result};
+    use turbo_rcstr::rcstr;
+    use turbo_tasks::{ResolvedVc, TurboTasks, Vc};
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+    use turbo_tasks_fs::{FileSystem, VirtualFileSystem};
+    use turbopack_core::{
+        compile_time_info::CompileTimeInfo,
+        environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+        ident::Layer,
+        resolve::origin::PlainResolveOrigin,
+    };
+    use turbopack_test_utils::noop_asset_context::NoopAssetContext;
+
+    use crate::references::external_module::{
+        CachedExternalModule, CachedExternalTracingMode, CachedExternalType,
+    };
+
+    #[turbo_tasks::function]
+    async fn caller(
+        _caller: turbo_rcstr::RcStr,
+        original: ResolvedVc<CachedExternalModule>,
+    ) -> Result<Vc<CachedExternalModule>> {
+        original
+            .await?
+            .native_import_module()
+            .context("Expected a native module")
+    }
+
+    #[turbo_tasks::function(operation, root)]
+    async fn memoization_operation() -> Result<()> {
+        let root = VirtualFileSystem::new_with_name(rcstr!("native-import-tests"))
+            .root()
+            .owned()
+            .await?;
+        let target = root.join("package")?;
+        let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
+            NodeJsEnvironment::default().resolved_cell(),
+        ))
+        .to_resolved()
+        .await?;
+        let context = NoopAssetContext {
+            compile_time_info: CompileTimeInfo::builder(environment)
+                .cell()
+                .await?
+                .to_resolved()
+                .await?,
+            layer: Layer::new(rcstr!("native-import-test")),
+        }
+        .resolved_cell();
+        let mut natives = Vec::new();
+        for analyze_mode in [
+            CachedExternalTracingMode::Untraced,
+            CachedExternalTracingMode::Traced {
+                origin: ResolvedVc::upcast(
+                    PlainResolveOrigin::new(Vc::upcast(*context), root.join("first.mjs")?)
+                        .to_resolved()
+                        .await?,
+                ),
+            },
+            CachedExternalTracingMode::Traced {
+                origin: ResolvedVc::upcast(
+                    PlainResolveOrigin::new(Vc::upcast(*context), root.join("second.mjs")?)
+                        .to_resolved()
+                        .await?,
+                ),
+            },
+        ] {
+            let original = CachedExternalModule::new(
+                rcstr!("package/subpath"),
+                Some(target.clone()),
+                CachedExternalType::CommonJs,
+                analyze_mode.clone(),
+            )
+            .to_resolved()
+            .await?;
+            let first = caller(rcstr!("first"), *original).to_resolved().await?;
+            let second = caller(rcstr!("second"), *original).to_resolved().await?;
+            assert_eq!(first, second);
+            let native = first.await?;
+            assert_eq!(native.request, rcstr!("package/subpath"));
+            assert_eq!(native.target.as_ref(), Some(&target));
+            assert_eq!(native.analyze_mode, analyze_mode);
+            assert_eq!(
+                native.external_type,
+                CachedExternalType::EcmaScriptViaImport
+            );
+            natives.push(first);
+        }
+        assert_ne!(natives[0], natives[1]);
+        assert_ne!(natives[1], natives[2]);
+        Ok(())
+    }
+
+    #[test]
+    fn shares_native_modules_across_callers_without_merging_tracing_origins() {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()
+            .unwrap();
+        runtime.block_on(async {
+            let tasks = TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+            tasks
+                .run_once(async {
+                    memoization_operation().read_strongly_consistent().await?;
+                    anyhow::Ok(())
+                })
+                .await
+                .unwrap();
+        });
+    }
+
+    #[test]
+    fn preserves_native_request_and_rejects_non_module_external_types() {
+        for external_type in [
+            CachedExternalType::CommonJs,
+            CachedExternalType::EcmaScriptViaRequire,
+            CachedExternalType::EcmaScriptViaImport,
+            CachedExternalType::Global,
+            CachedExternalType::Script,
+        ] {
+            let module = CachedExternalModule {
+                request: rcstr!("package/subpath"),
+                target: None,
+                external_type,
+                analyze_mode: CachedExternalTracingMode::Untraced,
+            };
+            let native = module.native_import_value();
+            if matches!(
+                external_type,
+                CachedExternalType::Global | CachedExternalType::Script
+            ) {
+                assert!(native.is_none());
+            } else {
+                let native = native.unwrap();
+                assert_eq!(native.request, module.request);
+                assert_eq!(native.target, module.target);
+                assert_eq!(native.analyze_mode, module.analyze_mode);
+                assert_eq!(
+                    native.external_type,
+                    CachedExternalType::EcmaScriptViaImport
+                );
+                assert_eq!(module.external_type, external_type);
+            }
+        }
     }
 }

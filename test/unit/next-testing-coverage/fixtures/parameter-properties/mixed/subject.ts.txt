@@ -1,0 +1,4 @@
+export class Counter {
+  constructor(first: number, public value: number) { this.value += first }
+  read() { return this.value }
+}

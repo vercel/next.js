@@ -1,0 +1,37 @@
+[
+  {
+    "name": "acyclic runtime factory retains original graph and held references across reset",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "cycle runtime factory retains original graph and held references across reset",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "diamond original graph deduplicates a shared dependency through factory reset and unmock",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "held graph runtime factory pending imports use actual original and retain successful mock across reset",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "graph runtime failures retry with original graph identity and reset cache boundaries",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "unused graph runtime registration does not evaluate factory or dependency closure",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "conditional graph factory failures recover to the exact successful exports across reset",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

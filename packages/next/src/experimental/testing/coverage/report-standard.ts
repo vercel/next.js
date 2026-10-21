@@ -1,11 +1,13 @@
 import {
   assertRuntimeConfigurationReceipts,
+  assertRuntimeConfigurationPlan,
   type RuntimeConfigurationPlan,
   type RuntimeConfigurationReceipt,
 } from './runtime-configuration'
 import { isDeepStrictEqual, types } from 'util'
 import {
   assertCompilerSourceCoverage,
+  assertCoverageSourcePlan,
   type CoverageSourcePlan,
 } from './source-analysis-plan'
 import {
@@ -176,16 +178,32 @@ function validateData(
     throw new Error(`Invalid standard coverage metadata: ${file}`)
 }
 
+export interface StandardCoverageSourcePlans {
+  sourcePlan: CoverageSourcePlan
+  runtimeConfigurationPlan: RuntimeConfigurationPlan
+}
+
 /** Called after real process/group/compiler cleanup; producer IDs remain provisional until then. */
 export async function assertStandardCoverageFacts(
   value: unknown,
   projectDir: string,
   expected: ReadonlySet<string>,
-  revisions?: ReadonlyMap<string, string>
+  revisions?: ReadonlyMap<string, string>,
+  sourcePlans?: StandardCoverageSourcePlans,
+  signal: AbortSignal = new AbortController().signal
 ): Promise<StandardFileCoverage[]> {
   if (!Array.isArray(value)) throw new Error('Missing standard coverage facts.')
   const root = await realpath(projectDir)
   const seen = new Set<string>()
+  let plannedJsx = false
+  async function assertPlans() {
+    if (!sourcePlans) throw new Error('Missing planned JSX coverage ownership.')
+    await assertCoverageSourcePlan(sourcePlans.sourcePlan, signal)
+    await assertRuntimeConfigurationPlan(
+      sourcePlans.runtimeConfigurationPlan,
+      signal
+    )
+  }
   for (const fact of value) {
     if (
       !object(fact) ||
@@ -211,11 +229,31 @@ export async function assertStandardCoverageFacts(
         !isAbsolute(file.file) ||
         !within(root, file.file) ||
         file.file.split(sep).includes('node_modules') ||
-        !/\.[cm]?[jt]s$/.test(file.file) ||
+        (!/\.[cm]?[jt]s$/.test(file.file) && !/\.[jt]sx$/.test(file.file)) ||
         typeof file.sha256 !== 'string' ||
         !/^[a-f0-9]{64}$/.test(file.sha256)
       )
         throw new Error('Invalid standard coverage source ownership.')
+      if (/\.[jt]sx$/.test(file.file)) {
+        await assertPlans()
+        const profiles = sourcePlans!.runtimeConfigurationPlan.requests.filter(
+          (request) =>
+            request.entries.some(
+              (entry) =>
+                entry.id === fact.entryId && entry.revision === fact.revision
+            )
+        )
+        const sources = sourcePlans!.sourcePlan.requests.filter(
+          (request) =>
+            profiles.length === 1 &&
+            isDeepStrictEqual(request.profile, profiles[0].profile) &&
+            request.source.file === file.file &&
+            request.source.sha256 === file.sha256
+        )
+        if (sources.length !== 1)
+          throw new Error('Invalid planned JSX coverage source ownership.')
+        plannedJsx = true
+      }
       if (seenFiles.has(file.file))
         throw new Error('Duplicate standard coverage source within an entry.')
       seenFiles.add(file.file)
@@ -231,6 +269,7 @@ export async function assertStandardCoverageFacts(
   }
   if (seen.size !== expected.size)
     throw new Error('Standard coverage omitted an expected test entry.')
+  if (plannedJsx) await assertPlans()
   return value as StandardFileCoverage[]
 }
 
@@ -364,6 +403,67 @@ export function standardCoverageSummary(
   >
 }
 
+export function standardCoverageJsonSummary(
+  files: Record<string, StandardCoverageData>,
+  total = standardCoverageSummary(files)
+) {
+  const summarize = (
+    summary: ReturnType<typeof standardCoverageSummary>,
+    empty = false
+  ) =>
+    Object.fromEntries(
+      metrics.map((metric) => [
+        metric,
+        {
+          total: summary[metric].total,
+          covered: summary[metric].covered,
+          skipped: 0,
+          pct: empty ? 'Unknown' : summary[metric].percent,
+        },
+      ])
+    )
+  return {
+    total: {
+      ...summarize(total, Object.keys(files).length === 0),
+      branchesTrue: { total: 0, covered: 0, skipped: 0, pct: 'Unknown' },
+    },
+    ...Object.fromEntries(
+      Object.entries(files).map(([file, data]) => [
+        file,
+        summarize(standardCoverageSummary({ [file]: data })),
+      ])
+    ),
+  }
+}
+
+export function standardCoverageTextSummary(
+  files: Record<string, StandardCoverageData>,
+  summary = standardCoverageSummary(files)
+): string {
+  const empty = Object.keys(files).length === 0
+  const lines = [
+    '',
+    '=============================== Coverage summary ===============================',
+  ]
+  for (const metric of [
+    'statements',
+    'branches',
+    'functions',
+    'lines',
+  ] as const) {
+    const value = summary[metric]
+    const label = metric[0].toUpperCase() + metric.slice(1)
+    lines.push(
+      `${label.padEnd(13)}: ${empty ? 'Unknown' : value.percent}% ( ${value.covered}/${value.total} )`
+    )
+  }
+  lines.push(
+    '================================================================================',
+    ''
+  )
+  return lines.join('\n')
+}
+
 export function standardCoverageLcov(
   files: Record<string, StandardCoverageData>,
   root: string
@@ -425,7 +525,15 @@ export async function publishStandardCoverage(options: {
   await assertStandardCoverageFacts(
     options.facts,
     options.projectDir,
-    options.expected
+    options.expected,
+    undefined,
+    options.sourceAnalysis && options.runtimeConfiguration?.plan
+      ? {
+          sourcePlan: options.sourceAnalysis.plan,
+          runtimeConfigurationPlan: options.runtimeConfiguration.plan,
+        }
+      : undefined,
+    signal
   )
   const root = await realpath(options.projectDir)
   const analysisSignal = signal ?? new AbortController().signal
@@ -552,18 +660,48 @@ export async function publishStandardCoverage(options: {
       .map(([file, value]) => [file, value.data])
   )
   const summary = standardCoverageSummary(data)
-  const thresholdErrors = metrics.flatMap((metric) =>
-    config.thresholds[metric] !== undefined &&
-    summary[metric].percent < config.thresholds[metric]!
-      ? [
-          `Coverage for ${metric} (${summary[metric].percent}%) does not meet global threshold (${config.thresholds[metric]}%).`,
-        ]
-      : []
+  const thresholdGroups: {
+    file?: string
+    summary: ReturnType<typeof standardCoverageSummary>
+  }[] = config.thresholds.perFile
+    ? Object.keys(data)
+        .sort()
+        .map((file) => ({
+          file,
+          summary: standardCoverageSummary({ [file]: data[file] }),
+        }))
+    : [{ summary }]
+  const thresholdErrors = thresholdGroups.flatMap(
+    ({ file, summary: group }) => {
+      const suffix = file
+        ? ` for ${relative(root, file).split(sep).join('/')}`
+        : ''
+      return metrics.flatMap((metric) => {
+        const threshold = config.thresholds[metric]
+        if (threshold === undefined) return []
+        if (threshold < 0) {
+          const uncovered = group[metric].total - group[metric].covered
+          return uncovered > -threshold
+            ? [
+                `Uncovered ${metric} (${uncovered}) exceed global threshold (${-threshold})${suffix}`,
+              ]
+            : []
+        }
+        return group[metric].percent < threshold
+          ? [
+              `Coverage for ${metric} (${group[metric].percent}%) does not meet global threshold (${threshold}%)${suffix || '.'}`,
+            ]
+          : []
+      })
+    }
   )
   const artifacts: Record<string, string> = {}
   if (config.reporter.includes('json'))
     artifacts['coverage-final.json'] = JSON.stringify(data, null, 2) + '\n'
-  if (config.reporter.includes('lcov'))
+  if (config.reporter.includes('json-summary'))
+    artifacts['coverage-summary.json'] =
+      JSON.stringify(standardCoverageJsonSummary(data, summary), null, 2) + '\n'
+  if (config.reporter.includes('lcov') || config.reporter.includes('lcovonly'))
     artifacts['lcov.info'] = standardCoverageLcov(data, root)
   // Only a dedicated generated report directory may be replaced. Never follow
   // symlinks or recursively replace a directory containing unrelated source.
@@ -597,7 +735,9 @@ export async function publishStandardCoverage(options: {
     for (const item of await readdir(output, { withFileTypes: true }))
       if (
         !item.isFile() ||
-        !['coverage-final.json', 'lcov.info'].includes(item.name)
+        !['coverage-final.json', 'coverage-summary.json', 'lcov.info'].includes(
+          item.name
+        )
       )
         throw new Error(
           'Standard coverage directory contains an unrelated file.'
@@ -666,6 +806,9 @@ export async function publishStandardCoverage(options: {
     published: true,
     summary,
     thresholdErrors,
+    textSummary: config.reporter.includes('text-summary')
+      ? standardCoverageTextSummary(data, summary)
+      : undefined,
     files: Object.keys(artifacts).map((name) => join(output, name)),
   }
 }

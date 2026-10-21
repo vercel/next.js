@@ -1,0 +1,3 @@
+globalThis.__ws2CallableAutomaticCounts??={};globalThis.__ws2CallableAutomaticCounts["falsy-flag"]=(globalThis.__ws2CallableAutomaticCounts["falsy-flag"]||0)+1;
+function callable(input){return this.label+':'+input};callable.__esModule=false;
+callable.label='root';callable.method=function member(){return this.label};module.exports=callable;

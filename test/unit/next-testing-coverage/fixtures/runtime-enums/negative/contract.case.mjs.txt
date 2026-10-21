@@ -1,0 +1,9 @@
+import { test, expect } from 'vitest'
+import { Value, choose } from './subject.ts'
+test('negative and resumed numeric enum members', () => {
+  expect(Value.Following).toBe(-1)
+  expect(Value[-2]).toBe('Negative')
+  expect(Value[-1]).toBe('Following')
+  expect(choose(true)).toBe(-2)
+  expect(choose(false)).toBe(7)
+})

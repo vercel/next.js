@@ -1,0 +1,22 @@
+import { expect, test } from 'vitest'
+import { page } from 'vitest/browser'
+import { state } from './setup-state.mjs'
+const file = 'a'
+state.file = file
+test('a setup creates a real styled interactive DOM', async () => {
+  state.events.push('case-one')
+  expect(globalThis.__browserSetupValue).toBe('v1')
+  expect(globalThis.__browserSetupRuns).toBe(1)
+  expect(getComputedStyle(state.button).color).toBe('rgb(17, 34, 51)')
+  await page.getByRole('button', { name: 'ready-v1' }).click()
+  expect(state.button.textContent).toBe('clicked-v1')
+  console.log('BROWSER_SETUP_CASE ' + JSON.stringify({ file, case: 1, events: state.events, branch: state.branch, mode: state.mode, setupRuns: globalThis.__browserSetupRuns, text: state.button.textContent, color: getComputedStyle(state.button).color }))
+})
+test('a setup hooks create fresh DOM for the following case', () => {
+  state.events.push('case-two')
+  expect(globalThis.__browserSetupValue).toBe('v1')
+  expect(globalThis.__browserSetupRuns).toBe(1)
+  expect(document.querySelectorAll('#setup-button').length).toBe(1)
+  expect(state.button.textContent).toBe('ready-v1')
+  console.log('BROWSER_SETUP_CASE ' + JSON.stringify({ file, case: 2, events: state.events, branch: state.branch, mode: state.mode, setupRuns: globalThis.__browserSetupRuns, text: state.button.textContent, color: getComputedStyle(state.button).color }))
+})

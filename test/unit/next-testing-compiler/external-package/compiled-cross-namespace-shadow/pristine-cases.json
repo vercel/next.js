@@ -1,0 +1,7 @@
+[
+  {
+    "name": "published namespaces retain authored builtin and compiler-local binding names",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

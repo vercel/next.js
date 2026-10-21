@@ -229,7 +229,8 @@ export function createTestReporter(options: TestReporterOptions) {
   function fileLabel(entryId?: string): string {
     const entry = entryId ? entries.get(entryId)?.entry : undefined
     if (!entry) return 'unknown test'
-    const profile = entry.profile.id
+    const profile = entry.projectName ?? entry.profile.id
+    if (!profile) return relative(projectDir, entry.file).replace(/\\/g, '/')
     let profileBadge = `|${profile}|`
     if (color) {
       const index = [...profile].reduce(
@@ -387,10 +388,15 @@ export function createTestReporter(options: TestReporterOptions) {
 
   function printFailures(): void {
     const suiteErrors = diagnostics.filter(
-      (event) => event.diagnostic.severity === 'error' && event.entryId
+      (event) =>
+        event.diagnostic.severity === 'error' &&
+        event.entryId &&
+        event.diagnostic.unhandled !== 'rejection'
     )
     const unhandledErrors = diagnostics.filter(
-      (event) => event.diagnostic.severity === 'error' && !event.entryId
+      (event) =>
+        event.diagnostic.severity === 'error' &&
+        (!event.entryId || event.diagnostic.unhandled === 'rejection')
     )
     const failedTests = [...cases.values()].filter(
       (test) => test.status === 'failed'
@@ -435,7 +441,7 @@ export function createTestReporter(options: TestReporterOptions) {
       )
       for (const event of unhandledErrors) {
         writeError(
-          `${paint(31, 'Unhandled Error')} ${paint(2, `[${event.diagnostic.phase}]`)}\n${formatDiagnostic(event.diagnostic, projectDir)}\n\n`
+          `${paint(31, event.diagnostic.unhandled === 'rejection' ? 'Unhandled Rejection' : 'Unhandled Error')} ${paint(2, `[${event.diagnostic.phase}]`)}\n${formatDiagnostic(event.diagnostic, projectDir)}\n\n`
         )
       }
     }
@@ -690,7 +696,9 @@ export function createTestReporter(options: TestReporterOptions) {
         )
         const unhandledErrors = diagnostics.filter(
           (diagnostic) =>
-            diagnostic.diagnostic.severity === 'error' && !diagnostic.entryId
+            diagnostic.diagnostic.severity === 'error' &&
+            (!diagnostic.entryId ||
+              diagnostic.diagnostic.unhandled === 'rejection')
         ).length
         if (unhandledErrors)
           write(

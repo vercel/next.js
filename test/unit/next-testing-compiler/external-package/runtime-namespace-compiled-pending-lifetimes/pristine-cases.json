@@ -1,0 +1,42 @@
+[
+  {
+    "name": "compiled pending original completion false sync",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "compiled pending original completion false immediate",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "compiled pending original completion false held-resolve",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "compiled pending original completion false held-reject",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "compiled pending original completion true sync",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "compiled pending original completion true immediate",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "compiled pending original completion true held-resolve",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "compiled pending original completion true held-reject",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

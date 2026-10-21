@@ -1,0 +1,1 @@
+exports.object={value:17};exports.b=require('ws2-external-b');exports.c=require('ws2-external-c');

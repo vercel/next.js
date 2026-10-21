@@ -1,0 +1,220 @@
+{
+  "file": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime174-mixed-production/subject.ts",
+  "model": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime174-mixed-production/subject.ts",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 2,
+          "column": 53
+        },
+        "end": {
+          "line": 2,
+          "column": 72
+        }
+      },
+      "1": {
+        "start": {
+          "line": 3,
+          "column": 11
+        },
+        "end": {
+          "line": 3,
+          "column": 28
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "constructor",
+        "decl": {
+          "start": {
+            "line": 2,
+            "column": 2
+          },
+          "end": {
+            "line": 2,
+            "column": 13
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 51
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "line": 2
+      },
+      "1": {
+        "name": "read",
+        "decl": {
+          "start": {
+            "line": 3,
+            "column": 2
+          },
+          "end": {
+            "line": 3,
+            "column": 6
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 3,
+            "column": 9
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "line": 3
+      }
+    },
+    "branchMap": {},
+    "s": {
+      "0": 0,
+      "1": 0
+    },
+    "f": {
+      "0": 0,
+      "1": 0
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 2,
+      "lastStatement": 2,
+      "seen": {
+        "f:2:2:2:13": 0,
+        "s:2:53:2:72": 0,
+        "f:3:2:3:6": 1,
+        "s:3:11:3:28": 1
+      },
+      "fnNames": {}
+    }
+  },
+  "observed": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime174-mixed-production/subject.ts",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 2,
+          "column": 36
+        },
+        "end": {
+          "line": 2,
+          "column": 49
+        }
+      },
+      "1": {
+        "start": {
+          "line": 2,
+          "column": 53
+        },
+        "end": {
+          "line": 2,
+          "column": 73
+        }
+      },
+      "2": {
+        "start": {
+          "line": 3,
+          "column": 11
+        },
+        "end": {
+          "line": 3,
+          "column": 29
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "constructor",
+        "decl": {
+          "start": {
+            "line": 2,
+            "column": 2
+          },
+          "end": {
+            "line": 2,
+            "column": 14
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 51
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "line": 2
+      },
+      "1": {
+        "name": "read",
+        "decl": {
+          "start": {
+            "line": 3,
+            "column": 2
+          },
+          "end": {
+            "line": 3,
+            "column": 9
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 3,
+            "column": 9
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "line": 3
+      }
+    },
+    "branchMap": {},
+    "s": {
+      "0": 1,
+      "1": 1,
+      "2": 1
+    },
+    "f": {
+      "0": 1,
+      "1": 1
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 2,
+      "lastStatement": 3,
+      "seen": {
+        "f:2:2:2:14": 0,
+        "s:2:36:2:49": 0,
+        "s:2:53:2:73": 1,
+        "f:3:2:3:9": 1,
+        "s:3:11:3:29": 2
+      },
+      "fnNames": {}
+    }
+  },
+  "sourceMap": {
+    "version": 3,
+    "sources": [
+      "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime174-mixed-production/subject.ts"
+    ],
+    "names": [],
+    "mappings": ";;;;;;;;;;;;;;;;;;;;;AAAO,MAAM;;IACX,YAAY,KAAa,EAAE,AAAO,KAAa,CAAE;aAAf,QAAA;QAAiB,IAAI,CAAC,KAAK,IAAI;IAAM;IACvE,OAAO;QAAE,OAAO,IAAI,CAAC,KAAK;IAAC;AAC7B",
+    "sourcesContent": [
+      "export class Counter {\n  constructor(first: number, public value: number) { this.value += first }\n  read() { return this.value }\n}\n"
+    ]
+  }
+}

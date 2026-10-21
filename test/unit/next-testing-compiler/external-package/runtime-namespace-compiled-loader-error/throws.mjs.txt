@@ -1,0 +1,5 @@
+globalThis.__ws2LoaderCount=(globalThis.__ws2LoaderCount||0)+1;
+const raw=new RangeError('compiled original raw '+globalThis.__ws2LoaderCount);
+(globalThis.__ws2LoaderErrors??=[]).push(raw);
+export const ready=true;
+throw raw;

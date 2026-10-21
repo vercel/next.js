@@ -1,0 +1,12 @@
+[
+  {
+    "name": "ordinary namespaces preserve authored builtin metadata and generated binding names",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "ordinary hygiene reset holds prior objects while registering an unused replacement",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

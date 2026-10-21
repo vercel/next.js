@@ -1,0 +1,155 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_CAUSE",
+    "value": {
+      "kind": "compiled",
+      "calls": 3,
+      "fresh": [true, true],
+      "raw": [true, true, true],
+      "messages": [
+        "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+        "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+        "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock"
+      ],
+      "names": ["Error", "Error", "Error"],
+      "shapes": [
+        {
+          "keys": ["stack", "message", "cause"],
+          "prototypeNull": false,
+          "objectPrototype": false,
+          "tag": "[object Error]",
+          "brand": false,
+          "descriptors": [
+            [
+              "stack",
+              {
+                "enumerable": false,
+                "configurable": true,
+                "get": "function",
+                "set": "function"
+              }
+            ],
+            [
+              "message",
+              {
+                "enumerable": false,
+                "configurable": true,
+                "writable": true,
+                "valueType": "string"
+              }
+            ],
+            [
+              "cause",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ]
+          ]
+        },
+        {
+          "keys": ["stack", "message", "cause"],
+          "prototypeNull": false,
+          "objectPrototype": false,
+          "tag": "[object Error]",
+          "brand": false,
+          "descriptors": [
+            [
+              "stack",
+              {
+                "enumerable": false,
+                "configurable": true,
+                "get": "function",
+                "set": "function"
+              }
+            ],
+            [
+              "message",
+              {
+                "enumerable": false,
+                "configurable": true,
+                "writable": true,
+                "valueType": "string"
+              }
+            ],
+            [
+              "cause",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ]
+          ]
+        },
+        {
+          "keys": ["stack", "message", "cause"],
+          "prototypeNull": false,
+          "objectPrototype": false,
+          "tag": "[object Error]",
+          "brand": false,
+          "descriptors": [
+            [
+              "stack",
+              {
+                "enumerable": false,
+                "configurable": true,
+                "get": "function",
+                "set": "function"
+              }
+            ],
+            [
+              "message",
+              {
+                "enumerable": false,
+                "configurable": true,
+                "writable": true,
+                "valueType": "string"
+              }
+            ],
+            [
+              "cause",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ]
+          ]
+        }
+      ],
+      "causeShape": {
+        "keys": ["stack", "message"],
+        "prototypeNull": false,
+        "objectPrototype": false,
+        "tag": "[object Error]",
+        "brand": false,
+        "descriptors": [
+          [
+            "stack",
+            {
+              "enumerable": false,
+              "configurable": true,
+              "get": "function",
+              "set": "function"
+            }
+          ],
+          [
+            "message",
+            {
+              "enumerable": false,
+              "configurable": true,
+              "writable": true,
+              "valueType": "string"
+            }
+          ]
+        ]
+      }
+    }
+  }
+]

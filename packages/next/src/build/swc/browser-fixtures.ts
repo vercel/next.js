@@ -28,22 +28,29 @@ export function serializeBrowserFixtureHost(
   host: BrowserFixtureHost
 ) {
   browserFixturePages(host)
+  function modulePath(file: string, label: string) {
+    const value = relative(projectDir, file)
+    if (
+      !isAbsolute(file) ||
+      !value ||
+      isAbsolute(value) ||
+      value === '..' ||
+      value.startsWith(`..${sep}`)
+    )
+      throw new Error(
+        `Browser fixture ${label} must be contained in the application project`
+      )
+    return value.split(sep).join('/')
+  }
   return JSON.stringify({
     routePrefix: host.routePrefix,
-    fixtures: host.fixtures.map((fixture) => {
-      const module = relative(projectDir, fixture.module)
-      if (
-        !isAbsolute(fixture.module) ||
-        !module ||
-        isAbsolute(module) ||
-        module === '..' ||
-        module.startsWith(`..${sep}`)
-      )
-        throw new Error(
-          'Browser fixture modules must be contained in the application project'
-        )
-      return { ...fixture, module: module.split(sep).join('/') }
-    }),
+    fixtures: host.fixtures.map((fixture) => ({
+      ...fixture,
+      module: modulePath(fixture.module, 'modules'),
+      ...(fixture.layout === undefined
+        ? {}
+        : { layout: modulePath(fixture.layout, 'layouts') }),
+    })),
   })
 }
 

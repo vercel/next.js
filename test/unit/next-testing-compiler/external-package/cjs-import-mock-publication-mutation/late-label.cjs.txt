@@ -1,0 +1,1 @@
+globalThis.__ws2MutationCounts??={};globalThis.__ws2MutationCounts["late-label"]=(globalThis.__ws2MutationCounts["late-label"]||0)+1;function callable(input){return this.label+':'+input};callable.label='root';callable.method=function member(){return this.label};module.exports=callable;

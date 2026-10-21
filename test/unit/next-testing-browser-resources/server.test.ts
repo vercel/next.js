@@ -571,12 +571,14 @@ describe('Browser Mode immutable parent transport', () => {
     }
   })
   async function open(
-    onMessage: (message: any) => void | Promise<void> = () => {}
+    onMessage: (message: any) => void | Promise<void> = () => {},
+    onBrowserCommand?: (command: any) => Promise<unknown>
   ) {
     server = await createClientServer({
       artifact,
       configuration,
       onMessage,
+      onBrowserCommand,
       onFailure: () => {},
     })
     const document = await fetch(server.url)
@@ -598,6 +600,514 @@ describe('Browser Mode immutable parent transport', () => {
       })
     return { cookie, config, post }
   }
+  it('admits actual console output before its native action reply while preserving both replies', async () => {
+    let release!: () => void,
+      entered!: () => void,
+      actionReplied = false
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const active = new Promise<void>((resolve) => {
+      entered = resolve
+    })
+    const rows: unknown[] = []
+    const { post } = await open(
+      (message) => {
+        rows.push(message)
+      },
+      async (_command, ...callbacks: (() => void)[]) => {
+        callbacks[0]()
+        entered()
+        await held
+        return 'actual native result'
+      }
+    )
+    const action = post({
+      type: 'browser-command',
+      command: { method: 'click', element: 'button', args: [] },
+    })
+    await active
+    const response = await action
+    const reply = response.json().then((value) => {
+      actionReplied = true
+      return value
+    })
+    try {
+      expect(response.status).toBe(200)
+      const output = await post({
+        sequence: 1,
+        type: 'output',
+        stream: 'stdout',
+        text: 'actual native console\n',
+      })
+      expect(await output.json()).toEqual({ value: null })
+      expect(rows).toEqual([
+        expect.objectContaining({
+          type: 'output',
+          sequence: 1,
+          text: 'actual native console\n',
+        }),
+      ])
+      expect(actionReplied).toBe(false)
+    } finally {
+      release()
+    }
+    expect(await reply).toEqual({ value: 'actual native result' })
+    const complete = await post({
+      sequence: 2,
+      type: 'complete',
+      status: 'passed',
+      interrupted: false,
+      caseCount: 0,
+    })
+    expect(await complete.json()).toEqual({ value: null })
+    await expect(server!.completion).resolves.toMatchObject({
+      status: 'passed',
+    })
+  })
+
+  it.each(['actual', 'malformed'])(
+    'retains %s captured task-pack validation during a pending native action',
+    async (kind) => {
+      const {
+        createCollector,
+      } = require('next/dist/experimental/testing/runner/collector')
+      const {
+        runCollected,
+      } = require('next/dist/experimental/testing/runner/lifecycle')
+      const {
+        clientDeclarations,
+      } = require('next/dist/experimental/testing/client/collection')
+      const {
+        captureReporterTaskTree,
+      } = require('next/dist/experimental/testing/reporting/live-tasks')
+      const {
+        createReporterTaskUpdates,
+      } = require('next/dist/experimental/testing/reporting/task-updates')
+      const c = createCollector('entry')
+      c.api.test('actual', () => {})
+      const actualRoot = c.close()
+      let initial: any, update: any
+      const updates = createReporterTaskUpdates({
+        onUpdate(value: any) {
+          update = JSON.parse(JSON.stringify(value))
+        },
+      })
+      try {
+        await runCollected(
+          actualRoot,
+          {
+            runId: 'run',
+            filePath: configuration.filePath,
+            signal: new AbortController().signal,
+            onCollected(file: any) {
+              initial = {
+                type: 'collected',
+                declarations: clientDeclarations(actualRoot),
+                taskTree: captureReporterTaskTree(file),
+              }
+              updates.collected(file)
+            },
+          },
+          () => {}
+        )
+        await updates.finish()
+      } finally {
+        updates.dispose()
+      }
+      configuration.captureTaskResults = true
+      const collector = createClientResultCollector(artifact, {
+        runId: 'run',
+        captureTaskResults: true,
+      })
+      let release!: () => void,
+        entered!: () => void,
+        actionReplied = false
+      const held = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      const active = new Promise<void>((resolve) => {
+        entered = resolve
+      })
+      const outputRows: unknown[] = []
+      const { post } = await open(
+        (message) => {
+          if (message.type === 'output') outputRows.push(message)
+          else collector.accept(message)
+        },
+        async (_command, ...callbacks: (() => void)[]) => {
+          callbacks[0]()
+          entered()
+          await held
+          return 'actual native result'
+        }
+      )
+      expect(await (await post(initial)).json()).toEqual({ value: null })
+      const action = post({
+        sequence: 1,
+        type: 'browser-command',
+        command: { method: 'click', element: 'button', args: [] },
+      })
+      await active
+      const reply = (await action).json().then((value) => {
+        actionReplied = true
+        return value
+      })
+      try {
+        if (kind === 'malformed') update.taskUpdateIds = ['foreign-task']
+        const response = await post({
+          sequence: 2,
+          type: 'task-update',
+          ...update,
+        })
+        expect(actionReplied).toBe(false)
+        if (kind === 'malformed') {
+          expect(response.status).toBe(400)
+          await expect(server!.completion).rejects.toThrow(
+            'Invalid or unsolicited Browser Mode task update.'
+          )
+          expect(collector.events.map((event: any) => event.type)).toEqual([
+            'file-collected',
+          ])
+        } else {
+          expect(await response.json()).toEqual({ value: null })
+          const output = await post({
+            sequence: 3,
+            type: 'output',
+            stream: 'stdout',
+            text: 'after actual task update\n',
+          })
+          expect(await output.json()).toEqual({ value: null })
+          expect(collector.events.map((event: any) => event.type)).toEqual([
+            'file-collected',
+            'task-update',
+          ])
+          expect(outputRows).toEqual([
+            expect.objectContaining({
+              type: 'output',
+              sequence: 3,
+              text: 'after actual task update\n',
+            }),
+          ])
+          expect(collector.events[1]).toMatchObject({
+            taskUpdateIds: update.taskUpdateIds,
+            taskTree: JSON.parse(JSON.stringify(initial.taskTree)),
+            caseResults: [],
+          })
+          expect(actionReplied).toBe(false)
+        }
+      } finally {
+        release()
+        await expect(reply).resolves.toEqual({ value: 'actual native result' })
+      }
+    }
+  )
+
+  it.each([
+    'browser-command',
+    'snapshot',
+    'artifact',
+    'complete',
+    'case-end',
+    'task-update',
+  ])(
+    'keeps concurrent %s terminal while a native action is admitted',
+    async (type) => {
+      let release!: () => void, entered!: () => void
+      const held = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      const active = new Promise<void>((resolve) => {
+        entered = resolve
+      })
+      const rows: unknown[] = []
+      const { post } = await open(
+        (message) => {
+          rows.push(message)
+        },
+        async (_command, ...callbacks: (() => void)[]) => {
+          callbacks[0]()
+          entered()
+          await held
+          return null
+        }
+      )
+      const action = post({
+        type: 'browser-command',
+        command: { method: 'click', element: 'button', args: [] },
+      })
+      await active
+      const body = (await action).json()
+      try {
+        const response = await post({
+          sequence: 1,
+          type,
+          command: { method: 'click', element: 'button', args: [] },
+        })
+        expect(response.status).toBe(400)
+        await expect(server!.completion).rejects.toThrow(
+          'Only Browser console output'
+        )
+        expect(rows).toEqual([])
+      } finally {
+        release()
+        await body
+      }
+    }
+  )
+
+  it('joins both actual native action and console work when their sockets close', async () => {
+    let releaseAction!: () => void,
+      releaseOutput!: () => void,
+      enterOutput!: () => void,
+      disposed = false
+    const heldAction = new Promise<void>((resolve) => {
+      releaseAction = resolve
+    })
+    const heldOutput = new Promise<void>((resolve) => {
+      releaseOutput = resolve
+    })
+    const outputActive = new Promise<void>((resolve) => {
+      enterOutput = resolve
+    })
+    const { post } = await open(
+      async () => {
+        enterOutput()
+        await heldOutput
+      },
+      async (_command, ...callbacks: (() => void)[]) => {
+        callbacks[0]()
+        await heldAction
+        return null
+      }
+    )
+    const action = await post({
+      type: 'browser-command',
+      command: { method: 'click', element: 'button', args: [] },
+    })
+    const actionBody = action.json().catch(() => {})
+    const output = post({
+      sequence: 1,
+      type: 'output',
+      stream: 'stdout',
+      text: 'actual pending console\n',
+    }).catch(() => {})
+    await outputActive
+    const disposal = server!.dispose().then(() => {
+      disposed = true
+    })
+    try {
+      await Promise.all([actionBody, output])
+      expect(disposed).toBe(false)
+      releaseOutput()
+      await Promise.resolve()
+      expect(disposed).toBe(false)
+    } finally {
+      releaseOutput()
+      releaseAction()
+      await disposal
+    }
+    expect(disposed).toBe(true)
+  })
+
+  it('retains unexpected admitted action failures in the existing terminal error envelope', async () => {
+    const original = new Error('actual post-admission host failure')
+    const { post } = await open(
+      () => {},
+      async (_command, ...callbacks: (() => void)[]) => {
+        callbacks[0]()
+        throw original
+      }
+    )
+    const response = await post({
+      type: 'browser-command',
+      command: { method: 'click', element: 'button', args: [] },
+    })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      error: 'Browser Mode transport failed.',
+    })
+    await expect(server!.completion).rejects.toBe(original)
+  })
+
+  it.each(['duplicate sequence', 'wrong owner'])(
+    'retains actual output %s checks during an admitted native action',
+    async (mode) => {
+      let release!: () => void
+      const held = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      const rows: unknown[] = []
+      const { post } = await open(
+        (message) => {
+          rows.push(message)
+        },
+        async (_command, ...callbacks: (() => void)[]) => {
+          callbacks[0]()
+          await held
+          return null
+        }
+      )
+      const action = await post({
+        type: 'browser-command',
+        command: { method: 'click', element: 'button', args: [] },
+      })
+      const body = action.json()
+      try {
+        const output = await post({
+          sequence: mode === 'duplicate sequence' ? 0 : 1,
+          ...(mode === 'wrong owner' ? { ownerToken: 'another' } : {}),
+          type: 'output',
+          stream: 'stdout',
+          text: 'actual console\n',
+        })
+        expect(output.status).toBe(400)
+        await expect(server!.completion).rejects.toThrow()
+        expect(rows).toEqual([])
+      } finally {
+        release()
+        await body
+      }
+    }
+  )
+
+  it('retains a synchronous console observer rejection while joining its admitted native action', async () => {
+    let release!: () => void
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const original = new Error('actual console observer rejected')
+    const { post } = await open(
+      () => {
+        throw original
+      },
+      async (_command, ...callbacks: (() => void)[]) => {
+        callbacks[0]()
+        await held
+        return null
+      }
+    )
+    const action = await post({
+      type: 'browser-command',
+      command: { method: 'click', element: 'button', args: [] },
+    })
+    const body = action.json()
+    try {
+      const output = await post({
+        sequence: 1,
+        type: 'output',
+        stream: 'stdout',
+        text: 'actual console\n',
+      })
+      expect(output.status).toBe(400)
+      await expect(server!.completion).rejects.toBe(original)
+    } finally {
+      release()
+      await body
+    }
+  })
+
+  it.each(['development', 'production'])(
+    'places the default document geometry reset before authored %s styles',
+    async (mode) => {
+      artifact.profile.mode = mode
+      const css = 'body { margin: 12px; min-height: 10px; }'
+      await writeFile(join(artifact.rootDir, 'static/authored.css'), css)
+      artifact.files.push('static/authored.css')
+      artifact.client.styles.push('static/authored.css')
+      artifact.client.outputs.push({
+        path: 'static/authored.css',
+        sha256: hash(css),
+      })
+      const { cookie } = await open()
+      const html = await fetch(server!.url).then((response) => response.text())
+      expect(html).toContain(`<head><style>
+html {
+  padding: 0;
+  margin: 0;
+}
+body {
+  padding: 0;
+  margin: 0;
+  min-height: 100vh;
+}
+</style><link rel="stylesheet"`)
+      const stylesheet = html.match(/href="([^"]+authored\.css[^"]*)"/)![1]
+      expect(
+        await fetch(new URL(stylesheet, server!.url), {
+          headers: { Cookie: cookie },
+        }).then((response) => response.text())
+      ).toBe(css)
+      expect(html.indexOf('</style>')).toBeLessThan(html.indexOf('<link '))
+      expect(html.indexOf('<link ')).toBeLessThan(html.indexOf('<script '))
+    }
+  )
+
+  it('returns a native action rejection without closing the command stream', async () => {
+    const {
+      runClientBrowserAction,
+    } = require('next/dist/experimental/testing/client/action-error')
+    const original = new Error('native action rejected')
+    original.name = 'TimeoutError'
+    const { post } = await open(
+      () => {},
+      async (command) =>
+        runClientBrowserAction(async () => {
+          if (command.method === 'upload') throw original
+          return null
+        })
+    )
+    const rejected = await post({
+      type: 'browser-command',
+      command: { method: 'upload', element: 'file', args: [] },
+    })
+    expect(rejected.status).toBe(200)
+    expect(await rejected.json()).toEqual({
+      actionError: {
+        name: 'TimeoutError',
+        message: original.message,
+        stack: original.stack,
+      },
+    })
+    const following = await post({
+      type: 'browser-command',
+      sequence: 1,
+      command: { method: 'click', element: 'button', args: [] },
+    })
+    expect(following.status).toBe(200)
+    expect(await following.json()).toEqual({ value: null })
+    expect(
+      (
+        await post({
+          type: 'complete',
+          sequence: 2,
+          status: 'passed',
+          caseCount: 0,
+          interrupted: false,
+        })
+      ).status
+    ).toBe(200)
+    await expect(server!.completion).resolves.toMatchObject({
+      type: 'complete',
+      status: 'passed',
+    })
+    expect(() => server!.assertClean()).not.toThrow()
+  })
+
+  it('keeps command validation failures terminal rather than treating them as action rejections', async () => {
+    const original = new Error('Invalid Browser Mode element command.')
+    const { post } = await open(
+      () => {},
+      async () => {
+        throw original
+      }
+    )
+    const response = await post({ type: 'browser-command', command: {} })
+    expect(response.status).toBe(400)
+    await expect(server!.completion).rejects.toBe(original)
+    expect(() => server!.assertClean()).toThrow(original)
+  })
+
   it('transports closed collection facts before the first browser attempt', async () => {
     const collector = createClientResultCollector(artifact, { runId: 'run' })
     const { post } = await open((message) => collector.accept(message))
@@ -1561,8 +2071,23 @@ describe('Browser Mode immutable parent transport', () => {
       browserClient: true,
       mode: 'development',
     })
+    expect(
+      parseTestConfig({
+        projects: [
+          {
+            name: 'production-client',
+            mode: 'production',
+            browser: { enabled: true },
+          },
+        ],
+      }).projects[0].profile
+    ).toMatchObject({
+      environment: 'browser',
+      browserClient: true,
+      mode: 'production',
+    })
     for (const extra of [
-      { mode: 'production' },
+      { mode: 'invalid' },
       { route: '/x' },
       { isolate: false },
       { includeSource: ['**/*.js'] },
@@ -2398,7 +2923,45 @@ describe('Browser numeric retries and repeats', () => {
   })
 })
 
+let browserHostDescriptors: {
+  target: object
+  key: PropertyKey
+  descriptor: PropertyDescriptor | undefined
+}[] = []
+
 describe('Browser callback context identity across attempts', () => {
+  // Saved Browser code patches native event prototypes shared by Jest realms.
+  // Restore this host after the component checks, before Node starts a Worker.
+  const hostProperties: [object, PropertyKey][] = [
+    [Promise.prototype, 'then'],
+    [EventTarget.prototype, 'addEventListener'],
+    [EventTarget.prototype, 'removeEventListener'],
+    [MessagePort.prototype, 'postMessage'],
+    [MessagePort.prototype, 'close'],
+    [MessagePort.prototype, 'onmessage'],
+    ...[
+      'MessageChannel',
+      'structuredClone',
+      'setTimeout',
+      'setInterval',
+      'queueMicrotask',
+      'requestAnimationFrame',
+      'requestIdleCallback',
+    ].map((key): [object, PropertyKey] => [globalThis, key]),
+  ]
+  beforeAll(() => {
+    browserHostDescriptors = hostProperties.map(([target, key]) => ({
+      target,
+      key,
+      descriptor: Object.getOwnPropertyDescriptor(target, key),
+    }))
+  })
+  afterAll(() => {
+    for (const { target, key, descriptor } of browserHostDescriptors) {
+      if (descriptor) Object.defineProperty(target, key, descriptor)
+      else Reflect.deleteProperty(target, key)
+    }
+  })
   it('retains the published context and local expect through fresh retry and repeat scopes', () => {
     const {
       createAsyncScope,
@@ -2544,6 +3107,29 @@ describe('Browser callback context identity across attempts', () => {
     expect(() => held('late')).toThrow(/Browser Mode API access/)
   })
 })
+it('keeps real Node Worker messages intact after saved Browser client checks', async () => {
+  const { Worker } =
+    require('node:worker_threads') as typeof import('node:worker_threads')
+  const { once } = require('node:events') as typeof import('node:events')
+  for (const { target, key, descriptor } of browserHostDescriptors) {
+    expect(Object.getOwnPropertyDescriptor(target, key)).toEqual(descriptor)
+  }
+  const worker = new Worker(
+    `require('node:worker_threads').parentPort.postMessage({ value: 42 })`,
+    { eval: true }
+  )
+  try {
+    const [message, exit] = await Promise.all([
+      once(worker, 'message', { signal: AbortSignal.timeout(5_000) }),
+      once(worker, 'exit', { signal: AbortSignal.timeout(5_000) }),
+    ])
+    expect(message).toEqual([{ value: 42 }])
+    expect(exit).toEqual([0])
+  } finally {
+    await worker.terminate()
+  }
+})
+
 it('preserves callback values through the Browser runtime fallback refresh signatures', async () => {
   const { runInNewContext } = require('node:vm') as typeof import('node:vm')
   const ts = require('typescript') as typeof import('typescript')
@@ -2618,3 +3204,490 @@ it('preserves callback values through the Browser runtime fallback refresh signa
   ).toThrow(failure)
   expect(trace).toEqual(['start:real-refresh-module', 'cleanup'])
 })
+
+describe('Browser actual logical-case reporter facts', () => {
+  const sourceFile = '/project/logical.test.mjs'
+  const artifact = {
+    entryId: 'entry',
+    revision: 'revision',
+    client: { sourceFile },
+  }
+  async function executeActual(captureTaskResults = true) {
+    const {
+      createCollector,
+    } = require('next/dist/experimental/testing/runner/collector')
+    const {
+      runCollected,
+    } = require('next/dist/experimental/testing/runner/lifecycle')
+    const {
+      clientDeclarations,
+    } = require('next/dist/experimental/testing/client/collection')
+    const {
+      captureReporterTaskTree,
+    } = require('next/dist/experimental/testing/reporting/live-tasks')
+    const {
+      createClientResultCollector,
+    } = require('next/dist/experimental/testing/client/results')
+    const {
+      createReporterTaskUpdates,
+    } = require('next/dist/experimental/testing/reporting/task-updates')
+    const c = createCollector('entry')
+    let retries = 0,
+      repeats = 0,
+      bodies = 0,
+      captures = 0
+    // The pinned suite hook parser requires an object destructuring argument.
+    // eslint-disable-next-line no-empty-pattern
+    c.api.afterAll(({}, task: any) => {
+      task.meta.afterAll = 'closed'
+    })
+    c.api.test('retry', { retry: 1 }, ({ task, onTestFinished }: any) => {
+      bodies++
+      onTestFinished(() => {
+        task.meta.closed = true
+      })
+      if (retries++ === 0) throw new Error('retry failure')
+    })
+    c.api.test('repeat', { repeats: 1 }, () => {
+      bodies++
+      if (repeats++ === 0) throw new Error('repeat failure')
+    })
+    c.api.test.skip('skipped', () => {
+      throw new Error('never skipped')
+    })
+    c.api.test.todo('todo')
+    c.api.test('pending', ({ skip }: any) => {
+      bodies++
+      skip('actual skip')
+    })
+    c.api.test('following', () => {
+      bodies++
+    })
+    const root = c.close()
+    const options = { runId: 'run', captureTaskResults }
+    const collector = createClientResultCollector(artifact, options)
+    const messages: any[] = []
+    const accept = (message: any) => {
+      // This is the same JSON boundary used by the real Browser transport.
+      const copied = JSON.parse(JSON.stringify(message))
+      messages.push(copied)
+      collector.accept(copied)
+    }
+    const taskUpdates = captureTaskResults
+      ? createReporterTaskUpdates({
+          onUpdate(update: any) {
+            accept({ type: 'task-update', ...update })
+          },
+        })
+      : undefined
+    await runCollected(
+      root,
+      {
+        runId: 'run',
+        signal: new AbortController().signal,
+        filePath: sourceFile,
+        testTimeout: 1000,
+        hookTimeout: 1000,
+        onCollected(file: any) {
+          accept({
+            type: 'collected',
+            declarations: clientDeclarations(root),
+            ...(taskUpdates ? { taskTree: captureReporterTaskTree(file) } : {}),
+          })
+          taskUpdates?.collected(file)
+        },
+        onCaseStart(context: any) {
+          taskUpdates?.caseStart(context.testId)
+          accept({
+            type: 'case-start',
+            context: {
+              id: context.id,
+              fileId: context.fileId,
+              testId: context.testId,
+              name: context.name,
+              retry: context.retry,
+              repeat: context.repeat,
+            },
+          })
+        },
+        onCaseEnd(result: any) {
+          accept({ type: 'case-end', result })
+        },
+        onCaseResult: taskUpdates
+          ? (task: any, result: any) => {
+              captures++
+              taskUpdates.caseResult(task, result)
+            }
+          : undefined,
+        onSuiteEnd(result: any, task: any) {
+          taskUpdates?.suiteEnd(task)
+          accept({ type: 'suite-end', result })
+        },
+      },
+      () => {}
+    )
+    await taskUpdates?.finish()
+    taskUpdates?.dispose()
+    accept({
+      type: 'complete',
+      status: 'failed',
+      interrupted: false,
+      caseCount: 6,
+      updates: [],
+    })
+    return { events: collector.result().events, messages, bodies, captures }
+  }
+  it('retains actual once-per-logical-case trees, retry/repeat outcomes and root afterAll mutations', async () => {
+    const { events, messages, bodies, captures } = await executeActual()
+    const logical = events.flatMap((event: any) =>
+      event.type === 'task-update'
+        ? event.caseResults.map((result: any) => ({
+            ...result,
+            taskTree: event.taskTree,
+          }))
+        : []
+    )
+    expect(logical.map((event: any) => [event.name, event.status])).toEqual([
+      ['retry', 'passed'],
+      ['repeat', 'failed'],
+      ['skipped', 'skipped'],
+      ['todo', 'skipped'],
+      ['pending', 'skipped'],
+      ['following', 'passed'],
+    ])
+    expect(
+      events.filter((event: any) => event.type === 'case-end')
+    ).toHaveLength(8)
+    expect(bodies).toBe(6)
+    expect(captures).toBe(6)
+    expect(logical[0].taskTree.tasks[0].meta).toEqual({ closed: true })
+    const reporting = events.filter(
+      (event: any) =>
+        event.type === 'file-collected' || event.type === 'task-update'
+    )
+    expect(reporting.length).toBeGreaterThan(1)
+    expect(
+      reporting.every((event: any) => event.revision === artifact.revision)
+    ).toBe(true)
+    const initial = events.find(
+      (event: any) => event.type === 'file-collected'
+    ).taskTree
+    expect(initial.tasks[5].result).toBeUndefined()
+    expect(initial.meta.afterAll).toBeUndefined()
+    expect(
+      events.filter((event: any) => event.type === 'task-update').at(-1)
+        .taskTree.meta.afterAll
+    ).toBe('closed')
+    expect(
+      messages.flatMap((message: any) =>
+        message.type === 'task-update' ? message.caseResults : []
+      )
+    ).toHaveLength(6)
+  })
+  it('leaves actual attempt/suite event payloads and body counts unchanged without capture', async () => {
+    const captured = await executeActual(true)
+    const absent = await executeActual(false)
+    expect(absent.captures).toBe(0)
+    expect(absent.bodies).toBe(captured.bodies)
+    expect(
+      absent.events.some(
+        (event: any) =>
+          event.type === 'task-update' ||
+          event.type === 'file-collected' ||
+          event.taskTree
+      )
+    ).toBe(false)
+    const stable = (events: any[]) =>
+      events
+        .filter(
+          (event) =>
+            event.type !== 'task-update' && event.type !== 'file-collected'
+        )
+        .map((event) => {
+          const { timestamp, taskTree, durationMs, ...rest } = event
+          return rest
+        })
+    expect(stable(absent.events)).toEqual(stable(captured.events))
+  })
+  it.each([
+    'unsolicited',
+    'duplicate',
+    'wrong-final',
+    'unknown-task',
+    'missing-task',
+    'wrong-parent',
+    'forged-name',
+    'context',
+  ])(
+    'rejects %s logical reporter facts against actual immutable declarations',
+    async (kind) => {
+      const {
+        createClientResultCollector,
+      } = require('next/dist/experimental/testing/client/results')
+      const { messages } = await executeActual()
+      const collector = createClientResultCollector(artifact, {
+        runId: 'run',
+        captureTaskResults: kind !== 'unsolicited',
+      })
+      const index = messages.findIndex(
+        (message: any) =>
+          message.type === 'task-update' && message.caseResults.length > 0
+      )
+      for (const message of messages.slice(0, index)) {
+        if (kind === 'unsolicited' && message.type === 'task-update') continue
+        if (kind === 'unsolicited' && message.type === 'collected') {
+          const { taskTree, ...declaration } = message
+          collector.accept(declaration)
+        } else collector.accept(message)
+      }
+      const message = structuredClone(messages[index])
+      if (kind === 'duplicate') collector.accept(message)
+      if (kind === 'wrong-final') message.caseResults[0].status = 'failed'
+      if (kind === 'unknown-task') message.taskTree.tasks[0].id = 'foreign/0'
+      if (kind === 'missing-task') message.taskTree.tasks.pop()
+      if (kind === 'wrong-parent') message.taskTree.tasks[0].id = 'entry/5/0'
+      if (kind === 'forged-name') message.taskTree.tasks[0].name = 'invented'
+      if (kind === 'context') message.taskTree.tasks[0].context = {}
+      expect(() => collector.accept(message)).toThrow(/Browser Mode/)
+    }
+  )
+})
+
+describe('Browser actual reporter task-pack ownership', () => {
+  async function actualTasks() {
+    const {
+      createCollector,
+    } = require('next/dist/experimental/testing/runner/collector')
+    const {
+      runCollected,
+    } = require('next/dist/experimental/testing/runner/lifecycle')
+    const c = createCollector('pack-file')
+    c.api.test('first', { meta: { initial: 'first' } }, () => {})
+    c.api.test('second', () => {})
+    const root = c.close()
+    let file: any
+    const logical: any[] = []
+    await runCollected(
+      root,
+      {
+        runId: 'packs',
+        filePath: '/project/packs.test.mjs',
+        signal: new AbortController().signal,
+        onCollected(value: any) {
+          file = value
+        },
+        onCaseResult(task: any, result: any) {
+          logical.push({ task, result })
+        },
+      },
+      () => {}
+    )
+    return { file, logical }
+  }
+  function factory() {
+    return require('next/dist/experimental/testing/reporting/task-updates')
+      .createReporterTaskUpdates
+  }
+  it('retains queued result/meta references through replacements and captures in-place changes', async () => {
+    const { file, logical } = await actualTasks()
+    const updates: any[] = []
+    const owner = factory()({
+      onUpdate(update: any) {
+        updates.push(update)
+      },
+    })
+    owner.collected(file)
+    owner.caseResult(logical[0].task, logical[0].result)
+    const originalMeta = logical[0].task.meta,
+      originalResult = logical[0].task.result
+    originalMeta.inPlace = 'kept'
+    originalResult.note = 'retained note'
+    logical[0].task.meta = { replacement: true }
+    logical[0].task.result = { state: 'skip' }
+    owner.caseResult(logical[1].task, logical[1].result)
+    owner.suiteEnd(file)
+    await owner.finish()
+    owner.dispose()
+    const batch = updates.at(-1)
+    expect(batch.caseResults.map((result: any) => result.caseId)).toEqual(
+      logical.map(({ task }: any) => task.id)
+    )
+    expect(batch.taskUpdateIds).toEqual([
+      logical[0].task.id,
+      logical[1].task.id,
+      file.id,
+    ])
+    expect(batch.taskTree.tasks[0].meta).toEqual({
+      initial: 'first',
+      inPlace: 'kept',
+    })
+    expect(batch.taskTree.tasks[0].result).toMatchObject({
+      state: 'pass',
+      note: 'retained note',
+    })
+    expect(logical[0].task.meta).toEqual({ replacement: true })
+    originalMeta.after = 'later'
+    expect(batch.taskTree.tasks[0].meta.after).toBeUndefined()
+  })
+  it('leaves no queued logical result after rejecting a foreign task with the same id', async () => {
+    const { file, logical } = await actualTasks()
+    const updates: any[] = []
+    const owner = factory()({
+      onUpdate(update: any) {
+        updates.push(update)
+      },
+    })
+    owner.collected(file)
+    const foreign = { ...logical[0].task }
+    expect(() =>
+      owner.caseResult(foreign, { ...logical[0].result, status: 'failed' })
+    ).toThrow(/does not belong/)
+    owner.caseResult(logical[0].task, logical[0].result)
+    owner.suiteEnd(file)
+    await owner.finish()
+    owner.dispose()
+    expect(updates.flatMap((update) => update.caseResults)).toEqual([
+      logical[0].result,
+    ])
+    expect(updates.at(-1).caseResults[0].status).toBe('passed')
+  })
+  it('flushes with captured real clocks while authored globals are replaced', async () => {
+    const { file, logical } = await actualTasks()
+    const create = factory()
+    const realTimeout = globalThis.setTimeout.bind(globalThis)
+    let release: () => void
+    const delivered = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const updates: any[] = []
+    const owner = create({
+      onUpdate(update: any) {
+        updates.push(update)
+        if (update.caseResults.length) release()
+      },
+    })
+    owner.collected(file)
+    const timer = jest
+      .spyOn(globalThis, 'setTimeout')
+      .mockImplementation(() => {
+        throw new Error('authored fake timer')
+      })
+    const date = jest.spyOn(Date, 'now').mockReturnValue(-1)
+    try {
+      owner.caseStart(logical[0].task.id)
+      owner.caseResult(logical[0].task, logical[0].result)
+      await Promise.race([
+        delivered,
+        new Promise((_, reject) =>
+          realTimeout(
+            () => reject(new Error('actual reporter timer did not flush')),
+            1000
+          )
+        ),
+      ])
+      expect(updates.at(-1).caseResults).toHaveLength(1)
+      await owner.finish()
+    } finally {
+      timer.mockRestore()
+      date.mockRestore()
+      owner.dispose()
+    }
+  })
+  it.each(['sync', 'async'])(
+    'joins %s update failures without detached rejection',
+    async (kind) => {
+      const { file, logical } = await actualTasks()
+      const failure = new Error('actual reporter send rejected')
+      const owner = factory()({
+        onUpdate() {
+          if (kind === 'sync') throw failure
+          return Promise.reject(failure)
+        },
+      })
+      owner.collected(file)
+      owner.caseResult(logical[0].task, logical[0].result)
+      await expect(owner.finish()).rejects.toThrow(
+        'Reporter task updates failed'
+      )
+      owner.dispose()
+    }
+  )
+  it('catches unsupported snapshot serialization and closes the pending timer', async () => {
+    const { file, logical } = await actualTasks()
+    const updates: any[] = []
+    const owner = factory()({
+      onUpdate(update: any) {
+        updates.push(update)
+      },
+    })
+    owner.collected(file)
+    owner.caseResult(logical[0].task, logical[0].result)
+    logical[0].task.meta.function = () => {}
+    await expect(owner.finish()).rejects.toThrow()
+    owner.dispose()
+    expect(updates).toHaveLength(1)
+  })
+  it('disposes queued packs without publishing a later detached update', async () => {
+    const { file, logical } = await actualTasks()
+    const updates: any[] = []
+    const owner = factory()({
+      onUpdate(update: any) {
+        updates.push(update)
+      },
+    })
+    owner.collected(file)
+    owner.caseResult(logical[0].task, logical[0].result)
+    owner.dispose()
+    await owner.finish()
+    await new Promise((resolve) => setTimeout(resolve, 120))
+    expect(updates).toHaveLength(1)
+    expect(() => owner.caseStart(logical[0].task.id)).toThrow(/Unknown/)
+  })
+})
+
+it.each(['development', 'production'] as const)(
+  'keeps project agent maintenance disabled in the actual %s application worker',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-server-agent-options-'))
+    let lease: ApplicationServer | undefined
+    try {
+      const lib = join(root, 'node_modules/next/dist/server/lib')
+      const cli = join(root, 'node_modules/next/dist/cli')
+      await mkdir(lib, { recursive: true })
+      await mkdir(cli, { recursive: true })
+      await copyFile(
+        join(__dirname, 'fixtures/start-server.cjs'),
+        join(lib, 'protocol-server.cjs')
+      )
+      await copyFile(
+        join(__dirname, 'fixtures/start-server-options.cjs'),
+        join(lib, 'start-server.js')
+      )
+      await copyFile(
+        join(__dirname, 'fixtures/next-build.cjs'),
+        join(cli, 'next-build.js')
+      )
+      await writeFile(join(root, 'scenario'), 'ready')
+      lease = await createApplicationServer({
+        projectDir: root,
+        outputDir: join(root, 'artifacts'),
+        mode,
+        distDir: mode === 'production' ? '.next' : undefined,
+        outputLockEnabled: true,
+        signal: new AbortController().signal,
+        startupTimeoutMs: 5000,
+        shutdownGraceMs: 100,
+      })
+      expect(
+        JSON.parse(await readFile(join(root, 'worker-options.json'), 'utf8'))
+      ).toEqual({ isDev: mode === 'development', skipAgentFiles: true })
+      expect(await (await fetch(lease.baseURL)).text()).toBe('ready')
+    } finally {
+      try {
+        await lease?.dispose()
+      } finally {
+        await rm(root, { recursive: true, force: true })
+      }
+    }
+  }
+)

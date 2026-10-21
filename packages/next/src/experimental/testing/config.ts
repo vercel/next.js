@@ -9,8 +9,13 @@ import {
 } from './runner/sequence'
 import { readFile, readdir } from 'fs/promises'
 import path from 'path'
-import type { RegisteredBrowserFixture, TestProfile } from './contracts'
+import type {
+  BrowserViewport,
+  RegisteredBrowserFixture,
+  TestProfile,
+} from './contracts'
 import { parseMaxWorkers } from './scheduling'
+import { assignBrowserInstanceIds } from './browser-instances'
 import { openTestConfigModule, openTestProjectModules } from './config-modules'
 import type { FakeTimerOptions } from './assertions/utilities'
 import type { TestTypecheckConfig } from './typecheck'
@@ -25,6 +30,8 @@ export interface TestProjectConfig {
   executionEnvironment?: TestExecutionEnvironment
   /** Explicit author name, distinct from the internal unnamed profile ID. */
   displayName?: string
+  /** Normalized instance selection; never accepted as an authored setting. */
+  browserInstance?: { parentName?: string }
   profile: TestProfile
   isolate?: boolean
   include: string[]
@@ -36,6 +43,7 @@ export interface TestProjectConfig {
   globals?: boolean
   provide?: Record<string, unknown>
   env?: Record<string, string>
+  browserViewport?: BrowserViewport
   fakeTimers?: FakeTimerOptions
   clearMocks?: boolean
   mockReset?: boolean
@@ -198,7 +206,10 @@ function timeout(
   return value
 }
 
-export function parseTestConfig(value: unknown): TestConfig {
+export function parseTestConfig(
+  value: unknown,
+  authoredNames?: readonly (string | undefined)[]
+): TestConfig {
   const config = object(value, 'config')
   keys(
     config,
@@ -234,7 +245,8 @@ export function parseTestConfig(value: unknown): TestConfig {
     invalid('projects must be a nonempty array.')
   }
   const names = new Set<string>()
-  return {
+  const instances = new Map<number, { name?: string }[]>()
+  const normalized: TestConfig = {
     compatibility: 'vitest',
     maxWorkers: parseMaxWorkers(
       config.maxWorkers === undefined ? 1 : config.maxWorkers
@@ -290,21 +302,74 @@ export function parseTestConfig(value: unknown): TestConfig {
         invalid(`${label}.isolate must be a boolean.`)
       const customCoverage = parseCustomCoverageConfig(project.coverage)
       const name = project.name
-      if (typeof name !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(name)) {
-        invalid(`${label}.name must contain only letters, digits, "_" or "-".`)
-      }
-      if (names.has(name)) invalid(`Duplicate project name "${name}".`)
-      names.add(name)
       const browser =
         project.browser === undefined
           ? undefined
           : object(project.browser, `${label}.browser`)
       if (browser) {
-        keys(browser, ['enabled'], `${label}.browser`)
+        keys(browser, ['enabled', 'viewport', 'instances'], `${label}.browser`)
         if (typeof browser.enabled !== 'boolean')
           invalid(`${label}.browser.enabled must be a boolean.`)
       }
       const browserClient = browser?.enabled === true
+      const expandsBrowserInstances =
+        browserClient && browser.instances !== undefined
+      if (
+        typeof name !== 'string' ||
+        (!expandsBrowserInstances && !/^[a-zA-Z0-9_-]+$/.test(name))
+      ) {
+        invalid(`${label}.name must contain only letters, digits, "_" or "-".`)
+      }
+      if (names.has(name)) invalid(`Duplicate project name "${name}".`)
+      names.add(name)
+      if (expandsBrowserInstances) {
+        if (!Array.isArray(browser.instances) || browser.instances.length === 0)
+          invalid(`${label}.browser.instances must be a nonempty array.`)
+        instances.set(
+          index,
+          browser.instances.map((instanceValue, instanceIndex) => {
+            const instanceLabel = `${label}.browser.instances[${instanceIndex}]`
+            const instance = object(instanceValue, instanceLabel)
+            keys(instance, ['browser', 'name'], instanceLabel)
+            if (instance.browser !== 'chromium')
+              invalid(
+                `${instanceLabel}.browser currently supports only Chromium.`
+              )
+            if (
+              instance.name !== undefined &&
+              typeof instance.name !== 'string'
+            )
+              invalid(`${instanceLabel}.name must be a string.`)
+            return instance.name === undefined
+              ? {}
+              : { name: instance.name as string }
+          })
+        )
+      }
+      let browserViewport: BrowserViewport | undefined
+      if (browserClient) {
+        const viewport =
+          browser.viewport == null
+            ? {}
+            : object(browser.viewport, `${label}.browser.viewport`)
+        keys(viewport, ['width', 'height'], `${label}.browser.viewport`)
+        const dimension = (key: 'width' | 'height', fallback: number) => {
+          const dimensionValue = viewport[key] ?? fallback
+          if (
+            typeof dimensionValue !== 'number' ||
+            !Number.isInteger(dimensionValue) ||
+            dimensionValue < 0
+          )
+            invalid(
+              `${label}.browser.viewport.${key} must be a non-negative integer.`
+            )
+          return dimensionValue as number
+        }
+        browserViewport = {
+          width: dimension('width', 414),
+          height: dimension('height', 896),
+        }
+      }
       const environment =
         project.environment === undefined
           ? browserClient
@@ -337,14 +402,13 @@ export function parseTestConfig(value: unknown): TestConfig {
       if (
         browserClient &&
         (environment !== 'browser' ||
-          mode !== 'development' ||
           project.route !== undefined ||
           project.isolate === false ||
           includeSource?.length ||
           project.browserFixtures !== undefined)
       )
         invalid(
-          `${label}.browser.enabled requires an isolated one-shot development client profile without routes, in-source tests or application fixtures.`
+          `${label}.browser.enabled requires an isolated client profile without routes, in-source tests or application fixtures.`
         )
       let browserFixtures: RegisteredBrowserFixture[] | undefined
       if (project.browserFixtures !== undefined) {
@@ -359,7 +423,11 @@ export function parseTestConfig(value: unknown): TestConfig {
           (fixtureValue, fixtureIndex) => {
             const fixtureLabel = `${label}.browserFixtures[${fixtureIndex}]`
             const fixture = object(fixtureValue, fixtureLabel)
-            keys(fixture, ['id', 'module', 'exportName'], fixtureLabel)
+            keys(
+              fixture,
+              ['id', 'module', 'exportName', 'layout'],
+              fixtureLabel
+            )
             if (
               typeof fixture.id !== 'string' ||
               !/^[a-zA-Z0-9_-]+$/.test(fixture.id)
@@ -387,7 +455,19 @@ export function parseTestConfig(value: unknown): TestConfig {
                 `${fixtureLabel}.exportName must be a JavaScript identifier.`
               )
             }
-            return { id: fixture.id, module: fixture.module, exportName }
+            const layout = fixture.layout
+            if (
+              layout !== undefined &&
+              (typeof layout !== 'string' || layout.trim() === '')
+            ) {
+              invalid(`${fixtureLabel}.layout must be a nonempty path.`)
+            }
+            return {
+              id: fixture.id,
+              module: fixture.module,
+              exportName,
+              ...(layout === undefined ? {} : { layout }),
+            }
           }
         )
       }
@@ -620,6 +700,7 @@ export function parseTestConfig(value: unknown): TestConfig {
           : { globals: project.globals as boolean }),
         ...(provide === undefined ? {} : { provide }),
         ...(env === undefined ? {} : { env }),
+        ...(browserViewport === undefined ? {} : { browserViewport }),
         ...(browserFixtures === undefined ? {} : { browserFixtures }),
         ...(tags === undefined ? {} : { tags }),
         ...(project.strictTags === undefined
@@ -670,6 +751,22 @@ export function parseTestConfig(value: unknown): TestConfig {
       }
     }),
   }
+  normalized.projects = normalized.projects.flatMap((project, index) => {
+    const browserInstances = instances.get(index)
+    if (!browserInstances) return [project]
+    const parentName = authoredNames
+      ? authoredNames[index]
+      : project.displayName
+    return browserInstances.map((instance) => ({
+      ...project,
+      displayName:
+        instance.name ?? (parentName ? `${parentName} (chromium)` : 'chromium'),
+      browserInstance: parentName === undefined ? {} : { parentName },
+      profile: { ...project.profile },
+    }))
+  })
+  assignBrowserInstanceIds(normalized.projects)
+  return normalized
 }
 
 /** Validate compiler fields in their owning realm, before IPC clones function values. */
@@ -708,60 +805,72 @@ export function normalizeTestConfig(value: unknown): TestConfig {
   const sequenceSeed = rootSequence.seed ?? Date.now()
   defaults.sequence = { ...rootSequence, seed: sequenceSeed }
   if (projects === undefined) {
-    const normalized = parseTestConfig({
-      maxWorkers,
-      projects: [{ name: name ?? 'default', ...defaults }],
-    })
-    if (name === undefined) delete normalized.projects[0].displayName
+    const normalized = parseTestConfig(
+      {
+        maxWorkers,
+        projects: [{ name: name ?? 'default', ...defaults }],
+      },
+      [name as string | undefined]
+    )
+    if (name === undefined && !normalized.projects[0].browserInstance)
+      delete normalized.projects[0].displayName
     return normalized
   }
   if (!Array.isArray(projects) || projects.length === 0)
     invalid('test.projects must be a nonempty array of project objects.')
-  return parseTestConfig({
-    maxWorkers,
-    projects: projects.map((projectValue, index) => {
-      const project = object(projectValue, `test.projects[${index}]`)
-      const settings =
-        'test' in project
-          ? (keys(project, ['test'], `test.projects[${index}]`),
-            object(project.test, `test.projects[${index}].test`))
-          : project
-      return {
-        ...defaults,
-        ...settings,
-        name: settings.name ?? `project-${index}`,
-        sequence: inheritGlobalTestSequence(
-          {
-            ...object(defaults.sequence, 'test.sequence'),
-            ...object(
-              settings.sequence ?? {},
-              `test.projects[${index}].sequence`
-            ),
-          } as TestSequenceOptions,
-          defaults.sequence as TestSequenceOptions
-        ),
-        ...(defaults.env || settings.env
-          ? {
-              env: {
-                ...object(defaults.env ?? {}, 'test.env'),
-                ...object(settings.env ?? {}, `test.projects[${index}].env`),
-              },
-            }
-          : {}),
-        ...(defaults.provide || settings.provide
-          ? {
-              provide: {
-                ...object(defaults.provide ?? {}, 'test.provide'),
-                ...object(
-                  settings.provide ?? {},
-                  `test.projects[${index}].provide`
-                ),
-              },
-            }
-          : {}),
-      }
-    }),
-  })
+  return parseTestConfig(
+    {
+      maxWorkers,
+      projects: projects.map((projectValue, index) => {
+        const project = object(projectValue, `test.projects[${index}]`)
+        const settings =
+          'test' in project
+            ? (keys(project, ['test'], `test.projects[${index}]`),
+              object(project.test, `test.projects[${index}].test`))
+            : project
+        return {
+          ...defaults,
+          ...settings,
+          name: settings.name ?? `project-${index}`,
+          sequence: inheritGlobalTestSequence(
+            {
+              ...object(defaults.sequence, 'test.sequence'),
+              ...object(
+                settings.sequence ?? {},
+                `test.projects[${index}].sequence`
+              ),
+            } as TestSequenceOptions,
+            defaults.sequence as TestSequenceOptions
+          ),
+          ...(defaults.env || settings.env
+            ? {
+                env: {
+                  ...object(defaults.env ?? {}, 'test.env'),
+                  ...object(settings.env ?? {}, `test.projects[${index}].env`),
+                },
+              }
+            : {}),
+          ...(defaults.provide || settings.provide
+            ? {
+                provide: {
+                  ...object(defaults.provide ?? {}, 'test.provide'),
+                  ...object(
+                    settings.provide ?? {},
+                    `test.projects[${index}].provide`
+                  ),
+                },
+              }
+            : {}),
+        }
+      }),
+    },
+    projects.map((projectValue) => {
+      const project = object(projectValue, 'test.projects')
+      return (
+        'test' in project ? object(project.test, 'test.projects.test') : project
+      ).name as string | undefined
+    })
+  )
 }
 
 /** Next config takes precedence, then Vitest, then Vite's test configuration. */
@@ -795,6 +904,9 @@ export async function openTestConfiguration(
     | undefined
   let disposing: Promise<void> | undefined
   let retainedTransforms = false
+  let globalSetupLifetime: AbortSignal | undefined
+  let retainedSetupContexts: Record<string, Record<string, unknown>> | undefined
+  let globalSetupRetentionInvalid = false
   function dispose() {
     return (disposing ??= (async () => {
       const failures: unknown[] = []
@@ -888,6 +1000,65 @@ export async function openTestConfiguration(
         retainedTransforms = true
         return true
       },
+      /** The qualified root JSON global setup follows the watch session. */
+      async retainGlobalSetupForWatch(
+        lifetime: AbortSignal,
+        projects: readonly TestProjectConfig[],
+        requireCurrent = false,
+        requireFulfilled = false
+      ) {
+        const project = projects[0]
+        if (
+          !filename?.endsWith('.json') ||
+          projectModules ||
+          config.projects.length !== 1 ||
+          projects.length !== 1 ||
+          project.profile.id !== config.projects[0].profile.id ||
+          !project.globalSetup?.length ||
+          project.globalSetup.length !==
+            config.projects[0].globalSetup?.length ||
+          project.globalSetup.some(
+            (file, index) => file !== config.projects[0].globalSetup?.[index]
+          ) ||
+          project.profile.mode !== 'development' ||
+          project.profile.environment !== 'node' ||
+          project.profile.runtime !== 'nodejs' ||
+          project.profile.bundler !== 'turbopack' ||
+          project.profile.route !== undefined ||
+          project.isolate === false ||
+          (project.executionEnvironment &&
+            project.executionEnvironment.name !== 'node') ||
+          project.customCoverage ||
+          globalSetupRetentionInvalid
+        )
+          return false
+        if (requireFulfilled && !retainedSetupContexts) return false
+        if (!retainedSetupContexts && signal?.aborted) {
+          globalSetupRetentionInvalid = true
+          return false
+        }
+        const selected = await testConfigSource(projectDir)
+        if (
+          selected !== filename ||
+          !(await readFile(filename)).equals(sourceBytes!)
+        ) {
+          if (requireCurrent)
+            throw new Error(
+              'Test global setup configuration changed during evaluation.'
+            )
+          return false
+        }
+        if (disposing)
+          throw new Error(
+            'The retained global setup configuration is unavailable.'
+          )
+        lifetime.throwIfAborted()
+        // Before the initial setup fulfills its realm remains generation-owned.
+        // A cancelled or partially failed setup must not survive that generation.
+        if (retainedSetupContexts) realm!.retainForWatch(lifetime)
+        globalSetupLifetime = lifetime
+        return true
+      },
       compilerTransformNames: [
         ...(realm?.compilerTransformNames ?? []),
         ...(projectModules?.compilerTransformNames ?? []),
@@ -915,7 +1086,64 @@ export async function openTestConfiguration(
         ]
       },
       watchRootProject: projectModules?.rootProject,
-      async setup(projects: TestProjectConfig[]) {
+      async setup(
+        projects: TestProjectConfig[],
+        generationSignal?: AbortSignal
+      ) {
+        if (
+          globalSetupLifetime &&
+          projects.some(
+            (project) => project.profile.id !== config.projects[0].profile.id
+          )
+        )
+          throw new Error(
+            'Unknown project in retained global setup configuration.'
+          )
+        if (
+          globalSetupLifetime &&
+          projects.length &&
+          (projects.length !== 1 ||
+            !projects[0].globalSetup?.length ||
+            projects[0].globalSetup.length !==
+              config.projects[0].globalSetup?.length ||
+            projects[0].globalSetup.some(
+              (file, index) => file !== config.projects[0].globalSetup?.[index]
+            ) ||
+            projects[0].profile.mode !== 'development' ||
+            projects[0].profile.environment !== 'node' ||
+            projects[0].profile.runtime !== 'nodejs' ||
+            projects[0].profile.bundler !== 'turbopack' ||
+            projects[0].profile.route !== undefined ||
+            projects[0].isolate === false ||
+            (projects[0].executionEnvironment &&
+              projects[0].executionEnvironment.name !== 'node') ||
+            projects[0].customCoverage)
+        ) {
+          globalSetupRetentionInvalid = true
+          globalSetupLifetime = undefined
+          if (retainedSetupContexts)
+            throw new Error(
+              'Unsupported project in retained global setup configuration.'
+            )
+        }
+        if (retainedSetupContexts) {
+          if (disposing || globalSetupRetentionInvalid)
+            throw new Error(
+              'The retained global setup configuration is unavailable.'
+            )
+          globalSetupLifetime!.throwIfAborted()
+          realm!.retainForWatch(globalSetupLifetime!)
+          for (const project of projects) {
+            if (!Object.hasOwn(retainedSetupContexts, project.profile.id))
+              throw new Error(
+                'Unknown project in retained global setup configuration.'
+              )
+            project.provide = structuredClone(
+              retainedSetupContexts[project.profile.id]
+            )
+          }
+          return
+        }
         if (retainedTransforms) {
           // This owner admits no global setup or external project realm. Provide
           // fresh cloned context per run without repeating the worker setup RPC.
@@ -931,51 +1159,73 @@ export async function openTestConfiguration(
           }
           return
         }
-        let rootContext = projectModules?.rootProject.provide ?? {}
-        const selected = projects.map((project) => ({
-          name: project.profile.id,
-          provide: project.provide ?? {},
-          ...(projectModules ? { inheritedProvide: rootContext } : {}),
-          globalSetup: (project.globalSetup ?? []).map((file) =>
-            path.resolve(projectDir, file)
-          ),
-        }))
-        if (!realm && selected.some((project) => project.globalSetup.length))
-          realm = await openTestConfigModule(undefined, projectDir, signal)
-        const rootSelected = projectModules
-          ? selected.filter(
-              (_, index) => !projectModules!.owns(projects[index])
+        try {
+          const initialSetupSignal = generationSignal ?? signal
+          if (globalSetupLifetime) initialSetupSignal?.throwIfAborted()
+          let rootContext = projectModules?.rootProject.provide ?? {}
+          const selected = projects.map((project) => ({
+            name: project.profile.id,
+            provide: project.provide ?? {},
+            ...(projectModules ? { inheritedProvide: rootContext } : {}),
+            globalSetup: (project.globalSetup ?? []).map((file) =>
+              path.resolve(projectDir, file)
+            ),
+          }))
+          if (!realm && selected.some((project) => project.globalSetup.length))
+            realm = await openTestConfigModule(
+              undefined,
+              projectDir,
+              globalSetupLifetime ? initialSetupSignal : signal
             )
-          : selected
-        const contexts =
-          realm && rootSelected.length
-            ? await realm.setup(rootSelected)
-            : Object.fromEntries(
-                rootSelected.map((project) => [
-                  project.name,
-                  structuredClone(project.provide),
-                ])
+          const rootSelected = projectModules
+            ? selected.filter(
+                (_, index) => !projectModules!.owns(projects[index])
               )
-        if (projectModules) {
-          Object.assign(contexts, await projectModules.setup(selected))
-          if (projects.length) {
-            realm ??= await openTestConfigModule(undefined, projectDir, signal)
-            rootContext = await realm.setupRoot({
-              ...projectModules.rootProject,
-              globalSetup: projectModules.rootProject.globalSetup.map((file) =>
-                path.resolve(projectDir, file)
-              ),
-            })
-          }
-          for (const project of projects) {
-            contexts[project.profile.id] = {
-              ...rootContext,
-              ...contexts[project.profile.id],
+            : selected
+          const contexts =
+            realm && rootSelected.length
+              ? await realm.setup(rootSelected)
+              : Object.fromEntries(
+                  rootSelected.map((project) => [
+                    project.name,
+                    structuredClone(project.provide),
+                  ])
+                )
+          if (projectModules) {
+            Object.assign(contexts, await projectModules.setup(selected))
+            if (projects.length) {
+              realm ??= await openTestConfigModule(
+                undefined,
+                projectDir,
+                signal
+              )
+              rootContext = await realm.setupRoot({
+                ...projectModules.rootProject,
+                globalSetup: projectModules.rootProject.globalSetup.map(
+                  (file) => path.resolve(projectDir, file)
+                ),
+              })
+            }
+            for (const project of projects) {
+              contexts[project.profile.id] = {
+                ...rootContext,
+                ...contexts[project.profile.id],
+              }
             }
           }
+          for (const project of projects)
+            project.provide = contexts[project.profile.id]
+          if (globalSetupLifetime && projects.length) {
+            initialSetupSignal?.throwIfAborted()
+            globalSetupLifetime.throwIfAborted()
+            const retained = structuredClone(contexts)
+            realm!.retainForWatch(globalSetupLifetime)
+            retainedSetupContexts = retained
+          }
+        } catch (error) {
+          if (globalSetupLifetime) globalSetupRetentionInvalid = true
+          throw error
         }
-        for (const project of projects)
-          project.provide = contexts[project.profile.id]
       },
       dispose,
     }

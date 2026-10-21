@@ -1,0 +1,166 @@
+{
+  "reference": "Vitest 5.0.4, Chromium, NODE_ENV=production, --mode production",
+  "cases": [
+    {
+      "fullName": "userEvent clicks use the real pointer for locators and elements",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "fullName": "userEvent fill clear and select preserve native input effects",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "fullName": "userEvent hover delegates to a native pointer",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "fullName": "userEvent tripleClick preserves native click counts and options",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "fullName": "userEvent unhover moves the real pointer to the body",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "fullName": "userEvent tab follows native forward and reverse focus order",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "fullName": "Browser production graph resolves production client dependency conditions",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "fullName": "Browser production React and CSS render through the real client graph",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "rows": [
+    {
+      "stream": "stdout",
+      "row": {
+        "name": "clicks",
+        "row": {
+          "trace": [
+            ["click", 0, 1, true],
+            ["click", 0, 1, true],
+            ["click", 0, 1, true],
+            ["click", 0, 2, true],
+            ["dblclick", 0, 2, true],
+            ["contextmenu", 2, 0, true]
+          ],
+          "allUndefined": true,
+          "focused": true
+        }
+      }
+    },
+    {
+      "stream": "stdout",
+      "row": {
+        "name": "inputs",
+        "row": {
+          "filled": "A\ud83d\ude00",
+          "cleared": "",
+          "selected": ["one", "two"],
+          "trace": [
+            ["INPUT", "input", "A\ud83d\ude00"],
+            ["INPUT", "input", ""],
+            ["SELECT", "input", "one"],
+            ["SELECT", "change", "one"]
+          ],
+          "allUndefined": true
+        }
+      }
+    },
+    {
+      "stream": "stdout",
+      "row": {
+        "name": "hover",
+        "row": {
+          "trace": [
+            ["pointerover", true],
+            ["mouseover", true],
+            ["mouseenter", true]
+          ],
+          "returnedUndefined": true,
+          "hovered": true
+        }
+      }
+    },
+    {
+      "stream": "stdout",
+      "row": {
+        "name": "triple",
+        "row": {
+          "trace": [
+            ["click", 1, true, true],
+            ["click", 2, true, true],
+            ["dblclick", 2, true, true],
+            ["click", 3, true, true]
+          ],
+          "returnedUndefined": true
+        }
+      }
+    },
+    {
+      "stream": "stdout",
+      "row": {
+        "name": "unhover",
+        "row": {
+          "trace": [
+            ["pointerout", true],
+            ["mouseout", true],
+            ["mouseleave", true]
+          ],
+          "returnedUndefined": true,
+          "hovered": false
+        }
+      }
+    },
+    {
+      "stream": "stdout",
+      "row": {
+        "name": "tab",
+        "row": {
+          "focused": ["First", "Middle", "Last", "Middle", "First"],
+          "keys": [
+            ["Tab", false, true],
+            ["Tab", false, true],
+            ["Tab", true, true],
+            ["Tab", true, true]
+          ],
+          "allUndefined": true
+        }
+      }
+    },
+    {
+      "stream": "stdout",
+      "row": {
+        "name": "production",
+        "row": {
+          "environment": "production",
+          "target": "browser-production"
+        }
+      }
+    },
+    {
+      "stream": "stdout",
+      "row": {
+        "name": "production-react",
+        "row": {
+          "environment": "production",
+          "text": "Real production widget",
+          "color": "rgb(12, 34, 56)",
+          "act": "undefined"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+console.log('BROWSER_SETUP_LATER_UNREACHED module')
+throw new Error('later setup must not load')

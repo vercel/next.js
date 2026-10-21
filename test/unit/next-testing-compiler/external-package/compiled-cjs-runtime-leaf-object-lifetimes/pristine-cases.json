@@ -1,0 +1,22 @@
+[
+  {
+    "name": "compiled CJS reset during held factory retains registration and raw original generations",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "compiled CJS reset and reregistration while held keeps actual pending ownership",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "compiled CJS raw namespace getter receiver and member mutation survive held reset",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "compiled CJS literal normalized alias uses one actual runtime namespace",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

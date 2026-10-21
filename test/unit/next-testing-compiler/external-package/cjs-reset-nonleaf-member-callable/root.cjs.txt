@@ -1,0 +1,8 @@
+globalThis.__ws2CjsDependencyRoot=(globalThis.__ws2CjsDependencyRoot||0)+1
+const evaluation=globalThis.__ws2CjsDependencyRoot
+const dependency=require('./dependency.cjs')
+function exported(value){return [this?.tag??null,evaluation,dependency.evaluation,value]}
+exported.evaluation=evaluation
+exported.dependency=dependency
+exported.read=function(value){return [this.evaluation,this.dependency.evaluation,value]}
+module.exports=exported

@@ -1,0 +1,3 @@
+import {peer} from './peer.mjs';
+globalThis.__ws2Graph ??= {};globalThis.__ws2Graph['acyclic-root']=(globalThis.__ws2Graph['acyclic-root']??0)+1;export const evaluation=globalThis.__ws2Graph['acyclic-root'];
+export const token={kind:'root',count:0};export {peer};export function read(){return [token.count,peer.count]}

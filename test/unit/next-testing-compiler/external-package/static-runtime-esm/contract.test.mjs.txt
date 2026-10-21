@@ -1,0 +1,26 @@
+import { test, expect, vi } from 'vitest'
+import { types } from 'node:util'
+import * as heldStatic from 'ws2-genuine-external-esm'
+vi.mock('ws2-genuine-external-esm', () => ({ value: 5 }))
+function shape(namespace) {
+ return { nativeBrand: types.isModuleNamespaceObject(namespace), keys: Reflect.ownKeys(namespace).map(key => typeof key === 'symbol' ? String(key) : key), prototypeNull: Object.getPrototypeOf(namespace) === null, tag: namespace[Symbol.toStringTag] ?? null, extensible: Object.isExtensible(namespace), sealed: Object.isSealed(namespace), frozen: Object.isFrozen(namespace), descriptors: Reflect.ownKeys(namespace).map(key => { const d = Object.getOwnPropertyDescriptor(namespace,key); return { key: typeof key === 'symbol' ? String(key) : key, valueType: typeof d.value, get: typeof d.get, set: typeof d.set, writable: d.writable ?? null, enumerable: d.enumerable, configurable: d.configurable } }) }
+}
+test('native ESM static and runtime registrations retain authored ordering', async () => {
+ const before = await import('ws2-genuine-external-esm')
+ let calls = 0
+ let actual
+ vi.doMock('ws2-genuine-external-esm', async original => { calls++; actual = await original(); return { value: 73, actualValue: actual.value ?? null, actualReadFile: typeof actual.readFile, sameStatic: actual === heldStatic } })
+ const mocked = await import('ws2-genuine-external-esm')
+ vi.resetModules()
+ const afterMockReset = await import('ws2-genuine-external-esm')
+ vi.doUnmock('ws2-genuine-external-esm')
+ const released = await import('ws2-genuine-external-esm')
+ vi.doMock('ws2-genuine-external-esm', () => ({ value: 91 }))
+ const replacement = await import('ws2-genuine-external-esm')
+ vi.resetModules()
+ vi.doUnmock('ws2-genuine-external-esm')
+ const final = await import('ws2-genuine-external-esm')
+ console.log('WS2_EXTERNAL_STATIC_RUNTIME_ESM:' + JSON.stringify({ calls, values: [before.value,mocked.value,replacement.value,heldStatic.value], actualValue: mocked.actualValue, actualReadFile: mocked.actualReadFile, actualBrand: types.isModuleNamespaceObject(actual), sameActualStatic: mocked.sameStatic, staticBefore: heldStatic === before, mockReset: mocked === afterMockReset, releasedValue: released.value ?? null, releasedReadFile: typeof released.readFile, releasedActual: released === actual, finalReleased: final === released, heldMockValue: mocked.value, staticShape: shape(heldStatic), beforeShape: shape(before), actualShape: shape(actual), mockedShape: shape(mocked), afterMockResetShape: shape(afterMockReset), releasedShape: shape(released), replacementShape: shape(replacement), finalShape: shape(final), actualDefaultReleased: actual.default === released.default, actualFnReleased: actual.fn === released.fn, releasedDefaultFinal: released.default === final.default, releasedFnFinal: released.fn === final.fn }))
+ expect(mocked.value).toBe(73)
+ expect(replacement.value).toBe(91)
+})

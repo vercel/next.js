@@ -1,0 +1,12 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_GRAPH",
+    "value": {
+      "diamond": true,
+      "cycle": true,
+      "rootAndDependency": true,
+      "data": "captured-package-data\n"
+    }
+  }
+]

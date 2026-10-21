@@ -1,0 +1,22 @@
+import { afterAll, beforeAll, describe, expect, test } from 'vitest'
+
+console.log('collection', { value: 1 })
+beforeAll(() => console.warn('before-all'))
+afterAll(() => console.log('after-all'))
+
+describe('outer', () => {
+  test('logs across turns', async () => {
+    console.log('first')
+    console.log('second', { value: 2 })
+    console.error('error', [3, 4])
+    await Promise.resolve()
+    console.log('microtask')
+    await new Promise((resolve) => setImmediate(resolve))
+    console.log('later')
+    expect(true).toBe(true)
+  })
+  test('another task', () => {
+    console.info('other')
+    console.debug('debug')
+  })
+})

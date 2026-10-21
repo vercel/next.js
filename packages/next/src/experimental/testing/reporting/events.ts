@@ -1,3 +1,4 @@
+import type { ReporterTaskSnapshot } from './live-tasks'
 import type { TaskMeta, TestAnnotation, TestArtifact } from '../runner/tasks'
 import type { TestEntry } from '../contracts'
 import type { SnapshotUpdateMode } from '../assertions/snapshots'
@@ -122,6 +123,20 @@ type EventPayload =
       | 'revision'
     >)
   | ({ type: 'case-end' } & CaseResult)
+  | {
+      type: 'file-collected'
+      entryId: string
+      revision: string
+      taskTree: ReporterTaskSnapshot
+    }
+  | {
+      type: 'task-update'
+      entryId: string
+      revision: string
+      taskTree: ReporterTaskSnapshot
+      taskUpdateIds: string[]
+      caseResults: CaseResult[]
+    }
   | ({ type: 'test-annotation'; annotation: TestAnnotation } & ResultScope & {
         caseId: string
         attempt: AttemptIdentity
@@ -130,7 +145,11 @@ type EventPayload =
         caseId: string
         attempt: AttemptIdentity
       })
-  | ({ type: 'suite-end' } & SuiteResult & { revision?: string })
+  | ({ type: 'suite-end' } & SuiteResult & {
+        revision?: string
+      })
+  /** Actual disposed cohort file; shared final results and publication remain pending. */
+  | ({ type: 'module-complete'; revision: string } & FileResult)
   | ({ type: 'file-end' } & FileResult)
   | ({
       type: 'snapshot-summary'
@@ -147,10 +166,19 @@ type EventPayload =
     } & ResultScope)
   | ({
       type: 'diagnostic'
+      /** Exact prior suite-end error slot from this execution, when owned. */
+      suiteError?: { suiteId: string; index: number }
       diagnostic: SerializedDiagnostic
     } & Partial<ResultScope>)
   | ({
       type: 'output'
+      /** Actual console producer facts; absent on raw process/engine fallback. */
+      console?: {
+        taskId?: string
+        size: number
+        browser?: boolean
+        origin?: string
+      }
       stream: 'stdout' | 'stderr'
       text: string
     } & Partial<ResultScope>)

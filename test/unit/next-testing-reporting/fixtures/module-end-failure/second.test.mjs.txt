@@ -1,0 +1,2 @@
+import {test,expect} from 'vitest'
+test('second',()=>expect(true).toBe(true))

@@ -3,6 +3,9 @@ import type { Params } from '../../../server/request/params'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
+import { getSegmentParam } from '../../../shared/lib/router/utils/get-segment-param'
+import { getDynamicParam } from '../../../shared/lib/router/utils/get-dynamic-param'
+import { dynamicParamTypes } from '../../../server/app-render/get-short-dynamic-param-type'
 
 const dynamic = ['auto', 'force-dynamic', 'force-static', 'error']
 const fetchCache = [
@@ -23,7 +26,7 @@ export function validateCompiledTestRoute(
   const route = value as CompiledTestRoute | undefined
   if (
     profile.environment !== 'rsc' ||
-    profile.mode !== 'development' ||
+    !['development', 'production'].includes(profile.mode) ||
     profile.runtime !== 'nodejs' ||
     profile.bundler !== 'turbopack' ||
     !profile.route ||
@@ -160,5 +163,33 @@ export async function resolveCompiledRouteRequest(
     )
   }
   signal.throwIfAborted()
+  return { params, rootParams }
+}
+
+/** Match app-render's user-facing dynamic values after logical URL validation. */
+export function createCompiledRouteRenderParams(
+  route: CompiledTestRoute,
+  logicalParams: Params
+): { params: Params; rootParams: Params } {
+  const params: Params = {}
+  // These are the native AppProject page segments, including route groups.
+  // getDynamicParam applies the same single encoding step as app-render.
+  for (const segment of route.page.split('/')) {
+    const parameter = getSegmentParam(segment)
+    if (!parameter) continue
+    const dynamicParameter = getDynamicParam(
+      logicalParams,
+      parameter.paramName,
+      dynamicParamTypes[parameter.paramType],
+      null,
+      null
+    )
+    if (dynamicParameter.value !== null)
+      params[dynamicParameter.param] = dynamicParameter.value
+  }
+  const rootParams: Params = {}
+  for (const name of route.rootParamNames) {
+    if (Object.hasOwn(params, name)) rootParams[name] = params[name]
+  }
   return { params, rootParams }
 }

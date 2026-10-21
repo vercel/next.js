@@ -1,0 +1,232 @@
+[
+  {
+    "variant": "temporary",
+    "format": "html",
+    "pathname": "/acme/late-redirect/alpha/c",
+    "search": "?tag=one&tag=two&unicode=%E2%9C%93&redirect=temporary",
+    "status": 200,
+    "contentType": "text/html; charset=utf-8",
+    "location": null,
+    "redirectDigest": "NEXT_REDIRECT;replace;/acme/late-redirect/target?from=late-temporary;307;",
+    "refresh": "1;url=/acme/late-redirect/target?from=late-temporary",
+    "subject": {
+      "tenant": "acme",
+      "slug": ["alpha", "c"],
+      "root": "acme",
+      "tag": ["one", "two"],
+      "unicode": "✓",
+      "header": "request-value",
+      "cookie": "session-value"
+    },
+    "rootLayout": true,
+    "nestedLayout": true,
+    "provider": true,
+    "barrier": {
+      "held": true,
+      "fallbackBeforeRelease": true,
+      "released": true,
+      "fallbackDigestAbsent": true
+    },
+    "after": {
+      "request": "temporary-html",
+      "root": "acme",
+      "header": "request-value"
+    },
+    "resumed": {
+      "request": "temporary-html",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value"
+    }
+  },
+  {
+    "variant": "temporary",
+    "format": "flight",
+    "pathname": "/acme/late-redirect/alpha/c",
+    "search": "?tag=one&tag=two&unicode=%E2%9C%93&redirect=temporary&_rsc=",
+    "status": 200,
+    "contentType": "text/x-component",
+    "location": null,
+    "redirectDigest": "NEXT_REDIRECT;replace;/acme/late-redirect/target?from=late-temporary;307;",
+    "refresh": null,
+    "subject": {
+      "tenant": "acme",
+      "slug": ["alpha", "c"],
+      "root": "acme",
+      "tag": ["one", "two"],
+      "unicode": "✓",
+      "header": "request-value",
+      "cookie": "session-value"
+    },
+    "rootLayout": true,
+    "nestedLayout": true,
+    "provider": true,
+    "barrier": {
+      "held": true,
+      "fallbackBeforeRelease": true,
+      "released": true,
+      "fallbackDigestAbsent": true
+    },
+    "after": {
+      "request": "temporary-flight",
+      "root": "acme",
+      "header": "request-value"
+    },
+    "resumed": {
+      "request": "temporary-flight",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value"
+    }
+  },
+  {
+    "variant": "permanent",
+    "format": "html",
+    "pathname": "/acme/late-redirect/alpha/c",
+    "search": "?tag=one&tag=two&unicode=%E2%9C%93&redirect=permanent",
+    "status": 200,
+    "contentType": "text/html; charset=utf-8",
+    "location": null,
+    "redirectDigest": "NEXT_REDIRECT;replace;/acme/late-redirect/target?from=late-permanent;308;",
+    "refresh": "0;url=/acme/late-redirect/target?from=late-permanent",
+    "subject": {
+      "tenant": "acme",
+      "slug": ["alpha", "c"],
+      "root": "acme",
+      "tag": ["one", "two"],
+      "unicode": "✓",
+      "header": "request-value",
+      "cookie": "session-value"
+    },
+    "rootLayout": true,
+    "nestedLayout": true,
+    "provider": true,
+    "barrier": {
+      "held": true,
+      "fallbackBeforeRelease": true,
+      "released": true,
+      "fallbackDigestAbsent": true
+    },
+    "after": {
+      "request": "permanent-html",
+      "root": "acme",
+      "header": "request-value"
+    },
+    "resumed": {
+      "request": "permanent-html",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value"
+    }
+  },
+  {
+    "variant": "permanent",
+    "format": "flight",
+    "pathname": "/acme/late-redirect/alpha/c",
+    "search": "?tag=one&tag=two&unicode=%E2%9C%93&redirect=permanent&_rsc=",
+    "status": 200,
+    "contentType": "text/x-component",
+    "location": null,
+    "redirectDigest": "NEXT_REDIRECT;replace;/acme/late-redirect/target?from=late-permanent;308;",
+    "refresh": null,
+    "subject": {
+      "tenant": "acme",
+      "slug": ["alpha", "c"],
+      "root": "acme",
+      "tag": ["one", "two"],
+      "unicode": "✓",
+      "header": "request-value",
+      "cookie": "session-value"
+    },
+    "rootLayout": true,
+    "nestedLayout": true,
+    "provider": true,
+    "barrier": {
+      "held": true,
+      "fallbackBeforeRelease": true,
+      "released": true,
+      "fallbackDigestAbsent": true
+    },
+    "after": {
+      "request": "permanent-flight",
+      "root": "acme",
+      "header": "request-value"
+    },
+    "resumed": {
+      "request": "permanent-flight",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value"
+    }
+  },
+  {
+    "variant": "following",
+    "format": "html",
+    "pathname": "/acme/late-redirect/alpha/c",
+    "search": "?tag=one&tag=two&unicode=%E2%9C%93",
+    "status": 200,
+    "contentType": "text/html; charset=utf-8",
+    "location": null,
+    "redirectDigest": null,
+    "refresh": null,
+    "subject": {
+      "tenant": "acme",
+      "slug": ["alpha", "c"],
+      "root": "acme",
+      "tag": ["one", "two"],
+      "unicode": "✓",
+      "header": "request-value",
+      "cookie": "session-value"
+    },
+    "rootLayout": true,
+    "nestedLayout": true,
+    "provider": true,
+    "barrier": {
+      "held": false,
+      "fallbackBeforeRelease": false,
+      "released": false,
+      "fallbackDigestAbsent": null
+    },
+    "after": {
+      "request": "following-html",
+      "root": "acme",
+      "header": "request-value"
+    },
+    "resumed": null
+  },
+  {
+    "variant": "following",
+    "format": "flight",
+    "pathname": "/acme/late-redirect/alpha/c",
+    "search": "?tag=one&tag=two&unicode=%E2%9C%93&_rsc=",
+    "status": 200,
+    "contentType": "text/x-component",
+    "location": null,
+    "redirectDigest": null,
+    "refresh": null,
+    "subject": {
+      "tenant": "acme",
+      "slug": ["alpha", "c"],
+      "root": "acme",
+      "tag": ["one", "two"],
+      "unicode": "✓",
+      "header": "request-value",
+      "cookie": "session-value"
+    },
+    "rootLayout": true,
+    "nestedLayout": true,
+    "provider": true,
+    "barrier": {
+      "held": false,
+      "fallbackBeforeRelease": false,
+      "released": false,
+      "fallbackDigestAbsent": null
+    },
+    "after": {
+      "request": "following-flight",
+      "root": "acme",
+      "header": "request-value"
+    },
+    "resumed": null
+  }
+]

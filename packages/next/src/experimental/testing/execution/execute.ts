@@ -80,7 +80,13 @@ export async function executeWithEnvironment(
   const assertCustomClosure = options.customCoverage
     ? await captureCustomCoverageClosure(artifact, options.entry)
     : undefined
-  const attempts = createCoverageAttemptTracker()
+  const attempts = createCoverageAttemptTracker({
+    deferNativeRejections:
+      options.coverage !== undefined &&
+      options.customCoverage === undefined &&
+      artifact.kind === 'node' &&
+      artifact.profile.environment === 'node',
+  })
   const envelope = () => ({
     version: 1 as const,
     runId: options.runId,
@@ -126,6 +132,7 @@ export async function executeWithEnvironment(
       },
       input,
       inspect: options.inspect,
+      inspectBrk: options.inspectBrk,
       signal,
       timeoutMs: options.fileTimeout,
       onMessage(value) {
@@ -177,6 +184,7 @@ export async function executeWithEnvironment(
               throw new Error('Test worker returned unsolicited coverage')
             assertCoverageCompletion(message.coverage, artifact, options.runId)
             coverage = message.coverage
+            attempts.observeCoverageCompletion(coverage.complete)
           }
           if (
             message.snapshotUpdates !== undefined &&
@@ -240,13 +248,17 @@ export async function executeWithEnvironment(
     })
     result = { entryId: artifact.entryId, status: 'failed', durationMs: 0 }
   }
-  // A passing IPC payload is provisional: a late worker failure, nonzero exit,
+  // Staged IPC bytes are provisional: a late worker failure, nonzero exit,
   // process-group cleanup failure or cache lease failure must prevent writes.
+  // A completed ordinary Node body failure can still own valid snapshot bytes.
   // This code runs only after the actual process and its file resources close.
   if (
     options.updateSnapshots &&
     snapshotUpdates !== undefined &&
-    result?.status === 'passed' &&
+    (result?.status === 'passed' ||
+      (result?.status === 'failed' &&
+        artifact.kind === 'node' &&
+        artifact.profile.environment === 'node')) &&
     exit.reason === 'exit' &&
     exit.code === 0 &&
     !signal.aborted

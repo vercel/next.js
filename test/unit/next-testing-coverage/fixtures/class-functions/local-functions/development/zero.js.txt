@@ -1,0 +1,36 @@
+module.exports = [
+"[project]/.next-test-class-functions196-observed12-local-functions-development/subject.ts [next-test-node] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "Counter",
+    ()=>Counter,
+    "exercise",
+    ()=>exercise
+]);
+const offset = 2;
+function prefix(value) {
+    return value + 1;
+}
+class Counter {
+    constructor(value){
+        this.total = value;
+    }
+    read = function(delta) {
+        return this.total + delta;
+    };
+    static combine = function(value) {
+        return value * 2;
+    };
+    method(delta) {
+        return this.total + delta;
+    }
+}
+function exercise(value) {
+    const counter = new Counter(prefix(value));
+    return counter.read(offset) + Counter.combine(value) + counter.method(offset);
+}
+}),
+];
+
+//# sourceMappingURL=0y-q_ass-functions196-observed12-local-functions-development_subject_ts_1oi0b-o6rgolo._.js.map

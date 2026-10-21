@@ -1,0 +1,1 @@
+async function callable(){return this.label};callable.label='root';callable.method=function member(){return this.label};module.exports=callable;

@@ -22,7 +22,12 @@ export async function discoverTests(
 ): Promise<DiscoveredTestProject[]> {
   const root = await realpath(directory)
   const projects = config.projects.filter(
-    (project) => !selection.project || project.profile.id === selection.project
+    (project) =>
+      selection.project === undefined ||
+      (project.browserInstance
+        ? project.displayName === selection.project ||
+          project.browserInstance.parentName === selection.project
+        : project.profile.id === selection.project)
   )
   if (!projects.length) {
     throw new Error(`Unknown test project "${selection.project}".`)
@@ -68,25 +73,41 @@ export async function discoverTests(
       )
       const browserFixtures = await Promise.all(
         (project.browserFixtures ?? []).map(async (fixture) => {
-          const module = await realpath(path.resolve(root, fixture.module))
-          const relative = path.relative(root, module)
-          if (
-            relative === '..' ||
-            relative.startsWith(`..${path.sep}`) ||
-            path.isAbsolute(relative)
-          ) {
-            throw new Error(
-              `Browser fixture must be inside the project: ${fixture.id}`
-            )
+          const resolveSource = async (file: string, label: string) => {
+            const resolved = await realpath(path.resolve(root, file))
+            const relative = path.relative(root, resolved)
+            if (
+              relative === '..' ||
+              relative.startsWith(`..${path.sep}`) ||
+              path.isAbsolute(relative)
+            ) {
+              throw new Error(
+                `Browser ${label} must be inside the project: ${fixture.id}`
+              )
+            }
+            if (!(await stat(resolved)).isFile()) {
+              throw new Error(`Browser ${label} is not a file: ${fixture.id}`)
+            }
+            return resolved
           }
-          if (!(await stat(module)).isFile()) {
-            throw new Error(`Browser fixture is not a file: ${fixture.id}`)
+          const module = await resolveSource(fixture.module, 'fixture')
+          return {
+            ...fixture,
+            module,
+            ...(fixture.layout === undefined
+              ? {}
+              : {
+                  layout: await resolveSource(fixture.layout, 'fixture layout'),
+                }),
           }
-          return { ...fixture, module }
         })
       )
       const fixtureModules = new Set(
-        browserFixtures.map((fixture) => fixture.module)
+        browserFixtures.flatMap((fixture) =>
+          fixture.layout === undefined
+            ? [fixture.module]
+            : [fixture.module, fixture.layout]
+        )
       )
       const setup = new Set(setupFiles)
       if (setup.size !== setupFiles.length) {
@@ -147,6 +168,9 @@ export async function discoverTests(
                 return {
                   id: `${project.profile.id}:${relativePath(root, file)}`,
                   file,
+                  ...(project.displayName === undefined
+                    ? {}
+                    : { projectName: project.displayName }),
                   profile: selected.profile,
                   ...(selected.executionEnvironment
                     ? { executionEnvironment: selected.executionEnvironment }
@@ -187,6 +211,9 @@ export async function discoverTests(
                 .map((file) => ({
                   id: `${project.profile.id}:typescript:${relativePath(root, file)}`,
                   file,
+                  ...(project.displayName === undefined
+                    ? {}
+                    : { projectName: project.displayName }),
                   profile: project.profile,
                   typecheck: true as const,
                 }))

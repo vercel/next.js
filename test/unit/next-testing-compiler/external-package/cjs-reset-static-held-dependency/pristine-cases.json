@@ -1,0 +1,7 @@
+[
+  {
+    "name": "holds the ordinary static CommonJS namespace while dynamic imports reset",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

@@ -77,6 +77,8 @@
     "experimental/testing/vitest-globals.d.ts",
     "experimental/testing/vitest-import-meta.d.ts",
     "experimental/testing/README.md",
+    "experimental/testing/editor-api.md",
+    "experimental/testing/rsc-route-rendering.md",
     "experimental/testing/rsc.js",
     "experimental/testing/rsc.d.ts",
     "experimental/testing/browser.js",

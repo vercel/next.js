@@ -1,0 +1,42 @@
+{
+  "cases": [
+    {
+      "fullName": "one",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "fullName": "two",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "events": [
+    ["opposite", "beforeAll"],
+    ["body", "one"],
+    ["body", "two"],
+    ["failure", "afterAll"]
+  ],
+  "callbacks": [
+    {
+      "event": "module-end",
+      "module": {
+        "type": "module",
+        "state": "failed",
+        "sameArrayMembers": true,
+        "errors": [
+          {
+            "id": 1,
+            "name": "Error",
+            "message": "same authored message"
+          }
+        ]
+      },
+      "suites": []
+    },
+    {
+      "event": "run-end",
+      "errors": []
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+import { test, expect, vi } from 'vitest'
+import { types } from 'node:util'
+function shape(value) {
+ if (value===null || (typeof value!=='object'&&typeof value!=='function')) return {type:typeof value,value}
+ return {type:typeof value,nativeBrand:types.isModuleNamespaceObject(value),keys:Reflect.ownKeys(value).map(key=>typeof key==='symbol'?String(key):key),prototype:Object.getPrototypeOf(value)===null?'null':Object.getPrototypeOf(value)===Object.prototype?'Object.prototype':Object.getPrototypeOf(value)===Function.prototype?'Function.prototype':Object.prototype.toString.call(Object.getPrototypeOf(value)),tag:value[Symbol.toStringTag]??null,extensible:Object.isExtensible(value),sealed:Object.isSealed(value),frozen:Object.isFrozen(value),descriptors:Reflect.ownKeys(value).map(key=>{const d=Object.getOwnPropertyDescriptor(value,key);return {key:typeof key==='symbol'?String(key):key,valueType:typeof d.value,get:typeof d.get,set:typeof d.set,writable:d.writable??null,enumerable:d.enumerable,configurable:d.configurable}})}
+}
+function view(namespace) {const root=namespace?.default;return {namespace:shape(namespace),root:shape(root),dependency:root&&'dependency' in root?shape(root.dependency):null,evaluation:namespace?.evaluation??null,rootEvaluation:root?.evaluation??null,dependencyEvaluation:root?.dependency?.evaluation??null,call:typeof root==='function'?root.call(root,'held'):typeof root?.read==='function'?root.read.call(root,'held'):null,namedCall:Object.prototype.hasOwnProperty.call(namespace,'read')&&typeof namespace.read==='function'?namespace.read('named'):null}}
+function same(values) {return values.map(value=>values.map(other=>value===other))}
+function errorView(error,raw) {return {name:error?.name,message:error?.message,causeSame:error?.cause===raw,causeName:error?.cause?.name,causeMessage:error?.cause?.message,keys:Reflect.ownKeys(error).map(String),causeDescriptor:(()=>{const d=Object.getOwnPropertyDescriptor(error,'cause');return d?{writable:d.writable,enumerable:d.enumerable,configurable:d.configurable,valueSame:d.value===raw}:null})()}}
+function counts(){return {root:globalThis.__ws2CjsDependencyRoot??globalThis.__ws2CallableRoot??globalThis.__ws2RuntimeLeafRoot??0,dependency:globalThis.__ws2CjsDependencyLeaf??globalThis.__ws2CallableDependency??0}}
+function row(name,data){console.log('WS2_CJS_RUNTIME:'+JSON.stringify({name,...data}));expect(data).toBeDefined()}
+function clean(){vi.doUnmock('node:path');vi.resetModules()}
+
+
+for(const unrelated of [false,true])test('pending cache invalidation waits for a real module request '+unrelated,async()=>{
+ clean();let start,release;const started=new Promise(resolve=>start=resolve),held=new Promise(resolve=>release=resolve);let oldCalls=0,newCalls=0;
+ vi.doMock('node:path',async()=>{oldCalls++;start();await held;return {evaluation:970,default:{evaluation:970}}});const first=import('node:path');await started;
+ vi.doMock('node:path',()=>{newCalls++;return {evaluation:971,default:{evaluation:971}}});let unrelatedLoaded=null;if(unrelated){const os=await import('node:os');unrelatedLoaded=typeof os.platform}
+ release();const old=await first;const later=await import('node:path');const cached=await import('node:path');row('queued-invalidation-'+unrelated,{unrelatedLoaded,views:[old,later,cached].map(view),identities:same([old,later,cached]),oldCalls,newCalls,counts:counts()})
+})

@@ -1,0 +1,42 @@
+[
+  {
+    "name": "compiled CJS sync registration held/reset/unmock false",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "compiled CJS sync registration held/reset/unmock true",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "compiled CJS pending resolve original fallback and held reset",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "compiled CJS pending rejection fresh wrapped retry and reset",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "compiled CJS synchronous failed factory retries preserve cause",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "compiled CJS immediate async overlapping import ordering",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "compiled CJS held factory across unregistration and replacement",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "compiled CJS unused registration/unregistration does not evaluate",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

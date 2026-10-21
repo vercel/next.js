@@ -1,0 +1,2 @@
+const method = 'map'
+export function total(values: number[]) { return values[method]((value: number) => value * 2).reduce((sum: number, value: number) => sum + value, 0) }

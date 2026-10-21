@@ -1,0 +1,17 @@
+[
+  {
+    "name": "loads a mocked real CJS package through literal importActual",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "loads a mocked real ESM package through literal importActual",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "shares the actual native conditional import target with ordinary imports",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

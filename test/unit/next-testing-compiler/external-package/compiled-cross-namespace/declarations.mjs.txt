@@ -1,0 +1,1 @@
+export const evaluation=1;export const token={count:0};export let value=0;export function bump(){value++;token.count++;return value}export class Thing{};export default token;

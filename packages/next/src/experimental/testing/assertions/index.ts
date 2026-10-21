@@ -1,5 +1,9 @@
 /// <reference lib="es2021.promise" />
 import { VitestSnapshotEnvironment } from './snapshot-environment'
+import type {
+  SnapshotHelperDispatch,
+  DomainSnapshotAdapter,
+} from './snapshot-helpers'
 import {
   assertAssertionScope,
   beginAssertionFile,
@@ -19,6 +23,7 @@ import { createTimerWaits } from './wait'
 import {
   ASYMMETRIC_MATCHERS_OBJECT,
   GLOBAL_EXPECT,
+  JEST_MATCHERS_OBJECT,
   chai,
   getChaiAssertionIdentity,
   createChaiAssertInterface,
@@ -195,6 +200,10 @@ let authorizedMockMutation = 0
 export async function createAssertionRuntime(options: {
   testPath: string
   collectOnly?: boolean
+  observeNativeUnhandledAssertions?: boolean
+  observeNativeBeforeEachAssertions?: boolean
+  observeNativeAfterEachAssertions?: boolean
+  observeNativeBeforeEachCleanupAssertions?: boolean
   resourceLifetime?: 'attempt' | 'file'
   fakeTimers?: import('./utilities').FakeTimerOptions
   runtimeConfig?: import('./utilities').RuntimeOptions
@@ -205,8 +214,12 @@ export async function createAssertionRuntime(options: {
   unstubGlobals?: boolean
   unstubEnvs?: boolean
   getCurrentAttempt: () => AssertionAttempt | undefined
+  getCurrentCasePhase?: () =>
+    | { attemptId: string; phase?: string; authoredCallback?: boolean }
+    | undefined
   getCurrentHook?: () => AssertionHook | undefined
   getCurrentCollection?: () => AssertionCollection | undefined
+  getCurrentFileFixtures?: () => AssertionCollection | undefined
   getCurrentScopeAncestors?: () => readonly string[]
   snapshotOptions?: SnapshotStateOptions
   updateSnapshots?: boolean
@@ -257,20 +270,46 @@ export async function createAssertionRuntime(options: {
     throw error
   }
 
+  type AsyncAssertionRecord = {
+    promise: Promise<unknown>
+    rejected: boolean
+    body: boolean
+    beforeEach: boolean
+    afterEach: boolean
+    beforeEachCleanup: boolean
+    error?: unknown
+    consumptionFailure?: unknown
+    bodyFailure?: unknown
+    bodyFailureConsumed?: boolean
+    settledBeforeFinalization?: boolean
+    nativeUnhandled?: { reason: unknown }
+  }
   type AssertionScope = {
     context: AssertionAttempt | AssertionHook | AssertionCollection
-    kind: 'attempt' | 'hook' | 'collection'
+    kind: 'attempt' | 'hook' | 'collection' | 'file-fixtures'
     ancestors: readonly string[]
     task: AssertionTask
     finalized: boolean
+    disposed: boolean
+    asyncAssertions: AsyncAssertionRecord[]
+    assertionCounts: { expect: TestExpect; error: Error; body: boolean }[]
     mocks: Set<{ mock: MockInstance; restore: boolean }>
     serializers: Set<Parameters<typeof addSerializer>[0]>
     utilities: AttemptUtilities
   }
   const scopes = new Map<string, AssertionScope>()
+  let nativeRejectionRecordsReleased = false
   let runningAttempt: AssertionScope | undefined
+  let lastAttemptName: string | undefined
   function runningAttemptTask() {
     return runningAttempt?.task
+  }
+  function liveFileFixtureAttempt() {
+    return runningAttempt &&
+      !runningAttempt.finalized &&
+      scopes.get(runningAttempt.context.id) === runningAttempt
+      ? runningAttempt
+      : undefined
   }
   function originatingScope(strict = false) {
     if (fileAssertionLifetime && !strict) {
@@ -282,7 +321,8 @@ export async function createAssertionRuntime(options: {
     const attempt = options.getCurrentAttempt()
     const hook = options.getCurrentHook?.()
     const collection = options.getCurrentCollection?.()
-    const origin = attempt ?? hook ?? collection
+    const fileFixtures = options.getCurrentFileFixtures?.()
+    const origin = attempt ?? hook ?? collection ?? fileFixtures
     return origin ? scopes.get(origin.id) : undefined
   }
   const snapshotTests = new Set<string>()
@@ -319,7 +359,8 @@ export async function createAssertionRuntime(options: {
         disposed ||
         originatingAttempt ||
         originatingHook ||
-        options.getCurrentCollection?.()
+        options.getCurrentCollection?.() ||
+        options.getCurrentFileFixtures?.()
       ) {
         throw new Error('Cannot access a disposed assertion scope')
       }
@@ -407,6 +448,28 @@ export async function createAssertionRuntime(options: {
     if (previous && previous !== scope) assertStrictScope(previous)
     else assertionOrigins.set(identity, scope)
   }
+  function isBodyAssertion(scope: AssertionScope) {
+    const origin = options.getCurrentCasePhase?.()
+    return (
+      scope.kind === 'attempt' &&
+      origin?.attemptId === scope.context.id &&
+      origin.phase === 'test'
+    )
+  }
+
+  function isAuthoredHookAssertion(
+    scope: AssertionScope,
+    phase: 'beforeEach' | 'afterEach' | 'cleanup'
+  ) {
+    const origin = options.getCurrentCasePhase?.()
+    return (
+      scope.kind === 'attempt' &&
+      origin?.attemptId === scope.context.id &&
+      origin.phase === phase &&
+      origin.authoredCallback === true
+    )
+  }
+
   function guardAssertion(assertion: object, scope: AssertionScope) {
     recordAssertionOrigin(assertion, scope)
     const proxies = new WeakMap<object, object>()
@@ -450,13 +513,20 @@ export async function createAssertionRuntime(options: {
             return undefined
           check()
           const result = Reflect.get(target, property, target)
-          if (typeof result === 'function')
+          if (typeof result === 'function') {
+            const registered = (
+              globalThis as typeof globalThis & {
+                [JEST_MATCHERS_OBJECT]?: { matchers: object }
+              }
+            )[JEST_MATCHERS_OBJECT]?.matchers
             return wrap(
               result,
               target,
               property === 'toMatchInlineSnapshot' ||
-                property === 'toThrowErrorMatchingInlineSnapshot'
+                property === 'toThrowErrorMatchingInlineSnapshot' ||
+                !!(registered && Object.hasOwn(registered, property))
             )
+          }
           if (result instanceof chai.Assertion)
             return wrapProducedAssertion(result)
           return result
@@ -590,7 +660,7 @@ export async function createAssertionRuntime(options: {
     scope: AssertionScope,
     prototype: object,
     receiver?: object
-  ): Function {
+  ): (...args: unknown[]) => unknown {
     const invoke = function (this: unknown, ...args: unknown[]) {
       assertStrictScope(scope)
       let actualReceiver = receiver
@@ -826,6 +896,60 @@ export async function createAssertionRuntime(options: {
       chaiUserResults.add(result)
     return strictUnwrap(result)
   }
+  const chaiPrototypeCallables = new WeakMap<
+    AssertionScope,
+    WeakMap<object, WeakMap<Function, (...args: unknown[]) => unknown>>
+  >()
+  function readChaiPrototypeCallable(value: Function, prototype: object) {
+    const scope = current()
+    let prototypes = chaiPrototypeCallables.get(scope)
+    if (!prototypes) {
+      prototypes = new WeakMap()
+      chaiPrototypeCallables.set(scope, prototypes)
+    }
+    let functions = prototypes.get(prototype)
+    if (!functions) {
+      functions = new WeakMap()
+      prototypes.set(prototype, functions)
+    }
+    let method = functions.get(value)
+    if (!method) {
+      method = strictFunction(value, scope, prototype)
+      functions.set(value, method)
+    }
+    return method
+  }
+  function readChaiPrototypeDescriptor(key: PropertyKey, prototype: object) {
+    assertChaiNamespaceAccess()
+    const descriptor = Reflect.getOwnPropertyDescriptor(
+      chai.Assertion.prototype,
+      key
+    )
+    if (!descriptor) return undefined
+    if (!descriptor.configurable)
+      throw new Error(
+        'Nonconfigurable Chai prototype descriptors are not yet supported'
+      )
+    if ('value' in descriptor) {
+      if (typeof descriptor.value !== 'function')
+        throw new Error(
+          'This Chai prototype descriptor value is not yet supported'
+        )
+      return {
+        ...descriptor,
+        value: readChaiPrototypeCallable(descriptor.value, prototype),
+      }
+    }
+    return {
+      ...descriptor,
+      get: descriptor.get
+        ? readChaiPrototypeCallable(descriptor.get, prototype)
+        : undefined,
+      set: descriptor.set
+        ? readChaiPrototypeCallable(descriptor.set, prototype)
+        : undefined,
+    }
+  }
   function readChaiPrototype(key: PropertyKey, prototype: object): unknown {
     assertChaiNamespaceAccess()
     const descriptor = Reflect.getOwnPropertyDescriptor(
@@ -836,7 +960,7 @@ export async function createAssertionRuntime(options: {
       throw new Error('Chai prototype accessors are not yet supported')
     const value = descriptor?.value
     if (typeof value === 'function')
-      return strictFunction(value, current(), prototype)
+      return readChaiPrototypeCallable(value, prototype)
     if (value === undefined || value === null || typeof value !== 'object')
       return value
     throw new Error('This Chai prototype value is not yet supported')
@@ -1033,7 +1157,11 @@ export async function createAssertionRuntime(options: {
     const expect = ((value: unknown, message?: string) => {
       const scope = expectationScope()
       const task =
-        fileAssertionLifetime && !test ? runningAttempt?.task : scope.task
+        fileAssertionLifetime && !test
+          ? runningAttempt?.task
+          : scope.kind === 'file-fixtures' && !test
+            ? liveFileFixtureAttempt()?.task
+            : scope.task
       const state = getState(expect)
       state.assertionCalls++
       const assertion = chai.expect(value, message)
@@ -1060,6 +1188,11 @@ export async function createAssertionRuntime(options: {
       } = {}
     ) => {
       const scope = expectationScope()
+      const task =
+        scope.kind === 'file-fixtures'
+          ? liveFileFixtureAttempt()?.task
+          : scope.task
+      if (!task) throw new Error('expect.poll() must be called inside a test')
       if (typeof callback !== 'function')
         throw new TypeError('expect.poll() requires a callback')
       const interval =
@@ -1171,7 +1304,7 @@ export async function createAssertionRuntime(options: {
           }
         },
       })
-      scope.task.onFinished?.push(() => {
+      task.onFinished?.push(() => {
         if (!awaited) {
           const error = new Error(
             'expect.poll() assertion was not awaited. This assertion is asynchronous and must be awaited.'
@@ -1238,7 +1371,9 @@ export async function createAssertionRuntime(options: {
               const flagged = chai.util.flag(this, 'vitest-test')
               const task =
                 flagged === scope.task ||
-                (fileAssertionLifetime && flagged === runningAttemptTask())
+                (fileAssertionLifetime && flagged === runningAttemptTask()) ||
+                (scope.kind === 'file-fixtures' &&
+                  flagged === liveFileFixtureAttempt()?.task)
                   ? flagged
                   : undefined
               const callsite = new Error()
@@ -1266,8 +1401,13 @@ export async function createAssertionRuntime(options: {
       }
     }
     expect.assertions = (count) => {
-      expectationScope()
+      const scope = expectationScope()
       const error = new Error()
+      scope.assertionCounts.push({
+        expect,
+        error,
+        body: isBodyAssertion(scope),
+      })
       Error.captureStackTrace?.(error, expect.assertions)
       setState(
         {
@@ -1281,8 +1421,13 @@ export async function createAssertionRuntime(options: {
       )
     }
     expect.hasAssertions = () => {
-      expectationScope()
+      const scope = expectationScope()
       const error = new Error('expected any number of assertion, but got none')
+      scope.assertionCounts.push({
+        expect,
+        error,
+        body: isBodyAssertion(scope),
+      })
       Error.captureStackTrace?.(error, expect.hasAssertions)
       setState(
         { isExpectingAssertions: true, isExpectingAssertionsError: error },
@@ -1318,13 +1463,117 @@ export async function createAssertionRuntime(options: {
     value: expect,
   })
   function snapshotOwner() {
-    const { context, kind } = current()
+    const origin = current()
+    const { context, kind } =
+      origin.kind === 'file-fixtures'
+        ? (liveFileFixtureAttempt() ?? origin)
+        : origin
     if (kind !== 'attempt' || !('testId' in context))
       throw new Error(
         'Snapshots are unsupported in suite hooks without a test identity'
       )
     snapshotTests.add(context.testId)
     return context
+  }
+  const callSnapshotHelper: SnapshotHelperDispatch = (method, state, args) => {
+    const assertion = state.assertion
+    const identity = chaiAssertionIdentity(assertion)
+    const origin = identity && assertionOrigins.get(identity)
+    if (origin) assertStrictScope(origin)
+    const assertionName = chai.util.flag(assertion, '_name') as
+      | string
+      | undefined
+    if (!assertionName)
+      throw new Error(
+        'Assertion name is not set. This is a bug in Vitest. Please, open a new issue with reproduction.'
+      )
+    if (chai.util.flag(assertion, 'negate'))
+      throw new Error(`${assertionName} cannot be used with "not"`)
+    if (!chai.util.flag(assertion, 'vitest-test'))
+      throw new Error(`'${assertionName}' cannot be used without test context`)
+    const context = snapshotOwner()
+    const shared = {
+      filepath: options.testPath,
+      name: context.name,
+      testId: context.testId,
+      assertionName,
+      error:
+        method === 'toMatchInlineSnapshot' ||
+        method === 'toMatchDomainInlineSnapshot'
+          ? (chai.util.flag(assertion, 'next-test-inline-callsite') ??
+            chai.util.flag(assertion, 'error'))
+          : chai.util.flag(assertion, 'error'),
+    }
+    if (method === 'toMatchFileSnapshot') {
+      return (async () => {
+        const snapshotState = snapshots.getSnapshotState(options.testPath)
+        const file = await snapshotState.environment.resolveRawPath(
+          options.testPath,
+          args[1] as string
+        )
+        const content = await snapshotState.environment.readSnapshotFile(file)
+        return snapshots.match({
+          ...shared,
+          received: args[0],
+          message: args[2] as string | undefined,
+          rawSnapshot: { file, content: content ?? undefined },
+        })
+      })()
+    }
+    if (
+      method === 'toMatchDomainSnapshot' ||
+      method === 'toMatchDomainInlineSnapshot'
+    ) {
+      const isInline = method === 'toMatchDomainInlineSnapshot'
+      return snapshots.matchDomain({
+        ...shared,
+        adapter: args[0] as DomainSnapshotAdapter<any, any>,
+        received: args[1],
+        isInline,
+        inlineSnapshot:
+          isInline && args[2] !== undefined
+            ? stripSnapshotIndentation(args[2] as string)
+            : undefined,
+        errorMessage: chai.util.flag(assertion, 'message'),
+      })
+    }
+    if (method === 'toMatchSnapshot') {
+      return snapshots.match({
+        ...shared,
+        received: args[0],
+        properties:
+          typeof args[1] === 'string'
+            ? undefined
+            : (args[1] as object | undefined),
+        message:
+          typeof args[1] === 'string'
+            ? args[1]
+            : (args[2] as string | undefined),
+      })
+    }
+    const inlineSnapshot =
+      typeof args[1] === 'string'
+        ? args[1]
+        : args[2]
+          ? (args[2] as string)
+          : undefined
+    return snapshots.match({
+      ...shared,
+      received: args[0],
+      isInline: true,
+      properties:
+        typeof args[1] === 'string'
+          ? undefined
+          : (args[1] as object | undefined),
+      inlineSnapshot:
+        inlineSnapshot === undefined
+          ? undefined
+          : stripSnapshotIndentation(inlineSnapshot),
+      message:
+        typeof args[1] === 'string'
+          ? (args[2] as string | undefined)
+          : (args[3] as string | undefined),
+    })
   }
   function snapshotError(received: unknown, promise: string | undefined) {
     if (typeof received !== 'function') {
@@ -1348,13 +1597,7 @@ export async function createAssertionRuntime(options: {
       message?: string
     ) {
       if (this.isNot) throw new Error('toMatchSnapshot cannot be used with not')
-      const { context, kind } = current()
-      if (kind !== 'attempt' || !('testId' in context)) {
-        throw new Error(
-          'Snapshots are unsupported in suite hooks without a test identity'
-        )
-      }
-      snapshotTests.add(context.testId)
+      const context = snapshotOwner()
       return snapshots.match({
         received,
         filepath: options.testPath,
@@ -1380,13 +1623,7 @@ export async function createAssertionRuntime(options: {
     ) {
       if (this.isNot)
         throw new Error('toMatchInlineSnapshot cannot be used with not')
-      const { context, kind } = current()
-      if (kind !== 'attempt' || !('testId' in context)) {
-        throw new Error(
-          'Snapshots are unsupported in suite hooks without a test identity'
-        )
-      }
-      snapshotTests.add(context.testId)
+      const context = snapshotOwner()
       const hasProperties =
         typeof propertiesOrSnapshot === 'object' &&
         propertiesOrSnapshot !== null
@@ -1477,13 +1714,7 @@ export async function createAssertionRuntime(options: {
         throw new Error('toMatchFileSnapshot cannot be used with not')
       if (typeof filepath !== 'string' || !filepath)
         throw new TypeError('toMatchFileSnapshot requires a file path')
-      const { context, kind } = current()
-      if (kind !== 'attempt' || !('testId' in context)) {
-        throw new Error(
-          'Snapshots are unsupported in suite hooks without a test identity'
-        )
-      }
-      snapshotTests.add(context.testId)
+      const context = snapshotOwner()
       const error = new Error()
       Error.captureStackTrace?.(error, (this as any).toMatchFileSnapshot)
       await snapshots.assertRaw({
@@ -1662,12 +1893,13 @@ export async function createAssertionRuntime(options: {
 
   function beginScope(
     context: AssertionAttempt | AssertionHook | AssertionCollection,
-    kind: 'attempt' | 'hook' | 'collection'
+    kind: 'attempt' | 'hook' | 'collection' | 'file-fixtures'
   ) {
     if (disposed || scopes.has(context.id))
       throw new Error('An assertion attempt is already active or disposed')
     const promises: Promise<unknown>[] = []
-    const records: { rejected: boolean; error?: unknown }[] = []
+    const records: AsyncAssertionRecord[] = []
+    const softFailures: { error: unknown; body: boolean }[] = []
     const checks = new Map<() => void, (typeof records)[number]>()
     const onFinished: (() => void)[] = []
     // The pinned primitive registers each consumption check immediately after
@@ -1679,17 +1911,37 @@ export async function createAssertionRuntime(options: {
         return Array.prototype.push.apply(this, values)
       },
     })
-    // Track rejections without letting an unawaited assertion become a process
-    // unhandled rejection while C is still executing the test body.
+    // An actual Node host observes qualified BODY and authored-beforeEach events.
+    // Other scopes and callers retain their existing local rejection channel.
     Object.defineProperty(promises, 'push', {
       value(...values: Promise<unknown>[]) {
         for (const value of values) {
-          const record: (typeof records)[number] = { rejected: false }
+          const record: (typeof records)[number] = {
+            promise: value,
+            rejected: false,
+            body: isBodyAssertion(scope),
+            beforeEach:
+              options.observeNativeBeforeEachAssertions === true &&
+              isAuthoredHookAssertion(scope, 'beforeEach'),
+            afterEach:
+              options.observeNativeAfterEachAssertions === true &&
+              isAuthoredHookAssertion(scope, 'afterEach'),
+            beforeEachCleanup:
+              options.observeNativeBeforeEachCleanupAssertions === true &&
+              isAuthoredHookAssertion(scope, 'cleanup'),
+          }
           records.push(record)
-          void value.catch((error) => {
-            record.rejected = true
-            record.error = error
-          })
+          if (
+            !options.observeNativeUnhandledAssertions ||
+            (!record.body &&
+              !record.beforeEach &&
+              !record.afterEach &&
+              !record.beforeEachCleanup)
+          )
+            void value.catch((error) => {
+              record.rejected = true
+              record.error = error
+            })
         }
         return Array.prototype.push.apply(this, values)
       },
@@ -1702,8 +1954,8 @@ export async function createAssertionRuntime(options: {
     }
     if (
       kind === 'attempt' &&
-      'onAssertionFailure' in context &&
-      context.onAssertionFailure
+      (options.getCurrentCasePhase ||
+        ('onAssertionFailure' in context && context.onAssertionFailure))
     ) {
       let result: AssertionTask['result']
       Object.defineProperty(task, 'result', {
@@ -1712,19 +1964,25 @@ export async function createAssertionRuntime(options: {
           result = value
           if (!value) return
           let errors = value.errors
-          const track = (values: unknown[] | undefined) =>
-            values &&
-            new Proxy(values, {
+          const track = (values: unknown[] | undefined) => {
+            if (!values) return values
+            for (const error of values)
+              softFailures.push({ error, body: false })
+            return new Proxy(values, {
               get(target, key, receiver) {
                 if (key === 'push')
                   return (...added: unknown[]) => {
-                    for (const error of added)
-                      context.onAssertionFailure?.(error)
+                    for (const error of added) {
+                      softFailures.push({ error, body: isBodyAssertion(scope) })
+                      if ('onAssertionFailure' in context)
+                        context.onAssertionFailure?.(error)
+                    }
                     return target.push(...added)
                   }
                 return Reflect.get(target, key, receiver)
               },
             })
+          }
           errors = track(errors)
           Object.defineProperty(value, 'errors', {
             configurable: true,
@@ -1743,6 +2001,9 @@ export async function createAssertionRuntime(options: {
       ancestors: options.getCurrentScopeAncestors?.() ?? [],
       task,
       finalized: false,
+      disposed: false,
+      asyncAssertions: records,
+      assertionCounts: [],
       mocks: new Set<{ mock: MockInstance; restore: boolean }>(),
       serializers: new Set<Parameters<typeof addSerializer>[0]>(),
       utilities: undefined as unknown as AttemptUtilities,
@@ -1761,7 +2022,10 @@ export async function createAssertionRuntime(options: {
         options.waitForImports
       )
     scopes.set(context.id, scope)
-    if (kind === 'attempt') runningAttempt = scope
+    if (kind === 'attempt') {
+      runningAttempt = scope
+      lastAttemptName = context.name
+    }
     if (kind === 'attempt') {
       try {
         // Published 5.0.4 resets before every try, before user setup/fixtures.
@@ -1789,7 +2053,10 @@ export async function createAssertionRuntime(options: {
       snapshotTests.delete(context.testId)
       snapshots.clearTest(options.testPath, context.testId)
     }
-    if (!fileAssertionLifetime || kind !== 'hook') {
+    if (
+      kind !== 'file-fixtures' &&
+      (!fileAssertionLifetime || kind !== 'hook')
+    ) {
       setState(
         {
           assertionCalls: 0,
@@ -1800,7 +2067,9 @@ export async function createAssertionRuntime(options: {
           currentTestName:
             fileAssertionLifetime && kind === 'collection'
               ? undefined
-              : context.name,
+              : kind === 'hook'
+                ? lastAttemptName
+                : context.name,
           testPath: options.testPath,
         },
         expect
@@ -1811,8 +2080,26 @@ export async function createAssertionRuntime(options: {
     let checkedErrors = 0
     let checkedAssertions = false
     let rejectedPromises = 0
+    let checkpointFailure:
+      | { error: unknown; body: boolean; nativeHook: boolean }
+      | undefined
+    let bodyFailure: unknown
+    function countIsBody(error: unknown) {
+      const selected =
+        kind === 'attempt' && 'testId' in context
+          ? (localExpectations.get(context.testId) ?? expect)
+          : expect
+      return scope.assertionCounts.some(
+        (record) =>
+          record.expect === selected && record.error === error && record.body
+      )
+    }
     function assertionCountErrors(): unknown[] {
-      if (kind === 'collection' || (fileAssertionLifetime && kind === 'hook'))
+      if (
+        kind === 'collection' ||
+        kind === 'file-fixtures' ||
+        (fileAssertionLifetime && kind === 'hook')
+      )
         return []
       // The reference lazily selects the test-local instance, if accessed.
       // Local state survives retries/repeats; manual instances are independent.
@@ -1839,17 +2126,37 @@ export async function createAssertionRuntime(options: {
       return []
     }
     async function checkpoint() {
+      checkpointFailure = undefined
       if (scope.finalized) return
       const errors: unknown[] = []
-      const uncheckedPromises = (task.promises ?? []).filter(
-        (promise) => !checkedPromises.has(promise)
-      )
+      const origins: boolean[] = []
+      const add = (error: unknown, body: boolean) => {
+        errors.push(error)
+        origins.push(body)
+      }
+      const uncheckedPromises = (task.promises ?? []).filter((promise) => {
+        if (checkedPromises.has(promise)) return false
+        const owners = records.filter((record) => record.promise === promise)
+        // Authored afterEach and returned beforeEach cleanup do not join
+        // pending assertions at the final reference checkpoint.
+        // Only an actual unique role record leaves settlement to the native host.
+        return (
+          owners.length !== 1 ||
+          (!owners[0].afterEach && !owners[0].beforeEachCleanup)
+        )
+      })
       uncheckedPromises.forEach((promise) => checkedPromises.add(promise))
       const pending = await Promise.allSettled(uncheckedPromises)
-      for (const result of pending) {
+      for (const [index, result] of pending.entries()) {
         if (result.status === 'rejected') {
           rejectedPromises++
-          errors.push(result.reason)
+          const owners = records.filter(
+            (record) => record.promise === uncheckedPromises[index]
+          )
+          add(
+            result.reason,
+            owners.length > 0 && owners.every((record) => record.body)
+          )
         }
       }
       const newChecks = (task.onFinished ?? []).slice(checkedFinished)
@@ -1859,21 +2166,84 @@ export async function createAssertionRuntime(options: {
           check()
         } catch (error) {
           const record = checks.get(check)
+          if (
+            options.observeNativeUnhandledAssertions &&
+            (record?.body ||
+              record?.beforeEach ||
+              record?.afterEach ||
+              record?.beforeEachCleanup)
+          ) {
+            record.consumptionFailure = error
+            record.settledBeforeFinalization = !task.promises?.includes(
+              record.promise
+            )
+          }
           if (record?.rejected && !errors.includes(record.error))
-            errors.push(record.error)
-          errors.push(error)
+            add(record.error, record.body)
+          add(error, record?.body === true)
         }
       }
-      errors.push(...(task.result?.errors ?? []).slice(checkedErrors))
+      for (const error of (task.result?.errors ?? []).slice(checkedErrors)) {
+        const owners = softFailures.filter((record) => record.error === error)
+        add(error, owners.length > 0 && owners.every((record) => record.body))
+      }
       checkedErrors = task.result?.errors?.length ?? 0
       if (!checkedAssertions) {
         checkedAssertions = true
-        errors.push(...assertionCountErrors())
+        for (const error of assertionCountErrors())
+          add(error, countIsBody(error))
       }
-      if (errors.length)
-        throw new AggregateError(errors, 'Test assertions failed')
+      if (errors.length) {
+        const error = new AggregateError(errors, 'Test assertions failed')
+        checkpointFailure = {
+          error,
+          body: origins.every(Boolean),
+          nativeHook:
+            (options.observeNativeAfterEachAssertions === true ||
+              options.observeNativeBeforeEachCleanupAssertions === true) &&
+            errors.every((value) => {
+              const owners = records.filter(
+                (record) => record.consumptionFailure === value
+              )
+              return (
+                owners.length === 1 &&
+                (owners[0].afterEach || owners[0].beforeEachCleanup)
+              )
+            }),
+        }
+        throw error
+      }
     }
     return {
+      ...(options.observeNativeUnhandledAssertions && kind === 'attempt'
+        ? {
+            async awaitBodyAssertions<T>(invoke: () => Promise<T>): Promise<T> {
+              assertAssertionLifecycleScope(
+                context.id,
+                originatingScope()?.context.id,
+                scopes.get(context.id) === scope &&
+                  !disposed &&
+                  !scope.finalized
+              )
+              const result = await invoke()
+              const live = (task.promises ?? []).filter(
+                (promise) => !checkedPromises.has(promise)
+              )
+              live.forEach((promise) => checkedPromises.add(promise))
+              const errors = (await Promise.allSettled(live)).flatMap(
+                (value) => {
+                  if (value.status !== 'rejected') return []
+                  rejectedPromises++
+                  return [value.reason]
+                }
+              )
+              if (errors.length === 1) throw errors[0]
+              if (errors.length > 1)
+                throw new AggregateError(errors, 'Test assertions failed')
+              return result
+            },
+          }
+        : {}),
       async suspend<T>(runInner: () => Promise<T>): Promise<T> {
         if (
           kind !== 'hook' ||
@@ -1896,6 +2266,7 @@ export async function createAssertionRuntime(options: {
             scope.finalized ||
             [...scopes.values()].some(
               (inner) =>
+                !inner.disposed &&
                 (!fileAssertionLifetime || !inner.finalized) &&
                 inner.ancestors.includes(context.id)
             )
@@ -1931,7 +2302,38 @@ export async function createAssertionRuntime(options: {
         checkedErrors = task.result?.errors?.length ?? 0
         return errors
       },
+      consumeNativeHookCheckpointFailure(error: unknown) {
+        if (
+          (!options.observeNativeAfterEachAssertions &&
+            !options.observeNativeBeforeEachCleanupAssertions) ||
+          checkpointFailure === undefined ||
+          checkpointFailure.error !== error ||
+          !checkpointFailure.nativeHook ||
+          scope.finalized ||
+          disposed ||
+          scopes.get(context.id) !== scope
+        )
+          return false
+        checkpointFailure = undefined
+        return true
+      },
+      consumeBodyFailure(error: unknown) {
+        if (
+          bodyFailure === undefined ||
+          bodyFailure !== error ||
+          scope.finalized ||
+          disposed ||
+          scopes.get(context.id) !== scope
+        )
+          return false
+        for (const record of records)
+          if (record.bodyFailure === error) record.bodyFailureConsumed = true
+        bodyFailure = undefined
+        return true
+      },
       async finishTest(failed: boolean) {
+        bodyFailure = undefined
+        const origins: boolean[] = []
         // Counts belong to setup/body, before teardown or finished listeners.
         // Mark them consumed even if awaiting assertions times out, so later
         // cleanup cannot lend this attempt another assertion count.
@@ -1941,8 +2343,17 @@ export async function createAssertionRuntime(options: {
         try {
           await checkpoint()
         } catch (error) {
-          if (error instanceof AggregateError) errors.push(...error.errors)
-          else errors.push(error)
+          const values =
+            error instanceof AggregateError ? error.errors : [error]
+          errors.push(...values)
+          origins.push(
+            ...values.map(
+              () =>
+                checkpointFailure !== undefined &&
+                checkpointFailure.error === error &&
+                checkpointFailure.body
+            )
+          )
         }
         // The reference skips counts after a thrown body/promise failure, but
         // still checks them when a soft matcher recorded a failure.
@@ -1958,11 +2369,27 @@ export async function createAssertionRuntime(options: {
               'Assertion count belongs to a different Next assertion scope'
             )
           }
-          errors.push(...assertionCountErrors())
+          for (const error of assertionCountErrors()) {
+            errors.push(error)
+            origins.push(countIsBody(error))
+          }
         }
-        if (errors.length === 1) throw errors[0]
-        if (errors.length > 1)
-          throw new AggregateError(errors, 'Test assertions failed')
+        if (errors.length) {
+          const error =
+            errors.length === 1
+              ? errors[0]
+              : new AggregateError(errors, 'Test assertions failed')
+          if (origins.every(Boolean)) {
+            bodyFailure = error
+            for (const record of records)
+              if (
+                record.consumptionFailure !== undefined &&
+                errors.includes(record.consumptionFailure)
+              )
+                record.bodyFailure = error
+          }
+          throw error
+        }
       },
       checkpoint,
       async finalize() {
@@ -1973,7 +2400,12 @@ export async function createAssertionRuntime(options: {
         }
       },
       async dispose() {
-        if (scopes.get(context.id) !== scope) return
+        if (
+          (options.observeNativeUnhandledAssertions && scope.disposed) ||
+          scopes.get(context.id) !== scope
+        )
+          return
+        scope.disposed = true
         scope.finalized = true
         const errors: unknown[] = []
         try {
@@ -1985,7 +2417,11 @@ export async function createAssertionRuntime(options: {
           removeSerializers(scope.serializers)
           errors.push(...drainMocks(scope.mocks))
         } finally {
-          if (!fileAssertionLifetime) scopes.delete(context.id)
+          if (
+            !fileAssertionLifetime &&
+            (!options.observeNativeUnhandledAssertions || kind !== 'attempt')
+          )
+            scopes.delete(context.id)
           if (runningAttempt === scope) runningAttempt = undefined
         }
         if (errors.length)
@@ -2137,6 +2573,7 @@ export async function createAssertionRuntime(options: {
   }
 
   const runtime = {
+    callSnapshotHelper,
     expect,
     createExpect,
     createChaiAssertion,
@@ -2145,6 +2582,7 @@ export async function createAssertionRuntime(options: {
     assertChaiNamespaceAccess,
     chaiEvents,
     readChaiPrototype,
+    readChaiPrototypeDescriptor,
     registerChaiAssertionMember,
     callChaiUtility,
     isChaiNamespaceAssertion(value: unknown) {
@@ -2230,10 +2668,93 @@ export async function createAssertionRuntime(options: {
         }
       },
     }),
+    observeNativeBodyRejection(reason: unknown, promise: Promise<unknown>) {
+      if (
+        !options.observeNativeUnhandledAssertions ||
+        nativeRejectionRecordsReleased
+      )
+        return false
+      const owners = [...scopes.values()].flatMap((scope) =>
+        scope.asyncAssertions
+          .filter((record) => record.promise === promise)
+          .map((record) => ({ scope, record }))
+      )
+      if (owners.length !== 1) return false
+      const { scope, record } = owners[0]
+      if (
+        scope.kind !== 'attempt' ||
+        !record.body ||
+        record.nativeUnhandled !== undefined ||
+        scope.task.promises?.includes(promise) ||
+        ((scope.finalized || disposed) &&
+          (!record.settledBeforeFinalization || !record.bodyFailureConsumed))
+      )
+        return false
+      record.nativeUnhandled = { reason }
+      if (!scope.finalized) record.settledBeforeFinalization = true
+      return true
+    },
+    observeNativeHookRejection(reason: unknown, promise: Promise<unknown>) {
+      if (
+        !options.observeNativeUnhandledAssertions ||
+        (!options.observeNativeBeforeEachAssertions &&
+          !options.observeNativeAfterEachAssertions &&
+          !options.observeNativeBeforeEachCleanupAssertions) ||
+        nativeRejectionRecordsReleased
+      )
+        return false
+      const owners = [...scopes.values()].flatMap((scope) =>
+        scope.asyncAssertions
+          .filter((record) => record.promise === promise)
+          .map((record) => ({ scope, record }))
+      )
+      if (owners.length !== 1) return false
+      const { scope, record } = owners[0]
+      if (
+        scope.kind !== 'attempt' ||
+        (!record.beforeEach &&
+          !record.afterEach &&
+          !record.beforeEachCleanup) ||
+        record.nativeUnhandled !== undefined ||
+        scope.task.promises?.includes(promise) ||
+        ((scope.finalized || disposed) &&
+          (record.consumptionFailure === undefined ||
+            (!record.afterEach &&
+              !record.beforeEachCleanup &&
+              !record.settledBeforeFinalization)))
+      )
+        return false
+      record.nativeUnhandled = { reason }
+      if (!scope.finalized) record.settledBeforeFinalization = true
+      return true
+    },
+    hasCompleteNativeBodyRejections() {
+      if (nativeRejectionRecordsReleased) return false
+      return [...scopes.values()].every((scope) =>
+        scope.asyncAssertions.every(
+          (record) =>
+            !record.nativeUnhandled ||
+            (record.body &&
+              scope.finalized &&
+              scope.disposed &&
+              record.settledBeforeFinalization === true &&
+              record.consumptionFailure !== undefined &&
+              record.bodyFailureConsumed === true)
+        )
+      )
+    },
+    releaseNativeBodyRejectionRecords() {
+      if (!disposed)
+        throw new Error('Dispose assertions before releasing native records.')
+      nativeRejectionRecordsReleased = true
+      scopes.clear()
+    },
     beginCollection: (context: AssertionCollection) =>
       beginScope(context, 'collection'),
     beginAttempt: (context: AssertionAttempt) => beginScope(context, 'attempt'),
     beginHook: (context: AssertionHook) => beginScope(context, 'hook'),
+    beginFileFixtures: (context: AssertionCollection) =>
+      beginScope(context, 'file-fixtures'),
     finishSnapshotSelection(
       cases: readonly { name: string; status: string }[],
       selection: { partial: boolean; complete: boolean }
@@ -2264,7 +2785,7 @@ export async function createAssertionRuntime(options: {
     },
     async finishFile() {
       if (
-        (fileAssertionLifetime
+        (fileAssertionLifetime || options.observeNativeUnhandledAssertions
           ? [...scopes.values()].some((scope) => !scope.finalized)
           : scopes.size) ||
         suspendedScopes.size
@@ -2349,7 +2870,9 @@ export async function createAssertionRuntime(options: {
       }
       runtimeActive = false
       closeAssertionFile()
-      scopes.clear()
+      // The actual Node host drains native events before releasing this same
+      // private owner map. Disposed assertion APIs remain closed throughout.
+      if (!options.observeNativeUnhandledAssertions) scopes.clear()
       localExpectations.clear()
       snapshots.clear()
       try {

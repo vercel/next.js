@@ -1,0 +1,206 @@
+[
+  {
+    "event": "jsx-marker",
+    "type": "mark",
+    "props": {
+      "data-profile": "reporter-jsx"
+    }
+  },
+  {
+    "event": "case-result",
+    "test": {
+      "type": "test",
+      "id": "-205728492_0",
+      "name": "first",
+      "fullName": "first",
+      "project": "case-rejection",
+      "options": {
+        "tags": [],
+        "timeout": 5000,
+        "mode": "run"
+      },
+      "tags": [],
+      "meta": {},
+      "result": {
+        "state": "passed"
+      },
+      "annotations": [],
+      "artifacts": []
+    },
+    "moduleId": "/private/tmp/next-testing-ws4-blob158/reference03/development/first.test.mjs",
+    "relativeModuleId": "first.test.mjs",
+    "parent": "-205728492"
+  },
+  {
+    "event": "module-end",
+    "moduleId": "/private/tmp/next-testing-ws4-blob158/reference03/development/first.test.mjs",
+    "relativeModuleId": "first.test.mjs",
+    "module": {
+      "type": "module",
+      "id": "-205728492",
+      "project": "case-rejection",
+      "meta": {},
+      "state": "passed",
+      "errors": [],
+      "children": [
+        {
+          "type": "test",
+          "id": "-205728492_0",
+          "name": "first",
+          "fullName": "first",
+          "project": "case-rejection",
+          "options": {
+            "tags": [],
+            "timeout": 5000,
+            "mode": "run"
+          },
+          "tags": [],
+          "meta": {},
+          "result": {
+            "state": "passed"
+          },
+          "annotations": [],
+          "artifacts": []
+        }
+      ]
+    }
+  },
+  {
+    "event": "case-result",
+    "test": {
+      "type": "test",
+      "id": "1130289624_0",
+      "name": "second",
+      "fullName": "second",
+      "project": "case-rejection",
+      "options": {
+        "tags": [],
+        "timeout": 5000,
+        "mode": "run"
+      },
+      "tags": [],
+      "meta": {},
+      "result": {
+        "state": "passed"
+      },
+      "annotations": [],
+      "artifacts": []
+    },
+    "moduleId": "/private/tmp/next-testing-ws4-blob158/reference03/development/second.test.mjs",
+    "relativeModuleId": "second.test.mjs",
+    "parent": "1130289624"
+  },
+  {
+    "event": "module-end",
+    "moduleId": "/private/tmp/next-testing-ws4-blob158/reference03/development/second.test.mjs",
+    "relativeModuleId": "second.test.mjs",
+    "module": {
+      "type": "module",
+      "id": "1130289624",
+      "project": "case-rejection",
+      "meta": {},
+      "state": "passed",
+      "errors": [],
+      "children": [
+        {
+          "type": "test",
+          "id": "1130289624_0",
+          "name": "second",
+          "fullName": "second",
+          "project": "case-rejection",
+          "options": {
+            "tags": [],
+            "timeout": 5000,
+            "mode": "run"
+          },
+          "tags": [],
+          "meta": {},
+          "result": {
+            "state": "passed"
+          },
+          "annotations": [],
+          "artifacts": []
+        }
+      ]
+    }
+  },
+  {
+    "event": "run-end",
+    "reason": "passed",
+    "modules": [
+      {
+        "type": "module",
+        "id": "-205728492",
+        "project": "case-rejection",
+        "meta": {},
+        "state": "passed",
+        "errors": [],
+        "children": [
+          {
+            "type": "test",
+            "id": "-205728492_0",
+            "name": "first",
+            "fullName": "first",
+            "project": "case-rejection",
+            "options": {
+              "tags": [],
+              "timeout": 5000,
+              "mode": "run"
+            },
+            "tags": [],
+            "meta": {},
+            "result": {
+              "state": "passed"
+            },
+            "annotations": [],
+            "artifacts": []
+          }
+        ]
+      },
+      {
+        "type": "module",
+        "id": "1130289624",
+        "project": "case-rejection",
+        "meta": {},
+        "state": "passed",
+        "errors": [],
+        "children": [
+          {
+            "type": "test",
+            "id": "1130289624_0",
+            "name": "second",
+            "fullName": "second",
+            "project": "case-rejection",
+            "options": {
+              "tags": [],
+              "timeout": 5000,
+              "mode": "run"
+            },
+            "tags": [],
+            "meta": {},
+            "result": {
+              "state": "passed"
+            },
+            "annotations": [],
+            "artifacts": []
+          }
+        ]
+      }
+    ],
+    "errors": [
+      {
+        "name": "Error",
+        "message": "case result hook rejected"
+      },
+      {
+        "name": "Error",
+        "message": "foreign replay rejection"
+      }
+    ],
+    "sameModules": [true, true],
+    "sameCases": [true, true]
+  },
+  {
+    "event": "close"
+  }
+]

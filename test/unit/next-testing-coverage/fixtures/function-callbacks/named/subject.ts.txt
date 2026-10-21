@@ -1,0 +1,4 @@
+export async function total(values: number[]) {
+  const doubled = await Promise.all(values.map(async function double(value: number) { return value * 2 }))
+  return doubled.reduce(function add(sum: number, value: number) { return sum + value }, 0)
+}

@@ -1,0 +1,12 @@
+[
+  {
+    "name": "inherited false export flag read",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "inherited true export flag read",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

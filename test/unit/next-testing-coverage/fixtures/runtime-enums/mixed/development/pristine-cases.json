@@ -1,0 +1,150 @@
+{
+  "numTotalTestSuites": 1,
+  "numPassedTestSuites": 1,
+  "numFailedTestSuites": 0,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 1,
+  "numPassedTests": 1,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1792578789707,
+  "success": true,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [],
+          "fullName": "runtime enum",
+          "status": "passed",
+          "title": "runtime enum",
+          "duration": 0.9679579999999959,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1792578789806,
+      "endTime": 1792578789806.968,
+      "status": "passed",
+      "message": "",
+      "name": "/private/tmp/next-testing-ws5-runtime-enums176/reference04/26-mixed-development/contract.test.mjs"
+    }
+  ],
+  "coverageMap": {
+    "/private/tmp/next-testing-ws5-runtime-enums176/reference04/26-mixed-development/subject.ts": {
+      "path": "/private/tmp/next-testing-ws5-runtime-enums176/reference04/26-mixed-development/subject.ts",
+      "statementMap": {
+        "0": {
+          "start": { "line": 1, "column": 7 },
+          "end": { "line": 1, "column": null }
+        },
+        "1": {
+          "start": { "line": 1, "column": 19 },
+          "end": { "line": 1, "column": 26 }
+        },
+        "2": {
+          "start": { "line": 1, "column": 26 },
+          "end": { "line": 1, "column": 36 }
+        },
+        "3": {
+          "start": { "line": 1, "column": 36 },
+          "end": { "line": 1, "column": 50 }
+        },
+        "4": {
+          "start": { "line": 3, "column": 2 },
+          "end": { "line": 3, "column": null }
+        },
+        "5": {
+          "start": { "line": 3, "column": 28 },
+          "end": { "line": 3, "column": null }
+        },
+        "6": {
+          "start": { "line": 4, "column": 2 },
+          "end": { "line": 4, "column": null }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "(anonymous_0)",
+          "decl": {
+            "start": { "line": 1, "column": 7 },
+            "end": { "line": 1, "column": 12 }
+          },
+          "loc": {
+            "start": { "line": 1, "column": 7 },
+            "end": { "line": 1, "column": null }
+          },
+          "line": 1
+        },
+        "1": {
+          "name": "choose",
+          "decl": {
+            "start": { "line": 2, "column": 16 },
+            "end": { "line": 2, "column": 23 }
+          },
+          "loc": {
+            "start": { "line": 2, "column": 36 },
+            "end": { "line": 5, "column": null }
+          },
+          "line": 2
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": { "line": 3, "column": 2 },
+            "end": { "line": 3, "column": null }
+          },
+          "type": "if",
+          "locations": [
+            {
+              "start": { "line": 3, "column": 2 },
+              "end": { "line": 3, "column": null }
+            },
+            { "start": {}, "end": {} }
+          ],
+          "line": 3
+        }
+      },
+      "s": { "0": 1, "1": 1, "2": 1, "3": 1, "4": 2, "5": 1, "6": 1 },
+      "f": { "0": 1, "1": 2 },
+      "b": { "0": [1, 1] },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 7,
+        "seen": {
+          "s:1:7:1:Infinity": 0,
+          "f:1:7:1:12": 0,
+          "s:1:19:1:26": 1,
+          "s:1:26:1:36": 2,
+          "s:1:36:1:50": 3,
+          "f:2:16:2:23": 1,
+          "b:3:2:3:Infinity:undefined:undefined:undefined:undefined": 0,
+          "s:3:2:3:Infinity": 4,
+          "s:3:28:3:Infinity": 5,
+          "s:4:2:4:Infinity": 6
+        },
+        "fnNames": {}
+      }
+    }
+  }
+}

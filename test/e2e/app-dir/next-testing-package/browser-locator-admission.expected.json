@@ -1,0 +1,633 @@
+{
+  "reference": {
+    "target": "vitest@5.0.4",
+    "provider": "@vitest/browser-playwright@5.0.4/playwright@1.64.0 Chromium",
+    "runtime": "Node26.1.0",
+    "sourceSHA256": {
+      "admission.test.mjs": "3aff5521c6a54ef7d6e6c2271ab14649f29d85d8272e40f32bfe1d7e94d75a0b"
+    },
+    "completeRows": 8,
+    "completeCases": 8,
+    "proof": "/private/tmp/next-testing-ws3-browser-locator-admission128/REFERENCE-AND-GAP01.json"
+  },
+  "phases": {
+    "locator-admission-development": {
+      "mode": "development",
+      "cases": [
+        {
+          "fullName": "click waits for a role query created before the button exists",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "fill waits for a label query created before the input exists",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "click waits for a real React button and its native render turn",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "an existing disabled button retains native actionability waiting",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "late DOM click",
+            "mode": "development",
+            "connected": true,
+            "value": "",
+            "text": "Late button",
+            "events": [
+              {
+                "type": "pointerdown",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 1,
+                "value": "",
+                "text": "Late button"
+              },
+              {
+                "type": "mousedown",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 1,
+                "button": 0,
+                "buttons": 1,
+                "value": "",
+                "text": "Late button"
+              },
+              {
+                "type": "pointerup",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "value": "",
+                "text": "Late button"
+              },
+              {
+                "type": "mouseup",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 1,
+                "button": 0,
+                "buttons": 0,
+                "value": "",
+                "text": "Late button"
+              },
+              {
+                "type": "click",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 1,
+                "button": 0,
+                "buttons": 0,
+                "value": "",
+                "text": "Late button"
+              }
+            ],
+            "outcome": {
+              "returnedUndefined": true
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "late DOM fill",
+            "mode": "development",
+            "connected": true,
+            "value": "native value",
+            "text": "",
+            "events": [
+              {
+                "type": "input",
+                "constructor": "InputEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "value": "native value",
+                "text": ""
+              }
+            ],
+            "outcome": {
+              "returnedUndefined": true
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "late React click",
+            "mode": "development",
+            "connected": true,
+            "value": "",
+            "text": "React clicked",
+            "events": [
+              {
+                "type": "pointerdown",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 1,
+                "value": "",
+                "text": "Late React"
+              },
+              {
+                "type": "mousedown",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 1,
+                "button": 0,
+                "buttons": 1,
+                "value": "",
+                "text": "Late React"
+              },
+              {
+                "type": "pointerup",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "value": "",
+                "text": "Late React"
+              },
+              {
+                "type": "mouseup",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 1,
+                "button": 0,
+                "buttons": 0,
+                "value": "",
+                "text": "Late React"
+              },
+              {
+                "type": "click",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 1,
+                "button": 0,
+                "buttons": 0,
+                "value": "",
+                "text": "Late React"
+              }
+            ],
+            "outcome": {
+              "returnedUndefined": true
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "disabled native control",
+            "mode": "development",
+            "connected": true,
+            "value": "",
+            "text": "Disabled control",
+            "events": [
+              {
+                "type": "pointerdown",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 1,
+                "value": "",
+                "text": "Disabled control"
+              },
+              {
+                "type": "mousedown",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 1,
+                "button": 0,
+                "buttons": 1,
+                "value": "",
+                "text": "Disabled control"
+              },
+              {
+                "type": "pointerup",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "value": "",
+                "text": "Disabled control"
+              },
+              {
+                "type": "mouseup",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 1,
+                "button": 0,
+                "buttons": 0,
+                "value": "",
+                "text": "Disabled control"
+              },
+              {
+                "type": "click",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 1,
+                "button": 0,
+                "buttons": 0,
+                "value": "",
+                "text": "Disabled control"
+              }
+            ],
+            "outcome": {
+              "returnedUndefined": true
+            }
+          }
+        }
+      ]
+    },
+    "locator-admission-production": {
+      "mode": "production",
+      "cases": [
+        {
+          "fullName": "click waits for a role query created before the button exists",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "fill waits for a label query created before the input exists",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "click waits for a real React button and its native render turn",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "an existing disabled button retains native actionability waiting",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "late DOM click",
+            "mode": "production",
+            "connected": true,
+            "value": "",
+            "text": "Late button",
+            "events": [
+              {
+                "type": "pointerdown",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 1,
+                "value": "",
+                "text": "Late button"
+              },
+              {
+                "type": "mousedown",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 1,
+                "button": 0,
+                "buttons": 1,
+                "value": "",
+                "text": "Late button"
+              },
+              {
+                "type": "pointerup",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "value": "",
+                "text": "Late button"
+              },
+              {
+                "type": "mouseup",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 1,
+                "button": 0,
+                "buttons": 0,
+                "value": "",
+                "text": "Late button"
+              },
+              {
+                "type": "click",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 1,
+                "button": 0,
+                "buttons": 0,
+                "value": "",
+                "text": "Late button"
+              }
+            ],
+            "outcome": {
+              "returnedUndefined": true
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "late DOM fill",
+            "mode": "production",
+            "connected": true,
+            "value": "native value",
+            "text": "",
+            "events": [
+              {
+                "type": "input",
+                "constructor": "InputEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "value": "native value",
+                "text": ""
+              }
+            ],
+            "outcome": {
+              "returnedUndefined": true
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "late React click",
+            "mode": "production",
+            "connected": true,
+            "value": "",
+            "text": "React clicked",
+            "events": [
+              {
+                "type": "pointerdown",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 1,
+                "value": "",
+                "text": "Late React"
+              },
+              {
+                "type": "mousedown",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 1,
+                "button": 0,
+                "buttons": 1,
+                "value": "",
+                "text": "Late React"
+              },
+              {
+                "type": "pointerup",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "value": "",
+                "text": "Late React"
+              },
+              {
+                "type": "mouseup",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 1,
+                "button": 0,
+                "buttons": 0,
+                "value": "",
+                "text": "Late React"
+              },
+              {
+                "type": "click",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 1,
+                "button": 0,
+                "buttons": 0,
+                "value": "",
+                "text": "Late React"
+              }
+            ],
+            "outcome": {
+              "returnedUndefined": true
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "disabled native control",
+            "mode": "production",
+            "connected": true,
+            "value": "",
+            "text": "Disabled control",
+            "events": [
+              {
+                "type": "pointerdown",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 1,
+                "value": "",
+                "text": "Disabled control"
+              },
+              {
+                "type": "mousedown",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 1,
+                "button": 0,
+                "buttons": 1,
+                "value": "",
+                "text": "Disabled control"
+              },
+              {
+                "type": "pointerup",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "value": "",
+                "text": "Disabled control"
+              },
+              {
+                "type": "mouseup",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 1,
+                "button": 0,
+                "buttons": 0,
+                "value": "",
+                "text": "Disabled control"
+              },
+              {
+                "type": "click",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 1,
+                "button": 0,
+                "buttons": 0,
+                "value": "",
+                "text": "Disabled control"
+              }
+            ],
+            "outcome": {
+              "returnedUndefined": true
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,43 @@
+[
+  {
+    "stream": "stdout",
+    "value": {
+      "name": "bare-helper",
+      "value": 73,
+      "consumerValue": 73,
+      "same": true,
+      "staticIdentity": false,
+      "dynamicIdentity": false,
+      "defaultIdentity": true,
+      "keys": ["value", "default"],
+      "descriptor": {
+        "value": 73,
+        "writable": true,
+        "enumerable": true,
+        "configurable": true
+      },
+      "prototype": true,
+      "tag": null
+    }
+  },
+  {
+    "stream": "stdout",
+    "value": {
+      "name": "async-helper",
+      "value": 91,
+      "same": true,
+      "keys": ["value"]
+    }
+  },
+  {
+    "stream": "stdout",
+    "value": {
+      "name": "scoped-helper",
+      "value": 118,
+      "updated": true,
+      "same": false,
+      "dynamicValue": 118,
+      "keys": ["value"]
+    }
+  }
+]

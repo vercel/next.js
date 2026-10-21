@@ -80,14 +80,16 @@ export class MockRegistry {
       registration.result = Promise.resolve()
         .then(() => {
           this.assertActive()
-          return registration.factory(async () => {
-            this.assertActive()
-            const original = await (deferredOriginal
-              ? (deferredResult ??= Promise.resolve().then(deferredOriginal))
-              : registration.importOriginal())
-            this.assertActive()
-            return original
-          })
+          return registration.factory(() =>
+            (async () => {
+              this.assertActive()
+              const original = await (deferredOriginal
+                ? (deferredResult ??= Promise.resolve().then(deferredOriginal))
+                : registration.importOriginal())
+              this.assertActive()
+              return original
+            })()
+          )
         })
         .then((exports) => {
           this.assertActive()

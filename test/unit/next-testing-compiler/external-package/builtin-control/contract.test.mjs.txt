@@ -1,0 +1,7 @@
+import {test,expect} from 'vitest'
+import * as fs from 'fs'
+import * as prefixedFs from 'node:fs'
+import * as os from 'node:os'
+function inspect(value){const descriptor=Object.getOwnPropertyDescriptor(value,'readFileSync');return {prototypeNull:Object.getPrototypeOf(value)===null,tag:value[Symbol.toStringTag]??null,keys:Object.keys(value),extensible:Object.isExtensible(value),sealed:Object.isSealed(value),frozen:Object.isFrozen(value),descriptor:descriptor?{get:typeof descriptor.get,set:typeof descriptor.set,writable:descriptor.writable??null,enumerable:descriptor.enumerable,configurable:descriptor.configurable}:null}}
+test('preserves an ordinary builtin native namespace across request spellings',async()=>{const dynamic=await import('node:fs');console.log('WS2_EXTERNAL_BUILTIN_CONTROL:'+JSON.stringify({name:'fs',spellings:fs===prefixedFs,dynamicIdentity:fs===dynamic,defaultFunction:fs.default.readFileSync===fs.readFileSync,...inspect(fs)}));expect(typeof fs.readFileSync).toBe('function')})
+test('preserves an ordinary prefixed builtin native namespace',async()=>{const dynamic=await import('os');console.log('WS2_EXTERNAL_BUILTIN_CONTROL:'+JSON.stringify({name:'os',dynamicIdentity:os===dynamic,defaultFunction:os.default.platform===os.platform,...inspect(os)}));expect(typeof os.platform).toBe('function')})

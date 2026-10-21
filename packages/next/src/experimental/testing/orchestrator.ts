@@ -21,6 +21,7 @@ import type {
 import { assertCustomCoverageFacts } from './coverage/custom-facts'
 import { assertCustomCoverageCompletion } from './coverage/custom-runtime'
 import { randomUUID } from 'crypto'
+import { isDeepStrictEqual } from 'util'
 import type {
   StandardCoverageOptions,
   StandardFileCoverage,
@@ -61,9 +62,11 @@ interface PreparedTest {
   entry: TestEntry
   artifact: CompiledTestArtifact
   started: number
+  coverageLease?: () => void
 }
 
 export interface RunTestsOptions {
+  captureTaskResults?: boolean
   compilerTransforms?: Record<
     string,
     import('./compiler/transform-broker').CompilerTransformDescriptor
@@ -76,6 +79,8 @@ export interface RunTestsOptions {
   standardCoverageOptions?: StandardCoverageOptions
   /** Parent-issued source/profile selection; compiler children cannot authorize themselves. */
   coverageSourcePlan?: CoverageSourcePlan
+  /** Derived only from the existing isolated one-shot compiler request. */
+  nodeTypeScriptImportCoverage?: boolean
   runtimeConfigurationPlan?: RuntimeConfigurationPlan
   coverageInputs?: readonly string[]
   includeUnimportedCoverage?: boolean
@@ -86,6 +91,7 @@ export interface RunTestsOptions {
   ) => Promise<void>
   customCoverageRequests?: Record<string, CustomCoverageRequest>
   inspect?: string
+  inspectBrk?: boolean
   updateSnapshots?: boolean
   snapshotUpdateMode?: SnapshotUpdateMode
   testNamePattern?: string | RegExp
@@ -312,13 +318,12 @@ export async function runTests(
       (selected.some(
         (project) =>
           project.profile.route !== undefined &&
-          (project.profile.environment !== 'rsc' ||
-            project.profile.mode !== 'development')
+          project.profile.environment !== 'rsc'
       ) ||
         new Set(snapshotSources).size !== snapshotSources.length)
     ) {
       throw new Error(
-        'Route snapshot updates require development RSC profiles and a single selected profile per source file.'
+        'Route snapshot updates require RSC profiles and a single selected profile per source file.'
       )
     }
   }
@@ -500,7 +505,7 @@ export async function runTests(
   }
 
   async function executePrepared(
-    { entry, artifact, started: fileStarted }: PreparedTest,
+    { entry, artifact, started: fileStarted, coverageLease }: PreparedTest,
     project: DiscoveredTestProject
   ) {
     let serverModule: typeof import('./browser/server') | undefined
@@ -554,7 +559,7 @@ export async function runTests(
     }
     try {
       controller.signal.throwIfAborted()
-      if (runtimeConfigurationPlan && !options.execute)
+      if (runtimeConfigurationPlan && (!options.execute || coverageLease))
         stagedRuntimeConfiguration = await prepareRuntimeConfigurationReceipt({
           artifact,
           plan: runtimeConfigurationPlan,
@@ -625,6 +630,7 @@ export async function runTests(
         options.execute ?? (await import('./execution/execute.js')).execute
       executing = true
       const result = await execute(artifact, {
+        captureTaskResults: options.captureTaskResults,
         collectOnly: options.collectOnly,
         runId,
         projectDir,
@@ -709,20 +715,49 @@ export async function runTests(
                 }
                 let remapped
                 if (options.standardCoverageOptions) {
-                  const { remapStandardCoverage } = await import(
-                    './coverage/istanbul.js'
-                  )
+                  const {
+                    remapStandardCoverage,
+                    remapPlannedStandardCoverage,
+                  } = await import('./coverage/istanbul.js')
                   const { standardCoverageSourceSelector } = await import(
                     './coverage/options.js'
                   )
-                  remapped = await remapStandardCoverage(
-                    artifact,
-                    completion.data,
-                    standardCoverageSourceSelector(
-                      projectDir,
-                      options.standardCoverageOptions
-                    )
+                  const selectSource = standardCoverageSourceSelector(
+                    projectDir,
+                    options.standardCoverageOptions
                   )
+                  if (coverageLease) {
+                    if (
+                      !runtimeConfigurationPlan ||
+                      !stagedRuntimeConfiguration
+                    )
+                      throw new Error(
+                        'Planned JSX coverage requires current runtime configuration inputs'
+                      )
+                    const receipt = await stagedRuntimeConfiguration.seal()
+                    stagedRuntimeConfiguration = undefined
+                    runtimeConfigurationReceipts.push(receipt)
+                    remapped = await remapPlannedStandardCoverage(
+                      artifact,
+                      completion,
+                      {
+                        runId,
+                        entry,
+                        sourcePlan: coverageSourcePlan,
+                        runtimeConfigurationPlan,
+                        runtimeConfigurationReceipt: receipt,
+                        assertLease: coverageLease,
+                      },
+                      controller.signal,
+                      selectSource
+                    )
+                  } else {
+                    remapped = await remapStandardCoverage(
+                      artifact,
+                      completion.data,
+                      selectSource
+                    )
+                  }
                   standardCoverage.push(remapped)
                 } else {
                   const { remapCoverage } = await import('./coverage/remap.js')
@@ -757,10 +792,12 @@ export async function runTests(
         passWithNoTests: project.passWithNoTests,
         provide: project.provide,
         env: project.env,
+        browserViewport: project.browserViewport,
         testTimeout: project.testTimeout,
         hookTimeout: project.hookTimeout,
         testNamePattern: options.testNamePattern ?? project.testNamePattern,
         inspect: options.inspect,
+        inspectBrk: options.inspectBrk,
         fileTimeout: project.fileTimeout,
         signal: controller.signal,
         onEvent: executionEvent,
@@ -906,6 +943,7 @@ export async function runTests(
       const completion = await runWatchProcess(
         {
           operation: 'run',
+          captureTaskResults: options.captureTaskResults,
           projectDir,
           projects: group,
           ...(options.compilerTransforms
@@ -915,6 +953,7 @@ export async function runTests(
           isolatedProfile: true,
           collectOnly: options.collectOnly,
           inspect: options.inspect,
+          inspectBrk: options.inspectBrk,
           updateSnapshots: options.updateSnapshots,
           snapshotUpdateMode,
           coverage: options.coverage,
@@ -1009,7 +1048,11 @@ export async function runTests(
             completion.result.standardCoverage,
             projectDir,
             selected,
-            collectionRevisions
+            collectionRevisions,
+            runtimeConfigurationPlan
+              ? { sourcePlan: coverageSourcePlan, runtimeConfigurationPlan }
+              : undefined,
+            controller.signal
           ))
         )
         if (!Array.isArray(completion.result.compilerSourceCoverage))
@@ -1229,6 +1272,26 @@ export async function runTests(
               >
             | undefined
           let projectPhase: SerializedDiagnostic['phase'] = 'compilation'
+          let sessionClosed = false
+          const plannedJsx =
+            project.profile.environment === 'node' &&
+            sourceRequests.some((request) =>
+              /\.[jt]sx$/.test(request.source.file)
+            )
+          const plannedTypeScriptImports =
+            options.nodeTypeScriptImportCoverage === true &&
+            project.isolate !== false &&
+            project.profile.environment === 'node' &&
+            project.profile.runtime === 'nodejs' &&
+            ['development', 'production'].includes(project.profile.mode) &&
+            !project.profile.browserClient &&
+            project.profile.route === undefined &&
+            sourceRequests.some(
+              (request) =>
+                isDeepStrictEqual(request.profile, project.profile) &&
+                /\.[cm]?ts$/.test(request.source.file) &&
+                !/\.d\.[cm]?ts$/.test(request.source.file)
+            )
           try {
             const { createTestCompilerSession } = await import(
               './compiler/index.js'
@@ -1238,6 +1301,9 @@ export async function runTests(
               project.profile,
               {
                 allocateArtifact: options.allocateArtifact,
+                ...(plannedJsx || plannedTypeScriptImports
+                  ? { nativeImportCoverageRoles: true }
+                  : {}),
                 ...(project.compilerAliases
                   ? { compilerAliases: project.compilerAliases }
                   : {}),
@@ -1250,6 +1316,11 @@ export async function runTests(
               }
             )
             const compilerSession = session
+            const assertCoverageLease = () => {
+              controller.signal.throwIfAborted()
+              if (sessionClosed || session !== compilerSession)
+                throw new Error('Planned JSX coverage artifact lease closed')
+            }
             for (const request of sourceRequests) {
               const compiled = await compilerSession.compileCoverageSource(
                 request.source,
@@ -1276,6 +1347,14 @@ export async function runTests(
                       source: request.source,
                       revision: request.revision,
                       configurationImports: request.configurationImports,
+                      ...(plannedJsx || plannedTypeScriptImports
+                        ? {
+                            nativeImportCoverageRoles: {
+                              version: 1 as const,
+                              assertLease: assertCoverageLease,
+                            },
+                          }
+                        : {}),
                     },
                     controller.signal
                   )
@@ -1312,6 +1391,7 @@ export async function runTests(
                 results = await executeCohort(
                   cohort,
                   ordered.map((entry) => ({
+                    captureTaskResults: options.captureTaskResults,
                     runId,
                     projectDir,
                     entry,
@@ -1335,6 +1415,7 @@ export async function runTests(
                     passWithNoTests: project.passWithNoTests,
                     provide: project.provide,
                     env: project.env,
+                    browserViewport: project.browserViewport,
                     testTimeout: project.testTimeout,
                     hookTimeout: project.hookTimeout,
                     fileTimeout: project.fileTimeout,
@@ -1429,7 +1510,14 @@ export async function runTests(
                     return
                   }
                   controller.signal.throwIfAborted()
-                  const prepared = { entry, artifact, started: fileStarted }
+                  const prepared = {
+                    entry,
+                    artifact,
+                    started: fileStarted,
+                    ...(plannedJsx || plannedTypeScriptImports
+                      ? { coverageLease: assertCoverageLease }
+                      : {}),
+                  }
                   if (
                     project.profile.environment === 'browser' &&
                     !options.collectOnly
@@ -1469,6 +1557,7 @@ export async function runTests(
             // B.execute resolves only after bounded child closure, including
             // cancellation. Keep the snapshot lease alive until that point.
             try {
+              sessionClosed = true
               await session?.dispose()
             } catch (error) {
               unsafeCleanup = true

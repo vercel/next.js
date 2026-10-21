@@ -1,0 +1,1 @@
+export default {serverExternalPackages:['ws2-genuine-external-original']}

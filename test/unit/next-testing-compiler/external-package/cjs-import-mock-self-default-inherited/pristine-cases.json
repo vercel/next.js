@@ -1,0 +1,12 @@
+[
+  {
+    "name": "complete self-default-inherited-setter observation",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete self-flag-inherited-setter observation",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

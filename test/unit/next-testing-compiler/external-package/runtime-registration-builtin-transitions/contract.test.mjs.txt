@@ -1,0 +1,33 @@
+import { test, expect, vi } from 'vitest'
+import { types } from 'node:util'
+function shape(value) {
+ if (value===null || (typeof value!=='object'&&typeof value!=='function')) return {type:typeof value,value}
+ return {type:typeof value,nativeBrand:types.isModuleNamespaceObject(value),keys:Reflect.ownKeys(value).map(key=>typeof key==='symbol'?String(key):key),prototype:Object.getPrototypeOf(value)===null?'null':Object.getPrototypeOf(value)===Object.prototype?'Object.prototype':Object.getPrototypeOf(value)===Function.prototype?'Function.prototype':Object.prototype.toString.call(Object.getPrototypeOf(value)),tag:value[Symbol.toStringTag]??null,extensible:Object.isExtensible(value),sealed:Object.isSealed(value),frozen:Object.isFrozen(value),descriptors:Reflect.ownKeys(value).map(key=>{const d=Object.getOwnPropertyDescriptor(value,key);return {key:typeof key==='symbol'?String(key):key,valueType:typeof d.value,get:typeof d.get,set:typeof d.set,writable:d.writable??null,enumerable:d.enumerable,configurable:d.configurable}})}
+}
+function view(namespace) {if(namespace==null)return null;const root=namespace?.default;return {namespace:shape(namespace),root:shape(root),dependency:root&&'dependency' in root?shape(root.dependency):null,evaluation:namespace?.evaluation??null,rootEvaluation:root?.evaluation??null,dependencyEvaluation:root?.dependency?.evaluation??null,call:typeof root==='function'?root.call(root,'held'):typeof root?.read==='function'?root.read.call(root,'held'):null,namedCall:Object.prototype.hasOwnProperty.call(namespace,'read')&&typeof namespace.read==='function'?namespace.read('named'):null}}
+function same(values) {return values.map(value=>values.map(other=>value===other))}
+function errorView(error,raw) {return {name:error?.name,message:error?.message,causeSame:error?.cause===raw,causeName:error?.cause?.name,causeMessage:error?.cause?.message,keys:Reflect.ownKeys(error).map(String),causeDescriptor:(()=>{const d=Object.getOwnPropertyDescriptor(error,'cause');return d?{writable:d.writable,enumerable:d.enumerable,configurable:d.configurable,valueSame:d.value===raw}:null})()}}
+function counts(){return {root:globalThis.__ws2CjsDependencyRoot??globalThis.__ws2CallableRoot??globalThis.__ws2RuntimeLeafRoot??0,dependency:globalThis.__ws2CjsDependencyLeaf??globalThis.__ws2CallableDependency??0}}
+function row(name,data){console.log('WS2_CJS_RUNTIME:'+JSON.stringify({name,...data}));expect(data).toBeDefined()}
+function clean(){vi.doUnmock('node:path');vi.resetModules()}
+
+
+for (const rejectOld of [false,true]) for(const replaceBefore of [false,true]) test('pending registration transition reject '+rejectOld+' replacement '+replaceBefore,async()=>{
+ clean();let calls=0,replacementCalls=0;let entered,release,reject;const started=new Promise(resolve=>entered=resolve),held=new Promise((resolve,fail)=>{release=resolve;reject=fail}),raw=new SyntaxError('transition raw');const order=[]
+ vi.doMock('node:path',async()=>{calls++;order.push('old-start');entered();await held;order.push('old-resolve');return {evaluation:930,default:{evaluation:930}}})
+ const first=import('node:path').then(value=>({value}),error=>({error}));await started;vi.doUnmock('node:path');const original=await import('node:path');vi.resetModules();
+ if(replaceBefore) vi.doMock('node:path',()=>{replacementCalls++;order.push('replacement');return {evaluation:931,default:{evaluation:931}}})
+ const during=await import('node:path');if(rejectOld)reject(raw);else release();const old=await first;const after=await import('node:path');
+ vi.doMock('node:path',()=>{replacementCalls++;order.push('new-after-settle');return {evaluation:932,default:{evaluation:932}}});const final=await import('node:path');const cached=await import('node:path');vi.resetModules();const reset=await import('node:path');
+ row('transition-'+rejectOld+'-'+replaceBefore,{order,views:[original,during,old.value??null,after,final,cached,reset].map(view),identities:same([original,during,old.value??null,after,final,cached,reset]),error:old.error?errorView(old.error,raw):null,calls,replacementCalls,counts:counts()})
+})
+test('multiple replacements keep the real pending attempt until completion',async()=>{
+ clean();let calls=0,replacements=0;let entered,release;const started=new Promise(resolve=>entered=resolve),held=new Promise(resolve=>release=resolve)
+ vi.doMock('node:path',async()=>{calls++;entered();await held;return {evaluation:940,default:{evaluation:940}}});const first=import('node:path');await started;
+ vi.doMock('node:path',()=>{replacements++;return {evaluation:941,default:{evaluation:941}}});const second=await import('node:path');vi.doMock('node:path',()=>{replacements++;return {evaluation:942,default:{evaluation:942}}});const third=await import('node:path');vi.resetModules();release();const old=await first;const later=await import('node:path');vi.doUnmock('node:path');const original=await import('node:path');
+ row('multiple-replace',{views:[second,third,old,later,original].map(view),identities:same([second,third,old,later,original]),calls,replacements,counts:counts()})
+})
+test('immediate factories and originals retain actual Promise boundary order',async()=>{
+ clean();const stages=[];let calls=0;vi.doMock('node:path',async()=>{calls++;stages.push('factory-enter');queueMicrotask(()=>stages.push('factory-queued'));return {evaluation:950,default:{evaluation:950}}});
+ const a=import('node:path').then(value=>{stages.push('first');return value});const b=import('node:path').then(value=>{stages.push('second');return value});queueMicrotask(()=>stages.push('caller-queued'));const values=await Promise.all([a,b]);row('boundary-order',{stages,views:values.map(view),identities:same(values),calls,counts:counts()})
+})

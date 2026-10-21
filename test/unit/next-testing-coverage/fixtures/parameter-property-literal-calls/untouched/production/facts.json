@@ -1,0 +1,480 @@
+{
+  "file": "/private/tmp/next-testing-parallel-20261019/watch-shutdown201/.next-test-constructor-literal-arguments200-actual14-untouched-production/subject.ts",
+  "model": {
+    "path": "/private/tmp/next-testing-parallel-20261019/watch-shutdown201/.next-test-constructor-literal-arguments200-actual14-untouched-production/subject.ts",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": null
+        }
+      },
+      "1": {
+        "start": {
+          "line": 2,
+          "column": 42
+        },
+        "end": {
+          "line": 2,
+          "column": 54
+        }
+      },
+      "2": {
+        "start": {
+          "line": 6,
+          "column": 4
+        },
+        "end": {
+          "line": 6,
+          "column": null
+        }
+      },
+      "3": {
+        "start": {
+          "line": 7,
+          "column": 4
+        },
+        "end": {
+          "line": 7,
+          "column": null
+        }
+      },
+      "4": {
+        "start": {
+          "line": 11,
+          "column": 18
+        },
+        "end": {
+          "line": 11,
+          "column": null
+        }
+      },
+      "5": {
+        "start": {
+          "line": 12,
+          "column": 2
+        },
+        "end": {
+          "line": 12,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "initial",
+        "decl": {
+          "start": {
+            "line": 2,
+            "column": 9
+          },
+          "end": {
+            "line": 2,
+            "column": 16
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 40
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "line": 2
+      },
+      "1": {
+        "name": "constructor",
+        "decl": {
+          "start": {
+            "line": 4,
+            "column": 2
+          },
+          "end": {
+            "line": 4,
+            "column": 13
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 4,
+            "column": 49
+          },
+          "end": {
+            "line": 4,
+            "column": null
+          }
+        },
+        "line": 4
+      },
+      "2": {
+        "name": "add",
+        "decl": {
+          "start": {
+            "line": 5,
+            "column": 2
+          },
+          "end": {
+            "line": 5,
+            "column": 5
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 5,
+            "column": 29
+          },
+          "end": {
+            "line": 8,
+            "column": null
+          }
+        },
+        "line": 5
+      },
+      "3": {
+        "name": "exercise",
+        "decl": {
+          "start": {
+            "line": 10,
+            "column": 16
+          },
+          "end": {
+            "line": 10,
+            "column": 24
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 10,
+            "column": 37
+          },
+          "end": {
+            "line": 13,
+            "column": null
+          }
+        },
+        "line": 10
+      }
+    },
+    "branchMap": {
+      "0": {
+        "loc": {
+          "start": {
+            "line": 4,
+            "column": 21
+          },
+          "end": {
+            "line": 4,
+            "column": 47
+          }
+        },
+        "type": "default-arg",
+        "locations": [
+          {
+            "start": {
+              "line": 4,
+              "column": 37
+            },
+            "end": {
+              "line": 4,
+              "column": 47
+            }
+          }
+        ],
+        "line": 4
+      }
+    },
+    "s": {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0
+    },
+    "f": {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0
+    },
+    "b": {
+      "0": [0]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 4,
+      "lastStatement": 6,
+      "seen": {
+        "s:1:0:1:Infinity": 0,
+        "f:2:9:2:16": 0,
+        "s:2:42:2:54": 1,
+        "f:4:2:4:13": 1,
+        "b:4:37:4:47": 0,
+        "f:5:2:5:5": 2,
+        "s:6:4:6:Infinity": 2,
+        "s:7:4:7:Infinity": 3,
+        "f:10:16:10:24": 3,
+        "s:11:18:11:Infinity": 4,
+        "s:12:2:12:Infinity": 5
+      },
+      "fnNames": {}
+    }
+  },
+  "observed": {
+    "path": "/private/tmp/next-testing-parallel-20261019/watch-shutdown201/.next-test-constructor-literal-arguments200-actual14-untouched-production/subject.ts",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": null
+        }
+      },
+      "1": {
+        "start": {
+          "line": 2,
+          "column": 42
+        },
+        "end": {
+          "line": 2,
+          "column": 55
+        }
+      },
+      "2": {
+        "start": {
+          "line": 4,
+          "column": 21
+        },
+        "end": {
+          "line": 4,
+          "column": 37
+        }
+      },
+      "3": {
+        "start": {
+          "line": 6,
+          "column": 4
+        },
+        "end": {
+          "line": 6,
+          "column": null
+        }
+      },
+      "4": {
+        "start": {
+          "line": 7,
+          "column": 4
+        },
+        "end": {
+          "line": 7,
+          "column": null
+        }
+      },
+      "5": {
+        "start": {
+          "line": 11,
+          "column": 18
+        },
+        "end": {
+          "line": 11,
+          "column": null
+        }
+      },
+      "6": {
+        "start": {
+          "line": 12,
+          "column": 2
+        },
+        "end": {
+          "line": 12,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "initial",
+        "decl": {
+          "start": {
+            "line": 2,
+            "column": 9
+          },
+          "end": {
+            "line": 2,
+            "column": 17
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 30
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "line": 2
+      },
+      "1": {
+        "name": "constructor",
+        "decl": {
+          "start": {
+            "line": 4,
+            "column": 2
+          },
+          "end": {
+            "line": 4,
+            "column": 14
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 4,
+            "column": 49
+          },
+          "end": {
+            "line": 4,
+            "column": null
+          }
+        },
+        "line": 4
+      },
+      "2": {
+        "name": "add",
+        "decl": {
+          "start": {
+            "line": 5,
+            "column": 2
+          },
+          "end": {
+            "line": 5,
+            "column": 6
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 5,
+            "column": 29
+          },
+          "end": {
+            "line": 8,
+            "column": null
+          }
+        },
+        "line": 5
+      },
+      "3": {
+        "name": "exercise",
+        "decl": {
+          "start": {
+            "line": 10,
+            "column": 16
+          },
+          "end": {
+            "line": 10,
+            "column": null
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 10,
+            "column": 16
+          },
+          "end": {
+            "line": 13,
+            "column": null
+          }
+        },
+        "line": 10
+      }
+    },
+    "branchMap": {
+      "0": {
+        "loc": {
+          "start": {
+            "line": 4,
+            "column": 14
+          },
+          "end": {
+            "line": 4,
+            "column": 47
+          }
+        },
+        "type": "default-arg",
+        "locations": [
+          {
+            "start": {
+              "line": 4,
+              "column": 37
+            },
+            "end": {
+              "line": 4,
+              "column": 47
+            }
+          }
+        ],
+        "line": 4
+      }
+    },
+    "s": {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0
+    },
+    "f": {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0
+    },
+    "b": {
+      "0": [0]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 4,
+      "lastStatement": 7,
+      "seen": {
+        "s:1:0:1:Infinity": 0,
+        "f:2:9:2:17": 0,
+        "s:2:42:2:55": 1,
+        "f:4:2:4:14": 1,
+        "b:4:37:4:47": 0,
+        "s:4:21:4:37": 2,
+        "f:5:2:5:6": 2,
+        "s:6:4:6:Infinity": 3,
+        "s:7:4:7:Infinity": 4,
+        "f:10:16:10:Infinity": 3,
+        "s:11:18:11:Infinity": 5,
+        "s:12:2:12:Infinity": 6
+      },
+      "fnNames": {}
+    }
+  },
+  "sourceMap": {
+    "version": 3,
+    "sources": [
+      "/private/tmp/next-testing-parallel-20261019/watch-shutdown201/.next-test-constructor-literal-arguments200-actual14-untouched-production/subject.ts"
+    ],
+    "names": [],
+    "mappings": ";;;;;A;;;;;;AAAA,MAAM,IAAI,MAAM;AAChB,SAAS,QAAQ,KAAa;IAAY,OAAO;AAAM;AAChD,MAAM;;IACX,YAAY,AAAO,QAAgB,QAAQ,EAAE,CAAE;aAA5B,QAAA;IAA6B;IAChD,IAAI,KAAa,EAAU;QACzB,IAAI,CAAC,KAAK,IAAI;QACd,OAAO,IAAI,CAAC,KAAK;IACnB;AACF;AACO,SAAS;IACd,MAAM,UAAU,IAAI;IACpB,OAAO;QAAC,QAAQ,KAAK;QAAE,QAAQ,GAAG,CAAC;KAAG;AACxC;;;;;A,4E;A,+E;A;;;;;;;;;;;;A,M;A,M;A,e;I,8D;I;A;A,e,iB,qB,M;I,K,mB,qD;;I,M,e,E;I,I,uB,Y;Q,M,Q,G,C,a,G,C,C,O;I,O;Q,K,M,Q,a,M;I;A;A,S;I,O,W,yB,C;A;;;;;A;;;;;;;;;;;;;;I,O,E;e;;I,wB,E;e;;;A,I;A,4E;A,+E;A,I;A,S,yB,O;I,I,S,M,I,M;I,M,U;Q,G,O;Q,U,I;I;I,U;I,wB,Q,gB;I,O;Q;Y,I,Y,S,U;Q;I;A;A,S;I,M,U;I,M,U,yB,O,K,I;I,I,C,S;Q,M,I,M;I;I,I,C,S;Q,M,I,M;I;I,Q,M,C,c;I,I,U,Q,Q,C,G,C;I,I,C,S;Q,U,Q,a,C;Q,Q,Q,C,G,C,S;I;I,O;A",
+    "sourcesContent": [
+      "throw new Error(\"coverage-only source must never evaluate\")\nfunction initial(value: number): number { return value }\nexport class Counter {\n  constructor(public value: number = initial(3)) {}\n  add(delta: number): number {\n    this.value += delta\n    return this.value\n  }\n}\nexport function exercise(): number[] {\n  const counter = new Counter()\n  return [counter.value, counter.add(2)]\n}\n"
+    ]
+  }
+}

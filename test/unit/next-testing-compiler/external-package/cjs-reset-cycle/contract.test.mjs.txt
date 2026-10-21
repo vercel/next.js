@@ -1,0 +1,19 @@
+import { test, expect, vi } from 'vitest'
+import { types } from 'node:util'
+function shape(namespace) {
+ return { nativeBrand: types.isModuleNamespaceObject(namespace), keys: Reflect.ownKeys(namespace).map(key => typeof key === 'symbol' ? String(key) : key), prototypeNull: Object.getPrototypeOf(namespace) === null, tag: namespace[Symbol.toStringTag] ?? null, extensible: Object.isExtensible(namespace), sealed: Object.isSealed(namespace), frozen: Object.isFrozen(namespace), descriptors: Reflect.ownKeys(namespace).map(key => { const d = Object.getOwnPropertyDescriptor(namespace,key); return { key: typeof key === 'symbol' ? String(key) : key, valueType: typeof d.value, get: typeof d.get, set: typeof d.set, writable: d.writable ?? null, enumerable: d.enumerable, configurable: d.configurable } }) }
+}
+test('observes the actual CommonJS require cache for cycle across repeated resets', async () => {
+ const first = await import('./root.cjs')
+ const cached = await import('./root.cjs')
+ vi.resetModules()
+ const second = await import('./root.cjs')
+ vi.resetModules()
+ const third = await import('./root.cjs')
+ const namespaces = [first, second, third]
+ const roots = namespaces.map(ns => ns.default)
+ console.log('WS2_EXTERNAL_CJS_REQUIRE_CYCLE:' + JSON.stringify({ cached: first === cached, namespaceIdentity: [first === second, second === third], rootIdentity: [roots[0] === roots[1], roots[1] === roots[2]], dependencyIdentity: [roots[0].dependency === roots[1].dependency, roots[1].dependency === roots[2].dependency], rootValues: roots.map(root => root.evaluation), dependencyValues: roots.map(root => root.dependency.evaluation), reads: roots.map(root => root.read()), rootSourceEvaluations: globalThis.__ws2CjsDependencyRoot, dependencySourceEvaluations: globalThis.__ws2CjsDependencyLeaf, namespaceShapes: namespaces.map(shape), rootShapes: roots.map(shape), dependencyShapes: roots.map(root => shape(root.dependency)), cycle: { backReferenceValues: roots.map(root => root.dependency.root.evaluation), backReferenceHeld: roots.map(root => root.dependency.root === roots[0].dependency.root), requiredBackReferences: roots.map(root => root.dependency.root.dependency === root.dependency), backReferenceShapes: roots.map(root => shape(root.dependency.root)) } }))
+ expect(first).toBe(cached)
+ expect(roots[1]).not.toBe(roots[0])
+ expect(roots[2]).not.toBe(roots[1])
+})

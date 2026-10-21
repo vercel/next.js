@@ -1,0 +1,380 @@
+{
+  "file": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime174-parameter-property-development/subject.ts",
+  "model": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime174-parameter-property-development/subject.ts",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 4,
+          "column": 4
+        },
+        "end": {
+          "line": 4,
+          "column": null
+        }
+      },
+      "1": {
+        "start": {
+          "line": 4,
+          "column": 16
+        },
+        "end": {
+          "line": 4,
+          "column": null
+        }
+      },
+      "2": {
+        "start": {
+          "line": 5,
+          "column": 4
+        },
+        "end": {
+          "line": 5,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "constructor",
+        "decl": {
+          "start": {
+            "line": 2,
+            "column": 2
+          },
+          "end": {
+            "line": 2,
+            "column": 13
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 54
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "line": 2
+      },
+      "1": {
+        "name": "add",
+        "decl": {
+          "start": {
+            "line": 3,
+            "column": 2
+          },
+          "end": {
+            "line": 3,
+            "column": 5
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 3,
+            "column": 23
+          },
+          "end": {
+            "line": 6,
+            "column": null
+          }
+        },
+        "line": 3
+      }
+    },
+    "branchMap": {
+      "0": {
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 44
+          },
+          "end": {
+            "line": 2,
+            "column": 52
+          }
+        },
+        "type": "default-arg",
+        "locations": [
+          {
+            "start": {
+              "line": 2,
+              "column": 51
+            },
+            "end": {
+              "line": 2,
+              "column": 52
+            }
+          }
+        ],
+        "line": 2
+      },
+      "1": {
+        "loc": {
+          "start": {
+            "line": 4,
+            "column": 4
+          },
+          "end": {
+            "line": 4,
+            "column": null
+          }
+        },
+        "type": "if",
+        "locations": [
+          {
+            "start": {
+              "line": 4,
+              "column": 4
+            },
+            "end": {
+              "line": 4,
+              "column": null
+            }
+          },
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 4
+      }
+    },
+    "s": {
+      "0": 0,
+      "1": 0,
+      "2": 0
+    },
+    "f": {
+      "0": 0,
+      "1": 0
+    },
+    "b": {
+      "0": [0],
+      "1": [0, 0]
+    },
+    "meta": {
+      "lastBranch": 2,
+      "lastFunction": 2,
+      "lastStatement": 3,
+      "seen": {
+        "f:2:2:2:13": 0,
+        "b:2:51:2:52": 0,
+        "f:3:2:3:5": 1,
+        "b:4:4:4:Infinity:undefined:undefined:undefined:undefined": 1,
+        "s:4:4:4:Infinity": 0,
+        "s:4:16:4:Infinity": 1,
+        "s:5:4:5:Infinity": 2
+      },
+      "fnNames": {}
+    }
+  },
+  "observed": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime174-parameter-property-development/subject.ts",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 2,
+          "column": 21
+        },
+        "end": {
+          "line": 2,
+          "column": 34
+        }
+      },
+      "1": {
+        "start": {
+          "line": 2,
+          "column": 44
+        },
+        "end": {
+          "line": 2,
+          "column": 51
+        }
+      },
+      "2": {
+        "start": {
+          "line": 4,
+          "column": 4
+        },
+        "end": {
+          "line": 4,
+          "column": null
+        }
+      },
+      "3": {
+        "start": {
+          "line": 4,
+          "column": 16
+        },
+        "end": {
+          "line": 4,
+          "column": null
+        }
+      },
+      "4": {
+        "start": {
+          "line": 5,
+          "column": 4
+        },
+        "end": {
+          "line": 5,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "constructor",
+        "decl": {
+          "start": {
+            "line": 2,
+            "column": 2
+          },
+          "end": {
+            "line": 2,
+            "column": 14
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 54
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "line": 2
+      },
+      "1": {
+        "name": "add",
+        "decl": {
+          "start": {
+            "line": 3,
+            "column": 2
+          },
+          "end": {
+            "line": 3,
+            "column": 6
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 3,
+            "column": 23
+          },
+          "end": {
+            "line": 6,
+            "column": null
+          }
+        },
+        "line": 3
+      }
+    },
+    "branchMap": {
+      "0": {
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 36
+          },
+          "end": {
+            "line": 2,
+            "column": 52
+          }
+        },
+        "type": "default-arg",
+        "locations": [
+          {
+            "start": {
+              "line": 2,
+              "column": 51
+            },
+            "end": {
+              "line": 2,
+              "column": 52
+            }
+          }
+        ],
+        "line": 2
+      },
+      "1": {
+        "loc": {
+          "start": {
+            "line": 4,
+            "column": 4
+          },
+          "end": {
+            "line": 4,
+            "column": null
+          }
+        },
+        "type": "if",
+        "locations": [
+          {
+            "start": {
+              "line": 4,
+              "column": 4
+            },
+            "end": {
+              "line": 4,
+              "column": null
+            }
+          },
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 4
+      }
+    },
+    "s": {
+      "0": 1,
+      "1": 1,
+      "2": 2,
+      "3": 1,
+      "4": 1
+    },
+    "f": {
+      "0": 1,
+      "1": 2
+    },
+    "b": {
+      "0": [1],
+      "1": [1, 1]
+    },
+    "meta": {
+      "lastBranch": 2,
+      "lastFunction": 2,
+      "lastStatement": 5,
+      "seen": {
+        "f:2:2:2:14": 0,
+        "b:2:51:2:52": 0,
+        "s:2:21:2:34": 0,
+        "s:2:44:2:51": 1,
+        "f:3:2:3:6": 1,
+        "b:4:4:4:Infinity:undefined:undefined:undefined:undefined": 1,
+        "s:4:4:4:Infinity": 2,
+        "s:4:16:4:Infinity": 3,
+        "s:5:4:5:Infinity": 4
+      },
+      "fnNames": {}
+    }
+  },
+  "sourceMap": {
+    "version": 3,
+    "sources": [
+      "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime174-parameter-property-development/subject.ts"
+    ],
+    "names": [],
+    "mappings": ";;;;;;;;;;;;;;;;;;;;;;AAAO,MAAM;;;IACX,YAAY,AAAO,KAAa,EAAE,AAAQ,OAAO,CAAC,CAAE;aAAjC,QAAA;aAAuB,OAAA;IAAW;IACrD,IAAI,MAAe,EAAE;QACnB,IAAI,QAAQ,OAAO,IAAI,CAAC,KAAK,GAAG,IAAI,CAAC,IAAI;QACzC,OAAO,IAAI,CAAC,KAAK;IACnB;AACF",
+    "sourcesContent": [
+      "export class Counter {\n  constructor(public value: number, private step = 1) {}\n  add(active: boolean) {\n    if (active) return this.value + this.step\n    return this.value\n  }\n}\n"
+    ]
+  }
+}

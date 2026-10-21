@@ -1,0 +1,7 @@
+[
+  {
+    "name": "holds complete nonleaf callable namespace/default/require identities across resets",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

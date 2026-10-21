@@ -1,0 +1,1 @@
+exports.value=5;exports.label='actual-cjs';exports.object={value:17}

@@ -217,6 +217,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleFacadeModule {
             // referenced modules, so compact registration can preserve its complete import order.
             export_registration_mode: Some(ExportRegistrationMode::Reexport),
             async_module_info,
+            runtime_namespace: None,
         }
         .cell())
     }
@@ -285,11 +286,12 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
     async fn chunk_item_content(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        _module_graph: Vc<ModuleGraph>,
+        module_graph: Vc<ModuleGraph>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let content = self.module_content(chunking_context, async_module_info);
+        let content =
+            self.module_content_with_graph(chunking_context, module_graph, async_module_info);
 
         let async_module_options = self.get_async_module().module_options(async_module_info);
 

@@ -1,0 +1,145 @@
+{
+  "numTotalTestSuites": 1,
+  "numPassedTestSuites": 1,
+  "numFailedTestSuites": 0,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 1,
+  "numPassedTests": 1,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1792578790105,
+  "success": true,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [],
+          "fullName": "string enum members",
+          "status": "passed",
+          "title": "string enum members",
+          "duration": 1.2269589999999937,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1792578790195,
+      "endTime": 1792578790196.227,
+      "status": "passed",
+      "message": "",
+      "name": "/private/tmp/next-testing-ws5-runtime-enums176/reference04/26-strings-production/contract.test.mjs"
+    }
+  ],
+  "coverageMap": {
+    "/private/tmp/next-testing-ws5-runtime-enums176/reference04/26-strings-production/subject.ts": {
+      "path": "/private/tmp/next-testing-ws5-runtime-enums176/reference04/26-strings-production/subject.ts",
+      "statementMap": {
+        "0": {
+          "start": { "line": 1, "column": 7 },
+          "end": { "line": 1, "column": null }
+        },
+        "1": {
+          "start": { "line": 1, "column": 20 },
+          "end": { "line": 1, "column": 37 }
+        },
+        "2": {
+          "start": { "line": 1, "column": 37 },
+          "end": { "line": 1, "column": 51 }
+        },
+        "3": {
+          "start": { "line": 3, "column": 2 },
+          "end": { "line": 3, "column": null }
+        },
+        "4": {
+          "start": { "line": 3, "column": 14 },
+          "end": { "line": 3, "column": null }
+        },
+        "5": {
+          "start": { "line": 4, "column": 2 },
+          "end": { "line": 4, "column": null }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "(anonymous_0)",
+          "decl": {
+            "start": { "line": 1, "column": 7 },
+            "end": { "line": 1, "column": 12 }
+          },
+          "loc": {
+            "start": { "line": 1, "column": 7 },
+            "end": { "line": 1, "column": null }
+          },
+          "line": 1
+        },
+        "1": {
+          "name": "choose",
+          "decl": {
+            "start": { "line": 2, "column": 16 },
+            "end": { "line": 2, "column": 23 }
+          },
+          "loc": {
+            "start": { "line": 2, "column": 40 },
+            "end": { "line": 5, "column": null }
+          },
+          "line": 2
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": { "line": 3, "column": 2 },
+            "end": { "line": 3, "column": null }
+          },
+          "type": "if",
+          "locations": [
+            {
+              "start": { "line": 3, "column": 2 },
+              "end": { "line": 3, "column": null }
+            },
+            { "start": {}, "end": {} }
+          ],
+          "line": 3
+        }
+      },
+      "s": { "0": 1, "1": 1, "2": 1, "3": 2, "4": 1, "5": 1 },
+      "f": { "0": 1, "1": 2 },
+      "b": { "0": [1, 1] },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 6,
+        "seen": {
+          "s:1:7:1:Infinity": 0,
+          "f:1:7:1:12": 0,
+          "s:1:20:1:37": 1,
+          "s:1:37:1:51": 2,
+          "f:2:16:2:23": 1,
+          "b:3:2:3:Infinity:undefined:undefined:undefined:undefined": 0,
+          "s:3:2:3:Infinity": 3,
+          "s:3:14:3:Infinity": 4,
+          "s:4:2:4:Infinity": 5
+        },
+        "fnNames": {}
+      }
+    }
+  }
+}

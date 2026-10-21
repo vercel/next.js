@@ -1,0 +1,477 @@
+[
+  {
+    "event": "case-result",
+    "test": {
+      "type": "test",
+      "id": "227028844_0_0",
+      "name": "pass control",
+      "fullName": "runtime pending > pass control",
+      "project": "",
+      "options": {
+        "tags": [],
+        "timeout": 5000,
+        "mode": "run"
+      },
+      "tags": [],
+      "meta": {},
+      "result": {
+        "state": "passed"
+      },
+      "annotations": [],
+      "artifacts": []
+    },
+    "moduleId": "/private/tmp/next-testing-ws4-foreign-pending147/pristine/contract.case.mjs",
+    "relativeModuleId": "contract.case.mjs",
+    "parent": "227028844_0"
+  },
+  {
+    "event": "case-result",
+    "test": {
+      "type": "test",
+      "id": "227028844_0_1",
+      "name": "static skipped control",
+      "fullName": "runtime pending > static skipped control",
+      "project": "",
+      "options": {
+        "tags": [],
+        "timeout": 5000,
+        "mode": "skip"
+      },
+      "tags": [],
+      "meta": {},
+      "result": {
+        "state": "skipped"
+      },
+      "annotations": [],
+      "artifacts": []
+    },
+    "moduleId": "/private/tmp/next-testing-ws4-foreign-pending147/pristine/contract.case.mjs",
+    "relativeModuleId": "contract.case.mjs",
+    "parent": "227028844_0"
+  },
+  {
+    "event": "case-result",
+    "test": {
+      "type": "test",
+      "id": "227028844_0_2",
+      "name": "static todo control",
+      "fullName": "runtime pending > static todo control",
+      "project": "",
+      "options": {
+        "tags": [],
+        "timeout": 5000,
+        "mode": "todo"
+      },
+      "tags": [],
+      "meta": {},
+      "result": {
+        "state": "skipped"
+      },
+      "annotations": [],
+      "artifacts": []
+    },
+    "moduleId": "/private/tmp/next-testing-ws4-foreign-pending147/pristine/contract.case.mjs",
+    "relativeModuleId": "contract.case.mjs",
+    "parent": "227028844_0"
+  },
+  {
+    "event": "case-result",
+    "test": {
+      "type": "test",
+      "id": "227028844_0_3",
+      "name": "skip with note",
+      "fullName": "runtime pending > skip with note",
+      "project": "",
+      "options": {
+        "tags": [],
+        "timeout": 5000,
+        "mode": "skip"
+      },
+      "tags": [],
+      "meta": {
+        "observed": "before skip"
+      },
+      "result": {
+        "state": "skipped",
+        "note": "retained skip note"
+      },
+      "annotations": [],
+      "artifacts": []
+    },
+    "moduleId": "/private/tmp/next-testing-ws4-foreign-pending147/pristine/contract.case.mjs",
+    "relativeModuleId": "contract.case.mjs",
+    "parent": "227028844_0"
+  },
+  {
+    "event": "case-result",
+    "test": {
+      "type": "test",
+      "id": "227028844_0_4",
+      "name": "skip after failed retry",
+      "fullName": "runtime pending > skip after failed retry",
+      "project": "",
+      "options": {
+        "retry": 1,
+        "tags": [],
+        "timeout": 5000,
+        "mode": "skip"
+      },
+      "tags": [],
+      "meta": {},
+      "result": {
+        "state": "skipped",
+        "note": "retry skip note"
+      },
+      "annotations": [],
+      "artifacts": []
+    },
+    "moduleId": "/private/tmp/next-testing-ws4-foreign-pending147/pristine/contract.case.mjs",
+    "relativeModuleId": "contract.case.mjs",
+    "parent": "227028844_0"
+  },
+  {
+    "event": "case-result",
+    "test": {
+      "type": "test",
+      "id": "227028844_0_5",
+      "name": "skip after failed repeat",
+      "fullName": "runtime pending > skip after failed repeat",
+      "project": "",
+      "options": {
+        "repeats": 1,
+        "tags": [],
+        "timeout": 5000,
+        "mode": "skip"
+      },
+      "tags": [],
+      "meta": {},
+      "result": {
+        "state": "skipped",
+        "note": "repeat skip note"
+      },
+      "annotations": [],
+      "artifacts": []
+    },
+    "moduleId": "/private/tmp/next-testing-ws4-foreign-pending147/pristine/contract.case.mjs",
+    "relativeModuleId": "contract.case.mjs",
+    "parent": "227028844_0"
+  },
+  {
+    "event": "module-end",
+    "moduleId": "/private/tmp/next-testing-ws4-foreign-pending147/pristine/contract.case.mjs",
+    "relativeModuleId": "contract.case.mjs",
+    "module": {
+      "type": "module",
+      "id": "227028844",
+      "project": "",
+      "meta": {},
+      "state": "passed",
+      "errors": [],
+      "children": [
+        {
+          "type": "suite",
+          "id": "227028844_0",
+          "name": "runtime pending",
+          "fullName": "runtime pending",
+          "project": "",
+          "options": {
+            "fails": false,
+            "tags": [],
+            "mode": "run"
+          },
+          "meta": {},
+          "state": "passed",
+          "errors": [],
+          "children": [
+            {
+              "type": "test",
+              "id": "227028844_0_0",
+              "name": "pass control",
+              "fullName": "runtime pending > pass control",
+              "project": "",
+              "options": {
+                "tags": [],
+                "timeout": 5000,
+                "mode": "run"
+              },
+              "tags": [],
+              "meta": {},
+              "result": {
+                "state": "passed"
+              },
+              "annotations": [],
+              "artifacts": []
+            },
+            {
+              "type": "test",
+              "id": "227028844_0_1",
+              "name": "static skipped control",
+              "fullName": "runtime pending > static skipped control",
+              "project": "",
+              "options": {
+                "tags": [],
+                "timeout": 5000,
+                "mode": "skip"
+              },
+              "tags": [],
+              "meta": {},
+              "result": {
+                "state": "skipped"
+              },
+              "annotations": [],
+              "artifacts": []
+            },
+            {
+              "type": "test",
+              "id": "227028844_0_2",
+              "name": "static todo control",
+              "fullName": "runtime pending > static todo control",
+              "project": "",
+              "options": {
+                "tags": [],
+                "timeout": 5000,
+                "mode": "todo"
+              },
+              "tags": [],
+              "meta": {},
+              "result": {
+                "state": "skipped"
+              },
+              "annotations": [],
+              "artifacts": []
+            },
+            {
+              "type": "test",
+              "id": "227028844_0_3",
+              "name": "skip with note",
+              "fullName": "runtime pending > skip with note",
+              "project": "",
+              "options": {
+                "tags": [],
+                "timeout": 5000,
+                "mode": "skip"
+              },
+              "tags": [],
+              "meta": {
+                "observed": "before skip"
+              },
+              "result": {
+                "state": "skipped",
+                "note": "retained skip note"
+              },
+              "annotations": [],
+              "artifacts": []
+            },
+            {
+              "type": "test",
+              "id": "227028844_0_4",
+              "name": "skip after failed retry",
+              "fullName": "runtime pending > skip after failed retry",
+              "project": "",
+              "options": {
+                "retry": 1,
+                "tags": [],
+                "timeout": 5000,
+                "mode": "skip"
+              },
+              "tags": [],
+              "meta": {},
+              "result": {
+                "state": "skipped",
+                "note": "retry skip note"
+              },
+              "annotations": [],
+              "artifacts": []
+            },
+            {
+              "type": "test",
+              "id": "227028844_0_5",
+              "name": "skip after failed repeat",
+              "fullName": "runtime pending > skip after failed repeat",
+              "project": "",
+              "options": {
+                "repeats": 1,
+                "tags": [],
+                "timeout": 5000,
+                "mode": "skip"
+              },
+              "tags": [],
+              "meta": {},
+              "result": {
+                "state": "skipped",
+                "note": "repeat skip note"
+              },
+              "annotations": [],
+              "artifacts": []
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "event": "run-end",
+    "reason": "passed",
+    "modules": [
+      {
+        "type": "module",
+        "id": "227028844",
+        "project": "",
+        "meta": {},
+        "state": "passed",
+        "errors": [],
+        "children": [
+          {
+            "type": "suite",
+            "id": "227028844_0",
+            "name": "runtime pending",
+            "fullName": "runtime pending",
+            "project": "",
+            "options": {
+              "fails": false,
+              "tags": [],
+              "mode": "run"
+            },
+            "meta": {},
+            "state": "passed",
+            "errors": [],
+            "children": [
+              {
+                "type": "test",
+                "id": "227028844_0_0",
+                "name": "pass control",
+                "fullName": "runtime pending > pass control",
+                "project": "",
+                "options": {
+                  "tags": [],
+                  "timeout": 5000,
+                  "mode": "run"
+                },
+                "tags": [],
+                "meta": {},
+                "result": {
+                  "state": "passed"
+                },
+                "annotations": [],
+                "artifacts": []
+              },
+              {
+                "type": "test",
+                "id": "227028844_0_1",
+                "name": "static skipped control",
+                "fullName": "runtime pending > static skipped control",
+                "project": "",
+                "options": {
+                  "tags": [],
+                  "timeout": 5000,
+                  "mode": "skip"
+                },
+                "tags": [],
+                "meta": {},
+                "result": {
+                  "state": "skipped"
+                },
+                "annotations": [],
+                "artifacts": []
+              },
+              {
+                "type": "test",
+                "id": "227028844_0_2",
+                "name": "static todo control",
+                "fullName": "runtime pending > static todo control",
+                "project": "",
+                "options": {
+                  "tags": [],
+                  "timeout": 5000,
+                  "mode": "todo"
+                },
+                "tags": [],
+                "meta": {},
+                "result": {
+                  "state": "skipped"
+                },
+                "annotations": [],
+                "artifacts": []
+              },
+              {
+                "type": "test",
+                "id": "227028844_0_3",
+                "name": "skip with note",
+                "fullName": "runtime pending > skip with note",
+                "project": "",
+                "options": {
+                  "tags": [],
+                  "timeout": 5000,
+                  "mode": "skip"
+                },
+                "tags": [],
+                "meta": {
+                  "observed": "before skip"
+                },
+                "result": {
+                  "state": "skipped",
+                  "note": "retained skip note"
+                },
+                "annotations": [],
+                "artifacts": []
+              },
+              {
+                "type": "test",
+                "id": "227028844_0_4",
+                "name": "skip after failed retry",
+                "fullName": "runtime pending > skip after failed retry",
+                "project": "",
+                "options": {
+                  "retry": 1,
+                  "tags": [],
+                  "timeout": 5000,
+                  "mode": "skip"
+                },
+                "tags": [],
+                "meta": {},
+                "result": {
+                  "state": "skipped",
+                  "note": "retry skip note"
+                },
+                "annotations": [],
+                "artifacts": []
+              },
+              {
+                "type": "test",
+                "id": "227028844_0_5",
+                "name": "skip after failed repeat",
+                "fullName": "runtime pending > skip after failed repeat",
+                "project": "",
+                "options": {
+                  "repeats": 1,
+                  "tags": [],
+                  "timeout": 5000,
+                  "mode": "skip"
+                },
+                "tags": [],
+                "meta": {},
+                "result": {
+                  "state": "skipped",
+                  "note": "repeat skip note"
+                },
+                "annotations": [],
+                "artifacts": []
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "errors": [
+      {
+        "name": "Error",
+        "message": "foreign replay rejection"
+      }
+    ],
+    "sameModules": [true],
+    "sameCases": [true, true, true, true, true, true]
+  },
+  {
+    "event": "close"
+  }
+]

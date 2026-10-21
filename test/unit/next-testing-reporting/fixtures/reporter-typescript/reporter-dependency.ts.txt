@@ -1,0 +1,4 @@
+import fs from 'node:fs'
+enum FileSystemOwner { Native = 1 }
+const owner: FileSystemOwner = FileSystemOwner.Native
+export const fileSystem = owner === 1 ? fs : undefined as never

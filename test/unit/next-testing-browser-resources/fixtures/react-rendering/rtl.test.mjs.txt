@@ -1,0 +1,57 @@
+import React, { useState } from 'react'
+import { afterEach, expect, test } from 'vitest'
+import { page, userEvent } from 'vitest/browser'
+import { act, cleanup, render, renderHook, screen, waitFor } from '@testing-library/react'
+import { Counter } from './Counter.jsx'
+
+afterEach(() => cleanup())
+const record = (name, row) => console.log('RENDERING_RAW ' + JSON.stringify({ name, row }))
+
+test('Testing Library renders client JSX CSS and updates with native browser interactions', async () => {
+  const effects = []
+  const onEffect = value => effects.push(value)
+  const view = render(React.createElement(Counter, { label: 'Clicks', onEffect }))
+  const button = screen.getByRole('button', { name: 'Clicks: 0' })
+  const color = getComputedStyle(button).color
+  expect(color).toBe('rgb(23, 45, 67)')
+  await userEvent.click(page.getByRole('button', { name: 'Clicks: 0' }))
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Clicks: 1' })).toBe(button))
+  expect(effects).toEqual(['mount'])
+  const text = button.textContent
+  view.unmount()
+  expect(effects).toEqual(['mount', 'unmount'])
+  expect(button.isConnected).toBe(false)
+  record('component', { text, color, effects, connectedAfterUnmount: button.isConnected })
+})
+
+test('Testing Library cleanup removes component roots and effects before another render', () => {
+  expect(document.querySelector('button')).toBeNull()
+  const effects = []
+  const onEffect = value => effects.push(value)
+  render(React.createElement(Counter, { label: 'First', onEffect }))
+  cleanup()
+  expect(screen.queryByRole('button')).toBeNull()
+  render(React.createElement(Counter, { label: 'Second', onEffect }))
+  expect(screen.getByRole('button', { name: 'Second: 0' }).isConnected).toBe(true)
+  cleanup()
+  expect(effects).toEqual(['mount', 'unmount', 'mount', 'unmount'])
+  expect(screen.queryByRole('button')).toBeNull()
+  record('cleanup', { effects, remainingButtons: document.querySelectorAll('button').length })
+})
+
+test('Testing Library renderHook and act retain state and component cleanup', () => {
+  const view = renderHook(() => useState(3))
+  expect(view.result.current[0]).toBe(3)
+  act(() => view.result.current[1](value => value + 2))
+  expect(view.result.current[0]).toBe(5)
+  const count = view.result.current[0]
+  view.unmount()
+  record('hook', { count, remainingButtons: document.querySelectorAll('button').length })
+})
+
+test('React act availability follows the real dependency mode', () => {
+  const mode = process.env.NODE_ENV
+  const act = typeof React.act
+  expect(act).toBe(mode === 'production' ? 'undefined' : 'function')
+  record('act-boundary', { mode, act })
+})

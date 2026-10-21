@@ -1,5 +1,11 @@
 # Watch selection
 
+One-shot `--related` and `--changed` selection can use the actual isolated Node
+compiler dependency graph in both development and production. Production uses
+its own compiler conditions and source inputs. Missing, incomplete, stale or
+opaque source/configuration evidence still widens selection; this does not
+enable production watch or qualify other execution profiles.
+
 Source edits use compiler dependency evidence, with a full rerun when that
 information is missing, incomplete or stale. The current emitted-output hashes
 remain explicitly incomplete; filesystem notifications do not upgrade them.

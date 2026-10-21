@@ -135,14 +135,16 @@ export type StandardCoverageMetric =
   | 'branches'
   | 'lines'
 export interface StandardCoverageOptions {
-  reporter: ('json' | 'lcov')[]
+  reporter: ('json' | 'json-summary' | 'text-summary' | 'lcov' | 'lcovonly')[]
   include?: string[]
   exclude: string[]
   reportsDirectory: string
   reportOnFailure: boolean
   /** Watch generations replace prior facts by default. */
   cleanOnRerun?: boolean
-  thresholds: Partial<Record<StandardCoverageMetric, number>>
+  thresholds: Partial<Record<StandardCoverageMetric, number>> & {
+    perFile?: boolean
+  }
 }
 
 /** The native compiler emits this entry but no runtime may evaluate it. */

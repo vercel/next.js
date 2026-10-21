@@ -14,7 +14,7 @@ import {
   resumeToPipeableStream,
 } from 'react-dom/server'
 import { prerender } from 'react-dom/static'
-import { PassThrough, Readable, Transform } from 'node:stream'
+import { PassThrough, Readable, Transform, finished } from 'node:stream'
 import { isUtf8 } from 'node:buffer'
 
 import {
@@ -544,7 +544,8 @@ export function renderToNodeFlightStream(
   ComponentMod: FlightComponentMod,
   payload: FlightPayload,
   clientModules: FlightClientModules,
-  opts: FlightRenderOptions
+  opts: FlightRenderOptions,
+  ownedDebugAbortSignal?: AbortSignal
 ): AnyStream {
   if (!ComponentMod.renderToPipeableStream) {
     throw new Error('renderToPipeableStream is not implemented')
@@ -556,6 +557,20 @@ export function renderToNodeFlightStream(
   // the passthrough closes so a finished render's `pipeable` isn't retained by
   // the request signal, which can outlive it.
   const { signal, ...renderOptions } = opts ?? {}
+
+  if (
+    ownedDebugAbortSignal !== undefined &&
+    ownedDebugAbortSignal === signal &&
+    renderOptions.debugChannel
+  ) {
+    return renderToOwnedDebugFlightStream(
+      ComponentMod,
+      payload,
+      clientModules,
+      renderOptions,
+      ownedDebugAbortSignal
+    )
+  }
 
   const pt = new PassThrough()
   const pipeable = ComponentMod.renderToPipeableStream!(
@@ -587,6 +602,111 @@ export function renderToNodeFlightStream(
   }
 
   return pt
+}
+
+/** Keep React's real destination alive through its queued abort flush. */
+function renderToOwnedDebugFlightStream(
+  ComponentMod: FlightComponentMod,
+  payload: FlightPayload,
+  clientModules: FlightClientModules,
+  renderOptions: Omit<FlightRenderOptions, 'signal'>,
+  signal: AbortSignal
+): Readable {
+  // Acquire the real producer before any stream/listener owners are created.
+  const pipeable = ComponentMod.renderToPipeableStream!(
+    payload,
+    clientModules,
+    renderOptions
+  )
+  const destination = new PassThrough()
+  const closed = createPromiseWithResolvers<void>()
+  const ended = createPromiseWithResolvers<void>()
+  const errors: unknown[] = []
+  function retain(error: unknown) {
+    if (!errors.includes(error)) errors.push(error)
+  }
+  const removeFinished = finished(destination, (error) => {
+    if (error) retain(error)
+    ended.resolve()
+  })
+  destination.once('close', closed.resolve)
+  const joined = Promise.all([ended.promise, closed.promise])
+  const output = new PassThrough({
+    destroy(error, callback) {
+      if (error) retain(error)
+      if (!destination.writableEnded) {
+        try {
+          pipeable.abort(new ResponseAborted())
+        } catch (abortError) {
+          retain(abortError)
+          destination.destroy(abortError as Error)
+        }
+      }
+      // Only canceled internal bytes are discarded. Destroying this destination
+      // now would remove React's destination before its abort flush can finish.
+      destination.resume()
+      void joined.then(() => {
+        cleanup()
+        if (errors.length === 0) callback(null)
+        else if (errors.length === 1 && errors[0]) callback(errors[0] as Error)
+        else
+          callback(new AggregateError(errors, 'Failed to close Flight output'))
+      })
+    },
+  })
+  const onData = (chunk: Buffer) => {
+    if (output.destroyed) return
+    try {
+      if (!output.write(chunk)) destination.pause()
+    } catch (error) {
+      retain(error)
+      output.destroy(error as Error)
+    }
+  }
+  const onDrain = () => destination.resume()
+  const onEnd = () => {
+    if (!output.destroyed) output.end()
+  }
+  const onError = (error: Error) => {
+    retain(error)
+    if (!output.destroyed) output.destroy(error)
+  }
+  const onAbort = () => {
+    try {
+      pipeable.abort(signal.reason)
+    } catch (error) {
+      retain(error)
+      output.destroy(error as Error)
+      destination.destroy(error as Error)
+    }
+  }
+  function cleanup() {
+    removeFinished()
+    destination.off('data', onData)
+    destination.off('end', onEnd)
+    destination.off('error', onError)
+    destination.off('close', closed.resolve)
+    output.off('drain', onDrain)
+    signal.removeEventListener('abort', onAbort)
+  }
+  destination.on('data', onData)
+  destination.on('end', onEnd)
+  destination.on('error', onError)
+  output.on('drain', onDrain)
+  void joined.then(() => {
+    if (errors.length && !output.destroyed) output.destroy(errors[0] as Error)
+    cleanup()
+  })
+  try {
+    pipeable.pipe(destination)
+  } catch (error) {
+    retain(error)
+    output.destroy(error as Error)
+    destination.destroy(error as Error)
+  }
+  if (signal.aborted) onAbort()
+  else signal.addEventListener('abort', onAbort, { once: true })
+  return output
 }
 
 export { renderToWebFizzStream } from './stream-ops.web'

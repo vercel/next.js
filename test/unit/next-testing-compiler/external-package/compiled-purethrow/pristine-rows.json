@@ -1,0 +1,137 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_COMPILED_PURE_SYNC",
+    "value": {
+      "calls": 3,
+      "errors": [
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "causeName": "Error",
+          "causeMessage": "pure sync failure",
+          "causeIdentity": true,
+          "rawIdentity": false,
+          "keys": ["stack", "message", "cause"],
+          "causeKeys": ["stack", "message"]
+        },
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "causeName": "Error",
+          "causeMessage": "pure sync failure",
+          "causeIdentity": true,
+          "rawIdentity": false,
+          "keys": ["stack", "message", "cause"],
+          "causeKeys": ["stack", "message"]
+        },
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "causeName": "Error",
+          "causeMessage": "pure sync failure",
+          "causeIdentity": true,
+          "rawIdentity": false,
+          "keys": ["stack", "message", "cause"],
+          "causeKeys": ["stack", "message"]
+        }
+      ],
+      "identities": [false, false, false],
+      "original": false,
+      "evaluations": [1, 2]
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_COMPILED_PURE_ASYNC",
+    "value": {
+      "calls": 3,
+      "errors": [
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "causeName": "Error",
+          "causeMessage": "pure async failure",
+          "causeIdentity": true,
+          "rawIdentity": false,
+          "keys": ["stack", "message", "cause"],
+          "causeKeys": ["stack", "message"]
+        },
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "causeName": "Error",
+          "causeMessage": "pure async failure",
+          "causeIdentity": true,
+          "rawIdentity": false,
+          "keys": ["stack", "message", "cause"],
+          "causeKeys": ["stack", "message"]
+        },
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "causeName": "Error",
+          "causeMessage": "pure async failure",
+          "causeIdentity": true,
+          "rawIdentity": false,
+          "keys": ["stack", "message", "cause"],
+          "causeKeys": ["stack", "message"]
+        }
+      ],
+      "identities": [false, false, false],
+      "original": false,
+      "evaluations": [3, 4]
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_COMPILED_PURE_PENDING",
+    "value": {
+      "calls": 3,
+      "secondOriginal": true,
+      "errors": [
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "causeName": "Error",
+          "causeMessage": "pure held failure",
+          "causeIdentity": true,
+          "rawIdentity": false,
+          "keys": ["stack", "message", "cause"],
+          "causeKeys": ["stack", "message"]
+        },
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "causeName": "Error",
+          "causeMessage": "pure held failure",
+          "causeIdentity": true,
+          "rawIdentity": false,
+          "keys": ["stack", "message", "cause"],
+          "causeKeys": ["stack", "message"]
+        },
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "causeName": "Error",
+          "causeMessage": "pure held failure",
+          "causeIdentity": true,
+          "rawIdentity": false,
+          "keys": ["stack", "message", "cause"],
+          "causeKeys": ["stack", "message"]
+        }
+      ],
+      "identities": [false, false, false],
+      "original": false,
+      "evaluations": [5, 6]
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_COMPILED_PURE_UNUSED",
+    "value": {
+      "calls": 0,
+      "evaluations": 0
+    }
+  }
+]

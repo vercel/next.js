@@ -1,0 +1,4 @@
+import{test,expect}from'vitest'
+import a from'ws2-external-a'
+import b from'ws2-external-b'
+test('preserves native external dependency diamonds cycles and package data',()=>{const row={diamond:a.c===a.b.c,cycle:a.c.a===a.object,rootAndDependency:a.b===b,data:a.c.data};console.log('WS2_EXTERNAL_GRAPH:'+JSON.stringify(row));expect(row).toEqual({diamond:true,cycle:true,rootAndDependency:true,data:'captured-package-data\n'})})

@@ -1,0 +1,17 @@
+[
+  {
+    "name": "ordinary TLA namespaces retain real pending sharing and complete final descriptors",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "ordinary TLA rejection remains cached until reset with the raw loader error",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "unused namespace TLA targets remain unevaluated through registration disposal",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

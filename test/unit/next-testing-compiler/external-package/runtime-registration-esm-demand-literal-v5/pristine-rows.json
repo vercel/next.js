@@ -1,0 +1,101 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CJS_RUNTIME",
+    "value": {
+      "name": "dependency-replaced",
+      "entryVersion": "next",
+      "dependencyVersion": "old",
+      "laterVersion": "old",
+      "laterReadsiteVersion": "old",
+      "laterReadsiteSame": true,
+      "entrySameLater": false,
+      "oldCalls": 1,
+      "nextCalls": 1,
+      "entry": {
+        "type": "object",
+        "nativeBrand": false,
+        "keys": ["version"],
+        "prototype": "Object.prototype",
+        "tag": null,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "version",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          }
+        ]
+      },
+      "dependency": {
+        "type": "object",
+        "nativeBrand": false,
+        "keys": ["version"],
+        "prototype": "Object.prototype",
+        "tag": null,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "version",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          }
+        ]
+      },
+      "later": {
+        "type": "object",
+        "nativeBrand": false,
+        "keys": ["version"],
+        "prototype": "Object.prototype",
+        "tag": null,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "version",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          }
+        ]
+      },
+      "laterReadsite": {
+        "type": "object",
+        "nativeBrand": false,
+        "keys": ["version"],
+        "prototype": "Object.prototype",
+        "tag": null,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "version",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          }
+        ]
+      }
+    }
+  }
+]

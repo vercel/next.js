@@ -1,0 +1,4 @@
+console.log('BROWSER_SETUP_FAILURE ' + JSON.stringify({phase:'first-start'}))
+await Promise.resolve()
+globalThis.__setupFailureFirst = 'awaited'
+console.log('BROWSER_SETUP_FAILURE ' + JSON.stringify({phase:'first-end'}))

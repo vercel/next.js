@@ -164,13 +164,18 @@ function computeErrorName(error: Error): string {
   return error.name || 'Error'
 }
 
-// Records where the frames start in a stack produced by
-// `prepareUnsourcemappedStackTrace`, so they can be parsed without having to
-// guess where the message ends. Uses `Symbol.for` since this module is bundled
-// into several runtimes, and any copy may have formatted a given stack.
+// Records where the frames start without adding properties to authored Errors.
+// The weak association is shared because any bundled copy may have formatted a
+// given stack. It is installed only when a formatter is installed.
 const STACK_FRAMES_START = Symbol.for('next.dev.stackFramesStart')
-type ErrorWithStackFramesStart = Error & {
-  [STACK_FRAMES_START]?: { stack: string; framesStart: number }
+type GlobalWithStackFramesStart = typeof globalThis & {
+  [STACK_FRAMES_START]?: WeakMap<Error, { stack: string; framesStart: number }>
+}
+
+function installUnsourcemappedStackTrace(errorConstructor: ErrorConstructor) {
+  ;(globalThis as GlobalWithStackFramesStart)[STACK_FRAMES_START] ??=
+    new WeakMap()
+  errorConstructor.prepareStackTrace = prepareUnsourcemappedStackTrace
 }
 
 function prepareUnsourcemappedStackTrace(
@@ -184,18 +189,10 @@ function prepareUnsourcemappedStackTrace(
   for (let i = 0; i < structuredStackTrace.length; i++) {
     stack += '\n    at ' + structuredStackTrace[i].toString()
   }
-  // Record where the real stack frames start
-  try {
-    // Non-enumerable so that it doesn't show up when inspecting the error.
-    Object.defineProperty(error, STACK_FRAMES_START, {
-      value: { stack, framesStart },
-      configurable: true,
-      writable: true,
-    })
-  } catch {
-    // The error may be frozen. We'll fall back to finding the frames by
-    // matching the message.
-  }
+  ;(globalThis as GlobalWithStackFramesStart)[STACK_FRAMES_START]?.set(error, {
+    stack,
+    framesStart,
+  })
   return stack
 }
 
@@ -206,7 +203,9 @@ function prepareUnsourcemappedStackTrace(
  */
 function getUnparsedStackFrames(error: Error, errorName: string): string {
   let stack = String(error.stack)
-  const recorded = (error as ErrorWithStackFramesStart)[STACK_FRAMES_START]
+  const recorded = (globalThis as GlobalWithStackFramesStart)[
+    STACK_FRAMES_START
+  ]?.get(error)
   // `error.stack` may have been replaced after we formatted it.
   if (recorded !== undefined && recorded.stack === stack) {
     return stack.slice(recorded.framesStart)
@@ -699,7 +698,7 @@ export function patchErrorInspectNodeJS(
 ): void {
   const inspectSymbol = Symbol.for('nodejs.util.inspect.custom')
 
-  errorConstructor.prepareStackTrace = prepareUnsourcemappedStackTrace
+  installUnsourcemappedStackTrace(errorConstructor)
 
   // @ts-expect-error -- TODO upstream types
   errorConstructor.prototype[inspectSymbol] = function (
@@ -736,7 +735,7 @@ export function patchErrorInspectEdgeLite(
 ): void {
   const inspectSymbol = Symbol.for('edge-runtime.inspect.custom')
 
-  errorConstructor.prepareStackTrace = prepareUnsourcemappedStackTrace
+  installUnsourcemappedStackTrace(errorConstructor)
 
   // @ts-expect-error -- TODO upstream types
   errorConstructor.prototype[inspectSymbol] = function ({

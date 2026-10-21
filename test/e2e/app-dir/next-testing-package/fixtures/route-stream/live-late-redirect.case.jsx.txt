@@ -1,0 +1,77 @@
+import { expect, test } from 'next/experimental/testing/vitest'
+import { rsc } from 'next/experimental/testing/rsc'
+import { createServer } from 'node:http'
+import { completedRequests, resumedRequests } from './app/[tenant]/late-redirect/[...slug]/state'
+import expected from './expected.json'
+
+for (const variant of ['temporary', 'permanent', 'following']) {
+  for (const format of ['html', 'flight']) {
+    test(`${variant} late redirect live streamed ${format} response`, async () => {
+      const request = variant + '-' + format
+      let entered
+      const enteredBarrier = new Promise((resolve) => { entered = resolve })
+      let held
+      let releaseCount = 0
+      const barrier = createServer((req, res) => { held = res; entered() })
+      await new Promise((resolve, reject) => { barrier.once('error', reject);barrier.listen(0, '127.0.0.1', resolve) })
+      let handle
+      let reader
+      try {
+        const url = new URL('/acme/late-redirect/alpha/c?tag=one&tag=two&unicode=%E2%9C%93' + (variant === 'following' ? '' : '&redirect=' + variant) + (format === 'flight' ? '&_rsc=' : ''), 'http://localhost')
+        handle = await rsc.renderRouteStream({ cacheScope: 'file', format, url: url.href, headers: { 'x-route-request': request, 'x-route-proof': 'request-value', cookie: 'route-session=session-value', 'x-late-barrier': 'http://127.0.0.1:' + barrier.address().port + '/' + request } })
+        const response = await handle.response
+        expect(Object.isFrozen(response)).toBe(true)
+        expect(Object.isFrozen(response.headers)).toBe(true)
+        reader = handle.stream.getReader()
+        let body = ''
+        const decoder = new TextDecoder()
+        let fallbackBeforeRelease = false
+        let fallbackDigestAbsent = null
+        let completed = false
+        void handle.completed.then(() => { completed = true }, () => {})
+        if (variant !== 'following') {
+          const marker = format === 'html' ? 'id="late-pending"' : '"id":"late-pending"'
+          while (!body.includes(marker)) {
+            const chunk = await reader.read()
+            expect(chunk.done).toBe(false)
+            body += decoder.decode(chunk.value, {stream:true})
+          }
+          await enteredBarrier
+          fallbackBeforeRelease = true
+          fallbackDigestAbsent = !body.includes('NEXT_REDIRECT')
+          expect(fallbackDigestAbsent).toBe(true)
+          expect(completed).toBe(false)
+          expect(completedRequests.some(value => value.request === request)).toBe(false)
+          held.writeHead(200, {'content-type':'text/plain'})
+          held.end('release')
+          releaseCount++
+        }
+        for (;;) {
+          const chunk = await reader.read()
+          if (chunk.done) break
+          body += decoder.decode(chunk.value, {stream:true})
+        }
+        body += decoder.decode()
+        expect(await handle.completed).toEqual({ status: 'completed' })
+        const result = { ...response, body }
+        expect(result.headers['content-type']).toBe(result.contentType)
+        const id = variant === 'following' ? 'ancestor-values' : 'late-values'
+        const value = format === 'html' ? result.body.match(new RegExp('<div id="'+id+'">([^<]+)<\\/div>')) : result.body.match(new RegExp('"id":"'+id+'","children":("(?:[^"\\\\]|\\\\.)*")'))
+        expect(value).not.toBeNull()
+        const subject = format === 'html' ? JSON.parse(value[1].replaceAll('&quot;', '"')) : JSON.parse(JSON.parse(value[1]))
+        const refresh = result.body.match(/<meta[^>]*http-equiv="refresh"[^>]*content="([^"]*)"/)
+        const digest = result.body.match(/NEXT_REDIRECT;[^"\\\n<]*/)?.[0] ?? null
+        const row = { variant, format, pathname: url.pathname, search: url.search, status: result.status, contentType: result.contentType ?? null, location: result.headers.location ?? null, redirectDigest: digest, refresh: refresh?.[1] ?? null, subject, rootLayout: format === 'html' ? result.body.includes('data-root-layout="acme"') : result.body.includes('"data-root-layout":"acme"'), nestedLayout: format === 'html' ? result.body.includes('data-nested-layout="acme"') : result.body.includes('"data-nested-layout":"acme"'), provider: format === 'html' ? result.body.includes('data-provider-context="acme"') : result.body.includes('"label":"acme"'), after: completedRequests.find(value => value.request === request), resumed: resumedRequests.find(value => value.request === request) ?? null, barrier: {held: variant !== 'following', fallbackBeforeRelease, released: releaseCount === 1, fallbackDigestAbsent} }
+        console.log('LIVE_LATE_REDIRECT ' + JSON.stringify(row))
+        expect(row).toEqual(expected.find(value => value.variant === variant && value.format === format))
+        expect(releaseCount).toBe(variant === 'following' ? 0 : 1)
+      } finally {
+        if (held && !held.writableEnded) { held.writeHead(200);held.end('release') }
+        if (handle) await handle.dispose()
+        reader?.releaseLock()
+        await new Promise((resolve, reject) => barrier.close(error => error ? reject(error) : resolve()))
+        expect(barrier.listening).toBe(false)
+      }
+    })
+  }
+}

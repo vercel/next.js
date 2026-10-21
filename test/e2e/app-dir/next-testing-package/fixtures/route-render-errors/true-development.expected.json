@@ -1,0 +1,558 @@
+[
+  {
+    "scope": "root",
+    "format": "html",
+    "pathname": "/acme/render-error/alpha/c",
+    "search": "?tag=one&tag=two&unicode=%E2%9C%93&fail=1",
+    "error": {
+      "status": 500,
+      "contentType": "text/html; charset=utf-8",
+      "location": null,
+      "htmlErrorDocument": true,
+      "rootLayout": false,
+      "nestedLayout": false,
+      "nestedErrorLayout": false,
+      "provider": false,
+      "renderedRootErrorBoundary": false,
+      "renderedNestedErrorBoundary": false,
+      "templateErrors": [],
+      "subject": null,
+      "boundaries": [
+        {
+          "source": "/app/[tenant]/render-error/error.jsx",
+          "exportName": "default"
+        }
+      ],
+      "errorFacts": [
+        {
+          "serializedFields": [
+            "digest",
+            "env",
+            "message",
+            "name",
+            "owner",
+            "stack"
+          ],
+          "name": "Error",
+          "message": "Owned ordinary AppPage render failure",
+          "env": "Server",
+          "digestLinksOriginalError": true,
+          "digestMatchesActualHash": true,
+          "selectedModelReferencesError": true,
+          "stack": [
+            {
+              "name": "Subject",
+              "line": 127,
+              "column": 23,
+              "flags": [0, 0, false],
+              "ownedEmittedSource": true
+            }
+          ],
+          "owner": {
+            "present": true,
+            "recordInResponse": false
+          }
+        }
+      ]
+    },
+    "request": {
+      "request": "root-html",
+      "scope": "root",
+      "params": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"]
+      },
+      "query": {
+        "tag": ["one", "two"],
+        "unicode": "✓",
+        "fail": "1"
+      },
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value"
+    },
+    "after": {
+      "request": "root-html",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value"
+    },
+    "following": {
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "location": null,
+      "htmlErrorDocument": false,
+      "rootLayout": true,
+      "nestedLayout": true,
+      "nestedErrorLayout": false,
+      "provider": true,
+      "renderedRootErrorBoundary": false,
+      "renderedNestedErrorBoundary": false,
+      "templateErrors": [],
+      "subject": {
+        "request": "following-root-html",
+        "scope": "root",
+        "params": {
+          "tenant": "acme",
+          "slug": ["alpha", "c"]
+        },
+        "query": {
+          "tag": ["one", "two"],
+          "unicode": "✓"
+        },
+        "root": "acme",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "boundaries": [
+        {
+          "source": "/app/[tenant]/render-error/error.jsx",
+          "exportName": "default"
+        }
+      ],
+      "errorFacts": []
+    },
+    "followingRequest": {
+      "request": "following-root-html",
+      "scope": "root",
+      "params": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"]
+      },
+      "query": {
+        "tag": ["one", "two"],
+        "unicode": "✓"
+      },
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value"
+    },
+    "followingAfter": {
+      "request": "following-root-html",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value"
+    }
+  },
+  {
+    "scope": "root",
+    "format": "flight",
+    "pathname": "/acme/render-error/alpha/c",
+    "search": "?tag=one&tag=two&unicode=%E2%9C%93&fail=1&_rsc=",
+    "error": {
+      "status": 200,
+      "contentType": "text/x-component",
+      "location": null,
+      "htmlErrorDocument": false,
+      "rootLayout": true,
+      "nestedLayout": true,
+      "nestedErrorLayout": false,
+      "provider": true,
+      "renderedRootErrorBoundary": false,
+      "renderedNestedErrorBoundary": false,
+      "templateErrors": [],
+      "subject": null,
+      "boundaries": [
+        {
+          "source": "/app/[tenant]/render-error/error.jsx",
+          "exportName": "default"
+        }
+      ],
+      "errorFacts": [
+        {
+          "serializedFields": [
+            "digest",
+            "env",
+            "message",
+            "name",
+            "owner",
+            "stack"
+          ],
+          "name": "Error",
+          "message": "Owned ordinary AppPage render failure",
+          "env": "Server",
+          "digestLinksOriginalError": true,
+          "digestMatchesActualHash": true,
+          "selectedModelReferencesError": true,
+          "stack": [
+            {
+              "name": "Subject",
+              "line": 127,
+              "column": 23,
+              "flags": [0, 0, false],
+              "ownedEmittedSource": true
+            }
+          ],
+          "owner": {
+            "present": true,
+            "recordInResponse": false
+          }
+        }
+      ]
+    },
+    "request": {
+      "request": "root-flight",
+      "scope": "root",
+      "params": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"]
+      },
+      "query": {
+        "tag": ["one", "two"],
+        "unicode": "✓",
+        "fail": "1"
+      },
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value"
+    },
+    "after": {
+      "request": "root-flight",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value"
+    },
+    "following": {
+      "status": 200,
+      "contentType": "text/x-component",
+      "location": null,
+      "htmlErrorDocument": false,
+      "rootLayout": true,
+      "nestedLayout": true,
+      "nestedErrorLayout": false,
+      "provider": true,
+      "renderedRootErrorBoundary": false,
+      "renderedNestedErrorBoundary": false,
+      "templateErrors": [],
+      "subject": {
+        "request": "following-root-flight",
+        "scope": "root",
+        "params": {
+          "tenant": "acme",
+          "slug": ["alpha", "c"]
+        },
+        "query": {
+          "tag": ["one", "two"],
+          "unicode": "✓"
+        },
+        "root": "acme",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "boundaries": [
+        {
+          "source": "/app/[tenant]/render-error/error.jsx",
+          "exportName": "default"
+        }
+      ],
+      "errorFacts": []
+    },
+    "followingRequest": {
+      "request": "following-root-flight",
+      "scope": "root",
+      "params": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"]
+      },
+      "query": {
+        "tag": ["one", "two"],
+        "unicode": "✓"
+      },
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value"
+    },
+    "followingAfter": {
+      "request": "following-root-flight",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value"
+    }
+  },
+  {
+    "scope": "nested",
+    "format": "html",
+    "pathname": "/acme/render-error/nested/alpha/c",
+    "search": "?tag=one&tag=two&unicode=%E2%9C%93&fail=1",
+    "error": {
+      "status": 500,
+      "contentType": "text/html; charset=utf-8",
+      "location": null,
+      "htmlErrorDocument": true,
+      "rootLayout": false,
+      "nestedLayout": false,
+      "nestedErrorLayout": false,
+      "provider": false,
+      "renderedRootErrorBoundary": false,
+      "renderedNestedErrorBoundary": false,
+      "templateErrors": [],
+      "subject": null,
+      "boundaries": [
+        {
+          "source": "/app/[tenant]/render-error/error.jsx",
+          "exportName": "default"
+        },
+        {
+          "source": "/app/[tenant]/render-error/nested/error.jsx",
+          "exportName": "default"
+        }
+      ],
+      "errorFacts": [
+        {
+          "serializedFields": [
+            "digest",
+            "env",
+            "message",
+            "name",
+            "owner",
+            "stack"
+          ],
+          "name": "Error",
+          "message": "Owned ordinary AppPage render failure",
+          "env": "Server",
+          "digestLinksOriginalError": true,
+          "digestMatchesActualHash": true,
+          "selectedModelReferencesError": true,
+          "stack": [
+            {
+              "name": "Subject",
+              "line": 127,
+              "column": 23,
+              "flags": [0, 0, false],
+              "ownedEmittedSource": true
+            }
+          ],
+          "owner": {
+            "present": true,
+            "recordInResponse": false
+          }
+        }
+      ]
+    },
+    "request": {
+      "request": "nested-html",
+      "scope": "nested",
+      "params": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"]
+      },
+      "query": {
+        "tag": ["one", "two"],
+        "unicode": "✓",
+        "fail": "1"
+      },
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value"
+    },
+    "after": {
+      "request": "nested-html",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value"
+    },
+    "following": {
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "location": null,
+      "htmlErrorDocument": false,
+      "rootLayout": true,
+      "nestedLayout": true,
+      "nestedErrorLayout": true,
+      "provider": true,
+      "renderedRootErrorBoundary": false,
+      "renderedNestedErrorBoundary": false,
+      "templateErrors": [],
+      "subject": {
+        "request": "following-nested-html",
+        "scope": "nested",
+        "params": {
+          "tenant": "acme",
+          "slug": ["alpha", "c"]
+        },
+        "query": {
+          "tag": ["one", "two"],
+          "unicode": "✓"
+        },
+        "root": "acme",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "boundaries": [
+        {
+          "source": "/app/[tenant]/render-error/error.jsx",
+          "exportName": "default"
+        },
+        {
+          "source": "/app/[tenant]/render-error/nested/error.jsx",
+          "exportName": "default"
+        }
+      ],
+      "errorFacts": []
+    },
+    "followingRequest": {
+      "request": "following-nested-html",
+      "scope": "nested",
+      "params": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"]
+      },
+      "query": {
+        "tag": ["one", "two"],
+        "unicode": "✓"
+      },
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value"
+    },
+    "followingAfter": {
+      "request": "following-nested-html",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value"
+    }
+  },
+  {
+    "scope": "nested",
+    "format": "flight",
+    "pathname": "/acme/render-error/nested/alpha/c",
+    "search": "?tag=one&tag=two&unicode=%E2%9C%93&fail=1&_rsc=",
+    "error": {
+      "status": 200,
+      "contentType": "text/x-component",
+      "location": null,
+      "htmlErrorDocument": false,
+      "rootLayout": true,
+      "nestedLayout": true,
+      "nestedErrorLayout": true,
+      "provider": true,
+      "renderedRootErrorBoundary": false,
+      "renderedNestedErrorBoundary": false,
+      "templateErrors": [],
+      "subject": null,
+      "boundaries": [
+        {
+          "source": "/app/[tenant]/render-error/error.jsx",
+          "exportName": "default"
+        },
+        {
+          "source": "/app/[tenant]/render-error/nested/error.jsx",
+          "exportName": "default"
+        }
+      ],
+      "errorFacts": [
+        {
+          "serializedFields": [
+            "digest",
+            "env",
+            "message",
+            "name",
+            "owner",
+            "stack"
+          ],
+          "name": "Error",
+          "message": "Owned ordinary AppPage render failure",
+          "env": "Server",
+          "digestLinksOriginalError": true,
+          "digestMatchesActualHash": true,
+          "selectedModelReferencesError": true,
+          "stack": [
+            {
+              "name": "Subject",
+              "line": 127,
+              "column": 23,
+              "flags": [0, 0, false],
+              "ownedEmittedSource": true
+            }
+          ],
+          "owner": {
+            "present": true,
+            "recordInResponse": false
+          }
+        }
+      ]
+    },
+    "request": {
+      "request": "nested-flight",
+      "scope": "nested",
+      "params": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"]
+      },
+      "query": {
+        "tag": ["one", "two"],
+        "unicode": "✓",
+        "fail": "1"
+      },
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value"
+    },
+    "after": {
+      "request": "nested-flight",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value"
+    },
+    "following": {
+      "status": 200,
+      "contentType": "text/x-component",
+      "location": null,
+      "htmlErrorDocument": false,
+      "rootLayout": true,
+      "nestedLayout": true,
+      "nestedErrorLayout": true,
+      "provider": true,
+      "renderedRootErrorBoundary": false,
+      "renderedNestedErrorBoundary": false,
+      "templateErrors": [],
+      "subject": {
+        "request": "following-nested-flight",
+        "scope": "nested",
+        "params": {
+          "tenant": "acme",
+          "slug": ["alpha", "c"]
+        },
+        "query": {
+          "tag": ["one", "two"],
+          "unicode": "✓"
+        },
+        "root": "acme",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "boundaries": [
+        {
+          "source": "/app/[tenant]/render-error/error.jsx",
+          "exportName": "default"
+        },
+        {
+          "source": "/app/[tenant]/render-error/nested/error.jsx",
+          "exportName": "default"
+        }
+      ],
+      "errorFacts": []
+    },
+    "followingRequest": {
+      "request": "following-nested-flight",
+      "scope": "nested",
+      "params": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"]
+      },
+      "query": {
+        "tag": ["one", "two"],
+        "unicode": "✓"
+      },
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value"
+    },
+    "followingAfter": {
+      "request": "following-nested-flight",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value"
+    }
+  }
+]

@@ -1,0 +1,1 @@
+import {peer} from './peer.mjs';export const Object={kind:'authored-object'};export const Symbol={kind:'authored-symbol'};export const __turbopack_namespace__={kind:'authored-name'};export {peer};

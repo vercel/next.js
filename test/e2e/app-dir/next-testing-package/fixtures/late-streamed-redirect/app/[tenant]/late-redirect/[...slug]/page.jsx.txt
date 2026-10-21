@@ -1,0 +1,41 @@
+import { Suspense } from 'react'
+import { headers, cookies } from 'next/headers'
+import { tenant as rootTenant } from 'next/root-params'
+import { after } from 'next/server'
+import { redirect, permanentRedirect } from 'next/navigation'
+import Page from '../../ancestor/[...slug]/page'
+import Client from '../../ancestor/[...slug]/Client'
+import { completedRequests, resumedRequests } from './state'
+
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
+async function DelayedRedirect({ variant, request }) {
+  const barrier = (await headers()).get('x-late-barrier')
+  const response = await fetch(barrier, { cache: 'no-store' })
+  if (!response.ok) throw new Error('Owned late redirect barrier rejected')
+  const requestHeaders = await headers()
+  const requestCookies = await cookies()
+  const resumed = { request, root: await rootTenant(), header: requestHeaders.get('x-route-proof'), cookie: requestCookies.get('route-session')?.value ?? null }
+  resumedRequests.push(resumed)
+  console.log('LATE_REDIRECT_RESUMED ' + JSON.stringify(resumed))
+  if (variant === 'temporary') redirect('/acme/late-redirect/target?from=late-temporary')
+  permanentRedirect('/acme/late-redirect/target?from=late-permanent')
+}
+
+export default async function LateRedirectPage(props) {
+  const values = await props.params
+  const query = await props.searchParams
+  const requestHeaders = await headers()
+  const requestCookies = await cookies()
+  const request = requestHeaders.get('x-route-request')
+  const row = { tenant: values.tenant, slug: values.slug, root: await rootTenant(), tag: query.tag, unicode: query.unicode, header: requestHeaders.get('x-route-proof'), cookie: requestCookies.get('route-session')?.value ?? null }
+  after(async () => {
+    await Promise.resolve()
+    const completed = { request, root: row.root, header: row.header }
+    completedRequests.push(completed)
+    console.log('LATE_REDIRECT_AFTER ' + JSON.stringify(completed))
+  })
+  if (!query.redirect) return <Page {...props} />
+  return <><div id="late-values">{JSON.stringify(row)}</div><Client request={request} /><Suspense fallback={<p id="late-pending" data-request={request}>Pending redirect</p>}><DelayedRedirect variant={query.redirect} request={request} /></Suspense></>
+}

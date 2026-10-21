@@ -1,0 +1,230 @@
+[
+  {
+    "variant": "forbidden",
+    "format": "html",
+    "pathname": "/acme/access/alpha/c",
+    "search": "?tag=one&tag=two&unicode=%E2%9C%93&interrupt=forbidden",
+    "status": 403,
+    "contentType": "text/html; charset=utf-8",
+    "subject": {
+      "fallback": {
+        "root": "acme",
+        "header": "request-value",
+        "cookie": "session-value",
+        "request": "forbidden-html"
+      }
+    },
+    "subjectTransport": "embedded-flight",
+    "rootLayout": false,
+    "nestedLayout": false,
+    "rootProvider": false,
+    "nestedProvider": false,
+    "providerContext": null,
+    "clientReference": true,
+    "robotsNoIndex": true,
+    "forbiddenDigest": true,
+    "unauthorizedDigest": false,
+    "after": "forbidden-html"
+  },
+  {
+    "variant": "forbidden",
+    "format": "flight",
+    "pathname": "/acme/access/alpha/c",
+    "search": "?tag=one&tag=two&unicode=%E2%9C%93&interrupt=forbidden&_rsc=",
+    "status": 200,
+    "contentType": "text/x-component",
+    "subject": {
+      "fallback": {
+        "root": "acme",
+        "header": "request-value",
+        "cookie": "session-value",
+        "request": "forbidden-flight"
+      }
+    },
+    "subjectTransport": "flight",
+    "rootLayout": true,
+    "nestedLayout": true,
+    "rootProvider": true,
+    "nestedProvider": true,
+    "providerContext": null,
+    "clientReference": true,
+    "robotsNoIndex": false,
+    "forbiddenDigest": true,
+    "unauthorizedDigest": false,
+    "after": "forbidden-flight"
+  },
+  {
+    "variant": "following-forbidden",
+    "format": "html",
+    "pathname": "/acme/access/alpha/c",
+    "search": "?tag=one&tag=two&unicode=%E2%9C%93",
+    "status": 200,
+    "contentType": "text/html; charset=utf-8",
+    "subject": {
+      "params": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"]
+      },
+      "query": {
+        "tag": ["one", "two"],
+        "unicode": "✓"
+      },
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value",
+      "request": "following-forbidden-html"
+    },
+    "subjectTransport": "html",
+    "rootLayout": true,
+    "nestedLayout": true,
+    "rootProvider": true,
+    "nestedProvider": true,
+    "providerContext": "nested:acme",
+    "clientReference": true,
+    "robotsNoIndex": false,
+    "forbiddenDigest": false,
+    "unauthorizedDigest": false,
+    "after": "following-forbidden-html"
+  },
+  {
+    "variant": "following-forbidden",
+    "format": "flight",
+    "pathname": "/acme/access/alpha/c",
+    "search": "?tag=one&tag=two&unicode=%E2%9C%93&_rsc=",
+    "status": 200,
+    "contentType": "text/x-component",
+    "subject": {
+      "fallback": {
+        "root": "acme",
+        "header": "request-value",
+        "cookie": "session-value",
+        "request": "following-forbidden-flight"
+      }
+    },
+    "subjectTransport": "flight",
+    "rootLayout": true,
+    "nestedLayout": true,
+    "rootProvider": true,
+    "nestedProvider": true,
+    "providerContext": null,
+    "clientReference": true,
+    "robotsNoIndex": false,
+    "forbiddenDigest": false,
+    "unauthorizedDigest": false,
+    "after": "following-forbidden-flight"
+  },
+  {
+    "variant": "unauthorized",
+    "format": "html",
+    "pathname": "/acme/access/alpha/c",
+    "search": "?tag=one&tag=two&unicode=%E2%9C%93&interrupt=unauthorized",
+    "status": 401,
+    "contentType": "text/html; charset=utf-8",
+    "subject": {
+      "fallback": {
+        "root": "acme",
+        "header": "request-value",
+        "cookie": "session-value",
+        "request": "unauthorized-html"
+      }
+    },
+    "subjectTransport": "embedded-flight",
+    "rootLayout": false,
+    "nestedLayout": false,
+    "rootProvider": false,
+    "nestedProvider": false,
+    "providerContext": null,
+    "clientReference": true,
+    "robotsNoIndex": true,
+    "forbiddenDigest": false,
+    "unauthorizedDigest": true,
+    "after": "unauthorized-html"
+  },
+  {
+    "variant": "unauthorized",
+    "format": "flight",
+    "pathname": "/acme/access/alpha/c",
+    "search": "?tag=one&tag=two&unicode=%E2%9C%93&interrupt=unauthorized&_rsc=",
+    "status": 200,
+    "contentType": "text/x-component",
+    "subject": {
+      "fallback": {
+        "root": "acme",
+        "header": "request-value",
+        "cookie": "session-value",
+        "request": "unauthorized-flight"
+      }
+    },
+    "subjectTransport": "flight",
+    "rootLayout": true,
+    "nestedLayout": true,
+    "rootProvider": true,
+    "nestedProvider": true,
+    "providerContext": null,
+    "clientReference": true,
+    "robotsNoIndex": false,
+    "forbiddenDigest": false,
+    "unauthorizedDigest": true,
+    "after": "unauthorized-flight"
+  },
+  {
+    "variant": "following-unauthorized",
+    "format": "html",
+    "pathname": "/acme/access/alpha/c",
+    "search": "?tag=one&tag=two&unicode=%E2%9C%93",
+    "status": 200,
+    "contentType": "text/html; charset=utf-8",
+    "subject": {
+      "params": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"]
+      },
+      "query": {
+        "tag": ["one", "two"],
+        "unicode": "✓"
+      },
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value",
+      "request": "following-unauthorized-html"
+    },
+    "subjectTransport": "html",
+    "rootLayout": true,
+    "nestedLayout": true,
+    "rootProvider": true,
+    "nestedProvider": true,
+    "providerContext": "nested:acme",
+    "clientReference": true,
+    "robotsNoIndex": false,
+    "forbiddenDigest": false,
+    "unauthorizedDigest": false,
+    "after": "following-unauthorized-html"
+  },
+  {
+    "variant": "following-unauthorized",
+    "format": "flight",
+    "pathname": "/acme/access/alpha/c",
+    "search": "?tag=one&tag=two&unicode=%E2%9C%93&_rsc=",
+    "status": 200,
+    "contentType": "text/x-component",
+    "subject": {
+      "fallback": {
+        "root": "acme",
+        "header": "request-value",
+        "cookie": "session-value",
+        "request": "following-unauthorized-flight"
+      }
+    },
+    "subjectTransport": "flight",
+    "rootLayout": true,
+    "nestedLayout": true,
+    "rootProvider": true,
+    "nestedProvider": true,
+    "providerContext": null,
+    "clientReference": true,
+    "robotsNoIndex": false,
+    "forbiddenDigest": false,
+    "unauthorizedDigest": false,
+    "after": "following-unauthorized-flight"
+  }
+]

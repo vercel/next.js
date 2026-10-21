@@ -1,0 +1,3 @@
+globalThis.__ws2RuntimeLeafRoot=(globalThis.__ws2RuntimeLeafRoot||0)+1
+const evaluation=globalThis.__ws2RuntimeLeafRoot
+module.exports={default:{inner:'authored-default'},evaluation,marker:{},read(value){return [evaluation,this.evaluation??null,value]}}

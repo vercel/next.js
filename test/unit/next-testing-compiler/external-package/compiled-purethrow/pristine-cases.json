@@ -1,0 +1,22 @@
+[
+  {
+    "name": "pure throw compiled sync runtime factories retry with exact causes",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "pure throw compiled immediate async factories retry independently",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "pure throw held factories share pending original fallback and retry failures",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "unused pure throw registration and unregistration evaluates nothing",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

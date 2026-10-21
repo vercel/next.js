@@ -1,0 +1,19 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_UNMOCK_ONLY",
+    "value": {
+      "cjsCalls": 0,
+      "esmCalls": 0,
+      "activeCalls": 0,
+      "common": 19,
+      "esm": 37,
+      "commonIdentity": true,
+      "esmIdentity": true,
+      "commonTag": "Module",
+      "commonKeys": ["default", "fn", "object", "value"],
+      "esmTag": "Module",
+      "esmKeys": ["default", "value"]
+    }
+  }
+]

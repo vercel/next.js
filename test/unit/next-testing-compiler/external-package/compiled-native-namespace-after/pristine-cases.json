@@ -1,0 +1,7 @@
+[
+  {
+    "name": "retains exact native namespace across certified owners and compiled reset",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

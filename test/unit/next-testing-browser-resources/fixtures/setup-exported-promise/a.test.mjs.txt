@@ -1,0 +1,5 @@
+import {test,expect} from 'vitest'
+test('setup awaits module evaluation without awaiting its default Promise export',()=>{
+ expect(globalThis.__setupPromiseEvents).toEqual(['first-start','first-end','second'])
+ console.log('BROWSER_SETUP_PROMISE '+JSON.stringify({events:globalThis.__setupPromiseEvents,mode:process.env.NODE_ENV}))
+})

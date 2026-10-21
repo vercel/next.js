@@ -1,0 +1,477 @@
+{
+  "reference": {
+    "runner": "Vitest 5.0.4 Browser Mode",
+    "engine": "Chromium",
+    "provider": "@vitest/browser-playwright 5.0.4 with Playwright1.64.0"
+  },
+  "phases": {
+    "upload-development": {
+      "mode": "development",
+      "cases": [
+        {
+          "fullName": "uploads a browser File with exact binary bytes and native input events",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "uploads multiple browser Files without changing their order",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "uploads a project-relative path using the real file bytes",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "locator upload replaces and clears selection using the real file input",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "retains native file-input target failures",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "preserves Blob-backed File bytes while the browser owns the selected File identity",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "keeps prior native action rejections catchable and later interactions live",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "kind": "binary",
+            "selected": [
+              {
+                "name": "binary.dat",
+                "type": "application/octet-stream",
+                "size": 5,
+                "bytes": [0, 255, 1, 128, 65]
+              }
+            ],
+            "events": [
+              {
+                "type": "input",
+                "trusted": false,
+                "names": ["binary.dat"]
+              },
+              {
+                "type": "change",
+                "trusted": false,
+                "names": ["binary.dat"]
+              }
+            ],
+            "result": "undefined"
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "kind": "multiple",
+            "selected": [
+              {
+                "name": "first.txt",
+                "type": "text/plain",
+                "size": 5,
+                "bytes": [104, 101, 108, 108, 111]
+              },
+              {
+                "name": "second.txt",
+                "type": "text/plain",
+                "size": 6,
+                "bytes": [115, 101, 99, 111, 110, 100]
+              }
+            ],
+            "events": [
+              {
+                "type": "input",
+                "trusted": false,
+                "names": ["first.txt", "second.txt"]
+              },
+              {
+                "type": "change",
+                "trusted": false,
+                "names": ["first.txt", "second.txt"]
+              }
+            ],
+            "result": "undefined"
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "kind": "path",
+            "selected": [
+              {
+                "name": "upload-source.txt",
+                "type": "text/plain",
+                "size": 21,
+                "bytes": [
+                  112, 114, 111, 106, 101, 99, 116, 32, 117, 112, 108, 111, 97,
+                  100, 32, 98, 121, 116, 101, 115, 10
+                ]
+              }
+            ],
+            "events": [
+              {
+                "type": "input",
+                "trusted": true,
+                "names": ["upload-source.txt"]
+              },
+              {
+                "type": "change",
+                "trusted": true,
+                "names": ["upload-source.txt"]
+              }
+            ],
+            "result": "undefined"
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "kind": "replace-clear",
+            "first": [
+              {
+                "name": "one.txt",
+                "type": "text/plain",
+                "size": 3,
+                "bytes": [111, 110, 101]
+              }
+            ],
+            "second": [
+              {
+                "name": "two.txt",
+                "type": "text/plain",
+                "size": 3,
+                "bytes": [116, 119, 111]
+              }
+            ],
+            "empty": [],
+            "events": [
+              {
+                "type": "input",
+                "trusted": false,
+                "names": ["one.txt"]
+              },
+              {
+                "type": "change",
+                "trusted": false,
+                "names": ["one.txt"]
+              },
+              {
+                "type": "input",
+                "trusted": false,
+                "names": ["two.txt"]
+              },
+              {
+                "type": "change",
+                "trusted": false,
+                "names": ["two.txt"]
+              },
+              {
+                "type": "input",
+                "trusted": false,
+                "names": []
+              },
+              {
+                "type": "change",
+                "trusted": false,
+                "names": []
+              }
+            ]
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "kind": "invalid-target",
+            "nativeFailure": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "kind": "blob-identity",
+            "selected": [
+              {
+                "name": "unicode.txt",
+                "type": "text/plain",
+                "size": 11,
+                "bytes": [115, 110, 111, 119, 109, 97, 110, 32, 226, 152, 131]
+              }
+            ],
+            "identity": {
+              "sameOriginal": false,
+              "file": true,
+              "blob": true
+            },
+            "events": [
+              {
+                "type": "input",
+                "trusted": false,
+                "names": ["unicode.txt"]
+              },
+              {
+                "type": "change",
+                "trusted": false,
+                "names": ["unicode.txt"]
+              }
+            ]
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "kind": "action-rejections",
+            "fillCaught": true,
+            "clickCaught": true,
+            "laterClicks": 1
+          }
+        }
+      ]
+    },
+    "upload-production": {
+      "mode": "production",
+      "cases": [
+        {
+          "fullName": "uploads a browser File with exact binary bytes and native input events",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "uploads multiple browser Files without changing their order",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "uploads a project-relative path using the real file bytes",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "locator upload replaces and clears selection using the real file input",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "retains native file-input target failures",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "preserves Blob-backed File bytes while the browser owns the selected File identity",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "keeps prior native action rejections catchable and later interactions live",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "kind": "binary",
+            "selected": [
+              {
+                "name": "binary.dat",
+                "type": "application/octet-stream",
+                "size": 5,
+                "bytes": [0, 255, 1, 128, 65]
+              }
+            ],
+            "events": [
+              {
+                "type": "input",
+                "trusted": false,
+                "names": ["binary.dat"]
+              },
+              {
+                "type": "change",
+                "trusted": false,
+                "names": ["binary.dat"]
+              }
+            ],
+            "result": "undefined"
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "kind": "multiple",
+            "selected": [
+              {
+                "name": "first.txt",
+                "type": "text/plain",
+                "size": 5,
+                "bytes": [104, 101, 108, 108, 111]
+              },
+              {
+                "name": "second.txt",
+                "type": "text/plain",
+                "size": 6,
+                "bytes": [115, 101, 99, 111, 110, 100]
+              }
+            ],
+            "events": [
+              {
+                "type": "input",
+                "trusted": false,
+                "names": ["first.txt", "second.txt"]
+              },
+              {
+                "type": "change",
+                "trusted": false,
+                "names": ["first.txt", "second.txt"]
+              }
+            ],
+            "result": "undefined"
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "kind": "path",
+            "selected": [
+              {
+                "name": "upload-source.txt",
+                "type": "text/plain",
+                "size": 21,
+                "bytes": [
+                  112, 114, 111, 106, 101, 99, 116, 32, 117, 112, 108, 111, 97,
+                  100, 32, 98, 121, 116, 101, 115, 10
+                ]
+              }
+            ],
+            "events": [
+              {
+                "type": "input",
+                "trusted": true,
+                "names": ["upload-source.txt"]
+              },
+              {
+                "type": "change",
+                "trusted": true,
+                "names": ["upload-source.txt"]
+              }
+            ],
+            "result": "undefined"
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "kind": "replace-clear",
+            "first": [
+              {
+                "name": "one.txt",
+                "type": "text/plain",
+                "size": 3,
+                "bytes": [111, 110, 101]
+              }
+            ],
+            "second": [
+              {
+                "name": "two.txt",
+                "type": "text/plain",
+                "size": 3,
+                "bytes": [116, 119, 111]
+              }
+            ],
+            "empty": [],
+            "events": [
+              {
+                "type": "input",
+                "trusted": false,
+                "names": ["one.txt"]
+              },
+              {
+                "type": "change",
+                "trusted": false,
+                "names": ["one.txt"]
+              },
+              {
+                "type": "input",
+                "trusted": false,
+                "names": ["two.txt"]
+              },
+              {
+                "type": "change",
+                "trusted": false,
+                "names": ["two.txt"]
+              },
+              {
+                "type": "input",
+                "trusted": false,
+                "names": []
+              },
+              {
+                "type": "change",
+                "trusted": false,
+                "names": []
+              }
+            ]
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "kind": "invalid-target",
+            "nativeFailure": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "kind": "blob-identity",
+            "selected": [
+              {
+                "name": "unicode.txt",
+                "type": "text/plain",
+                "size": 11,
+                "bytes": [115, 110, 111, 119, 109, 97, 110, 32, 226, 152, 131]
+              }
+            ],
+            "identity": {
+              "sameOriginal": false,
+              "file": true,
+              "blob": true
+            },
+            "events": [
+              {
+                "type": "input",
+                "trusted": false,
+                "names": ["unicode.txt"]
+              },
+              {
+                "type": "change",
+                "trusted": false,
+                "names": ["unicode.txt"]
+              }
+            ]
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "kind": "action-rejections",
+            "fillCaught": true,
+            "clickCaught": true,
+            "laterClicks": 1
+          }
+        }
+      ]
+    }
+  }
+}

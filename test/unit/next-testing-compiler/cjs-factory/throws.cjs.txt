@@ -1,0 +1,3 @@
+globalThis.__ws2FactoryThrowEvaluated = true
+exports.named = 'original'
+throw new Error('CJS factory original must remain unevaluated')

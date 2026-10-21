@@ -1,0 +1,21 @@
+import { afterEach, expect, test } from 'vitest'
+import { page } from 'vitest/browser'
+afterEach(() => { document.body.replaceChildren(); document.body.removeAttribute('style') })
+function settled(operation){try{return Promise.resolve(operation()).then(value=>({returnedUndefined:value===undefined}),error=>({error:{name:error.name,message:error.message,stack:error.stack}}))}catch(error){return Promise.resolve({error:{name:error.name,message:error.message,stack:error.stack}})}}
+function button(label,left=200){const element=document.createElement('button');element.setAttribute('aria-label',label);element.textContent=label;element.style.cssText='position:absolute;left:'+left+'px;top:20px;width:80px;height:30px';document.body.append(element);return element}
+function trace(element){const events=[];for(const type of ['pointerover','pointerenter','mouseover','mouseenter','pointermove','mousemove','pointerout','pointerleave','mouseout','mouseleave'])element.addEventListener(type,event=>events.push({type:event.type,constructor:event.constructor.name,target:event.target===element,currentTarget:event.currentTarget===element,trusted:event.isTrusted,bubbles:event.bubbles,composed:event.composed,detail:event.detail,button:event.button,buttons:event.buttons,x:event.clientX,y:event.clientY}));return events}
+async function anchor(){document.body.style.cssText='margin:0;min-height:480px;position:relative';const element=button('Anchor',20);await page.getByRole('button',{name:'Anchor',exact:true}).click();return trace(element)}
+for(const duplicate of [false,true])test('hover '+(duplicate?'duplicate':'timeout')+' recovery',async()=>{
+ const anchorEvents=await anchor(),query=page.getByRole('button',{name:'Pending hover',exact:true}),pending=settled(()=>query.hover({timeout:60})),duplicateEvents=[]
+ await Promise.resolve();if(duplicate){duplicateEvents.push(trace(button('Pending hover',200)),trace(button('Pending hover',300)))}
+ const outcome=await pending,healthy=button('Healthy',400),events=trace(healthy),following=await settled(()=>page.getByRole('button',{name:'Healthy',exact:true}).hover({timeout:60}))
+ console.log('HOVER_CONTROL_RAW '+JSON.stringify({name:'hover '+(duplicate?'duplicate':'timeout')+' recovery',mode:process.env.NODE_ENV,outcome,following,events,anchorEvents,duplicateEvents}))
+ expect(outcome.error.message).toContain(duplicate?'strict mode violation':'Timeout 60ms exceeded');if(!duplicate)expect(outcome.error.name).toBe('TimeoutError');expect(following).toEqual({returnedUndefined:true});expect(events.some(event=>event.type==='mouseenter')).toBe(true);expect(events.every(event=>event.trusted&&event.target&&event.currentTarget)).toBe(true);expect(duplicateEvents.every(events=>events.length===0)).toBe(true)
+})
+for(const duplicate of [false,true])test('unhover '+(duplicate?'late duplicates':'never created')+' body action',async()=>{
+ const anchorEvents=await anchor(),query=page.getByRole('button',{name:'Ignored unhover',exact:true}),pending=settled(()=>query.unhover({timeout:60})),duplicateEvents=[]
+ await Promise.resolve();if(duplicate)duplicateEvents.push(trace(button('Ignored unhover',200)),trace(button('Ignored unhover',300)))
+ const outcome=await pending,healthy=button('Healthy',400),events=trace(healthy),following=await settled(()=>page.getByRole('button',{name:'Healthy',exact:true}).hover({timeout:60}))
+ console.log('HOVER_CONTROL_RAW '+JSON.stringify({name:'unhover '+(duplicate?'late duplicates':'never created')+' body action',mode:process.env.NODE_ENV,outcome,following,events,anchorEvents,duplicateEvents}))
+ expect(outcome).toEqual({returnedUndefined:true});expect(following).toEqual({returnedUndefined:true});expect(events.some(event=>event.type==='mouseenter')).toBe(true);expect(events.every(event=>event.trusted&&event.target&&event.currentTarget)).toBe(true);expect(duplicateEvents.every(events=>events.length===0)).toBe(true)
+})

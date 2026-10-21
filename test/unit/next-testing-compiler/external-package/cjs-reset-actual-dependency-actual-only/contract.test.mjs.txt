@@ -1,0 +1,14 @@
+import { test, expect, vi } from 'vitest'
+import { types } from 'node:util'
+function shape(namespace) {
+ return { nativeBrand: types.isModuleNamespaceObject(namespace), keys: Reflect.ownKeys(namespace).map(key => typeof key === 'symbol' ? String(key) : key), prototypeNull: Object.getPrototypeOf(namespace) === null, tag: namespace[Symbol.toStringTag] ?? null, extensible: Object.isExtensible(namespace), sealed: Object.isSealed(namespace), frozen: Object.isFrozen(namespace), descriptors: Reflect.ownKeys(namespace).map(key => { const d = Object.getOwnPropertyDescriptor(namespace,key); return { key: typeof key === 'symbol' ? String(key) : key, valueType: typeof d.value, get: typeof d.get, set: typeof d.set, writable: d.writable ?? null, enumerable: d.enumerable, configurable: d.configurable } }) }
+}
+test('matches helper-only CommonJS actual cache generations',async()=>{
+ vi.resetModules()
+ const first=await vi.importActual('./root.cjs');const cached=await vi.importActual('./root.cjs')
+ vi.resetModules();const second=await vi.importActual('./root.cjs')
+ vi.resetModules();const third=await vi.importActual('./root.cjs')
+ const namespaces=[first,cached,second,third];const roots=namespaces.map(value=>value.default)
+ console.log('WS2_CJS_ACTUAL_RESET:'+JSON.stringify({namespaceShapes:namespaces.map(shape),rootShapes:roots.map(shape),dependencyShapes:roots.map(value=>shape(value.dependency)),namespaceIdentities:[first===cached,first===second,second===third],rootIdentities:[roots[0]===roots[1],roots[0]===roots[2],roots[2]===roots[3]],dependencyIdentities:roots.map(value=>value.dependency===roots[0].dependency),rootValues:roots.map(value=>value.evaluation),dependencyValues:roots.map(value=>value.dependency.evaluation),calls:roots.map(value=>typeof value==='function'?value('held'):value.read()),counts:[globalThis.__ws2CjsDependencyRoot??globalThis.__ws2CallableRoot,globalThis.__ws2CjsDependencyLeaf??globalThis.__ws2CallableDependency]}))
+ expect(first).toBe(cached)
+})

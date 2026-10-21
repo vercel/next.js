@@ -1,0 +1,14 @@
+import {test,expect} from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
+test('second',async({signal})=>{
+ const marker=path.join(process.cwd(),'first-module-closed.txt')
+ await new Promise((resolve,reject)=>{
+  let observer
+  const finish=(error)=>{observer?.close();signal.removeEventListener('abort',cancel);error?reject(error):resolve()}
+  const cancel=()=>finish(signal.reason)
+  const inspect=()=>{try{if(fs.readFileSync(marker,'utf8')==='released')finish()}catch(error){if(error.code!=='ENOENT')finish(error)}}
+  observer=fs.watch(process.cwd(),inspect);signal.addEventListener('abort',cancel,{once:true});inspect();if(signal.aborted)cancel()
+ })
+ expect(fs.readFileSync(marker,'utf8')).toBe('released')
+})

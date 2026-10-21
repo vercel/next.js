@@ -1,0 +1,201 @@
+{
+  "file": "/private/tmp/next-testing-parallel-20261019/coverage-jsx-return168/.next-test-jsx170-private02-logical-production/subject.tsx",
+  "model": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-jsx-return168/.next-test-jsx170-private02-logical-production/subject.tsx",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 5,
+          "column": 2
+        },
+        "end": {
+          "line": 14,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "Multiline",
+        "decl": {
+          "start": {
+            "line": 4,
+            "column": 16
+          },
+          "end": {
+            "line": 4,
+            "column": 25
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 4,
+            "column": 45
+          },
+          "end": {
+            "line": 15,
+            "column": null
+          }
+        },
+        "line": 4
+      }
+    },
+    "branchMap": {
+      "0": {
+        "loc": {
+          "start": {
+            "line": 7,
+            "column": 7
+          },
+          "end": {
+            "line": 11,
+            "column": 7
+          }
+        },
+        "type": "binary-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 7,
+              "column": 7
+            },
+            "end": {
+              "line": 7,
+              "column": 13
+            }
+          },
+          {
+            "start": {
+              "line": 8,
+              "column": 8
+            },
+            "end": {
+              "line": 10,
+              "column": null
+            }
+          }
+        ],
+        "line": 7
+      }
+    },
+    "s": {
+      "0": 0
+    },
+    "f": {
+      "0": 0
+    },
+    "b": {
+      "0": [0, 0]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 1,
+      "lastStatement": 1,
+      "seen": {
+        "f:4:16:4:25": 0,
+        "s:5:2:14:Infinity": 0,
+        "b:7:7:7:13:8:8:10:Infinity": 0
+      },
+      "fnNames": {}
+    }
+  },
+  "observed": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-jsx-return168/.next-test-jsx170-private02-logical-production/subject.tsx",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 5,
+          "column": 2
+        },
+        "end": {
+          "line": 13,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "Multiline",
+        "decl": {
+          "start": {
+            "line": 4,
+            "column": 16
+          },
+          "end": {
+            "line": 4,
+            "column": 26
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 4,
+            "column": 43
+          },
+          "end": {
+            "line": 15,
+            "column": null
+          }
+        },
+        "line": 4
+      }
+    },
+    "branchMap": {
+      "0": {
+        "loc": {
+          "start": {
+            "line": 7,
+            "column": 7
+          },
+          "end": {
+            "line": 10,
+            "column": null
+          }
+        },
+        "type": "binary-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 7,
+              "column": 7
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          },
+          {
+            "start": {
+              "line": 8,
+              "column": 8
+            },
+            "end": {
+              "line": 10,
+              "column": null
+            }
+          }
+        ],
+        "line": 7
+      }
+    },
+    "s": {
+      "0": 2
+    },
+    "f": {
+      "0": 2
+    },
+    "b": {
+      "0": [2, 1]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 1,
+      "lastStatement": 1,
+      "seen": {
+        "f:4:16:4:26": 0,
+        "s:5:2:13:Infinity": 0,
+        "b:7:7:7:Infinity:8:8:10:Infinity": 0
+      },
+      "fnNames": {}
+    }
+  }
+}

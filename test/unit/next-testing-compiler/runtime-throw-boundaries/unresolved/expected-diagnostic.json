@@ -1,0 +1,3 @@
+{
+  "includes": "Runtime mock target must resolve to one native ESM module"
+}

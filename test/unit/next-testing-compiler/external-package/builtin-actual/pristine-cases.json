@@ -1,0 +1,17 @@
+[
+  {
+    "name": "shares literal builtin actual namespaces with native lazy originals",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "shares unmocked bare builtin static dynamic and actual namespaces",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "shares unmocked prefixed builtin namespaces with literal actual helpers",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

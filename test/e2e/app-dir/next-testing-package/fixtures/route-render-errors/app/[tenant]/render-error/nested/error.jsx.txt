@@ -1,0 +1,2 @@
+'use client'
+export default function NestedErrorBoundary({ error }) { return <p data-render-error-boundary="nested" data-error-digest={error.digest}>{error.message}</p> }

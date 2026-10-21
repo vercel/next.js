@@ -1,0 +1,12 @@
+[
+  {
+    "name": "compiled CommonJS runtime registration initializes ownership without authored reset",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "compiled CommonJS runtime unused target remains unevaluated without authored reset",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

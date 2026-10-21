@@ -1,0 +1,63 @@
+[
+  {
+    "stream": "stdout",
+    "value": {
+      "label": "object",
+      "keys": ["default", "value", "identity", "fn"],
+      "namespaceType": "object",
+      "nullPrototype": false,
+      "value": 42,
+      "defaultValue": 42,
+      "namedMock": true,
+      "defaultMock": true,
+      "linkedFunction": true,
+      "calls": [["first"], ["default"]],
+      "defaultCalls": [["first"], ["default"]],
+      "secondCalls": [],
+      "freshNamespace": true,
+      "sameMockFunction": false,
+      "originalMock": false,
+      "originalResult": 3,
+      "evaluations": 1
+    }
+  },
+  {
+    "stream": "stdout",
+    "value": {
+      "label": "esmodule",
+      "keys": ["__esModule", "default", "named"],
+      "namespaceType": "object",
+      "defaultType": "function",
+      "defaultMock": true,
+      "named": 17,
+      "calls": [[3], [4]],
+      "secondCalls": [],
+      "freshNamespace": true,
+      "sameMockFunction": false,
+      "result": "undefined"
+    }
+  },
+  {
+    "stream": "stdout",
+    "value": {
+      "label": "primitive",
+      "keys": ["default"],
+      "namespaceType": "object",
+      "defaultType": "number",
+      "value": 19,
+      "freshNamespace": true
+    }
+  },
+  {
+    "stream": "stdout",
+    "value": {
+      "label": "falsy",
+      "keys": ["default", "__esModule", "value"],
+      "defaultKeys": ["__esModule", "value"],
+      "marker": false,
+      "defaultMarker": false,
+      "value": 29,
+      "defaultValue": 29
+    }
+  }
+]

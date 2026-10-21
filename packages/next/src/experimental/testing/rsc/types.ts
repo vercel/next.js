@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react'
 import type { IncomingHttpHeaders } from 'http'
+import type { OutgoingHttpHeaders } from 'http'
 
 export interface ObservedClientReference {
   moduleId: string
@@ -50,7 +51,44 @@ export interface RscRenderResult extends ServerSubtreeObservation {
   model: unknown
 }
 
+export interface RscRouteRenderOptions extends RscRenderOptions {
+  /** Full document HTML or the normal App Router Flight response. */
+  format: 'html' | 'flight'
+}
+
+export interface RscRouteRenderResult {
+  body: string
+  status: number
+  headers: OutgoingHttpHeaders
+  contentType: string | undefined
+}
+
+export interface RscRouteStreamResponse {
+  readonly status: number
+  readonly headers: Readonly<
+    Record<string, string | number | readonly string[] | undefined>
+  >
+  readonly contentType: string | undefined
+}
+
+export type RscRouteStreamCompletion =
+  | { readonly status: 'completed' }
+  | { readonly status: 'aborted'; readonly reason: unknown }
+
+export interface RscRouteStreamResult {
+  readonly stream: ReadableStream<Uint8Array>
+  /** Actual first header commit, before the body or after() work completes. */
+  readonly response: Promise<RscRouteStreamResponse>
+  /** Consume or cancel the body; completion also joins request/after() cleanup. */
+  readonly completed: Promise<RscRouteStreamCompletion>
+  dispose(reason?: unknown): Promise<void>
+}
+
 export interface RscTesting {
+  renderRoute(options: RscRouteRenderOptions): Promise<RscRouteRenderResult>
+  renderRouteStream(
+    options: RscRouteRenderOptions
+  ): Promise<RscRouteStreamResult>
   render<Props extends {}>(
     Component: ComponentType<Props>,
     props: Props,

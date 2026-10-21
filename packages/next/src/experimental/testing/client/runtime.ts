@@ -1,4 +1,6 @@
-import { initializeTestFile } from '../runner'
+import { captureReporterTaskTree } from '../reporting/live-tasks'
+import { createReporterTaskUpdates } from '../reporting/task-updates'
+import { initializeTestFile, getConsoleTask } from '../runner'
 import { configureBrowserEnv } from './env'
 import { getFinalCaseResults } from '../reporting/final-cases'
 import { processError } from '../../../compiled/next-test-primitives/error'
@@ -8,6 +10,7 @@ import type { ClientConfiguration, ClientPayload } from './protocol'
 import {
   initializeBrowserContext,
   cleanupBrowserContext,
+  cleanupBrowserKeyboard,
 } from './browser-context'
 import { installClientConsole } from './console'
 import { getClientArtifactLocation } from './artifact-location'
@@ -24,7 +27,8 @@ export async function startClientTest(
     waitForImports(): Promise<void>
     dispose(): void
   },
-  getEnv?: () => Record<string, string | boolean | undefined>
+  getEnv?: () => Record<string, string | boolean | undefined>,
+  loadSetupModules?: () => unknown | Promise<unknown>
 ) {
   const configURL = new URL('config', location.href)
   const configResponse = await fetch(configURL, {
@@ -34,16 +38,35 @@ export async function startClientTest(
   if (!configResponse.ok) throw new Error('Browser Mode configuration failed.')
   const config = (await configResponse.json()) as ClientConfiguration
   if (
+    (config.captureTaskResults !== undefined &&
+      typeof config.captureTaskResults !== 'boolean') ||
     config.version !== 1 ||
     !config.ownerToken ||
     !config.authorization ||
     !/^[a-f0-9]{64}$/.test(config.sourceHash)
   )
     throw new Error('Invalid Browser Mode owner configuration.')
+  // processError mutates assertion values; logical facts reuse their attempt serialization.
+  const serializedErrors = config.captureTaskResults
+    ? new WeakMap<object, ReturnType<typeof processError>>()
+    : undefined
+  const taskUpdates = config.captureTaskResults
+    ? createReporterTaskUpdates({
+        onUpdate(update) {
+          return send({
+            type: 'task-update',
+            ...update,
+            caseResults: update.caseResults,
+          }).then(() => {})
+        },
+      })
+    : undefined
+  const realDateNow = Date.now.bind(Date)
   const realSetTimeout = globalThis.setTimeout.bind(globalThis)
   let terminalPublished = false
   let sequence = 0,
     queue: Promise<unknown> = Promise.resolve(),
+    nativeReply: Promise<void> | undefined,
     transportFailure: unknown
   const pendingFailures: unknown[] = []
   const failures = new Set<unknown>()
@@ -56,6 +79,62 @@ export async function startClientTest(
     ownerToken: config.ownerToken,
     sequence: sequence++,
   })
+  type ClientReply = {
+    value: unknown
+    actionError?: { name: string; message: string; stack?: string }
+    artifactError?: { key: string; value?: unknown }[]
+  }
+  function request(message: ClientPayload, body: () => string) {
+    const opened = queue.then(async () => {
+      // Observational updates share one FIFO slot while the native reply is pending.
+      const observational =
+        message.type === 'output' ||
+        (config.captureTaskResults === true && message.type === 'task-update')
+      if (!observational && nativeReply) await nativeReply
+      if (transportFailure) throw transportFailure
+      const response = await fetch(config.rpcURL, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          Authorization: config.authorization,
+          'Content-Type': 'application/json',
+        },
+        body: body(),
+      })
+      if (!response.ok) throw new Error('Browser Mode RPC failed.')
+      const reply = Promise.resolve(response.json())
+        .then((value) => {
+          if (value && typeof value === 'object' && 'error' in value)
+            throw new Error('Browser Mode RPC failed.')
+          return value as ClientReply
+        })
+        .catch((error) => {
+          transportFailure ??= error
+          throw error
+        })
+      // Header admission must never leave a started response body unobserved.
+      void reply.catch(() => {})
+      if (message.type === 'browser-command') {
+        const pending = reply.then(
+          () => {},
+          () => {}
+        )
+        nativeReply = pending
+        void pending.then(() => {
+          if (nativeReply === pending) nativeReply = undefined
+        })
+      }
+      return { reply }
+    })
+    queue = opened
+      .then(async ({ reply }) => {
+        if (message.type !== 'browser-command') await reply
+      })
+      .catch((error) => {
+        transportFailure ??= error
+      })
+    return opened.then(({ reply }) => reply)
+  }
   function send(message: Parameters<typeof payload>[0]): Promise<unknown> {
     const value = payload(message)
     let snapshot: { body: string } | { error: unknown }
@@ -64,51 +143,24 @@ export async function startClientTest(
     } catch (error) {
       snapshot = { error }
     }
-    const result = queue.then(async () => {
-      if (transportFailure) throw transportFailure
+    return request(message, () => {
       if ('error' in snapshot) throw snapshot.error
-      const response = await fetch(config.rpcURL, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: {
-          Authorization: config.authorization,
-          'Content-Type': 'application/json',
-        },
-        body: snapshot.body,
-      })
-      if (!response.ok) throw new Error('Browser Mode RPC failed.')
-      return (await response.json()).value
+      return snapshot.body
+    }).then((reply) => {
+      if (reply.actionError) {
+        const error = new Error(reply.actionError.message)
+        error.name = reply.actionError.name
+        if (reply.actionError.stack) error.stack = reply.actionError.stack
+        throw error
+      }
+      return reply.value
     })
-    queue = result.catch((error) => {
-      transportFailure ??= error
-    })
-    return result
   }
   function sendArtifact(
     message: Extract<ClientPayload, { type: 'artifact' }>
   ): Promise<TestArtifact> {
     const value = payload(message)
-    const result = queue.then(async () => {
-      if (transportFailure) throw transportFailure
-      const response = await fetch(config.rpcURL, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: {
-          Authorization: config.authorization,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(value),
-      })
-      if (!response.ok) throw new Error('Browser Mode RPC failed.')
-      return response.json() as Promise<{
-        value: TestArtifact
-        artifactError?: { key: string; value?: unknown }[]
-      }>
-    })
-    queue = result.catch((error) => {
-      transportFailure ??= error
-    })
-    return result.then((reply) => {
+    return request(message, () => JSON.stringify(value)).then((reply) => {
       if (reply.artifactError)
         throw Object.fromEntries(
           reply.artifactError.map(({ key, value: fieldValue }) => [
@@ -116,7 +168,7 @@ export async function startClientTest(
             fieldValue,
           ])
         )
-      return reply.value
+      return reply.value as TestArtifact
     })
   }
   function report(reason: unknown) {
@@ -157,7 +209,17 @@ export async function startClientTest(
     mapLocation: mapper.mapLocation,
   })
   const restoreConsole = installClientConsole(console, (stream, text) => {
-    void send({ type: 'output', stream, text }).catch(report)
+    void send({
+      type: 'output',
+      stream,
+      text,
+      time: realDateNow(),
+      console: {
+        taskId: getConsoleTask()?.taskId ?? '__vitest__unknown_test__',
+        size: text.length - 1,
+        browser: true,
+      },
+    }).catch(report)
   })
   try {
     try {
@@ -184,6 +246,7 @@ export async function startClientTest(
       await file.collect(async () => {
         browserContext.install()
         await moduleMocks?.register()
+        await loadSetupModules?.()
         return load()
       })
       const declarations = file.validateBrowserClient({
@@ -197,9 +260,12 @@ export async function startClientTest(
         allowOnly: config.allowOnly,
         retry: config.retry,
       })
-      await send({ type: 'collected', declarations })
+      if (!taskUpdates) await send({ type: 'collected', declarations })
       const runResult = await file.run({
         runId: config.runId,
+        ...(config.projectName === undefined
+          ? {}
+          : { projectName: config.projectName }),
         signal: new AbortController().signal,
         testTimeout: config.testTimeout,
         hookTimeout: config.hookTimeout,
@@ -212,6 +278,16 @@ export async function startClientTest(
               ),
         allowOnly: config.allowOnly,
         retry: config.retry,
+        onCollected: taskUpdates
+          ? async (actualFile) => {
+              await send({
+                type: 'collected',
+                declarations,
+                taskTree: captureReporterTaskTree(actualFile),
+              })
+              taskUpdates.collected(actualFile)
+            }
+          : undefined,
         onLateFailure: report,
         onUnhandledFailure: report,
         getArtifactLocation: (error) =>
@@ -232,7 +308,13 @@ export async function startClientTest(
             artifact,
           })
         },
+        async beginAttempt() {
+          await cleanupBrowserKeyboard()
+          // Held keys survive this attempt; the next attempt or file closes them.
+          return { async finalize() {}, async dispose() {} }
+        },
         onCaseStart(context) {
+          taskUpdates?.caseStart(context.testId)
           void send({
             type: 'case-start',
             context: {
@@ -250,14 +332,37 @@ export async function startClientTest(
             type: 'case-end',
             result: {
               ...result,
-              errors: result.errors.map((failure) => ({
-                ...failure,
-                error: processError(failure.error),
-              })),
+              errors: result.errors.map((failure) => {
+                const error = processError(failure.error)
+                if (failure.error && typeof failure.error === 'object')
+                  serializedErrors?.set(failure.error, error)
+                return { ...failure, error }
+              }),
             },
           }).catch(report)
         },
-        onSuiteEnd(result) {
+        onCaseResult: taskUpdates
+          ? (task, result) => {
+              // The real callback owns these immutable logical outcome facts;
+              // later task metadata packs have their separate actual identity.
+              const snapshot = JSON.parse(
+                JSON.stringify({
+                  ...result,
+                  errors: result.errors.map((failure) => ({
+                    ...failure,
+                    error:
+                      failure.error && typeof failure.error === 'object'
+                        ? (serializedErrors?.get(failure.error) ??
+                          processError(failure.error))
+                        : processError(failure.error),
+                  })),
+                })
+              )
+              taskUpdates.caseResult(task, snapshot)
+            }
+          : undefined,
+        onSuiteEnd(result, task) {
+          taskUpdates?.suiteEnd(task)
           void send({
             type: 'suite-end',
             result: {
@@ -286,7 +391,11 @@ export async function startClientTest(
       report(error)
     }
     for (const dispose of [
+      ...(taskUpdates
+        ? [() => taskUpdates.finish(), () => taskUpdates.dispose()]
+        : []),
       cleanupBrowserContext,
+      cleanupBrowserKeyboard,
       () => file?.dispose(),
       () => imports?.dispose(),
     ]) {
@@ -335,6 +444,7 @@ export async function startClientTest(
     // Keep error handlers installed until the parent closes this owned page. Any
     // terminal-after-output failure attempts another message and poisons transport.
   } finally {
+    taskUpdates?.dispose()
     restoreConsole()
   }
 }

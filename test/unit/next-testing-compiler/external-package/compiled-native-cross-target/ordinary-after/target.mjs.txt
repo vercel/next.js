@@ -1,0 +1,4 @@
+import * as ws2Native from 'node:cluster'
+import {token} from './peer.mjs';import {value} from './ordinary.mjs';globalThis.__ws2Cross??={};globalThis.__ws2Cross['ordinary-after-root']=(globalThis.__ws2Cross['ordinary-after-root']??0)+1;export {token,value};export function read(){return [token.count,value]}
+
+globalThis.__ws2NativeGraphs??={};globalThis.__ws2NativeGraphs['ordinary-after']={namespace:ws2Native,setup:ws2Native.setupPrimary};

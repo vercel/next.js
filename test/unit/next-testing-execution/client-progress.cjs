@@ -122,6 +122,7 @@ replace('./source-maps', {
   createClientSourceMapResolver: () => ({ mapLocation: (value) => value }),
 })
 replace('./browser-context', {
+  cleanupBrowserKeyboard() {},
   initializeBrowserContext: () => ({
     install() {},
     dispose() {

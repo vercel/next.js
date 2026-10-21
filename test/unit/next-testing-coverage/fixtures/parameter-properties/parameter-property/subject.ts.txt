@@ -1,0 +1,7 @@
+export class Counter {
+  constructor(public value: number, private step = 1) {}
+  add(active: boolean) {
+    if (active) return this.value + this.step
+    return this.value
+  }
+}

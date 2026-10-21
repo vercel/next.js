@@ -1,0 +1,267 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_NAMESPACE",
+    "value": {
+      "name": "reset",
+      "calls": [1, 1],
+      "before": {
+        "keys": [
+          "evaluation",
+          "value",
+          "bump",
+          "read",
+          "peerRead",
+          "peekRoot",
+          "Symbol(Symbol.toStringTag)"
+        ],
+        "prototypeNull": true,
+        "extensible": true,
+        "tag": "[object Module]",
+        "descriptors": [
+          [
+            "evaluation",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "value",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "bump",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "read",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "peerRead",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "peekRoot",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "Symbol(Symbol.toStringTag)",
+            {
+              "enumerable": false,
+              "configurable": false,
+              "writable": false,
+              "type": "string"
+            }
+          ]
+        ]
+      },
+      "heldShape": {
+        "keys": [
+          "evaluation",
+          "value",
+          "bump",
+          "read",
+          "peerRead",
+          "peekRoot",
+          "extra",
+          "Symbol(Symbol.toStringTag)"
+        ],
+        "prototypeNull": true,
+        "extensible": true,
+        "tag": "[object Module]",
+        "descriptors": [
+          [
+            "evaluation",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "value",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "bump",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "read",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "peerRead",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "peekRoot",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "extra",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "type": "string"
+            }
+          ],
+          [
+            "Symbol(Symbol.toStringTag)",
+            {
+              "enumerable": false,
+              "configurable": false,
+              "writable": false,
+              "type": "string"
+            }
+          ]
+        ]
+      },
+      "freshShape": {
+        "keys": [
+          "evaluation",
+          "value",
+          "bump",
+          "read",
+          "peerRead",
+          "peekRoot",
+          "Symbol(Symbol.toStringTag)"
+        ],
+        "prototypeNull": true,
+        "extensible": true,
+        "tag": "[object Module]",
+        "descriptors": [
+          [
+            "evaluation",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "value",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "bump",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "read",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "peerRead",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "peekRoot",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "Symbol(Symbol.toStringTag)",
+            {
+              "enumerable": false,
+              "configurable": false,
+              "writable": false,
+              "type": "string"
+            }
+          ]
+        ]
+      },
+      "redefine": true,
+      "add": true,
+      "cachedSame": true,
+      "freshDifferent": true,
+      "heldIdentity": true,
+      "freshIdentity": true,
+      "brands": [false, false],
+      "held": [99, 1, 1, 99],
+      "after": [99, 1, 1, 99, 0, 0, 0],
+      "evaluations": [1, 1, 2, 2, 2]
+    }
+  }
+]

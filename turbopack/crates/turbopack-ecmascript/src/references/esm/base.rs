@@ -24,7 +24,10 @@ use turbopack_core::{
     },
     loader::{ResolvedWebpackLoaderItem, WebpackLoaderItem},
     module::{Module, ModuleSideEffects},
-    module_graph::binding_usage_info::ModuleExportUsageInfo,
+    module_graph::{
+        binding_usage_info::ModuleExportUsageInfo,
+        runtime_import_demands::{RuntimeImportDemandEdge, RuntimeImportNativeEdge},
+    },
     reference::ModuleReference,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::{
@@ -809,15 +812,42 @@ impl EsmAssetReference {
         // References a compact re-export registration (`TURBOPACK_ESM_REEXPORT`) already imports
         // for itself. Emitting them here too would instantiate the module twice.
         subsumed_imports: &SubsumedImports,
+        runtime_demand: Option<&RuntimeImportDemandEdge>,
+        runtime_native: Option<&RuntimeImportNativeEdge>,
     ) -> Result<CodeGeneration> {
         let this = &*self.await?;
 
-        if chunking_context
-            .unused_references()
-            .contains_key(&ResolvedVc::upcast(self))
-            .await?
+        if runtime_demand.is_none()
+            && runtime_native.is_none()
+            && chunking_context
+                .unused_references()
+                .contains_key(&ResolvedVc::upcast(self))
+                .await?
         {
             return Ok(CodeGeneration::empty());
+        }
+
+        if let Some(demand) = runtime_demand
+            && demand.evaluation_only
+        {
+            let target =
+                ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(demand.target)
+                    .ok_or_else(|| {
+                        anyhow::anyhow!("Runtime import demand target is not ECMAScript")
+                    })?;
+            let id = target.chunk_item_id(chunking_context).await?;
+            let name = Ident::new(
+                format!("__turbopack_evaluation_demand_{}__", demand.site).into(),
+                DUMMY_SP,
+                SyntaxContext::empty(),
+            );
+            let mut result = vec![CodeGenerationHoistedStmt::new(
+                format!("runtime demand {}", demand.site).into(),
+                quote!("var $name = __turbopack_context__.D($site, $id);" as Stmt,
+                    name = name.clone(), site: Expr = Lit::Num((demand.site as usize).into()).into(), id: Expr = module_id_to_lit(&id)),
+            )];
+            result.extend(ordered_demand_wait(name, demand.site));
+            return Ok(CodeGeneration::hoisted_stmts(result));
         }
 
         // only chunked references can be imported
@@ -939,6 +969,14 @@ impl EsmAssetReference {
                                                 .await?;
                                     let (key, mut call_expr) = match import_source {
                                         ImportSource::Module { asset } => {
+                                            if let Some(native) = runtime_native {
+                                                anyhow::ensure!(
+                                                    ResolvedVc::upcast::<Box<dyn Module>>(asset)
+                                                        == native.target,
+                                                    "Ordered native import must retain its actual \
+                                                     generated clone"
+                                                );
+                                            }
                                             let id = asset.chunk_item_id(chunking_context).await?;
                                             // Include ctxt in the key to prevent incorrect
                                             // deduplication when multiple merged modules import the
@@ -946,11 +984,25 @@ impl EsmAssetReference {
                                             // would cause hygiene to rename one of them).
                                             (
                                                 format!("{} {:?}", id, ctxt).into(),
-                                                quote!(
-                                                    "$turbopack_import($id)" as Expr,
-                                                    turbopack_import: Expr = TURBOPACK_IMPORT.into(),
-                                                    id: Expr = module_id_to_lit(&id),
-                                                ),
+                                                if let Some(demand) = runtime_demand {
+                                                    if ResolvedVc::upcast::<Box<dyn Module>>(asset)
+                                                        != demand.target
+                                                    {
+                                                        bail!(
+                                                            "Runtime import demand does not match \
+                                                             its actual generated target"
+                                                        );
+                                                    }
+                                                    quote!("__turbopack_context__.D($site, $id)" as Expr,
+                                                        site: Expr = Lit::Num((demand.site as usize).into()).into(),
+                                                        id: Expr = module_id_to_lit(&id))
+                                                } else {
+                                                    quote!(
+                                                        "$turbopack_import($id)" as Expr,
+                                                        turbopack_import: Expr = TURBOPACK_IMPORT.into(),
+                                                        id: Expr = module_id_to_lit(&id),
+                                                    )
+                                                },
                                             )
                                         }
                                         ImportSource::External {
@@ -1016,7 +1068,10 @@ impl EsmAssetReference {
                                             )
                                         }
                                     };
-                                    if this.is_pure_import {
+                                    if this.is_pure_import
+                                        && runtime_demand.is_none()
+                                        && runtime_native.is_none()
+                                    {
                                         call_expr.set_span(PURE_SP);
                                     }
                                     let native_role =
@@ -1029,7 +1084,7 @@ impl EsmAssetReference {
                                         var_decl_with_span(
                                             quote!(
                                                 "var $name = $call;" as Stmt,
-                                                name = name,
+                                                name = name.clone(),
                                                 call: Expr = call_expr
                                             ),
                                             span,
@@ -1037,6 +1092,14 @@ impl EsmAssetReference {
                                     );
                                     statement.native_import_coverage = native_role;
                                     result.push(statement);
+                                    if let Some(demand) = runtime_demand {
+                                        result
+                                            .extend(ordered_demand_wait(name.clone(), demand.site));
+                                    }
+                                    if let Some(native) = runtime_native {
+                                        result
+                                            .extend(ordered_native_wait(name, native.source_order));
+                                    }
                                 }
                                 None => {
                                     // Nothing to import.
@@ -1051,6 +1114,42 @@ impl EsmAssetReference {
 
         Ok(CodeGeneration::empty())
     }
+}
+
+fn ordered_native_wait(name: Ident, source_order: u32) -> [CodeGenerationHoistedStmt; 1] {
+    // An earlier real Part subscription may already retain this provider's queue.
+    // Its actual Promise must still settle before the next authored D readsite;
+    // reusing the module-wide dependency handler would deduplicate this new wait.
+    [CodeGenerationHoistedStmt::new(
+        format!("native import {source_order} await").into(),
+        quote!("$name = await $name;" as Stmt, name = name),
+    )]
+}
+
+fn ordered_demand_wait(name: Ident, site: u32) -> [CodeGenerationHoistedStmt; 2] {
+    let dependency = Ident::new(
+        format!("__turbopack_ordered_dependency_{site}__").into(),
+        DUMMY_SP,
+        SyntaxContext::empty(),
+    );
+    [
+        CodeGenerationHoistedStmt::new(
+            format!("runtime demand {site} dependency").into(),
+            quote!(
+                "var $dependency = __turbopack_handle_async_dependencies__([$name]);" as Stmt,
+                dependency = dependency.clone(),
+                name = name.clone()
+            ),
+        ),
+        CodeGenerationHoistedStmt::new(
+            format!("runtime demand {site} await").into(),
+            quote!(
+                "[$name] = $dependency.then ? (await $dependency)() : $dependency;" as Stmt,
+                name = name,
+                dependency = dependency
+            ),
+        ),
+    ]
 }
 
 fn var_decl_with_span(mut decl: Stmt, span: Span) -> Stmt {

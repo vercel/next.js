@@ -6,7 +6,11 @@ import { createCompiledFileCache } from '../request/compiled-file-cache'
 import { createCompiledRequestResources } from '../request/compiled-request'
 import { createRequestLifecycle } from '../request/request-lifecycle'
 import { runWithRenderRequest } from '../request/request-context'
-import { resolveCompiledRouteRequest, validateCompiledTestRoute } from './route'
+import {
+  createCompiledRouteRenderParams,
+  resolveCompiledRouteRequest,
+  validateCompiledTestRoute,
+} from './route'
 import type { CompiledRscTestArtifact } from '../contracts'
 import { createServerParamsForServerSegment } from '../../../server/request/params'
 import { renderServerComponent } from './render'
@@ -15,8 +19,26 @@ import {
   RenderRequestCleanupError,
 } from './render-request'
 import type { ClientReferenceObserver } from './client-references'
-import type { RscRenderOptions, RscRenderResult, RscTesting } from './types'
-export type { RscRenderOptions, RscRenderResult } from './types'
+import { renderCompiledRoute } from './route-render'
+import type { AppPageModule } from '../../../server/route-modules/app-page/module'
+import type { RenderOpts } from '../../../server/app-render/types'
+import type {
+  RscRenderOptions,
+  RscRenderResult,
+  RscRouteRenderOptions,
+  RscRouteRenderResult,
+  RscRouteStreamResult,
+  RscTesting,
+} from './types'
+export type {
+  RscRenderOptions,
+  RscRenderResult,
+  RscRouteRenderOptions,
+  RscRouteRenderResult,
+  RscRouteStreamResponse,
+  RscRouteStreamCompletion,
+  RscRouteStreamResult,
+} from './types'
 
 type RenderAttempt = {
   signal: AbortSignal
@@ -38,6 +60,11 @@ export interface RscTestingBindings {
   cacheScope?: { type: 'file'; directory: string }
   previewPropsPath?: string
   prerenderManifestPath?: string
+  /** Live compiler-owned module identity; never reconstructed from route JSON. */
+  routeRendering?: Pick<
+    RenderOpts,
+    'buildManifest' | 'nextFontManifest' | 'reactLoadableManifest'
+  > & { ComponentMod: AppPageModule }
   getActiveAttempt(): RenderAttempt | undefined
 }
 
@@ -102,11 +129,10 @@ async function render<Props extends {}>(
     (profile.mode !== 'development' && profile.mode !== 'production') ||
     profile.environment !== 'rsc' ||
     profile.runtime !== 'nodejs' ||
-    profile.bundler !== 'turbopack' ||
-    (profile.route !== undefined && profile.mode !== 'development')
+    profile.bundler !== 'turbopack'
   ) {
     throw new Error(
-      'RSC rendering currently supports only route-less Turbopack Node RSC subtrees.'
+      'RSC rendering requires development or production Turbopack Node RSC subtree profiles.'
     )
   }
   if (profile.route !== undefined)
@@ -141,12 +167,17 @@ async function render<Props extends {}>(
   const url = new URL(options.url)
   const headers = options.headers ?? {}
   const routeRequest = bindings.route
-    ? await resolveCompiledRouteRequest(
+    ? createCompiledRouteRenderParams(
         bindings.route,
-        url,
-        (props as { params?: unknown }).params,
-        options.rootParams,
-        attempt.signal
+        (
+          await resolveCompiledRouteRequest(
+            bindings.route,
+            url,
+            (props as { params?: unknown }).params,
+            options.rootParams,
+            attempt.signal
+          )
+        ).params
       )
     : undefined
   const fileCache = (state.fileCache ??= createCompiledFileCache(
@@ -246,4 +277,76 @@ async function render<Props extends {}>(
   }
 }
 
-export const rsc: RscTesting = { render }
+function routeInvocation() {
+  const state = active
+  if (!state) {
+    validateDisposedScope?.()
+    throw new Error('RSC rendering requires an emitted Next test entry.')
+  }
+  const attempt = state.bindings.getActiveAttempt()
+  if (!attempt)
+    throw new Error('RSC rendering requires an active test attempt.')
+  return {
+    bindings: state.bindings,
+    attempt,
+    getFileCache: () => {
+      const bindings = state.bindings
+      if (
+        !bindings.cacheScope ||
+        !bindings.previewPropsPath ||
+        !bindings.prerenderManifestPath
+      ) {
+        throw new Error(
+          'Full route rendering requires an owned file cache and actual request manifests.'
+        )
+      }
+      return (state.fileCache ??= createCompiledFileCache(
+        bindings.requestContext,
+        {
+          cacheScope: bindings.cacheScope,
+          previewPropsPath: bindings.previewPropsPath,
+          prerenderManifestPath: bindings.prerenderManifestPath,
+        }
+      ))
+    },
+    validateOwner: () => {
+      if (!state.bindings.getActiveAttempt()) {
+        throw new Error('RSC rendering requires an active test attempt.')
+      }
+      if (active !== state) {
+        throw new Error(
+          'The RSC test lifetime ended while creating its route request.'
+        )
+      }
+    },
+  }
+}
+
+async function renderRoute(
+  options: RscRouteRenderOptions
+): Promise<RscRouteRenderResult> {
+  const invocation = routeInvocation()
+  return renderCompiledRoute(
+    invocation.bindings,
+    invocation.attempt,
+    options,
+    invocation.getFileCache,
+    invocation.validateOwner
+  )
+}
+
+async function renderRouteStream(
+  options: RscRouteRenderOptions
+): Promise<RscRouteStreamResult> {
+  const invocation = routeInvocation()
+  return renderCompiledRoute(
+    invocation.bindings,
+    invocation.attempt,
+    options,
+    invocation.getFileCache,
+    invocation.validateOwner,
+    true
+  )
+}
+
+export const rsc: RscTesting = { render, renderRoute, renderRouteStream }

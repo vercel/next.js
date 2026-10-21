@@ -1,0 +1,11 @@
+import{test,expect,vi}from'vitest'
+vi.mock('ws2-genuine-external',()=>({value:73,default:{value:11},label:'mocked-cjs'}))
+vi.mock('ws2-genuine-external-original',async(importOriginal)=>{const first=await importOriginal();const second=await importOriginal();return {value:first.value+1,info:{value:first.value,defaultValue:first.default.value,fnType:typeof first.fn,tag:first[Symbol.toStringTag]??null,keys:Object.keys(first),same:first===second,objectIdentity:first.object===first.default.object}}})
+vi.mock('ws2-genuine-external-esm',async(importOriginal)=>{const first=await importOriginal();const second=await importOriginal();return {value:first.value+1,info:{value:first.value,defaultValue:first.default.value,tag:first[Symbol.toStringTag]??null,keys:Object.keys(first),same:first===second}}})
+import*as common from'ws2-genuine-external'
+import{value as actualValue,info as actualInfo}from'ws2-genuine-external-original'
+import{value as esmValue,info as esmInfo}from'ws2-genuine-external-esm'
+function row(value){console.log('WS2_EXTERNAL_RAW:'+JSON.stringify(value))}
+test('supplies an explicit real external CommonJS package factory',async()=>{const dynamic=await import('ws2-genuine-external');const helper=await vi.importMock('ws2-genuine-external');row({name:'external-cjs',value:common.value,defaultValue:common.default.value,label:common.label,namespaceIdentity:common===dynamic,helperIdentity:helper===common,defaultIdentity:helper.default===common.default,keys:Object.keys(common)});expect(common.value).toBe(73)})
+test('loads a real external CommonJS original through the lazy native graph',()=>{row({name:'external-original',value:actualValue,info:actualInfo});expect(actualValue).toBe(20)})
+test('loads a real external ESM original through the lazy native graph',()=>{row({name:'external-esm',value:esmValue,info:esmInfo});expect(esmValue).toBe(38)})

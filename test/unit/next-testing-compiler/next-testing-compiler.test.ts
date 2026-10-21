@@ -43,6 +43,8 @@ import { tmpdir } from 'os'
 import { createTestCompilerSession } from 'next/dist/experimental/testing/compiler'
 import { createDevTurbopackProject } from 'next/dist/build/swc/dev-project'
 import { Lockfile } from 'next/dist/build/lockfile'
+import { createCompiledRouteRenderOpts } from 'next/dist/experimental/testing/compiler/route-render'
+import { serialize, deserialize } from 'v8'
 
 jest.mock('next/dist/build/swc', () => ({
   loadBindings: async () => ({ isWasm: false }),
@@ -59,6 +61,7 @@ let mockCacheComponents = true
 jest.mock('next/dist/server/config', () => ({
   __esModule: true,
   default: async () => ({
+    ...jest.requireActual('next/dist/server/config-shared').defaultConfig,
     distDir: '.next/dev',
     cacheComponents: mockCacheComponents,
     cacheMaxMemorySize: 123456,
@@ -68,6 +71,8 @@ jest.mock('next/dist/server/config', () => ({
     assetPrefix: '/assets',
     deploymentId: 'test-deployment',
     experimental: {
+      ...jest.requireActual('next/dist/server/config-shared').defaultConfig
+        .experimental,
       instantInsights: { validationLevel: 'none' },
       lockDistDir: true,
       allowedRevalidateHeaderKeys: ['x-test-revalidate'],
@@ -119,6 +124,8 @@ describe('test compiler artifact publication', () => {
   }[] = []
   let linkOutput: boolean
   let nativeSourceIdentity: string | undefined
+  let externalLayout: unknown
+  let externalFiles: Record<string, string>
   let beforeEmit: () => Promise<void>
   const shutdown = jest.fn(async () => {})
   const previousNodeEnv = process.env.NODE_ENV
@@ -144,6 +151,8 @@ describe('test compiler artifact publication', () => {
     mockMetadata = undefined
     linkOutput = false
     nativeSourceIdentity = undefined
+    externalLayout = undefined
+    externalFiles = {}
     cohortMetadata = undefined
     cohortRequests.length = 0
     runtimeEnvRequests.length = 0
@@ -188,6 +197,13 @@ describe('test compiler artifact publication', () => {
                     ? [
                         `server/app/__next_test__/${id}/page_client-reference-manifest.js`,
                         `server/app/__next_test__/${id}/page/server-reference-manifest.json`,
+                        ...(route
+                          ? [
+                              `server/app/__next_test__/${id}/page/build-manifest.json`,
+                              `server/app/__next_test__/${id}/page/next-font-manifest.json`,
+                              `server/app/__next_test__/${id}/page/react-loadable-manifest.json`,
+                            ]
+                          : []),
                         'static/client.js',
                       ]
                     : []),
@@ -287,6 +303,16 @@ describe('test compiler artifact publication', () => {
                     join(dir, '.next', directory, entryPath)
                   )
                 }
+                if (externalLayout !== undefined) {
+                  const path = `server/next-test/${id}.external-layout.json`
+                  externalFiles[path] = JSON.stringify(externalLayout)
+                }
+                for (const [path, contents] of Object.entries(externalFiles)) {
+                  const target = join(dir, '.next', directory, path)
+                  await mkdir(dirname(target), { recursive: true })
+                  await writeFile(target, contents)
+                  paths.push(path)
+                }
                 return {
                   value: {
                     type: 'nodejs',
@@ -353,6 +379,11 @@ describe('test compiler artifact publication', () => {
     })
     expect(artifact.files).toContain(artifact.route!.metadataPath)
     expect(artifact.manifests.clientReference).toContain(artifact.manifestPage)
+    for (const key of ['routeBuild', 'routeFont', 'routeLoadable'] as const) {
+      expect(artifact.manifests[key]).toContain(artifact.manifestPage)
+      expect(artifact.files).toContain(artifact.manifests[key])
+    }
+    expect(artifact.requestContext?.routeRenderOpts?.basePath).toBe('')
   })
 
   it.each([
@@ -693,6 +724,191 @@ describe('test compiler artifact publication', () => {
     expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
   })
 
+  function externalFixture() {
+    const directories = ['a', 'b', 'c', 'd'].map(
+      (id) => `node_modules/.next-test-external/${id.repeat(16)}`
+    )
+    const [root, left, right, shared] = directories
+    const links = [
+      { path: 'node_modules/root-0123456789abcdef', target: root },
+      { path: 'node_modules/@scope/root-fedcba9876543210', target: root },
+      { path: `${root}/node_modules/left`, target: left },
+      { path: `${root}/node_modules/right`, target: right },
+      { path: `${left}/node_modules/@scope/shared`, target: shared },
+      { path: `${right}/node_modules/@scope/shared`, target: shared },
+      { path: `${shared}/node_modules/root`, target: root },
+    ].sort((a, b) => (a.path < b.path ? -1 : 1))
+    externalFiles = Object.fromEntries(
+      directories.flatMap((directory, index) => [
+        [`${directory}/package.json`, '{"main":"index.cjs"}'],
+        [
+          `${directory}/index.cjs`,
+          [
+            "const self = module.exports = {name:'root'}; self.left = require('left'); self.right = require('right')",
+            "module.exports = {shared:require('@scope/shared')}",
+            "module.exports = {shared:require('@scope/shared')}",
+            "const self = module.exports = {name:'shared'}; self.root = require('root')",
+          ][index],
+        ],
+      ])
+    )
+    return { version: 1, kind: 'node-external-layout', directories, links }
+  }
+
+  it('publishes scoped aliases, diamond dependencies and cycles with one native module identity', async () => {
+    externalLayout = externalFixture()
+    const nodeProfile = { ...profile, environment: 'node' as const }
+    session = await createTestCompilerSession(dir, nodeProfile)
+    const artifact = await session.compile(
+      { ...entry(), profile: nodeProfile },
+      { signal: new AbortController().signal }
+    )
+    const result = require('node:child_process').spawnSync(
+      process.execPath,
+      [
+        '-e',
+        `const assert = require('node:assert/strict');
+         const {createRequire} = require('node:module');
+         const {join} = require('node:path');
+         const {pathToFileURL} = require('node:url');
+         const load = createRequire(join(process.cwd(), 'entry.cjs'));
+         const a = load('root-0123456789abcdef');
+         assert.equal(load('@scope/root-fedcba9876543210'), a);
+         assert.equal(a.left.shared, a.right.shared);
+         assert.equal(a.left.shared.root, a);
+         import(pathToFileURL(load.resolve('@scope/root-fedcba9876543210')).href)
+           .then(namespace => { assert.equal(namespace.default, a); console.log('shared-native-identity') })
+           .catch(error => { console.error(error); process.exitCode = 1 });`,
+      ],
+      { cwd: artifact.rootDir, encoding: 'utf8', timeout: 20_000 }
+    )
+    expect(result.error).toBeUndefined()
+    expect(result.signal).toBeNull()
+    expect(result.stderr).toBe('')
+    expect(result.status).toBe(0)
+    expect(result.stdout.trim()).toBe('shared-native-identity')
+    expect(artifact.files).toContainEqual(
+      expect.stringMatching(/\.external-layout\.json$/)
+    )
+    await session.dispose()
+    await expect(readdir(artifact.rootDir)).rejects.toMatchObject({
+      code: 'ENOENT',
+    })
+  })
+
+  it('leaves emitted package files untouched when no external layout is present', async () => {
+    externalFixture()
+    const nodeProfile = { ...profile, environment: 'node' as const }
+    session = await createTestCompilerSession(dir, nodeProfile)
+    const artifact = await session.compile(
+      { ...entry(), profile: nodeProfile },
+      { signal: new AbortController().signal }
+    )
+    expect(await readdir(join(artifact.rootDir, 'node_modules'))).toEqual([
+      '.next-test-external',
+    ])
+  })
+
+  it('rolls back its created links when a later link cannot be materialized', async () => {
+    const {
+      materializeExternalLayout,
+    } = require('next/dist/experimental/testing/compiler/external-layout')
+    const layout = externalFixture()
+    const metadata = 'server/next-test/rollback.external-layout.json'
+    externalFiles[metadata] = JSON.stringify(layout)
+    const root = join(dir, 'published')
+    for (const [path, contents] of Object.entries(externalFiles)) {
+      await mkdir(dirname(join(root, path)), { recursive: true })
+      await writeFile(join(root, path), contents)
+    }
+    const last = layout.links[layout.links.length - 1].path
+    await writeFile(join(root, last), 'preserve existing contents')
+    await expect(
+      materializeExternalLayout(root, Object.keys(externalFiles), 'rollback')
+    ).rejects.toMatchObject({ code: 'EEXIST' })
+    expect(await readFile(join(root, last), 'utf8')).toBe(
+      'preserve existing contents'
+    )
+    for (const { path } of layout.links.slice(0, -1)) {
+      await expect(
+        require('fs/promises').lstat(join(root, path))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    }
+  })
+
+  it.each([
+    'version',
+    'unknown field',
+    'directory traversal',
+    'duplicate directory',
+    'directory order',
+    'missing package files',
+    'unhashed alias',
+    'foreign owner',
+    'foreign target',
+    'duplicate link',
+    'link order',
+    'link overlaps emitted files',
+  ])(
+    'rejects %s in an external layout and removes its owned publication',
+    async (invalid) => {
+      const layout = externalFixture()
+      switch (invalid) {
+        case 'version':
+          layout.version = 2
+          break
+        case 'unknown field':
+          Object.assign(layout, { extra: true })
+          break
+        case 'directory traversal':
+          layout.directories[0] += '/..'
+          break
+        case 'duplicate directory':
+          layout.directories.splice(1, 0, layout.directories[0])
+          break
+        case 'directory order':
+          layout.directories.reverse()
+          break
+        case 'missing package files':
+          externalFiles = {}
+          break
+        case 'unhashed alias':
+          layout.links[layout.links.length - 1].path = 'node_modules/root'
+          break
+        case 'foreign owner':
+          layout.links[0].path =
+            'node_modules/.next-test-external/0000000000000000/node_modules/left'
+          break
+        case 'foreign target':
+          layout.links[0].target =
+            'node_modules/.next-test-external/0000000000000000'
+          break
+        case 'duplicate link':
+          layout.links.splice(1, 0, layout.links[0])
+          break
+        case 'link order':
+          layout.links.reverse()
+          break
+        case 'link overlaps emitted files':
+          externalFiles[`${layout.links[0].path}/index.cjs`] =
+            'module.exports = 1'
+          break
+        default:
+          throw new Error('Unknown external layout control')
+      }
+      externalLayout = layout
+      const nodeProfile = { ...profile, environment: 'node' as const }
+      session = await createTestCompilerSession(dir, nodeProfile)
+      await expect(
+        session.compile(
+          { ...entry(), profile: nodeProfile },
+          { signal: new AbortController().signal }
+        )
+      ).rejects.toThrow('Invalid compiler-issued external package layout')
+      expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+    }
+  )
+
   it('does not publish compilation failures', async () => {
     session = await createTestCompilerSession(dir, profile)
     failCompilation = true
@@ -918,6 +1134,189 @@ describe('test compiler artifact publication', () => {
         )
       ).rejects.toThrow('Invalid native runtime module mock ownership metadata')
       expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+    }
+  )
+
+  it('activates static native runtime mocks only from the complete marked compiler metadata', async () => {
+    const nodeProfile = { ...profile, environment: 'node' as const }
+    session = await createTestCompilerSession(dir, nodeProfile)
+    mockMetadata = {
+      moduleCache: { version: 1 },
+      dynamicModuleMocking: { version: 1, staticMocks: 1 },
+      moduleMocking: { version: 1 },
+    }
+    const encoded = JSON.stringify(mockMetadata)
+    const artifact = await session.compile(
+      { ...entry(), profile: nodeProfile },
+      { signal: new AbortController().signal }
+    )
+    expect(artifact.kind).toBe('node')
+    if (artifact.kind !== 'node') throw new Error('Expected paired Node owner')
+    expect(artifact.moduleCache).toEqual({ version: 1 })
+    expect(artifact.dynamicModuleMocking).toEqual({
+      version: 1,
+      staticMocks: 1,
+    })
+    expect(artifact.moduleMocking).toEqual({ version: 1 })
+    expect(JSON.stringify(mockMetadata)).toBe(encoded)
+  })
+
+  it.each([
+    { dynamicModuleMocking: { version: 1, staticMocks: 1 } },
+    {
+      dynamicModuleMocking: { version: 1, staticMocks: 1 },
+      moduleCache: { version: 1 },
+    },
+    {
+      dynamicModuleMocking: { version: 1, staticMocks: 1 },
+      moduleMocking: { version: 1 },
+    },
+    ...[0, 2, true, null, '1'].map((staticMocks) => ({
+      dynamicModuleMocking: { version: 1, staticMocks },
+      moduleCache: { version: 1 },
+      moduleMocking: { version: 1 },
+    })),
+    ...[undefined, 2].map((version) => ({
+      dynamicModuleMocking: { version, staticMocks: 1 },
+      moduleCache: { version: 1 },
+      moduleMocking: { version: 1 },
+    })),
+    {
+      dynamicModuleMocking: { version: 1, staticMocks: 1 },
+      moduleCache: { version: 2 },
+      moduleMocking: { version: 1 },
+    },
+    ...[
+      { version: 2 },
+      { version: 1, cjsNamedSpy: 1 },
+      { version: 1, setupInputs: 1 },
+      { version: 1, coverage: { version: 1, sources: [] } },
+      { version: 1, productionStaticFactory: 1 },
+    ].map((moduleMocking) => ({
+      dynamicModuleMocking: { version: 1, staticMocks: 1 },
+      moduleCache: { version: 1 },
+      moduleMocking,
+    })),
+  ])(
+    'rejects partial or malformed paired runtime metadata %j',
+    async (metadata) => {
+      const nodeProfile = { ...profile, environment: 'node' as const }
+      session = await createTestCompilerSession(dir, nodeProfile)
+      mockMetadata = metadata
+      await expect(
+        session.compile(
+          { ...entry(), profile: nodeProfile },
+          { signal: new AbortController().signal }
+        )
+      ).rejects.toThrow('Invalid native runtime module mock ownership metadata')
+      expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+    }
+  )
+
+  it.each([
+    'production',
+    'rsc',
+    'browser',
+    'setup',
+    'serializers',
+    'realm',
+    'in-source',
+    'coverage',
+  ] as const)(
+    'retains the paired static runtime boundary for %s',
+    async (mode) => {
+      const previousEnvironment = process.env.NODE_ENV
+      const swc =
+        require('next/dist/build/swc') as typeof import('next/dist/build/swc')
+      const previousDefineEnv = Object.getOwnPropertyDescriptor(
+        swc,
+        'createDefineEnv'
+      )
+      let productionBindings: jest.SpyInstance | undefined
+      try {
+        if (mode === 'production') {
+          process.env = { ...process.env, NODE_ENV: 'production' }
+          // The publication fixture supplies its controlled native endpoint in
+          // both modes; real production option construction still runs.
+          Object.defineProperty(swc, 'createDefineEnv', {
+            configurable: true,
+            value: () => ({ client: [], edge: [], nodejs: [] }),
+          })
+          productionBindings = jest
+            .spyOn(swc, 'loadBindings')
+            .mockResolvedValue({
+              isWasm: false,
+              turbo: {
+                createProject: async () => ({
+                  issues: [],
+                  value: (await (createDevTurbopackProject as jest.Mock)())
+                    .project,
+                }),
+              },
+            } as any)
+        }
+        const nodeProfile = {
+          ...profile,
+          environment: mode === 'rsc' || mode === 'browser' ? mode : 'node',
+          mode: mode === 'production' ? 'production' : 'development',
+        } as const
+        session = await createTestCompilerSession(dir, nodeProfile)
+        mockMetadata = {
+          moduleCache: { version: 1 },
+          dynamicModuleMocking: { version: 1, staticMocks: 1 },
+          moduleMocking: { version: 1 },
+        }
+        await writeFile(join(dir, 'setup.ts'), 'export {}')
+        await expect(
+          session.compile(
+            {
+              ...entry(),
+              profile: nodeProfile,
+              ...(mode === 'realm'
+                ? { executionEnvironment: { name: 'node' } }
+                : {}),
+              ...(mode === 'in-source'
+                ? {
+                    inSource: true as const,
+                    inSourceHash: createHash('sha256')
+                      .update(await readFile(entry().file))
+                      .digest('hex'),
+                  }
+                : {}),
+            },
+            {
+              signal: new AbortController().signal,
+              ...(mode === 'setup'
+                ? { setupFiles: [join(dir, 'setup.ts')] }
+                : {}),
+              ...(mode === 'serializers'
+                ? { snapshotSerializers: [join(dir, 'setup.ts')] }
+                : {}),
+              ...(mode === 'coverage'
+                ? {
+                    coverage: {
+                      version: 1 as const,
+                      kind: 'node-line' as const,
+                    },
+                  }
+                : {}),
+            }
+          )
+        ).rejects.toThrow(
+          mode === 'production'
+            ? 'Module cache resets require isolated development Node'
+            : undefined
+        )
+        expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+      } finally {
+        productionBindings?.mockRestore()
+        if (mode === 'production') {
+          if (previousDefineEnv)
+            Object.defineProperty(swc, 'createDefineEnv', previousDefineEnv)
+          else delete (swc as any).createDefineEnv
+        }
+        process.env = { ...process.env, NODE_ENV: previousEnvironment }
+      }
     }
   )
 
@@ -6394,3 +6793,1126 @@ describe('default-only binding attempt isolation (synthetic dependencies)', () =
     })
   })
 })
+
+it('keeps CommonJS Promise values out of namespace then adoption', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'cjs-namespace-integration.cjs')],
+    { encoding: 'utf8', timeout: 5000 }
+  )
+  expect(
+    JSON.parse(result).map((row: { result: string }) => row.result)
+  ).toEqual(['namespace', 'namespace', 'own then', 'inherited then'])
+})
+
+it('caches compiled original imports by resolved target with fresh outer promises', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'cjs-actual-cache-integration.cjs')],
+    { encoding: 'utf8', timeout: 135000 }
+  )
+  const actual = JSON.parse(result)
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(3)
+}, 140000)
+
+it('automatically mocks compiled CommonJS default and named exports', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'cjs-import-mock-integration.cjs')],
+    { encoding: 'utf8', timeout: 135000 }
+  )
+  const actual = JSON.parse(result)
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(4)
+}, 140000)
+
+it('applies explicit CommonJS object factories while retaining lazy original imports', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'cjs-factory-integration.cjs')],
+    { encoding: 'utf8', timeout: 135000 }
+  )
+  const actual = JSON.parse(result)
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(3)
+}, 140000)
+
+it('serializes an explicit fixture layout through the existing native host registration', async () => {
+  const host = {
+    routePrefix: '/__next_testing_layout',
+    fixtures: [
+      {
+        id: 'component',
+        module: '/application/Component.jsx',
+        exportName: 'default',
+        layout: '/application/app/layout.jsx',
+      },
+    ],
+  }
+  expect(JSON.parse(serializeBrowserFixtureHost('/application', host))).toEqual(
+    {
+      ...host,
+      fixtures: [
+        {
+          ...host.fixtures[0],
+          module: 'Component.jsx',
+          layout: 'app/layout.jsx',
+        },
+      ],
+    }
+  )
+  expect(browserFixturePages(host)).toEqual([
+    {
+      pathname: '/__next_testing_layout/component',
+      originalName: '/__next_testing_layout/component/page',
+    },
+  ])
+  for (const layout of [
+    'app/layout.jsx',
+    '/other/layout.jsx',
+    '/application',
+  ]) {
+    expect(() =>
+      serializeBrowserFixtureHost('/application', {
+        ...host,
+        fixtures: [{ ...host.fixtures[0], layout }],
+      })
+    ).toThrow(
+      'Browser fixture layouts must be contained in the application project'
+    )
+  }
+  const result = require('node:child_process').spawnSync(
+    process.execPath,
+    [join(__dirname, 'layout-producers.cjs')],
+    { encoding: 'utf8', timeout: 20_000 }
+  )
+  expect(result.error).toBeUndefined()
+  expect(result.signal).toBeNull()
+  expect(result.status).toBe(0)
+  const actual = JSON.parse(result.stdout)
+  expect(actual.actualDevFactoryNativeOptionsCaptured).toBe(true)
+  expect(actual.development).toEqual(actual.production)
+})
+
+it('resets compiled leaf CommonJS object, callable and Promise modules', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'cjs-reset-integration.cjs')],
+    { encoding: 'utf8', timeout: 135000 }
+  )
+  const actual = JSON.parse(result)
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(3)
+}, 140000)
+
+it('supplies missing bare modules through actual shared factory namespaces', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'virtual-bare-integration.cjs')],
+    { encoding: 'utf8', timeout: 135000 }
+  )
+  const actual = JSON.parse(result)
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(4)
+}, 140000)
+
+it('shares missing bare factory values through importMock and import namespaces', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'virtual-import-integration.cjs')],
+    { encoding: 'utf8', timeout: 135000 }
+  )
+  const actual = JSON.parse(result)
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(3)
+}, 140000)
+
+it('validates production Browser client profiles without enabling route-aware or non-Node runtimes', () => {
+  const {
+    validateTestProfile,
+  } = require('next/dist/experimental/testing/compiler/original-config-observation')
+  const profile = {
+    id: 'production-client',
+    environment: 'browser',
+    browserClient: true,
+    mode: 'production',
+    runtime: 'nodejs',
+    bundler: 'turbopack',
+  }
+  expect(() => validateTestProfile(profile)).not.toThrow()
+  for (const unsupported of [
+    { route: '/page' },
+    { runtime: 'edge' },
+    { bundler: 'webpack' },
+    { mode: 'test' },
+  ]) {
+    expect(() => validateTestProfile({ ...profile, ...unsupported })).toThrow()
+  }
+})
+
+it('awaits actual Shared ESM setup dependencies while retaining lazy noninheriting Shared CJS harness imports', () => {
+  const { execFileSync } = require('node:child_process')
+  const output = execFileSync(
+    process.execPath,
+    [join(__dirname, 'shared-async-codegen.cjs')],
+    { encoding: 'utf8', timeout: 120000 }
+  )
+  const marker = 'NEXT_TEST_SHARED_ASYNC_CODEGEN '
+  const rows = output.split('\n').filter((line) => line.startsWith(marker))
+  expect(rows).toHaveLength(1)
+  expect(JSON.parse(rows[0].slice(marker.length))).toEqual({
+    actualNativeCodegen: true,
+    sharedSubjectAwaited: true,
+    noninheritingCjsRequires: ['setup', 'test'],
+    harnessAsync: false,
+  })
+}, 130000)
+
+it('supplies certified Node builtin factories through project ESM consumers', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'builtin-factory-integration.cjs')],
+    { encoding: 'utf8', timeout: 135000 }
+  )
+  const actual = JSON.parse(result)
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(3)
+}, 140000)
+
+it('retains runtime window observations in actual development and production Node modules', async () => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'runtime-window-integration.cjs')],
+    { timeout: 150000 }
+  )
+  expect(JSON.parse(stdout.trim())).toEqual({
+    profiles: 2,
+    cases: 4,
+    fullRows: 4,
+  })
+}, 160000)
+
+for (const [group, count] of [
+  ['external', 3],
+  ['external-control', 2],
+  ['external-graph', 1],
+  ['external-conditions', 1],
+  ['external-actual', 3],
+  ['unmock-after', 1],
+  ['unmock-before', 1],
+  ['unmock-only', 1],
+  ['builtin-actual', 3],
+  ['builtin-control', 2],
+  ['compiled-builtin', 1],
+  ['compiled-external', 1],
+  ['builtin-unmock-after', 1],
+  ['builtin-unmock-before', 1],
+  ['builtin-unmock-only', 1],
+  ['runtime-cjs', 6],
+  ['runtime-esm', 6],
+  ['runtime-builtin', 6],
+  ['runtime-ownership', 1],
+  ['runtime-ownership-no-reset', 1],
+  ['compiled-runtime', 4],
+  ['compiled-parallel-fast', 2],
+  ['static-runtime-cjs-unused', 1],
+  ['static-runtime-esm-unused', 1],
+  ['static-runtime-builtin-unused', 1],
+  ['static-runtime-cjs', 1],
+  ['static-runtime-esm', 1],
+  ['static-runtime-builtin', 1],
+  ['static-runtime-cjs-failure', 1],
+  ['static-runtime-cjs-pending-resolve', 1],
+  ['static-runtime-cjs-pending-reject', 1],
+  ['static-runtime-cjs-unmock-first', 1],
+  ['static-runtime-esm-failure', 1],
+  ['static-runtime-esm-pending-resolve', 1],
+  ['static-runtime-esm-pending-reject', 1],
+  ['static-runtime-esm-unmock-first', 1],
+  ['static-runtime-builtin-failure', 1],
+  ['static-runtime-builtin-pending-resolve', 1],
+  ['static-runtime-builtin-pending-reject', 1],
+  ['static-runtime-builtin-unmock-first', 1],
+] as const) {
+  it(`publishes owned native package artifacts for ${group}`, () => {
+    const { execFileSync } = require('node:child_process')
+    const result = execFileSync(
+      process.execPath,
+      [join(__dirname, 'external-package-integration.cjs'), group],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+    const actual = JSON.parse(result)
+    expect(actual.close).toEqual({ code: 0, signal: null })
+    expect(actual.rows).toHaveLength(count)
+  }, 140000)
+}
+
+it.each(['development', 'production'])(
+  'validates explicit %s Node RSC AppProject routes',
+  (mode) => {
+    const {
+      validateTestProfile,
+    } = require('next/dist/experimental/testing/compiler/original-config-observation')
+    const profile = {
+      id: 'explicit-route',
+      environment: 'rsc',
+      mode,
+      runtime: 'nodejs',
+      bundler: 'turbopack',
+      route: '/[tenant]/reference/[...slug]',
+    }
+    expect(() => validateTestProfile(profile)).not.toThrow()
+    for (const unsupported of [
+      { environment: 'node' },
+      { environment: 'browser' },
+      { runtime: 'edge' },
+      { bundler: 'webpack' },
+      { mode: 'test' },
+      { route: 'relative' },
+      { route: '/reference?x' },
+      { route: '/reference#x' },
+    ]) {
+      expect(() =>
+        validateTestProfile({ ...profile, ...unsupported })
+      ).toThrow()
+    }
+  }
+)
+
+it.each(['development', 'production'] as const)(
+  'preserves resolved full-route options through %s execution IPC',
+  (mode) => {
+    const { defaultConfig } = jest.requireActual(
+      'next/dist/server/config-shared'
+    )
+    const pattern = new URL('https://images.example.test:8443/images/**?size=2')
+    const config = {
+      ...defaultConfig,
+      basePath: '/actual',
+      deploymentId: 'actual-deployment',
+      trailingSlash: true,
+      images: { ...defaultConfig.images, remotePatterns: [pattern] },
+      experimental: {
+        ...defaultConfig.experimental,
+        inlineCss: true,
+        serverActions: {
+          allowedOrigins: ['actions.example.test'],
+          bodySizeLimit: '64kb',
+        },
+      },
+    } as NextConfigComplete
+    const options = createCompiledRouteRenderOpts(config, mode)
+    const transported = deserialize(serialize(options))
+    expect(transported).toEqual(options)
+    expect(transported).toMatchObject({
+      basePath: '/actual',
+      clientAssetToken: 'actual-deployment',
+      trailingSlash: true,
+      images: {
+        remotePatterns: [
+          {
+            protocol: 'https',
+            hostname: 'images.example.test',
+            port: '8443',
+            pathname: '/images/**',
+            search: '?size=2',
+          },
+        ],
+      },
+      serverActions: {
+        allowedOrigins: ['actions.example.test'],
+        bodySizeLimit: '64kb',
+      },
+      experimental: { inlineCss: true, exposeTestingApi: false },
+    })
+    expect(config.images.remotePatterns[0]).toBe(pattern)
+    expect(
+      createCompiledRouteRenderOpts(
+        { ...config, supportsImmutableAssets: true },
+        mode
+      ).clientAssetToken
+    ).toBe('')
+  }
+)
+
+it('preserves complete compiled terminal-throw runtime factory rows', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'external-package-integration.cjs'),
+        'compiled-purethrow',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(4)
+}, 140000)
+
+for (const target of [
+  'commonjs',
+  'transitive',
+  'then',
+  'foreign',
+  'unresolved',
+  'query',
+  'fallthrough',
+] as const) {
+  it(`retains terminal-throw runtime target certification before bodies: ${target}`, () => {
+    const { execFileSync } = require('node:child_process')
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'runtime-throw-boundary-integration.cjs'), target],
+        { encoding: 'utf8', timeout: 135000 }
+      )
+    )
+    expect(actual.close).toEqual({ code: 1, signal: null })
+    expect(actual.total).toBe(0)
+    expect(actual.bodyOutput).toBe(false)
+  }, 140000)
+}
+
+it('retains compiled ESM dependency and cycle runtime registration lifetimes', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'external-package-integration.cjs'),
+        'compiled-esm-graph',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(7)
+}, 140000)
+
+for (const target of [
+  'commonjs',
+  'then',
+  'unresolved',
+  'dynamic',
+  'computed',
+  'require',
+  'query',
+  'foreign',
+  'entry-cycle',
+  'helper',
+  'symlink',
+] as const) {
+  it(`certifies actual compiled runtime graph boundaries before bodies: ${target}`, () => {
+    const { execFileSync } = require('node:child_process')
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'runtime-graph-boundary-integration.cjs'), target],
+        { encoding: 'utf8', timeout: 135000 }
+      )
+    )
+    expect(actual.close).toEqual({ code: 1, signal: null })
+    expect(actual.total).toBe(0)
+    expect(actual.bodyOutput).toBe(false)
+  }, 140000)
+}
+
+it('uses the configured actual resolver target in runtime ESM graph certificates', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'external-package-integration.cjs'),
+        'compiled-esm-graph-alias',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(1)
+}, 140000)
+
+for (const target of [
+  'async-module',
+  'native-alias',
+  'framework-alias',
+  'bare-dependency',
+] as const) {
+  it(`retains actual async/framework/native runtime graph boundaries: ${target}`, () => {
+    const { execFileSync } = require('node:child_process')
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'runtime-graph-boundary-integration.cjs'), target],
+        { encoding: 'utf8', timeout: 135000 }
+      )
+    )
+    expect(actual.close).toEqual({ code: 1, signal: null })
+    expect(actual.total).toBe(0)
+    expect(actual.bodyOutput).toBe(false)
+  }, 140000)
+}
+
+it('starts distinct declared runtime factories at actual original dependency demand', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'runtime-graph-boundary-integration.cjs'),
+        'cross-target',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.total).toBe(1)
+  expect(actual.passed).toBe(1)
+  expect(actual.bodyOutput).toBe(true)
+}, 140000)
+
+for (const [target, rows] of [
+  ['compiled-cross-namespace-shadow', 1],
+  ['compiled-cross-target', 12],
+  ['compiled-cross-lifetime', 4],
+  ['compiled-cross-namespace', 4],
+  ['compiled-cross-namespace-cycle', 1],
+  ['compiled-cross-namespace-reset', 1],
+  ['compiled-cross-namespace-getter', 1],
+  ['factory-cause-cjs', 1],
+  ['factory-cause-esm', 1],
+  ['factory-cause-builtin', 1],
+  ['factory-cause-compiled', 1],
+] as const) {
+  it(`matches complete cross-target runtime and namespace reference rows: ${target}`, () => {
+    const { execFileSync } = require('node:child_process')
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'external-package-integration.cjs'), target],
+        { encoding: 'utf8', timeout: 135000 }
+      )
+    )
+    expect(actual.close).toEqual({ code: 0, signal: null })
+    expect(actual.rows).toHaveLength(rows)
+  }, 140000)
+}
+
+it('preserves the same-directory foreign importer boundary for marked runtime demand graphs', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'runtime-graph-boundary-integration.cjs'),
+        'cross-foreign-literal',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 1, signal: null })
+  expect(actual.total).toBe(0)
+  expect(actual.bodyOutput).toBe(false)
+}, 140000)
+
+for (const target of [
+  'cjs-reset-dependency',
+  'cjs-reset-direct-dependency',
+  'cjs-reset-cycle',
+  'cjs-reset-static-held-dependency',
+  'cjs-reset-unused-dependency',
+  'cjs-reset-unused-cycle',
+  'cjs-reset-nonleaf-callable-plain',
+  'cjs-reset-nonleaf-callable-cycle',
+  'cjs-reset-nonleaf-callable-static',
+  'cjs-reset-nonleaf-callable-unused',
+  'cjs-reset-nonleaf-member-object',
+  'cjs-reset-nonleaf-member-callable',
+] as const) {
+  it(`matches full nonleaf CommonJS namespace and require-lifetime reference rows: ${target}`, () => {
+    const { execFileSync } = require('node:child_process')
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'external-package-integration.cjs'), target],
+        { encoding: 'utf8', timeout: 135000 }
+      )
+    )
+    expect(actual.close).toEqual({ code: 0, signal: null })
+    expect(actual.rows).toHaveLength(1)
+  }, 140000)
+}
+
+for (const target of [
+  'cjs-reset-negative-unresolved',
+  'cjs-reset-negative-external',
+  'cjs-reset-negative-esm',
+  'cjs-reset-negative-multiple',
+  'cjs-reset-negative-foreign',
+  'cjs-reset-negative-client-directive',
+  'cjs-reset-negative-query',
+  'cjs-reset-negative-multiple-resolved',
+  'cjs-reset-export-promise',
+  'cjs-reset-export-array',
+  'cjs-reset-export-then',
+  'cjs-reset-export-computed',
+  'cjs-reset-export-spread',
+  'cjs-reset-export-getter',
+  'cjs-reset-export-prototype',
+  'cjs-reset-export-repeated',
+  'cjs-reset-export-escaped-callable',
+  'cjs-reset-export-reassigned-callable',
+  'cjs-reset-export-computed-callable',
+  'cjs-reset-export-mixed-promise-leaf',
+] as const) {
+  it(`refuses an uncertified nonleaf CommonJS reset boundary before bodies: ${target}`, () => {
+    const { execFileSync } = require('node:child_process')
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'runtime-graph-boundary-integration.cjs'), target],
+        { encoding: 'utf8', timeout: 135000 }
+      )
+    )
+    expect(actual.close).toEqual({ code: 1, signal: null })
+    expect(actual.total).toBe(0)
+    expect(actual.bodyOutput).toBe(false)
+  }, 140000)
+}
+
+for (const [target, rows] of [
+  ['compiled-native-order-before', 1],
+  ['compiled-native-order-after', 1],
+  ['compiled-native-namespace-before', 1],
+  ['compiled-native-namespace-after', 1],
+  ['compiled-native-cross-target', 13],
+  ['compiled-native-cross-lifetime', 5],
+] as const) {
+  it(`preserves native import ordering and complete cross-target namespace/lifetime rows: ${target}`, () => {
+    const { execFileSync } = require('node:child_process')
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'external-package-integration.cjs'), target],
+        { encoding: 'utf8', timeout: 135000 }
+      )
+    )
+    expect(actual.close).toEqual({ code: 0, signal: null })
+    expect(actual.rows).toHaveLength(rows)
+  }, 140000)
+}
+
+it('preserves foreign importer refusal for compiled demand graphs with certified native imports', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'runtime-graph-boundary-integration.cjs'),
+        'cross-native-foreign',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 1, signal: null })
+  expect(actual.total).toBe(0)
+  expect(actual.bodyOutput).toBe(false)
+}, 140000)
+
+for (const [target, rows] of [
+  ['cjs-reset-actual-dependency', 2],
+  ['cjs-reset-actual-cycle', 2],
+  ['cjs-reset-actual-nonleaf-callable-plain', 2],
+  ['cjs-reset-actual-nonleaf-callable-cycle', 2],
+  ['cjs-reset-actual-dependency-actual-only', 1],
+  ['cjs-reset-actual-dependency-unused-only', 1],
+  ['cjs-reset-actual-cycle-actual-only', 1],
+  ['cjs-reset-actual-cycle-unused-only', 1],
+  ['cjs-reset-actual-nonleaf-callable-plain-actual-only', 1],
+  ['cjs-reset-actual-nonleaf-callable-plain-unused-only', 1],
+  ['cjs-reset-actual-nonleaf-callable-cycle-actual-only', 1],
+  ['cjs-reset-actual-nonleaf-callable-cycle-unused-only', 1],
+  ['cjs-reset-actual-dependency-mutation', 1],
+  ['cjs-reset-actual-cycle-mutation', 1],
+  ['cjs-reset-actual-nonleaf-callable-plain-mutation', 1],
+  ['cjs-reset-actual-nonleaf-callable-cycle-mutation', 1],
+] as const) {
+  it(`matches complete CommonJS actual/reset namespace and held require rows: ${target}`, () => {
+    const { execFileSync } = require('node:child_process')
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'external-package-integration.cjs'), target],
+        { encoding: 'utf8', timeout: 135000 }
+      )
+    )
+    expect(actual.close).toEqual({ code: 0, signal: null })
+    expect(actual.rows).toHaveLength(rows)
+  }, 140000)
+}
+
+for (const target of [
+  'cjs-actual-reset-negative-query',
+  'cjs-actual-reset-negative-fragment',
+  'cjs-actual-reset-negative-unresolved',
+  'cjs-actual-reset-negative-esm',
+  'cjs-actual-reset-negative-leaf',
+  'cjs-actual-reset-negative-builtin',
+  'cjs-actual-reset-negative-self',
+  'cjs-actual-reset-negative-foreign',
+  'cjs-actual-reset-negative-mixed-promise',
+] as const) {
+  it(`refuses an uncertified CommonJS actual/reset graph before bodies: ${target}`, () => {
+    const { execFileSync } = require('node:child_process')
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'runtime-graph-boundary-integration.cjs'), target],
+        { encoding: 'utf8', timeout: 135000 }
+      )
+    )
+    expect(actual.close).toEqual({ code: 1, signal: null })
+    expect(actual.total).toBe(0)
+    expect(actual.bodyOutput).toBe(false)
+  }, 140000)
+}
+
+for (const [target, rows] of [
+  ['compiled-cjs-runtime-leaf-object', 8],
+  ['compiled-cjs-runtime-leaf-callable', 8],
+  ['compiled-cjs-runtime-dependency', 8],
+  ['compiled-cjs-runtime-cycle', 8],
+  ['compiled-cjs-runtime-nonleaf-callable-plain', 8],
+  ['compiled-cjs-runtime-nonleaf-callable-cycle', 8],
+  ['compiled-cjs-runtime-leaf-object-lifetimes', 4],
+  ['compiled-cjs-runtime-leaf-callable-lifetimes', 4],
+  ['compiled-cjs-runtime-dependency-lifetimes', 4],
+  ['compiled-cjs-runtime-cycle-lifetimes', 4],
+  ['compiled-cjs-runtime-nonleaf-callable-plain-lifetimes', 4],
+  ['compiled-cjs-runtime-nonleaf-callable-cycle-lifetimes', 4],
+  ['compiled-cjs-runtime-leaf-object-esmflag', 8],
+  ['compiled-cjs-runtime-leaf-object-default', 8],
+  ['compiled-cjs-runtime-leaf-callable-esmflag', 8],
+] as const) {
+  it(`matches complete compiled CommonJS runtime registration and held namespace rows: ${target}`, () => {
+    const { execFileSync } = require('node:child_process')
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'external-package-integration.cjs'), target],
+        { encoding: 'utf8', timeout: 135000 }
+      )
+    )
+    expect(actual.close).toEqual({ code: 0, signal: null })
+    expect(actual.rows).toHaveLength(rows)
+  }, 140000)
+}
+
+for (const target of [
+  'compiled-cjs-runtime-negative-query',
+  'compiled-cjs-runtime-negative-fragment',
+  'compiled-cjs-runtime-negative-unresolved',
+  'compiled-cjs-runtime-negative-mixed-esm',
+  'compiled-cjs-runtime-negative-mixed-native',
+  'compiled-cjs-runtime-negative-self',
+  'compiled-cjs-runtime-negative-foreign',
+  'compiled-cjs-runtime-negative-promise',
+  'compiled-cjs-runtime-negative-then',
+  'compiled-cjs-runtime-negative-computed',
+  'compiled-cjs-runtime-negative-spread',
+  'compiled-cjs-runtime-negative-history',
+  'compiled-cjs-runtime-negative-unresolved-require',
+  'compiled-cjs-runtime-negative-multiple-require',
+  'compiled-cjs-runtime-negative-dynamic-require',
+  'compiled-cjs-runtime-negative-throw-only',
+] as const) {
+  it(`refuses an uncertified compiled CommonJS runtime entry before bodies: ${target}`, () => {
+    const { execFileSync } = require('node:child_process')
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'runtime-graph-boundary-integration.cjs'), target],
+        { encoding: 'utf8', timeout: 135000 }
+      )
+    )
+    expect(actual.close).toEqual({ code: 1, signal: null })
+    expect(actual.total).toBe(0)
+    expect(actual.bodyOutput).toBe(false)
+  }, 140000)
+}
+
+for (const [target, rows] of [
+  ['runtime-registration-leaf-object-no-reset', 2],
+  ['runtime-registration-leaf-callable-no-reset', 2],
+  ['runtime-registration-dependency-no-reset', 2],
+  ['runtime-registration-cycle-no-reset', 2],
+  ['runtime-registration-nonleaf-callable-plain-no-reset', 2],
+  ['runtime-registration-nonleaf-callable-cycle-no-reset', 2],
+  ['runtime-registration-leaf-object-transitions-v2', 6],
+  ['runtime-registration-dependency-transitions-v2', 6],
+  ['runtime-registration-builtin-transitions', 6],
+  ['runtime-registration-esm-demand-literal-v5', 1],
+  ['runtime-registration-leaf-object-invalidation-v1', 2],
+  ['runtime-registration-leaf-callable-invalidation-v1', 2],
+  ['runtime-registration-dependency-invalidation-v1', 2],
+  ['runtime-registration-esm-transitions-invalidation-v1', 2],
+  ['runtime-registration-builtin-transitions-invalidation-v1', 2],
+] as const) {
+  it(`matches complete runtime registration cache and ownership observations: ${target}`, () => {
+    const { execFileSync } = require('node:child_process')
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'external-package-integration.cjs'), target],
+        { encoding: 'utf8', timeout: 135000 }
+      )
+    )
+    expect(actual.close).toEqual({ code: 0, signal: null })
+    expect(actual.rows).toHaveLength(rows)
+  }, 140000)
+}
+
+for (const [target, rows] of [
+  ['runtime-namespace-esm-transitions', 6],
+  ['runtime-namespace-ordinary-values', 4],
+  ['runtime-namespace-ordinary-hygiene', 2],
+] as const) {
+  it(`matches complete ordinary runtime ESM namespace observations: ${target}`, () => {
+    const { execFileSync } = require('node:child_process')
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'external-package-integration.cjs'), target],
+        { encoding: 'utf8', timeout: 135000 }
+      )
+    )
+    expect(actual.close).toEqual({ code: 0, signal: null })
+    expect(actual.rows).toHaveLength(rows)
+  }, 140000)
+}
+
+it('matches complete compiled A pending original lifetime observations', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'external-package-integration.cjs'),
+        'runtime-namespace-compiled-pending-lifetimes',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(8)
+}, 140000)
+
+it('matches complete compiled A pending original loader failures', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'external-package-integration.cjs'),
+        'runtime-namespace-compiled-loader-error',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(2)
+}, 140000)
+
+it('retains complete ordinary TLA namespaces with a second unused runtime target', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'external-package-integration.cjs'),
+        'runtime-namespace-ordinary-tla',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(3)
+}, 140000)
+
+it('retains the complete ordinary importOriginal callback function shape', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'external-package-integration.cjs'),
+        'runtime-import-original-callback-shape',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(1)
+}, 140000)
+
+it('retains complete anonymous CommonJS function dependency-reset namespaces and lifetimes', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'external-package-integration.cjs'),
+        'cjs-function-expression-dependency-reset',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(3)
+}, 140000)
+
+it('retains complete anonymous CommonJS function cycle-reset namespaces and lifetimes', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'external-package-integration.cjs'),
+        'cjs-function-expression-cycle-reset',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(3)
+}, 140000)
+
+it('retains complete anonymous CommonJS function dependency-runtime namespaces and lifetimes', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'external-package-integration.cjs'),
+        'cjs-function-expression-dependency-runtime',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(3)
+}, 140000)
+
+it('retains complete anonymous CommonJS function cycle-runtime namespaces and lifetimes', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'external-package-integration.cjs'),
+        'cjs-function-expression-cycle-runtime',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(3)
+}, 140000)
+
+it('retains the complete ordinary static importOriginal callback function shape', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'external-package-integration.cjs'),
+        'static-import-original-callback-shape',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(1)
+}, 140000)
+
+it('retains complete ordinary callable CommonJS importMock key order and mock identities', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'external-package-integration.cjs'),
+        'cjs-import-mock-callable-order',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(7)
+}, 140000)
+
+it('retains complete certified async CommonJS importMock publication and lazy aliases', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'external-package-integration.cjs'),
+        'cjs-import-mock-certified-async',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(4)
+}, 140000)
+
+it('retains complete CommonJS callable publication before raw-member mutations', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'external-package-integration.cjs'),
+        'cjs-import-mock-publication-mutation',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(6)
+}, 140000)
+
+it('retains complete async callable publication before raw-member mutations', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'external-package-integration.cjs'),
+        'cjs-import-mock-async-publication-mutation',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(18)
+}, 140000)
+
+it('retains complete certified CommonJS publication namespace descriptors and held aliases', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'external-package-integration.cjs'),
+        'cjs-import-mock-publication-namespace',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(4)
+}, 140000)
+
+it('retains complete inherited CommonJS export-flag observations during automatic publication', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'external-package-integration.cjs'),
+        'cjs-import-mock-inherited-flag',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(2)
+}, 140000)
+
+it('retains complete callable CommonJS original strict receiver and raw descriptors', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'external-package-integration.cjs'),
+        'cjs-import-mock-strict-receiver',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(2)
+}, 140000)
+
+it.each(
+  (['development', 'production'] as const).flatMap((mode) =>
+    ([true, false, undefined] as const).map((flag) => [mode, flag] as const)
+  )
+)(
+  'preserves resolved AppPage debug channel option for %s with %s',
+  (mode, flag) => {
+    const { defaultConfig } = jest.requireActual(
+      'next/dist/server/config-shared'
+    )
+    const config = {
+      ...defaultConfig,
+      experimental: { ...defaultConfig.experimental, reactDebugChannel: flag },
+    } as NextConfigComplete
+    const options = createCompiledRouteRenderOpts(config, mode)
+    expect(options.reactDebugChannel).toBe(
+      mode === 'development' && flag === true
+    )
+    expect(deserialize(serialize(options)).reactDebugChannel).toBe(
+      options.reactDebugChannel
+    )
+  }
+)
+
+it('retains complete callable self-default publication and lazy alias identities', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'external-package-integration.cjs'),
+        'cjs-import-mock-self-default-publication',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(9)
+}, 140000)
+
+it('retains complete callable self-default inherited setter observations', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'external-package-integration.cjs'),
+        'cjs-import-mock-self-default-inherited',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(2)
+}, 140000)

@@ -1,0 +1,13 @@
+{
+  "version": 3,
+  "sources": [
+    "/private/tmp/next-testing-parallel-20261019/tooling-editor143/.next-test-jsx144-arrow-production/helper.js",
+    "/private/tmp/next-testing-parallel-20261019/tooling-editor143/.next-test-jsx144-arrow-production/subject.tsx"
+  ],
+  "names": [],
+  "mappings": ";;;;;A;A;A;;;A,I,6C,E,yC;I,I,+C,E,I,6C,E;Q,M;I,G,K,E,O,C;Q,a;Q,U;I;I,I,+C,E,I,6C,E;Q,M;I,G,K,C,Q,E,I,C;A;;;;;A;;;;AAAO,SAAS,MAAM,KAAK;IAAI,OAAO,QAAQ;AAAI;;;;;A;;;;;ACClD;;;AAEO,MAAM,QAAQ,CAAC,EAAE,IAAI,EAAS,iBACnC,kDAAC,KAAD;QAAG,aAAW;kBAAO,IAAA,8CAAK,EAAC;IAAS;;;;;A;;;;;;;;C,G,I,qB,O,G,C,+B,sB,O,G,C;A,S,Q,I,E,M,E,Q;I,I,M;I,K,M,Y,C,M,K,Q;I,K,M,O,G,I,C,M,K,O,G;I,I,S,Q;Q,W,C;Q,I,I,Y,O,U,Y,C,Q,C,S,G,M,C,S;I,O,W;I,S,S,G;I,O;Q,U;Q,M;Q,K;Q,K,K,M,S,S;Q,O;I;A;A,Q,Q,G;A,Q,G,G;A,Q,I,G;;;;;A,wC;I,O,O;A;;;;;;A,4E;A,+E;A;;;;;;;;;;;;A,M;A,M;A,e;I,8D;I;A;A,e,iB,qB,M;I,K,mB,qD;;I,M,e,E;I,I,uB,Y;Q,M,Q,G,C,a,G,C,C,O;I,O;Q,K,M,Q,a,M;I;A;A,S;I,O,W,yB,C;A;;;;;A;;;;;;;;;;;;;;I,O,E;e;;I,wB,E;e;;;A,I;A,4E;A,+E;A,I;A,S,yB,O;I,I,S,M,I,M;I,M,U;Q,G,O;Q,U,I;I;I,U;I,wB,Q,gB;I,O;Q;Y,I,Y,S,U;Q;I;A;A,S;I,M,U;I,M,U,yB,O,K,I;I,I,C,S;Q,M,I,M;I;I,I,C,S;Q,M,I,M;I;I,Q,M,C,c;I,I,U,Q,Q,C,G,C;I,I,C,S;Q,U,Q,a,C;Q,Q,Q,C,G,C,S;I;I,O;A",
+  "sourcesContent": [
+    "export function label(value) { return value + '!' }\n",
+    "import React from 'react'\nimport { label } from './helper.js'\ntype Props = { name: string }\nexport const Arrow = ({ name }: Props): React.ReactElement => (\n  <p data-name={name}>{label(name)}</p>\n)\n"
+  ]
+}

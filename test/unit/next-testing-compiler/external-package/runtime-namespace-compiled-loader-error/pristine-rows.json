@@ -1,0 +1,314 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CJS_RUNTIME",
+    "value": {
+      "name": "loader-error-false",
+      "calls": 1,
+      "loaderCount": 3,
+      "views": [
+        null,
+        null,
+        null,
+        {
+          "namespace": {
+            "type": "object",
+            "nativeBrand": false,
+            "keys": ["ready", "evaluation", "default"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "ready",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "default",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "root": {
+            "type": "object",
+            "nativeBrand": false,
+            "keys": ["evaluation"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependency": null,
+          "evaluation": 970,
+          "rootEvaluation": 970,
+          "dependencyEvaluation": null,
+          "call": null,
+          "namedCall": null
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "nativeBrand": false,
+            "keys": ["ready", "evaluation", "default"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "ready",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "default",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "root": {
+            "type": "object",
+            "nativeBrand": false,
+            "keys": ["evaluation"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependency": null,
+          "evaluation": 970,
+          "rootEvaluation": 970,
+          "dependencyEvaluation": null,
+          "call": null,
+          "namedCall": null
+        },
+        null,
+        null
+      ],
+      "errors": [
+        {
+          "name": "RangeError",
+          "message": "compiled original raw 1",
+          "causeSame": false,
+          "keys": ["stack", "message"],
+          "causeDescriptor": null
+        },
+        {
+          "name": "RangeError",
+          "message": "compiled original raw 1",
+          "causeSame": false,
+          "keys": ["stack", "message"],
+          "causeDescriptor": null
+        },
+        {
+          "name": "RangeError",
+          "message": "compiled original raw 2",
+          "causeSame": false,
+          "keys": ["stack", "message"],
+          "causeDescriptor": null
+        },
+        null,
+        null,
+        {
+          "name": "RangeError",
+          "message": "compiled original raw 2",
+          "causeSame": false,
+          "keys": ["stack", "message"],
+          "causeDescriptor": null
+        },
+        {
+          "name": "RangeError",
+          "message": "compiled original raw 3",
+          "causeSame": false,
+          "keys": ["stack", "message"],
+          "causeDescriptor": null
+        }
+      ],
+      "identities": [
+        [true, true, false, false, false, false, false],
+        [true, true, false, false, false, false, false],
+        [false, false, true, false, false, true, false],
+        [false, false, false, true, true, false, false],
+        [false, false, false, true, true, false, false],
+        [false, false, true, false, false, true, false],
+        [false, false, false, false, false, false, true]
+      ],
+      "originalErrorIdentities": [
+        [true, false, false],
+        [true, false, false],
+        [false, true, false],
+        [false, false, false],
+        [false, false, false],
+        [false, true, false],
+        [false, false, true]
+      ],
+      "factoryCauseIdentities": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CJS_RUNTIME",
+    "value": {
+      "name": "loader-error-true",
+      "calls": 2,
+      "loaderCount": 6,
+      "views": [null, null, null, null, null, null, null],
+      "errors": [
+        {
+          "name": "RangeError",
+          "message": "compiled original raw 4",
+          "causeSame": false,
+          "keys": ["stack", "message"],
+          "causeDescriptor": null
+        },
+        {
+          "name": "RangeError",
+          "message": "compiled original raw 4",
+          "causeSame": false,
+          "keys": ["stack", "message"],
+          "causeDescriptor": null
+        },
+        {
+          "name": "RangeError",
+          "message": "compiled original raw 5",
+          "causeSame": false,
+          "keys": ["stack", "message"],
+          "causeDescriptor": null
+        },
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "causeSame": true,
+          "causeName": "SyntaxError",
+          "causeMessage": "held factory raw",
+          "keys": ["stack", "message", "cause"],
+          "causeDescriptor": {
+            "writable": true,
+            "enumerable": true,
+            "configurable": true,
+            "valueSame": true
+          }
+        },
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "causeSame": true,
+          "causeName": "SyntaxError",
+          "causeMessage": "held factory raw",
+          "keys": ["stack", "message", "cause"],
+          "causeDescriptor": {
+            "writable": true,
+            "enumerable": true,
+            "configurable": true,
+            "valueSame": true
+          }
+        },
+        {
+          "name": "RangeError",
+          "message": "compiled original raw 5",
+          "causeSame": false,
+          "keys": ["stack", "message"],
+          "causeDescriptor": null
+        },
+        {
+          "name": "RangeError",
+          "message": "compiled original raw 6",
+          "causeSame": false,
+          "keys": ["stack", "message"],
+          "causeDescriptor": null
+        }
+      ],
+      "identities": [
+        [true, true, false, false, false, false, false],
+        [true, true, false, false, false, false, false],
+        [false, false, true, false, false, true, false],
+        [false, false, false, true, false, false, false],
+        [false, false, false, false, true, false, false],
+        [false, false, true, false, false, true, false],
+        [false, false, false, false, false, false, true]
+      ],
+      "originalErrorIdentities": [
+        [false, false, false, true, false, false],
+        [false, false, false, true, false, false],
+        [false, false, false, false, true, false],
+        [false, false, false, false, false, false],
+        [false, false, false, false, false, false],
+        [false, false, false, false, true, false],
+        [false, false, false, false, false, true]
+      ],
+      "factoryCauseIdentities": [false, false, false, true, true, false, false]
+    }
+  }
+]

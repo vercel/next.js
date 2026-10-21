@@ -1,0 +1,893 @@
+{
+  "reference": {
+    "vitest": "5.0.4",
+    "browserPlaywright": "5.0.4",
+    "playwright": "1.64.0",
+    "sourceSHA256": {
+      "select-options.test.mjs": "86b4d9e5acd7762d113d08130bd5f2966ff081c295c9485156498469d77b3862"
+    },
+    "notes": "Full unchanged option Element/Locator identity, native event and controlled React rows captured from genuine development/production Chromium. Same duplicate-value identity and native TimeoutError recovery bodies."
+  },
+  "phases": {
+    "select-options-development": {
+      "mode": "development",
+      "cases": [
+        {
+          "fullName": "userEvent selects the actual option identity when values are duplicated",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "Locator selects an actual option Locator with the same duplicate value",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "HTMLElement arrays preserve native selected option order and event identity",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "setup-owned selectOptions accepts an array of live option Locators",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "empty arrays retain the existing native clearing contract",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "option element selection awaits the controlled React render turn",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "native foreign-option rejection retains the following action and file realm",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "duplicate HTMLElement",
+            "events": [
+              {
+                "type": "input",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "values": ["one"],
+                "labels": ["Beta"],
+                "selectedIndex": 1
+              },
+              {
+                "type": "change",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "values": ["one"],
+                "labels": ["Beta"],
+                "selectedIndex": 1
+              }
+            ],
+            "value": "one",
+            "selectedIndex": 1,
+            "selected": [
+              {
+                "label": "Alpha",
+                "value": "one",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Beta",
+                "value": "one",
+                "selected": true,
+                "connected": true
+              },
+              {
+                "label": "Gamma",
+                "value": "three",
+                "selected": false,
+                "connected": true
+              }
+            ],
+            "originalNodes": true,
+            "returnedUndefined": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "duplicate Locator",
+            "events": [
+              {
+                "type": "input",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "values": ["one"],
+                "labels": ["Beta"],
+                "selectedIndex": 1
+              },
+              {
+                "type": "change",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "values": ["one"],
+                "labels": ["Beta"],
+                "selectedIndex": 1
+              }
+            ],
+            "value": "one",
+            "selectedIndex": 1,
+            "selected": [
+              {
+                "label": "Alpha",
+                "value": "one",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Beta",
+                "value": "one",
+                "selected": true,
+                "connected": true
+              },
+              {
+                "label": "Gamma",
+                "value": "three",
+                "selected": false,
+                "connected": true
+              }
+            ],
+            "returnedUndefined": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "multiple HTMLElements",
+            "events": [
+              {
+                "type": "input",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "values": ["one", "three"],
+                "labels": ["Alpha", "Gamma"],
+                "selectedIndex": 0
+              },
+              {
+                "type": "change",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "values": ["one", "three"],
+                "labels": ["Alpha", "Gamma"],
+                "selectedIndex": 0
+              }
+            ],
+            "value": "one",
+            "selectedIndex": 0,
+            "selected": [
+              {
+                "label": "Alpha",
+                "value": "one",
+                "selected": true,
+                "connected": true
+              },
+              {
+                "label": "Beta",
+                "value": "two",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Gamma",
+                "value": "three",
+                "selected": true,
+                "connected": true
+              }
+            ],
+            "originalNodes": true,
+            "returnedUndefined": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "setup Locator array",
+            "events": [
+              {
+                "type": "input",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "values": ["two", "three"],
+                "labels": ["Beta", "Gamma"],
+                "selectedIndex": 1
+              },
+              {
+                "type": "change",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "values": ["two", "three"],
+                "labels": ["Beta", "Gamma"],
+                "selectedIndex": 1
+              }
+            ],
+            "value": "two",
+            "selectedIndex": 1,
+            "selected": [
+              {
+                "label": "Alpha",
+                "value": "one",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Beta",
+                "value": "two",
+                "selected": true,
+                "connected": true
+              },
+              {
+                "label": "Gamma",
+                "value": "three",
+                "selected": true,
+                "connected": true
+              }
+            ],
+            "returnedUndefined": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "empty selection",
+            "events": [
+              {
+                "type": "input",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "values": ["one", "three"],
+                "labels": ["Alpha", "Gamma"],
+                "selectedIndex": 0
+              },
+              {
+                "type": "change",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "values": ["one", "three"],
+                "labels": ["Alpha", "Gamma"],
+                "selectedIndex": 0
+              },
+              {
+                "type": "input",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "values": [],
+                "labels": [],
+                "selectedIndex": -1
+              },
+              {
+                "type": "change",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "values": [],
+                "labels": [],
+                "selectedIndex": -1
+              }
+            ],
+            "value": "",
+            "selectedIndex": -1,
+            "selected": [
+              {
+                "label": "Alpha",
+                "value": "one",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Beta",
+                "value": "two",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Gamma",
+                "value": "three",
+                "selected": false,
+                "connected": true
+              }
+            ],
+            "returnedUndefined": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "controlled component",
+            "events": [
+              {
+                "type": "input",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "values": ["two", "three"],
+                "labels": ["Beta", "Gamma"],
+                "selectedIndex": 1
+              },
+              {
+                "type": "change",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "values": ["two", "three"],
+                "labels": ["Beta", "Gamma"],
+                "selectedIndex": 1
+              }
+            ],
+            "value": "two",
+            "selectedIndex": 1,
+            "selected": [
+              {
+                "label": "Alpha",
+                "value": "one",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Beta",
+                "value": "two",
+                "selected": true,
+                "connected": true
+              },
+              {
+                "label": "Gamma",
+                "value": "three",
+                "selected": true,
+                "connected": true
+              }
+            ],
+            "output": "two,three",
+            "originalNodes": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "native rejection recovery",
+            "events": [
+              {
+                "type": "input",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "values": ["three"],
+                "labels": ["Gamma"],
+                "selectedIndex": 2
+              },
+              {
+                "type": "change",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "values": ["three"],
+                "labels": ["Gamma"],
+                "selectedIndex": 2
+              }
+            ],
+            "value": "three",
+            "selectedIndex": 2,
+            "selected": [
+              {
+                "label": "Alpha",
+                "value": "one",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Beta",
+                "value": "two",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Gamma",
+                "value": "three",
+                "selected": true,
+                "connected": true
+              }
+            ],
+            "rejectedName": "TimeoutError",
+            "foreignConnected": true,
+            "foreignSelection": "one"
+          }
+        }
+      ]
+    },
+    "select-options-production": {
+      "mode": "production",
+      "cases": [
+        {
+          "fullName": "userEvent selects the actual option identity when values are duplicated",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "Locator selects an actual option Locator with the same duplicate value",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "HTMLElement arrays preserve native selected option order and event identity",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "setup-owned selectOptions accepts an array of live option Locators",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "empty arrays retain the existing native clearing contract",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "option element selection awaits the controlled React render turn",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "native foreign-option rejection retains the following action and file realm",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "duplicate HTMLElement",
+            "events": [
+              {
+                "type": "input",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "values": ["one"],
+                "labels": ["Beta"],
+                "selectedIndex": 1
+              },
+              {
+                "type": "change",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "values": ["one"],
+                "labels": ["Beta"],
+                "selectedIndex": 1
+              }
+            ],
+            "value": "one",
+            "selectedIndex": 1,
+            "selected": [
+              {
+                "label": "Alpha",
+                "value": "one",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Beta",
+                "value": "one",
+                "selected": true,
+                "connected": true
+              },
+              {
+                "label": "Gamma",
+                "value": "three",
+                "selected": false,
+                "connected": true
+              }
+            ],
+            "originalNodes": true,
+            "returnedUndefined": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "duplicate Locator",
+            "events": [
+              {
+                "type": "input",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "values": ["one"],
+                "labels": ["Beta"],
+                "selectedIndex": 1
+              },
+              {
+                "type": "change",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "values": ["one"],
+                "labels": ["Beta"],
+                "selectedIndex": 1
+              }
+            ],
+            "value": "one",
+            "selectedIndex": 1,
+            "selected": [
+              {
+                "label": "Alpha",
+                "value": "one",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Beta",
+                "value": "one",
+                "selected": true,
+                "connected": true
+              },
+              {
+                "label": "Gamma",
+                "value": "three",
+                "selected": false,
+                "connected": true
+              }
+            ],
+            "returnedUndefined": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "multiple HTMLElements",
+            "events": [
+              {
+                "type": "input",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "values": ["one", "three"],
+                "labels": ["Alpha", "Gamma"],
+                "selectedIndex": 0
+              },
+              {
+                "type": "change",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "values": ["one", "three"],
+                "labels": ["Alpha", "Gamma"],
+                "selectedIndex": 0
+              }
+            ],
+            "value": "one",
+            "selectedIndex": 0,
+            "selected": [
+              {
+                "label": "Alpha",
+                "value": "one",
+                "selected": true,
+                "connected": true
+              },
+              {
+                "label": "Beta",
+                "value": "two",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Gamma",
+                "value": "three",
+                "selected": true,
+                "connected": true
+              }
+            ],
+            "originalNodes": true,
+            "returnedUndefined": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "setup Locator array",
+            "events": [
+              {
+                "type": "input",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "values": ["two", "three"],
+                "labels": ["Beta", "Gamma"],
+                "selectedIndex": 1
+              },
+              {
+                "type": "change",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "values": ["two", "three"],
+                "labels": ["Beta", "Gamma"],
+                "selectedIndex": 1
+              }
+            ],
+            "value": "two",
+            "selectedIndex": 1,
+            "selected": [
+              {
+                "label": "Alpha",
+                "value": "one",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Beta",
+                "value": "two",
+                "selected": true,
+                "connected": true
+              },
+              {
+                "label": "Gamma",
+                "value": "three",
+                "selected": true,
+                "connected": true
+              }
+            ],
+            "returnedUndefined": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "empty selection",
+            "events": [
+              {
+                "type": "input",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "values": ["one", "three"],
+                "labels": ["Alpha", "Gamma"],
+                "selectedIndex": 0
+              },
+              {
+                "type": "change",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "values": ["one", "three"],
+                "labels": ["Alpha", "Gamma"],
+                "selectedIndex": 0
+              },
+              {
+                "type": "input",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "values": [],
+                "labels": [],
+                "selectedIndex": -1
+              },
+              {
+                "type": "change",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "values": [],
+                "labels": [],
+                "selectedIndex": -1
+              }
+            ],
+            "value": "",
+            "selectedIndex": -1,
+            "selected": [
+              {
+                "label": "Alpha",
+                "value": "one",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Beta",
+                "value": "two",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Gamma",
+                "value": "three",
+                "selected": false,
+                "connected": true
+              }
+            ],
+            "returnedUndefined": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "controlled component",
+            "events": [
+              {
+                "type": "input",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "values": ["two", "three"],
+                "labels": ["Beta", "Gamma"],
+                "selectedIndex": 1
+              },
+              {
+                "type": "change",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "values": ["two", "three"],
+                "labels": ["Beta", "Gamma"],
+                "selectedIndex": 1
+              }
+            ],
+            "value": "two",
+            "selectedIndex": 1,
+            "selected": [
+              {
+                "label": "Alpha",
+                "value": "one",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Beta",
+                "value": "two",
+                "selected": true,
+                "connected": true
+              },
+              {
+                "label": "Gamma",
+                "value": "three",
+                "selected": true,
+                "connected": true
+              }
+            ],
+            "output": "two,three",
+            "originalNodes": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "native rejection recovery",
+            "events": [
+              {
+                "type": "input",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "values": ["three"],
+                "labels": ["Gamma"],
+                "selectedIndex": 2
+              },
+              {
+                "type": "change",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "values": ["three"],
+                "labels": ["Gamma"],
+                "selectedIndex": 2
+              }
+            ],
+            "value": "three",
+            "selectedIndex": 2,
+            "selected": [
+              {
+                "label": "Alpha",
+                "value": "one",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Beta",
+                "value": "two",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Gamma",
+                "value": "three",
+                "selected": true,
+                "connected": true
+              }
+            ],
+            "rejectedName": "TimeoutError",
+            "foreignConnected": true,
+            "foreignSelection": "one"
+          }
+        }
+      ]
+    }
+  }
+}

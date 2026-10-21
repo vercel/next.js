@@ -1,7 +1,8 @@
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
-import type { Browser, BrowserServer } from 'playwright'
+import type { Browser, BrowserContext, BrowserServer, Page } from 'playwright'
 import { BrowserFixtureError } from './context'
+import type { WebKitPageOwner } from './webkit-host'
 
 function loadPlaywright(projectDir: string): typeof import('playwright') {
   // Resolve the user's optional browser dependency without starting Playwright
@@ -13,6 +14,7 @@ function loadPlaywright(projectDir: string): typeof import('playwright') {
 export interface BrowserHost {
   wsEndpoint: string
   dispose(): Promise<void>
+  webKitPageOwner?(context: BrowserContext, page: Page): WebKitPageOwner
 }
 
 /**
@@ -23,8 +25,13 @@ export interface BrowserHost {
 export async function createBrowserHost(options: {
   projectDir: string
   signal: AbortSignal
+  engine?: 'chromium' | 'webkit'
 }): Promise<BrowserHost> {
   options.signal.throwIfAborted()
+  if (options.engine === 'webkit') {
+    const { createWebKitBrowserHost } = await import('./webkit-host.js')
+    return createWebKitBrowserHost(options, loadPlaywright(options.projectDir))
+  }
   const server: BrowserServer = await loadPlaywright(
     options.projectDir
   ).chromium.launchServer({
@@ -62,9 +69,16 @@ export async function connectBrowserHost(options: {
   projectDir: string
   wsEndpoint: string
   timeout?: number
+  engine?: 'chromium' | 'webkit'
+  beforeConnect?: (playwright: typeof import('playwright')) => Promise<void>
 }): Promise<Browser> {
-  return loadPlaywright(options.projectDir).chromium.connect(
-    options.wsEndpoint,
-    { timeout: options.timeout }
-  )
+  const playwright = loadPlaywright(options.projectDir)
+  if (options.beforeConnect) await options.beforeConnect(playwright)
+  if (options.engine === 'webkit')
+    return playwright.webkit.connect(options.wsEndpoint, {
+      timeout: options.timeout,
+    })
+  return playwright.chromium.connect(options.wsEndpoint, {
+    timeout: options.timeout,
+  })
 }

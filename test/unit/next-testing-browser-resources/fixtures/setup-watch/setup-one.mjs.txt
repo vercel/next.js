@@ -1,0 +1,38 @@
+import { beforeAll, beforeEach, afterEach, afterAll } from 'vitest'
+import { label } from 'next-test-production-target'
+import { state } from './setup-state.mjs'
+import { label as setupLabel } from './setup-label.mjs'
+import { hold } from './control.mjs'
+import './setup.css'
+state.events.push('setup-one-start')
+globalThis.__browserSetupRuns = (globalThis.__browserSetupRuns || 0) + 1
+await new Promise(resolve => { const channel = new MessageChannel(); channel.port1.onmessage = () => { channel.port1.close(); channel.port2.close(); resolve() }; channel.port2.postMessage(null) })
+state.label = setupLabel
+state.hold = hold
+state.branch = label
+state.mode = process.env.NODE_ENV
+state.events.push('setup-one-end')
+beforeAll(() => {
+  state.events.push('before-all-one')
+  globalThis.__browserSetupValue = state.label
+})
+beforeEach(() => {
+  state.events.push('before-each-one')
+  const button = document.createElement('button')
+  button.id = 'setup-button'
+  button.textContent = 'ready-' + state.label
+  button.onclick = () => { state.events.push('button-click'); button.textContent = 'clicked-' + state.label }
+  document.body.append(button)
+  state.button = button
+})
+afterEach(() => {
+  state.events.push('after-each-one')
+  state.button.onclick = null
+  state.button.remove()
+  state.button = undefined
+})
+afterAll(() => {
+  state.events.push('after-all-one')
+  delete globalThis.__browserSetupValue
+  console.log('BROWSER_SETUP_WATCH_FILE ' + JSON.stringify({ file: state.file, label: state.label, events: state.events, branch: state.branch, mode: state.mode, setupRuns: globalThis.__browserSetupRuns, domCount: document.querySelectorAll('#setup-button').length, setupGlobalRemoved: !('__browserSetupValue' in globalThis) }))
+})

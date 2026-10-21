@@ -25,9 +25,15 @@ export function parseStandardCoverageOptions(
   }
   const reporter = list('reporter') ?? ['json', 'lcov']
   for (const value of reporter)
-    if (value !== 'json' && value !== 'lcov')
+    if (
+      value !== 'json' &&
+      value !== 'json-summary' &&
+      value !== 'text-summary' &&
+      value !== 'lcov' &&
+      value !== 'lcovonly'
+    )
       throw new Error(
-        `Standard coverage reporter "${value}" is unsupported; use json or lcov.`
+        `Standard coverage reporter "${value}" is unsupported; use json, json-summary, text-summary, lcov, or lcovonly.`
       )
   const thresholds: StandardCoverageOptions['thresholds'] = {}
   for (const metric of [
@@ -42,11 +48,17 @@ export function parseStandardCoverageOptions(
       typeof input === 'number' || (typeof input === 'string' && input.trim())
         ? Number(input)
         : NaN
-    if (!Number.isFinite(value) || value < 0 || value > 100)
+    if (!Number.isFinite(value) || value > 100)
       throw new Error(
-        `--coverage.thresholds.${metric} must be a percentage between 0 and 100.`
+        `--coverage.thresholds.${metric} must be a percentage between 0 and 100 or a negative maximum uncovered count.`
       )
     thresholds[metric] = value
+  }
+  const perFile = flags['coverage.thresholds.perFile']
+  if (perFile !== undefined) {
+    if (![true, false, 'true', 'false'].includes(perFile as boolean))
+      throw new Error('--coverage.thresholds.perFile must be true or false.')
+    thresholds.perFile = perFile === true || perFile === 'true'
   }
   const reportsDirectory = flags['coverage.reportsDirectory'] ?? 'coverage'
   if (typeof reportsDirectory !== 'string' || !reportsDirectory.trim())

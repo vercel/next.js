@@ -1,0 +1,11 @@
+import {test,expect} from 'vitest'
+import {writeFileSync} from 'node:fs'
+import {value,dependency} from './subject.mjs'
+import {hold} from './control.mjs'
+let executions=0
+test('ordinary production Node watch retains fresh source and project identity',async({task})=>{
+ const row={value,dependency,environment:process.env.NODE_ENV,projectName:task.file.projectName,executions:++executions}
+ expect(row.environment).toBe('production');expect(row.executions).toBe(1)
+ console.log('PRODUCTION_NODE_WATCH '+JSON.stringify(row))
+ if(hold){writeFileSync(process.env.NEXT_TEST_NODE_WATCH_ACTIVE,JSON.stringify(row)+'\n');await new Promise(()=>{})}
+})

@@ -1,0 +1,1 @@
+import * as native from 'node:cluster';export const peerNamespace=native;export const value='real-peer'

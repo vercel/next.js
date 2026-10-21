@@ -1,0 +1,336 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_ESM_NAMESPACE",
+    "value": {
+      "name": "ordinary-tla",
+      "events": ["start", "release"],
+      "pendingCount": 1,
+      "namespace": {
+        "type": "object",
+        "brand": false,
+        "keys": [
+          "before",
+          "after",
+          "read",
+          "default",
+          "Symbol(Symbol.toStringTag)"
+        ],
+        "prototype": "null",
+        "tag": "Module",
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "before",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "after",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "read",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "default",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "Symbol(Symbol.toStringTag)",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": false
+          }
+        ]
+      },
+      "root": {
+        "type": "object",
+        "brand": false,
+        "keys": ["before"],
+        "prototype": "Object.prototype",
+        "tag": null,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "before",
+            "valueType": "number",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          }
+        ]
+      },
+      "identity": [
+        [true, true, true],
+        [true, true, true],
+        [true, true, true]
+      ],
+      "differentPromises": true,
+      "defaultSame": true,
+      "value": 1,
+      "count": 1
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_ESM_NAMESPACE",
+    "value": {
+      "name": "ordinary-tla-rejection",
+      "events": ["start", "reject", "reset-start"],
+      "errors": [
+        {
+          "shape": {
+            "type": "object",
+            "brand": false,
+            "keys": ["stack", "message"],
+            "prototype": "[object Object]",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "stack",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "function",
+                "writable": null,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "message",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "name": "SyntaxError",
+          "message": "leaf TLA raw",
+          "rawSame": true,
+          "causeSame": false,
+          "cause": {
+            "type": "undefined"
+          }
+        },
+        {
+          "shape": {
+            "type": "object",
+            "brand": false,
+            "keys": ["stack", "message"],
+            "prototype": "[object Object]",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "stack",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "function",
+                "writable": null,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "message",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "name": "SyntaxError",
+          "message": "leaf TLA raw",
+          "rawSame": true,
+          "causeSame": false,
+          "cause": {
+            "type": "undefined"
+          }
+        },
+        {
+          "shape": {
+            "type": "object",
+            "brand": false,
+            "keys": ["stack", "message"],
+            "prototype": "[object Object]",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "stack",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "function",
+                "writable": null,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "message",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "name": "SyntaxError",
+          "message": "leaf TLA raw",
+          "rawSame": true,
+          "causeSame": false,
+          "cause": {
+            "type": "undefined"
+          }
+        }
+      ],
+      "errorIdentity": [
+        [true, true, true],
+        [true, true, true],
+        [true, true, true]
+      ],
+      "rejectedCount": 2,
+      "fresh": {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": [
+            "before",
+            "after",
+            "read",
+            "default",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototype": "null",
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "before",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "after",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "read",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "root": {
+          "type": "object",
+          "brand": false,
+          "keys": ["before"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "before",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "value": 3,
+        "defaultSame": true,
+        "count": 3
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_ESM_NAMESPACE",
+    "value": {
+      "name": "ordinary-tla-unused",
+      "rootCount": 3,
+      "unusedCount": 0,
+      "calls": 0
+    }
+  }
+]

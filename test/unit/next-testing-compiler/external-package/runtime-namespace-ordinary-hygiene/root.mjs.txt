@@ -1,0 +1,6 @@
+globalThis.__ws2FHygiene=(globalThis.__ws2FHygiene||0)+1;
+export const Object={kind:'authored-object',evaluation:globalThis.__ws2FHygiene};
+export const Symbol={kind:'authored-symbol'};
+export const __turbopack_namespace__={kind:'authored-name'};
+export const __esModule=false;
+export {Object as default};

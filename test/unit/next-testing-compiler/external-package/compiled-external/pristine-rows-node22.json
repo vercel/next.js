@@ -1,0 +1,22 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_COMPILED_PACKAGE",
+    "value": {
+      "value": 73,
+      "helperValue": 73,
+      "helperIdentity": false,
+      "actual": 19,
+      "nativeValue": 19,
+      "nativeIdentity": true,
+      "tag": "Module",
+      "keys": ["default", "fn", "object", "value"],
+      "descriptor": {
+        "value": 19,
+        "writable": true,
+        "enumerable": true,
+        "configurable": false
+      }
+    }
+  }
+]

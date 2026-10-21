@@ -1,0 +1,120 @@
+{
+  "helper.js": {
+    "path": "helper.js",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 1,
+          "column": 31
+        },
+        "end": {
+          "line": 1,
+          "column": 49
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "label",
+        "decl": {
+          "start": {
+            "line": 1,
+            "column": 16
+          },
+          "end": {
+            "line": 1,
+            "column": 21
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 29
+          },
+          "end": {
+            "line": 1,
+            "column": null
+          }
+        },
+        "line": 1
+      }
+    },
+    "branchMap": {},
+    "s": {
+      "0": 2
+    },
+    "f": {
+      "0": 2
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 1,
+      "lastStatement": 1,
+      "seen": {
+        "f:1:16:1:21": 0,
+        "s:1:31:1:49": 0
+      },
+      "fnNames": {}
+    }
+  },
+  "subject.tsx": {
+    "path": "subject.tsx",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 5,
+          "column": 2
+        },
+        "end": {
+          "line": 8,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "MultilineReturn",
+        "decl": {
+          "start": {
+            "line": 4,
+            "column": 16
+          },
+          "end": {
+            "line": 4,
+            "column": 32
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 4,
+            "column": 69
+          },
+          "end": {
+            "line": 10,
+            "column": null
+          }
+        },
+        "line": 4
+      }
+    },
+    "branchMap": {},
+    "s": {
+      "0": 2
+    },
+    "f": {
+      "0": 2
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 1,
+      "lastStatement": 1,
+      "seen": {
+        "f:4:16:4:32": 0,
+        "s:5:2:8:Infinity": 0
+      },
+      "fnNames": {}
+    }
+  }
+}

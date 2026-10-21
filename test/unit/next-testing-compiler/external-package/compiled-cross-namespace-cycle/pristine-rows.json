@@ -1,0 +1,181 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_NAMESPACE",
+    "value": {
+      "name": "cycle",
+      "calls": [1, 1],
+      "before": {
+        "shape": {
+          "keys": [
+            "evaluation",
+            "token",
+            "read",
+            "observations",
+            "peerRead",
+            "peekRoot",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototypeNull": true,
+          "extensible": true,
+          "tag": "[object Module]",
+          "descriptors": [
+            [
+              "evaluation",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "get": "function",
+                "set": "undefined"
+              }
+            ],
+            [
+              "token",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "get": "function",
+                "set": "undefined"
+              }
+            ],
+            [
+              "read",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "get": "function",
+                "set": "undefined"
+              }
+            ],
+            [
+              "observations",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "get": "function",
+                "set": "undefined"
+              }
+            ],
+            [
+              "peerRead",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "get": "function",
+                "set": "undefined"
+              }
+            ],
+            [
+              "peekRoot",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "get": "function",
+                "set": "undefined"
+              }
+            ],
+            [
+              "Symbol(Symbol.toStringTag)",
+              {
+                "enumerable": false,
+                "configurable": false,
+                "writable": false,
+                "type": "string"
+              }
+            ]
+          ]
+        },
+        "token": {},
+        "readType": {
+          "value": "function"
+        },
+        "read": {
+          "name": "ReferenceError",
+          "message": "Cannot access 'token' before initialization"
+        }
+      },
+      "after": {
+        "keys": [
+          "evaluation",
+          "token",
+          "read",
+          "observations",
+          "peerRead",
+          "peekRoot",
+          "Symbol(Symbol.toStringTag)"
+        ],
+        "prototypeNull": true,
+        "extensible": true,
+        "tag": "[object Module]",
+        "descriptors": [
+          [
+            "evaluation",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "token",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "read",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "observations",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "peerRead",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "peekRoot",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "Symbol(Symbol.toStringTag)",
+            {
+              "enumerable": false,
+              "configurable": false,
+              "writable": false,
+              "type": "string"
+            }
+          ]
+        ]
+      },
+      "same": true,
+      "brands": [false, false],
+      "values": [0, [1, 0]]
+    }
+  }
+]

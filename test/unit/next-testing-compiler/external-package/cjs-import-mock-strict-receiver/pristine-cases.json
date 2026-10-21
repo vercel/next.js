@@ -1,0 +1,12 @@
+[
+  {
+    "name": "strict ordinary original receiver",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "strict async original receiver",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

@@ -2,6 +2,7 @@ import type { DiscoveredTestProject } from './discovery'
 import { join, posix } from 'path'
 import { createHash } from 'node:crypto'
 import { stat } from 'node:fs/promises'
+import { availableParallelism } from 'node:os'
 
 /** Keep a public invocation exclusive across compiler/server handoffs and modes. */
 export async function acquireTestRunLock(
@@ -39,8 +40,15 @@ export interface TestShard {
 }
 
 export function parseMaxWorkers(value: unknown): number {
-  const workers =
+  let workers =
     typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value
+  if (typeof value === 'string' && value.trim().endsWith('%')) {
+    const count = availableParallelism()
+    workers = Math.max(
+      1,
+      Math.min(count, Math.round((Number.parseInt(value) / 100) * count))
+    )
+  }
   if (
     typeof workers !== 'number' ||
     !Number.isSafeInteger(workers) ||

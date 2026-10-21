@@ -1,0 +1,41 @@
+[
+  {
+    "heading": "Hello mounted",
+    "before": "one:0",
+    "environment": "production",
+    "provider": "actual-layout",
+    "color": "rgb(11, 22, 33)",
+    "ssr": {
+      "before": "one:0",
+      "environment": "production",
+      "provider": "actual-layout"
+    },
+    "after": "one:1"
+  },
+  {
+    "heading": "Hello mounted",
+    "before": "two:0",
+    "environment": "production",
+    "provider": "actual-layout",
+    "color": "rgb(11, 22, 33)",
+    "ssr": {
+      "before": "two:0",
+      "environment": "production",
+      "provider": "actual-layout"
+    },
+    "after": "two:1"
+  },
+  {
+    "heading": "Hello mounted",
+    "before": "two:0",
+    "environment": "production",
+    "provider": "actual-layout",
+    "color": "rgb(44, 55, 66)",
+    "ssr": {
+      "before": "two:0",
+      "environment": "production",
+      "provider": "actual-layout"
+    },
+    "after": "two:1"
+  }
+]

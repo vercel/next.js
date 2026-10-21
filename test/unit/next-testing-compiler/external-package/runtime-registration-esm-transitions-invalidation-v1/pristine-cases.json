@@ -1,0 +1,12 @@
+[
+  {
+    "name": "pending cache invalidation waits for a real module request false",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "pending cache invalidation waits for a real module request true",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

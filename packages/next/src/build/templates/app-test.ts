@@ -1,6 +1,9 @@
 // This template is only instantiated by an explicitly registered testing entry.
 // Keep runner, renderer and subject in the same emitted Turbopack runtime.
 import * as ComponentMod from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
+import type { LoaderTree } from '../../server/lib/app-dir-module'
+import { createAppPageEntrypoint } from './app-page-runtime'
+import { interopDefault } from '../../server/app-render/interop-default' with { 'turbopack-transition': 'next-server-utility' }
 export { ComponentMod }
 export { setManifestsSingleton } from '../../server/app-render/manifests-singleton' with { 'turbopack-transition': 'next-server-utility' }
 // The runner distribution is CJS-only. Keep its types pointed at source so
@@ -39,7 +42,24 @@ export function initializeRuntime() {
 }
 
 // The route tree is built by the same native AppProject as ordinary pages.
+declare const routeTree: LoaderTree | undefined
 // INJECT_RAW:__next_test_route__
+
+/** Only the worker calls this with the compiler's validated selected route. */
+export function createRouteEntrypoint(page: string, pathname: string) {
+  if (!routeTree) {
+    throw new Error('Full route rendering requires an AppProject loader tree.')
+  }
+  const entrypoint = createAppPageEntrypoint({
+    tree: routeTree,
+    page,
+    pathname,
+    require: __next_app_require__,
+    loadChunk: __next_app_load_chunk__,
+    interopDefault,
+  })
+  return { ...ComponentMod, ...entrypoint }
+}
 
 // INJECT_RAW:__next_test_mock_runtime__
 

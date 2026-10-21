@@ -1,0 +1,185 @@
+{
+  "path": "<subject.ts>",
+  "statementMap": {
+    "0": {
+      "start": {
+        "line": 1,
+        "column": 23
+      },
+      "end": {
+        "line": 5,
+        "column": null
+      }
+    },
+    "1": {
+      "start": {
+        "line": 2,
+        "column": 31
+      },
+      "end": {
+        "line": 2,
+        "column": null
+      }
+    },
+    "2": {
+      "start": {
+        "line": 3,
+        "column": 43
+      },
+      "end": {
+        "line": 3,
+        "column": 60
+      }
+    },
+    "3": {
+      "start": {
+        "line": 4,
+        "column": 20
+      },
+      "end": {
+        "line": 4,
+        "column": null
+      }
+    },
+    "4": {
+      "start": {
+        "line": 7,
+        "column": 2
+      },
+      "end": {
+        "line": 7,
+        "column": null
+      }
+    }
+  },
+  "fnMap": {
+    "0": {
+      "name": "(anonymous_0)",
+      "decl": {
+        "start": {
+          "line": 2,
+          "column": 2
+        },
+        "end": {
+          "line": 2,
+          "column": 13
+        }
+      },
+      "loc": {
+        "start": {
+          "line": 2,
+          "column": 31
+        },
+        "end": {
+          "line": 2,
+          "column": null
+        }
+      },
+      "line": 2
+    },
+    "1": {
+      "name": "(anonymous_1)",
+      "decl": {
+        "start": {
+          "line": 3,
+          "column": 16
+        },
+        "end": {
+          "line": 3,
+          "column": 23
+        }
+      },
+      "loc": {
+        "start": {
+          "line": 3,
+          "column": 41
+        },
+        "end": {
+          "line": 3,
+          "column": null
+        }
+      },
+      "line": 3
+    },
+    "2": {
+      "name": "(anonymous_2)",
+      "decl": {
+        "start": {
+          "line": 4,
+          "column": 2
+        },
+        "end": {
+          "line": 4,
+          "column": 20
+        }
+      },
+      "loc": {
+        "start": {
+          "line": 4,
+          "column": 20
+        },
+        "end": {
+          "line": 4,
+          "column": null
+        }
+      },
+      "line": 4
+    },
+    "3": {
+      "name": "run",
+      "decl": {
+        "start": {
+          "line": 6,
+          "column": 22
+        },
+        "end": {
+          "line": 6,
+          "column": 26
+        }
+      },
+      "loc": {
+        "start": {
+          "line": 6,
+          "column": 41
+        },
+        "end": {
+          "line": 8,
+          "column": null
+        }
+      },
+      "line": 6
+    }
+  },
+  "branchMap": {},
+  "s": {
+    "0": 1,
+    "1": 1,
+    "2": 1,
+    "3": 1,
+    "4": 1
+  },
+  "f": {
+    "0": 1,
+    "1": 1,
+    "2": 1,
+    "3": 1
+  },
+  "b": {},
+  "meta": {
+    "lastBranch": 0,
+    "lastFunction": 4,
+    "lastStatement": 5,
+    "seen": {
+      "s:1:23:5:Infinity": 0,
+      "f:2:2:2:13": 0,
+      "s:2:31:2:Infinity": 1,
+      "f:3:16:3:23": 1,
+      "s:3:43:3:60": 2,
+      "f:4:2:4:20": 2,
+      "s:4:20:4:Infinity": 3,
+      "f:6:22:6:26": 3,
+      "s:7:2:7:Infinity": 4
+    },
+    "fnNames": {}
+  }
+}

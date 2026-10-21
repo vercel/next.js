@@ -1,0 +1,3354 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_ORDER",
+    "value": {
+      "name": "cold",
+      "events": ["root-start", "peer-start", "root-original"],
+      "calls": [1, 1],
+      "values": [0, 8, 8],
+      "same": true,
+      "evaluations": [1, 0],
+      "shapes": [
+        {
+          "keys": ["token", "peerToken", "read", "evaluation"],
+          "prototypeNull": false,
+          "objectPrototype": true,
+          "tag": "[object Object]",
+          "brand": false,
+          "descriptors": [
+            [
+              "token",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "peerToken",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "read",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "evaluation",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "number"
+              }
+            ]
+          ]
+        },
+        {
+          "keys": ["token", "read", "evaluation"],
+          "prototypeNull": false,
+          "objectPrototype": true,
+          "tag": "[object Object]",
+          "brand": false,
+          "descriptors": [
+            [
+              "token",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "read",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "evaluation",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "number"
+              }
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_ORDER",
+    "value": {
+      "name": "reverse",
+      "events": ["root-start", "peer-start", "root-original"],
+      "calls": [1, 1],
+      "values": [0, 8, 8],
+      "same": true,
+      "evaluations": [1, 0],
+      "shapes": [
+        {
+          "keys": ["token", "peerToken", "read", "evaluation"],
+          "prototypeNull": false,
+          "objectPrototype": true,
+          "tag": "[object Object]",
+          "brand": false,
+          "descriptors": [
+            [
+              "token",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "peerToken",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "read",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "evaluation",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "number"
+              }
+            ]
+          ]
+        },
+        {
+          "keys": ["token", "read", "evaluation"],
+          "prototypeNull": false,
+          "objectPrototype": true,
+          "tag": "[object Object]",
+          "brand": false,
+          "descriptors": [
+            [
+              "token",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "read",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "evaluation",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "number"
+              }
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_PENDING",
+    "value": {
+      "events": [
+        "root-start",
+        "peer-start",
+        "overlap-requested",
+        "root-original",
+        "overlap-resolved"
+      ],
+      "calls": [1, 1],
+      "before": [0, 0],
+      "after": [1, 0],
+      "same": [true, true, true],
+      "reads": [[0, 9, 9], 9, 9],
+      "shapes": [
+        {
+          "keys": ["token", "peerToken", "read", "evaluation"],
+          "prototypeNull": false,
+          "objectPrototype": true,
+          "tag": "[object Object]",
+          "brand": false,
+          "descriptors": [
+            [
+              "token",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "peerToken",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "read",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "evaluation",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "number"
+              }
+            ]
+          ]
+        },
+        {
+          "keys": ["token", "read", "evaluation"],
+          "prototypeNull": false,
+          "objectPrototype": true,
+          "tag": "[object Object]",
+          "brand": false,
+          "descriptors": [
+            [
+              "token",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "read",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "evaluation",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "number"
+              }
+            ]
+          ]
+        },
+        {
+          "keys": ["token", "read", "evaluation"],
+          "prototypeNull": false,
+          "objectPrototype": true,
+          "tag": "[object Object]",
+          "brand": false,
+          "descriptors": [
+            [
+              "token",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "read",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "evaluation",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "number"
+              }
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_FAILURE",
+    "value": {
+      "events": [
+        "root-start",
+        "peer-start",
+        "root-start",
+        "root-start",
+        "peer-start",
+        "root-start",
+        "root-original"
+      ],
+      "calls": [4, 2],
+      "beforeDirect": [3, 1],
+      "errors": [
+        {
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "name": "Error",
+          "causeSame": false,
+          "causeName": "Error",
+          "causeMessage": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "causeCauseSame": true,
+          "keys": ["stack", "message", "cause"],
+          "causeKeys": ["stack", "message", "cause"]
+        },
+        {
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "name": "Error",
+          "causeSame": false,
+          "causeName": "Error",
+          "causeMessage": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "causeCauseSame": true,
+          "keys": ["stack", "message", "cause"],
+          "causeKeys": ["stack", "message", "cause"]
+        },
+        {
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "name": "Error",
+          "causeSame": false,
+          "causeName": "Error",
+          "causeMessage": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "causeCauseSame": true,
+          "keys": ["stack", "message", "cause"],
+          "causeKeys": ["stack", "message", "cause"]
+        }
+      ],
+      "errorSame": [false, false],
+      "causeIdentity": [true, true],
+      "recoveredError": true,
+      "recoveredMessage": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+      "afterResetError": false,
+      "values": [null, [0, 11, 11]],
+      "same": [false, true],
+      "evaluations": [1, 0],
+      "shapes": [
+        {
+          "keys": ["stack", "message", "cause"],
+          "prototypeNull": false,
+          "objectPrototype": false,
+          "tag": "[object Error]",
+          "brand": false,
+          "descriptors": [
+            [
+              "stack",
+              {
+                "enumerable": false,
+                "configurable": true,
+                "get": "function",
+                "set": "function"
+              }
+            ],
+            [
+              "message",
+              {
+                "enumerable": false,
+                "configurable": true,
+                "writable": true,
+                "valueType": "string"
+              }
+            ],
+            [
+              "cause",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ]
+          ]
+        },
+        {
+          "keys": ["token", "read", "evaluation"],
+          "prototypeNull": false,
+          "objectPrototype": true,
+          "tag": "[object Object]",
+          "brand": false,
+          "descriptors": [
+            [
+              "token",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "read",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "evaluation",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "number"
+              }
+            ]
+          ]
+        },
+        {
+          "keys": ["token", "peerToken", "read", "evaluation"],
+          "prototypeNull": false,
+          "objectPrototype": true,
+          "tag": "[object Object]",
+          "brand": false,
+          "descriptors": [
+            [
+              "token",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "peerToken",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "read",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "evaluation",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "number"
+              }
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_HELD",
+    "value": {
+      "calls": [1, 1],
+      "identities": [true, true, false, true, true],
+      "reads": [
+        [0, 12, 12],
+        [0, 0, 0]
+      ],
+      "evaluations": [2, 1],
+      "shapes": [
+        {
+          "keys": ["token", "peerToken", "read", "evaluation"],
+          "prototypeNull": false,
+          "objectPrototype": true,
+          "tag": "[object Object]",
+          "brand": false,
+          "descriptors": [
+            [
+              "token",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "peerToken",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "read",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "evaluation",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "number"
+              }
+            ]
+          ]
+        },
+        {
+          "keys": [
+            "evaluation",
+            "token",
+            "peerToken",
+            "read",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototypeNull": true,
+          "objectPrototype": false,
+          "tag": "[object Module]",
+          "brand": false,
+          "descriptors": [
+            [
+              "evaluation",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "get": "function",
+                "set": "undefined"
+              }
+            ],
+            [
+              "token",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "get": "function",
+                "set": "undefined"
+              }
+            ],
+            [
+              "peerToken",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "get": "function",
+                "set": "undefined"
+              }
+            ],
+            [
+              "read",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "get": "function",
+                "set": "undefined"
+              }
+            ],
+            [
+              "Symbol(Symbol.toStringTag)",
+              {
+                "enumerable": false,
+                "configurable": false,
+                "writable": false,
+                "valueType": "string"
+              }
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_LOADED",
+    "value": {
+      "calls": [1, 1],
+      "identities": [false, true, true, false],
+      "reads": [[0, 0, 0], [0, 0, 0], 13],
+      "evaluations": [1, 1],
+      "shapes": [
+        {
+          "keys": ["token", "peerToken", "read", "evaluation"],
+          "prototypeNull": false,
+          "objectPrototype": true,
+          "tag": "[object Object]",
+          "brand": false,
+          "descriptors": [
+            [
+              "token",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "peerToken",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "read",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "evaluation",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "number"
+              }
+            ]
+          ]
+        },
+        {
+          "keys": [
+            "evaluation",
+            "token",
+            "peerToken",
+            "read",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototypeNull": true,
+          "objectPrototype": false,
+          "tag": "[object Module]",
+          "brand": false,
+          "descriptors": [
+            [
+              "evaluation",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "get": "function",
+                "set": "undefined"
+              }
+            ],
+            [
+              "token",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "get": "function",
+                "set": "undefined"
+              }
+            ],
+            [
+              "peerToken",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "get": "function",
+                "set": "undefined"
+              }
+            ],
+            [
+              "read",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "get": "function",
+                "set": "undefined"
+              }
+            ],
+            [
+              "Symbol(Symbol.toStringTag)",
+              {
+                "enumerable": false,
+                "configurable": false,
+                "writable": false,
+                "valueType": "string"
+              }
+            ]
+          ]
+        },
+        {
+          "keys": ["token", "read", "evaluation"],
+          "prototypeNull": false,
+          "objectPrototype": true,
+          "tag": "[object Object]",
+          "brand": false,
+          "descriptors": [
+            [
+              "token",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "read",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "evaluation",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "number"
+              }
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_UNUSED",
+    "value": {
+      "calls": [0, 0],
+      "evaluations": [0, 0]
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_CYCLE",
+    "value": {
+      "events": ["root-start", "peer-start", "peer-original", "root-original"],
+      "calls": [1, 1],
+      "identities": [true, true],
+      "reads": [[0, 14, 14], 14],
+      "evaluations": [1, 1],
+      "shapes": [
+        {
+          "keys": ["token", "peerToken", "read", "getRoot", "evaluation"],
+          "prototypeNull": false,
+          "objectPrototype": true,
+          "tag": "[object Object]",
+          "brand": false,
+          "descriptors": [
+            [
+              "token",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "peerToken",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "read",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "getRoot",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "evaluation",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "number"
+              }
+            ]
+          ]
+        },
+        {
+          "keys": ["token", "read", "root", "evaluation"],
+          "prototypeNull": false,
+          "objectPrototype": true,
+          "tag": "[object Object]",
+          "brand": false,
+          "descriptors": [
+            [
+              "token",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "read",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "root",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "evaluation",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "number"
+              }
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_DEAD",
+    "value": {
+      "beforePeer": {
+        "events": ["root-start", "peer-start", "root-original"],
+        "calls": [1, 1]
+      },
+      "events": ["root-start", "peer-start", "root-original"],
+      "calls": [1, 1],
+      "values": [91, 27],
+      "shapes": [
+        {
+          "keys": ["value"],
+          "prototypeNull": false,
+          "objectPrototype": true,
+          "tag": "[object Object]",
+          "brand": false,
+          "descriptors": [
+            [
+              "value",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "number"
+              }
+            ]
+          ]
+        },
+        {
+          "keys": ["token"],
+          "prototypeNull": false,
+          "objectPrototype": true,
+          "tag": "[object Object]",
+          "brand": false,
+          "descriptors": [
+            [
+              "token",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_FANOUT",
+    "value": {
+      "before": {
+        "events": ["root-start", "left-start"],
+        "calls": [1, 1, 0],
+        "rootEvaluations": 0
+      },
+      "events": ["root-start", "left-start", "right-start", "root-original"],
+      "calls": [1, 1, 1],
+      "reads": [28, 29],
+      "same": [true, true],
+      "evaluations": [1, 0, 0],
+      "shapes": [
+        {
+          "keys": ["left", "right", "read"],
+          "prototypeNull": false,
+          "objectPrototype": true,
+          "tag": "[object Object]",
+          "brand": false,
+          "descriptors": [
+            [
+              "left",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "right",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "read",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "function"
+              }
+            ]
+          ]
+        },
+        {
+          "keys": ["token"],
+          "prototypeNull": false,
+          "objectPrototype": true,
+          "tag": "[object Object]",
+          "brand": false,
+          "descriptors": [
+            [
+              "token",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ]
+          ]
+        },
+        {
+          "keys": ["token"],
+          "prototypeNull": false,
+          "objectPrototype": true,
+          "tag": "[object Object]",
+          "brand": false,
+          "descriptors": [
+            [
+              "token",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_ASYNC_CYCLE",
+    "value": {
+      "before": {
+        "events": ["root-start", "peer-start", "third-start"],
+        "calls": [1, 1, 1],
+        "evaluations": [0, 0]
+      },
+      "events": [
+        "root-start",
+        "peer-start",
+        "third-start",
+        "peer-original",
+        "root-original"
+      ],
+      "calls": [1, 1, 1],
+      "identities": [true, true],
+      "reads": [[0, 15, 16], 16, 16],
+      "evaluations": [1, 1, 0],
+      "shapes": [
+        {
+          "keys": ["token", "peerToken", "getRoot", "read"],
+          "prototypeNull": false,
+          "objectPrototype": true,
+          "tag": "[object Object]",
+          "brand": false,
+          "descriptors": [
+            [
+              "token",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "peerToken",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "getRoot",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "read",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "function"
+              }
+            ]
+          ]
+        },
+        {
+          "keys": ["token", "root", "read"],
+          "prototypeNull": false,
+          "objectPrototype": true,
+          "tag": "[object Object]",
+          "brand": false,
+          "descriptors": [
+            [
+              "token",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "root",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "read",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "function"
+              }
+            ]
+          ]
+        },
+        {
+          "keys": ["token"],
+          "prototypeNull": false,
+          "objectPrototype": true,
+          "tag": "[object Object]",
+          "brand": false,
+          "descriptors": [
+            [
+              "token",
+              {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "valueType": "object"
+              }
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_ORDINARY_AFTER",
+    "value": {
+      "before": {
+        "events": ["root-start", "peer-start"],
+        "calls": [1, 1],
+        "ordinary": 0,
+        "root": 0
+      },
+      "events": ["root-start", "peer-start", "root-original"],
+      "calls": [1, 1],
+      "read": [17, 93],
+      "evaluations": [1, 1],
+      "shape": {
+        "keys": ["token", "value", "read"],
+        "prototypeNull": false,
+        "objectPrototype": true,
+        "tag": "[object Object]",
+        "brand": false,
+        "descriptors": [
+          [
+            "token",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "valueType": "object"
+            }
+          ],
+          [
+            "value",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "valueType": "number"
+            }
+          ],
+          [
+            "read",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "valueType": "function"
+            }
+          ]
+        ]
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_NATIVE_OBSERVATIONS",
+    "value": [
+      {
+        "name": "cold",
+        "namespace": {
+          "keys": [
+            "SCHED_NONE",
+            "SCHED_RR",
+            "Worker",
+            "_events",
+            "_eventsCount",
+            "_maxListeners",
+            "default",
+            "disconnect",
+            "fork",
+            "isMaster",
+            "isPrimary",
+            "isWorker",
+            "schedulingPolicy",
+            "settings",
+            "setupMaster",
+            "setupPrimary",
+            "workers",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototypeNull": true,
+          "objectPrototype": false,
+          "tag": "[object Module]",
+          "brand": false,
+          "descriptors": [
+            [
+              "SCHED_NONE",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "SCHED_RR",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "Worker",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "_events",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "_eventsCount",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "_maxListeners",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "undefined"
+              }
+            ],
+            [
+              "default",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "disconnect",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "fork",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "isMaster",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "isPrimary",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "isWorker",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "schedulingPolicy",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "settings",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "setupMaster",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "setupPrimary",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "workers",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "Symbol(Symbol.toStringTag)",
+              {
+                "enumerable": false,
+                "configurable": false,
+                "writable": false,
+                "valueType": "string"
+              }
+            ]
+          ]
+        },
+        "sameSetup": true
+      },
+      {
+        "name": "reverse",
+        "namespace": {
+          "keys": [
+            "SCHED_NONE",
+            "SCHED_RR",
+            "Worker",
+            "_events",
+            "_eventsCount",
+            "_maxListeners",
+            "default",
+            "disconnect",
+            "fork",
+            "isMaster",
+            "isPrimary",
+            "isWorker",
+            "schedulingPolicy",
+            "settings",
+            "setupMaster",
+            "setupPrimary",
+            "workers",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototypeNull": true,
+          "objectPrototype": false,
+          "tag": "[object Module]",
+          "brand": false,
+          "descriptors": [
+            [
+              "SCHED_NONE",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "SCHED_RR",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "Worker",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "_events",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "_eventsCount",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "_maxListeners",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "undefined"
+              }
+            ],
+            [
+              "default",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "disconnect",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "fork",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "isMaster",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "isPrimary",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "isWorker",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "schedulingPolicy",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "settings",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "setupMaster",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "setupPrimary",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "workers",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "Symbol(Symbol.toStringTag)",
+              {
+                "enumerable": false,
+                "configurable": false,
+                "writable": false,
+                "valueType": "string"
+              }
+            ]
+          ]
+        },
+        "sameSetup": true
+      },
+      {
+        "name": "pending",
+        "namespace": {
+          "keys": [
+            "SCHED_NONE",
+            "SCHED_RR",
+            "Worker",
+            "_events",
+            "_eventsCount",
+            "_maxListeners",
+            "default",
+            "disconnect",
+            "fork",
+            "isMaster",
+            "isPrimary",
+            "isWorker",
+            "schedulingPolicy",
+            "settings",
+            "setupMaster",
+            "setupPrimary",
+            "workers",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototypeNull": true,
+          "objectPrototype": false,
+          "tag": "[object Module]",
+          "brand": false,
+          "descriptors": [
+            [
+              "SCHED_NONE",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "SCHED_RR",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "Worker",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "_events",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "_eventsCount",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "_maxListeners",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "undefined"
+              }
+            ],
+            [
+              "default",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "disconnect",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "fork",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "isMaster",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "isPrimary",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "isWorker",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "schedulingPolicy",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "settings",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "setupMaster",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "setupPrimary",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "workers",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "Symbol(Symbol.toStringTag)",
+              {
+                "enumerable": false,
+                "configurable": false,
+                "writable": false,
+                "valueType": "string"
+              }
+            ]
+          ]
+        },
+        "sameSetup": true
+      },
+      {
+        "name": "failure",
+        "namespace": {
+          "keys": [
+            "SCHED_NONE",
+            "SCHED_RR",
+            "Worker",
+            "_events",
+            "_eventsCount",
+            "_maxListeners",
+            "default",
+            "disconnect",
+            "fork",
+            "isMaster",
+            "isPrimary",
+            "isWorker",
+            "schedulingPolicy",
+            "settings",
+            "setupMaster",
+            "setupPrimary",
+            "workers",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototypeNull": true,
+          "objectPrototype": false,
+          "tag": "[object Module]",
+          "brand": false,
+          "descriptors": [
+            [
+              "SCHED_NONE",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "SCHED_RR",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "Worker",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "_events",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "_eventsCount",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "_maxListeners",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "undefined"
+              }
+            ],
+            [
+              "default",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "disconnect",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "fork",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "isMaster",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "isPrimary",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "isWorker",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "schedulingPolicy",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "settings",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "setupMaster",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "setupPrimary",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "workers",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "Symbol(Symbol.toStringTag)",
+              {
+                "enumerable": false,
+                "configurable": false,
+                "writable": false,
+                "valueType": "string"
+              }
+            ]
+          ]
+        },
+        "sameSetup": true
+      },
+      {
+        "name": "held",
+        "namespace": {
+          "keys": [
+            "SCHED_NONE",
+            "SCHED_RR",
+            "Worker",
+            "_events",
+            "_eventsCount",
+            "_maxListeners",
+            "default",
+            "disconnect",
+            "fork",
+            "isMaster",
+            "isPrimary",
+            "isWorker",
+            "schedulingPolicy",
+            "settings",
+            "setupMaster",
+            "setupPrimary",
+            "workers",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototypeNull": true,
+          "objectPrototype": false,
+          "tag": "[object Module]",
+          "brand": false,
+          "descriptors": [
+            [
+              "SCHED_NONE",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "SCHED_RR",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "Worker",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "_events",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "_eventsCount",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "_maxListeners",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "undefined"
+              }
+            ],
+            [
+              "default",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "disconnect",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "fork",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "isMaster",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "isPrimary",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "isWorker",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "schedulingPolicy",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "settings",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "setupMaster",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "setupPrimary",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "workers",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "Symbol(Symbol.toStringTag)",
+              {
+                "enumerable": false,
+                "configurable": false,
+                "writable": false,
+                "valueType": "string"
+              }
+            ]
+          ]
+        },
+        "sameSetup": true
+      },
+      {
+        "name": "loaded",
+        "namespace": {
+          "keys": [
+            "SCHED_NONE",
+            "SCHED_RR",
+            "Worker",
+            "_events",
+            "_eventsCount",
+            "_maxListeners",
+            "default",
+            "disconnect",
+            "fork",
+            "isMaster",
+            "isPrimary",
+            "isWorker",
+            "schedulingPolicy",
+            "settings",
+            "setupMaster",
+            "setupPrimary",
+            "workers",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototypeNull": true,
+          "objectPrototype": false,
+          "tag": "[object Module]",
+          "brand": false,
+          "descriptors": [
+            [
+              "SCHED_NONE",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "SCHED_RR",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "Worker",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "_events",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "_eventsCount",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "_maxListeners",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "undefined"
+              }
+            ],
+            [
+              "default",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "disconnect",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "fork",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "isMaster",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "isPrimary",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "isWorker",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "schedulingPolicy",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "settings",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "setupMaster",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "setupPrimary",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "workers",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "Symbol(Symbol.toStringTag)",
+              {
+                "enumerable": false,
+                "configurable": false,
+                "writable": false,
+                "valueType": "string"
+              }
+            ]
+          ]
+        },
+        "sameSetup": true
+      },
+      {
+        "name": "cycle",
+        "namespace": {
+          "keys": [
+            "SCHED_NONE",
+            "SCHED_RR",
+            "Worker",
+            "_events",
+            "_eventsCount",
+            "_maxListeners",
+            "default",
+            "disconnect",
+            "fork",
+            "isMaster",
+            "isPrimary",
+            "isWorker",
+            "schedulingPolicy",
+            "settings",
+            "setupMaster",
+            "setupPrimary",
+            "workers",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototypeNull": true,
+          "objectPrototype": false,
+          "tag": "[object Module]",
+          "brand": false,
+          "descriptors": [
+            [
+              "SCHED_NONE",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "SCHED_RR",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "Worker",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "_events",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "_eventsCount",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "_maxListeners",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "undefined"
+              }
+            ],
+            [
+              "default",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "disconnect",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "fork",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "isMaster",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "isPrimary",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "isWorker",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "schedulingPolicy",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "settings",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "setupMaster",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "setupPrimary",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "workers",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "Symbol(Symbol.toStringTag)",
+              {
+                "enumerable": false,
+                "configurable": false,
+                "writable": false,
+                "valueType": "string"
+              }
+            ]
+          ]
+        },
+        "sameSetup": true
+      },
+      {
+        "name": "dead",
+        "namespace": {
+          "keys": [
+            "SCHED_NONE",
+            "SCHED_RR",
+            "Worker",
+            "_events",
+            "_eventsCount",
+            "_maxListeners",
+            "default",
+            "disconnect",
+            "fork",
+            "isMaster",
+            "isPrimary",
+            "isWorker",
+            "schedulingPolicy",
+            "settings",
+            "setupMaster",
+            "setupPrimary",
+            "workers",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototypeNull": true,
+          "objectPrototype": false,
+          "tag": "[object Module]",
+          "brand": false,
+          "descriptors": [
+            [
+              "SCHED_NONE",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "SCHED_RR",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "Worker",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "_events",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "_eventsCount",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "_maxListeners",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "undefined"
+              }
+            ],
+            [
+              "default",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "disconnect",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "fork",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "isMaster",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "isPrimary",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "isWorker",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "schedulingPolicy",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "settings",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "setupMaster",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "setupPrimary",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "workers",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "Symbol(Symbol.toStringTag)",
+              {
+                "enumerable": false,
+                "configurable": false,
+                "writable": false,
+                "valueType": "string"
+              }
+            ]
+          ]
+        },
+        "sameSetup": true
+      },
+      {
+        "name": "fanout",
+        "namespace": {
+          "keys": [
+            "SCHED_NONE",
+            "SCHED_RR",
+            "Worker",
+            "_events",
+            "_eventsCount",
+            "_maxListeners",
+            "default",
+            "disconnect",
+            "fork",
+            "isMaster",
+            "isPrimary",
+            "isWorker",
+            "schedulingPolicy",
+            "settings",
+            "setupMaster",
+            "setupPrimary",
+            "workers",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototypeNull": true,
+          "objectPrototype": false,
+          "tag": "[object Module]",
+          "brand": false,
+          "descriptors": [
+            [
+              "SCHED_NONE",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "SCHED_RR",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "Worker",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "_events",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "_eventsCount",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "_maxListeners",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "undefined"
+              }
+            ],
+            [
+              "default",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "disconnect",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "fork",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "isMaster",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "isPrimary",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "isWorker",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "schedulingPolicy",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "settings",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "setupMaster",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "setupPrimary",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "workers",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "Symbol(Symbol.toStringTag)",
+              {
+                "enumerable": false,
+                "configurable": false,
+                "writable": false,
+                "valueType": "string"
+              }
+            ]
+          ]
+        },
+        "sameSetup": true
+      },
+      {
+        "name": "async-cycle",
+        "namespace": {
+          "keys": [
+            "SCHED_NONE",
+            "SCHED_RR",
+            "Worker",
+            "_events",
+            "_eventsCount",
+            "_maxListeners",
+            "default",
+            "disconnect",
+            "fork",
+            "isMaster",
+            "isPrimary",
+            "isWorker",
+            "schedulingPolicy",
+            "settings",
+            "setupMaster",
+            "setupPrimary",
+            "workers",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototypeNull": true,
+          "objectPrototype": false,
+          "tag": "[object Module]",
+          "brand": false,
+          "descriptors": [
+            [
+              "SCHED_NONE",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "SCHED_RR",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "Worker",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "_events",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "_eventsCount",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "_maxListeners",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "undefined"
+              }
+            ],
+            [
+              "default",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "disconnect",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "fork",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "isMaster",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "isPrimary",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "isWorker",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "schedulingPolicy",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "settings",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "setupMaster",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "setupPrimary",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "workers",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "Symbol(Symbol.toStringTag)",
+              {
+                "enumerable": false,
+                "configurable": false,
+                "writable": false,
+                "valueType": "string"
+              }
+            ]
+          ]
+        },
+        "sameSetup": true
+      },
+      {
+        "name": "ordinary-after",
+        "namespace": {
+          "keys": [
+            "SCHED_NONE",
+            "SCHED_RR",
+            "Worker",
+            "_events",
+            "_eventsCount",
+            "_maxListeners",
+            "default",
+            "disconnect",
+            "fork",
+            "isMaster",
+            "isPrimary",
+            "isWorker",
+            "schedulingPolicy",
+            "settings",
+            "setupMaster",
+            "setupPrimary",
+            "workers",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototypeNull": true,
+          "objectPrototype": false,
+          "tag": "[object Module]",
+          "brand": false,
+          "descriptors": [
+            [
+              "SCHED_NONE",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "SCHED_RR",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "Worker",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "_events",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "_eventsCount",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "_maxListeners",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "undefined"
+              }
+            ],
+            [
+              "default",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "disconnect",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "fork",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "isMaster",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "isPrimary",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "isWorker",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "boolean"
+              }
+            ],
+            [
+              "schedulingPolicy",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "number"
+              }
+            ],
+            [
+              "settings",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "setupMaster",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "setupPrimary",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "function"
+              }
+            ],
+            [
+              "workers",
+              {
+                "enumerable": true,
+                "configurable": false,
+                "writable": true,
+                "valueType": "object"
+              }
+            ],
+            [
+              "Symbol(Symbol.toStringTag)",
+              {
+                "enumerable": false,
+                "configurable": false,
+                "writable": false,
+                "valueType": "string"
+              }
+            ]
+          ]
+        },
+        "sameSetup": true
+      }
+    ]
+  }
+]

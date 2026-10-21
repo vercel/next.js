@@ -1,4 +1,6 @@
+import { cleanupClientKeyboard, runClientKeyboard } from './keyboard'
 import { randomBytes } from 'node:crypto'
+import { resolve } from 'node:path'
 import type { Browser, BrowserContext, ConsoleMessage, Page } from 'playwright'
 import type {
   CompiledBrowserClientTestArtifact,
@@ -6,6 +8,7 @@ import type {
   TestExecutionResult,
 } from '../contracts'
 import { assertArtifactProfile } from '../execution/artifact-profile'
+import { assertCompiledSetup } from '../execution/setup'
 import {
   createBrowserHost,
   connectBrowserHost,
@@ -22,6 +25,8 @@ import { createClientResultCollector } from './results'
 import { createClientCoverage } from './coverage'
 import { createClientEngineBrand } from './engine-brand'
 import { clientConsoleBoundary } from './protocol'
+import { runClientBrowserAction } from './action-error'
+import { clientLocatorEngine, registerClientLocators } from './locator-engine'
 
 /** Execute a compiler-certified client graph in its freshly owned page. */
 export async function executeClient(
@@ -29,13 +34,15 @@ export async function executeClient(
   options: ExecuteTestOptions
 ): Promise<TestExecutionResult> {
   assertArtifactProfile(artifact, options.entry)
+  assertCompiledSetup(artifact, options.setupFiles)
   if (
     artifact.kind !== 'browser' ||
     artifact.client.asyncScope !== 'promise-continuations-v1' ||
     artifact.client.creatorScope !== 'synchronous-source-v1' ||
     artifact.client.creatorPromiseRoute !== 'native-engine-v1' ||
     artifact.profile.browserClient !== true ||
-    artifact.profile.mode !== 'development' ||
+    (artifact.profile.mode !== 'development' &&
+      artifact.profile.mode !== 'production') ||
     options.browser ||
     options.collectOnly ||
     (options.coverage &&
@@ -43,7 +50,7 @@ export async function executeClient(
         options.coverage.kind !== 'browser-v8' ||
         !options.onCoverage)) ||
     options.customCoverage ||
-    options.setupFiles.length ||
+    (options.setupFiles.length && options.coverage) ||
     options.snapshotSerializers?.length ||
     options.inspect ||
     (options.retry !== undefined &&
@@ -52,7 +59,7 @@ export async function executeClient(
         options.retry < 0)) ||
     options.bail ||
     options.sequence?.hooks ||
-    options.sequence?.setupFiles ||
+    (options.sequence?.setupFiles && options.sequence.setupFiles !== 'list') ||
     options.sequence?.concurrent ||
     (typeof options.sequence?.shuffle === 'object'
       ? options.sequence.shuffle.tests
@@ -63,7 +70,7 @@ export async function executeClient(
     options.attachmentsDir
   )
     throw new Error(
-      'Browser Mode currently requires an isolated compiler-certified serial file without Node driver, setup, fixtures, nonnumeric retries, concurrency, or runtime configuration.'
+      'Browser Mode currently requires an isolated compiler-certified serial file without Node driver, parallel setup, setup coverage, fixtures, nonnumeric retries, concurrency, or runtime configuration.'
     )
   if (options.entry.file !== artifact.client.sourceFile)
     throw new Error(
@@ -119,6 +126,18 @@ export async function executeClient(
     { ...options, updateSnapshots: snapshotUpdateMode !== 'none' },
     (stack) => server?.mapStack(stack) ?? []
   )
+  const forwardedEvents = options.captureTaskResults
+    ? new Set<ResultEvent>()
+    : undefined
+  const publishCapturedEvents = () => {
+    if (!forwardedEvents) return
+    for (const event of collector.events) {
+      if (forwardedEvents.has(event)) continue
+      // A rejecting observer must not receive the same actual event twice.
+      forwardedEvents.add(event)
+      options.onEvent(event)
+    }
+  }
   const fail = (error: unknown) => {
     errors.push(error)
     server?.fail(error)
@@ -202,9 +221,13 @@ export async function executeClient(
         revision: artifact.revision,
         ownerToken: randomBytes(32).toString('hex'),
         filePath: artifact.client.sourceFile,
+        ...(options.entry.projectName === undefined
+          ? {}
+          : { projectName: options.entry.projectName }),
         sourceHash: artifact.sourceHash,
         projectDir: options.projectDir,
         snapshotUpdateMode,
+        ...(options.captureTaskResults ? { captureTaskResults: true } : {}),
         testNamePattern:
           testNamePattern === undefined
             ? undefined
@@ -223,44 +246,304 @@ export async function executeClient(
         unstubEnvs: options.unstubEnvs,
         retry: typeof options.retry === 'number' ? options.retry : undefined,
       },
-      async onBrowserCommand(command) {
+      async onBrowserCommand(command, admit = () => {}) {
+        const deferredLocator =
+          typeof command?.element === 'string' &&
+          /^next-test-locator-[0-9]+$/.test(command.element)
         if (
           !page ||
           closing ||
           !command ||
-          !/^next-test-element-[0-9]+$/.test(command.element) ||
+          (!/^next-test-element-[0-9]+$/.test(command.element) &&
+            !(
+              deferredLocator &&
+              (command.method === 'click' ||
+                command.method === 'fill' ||
+                command.method === 'dblClick' ||
+                command.method === 'tripleClick' ||
+                command.method === 'hover' ||
+                command.method === 'unhover' ||
+                command.method === 'selectOptions')
+            )) ||
           !Array.isArray(command.args)
         )
           throw new Error('Invalid Browser Mode element command.')
-        const locator = page.locator(
-          `[data-next-test-element="${command.element}"]`
-        )
+        const runAction = <T>(perform: () => Promise<T>) => {
+          admit()
+          return runClientBrowserAction(perform)
+        }
+        const actionPage = page
+        const locator = deferredLocator
+          ? actionPage.locator(clientLocatorEngine + '=' + command.element)
+          : actionPage.locator(`[data-next-test-element="${command.element}"]`)
         switch (command.method) {
+          case 'dragAndDrop': {
+            const [target, dragOptions] = command.args
+            if (
+              command.args.length < 1 ||
+              command.args.length > 2 ||
+              typeof target !== 'string' ||
+              !/^next-test-element-[0-9]+$/.test(target) ||
+              (dragOptions !== undefined &&
+                (!dragOptions ||
+                  typeof dragOptions !== 'object' ||
+                  Array.isArray(dragOptions)))
+            )
+              throw new Error('Invalid Browser Mode drag target or options.')
+            const frame = actionPage.mainFrame()
+            await runAction(() =>
+              frame.dragAndDrop(
+                `[data-next-test-element="${command.element}"]`,
+                `[data-next-test-element="${target}"]`,
+                dragOptions as Parameters<typeof frame.dragAndDrop>[2]
+              )
+            )
+            break
+          }
           case 'click':
-            await locator.click()
+            await runAction(() =>
+              locator.click(
+                command.args[0] as Parameters<typeof locator.click>[0]
+              )
+            )
             break
           case 'dblClick':
-            await locator.dblclick()
+            await runAction(() =>
+              locator.dblclick(
+                command.args[0] as Parameters<typeof locator.dblclick>[0]
+              )
+            )
+            break
+          case 'keyboardCleanup': {
+            const state = command.args[0]
+            if (
+              !Array.isArray(state) ||
+              state.some((key) => typeof key !== 'string')
+            )
+              throw new Error('Invalid keyboard state.')
+            await runAction(async () => {
+              await actionPage.evaluate(() => {})
+              await cleanupClientKeyboard(actionPage.keyboard, state)
+            })
+            break
+          }
+          case 'type':
+          case 'keyboard': {
+            if (typeof command.args[0] !== 'string')
+              throw new Error('Invalid keyboard text.')
+            const text = command.args[0]
+            const state = command.args[command.method === 'type' ? 2 : 1] ?? []
+            if (
+              !Array.isArray(state) ||
+              state.some((key) => typeof key !== 'string')
+            )
+              throw new Error('Invalid keyboard state.')
+            return runAction(async () => {
+              // Settle the awaiting continuation's classifier pause before input.
+              await actionPage.evaluate(() => {})
+              let skipRelease = true
+              if (command.method === 'type') {
+                const typeOptions = command.args[1] as
+                  | { skipClick?: boolean; skipAutoClose?: boolean }
+                  | undefined
+                if (
+                  typeOptions !== undefined &&
+                  (!typeOptions ||
+                    typeof typeOptions !== 'object' ||
+                    Array.isArray(typeOptions) ||
+                    Object.keys(typeOptions).some(
+                      (key) => key !== 'skipClick' && key !== 'skipAutoClose'
+                    ) ||
+                    (typeOptions.skipClick !== undefined &&
+                      typeof typeOptions.skipClick !== 'boolean') ||
+                    (typeOptions.skipAutoClose !== undefined &&
+                      typeof typeOptions.skipAutoClose !== 'boolean'))
+                )
+                  throw new Error('Unsupported Browser type options.')
+                if (!typeOptions?.skipClick) await locator.focus()
+                skipRelease = typeOptions?.skipAutoClose ?? false
+              }
+              return runClientKeyboard(
+                actionPage.keyboard,
+                text,
+                () =>
+                  command.method === 'type'
+                    ? locator.selectText()
+                    : actionPage.evaluate(() => {
+                        const active =
+                          document.activeElement as HTMLInputElement | null
+                        if (typeof active?.select === 'function')
+                          active.select()
+                      }),
+                state,
+                skipRelease
+              )
+            })
+          }
+          case 'wheel': {
+            const wheelOptions = command.args[0] as
+              | { delta: { x: number; y: number }; times: number }
+              | undefined
+            if (
+              !wheelOptions ||
+              !wheelOptions.delta ||
+              !Number.isFinite(wheelOptions.delta.x) ||
+              !Number.isFinite(wheelOptions.delta.y) ||
+              !Number.isSafeInteger(wheelOptions.times) ||
+              wheelOptions.times < 0
+            )
+              throw new Error('Invalid Browser wheel command.')
+            await runAction(async () => {
+              await locator.hover()
+              for (let count = 0; count < wheelOptions.times; count++)
+                await actionPage.mouse.wheel(
+                  wheelOptions.delta.x,
+                  wheelOptions.delta.y
+                )
+            })
+            break
+          }
+          case 'tab': {
+            // Direct keyboard input has no locator actionability round-trip.
+            // Settle the client continuation's classifier pause before input.
+            await page.evaluate(() => {})
+            const tabOptions =
+              command.args[0] === undefined
+                ? {}
+                : (command.args[0] as { shift?: boolean })
+            await runAction(() =>
+              actionPage.keyboard.press(
+                tabOptions.shift === true ? 'Shift+Tab' : 'Tab'
+              )
+            )
+            break
+          }
+          case 'tripleClick':
+            await runAction(() =>
+              locator.click({
+                ...(command.args[0] as Parameters<typeof locator.click>[0]),
+                clickCount: 3,
+              })
+            )
+            break
+          case 'unhover':
+            await runAction(async () => {
+              await actionPage.evaluate(() => {})
+              await actionPage
+                .locator('body')
+                .hover(command.args[0] as Parameters<typeof locator.hover>[0])
+            })
             break
           case 'hover':
-            await locator.hover()
+            await runAction(async () => {
+              await actionPage.evaluate(() => {})
+              await locator.hover(
+                command.args[0] as Parameters<typeof locator.hover>[0]
+              )
+            })
             break
           case 'fill':
             if (typeof command.args[0] !== 'string')
               throw new Error('Invalid fill text.')
-            await locator.fill(command.args[0])
+            await runAction(() =>
+              locator.fill(
+                command.args[0] as string,
+                command.args[1] as Parameters<typeof locator.fill>[1]
+              )
+            )
             break
           case 'clear':
-            await locator.clear()
+            await runAction(() =>
+              locator.clear(
+                command.args[0] as Parameters<typeof locator.clear>[0]
+              )
+            )
             break
-          case 'selectOptions':
+          case 'selectOptions': {
+            const selections = command.args[0]
             if (
-              !Array.isArray(command.args[0]) ||
-              !command.args[0].every((v) => typeof v === 'string')
+              !Array.isArray(selections) ||
+              selections.some((value) =>
+                typeof value === 'string'
+                  ? false
+                  : !value ||
+                    typeof value !== 'object' ||
+                    Array.isArray(value) ||
+                    Object.keys(value).length !== 1 ||
+                    typeof value.element !== 'string' ||
+                    !/^next-test-element-[0-9]+$/.test(value.element)
+              ) ||
+              selections.some(
+                (value) =>
+                  (typeof value === 'string') !==
+                  (typeof selections[0] === 'string')
+              )
             )
               throw new Error('Invalid option selection.')
-            await locator.selectOption(command.args[0])
+            await runAction(async () => {
+              const handles: NonNullable<
+                Awaited<ReturnType<typeof locator.elementHandle>>
+              >[] = []
+              try {
+                for (const value of selections as (
+                  | string
+                  | { element: string }
+                )[]) {
+                  if (typeof value !== 'string') {
+                    const handle = await actionPage
+                      .locator(`[data-next-test-element="${value.element}"]`)
+                      .elementHandle()
+                    if (!handle)
+                      throw new Error(
+                        'Browser option element is not attached to its document.'
+                      )
+                    handles.push(handle)
+                  }
+                }
+                await locator.selectOption(
+                  handles.length ? handles : (selections as string[]),
+                  command.args[1] as Parameters<typeof locator.selectOption>[1]
+                )
+              } finally {
+                for (const handle of handles) {
+                  try {
+                    await handle.dispose()
+                  } catch (error) {
+                    cleanupErrors.push(error)
+                  }
+                }
+              }
+            })
             break
+          }
+          case 'upload': {
+            if (!Array.isArray(command.args[0]))
+              throw new Error('Invalid upload files.')
+            const files = command.args[0].map((file: unknown) => {
+              if (typeof file === 'string')
+                return resolve(options.projectDir, file)
+              if (
+                !file ||
+                typeof file !== 'object' ||
+                typeof Reflect.get(file, 'name') !== 'string' ||
+                typeof Reflect.get(file, 'mimeType') !== 'string' ||
+                typeof Reflect.get(file, 'base64') !== 'string'
+              )
+                throw new Error('Invalid upload file payload.')
+              return {
+                name: Reflect.get(file, 'name') as string,
+                mimeType: Reflect.get(file, 'mimeType') as string,
+                buffer: Buffer.from(Reflect.get(file, 'base64'), 'base64'),
+              }
+            })
+            await runAction(() =>
+              locator.setInputFiles(
+                files as Parameters<typeof locator.setInputFiles>[0],
+                command.args[1] as Parameters<typeof locator.setInputFiles>[1]
+              )
+            )
+            break
+          }
           default:
             throw new Error('Unsupported Browser Mode element command.')
         }
@@ -270,7 +553,14 @@ export async function executeClient(
         if (message.type === 'output') {
           if (
             !['stdout', 'stderr'].includes(message.stream) ||
-            typeof message.text !== 'string'
+            typeof message.text !== 'string' ||
+            (message.console !== undefined &&
+              (!Number.isInteger(message.console.size) ||
+                message.console.size < 0 ||
+                (message.console.taskId !== undefined &&
+                  typeof message.console.taskId !== 'string') ||
+                message.console.browser !== true ||
+                !Number.isFinite(message.time)))
           )
             throw new Error('Invalid Browser Mode console output.')
           options.onEvent({
@@ -280,8 +570,18 @@ export async function executeClient(
             revision: artifact.revision,
             stream: message.stream,
             text: message.text,
+            ...(message.console
+              ? {
+                  console: message.console,
+                  timestamp: message.time ?? envelope().timestamp,
+                }
+              : {}),
           })
-        } else return collector.accept(message)
+        } else {
+          const value = collector.accept(message)
+          publishCapturedEvents()
+          return value
+        }
       },
       onFailure: (error) => errors.push(error),
     })
@@ -295,9 +595,13 @@ export async function executeClient(
       projectDir: options.projectDir,
       wsEndpoint: host.wsEndpoint,
       timeout: Math.min(30000, options.fileTimeout),
+      beforeConnect: registerClientLocators,
     })
     controller.signal.throwIfAborted()
-    const contextOptions = { serviceWorkers: 'block' as const }
+    const contextOptions = {
+      serviceWorkers: 'block' as const,
+      ...(options.browserViewport ? { viewport: options.browserViewport } : {}),
+    }
     context = await browser.newContext(contextOptions)
     controller.signal.throwIfAborted()
     page = await context.newPage()
@@ -401,7 +705,8 @@ export async function executeClient(
       errors.push(error)
     }
   }
-  for (const event of collector.events) options.onEvent(event)
+  if (forwardedEvents) publishCapturedEvents()
+  else for (const event of collector.events) options.onEvent(event)
   let status: TestExecutionResult['status'] =
     options.signal.aborted && !collector.hasFailure()
       ? 'cancelled'

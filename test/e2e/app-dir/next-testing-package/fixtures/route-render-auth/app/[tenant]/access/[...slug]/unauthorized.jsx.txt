@@ -1,0 +1,10 @@
+import {headers,cookies} from 'next/headers'
+import {tenant as rootTenant} from 'next/root-params'
+import Values from './Values'
+import {requests} from './state'
+export default async function Unauthorized() {
+ const requestHeaders=await headers();const request=requestHeaders.get('x-route-request')
+ const original=requests.get(request)
+ const values={...original,fallback:{root:await rootTenant(),header:requestHeaders.get('x-route-proof'),cookie:(await cookies()).get('route-session')?.value??null,request}}
+ return <Values values={values} outcome="unauthorized"/>
+}

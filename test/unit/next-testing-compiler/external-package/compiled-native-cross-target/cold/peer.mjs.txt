@@ -1,0 +1,1 @@
+globalThis.__ws2Cross??={};globalThis.__ws2Cross['cold-peer']=(globalThis.__ws2Cross['cold-peer']??0)+1;export const evaluation=globalThis.__ws2Cross['cold-peer'];export const token={kind:'peer',count:0};export function read(){return token.count}

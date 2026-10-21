@@ -1,0 +1,4 @@
+import * as ws2Native from 'node:cluster'
+import {token} from './peer.mjs';export const value=91
+
+globalThis.__ws2NativeGraphs??={};globalThis.__ws2NativeGraphs['dead']={namespace:ws2Native,setup:ws2Native.setupPrimary};

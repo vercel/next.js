@@ -1,0 +1,17 @@
+[
+  {
+    "name": "anonymous function original loader remains lazy and exact under runtime registration",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "pending anonymous function factory original fallback and reset keep held identities",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "unused anonymous function target and factory remain unevaluated",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

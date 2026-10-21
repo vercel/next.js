@@ -1,0 +1,8 @@
+import { beforeAll, beforeEach, afterEach, afterAll, expect } from 'vitest'
+import { state } from './setup-state.mjs'
+expect(state.events).toEqual(['setup-one-start', 'setup-one-end'])
+state.events.push('setup-two')
+beforeAll(() => { state.events.push('before-all-two') })
+beforeEach(() => { state.events.push('before-each-two') })
+afterEach(() => { state.events.push('after-each-two') })
+afterAll(() => { state.events.push('after-all-two') })

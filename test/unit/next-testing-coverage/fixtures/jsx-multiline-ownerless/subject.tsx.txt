@@ -1,0 +1,8 @@
+import React from 'react'
+import { label } from './helper.js'
+type Props = { active: boolean }
+export function Multiline({ active }: Props) {
+  return active && <span data-kind="active">
+    {label('active')}
+  </span>
+}

@@ -1,0 +1,23 @@
+import {test,expect} from 'next/experimental/testing/vitest'
+import {browser} from 'next/experimental/testing/browser'
+import {writeFileSync} from 'node:fs'
+import {pending,active} from './control.mjs'
+import {serverValues} from './row.mjs'
+test('registered production fixture keeps real context and fresh hydration',async()=>{
+ const driver=await browser()
+ let resolveDocument,rejectDocument
+ const document=new Promise((resolve,reject)=>{resolveDocument=resolve;rejectDocument=reject})
+ void document.catch(()=>{})
+ const response=message=>{if(message.request().resourceType()==='document'){driver.page.off('response',response);message.text().then(resolveDocument,rejectDocument)}}
+ driver.page.on('response',response)
+ try{
+  const root=await driver.mount('fixture',{label:'mounted'})
+  const body=await document
+  const button=root.getByRole('button');const before=await button.textContent()
+  const row={heading:await root.getByRole('heading').textContent(),before,environment:await button.getAttribute('data-env'),provider:await button.getAttribute('data-provider'),color:await button.evaluate(node=>getComputedStyle(node).color)}
+  expect(row.heading).toBe('Hello mounted');expect(row.environment).toBe('production');expect(row.provider).toBe('actual-layout');expect(before).toMatch(/^(one|two):0$/)
+  await button.click();row.after=await button.textContent();expect(row.after).toBe(before.replace(':0',':1'));row.ssr=serverValues(body);expect(row.ssr).toEqual({before,environment:row.environment,provider:row.provider})
+  console.log('REGISTERED_PRODUCTION_WATCH '+JSON.stringify(row))
+  if(pending){const waiting=root.locator('[data-never-mounted]').waitFor({timeout:60000});void waiting.catch(()=>{});writeFileSync(active,JSON.stringify({mounted:true,nativeWaitStarted:true,row})+'\n');await waiting}
+ }finally{driver.page.off('response',response)}
+})

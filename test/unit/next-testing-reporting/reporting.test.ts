@@ -1527,9 +1527,7 @@ describe('Next machine result reporters', () => {
     expect(() => parseResultReporters(['json', 'json'])).toThrow(
       'without duplicates'
     )
-    expect(() => parseResultReporters(['custom'])).toThrow(
-      'Package and advanced custom reporter adapters remain unimplemented'
-    )
+    expect(parseResultReporters(['custom'])).toEqual(['custom'])
   })
 })
 
@@ -2765,6 +2763,7 @@ describe('pinned foreign final-task blob import', () => {
     'nested-pass-fail-retry',
     'collection-error',
     'unhandled-error',
+    'runtime-skip-retry-repeat',
   ]
   it.each(scenarios)(
     'projects the actual pristine %s blob without manufacturing Next events',
@@ -3546,3 +3545,1345 @@ it('maps Browser artifact callees with the standalone parser and preserves Node 
   ).toEqual(nestedExpected)
   expect(error.stack).toBe(rawStack)
 })
+
+describe('live custom console reporter callbacks', () => {
+  async function open(mode: string) {
+    const root = await mkdtemp(join(tmpdir(), 'next-live-console-'))
+    await cp(
+      join(__dirname, 'fixtures/live-console-reporter.mjs'),
+      join(root, 'reporter.mjs')
+    )
+    await writeFile(join(root, 'live-options.json'), JSON.stringify({ mode }))
+    const machine = createMachineReporter({
+      projectDir: root,
+      reporters: parseResultReporters(['json', './reporter.mjs']),
+      outputFile: 'result.json',
+      write() {},
+    })
+    await machine.initialize()
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    emit({ type: 'run-start' })
+    emit({ type: 'file-start', entry })
+    const test = result(0, 'passed')
+    emit({
+      type: 'case-start',
+      entryId: entry.id,
+      caseId: test.caseId,
+      attempt: test.attempt,
+      name: test.name,
+    })
+    const output = (text: string, size: number, timestamp: number) =>
+      emit({
+        type: 'output',
+        entryId: entry.id,
+        caseId: test.caseId,
+        attempt: test.attempt,
+        stream: 'stdout',
+        text,
+        timestamp,
+        console: { taskId: test.caseId, size },
+      })
+    const complete = () => {
+      emit({ type: 'case-end', ...test })
+      emit({
+        type: 'file-end',
+        entryId: entry.id,
+        status: 'passed',
+        durationMs: 1,
+      })
+      emit({ type: 'run-end', status: 'passed', durationMs: 1 })
+    }
+    const trace = async () =>
+      (await readFile(join(root, 'live-trace.jsonl'), 'utf8'))
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line))
+    return { root, machine, emit, output, complete, trace, test }
+  }
+
+  it('delivers actual payload fields live, preserves order and drains async callbacks before completion and close', async () => {
+    const c = await open('gate')
+    try {
+      c.output('first\n', 2, 42)
+      await retry(async () => expect((await c.trace())[0].hook).toBe('console'))
+      c.output('second\n', 1, 43)
+      // A raw pipe write is still reported, without inventing a console count.
+      c.emit({
+        type: 'output',
+        entryId: entry.id,
+        stream: 'stderr',
+        text: 'raw process output\n',
+      })
+      c.complete()
+      let finished = false
+      const finish = c.machine.finish().then(() => {
+        finished = true
+      })
+      await Promise.resolve()
+      expect(finished).toBe(false)
+      expect((await c.trace()).map((row) => row.hook)).toEqual(['console'])
+      await writeFile(join(c.root, 'release-console'), '')
+      await finish
+      await c.machine.dispose()
+      expect(await c.trace()).toEqual([
+        {
+          hook: 'console',
+          keys: ['type', 'content', 'taskId', 'time', 'size', 'origin'],
+          log: {
+            type: 'stdout',
+            content: 'first\n',
+            taskId: c.test.caseId,
+            time: 42,
+            size: 2,
+          },
+        },
+        { hook: 'settled', content: 'first\n' },
+        {
+          hook: 'console',
+          keys: ['type', 'content', 'taskId', 'time', 'size', 'origin'],
+          log: {
+            type: 'stdout',
+            content: 'second\n',
+            taskId: c.test.caseId,
+            time: 43,
+            size: 1,
+          },
+        },
+        { hook: 'settled', content: 'second\n' },
+        {
+          hook: 'end',
+          reason: 'passed',
+          errors: [],
+          tasks: [entry.id, c.test.caseId],
+        },
+        { hook: 'close' },
+      ])
+    } finally {
+      await writeFile(join(c.root, 'release-console'), '')
+      await c.machine.dispose()
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+
+  it('retains async callback errors for run-end, continues later logs and preserves passing test JSON', async () => {
+    const c = await open('reject')
+    try {
+      c.output('first\n', 1, 10)
+      c.output('second\n', 1, 11)
+      c.complete()
+      await expect(c.machine.finish()).rejects.toThrow('console hook rejected')
+      expect(
+        JSON.parse(await readFile(join(c.root, 'result.json'), 'utf8'))
+      ).toMatchObject({ success: true, numPassedTests: 1, numFailedTests: 0 })
+      await c.machine.dispose()
+      const rows = await c.trace()
+      expect(
+        rows
+          .filter((row) => row.hook === 'console')
+          .map((row) => row.log.content)
+      ).toEqual(['first\n', 'second\n'])
+      expect(rows.find((row) => row.hook === 'end')).toMatchObject({
+        errors: ['console hook rejected'],
+        reason: 'passed',
+        tasks: [entry.id, c.test.caseId],
+      })
+      expect(rows.at(-1)).toEqual({ hook: 'close' })
+    } finally {
+      await c.machine.dispose()
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+  it('preserves Browser raw content, zero and UTF-16 sizes and the measured Browser field shape', async () => {
+    const c = await open('normal')
+    try {
+      for (const [content, taskId] of [
+        ['', '__vitest__unknown_test__'],
+        ['kept newline\n', c.test.caseId],
+        ['😀', c.test.caseId],
+      ]) {
+        c.emit({
+          type: 'output',
+          entryId: entry.id,
+          stream: 'stdout',
+          text: content + '\n',
+          timestamp: 20,
+          console: { browser: true, taskId, size: content.length },
+        })
+      }
+      c.complete()
+      await c.machine.finish()
+      await c.machine.dispose()
+      const logs = (await c.trace()).filter((row) => row.hook === 'console')
+      expect(logs.map((row) => row.keys)).toEqual(
+        Array(3).fill([
+          'origin',
+          'content',
+          'browser',
+          'time',
+          'taskId',
+          'type',
+          'size',
+        ])
+      )
+      expect(logs.map((row) => row.log)).toEqual([
+        {
+          content: '',
+          browser: true,
+          time: 20,
+          taskId: '__vitest__unknown_test__',
+          type: 'stdout',
+          size: 0,
+        },
+        {
+          content: 'kept newline\n',
+          browser: true,
+          time: 20,
+          taskId: c.test.caseId,
+          type: 'stdout',
+          size: 13,
+        },
+        {
+          content: '😀',
+          browser: true,
+          time: 20,
+          taskId: c.test.caseId,
+          type: 'stdout',
+          size: 2,
+        },
+      ])
+    } finally {
+      await c.machine.dispose()
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+})
+
+it('delivers actual module completion callbacks with stable final task identities in both Node profiles', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'module-end-reporter.cjs')],
+    { encoding: 'utf8', timeout: 100000 }
+  )
+  expect(JSON.parse(result)).toEqual({ cases: 12, callbacks: 2, profiles: 2 })
+}, 110000)
+
+it('drains rejected module completion callbacks through following files, run end and close', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'module-end-failure.cjs')],
+    { encoding: 'utf8', timeout: 100000 }
+  )
+  expect(JSON.parse(result)).toEqual({ cases: 4, callbacks: 4, profiles: 2 })
+}, 110000)
+
+it('proves body timeout declaration origins from real leased chunks and refuses incomplete or foreign associations', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'registration-origin.cjs')],
+    { encoding: 'utf8' }
+  )
+  expect(JSON.parse(result)).toEqual({ profiles: 2, checks: 24 })
+})
+
+describe('authored Browser instance reporter labels', () => {
+  it.each(['', 'authored / client'])(
+    'retains the exact public label %j without exposing its compiler ID',
+    (projectName) => {
+      const { emit, output } = setup({ color: false })
+      emit({
+        type: 'file-start',
+        entry: {
+          ...entry,
+          projectName,
+          profile: { ...entry.profile, id: 'browser-instance-0' },
+        },
+        revision: 'label-revision',
+      })
+      emit({
+        type: 'file-end',
+        entryId: entry.id,
+        status: 'passed',
+        durationMs: 3,
+      })
+      expect(output()).toContain(
+        projectName ? `|${projectName}| example.test.ts` : '✓ example.test.ts'
+      )
+      expect(output()).not.toContain('browser-instance-0')
+      expect(output()).not.toContain('||')
+    }
+  )
+})
+
+it('retains actual collected hierarchy and live task identities before following bodies complete', async () => {
+  const { createCollector } = await import(
+    'next/dist/experimental/testing/runner/collector'
+  )
+  const { runCollected } = await import(
+    'next/dist/experimental/testing/runner/lifecycle'
+  )
+  const { captureReporterTaskTree } = await import(
+    'next/dist/experimental/testing/reporting/live-tasks'
+  )
+  const { createLiveReporterTaskStore } = await import(
+    'next/dist/experimental/testing/reporting/custom-reporter-live-tasks'
+  )
+  const c = createCollector('live-file')
+  const store = createLiveReporterTaskStore('/project')
+  let release!: () => void, entered!: () => void
+  const gate = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const secondEntered = new Promise<void>((resolve) => {
+    entered = resolve
+  })
+  const seen: unknown[] = []
+  let firstMeta: object | undefined
+  let early: unknown
+  c.api.describe('observed completion', () => {
+    c.api.test(
+      'first',
+      {
+        meta: Object.assign(
+          {} as import('next/dist/experimental/testing/runner/tasks').TaskMeta,
+          { authored: 'first' }
+        ),
+      },
+      ({ task, onTestFinished }) => {
+        onTestFinished(() => {
+          Object.assign(task.meta, { finished: true })
+        })
+      }
+    )
+    c.api.test(
+      'held second',
+      {
+        meta: Object.assign(
+          {} as import('next/dist/experimental/testing/runner/tasks').TaskMeta,
+          { authored: 'second' }
+        ),
+      },
+      async () => {
+        entered()
+        await gate
+      }
+    )
+  })
+  c.api.afterAll((...args: unknown[]) => {
+    const task =
+      args[1] as import('next/dist/experimental/testing/runner/tasks').Suite
+    Object.assign(task.meta, { fileFinished: true })
+  })
+  const running = runCollected(
+    c.close(),
+    {
+      runId: 'live-run',
+      signal: new AbortController().signal,
+      filePath: '/project/contract.test.mjs',
+      onCollected(file) {
+        store.update(captureReporterTaskTree(file))
+      },
+      onCaseResult(task) {
+        const module = store.update(captureReporterTaskTree(task.file), [
+          task.id,
+        ])
+        const test = store.case(task.file.id, task.id)
+        seen.push(test)
+        if (task.name === 'first') {
+          firstMeta = test.meta()
+          early = {
+            state: module.state(),
+            cases: [...module.children!.allTests()].map((item) => ({
+              name: item.name,
+              result: item.result().state,
+              meta: { ...item.meta() },
+            })),
+          }
+        }
+      },
+      onSuiteEnd(_result, task) {
+        expect(task.file.file).toBe(task.file)
+        store.update(captureReporterTaskTree(task.file), [task.id])
+      },
+    },
+    () => {}
+  )
+  try {
+    await secondEntered
+    expect(early).toEqual({
+      state: 'pending',
+      cases: [
+        {
+          name: 'first',
+          result: 'passed',
+          meta: { authored: 'first', finished: true },
+        },
+        {
+          name: 'held second',
+          result: 'pending',
+          meta: { authored: 'second' },
+        },
+      ],
+    })
+  } finally {
+    release()
+  }
+  expect((await running).errors).toEqual([])
+  const module = store.get('live-file')!
+  expect(module.state()).toBe('passed')
+  expect(module.meta()).toEqual({ fileFinished: true })
+  const cases = [...module.children!.allTests()]
+  expect(cases).toEqual(seen)
+  expect(cases[0].meta()).toBe(firstMeta)
+  expect(cases.map((task) => task.result().state)).toEqual(['passed', 'passed'])
+})
+
+it('supplies the actual root suite task to completion callbacks even without cases', async () => {
+  const { createCollector } = await import(
+    'next/dist/experimental/testing/runner/collector'
+  )
+  const { runCollected } = await import(
+    'next/dist/experimental/testing/runner/lifecycle'
+  )
+  const { captureReporterTaskTree } = await import(
+    'next/dist/experimental/testing/reporting/live-tasks'
+  )
+  const c = createCollector('empty-live-file')
+  const root = c.close()
+  Object.assign(root.meta, { authored: 'empty' })
+  const seen: unknown[] = []
+  await runCollected(
+    root,
+    {
+      runId: 'empty-live-run',
+      signal: new AbortController().signal,
+      passWithNoTests: true,
+      onSuiteEnd(result, task) {
+        expect(task.file).toBe(task)
+        expect(result.suiteId).toBe(task.id)
+        seen.push(captureReporterTaskTree(task.file))
+      },
+    },
+    () => {}
+  )
+  expect(seen).toHaveLength(1)
+  expect(seen[0]).toMatchObject({
+    id: 'empty-live-file',
+    type: 'suite',
+    tasks: [],
+    meta: { authored: 'empty' },
+  })
+})
+
+it('rejects task snapshots without their real file, unique declarations or completed case identity', async () => {
+  const { createCollector } = await import(
+    'next/dist/experimental/testing/runner/collector'
+  )
+  const { runCollected } = await import(
+    'next/dist/experimental/testing/runner/lifecycle'
+  )
+  const { captureReporterTaskTree, assertReporterTaskTree } = await import(
+    'next/dist/experimental/testing/reporting/live-tasks'
+  )
+  const assertTree: typeof import('next/dist/experimental/testing/reporting/live-tasks').assertReporterTaskTree =
+    assertReporterTaskTree
+  const c = createCollector('validated-live-file')
+  c.api.test('real', () => {})
+  let checks = 0
+  await runCollected(
+    c.close(),
+    {
+      runId: 'validated-live-run',
+      signal: new AbortController().signal,
+      onCaseResult(task) {
+        const tree = captureReporterTaskTree(task.file)
+        expect(() => assertTree(tree, task.file.id, task.id)).not.toThrow()
+        const mutations = [
+          () => assertTree(tree, 'foreign', task.id),
+          () => assertTree(tree, task.file.id, 'absent'),
+          () => {
+            const changed = structuredClone(tree)
+            changed.tasks!.push(changed.tasks![0])
+            assertTree(changed, task.file.id, task.id)
+          },
+          () => {
+            const changed = structuredClone(tree)
+            Reflect.deleteProperty(changed.tasks![0], 'annotations')
+            assertTree(changed, task.file.id, task.id)
+          },
+          () => {
+            const changed = structuredClone(tree)
+            Object.assign(changed.tasks![0].result!, { state: 'invented' })
+            assertTree(changed, task.file.id, task.id)
+          },
+        ]
+        for (const mutation of mutations) {
+          expect(mutation).toThrow()
+          checks++
+        }
+        expect(tree.tasks).toHaveLength(1)
+      },
+    },
+    () => {}
+  )
+  expect(checks).toBe(5)
+})
+
+it('replaces only actual packed metadata while preserving prior reporter references', async () => {
+  const { createCollector } = await import(
+    'next/dist/experimental/testing/runner/collector'
+  )
+  const { runCollected } = await import(
+    'next/dist/experimental/testing/runner/lifecycle'
+  )
+  const { captureReporterTaskTree } = await import(
+    'next/dist/experimental/testing/reporting/live-tasks'
+  )
+  const { createLiveReporterTaskStore } = await import(
+    'next/dist/experimental/testing/reporting/custom-reporter-live-tasks'
+  )
+  const c = createCollector('packed-meta-file')
+  const store = createLiveReporterTaskStore('/project')
+  let futureMeta: object | undefined
+  let futureView: unknown
+  let firstTask: import('next/dist/experimental/testing/runner/tasks').Test
+  c.api.test('first', ({ task }) => {
+    firstTask = task
+    Object.assign(task.meta, { authored: 'first' })
+  })
+  c.api.test('second', ({ task }) => {
+    Object.assign(task.meta, { authored: 'second' })
+    Object.assign(firstTask.meta, { lateChildMutation: true })
+  })
+  const result = await runCollected(
+    c.close(),
+    {
+      runId: 'packed-meta-run',
+      signal: new AbortController().signal,
+      filePath: '/project/packed-meta.test.mjs',
+      onCollected(file) {
+        store.update(captureReporterTaskTree(file))
+      },
+      onCaseResult(task) {
+        store.update(captureReporterTaskTree(task.file), [task.id])
+        if (task.name === 'first') {
+          const second = [...store.get(task.file.id)!.children!.allTests()][1]
+          futureMeta = second.meta()
+          futureView = second
+        }
+      },
+      onSuiteEnd(_result, task) {
+        store.update(captureReporterTaskTree(task.file), [task.id])
+      },
+    },
+    () => {}
+  )
+  expect(result.errors).toEqual([])
+  const [first, second] = [
+    ...store.get('packed-meta-file')!.children!.allTests(),
+  ]
+  expect(first.meta()).toEqual({ authored: 'first' })
+  expect(second).toBe(futureView)
+  expect(second.meta()).not.toBe(futureMeta)
+  expect(futureMeta).toEqual({})
+  expect(second.meta()).toEqual({ authored: 'second' })
+})
+
+it('rejects absent task pack identities before changing an actual reporter tree', async () => {
+  const { createCollector } = await import(
+    'next/dist/experimental/testing/runner/collector'
+  )
+  const { runCollected } = await import(
+    'next/dist/experimental/testing/runner/lifecycle'
+  )
+  const { captureReporterTaskTree } = await import(
+    'next/dist/experimental/testing/reporting/live-tasks'
+  )
+  const { createLiveReporterTaskStore } = await import(
+    'next/dist/experimental/testing/reporting/custom-reporter-live-tasks'
+  )
+  const c = createCollector('pack-validation-file')
+  const store = createLiveReporterTaskStore('/project')
+  c.api.test('real', () => {})
+  let checked = false
+  await runCollected(
+    c.close(),
+    {
+      runId: 'pack-validation-run',
+      signal: new AbortController().signal,
+      filePath: '/project/pack-validation.test.mjs',
+      onCollected(file) {
+        store.update(captureReporterTaskTree(file))
+      },
+      onCaseResult(task) {
+        const module = store.get(task.file.id)!
+        const actual = store.case(task.file.id, task.id)
+        const previousMeta = actual.meta()
+        expect(actual.result().state).toBe('pending')
+        expect(() =>
+          store.update(captureReporterTaskTree(task.file), ['absent'])
+        ).toThrow('absent task')
+        expect(store.get(task.file.id)).toBe(module)
+        expect(actual.meta()).toBe(previousMeta)
+        expect(actual.result().state).toBe('pending')
+        store.update(captureReporterTaskTree(task.file), [task.id])
+        expect(actual.result().state).toBe('passed')
+        checked = true
+      },
+    },
+    () => {}
+  )
+  expect(checked).toBe(true)
+})
+
+it('delivers compiled logical callbacks with full actual task rows before a held following body finishes', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'logical-case-reporter.cjs')],
+    { encoding: 'utf8', timeout: 90000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    cases: 4,
+    profiles: 2,
+    earlyCallbacks: 2,
+    fullTaskRows: true,
+  })
+}, 100000)
+
+it('matches actual case/module callback order and rejected reporters through following files and shared cleanup', () => {
+  const { execFileSync } = require('node:child_process')
+  const output = execFileSync(
+    process.execPath,
+    [join(__dirname, 'logical-case-order.cjs')],
+    { encoding: 'utf8', timeout: 140000 }
+  )
+  expect(JSON.parse(output)).toEqual({
+    profiles: 3,
+    cases: 6,
+    callbacks: 6,
+    followingBodyRequiresActualModuleCallback: true,
+  })
+}, 150000)
+
+it('replays recorded terminal task graphs and both reporter errors without compiling authored tests', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'logical-blob-replay.cjs')],
+    { encoding: 'utf8', timeout: 170000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 6,
+    cases: 9,
+    callbackRows: 30,
+    recordedAndReplayErrorsRetained: true,
+    noAuthoredTestsInMergeRoot: true,
+    jsonAndJUnitRetained: true,
+  })
+}, 180000)
+
+it('replays genuine terminal Vitest blob task views and reporter failures without authored tests', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'foreign-blob-replay.cjs')],
+    { encoding: 'utf8', timeout: 230000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    corpora: 8,
+    callbacks: 20,
+    fullRows: 48,
+    noAuthoredTests: true,
+    completeForeignReports: 8,
+    originalAndReplayErrors: true,
+  })
+}, 240000)
+
+it('keeps legacy JSON blob projection while refusing absent reporter facts before loading adapters', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'next-foreign-reporter-facts-'))
+  const input = join(root, 'blobs')
+  await mkdir(input)
+  const outputFile = join(root, 'result.json')
+  const marker = join(root, 'adapter-loaded')
+  const reporter = join(root, 'reporter.mjs')
+  const wire = await readFile(
+    join(__dirname, 'fixtures/vitest-5.0.4/original-public-merge.blob'),
+    'utf8'
+  )
+  try {
+    await writeFile(
+      reporter,
+      `import fs from 'node:fs'; fs.writeFileSync(${JSON.stringify(marker)}, 'loaded'); export default class { onTestCaseResult() {} }`
+    )
+    for (const change of [
+      (file: any, _test: any) => delete file.fullName,
+      (_file: any, test: any) => (test.each = 42),
+      (_file: any, test: any) => (test.timeout = -1),
+      (_file: any, test: any) => delete test.annotations,
+    ]) {
+      const table = JSON.parse(wire)
+      const files = table[Number(table[0][1])]
+      const file = table[Number(files[0])]
+      const tests = table[Number(file.tasks)]
+      change(file, table[Number(tests[0])])
+      await writeFile(join(input, 'actual.blob'), JSON.stringify(table))
+      await expect(
+        mergeResultReports(input, {
+          projectDir: root,
+          reporters: ['json'],
+          outputFile,
+        })
+      ).resolves.toBe('passed')
+      expect(JSON.parse(await readFile(outputFile, 'utf8')).success).toBe(true)
+      await writeFile(outputFile, 'existing report')
+      await expect(
+        mergeResultReports(input, {
+          projectDir: root,
+          reporters: parseResultReporters(['json', reporter]),
+          outputFile,
+        })
+      ).rejects.toThrow()
+      expect(await readFile(outputFile, 'utf8')).toBe('existing report')
+      await expect(readFile(marker)).rejects.toMatchObject({ code: 'ENOENT' })
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+it('loads TypeScript and MTS reporters with real local typed imports and exact terminal task views', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'typescript-reporter-import.cjs')],
+    { encoding: 'utf8', timeout: 100000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 4,
+    callbacks: 8,
+    fullRows: 24,
+    noAuthoredTests: true,
+    completeForeignReports: 4,
+    typedLocalDependencyAndOriginalErrors: true,
+  })
+}, 110000)
+
+it('loads typed directory, output-suffix, dynamic and mixed reporter dependency graphs', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'reporter-import-graphs.cjs')],
+    { encoding: 'utf8' }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 8,
+    callbacks: 16,
+    fullRows: 48,
+    noAuthoredTests: true,
+    completeForeignReports: 8,
+    typedDirectoryOutputDynamicAndMixedImports: true,
+  })
+}, 180000)
+
+describe('actual custom reporter cancellation ownership', () => {
+  it.each([
+    'normal',
+    'callback-error',
+    'close-error',
+    'callback-error-close-error',
+    'terminal-error-close-error',
+    'callback-error-terminal-error-close-error',
+    'transport-error',
+  ])(
+    'joins cancelled %s reporters while preserving actual errors',
+    async (mode) => {
+      const root = await mkdtemp(join(tmpdir(), 'next-cancel-reporter-'))
+      const { openCustomReporters } = await import(
+        'next/dist/experimental/testing/reporting/custom-reporter'
+      )
+      const controller = new AbortController()
+      let session: Awaited<ReturnType<typeof openCustomReporters>> | undefined
+      try {
+        await cp(
+          join(__dirname, 'fixtures/cancellation-reporter.mjs'),
+          join(root, 'reporter.mjs')
+        )
+        await writeFile(
+          join(root, 'cancel-options.json'),
+          JSON.stringify({ mode })
+        )
+        session = await openCustomReporters({
+          projectDir: root,
+          reporters: ['./reporter.mjs'],
+          signal: controller.signal,
+          write() {},
+        })
+        const trace = async () =>
+          (await readFile(join(root, 'cancel-trace.jsonl'), 'utf8'))
+            .trim()
+            .split('\n')
+            .map((line) => JSON.parse(line))
+        const [{ pid }] = await trace()
+        expect(pid).not.toBe(process.pid)
+        expect(session.captureTaskResults).toBe(true)
+        const collector = createTestReporter({ projectDir: root, write() {} })
+        const completion = {
+          ...collector.getResults(),
+          events: [],
+          status: 'cancelled' as const,
+        }
+        if (mode.startsWith('callback-error')) {
+          session.onEvent({
+            ...envelope,
+            type: 'output',
+            entryId: entry.id,
+            stream: 'stdout',
+            text: 'before cancellation\n',
+            console: { taskId: '__vitest__unknown_test__', size: 19 },
+          })
+          expect(await session.collectErrors()).toEqual([
+            expect.objectContaining({
+              message: 'actual prior console callback rejected',
+            }),
+          ])
+        }
+        const leaves = (error: any): string[] =>
+          error instanceof AggregateError
+            ? error.errors.flatMap(leaves)
+            : [error.message]
+        if (mode.includes('terminal-error')) {
+          const prior = await session.finish(completion).then(
+            () => undefined,
+            (error) => error
+          )
+          expect(leaves(prior)).toContain(
+            'actual prior terminal callback rejected'
+          )
+        }
+        controller.abort(new Error('actual reporter owner cancelled'))
+        session.onEvent({
+          ...envelope,
+          type: 'output',
+          entryId: entry.id,
+          stream: 'stdout',
+          text: 'after cancellation\n',
+          console: { taskId: '__vitest__unknown_test__', size: 18 },
+        })
+        const finished = await session.finish(completion).then(
+          () => undefined,
+          (error) => error
+        )
+        const disposed = await session.dispose().then(
+          () => undefined,
+          (error) => error
+        )
+        const errors = [finished, disposed].filter(
+          (error) => error !== undefined
+        )
+        const messages = errors.flatMap(leaves).join('\n')
+        if (mode === 'normal') {
+          expect(errors).toEqual([])
+          expect(await session.collectErrors()).toEqual([])
+        }
+        if (mode.startsWith('callback-error'))
+          expect(messages).toContain('actual prior console callback rejected')
+        if (mode.includes('terminal-error'))
+          expect(messages).toContain('actual prior terminal callback rejected')
+        if (mode.includes('close-error'))
+          expect(messages).toContain('actual cancellation close rejected')
+        if (mode === 'transport-error')
+          expect(messages).toContain('Invalid custom reporter response')
+        const rows = await trace()
+        expect(rows.some((row) => row.hook === 'close-start')).toBe(true)
+        expect(
+          rows.filter((row) => row.hook === 'terminal-request')
+        ).toHaveLength(mode.includes('terminal-error') ? 1 : 0)
+        expect(errors.flatMap(leaves)).toEqual([
+          ...(mode.startsWith('callback-error')
+            ? ['actual prior console callback rejected']
+            : []),
+          ...(mode.includes('terminal-error')
+            ? ['actual prior terminal callback rejected']
+            : []),
+          ...(mode.includes('close-error')
+            ? ['actual cancellation close rejected']
+            : []),
+          ...(mode === 'transport-error'
+            ? ['Invalid custom reporter response.']
+            : []),
+        ])
+        expect(
+          rows.filter((row) => row.hook === 'console').map((row) => row.content)
+        ).not.toContain('after cancellation\n')
+        expect(() => process.kill(pid, 0)).toThrow()
+      } finally {
+        controller.abort()
+        await session?.dispose().catch(() => {})
+        await rm(root, { recursive: true, force: true })
+      }
+    }
+  )
+})
+
+it('loads native package reporters from the actual project root in both Node profiles', async () => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'reporter-packages.cjs')],
+    { timeout: 180000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 8,
+    callbacks: 16,
+    fullRows: 48,
+    noAuthoredTests: true,
+    completeForeignReports: 8,
+    nativeImportConditionsCommonJsSubpathAndUnscoped: true,
+  })
+}, 190000)
+
+it('keeps unimplemented built-in reporter names separate from package entries', () => {
+  for (const reporter of [
+    'agent',
+    'minimal',
+    'tree',
+    'hanging-process',
+    'html',
+  ])
+    expect(() => parseResultReporters([reporter])).toThrow(
+      'Unsupported result reporter'
+    )
+  for (const reporter of [
+    'node:fs',
+    'https://example.invalid/reporter',
+    '@scope',
+    'name/../reporter',
+  ])
+    expect(() => parseResultReporters([reporter])).toThrow(
+      'Unsupported result reporter'
+    )
+})
+
+it('keeps actual native entry rejections global across standard, TAP and stable/live custom module views', async () => {
+  const { createCustomReporterModules } = await import(
+    'next/dist/experimental/testing/reporting/custom-reporter-tasks'
+  )
+  const { createLiveReporterTaskStore } = await import(
+    'next/dist/experimental/testing/reporting/custom-reporter-live-tasks'
+  )
+  const { renderTapReport } = await import(
+    'next/dist/experimental/testing/reporting/builtin-reporters'
+  )
+  const { createCollector } = await import(
+    'next/dist/experimental/testing/runner/collector'
+  )
+  const { runCollected } = await import(
+    'next/dist/experimental/testing/runner/lifecycle'
+  )
+  const { captureReporterTaskTree } = await import(
+    'next/dist/experimental/testing/reporting/live-tasks'
+  )
+  const diagnostics: ResultEvent[] = [
+    {
+      ...envelope,
+      type: 'diagnostic',
+      entryId: entry.id,
+      revision: 'rev-1',
+      diagnostic: {
+        phase: 'runtime',
+        severity: 'error',
+        message: 'ordinary suite failure',
+      },
+    },
+    {
+      ...envelope,
+      type: 'diagnostic',
+      entryId: entry.id,
+      revision: 'rev-1',
+      diagnostic: {
+        phase: 'runtime',
+        severity: 'error',
+        unhandled: 'rejection',
+        message: 'first native event',
+      },
+    },
+    {
+      ...envelope,
+      type: 'diagnostic',
+      entryId: entry.id,
+      revision: 'rev-1',
+      diagnostic: {
+        phase: 'cleanup',
+        severity: 'error',
+        message: 'ordinary cleanup failure',
+      },
+    },
+    {
+      ...envelope,
+      type: 'diagnostic',
+      diagnostic: {
+        phase: 'runtime',
+        severity: 'error',
+        message: 'ordinary global failure',
+      },
+    },
+    {
+      ...envelope,
+      type: 'diagnostic',
+      entryId: entry.id,
+      revision: 'rev-1',
+      diagnostic: {
+        phase: 'runtime',
+        severity: 'error',
+        unhandled: 'rejection',
+        message: 'second native event',
+      },
+    },
+  ]
+  const events: ResultEvent[] = [
+    { ...envelope, type: 'run-start' },
+    { ...envelope, type: 'file-start', entry, revision: 'rev-1' },
+    ...diagnostics,
+    {
+      ...envelope,
+      type: 'file-end',
+      entryId: entry.id,
+      status: 'failed',
+      durationMs: 1,
+    },
+    { ...envelope, type: 'run-end', status: 'failed', durationMs: 1 },
+  ]
+  const original = JSON.stringify(events)
+  let text = ''
+  const reporter = createTestReporter({
+    projectDir: '/project',
+    write(value) {
+      text += value
+    },
+  })
+  try {
+    for (const event of events) reporter.onEvent(event)
+    expect(text).toContain('Failed Suites 1')
+    expect(text.match(/Unhandled Rejection/g)).toHaveLength(2)
+    expect(text).toContain('Errors  3 errors')
+    const suites = text.slice(
+      text.indexOf('Failed Suites'),
+      text.indexOf('Unhandled Errors')
+    )
+    expect(suites).toContain('ordinary suite failure')
+    expect(suites).toContain('ordinary cleanup failure')
+    expect(suites).not.toContain('first native event')
+    expect(suites).not.toContain('second native event')
+    const completion = {
+      ...reporter.getResults(),
+      events,
+      status: 'failed' as const,
+    }
+    const stable = createCustomReporterModules('/project', completion)[0]
+    expect(stable.errors()).toEqual([
+      {
+        phase: 'runtime',
+        severity: 'error',
+        message: 'ordinary suite failure',
+      },
+      {
+        phase: 'cleanup',
+        severity: 'error',
+        message: 'ordinary cleanup failure',
+      },
+    ])
+    const c = createCollector(entry.id)
+    c.api.test('real', () => {})
+    const live = createLiveReporterTaskStore('/project')
+    await runCollected(
+      c.close(),
+      {
+        runId: 'native-consumer',
+        signal: new AbortController().signal,
+        filePath: entry.file,
+        onCollected(file) {
+          live.update(captureReporterTaskTree(file))
+        },
+      },
+      () => {}
+    )
+    const module = live.finishModule(entry.id, completion)!
+    expect(module.errors()).toEqual([
+      {
+        phase: 'runtime',
+        severity: 'error',
+        message: 'ordinary suite failure',
+      },
+      {
+        phase: 'cleanup',
+        severity: 'error',
+        message: 'ordinary cleanup failure',
+      },
+    ])
+    const tap = renderTapReport(completion, events, { projectDir: '/project' })
+    expect(tap).toContain('[run errors]')
+    expect(tap.match(/first native event/g)).toHaveLength(1)
+    expect(tap.match(/second native event/g)).toHaveLength(1)
+    expect(tap.match(/ordinary suite failure/g)).toHaveLength(1)
+    expect(tap.match(/ordinary cleanup failure/g)).toHaveLength(1)
+    expect(JSON.stringify(events)).toBe(original)
+  } finally {
+    reporter.dispose()
+  }
+})
+
+it('loads JSX and TSX completion reporters with actual React evaluation and exact terminal task views', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'jsx-reporter-import.cjs')],
+    { encoding: 'utf8', timeout: 100000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 4,
+    callbacks: 8,
+    fullRows: 28,
+    noAuthoredTests: true,
+    completeForeignReports: 4,
+    jsxEvaluationAndOriginalErrors: true,
+  })
+}, 110000)
+
+it('loads relative JSX/TSX reporter graphs with pinned file, index and output suffix precedence', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'jsx-reporter-graphs.cjs')],
+    { encoding: 'utf8', timeout: 170000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 6,
+    callbacks: 12,
+    fullRows: 42,
+    noAuthoredTests: true,
+    completeForeignReports: 6,
+    jsxRelativeGraphsAndResolverOrder: true,
+  })
+}, 180000)
+
+it.each([
+  'unowned-relative',
+  'owned-package',
+  'unexpected-native-error',
+  'package-directory',
+])('preserves the native reporter resolution boundary for %s', async (kind) => {
+  const root = await mkdtemp(join(tmpdir(), 'next-jsx-reporter-boundary-'))
+  try {
+    const { pathToFileURL } = await import('node:url')
+    const loader = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter-loader'
+    )
+    const filename = join(root, 'reporter.mjs')
+    await writeFile(filename, 'export default class Reporter {}\n')
+    await writeFile(join(root, 'dependency.jsx'), 'export default 1\n')
+    await mkdir(join(root, 'dependency'))
+    await writeFile(join(root, 'dependency/index.jsx'), 'export default 2\n')
+    if (kind === 'package-directory')
+      await writeFile(
+        join(root, 'dependency/package.json'),
+        '{"type":"module"}\n'
+      )
+    await loader.initialize({ entries: [filename] })
+    const parentURL = pathToFileURL(
+      kind === 'unowned-relative' ? join(root, 'outside.mjs') : filename
+    ).href
+    const failure = Object.assign(
+      new Error('actual native resolution rejected'),
+      {
+        code:
+          kind === 'unexpected-native-error'
+            ? 'ERR_ACCESS_DENIED'
+            : 'ERR_MODULE_NOT_FOUND',
+      }
+    )
+    if (kind === 'package-directory') await rm(join(root, 'dependency.jsx'))
+    const nextResolve = jest.fn(async () => {
+      throw failure
+    })
+    await expect(
+      loader.resolve(
+        kind === 'owned-package' ? 'dependency' : './dependency',
+        { parentURL },
+        nextResolve
+      )
+    ).rejects.toBe(failure)
+    expect(nextResolve).toHaveBeenCalledTimes(1)
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+it('preserves raw Error reflection while sharing exact frame boundaries across formatter copies and installations', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'error-reflection.cjs')],
+    { encoding: 'utf8' }
+  )
+  expect(JSON.parse(result)).toEqual({ reflections: 10, consumers: 7 })
+})
+
+it.each([
+  'valid',
+  'legacy',
+  'foreign-suite',
+  'slot-other-error',
+  'slot-absent',
+  'slot-negative',
+  'slot-fractional',
+  'slot-nan',
+  'slot-string',
+  'wrong-payload-name',
+  'wrong-payload-stack',
+  'wrong-run',
+  'wrong-entry',
+  'wrong-revision',
+  'missing-revision',
+  'later-owner',
+  'duplicate-equal',
+  'duplicate-different',
+])(
+  'retains exact suite error ownership in live and replayed module views: %s',
+  async (mode) => {
+    const { createCustomReporterModules, isReportedSuiteError } = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter-tasks'
+    )
+    const { createLiveReporterTaskStore } = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter-live-tasks'
+    )
+    const { createCollector } = await import(
+      'next/dist/experimental/testing/runner/collector'
+    )
+    const { runCollected } = await import(
+      'next/dist/experimental/testing/runner/lifecycle'
+    )
+    const { captureReporterTaskTree } = await import(
+      'next/dist/experimental/testing/reporting/live-tasks'
+    )
+    const first = {
+      phase: 'runtime' as const,
+      severity: 'error' as const,
+      name: 'Error',
+      message: 'same authored message',
+      stack: 'first actual authored stack',
+    }
+    const second = { ...first, stack: 'second actual authored stack' }
+    const suite: Extract<ResultEvent, { type: 'suite-end' }> = {
+      ...envelope,
+      type: 'suite-end',
+      entryId: entry.id,
+      revision: 'rev-1',
+      suiteId: entry.id,
+      name: '',
+      ancestors: [],
+      mode: 'run',
+      status: 'failed',
+      durationMs: 1,
+      errors: [first, second],
+    }
+    const diagnostic: Extract<ResultEvent, { type: 'diagnostic' }> = {
+      ...envelope,
+      type: 'diagnostic',
+      entryId: entry.id,
+      revision: 'rev-1',
+      suiteError: { suiteId: entry.id, index: 0 },
+      diagnostic: structuredClone(first),
+    }
+    const { reporter, emit } = setup()
+    try {
+      reporter.onEvent(suite)
+      reporter.onEvent(diagnostic)
+      emit({
+        type: 'file-end',
+        entryId: entry.id,
+        status: 'failed',
+        durationMs: 1,
+      })
+      const results = reporter.getResults()
+      const events = [structuredClone(suite), structuredClone(diagnostic)]
+      const owner = events[0] as typeof suite
+      const candidate = events[1] as typeof diagnostic
+      if (mode === 'legacy') delete candidate.suiteError
+      if (mode === 'foreign-suite') candidate.suiteError!.suiteId = 'foreign'
+      if (mode === 'slot-other-error') candidate.suiteError!.index = 1
+      if (mode === 'slot-absent') candidate.suiteError!.index = 2
+      if (mode === 'slot-negative') candidate.suiteError!.index = -1
+      if (mode === 'slot-fractional') candidate.suiteError!.index = 0.5
+      if (mode === 'slot-nan') candidate.suiteError!.index = NaN
+      if (mode === 'slot-string')
+        candidate.suiteError!.index = '0' as unknown as number
+      if (mode === 'wrong-payload-name')
+        candidate.diagnostic.name = 'OtherError'
+      if (mode === 'wrong-payload-stack')
+        candidate.diagnostic.stack = second.stack
+      if (mode === 'wrong-run') owner.runId = 'foreign-run'
+      if (mode === 'wrong-entry') owner.entryId = 'foreign-entry'
+      if (mode === 'wrong-revision') owner.revision = 'foreign-revision'
+      if (mode === 'missing-revision') delete candidate.revision
+      if (mode === 'later-owner') events.reverse()
+      if (mode === 'duplicate-equal') events.unshift(structuredClone(owner))
+      if (mode === 'duplicate-different') {
+        const duplicate = structuredClone(owner)
+        duplicate.errors[0] = structuredClone(second)
+        events.unshift(duplicate)
+      }
+      for (const replayed of [false, true]) {
+        const actualEvents: ResultEvent[] = replayed
+          ? JSON.parse(JSON.stringify(events))
+          : events
+        const actualDiagnostic = actualEvents.find(
+          (event) => event.type === 'diagnostic'
+        ) as typeof diagnostic
+        const original = JSON.stringify(actualEvents)
+        expect(isReportedSuiteError(actualDiagnostic, actualEvents)).toBe(
+          mode === 'valid'
+        )
+        const completion = {
+          ...results,
+          events: actualEvents,
+          status: 'failed' as const,
+        }
+        const expected =
+          mode === 'valid'
+            ? [first, second]
+            : [first, second, actualDiagnostic.diagnostic]
+        const stable = createCustomReporterModules('/project', completion)[0]
+        expect(stable.errors()).toEqual(expected)
+        const c = createCollector(entry.id)
+        c.api.test('actual declaration', () => {})
+        const live = createLiveReporterTaskStore('/project')
+        await runCollected(
+          c.close(),
+          {
+            runId: 'suite-error-owner',
+            signal: new AbortController().signal,
+            filePath: entry.file,
+            onCollected(file) {
+              live.update(captureReporterTaskTree(file))
+            },
+          },
+          () => {}
+        )
+        expect(live.finishModule(entry.id, completion)!.errors()).toEqual(
+          expected
+        )
+        expect(JSON.stringify(actualEvents)).toBe(original)
+      }
+    } finally {
+      reporter.dispose()
+    }
+  }
+)
+
+it('retains genuine All-hook suite/module error ownership through the ordinary public CLI', async () => {
+  const output = execFileSync(
+    process.execPath,
+    [join(__dirname, 'suite-error-ownership.cjs')],
+    { encoding: 'utf8', timeout: 520000 }
+  )
+  expect(JSON.parse(output)).toEqual({
+    completeProfiles: 12,
+    genuineProfiles: 12,
+    allCaseEventCallbackAndErrorRowsExact: true,
+    actualSuiteSlotAssociations: 12,
+  })
+}, 530000)

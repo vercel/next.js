@@ -1,0 +1,23 @@
+import { test, vi } from 'vitest'
+const observe = (label, value) => console.log('WS2_CJS_CACHE_RAW:' + JSON.stringify({ label, ...value }))
+test('original imports retain fresh outer promises and one normalized namespace', async () => {
+  const first = vi.importActual('./object.cjs')
+  const second = vi.importActual('././object.cjs')
+  const [left, right] = await Promise.all([first, second])
+  const later = vi.importActual('./object.cjs')
+  observe('object', { sameOuter: first === second, laterSameOuter: first === later, sameNamespace: left === right, laterSameNamespace: left === await later, sameDefault: left.default === right.default, evaluations: globalThis.__ws2CjsObjectEvaluations })
+})
+test('normalized original imports cache one successful then adoption', async () => {
+  const first = vi.importActual('./own.cjs')
+  const second = vi.importActual('././own.cjs')
+  const [left, right] = await Promise.all([first, second])
+  const later = vi.importActual('./own.cjs')
+  observe('then', { sameOuter: first === second, laterSameOuter: first === later, left, right, later: await later, calls: globalThis.__ws2CachedThenCalls })
+})
+test('normalized original imports cache the original then rejection', async () => {
+  const first = vi.importActual('./reject.cjs')
+  const second = vi.importActual('././reject.cjs')
+  const [left, right] = await Promise.allSettled([first, second])
+  const later = await vi.importActual('./reject.cjs').catch(error => error)
+  observe('rejection', { sameOuter: first === second, statuses: [left.status, right.status], names: [left.reason.name, right.reason.name], messages: [left.reason.message, right.reason.message], sameError: left.reason === right.reason, laterSameError: left.reason === later, calls: globalThis.__ws2RejectedThenCalls })
+})

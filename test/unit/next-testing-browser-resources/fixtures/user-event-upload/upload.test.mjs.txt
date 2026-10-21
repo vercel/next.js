@@ -1,0 +1,94 @@
+import { afterEach, expect, test } from 'vitest'
+import { page, userEvent } from 'vitest/browser'
+
+afterEach(() => { document.body.innerHTML = '' })
+async function selected(input) {
+  return Promise.all(Array.from(input.files).map(async file => ({ name: file.name, type: file.type, size: file.size, bytes: Array.from(new Uint8Array(await file.arrayBuffer())) })))
+}
+function events(input) {
+  const result = []
+  for (const name of ['input', 'change']) input.addEventListener(name, event => result.push({ type: event.type, trusted: event.isTrusted, names: Array.from(input.files).map(file => file.name) }))
+  return result
+}
+function row(value) { console.log('UPLOAD_RAW ' + JSON.stringify(value)) }
+
+test('uploads a browser File with exact binary bytes and native input events', async () => {
+  document.body.innerHTML = '<input type="file" aria-label="Binary">'
+  const input = document.querySelector('input')
+  const log = events(input)
+  const file = new File([new Uint8Array([0, 255, 1, 128, 65])], 'binary.dat', { type: 'application/octet-stream' })
+  const result = await userEvent.upload(page.getByLabelText('Binary'), file, { timeout: 3000 })
+  const actual = await selected(input)
+  expect(actual).toEqual([{ name: 'binary.dat', type: 'application/octet-stream', size: 5, bytes: [0, 255, 1, 128, 65] }])
+  expect(result).toBeUndefined()
+  row({ kind: 'binary', selected: actual, events: log, result: String(result) })
+})
+
+test('uploads multiple browser Files without changing their order', async () => {
+  document.body.innerHTML = '<input type="file" aria-label="Multiple" multiple>'
+  const input = document.querySelector('input')
+  const log = events(input)
+  const result = await userEvent.upload(input, [new File(['hello'], 'first.txt', { type: 'text/plain' }), new File(['second'], 'second.txt', { type: 'text/plain' })])
+  const actual = await selected(input)
+  expect(actual.map(file => file.name)).toEqual(['first.txt', 'second.txt'])
+  row({ kind: 'multiple', selected: actual, events: log, result: String(result) })
+})
+
+test('uploads a project-relative path using the real file bytes', async () => {
+  document.body.innerHTML = '<input type="file" aria-label="Path">'
+  const input = document.querySelector('input')
+  const log = events(input)
+  const result = await userEvent.upload(input, 'upload-source.txt')
+  const actual = await selected(input)
+  expect(actual.map(file => file.name)).toEqual(['upload-source.txt'])
+  expect(new TextDecoder().decode(new Uint8Array(actual[0].bytes))).toBe('project upload bytes\n')
+  row({ kind: 'path', selected: actual, events: log, result: String(result) })
+})
+
+test('locator upload replaces and clears selection using the real file input', async () => {
+  document.body.innerHTML = '<input type="file" aria-label="Replacement" accept=".png">'
+  const input = document.querySelector('input')
+  const target = page.getByLabelText('Replacement')
+  const log = events(input)
+  await target.upload(new File(['one'], 'one.txt', { type: 'text/plain' }))
+  const first = await selected(input)
+  await target.upload(new File(['two'], 'two.txt', { type: 'text/plain' }))
+  const second = await selected(input)
+  await target.upload([])
+  const empty = await selected(input)
+  expect(first[0].name).toBe('one.txt')
+  expect(second[0].name).toBe('two.txt')
+  expect(empty).toEqual([])
+  row({ kind: 'replace-clear', first, second, empty, events: log })
+})
+
+test('retains native file-input target failures', async () => {
+  document.body.innerHTML = '<button>Not a file input</button>'
+  await expect(userEvent.upload(page.getByRole('button'), new File(['x'], 'x.txt'))).rejects.toThrow('Node is not an HTMLInputElement')
+  row({ kind: 'invalid-target', nativeFailure: true })
+})
+
+test('preserves Blob-backed File bytes while the browser owns the selected File identity', async () => {
+  document.body.innerHTML = '<input type="file" aria-label="Blob-backed">'
+  const input = document.querySelector('input')
+  const log = events(input)
+  const original = new File([new Blob(['snowman ☃'], { type: 'text/plain' })], 'unicode.txt', { type: 'text/plain' })
+  await userEvent.upload(input, original)
+  const file = input.files[0]
+  const actual = await selected(input)
+  const identity = { sameOriginal: file === original, file: file instanceof File, blob: file instanceof Blob }
+  expect(identity).toEqual({ sameOriginal: false, file: true, blob: true })
+  expect(await file.text()).toBe('snowman ☃')
+  row({ kind: 'blob-identity', selected: actual, identity, events: log })
+})
+
+test('keeps prior native action rejections catchable and later interactions live', async () => {
+  document.body.innerHTML = '<button>Ordinary</button><button disabled>Disabled</button>'
+  let clicks = 0
+  document.querySelector('button').addEventListener('click', () => clicks++)
+  await expect(userEvent.fill(page.getByRole('button', { name: 'Ordinary' }), 'text')).rejects.toThrow('Element is not an')
+  await expect(userEvent.click(page.getByRole('button', { name: 'Disabled' }), { timeout: 100 })).rejects.toThrow('Timeout')
+  await userEvent.click(page.getByRole('button', { name: 'Ordinary' }))
+  expect(clicks).toBe(1)
+  row({ kind: 'action-rejections', fillCaught: true, clickCaught: true, laterClicks: clicks })
+})

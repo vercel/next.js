@@ -1,0 +1,11 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_STATIC_RUNTIME_UNUSED",
+    "value": {
+      "staticFactories": 0,
+      "runtimeFactories": 0,
+      "originalEvaluations": 0
+    }
+  }
+]

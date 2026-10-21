@@ -1,0 +1,623 @@
+{
+  "file": "/private/tmp/next-testing-ws1-timer-mode-overloads191/clean07/consumer/.next-test-class-callables192-observer10-local-arrows-development/subject.ts",
+  "sourceMap": {
+    "version": 3,
+    "sources": [
+      "/private/tmp/next-testing-ws1-timer-mode-overloads191/clean07/consumer/.next-test-class-callables192-observer10-local-arrows-development/subject.ts"
+    ],
+    "names": [],
+    "mappings": ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;A;;;;;;AAAA,MAAM,SAAiB;AACvB,SAAS,OAAO,KAAa;IAAY,OAAO,QAAQ;AAAG;AACpD,MAAM;IAEX,YAAY,KAAa,CAAE;QAAE,IAAI,CAAC,KAAK,GAAG;IAAO;IACxC,OAAO,CAAC,QAA0B,IAAI,CAAC,KAAK,GAAG,MAAM;IAC9D,OAAgB,UAAU,CAAC,QAA0B,QAAQ,EAAE;IAC/D,OAAO,KAAa,EAAU;QAAE,OAAO,IAAI,CAAC,KAAK,GAAG;IAAO;AAC7D;AACO,SAAS,SAAS,KAAa;IACpC,MAAM,UAAU,IAAI,QAAQ,OAAO;IACnC,OAAO,QAAQ,IAAI,CAAC,UAAU,QAAQ,OAAO,CAAC,SAAS,QAAQ,MAAM,CAAC;AACxE",
+    "sourcesContent": [
+      "const offset: number = 2;\nfunction prefix(value: number): number { return value + 1; }\nexport class Counter {\n  declare total: number;\n  constructor(value: number) { this.total = value; }\n  readonly read = (delta: number): number => this.total + delta;\n  static readonly combine = (value: number): number => value * 2;\n  method(delta: number): number { return this.total + delta; }\n}\nexport function exercise(value: number): number {\n  const counter = new Counter(prefix(value));\n  return counter.read(offset) + Counter.combine(value) + counter.method(offset);\n}\n"
+    ]
+  },
+  "coverage": {
+    "url": "file:///private/tmp/next-testing-ws1-timer-mode-overloads191/clean07/consumer/.next-test-class-callables192-observer10-local-arrows-development/.next/.next-test-94aae729-3b08-4657-8127-f209ed14b851/server/chunks/%5Broot-of-the-server%5D__0tj3bpmcz5ubv._.js",
+    "functions": [
+      {
+        "isBlockCoverage": true,
+        "ranges": [
+          {
+            "startOffset": 0,
+            "endOffset": 4413,
+            "count": 0
+          }
+        ]
+      }
+    ]
+  },
+  "model": {
+    "path": "/private/tmp/next-testing-ws1-timer-mode-overloads191/clean07/consumer/.next-test-class-callables192-observer10-local-arrows-development/subject.ts",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 1,
+          "column": 23
+        },
+        "end": {
+          "line": 1,
+          "column": 24
+        }
+      },
+      "1": {
+        "start": {
+          "line": 2,
+          "column": 41
+        },
+        "end": {
+          "line": 2,
+          "column": 58
+        }
+      },
+      "2": {
+        "start": {
+          "line": 6,
+          "column": 18
+        },
+        "end": {
+          "line": 6,
+          "column": 63
+        }
+      },
+      "3": {
+        "start": {
+          "line": 7,
+          "column": 28
+        },
+        "end": {
+          "line": 7,
+          "column": 64
+        }
+      },
+      "4": {
+        "start": {
+          "line": 5,
+          "column": 31
+        },
+        "end": {
+          "line": 5,
+          "column": 50
+        }
+      },
+      "5": {
+        "start": {
+          "line": 6,
+          "column": 45
+        },
+        "end": {
+          "line": 6,
+          "column": 63
+        }
+      },
+      "6": {
+        "start": {
+          "line": 7,
+          "column": 55
+        },
+        "end": {
+          "line": 7,
+          "column": 64
+        }
+      },
+      "7": {
+        "start": {
+          "line": 8,
+          "column": 34
+        },
+        "end": {
+          "line": 8,
+          "column": 60
+        }
+      },
+      "8": {
+        "start": {
+          "line": 11,
+          "column": 18
+        },
+        "end": {
+          "line": 11,
+          "column": 44
+        }
+      },
+      "9": {
+        "start": {
+          "line": 12,
+          "column": 2
+        },
+        "end": {
+          "line": 12,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "prefix",
+        "decl": {
+          "start": {
+            "line": 2,
+            "column": 9
+          },
+          "end": {
+            "line": 2,
+            "column": 15
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 39
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "line": 2
+      },
+      "1": {
+        "name": "constructor",
+        "decl": {
+          "start": {
+            "line": 5,
+            "column": 2
+          },
+          "end": {
+            "line": 5,
+            "column": 13
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 5,
+            "column": 29
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        },
+        "line": 5
+      },
+      "2": {
+        "name": "(anonymous_2)",
+        "decl": {
+          "start": {
+            "line": 6,
+            "column": 18
+          },
+          "end": {
+            "line": 6,
+            "column": 19
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 6,
+            "column": 45
+          },
+          "end": {
+            "line": 6,
+            "column": 63
+          }
+        },
+        "line": 6
+      },
+      "3": {
+        "name": "(anonymous_3)",
+        "decl": {
+          "start": {
+            "line": 7,
+            "column": 28
+          },
+          "end": {
+            "line": 7,
+            "column": 29
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 7,
+            "column": 55
+          },
+          "end": {
+            "line": 7,
+            "column": 64
+          }
+        },
+        "line": 7
+      },
+      "4": {
+        "name": "method",
+        "decl": {
+          "start": {
+            "line": 8,
+            "column": 2
+          },
+          "end": {
+            "line": 8,
+            "column": 8
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 8,
+            "column": 32
+          },
+          "end": {
+            "line": 8,
+            "column": null
+          }
+        },
+        "line": 8
+      },
+      "5": {
+        "name": "exercise",
+        "decl": {
+          "start": {
+            "line": 10,
+            "column": 16
+          },
+          "end": {
+            "line": 10,
+            "column": 24
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 10,
+            "column": 48
+          },
+          "end": {
+            "line": 13,
+            "column": null
+          }
+        },
+        "line": 10
+      }
+    },
+    "branchMap": {},
+    "s": {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0,
+      "9": 0
+    },
+    "f": {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 6,
+      "lastStatement": 10,
+      "seen": {
+        "s:1:23:1:24": 0,
+        "f:2:9:2:15": 0,
+        "s:2:41:2:58": 1,
+        "s:6:18:6:63": 2,
+        "s:7:28:7:64": 3,
+        "f:5:2:5:13": 1,
+        "s:5:31:5:50": 4,
+        "f:6:18:6:19": 2,
+        "s:6:45:6:63": 5,
+        "f:7:28:7:29": 3,
+        "s:7:55:7:64": 6,
+        "f:8:2:8:8": 4,
+        "s:8:34:8:60": 7,
+        "f:10:16:10:24": 5,
+        "s:11:18:11:44": 8,
+        "s:12:2:12:Infinity": 9
+      },
+      "fnNames": {}
+    }
+  },
+  "observed": {
+    "path": "/private/tmp/next-testing-ws1-timer-mode-overloads191/clean07/consumer/.next-test-class-callables192-observer10-local-arrows-development/subject.ts",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 1,
+          "column": 23
+        },
+        "end": {
+          "line": 1,
+          "column": null
+        }
+      },
+      "1": {
+        "start": {
+          "line": 2,
+          "column": 41
+        },
+        "end": {
+          "line": 2,
+          "column": 59
+        }
+      },
+      "2": {
+        "start": {
+          "line": 6,
+          "column": 18
+        },
+        "end": {
+          "line": 6,
+          "column": 64
+        }
+      },
+      "3": {
+        "start": {
+          "line": 7,
+          "column": 28
+        },
+        "end": {
+          "line": 7,
+          "column": 65
+        }
+      },
+      "4": {
+        "start": {
+          "line": 5,
+          "column": 31
+        },
+        "end": {
+          "line": 5,
+          "column": 51
+        }
+      },
+      "5": {
+        "start": {
+          "line": 6,
+          "column": 45
+        },
+        "end": {
+          "line": 6,
+          "column": 64
+        }
+      },
+      "6": {
+        "start": {
+          "line": 7,
+          "column": 55
+        },
+        "end": {
+          "line": 7,
+          "column": 65
+        }
+      },
+      "7": {
+        "start": {
+          "line": 8,
+          "column": 34
+        },
+        "end": {
+          "line": 8,
+          "column": 61
+        }
+      },
+      "8": {
+        "start": {
+          "line": 11,
+          "column": 18
+        },
+        "end": {
+          "line": 11,
+          "column": null
+        }
+      },
+      "9": {
+        "start": {
+          "line": 12,
+          "column": 2
+        },
+        "end": {
+          "line": 12,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "prefix",
+        "decl": {
+          "start": {
+            "line": 2,
+            "column": 9
+          },
+          "end": {
+            "line": 2,
+            "column": 16
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 29
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "line": 2
+      },
+      "1": {
+        "name": "constructor",
+        "decl": {
+          "start": {
+            "line": 5,
+            "column": 2
+          },
+          "end": {
+            "line": 5,
+            "column": 14
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 5,
+            "column": 29
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        },
+        "line": 5
+      },
+      "2": {
+        "name": "(anonymous_2)",
+        "decl": {
+          "start": {
+            "line": 6,
+            "column": 18
+          },
+          "end": {
+            "line": 6,
+            "column": 19
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 6,
+            "column": 45
+          },
+          "end": {
+            "line": 6,
+            "column": 64
+          }
+        },
+        "line": 6
+      },
+      "3": {
+        "name": "(anonymous_3)",
+        "decl": {
+          "start": {
+            "line": 7,
+            "column": 28
+          },
+          "end": {
+            "line": 7,
+            "column": 29
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 7,
+            "column": 55
+          },
+          "end": {
+            "line": 7,
+            "column": 65
+          }
+        },
+        "line": 7
+      },
+      "4": {
+        "name": "method",
+        "decl": {
+          "start": {
+            "line": 8,
+            "column": 2
+          },
+          "end": {
+            "line": 8,
+            "column": 9
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 8,
+            "column": 32
+          },
+          "end": {
+            "line": 8,
+            "column": null
+          }
+        },
+        "line": 8
+      },
+      "5": {
+        "name": "exercise",
+        "decl": {
+          "start": {
+            "line": 10,
+            "column": 16
+          },
+          "end": {
+            "line": 10,
+            "column": 25
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 10,
+            "column": 38
+          },
+          "end": {
+            "line": 13,
+            "column": null
+          }
+        },
+        "line": 10
+      }
+    },
+    "branchMap": {},
+    "s": {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0,
+      "9": 0
+    },
+    "f": {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 6,
+      "lastStatement": 10,
+      "seen": {
+        "s:1:23:1:Infinity": 0,
+        "f:2:9:2:16": 0,
+        "s:2:41:2:59": 1,
+        "s:6:18:6:64": 2,
+        "s:7:28:7:65": 3,
+        "f:5:2:5:14": 1,
+        "s:5:31:5:51": 4,
+        "f:6:18:6:19": 2,
+        "s:6:45:6:64": 5,
+        "f:7:28:7:29": 3,
+        "s:7:55:7:65": 6,
+        "f:8:2:8:9": 4,
+        "s:8:34:8:61": 7,
+        "f:10:16:10:25": 5,
+        "s:11:18:11:Infinity": 8,
+        "s:12:2:12:Infinity": 9
+      },
+      "fnNames": {}
+    }
+  }
+}

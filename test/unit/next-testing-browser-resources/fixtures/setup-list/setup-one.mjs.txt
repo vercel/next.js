@@ -1,0 +1,34 @@
+import { beforeAll, beforeEach, afterEach, afterAll } from 'vitest'
+import { label } from 'next-test-production-target'
+import { state } from './setup-state.mjs'
+import './setup.css'
+state.events.push('setup-one-start')
+globalThis.__browserSetupRuns = (globalThis.__browserSetupRuns || 0) + 1
+await Promise.resolve()
+state.branch = label
+state.mode = process.env.NODE_ENV
+state.events.push('setup-one-end')
+beforeAll(() => {
+  state.events.push('before-all-one')
+  globalThis.__browserSetupValue = 'v1'
+})
+beforeEach(() => {
+  state.events.push('before-each-one')
+  const button = document.createElement('button')
+  button.id = 'setup-button'
+  button.textContent = 'ready-v1'
+  button.onclick = () => { state.events.push('button-click'); button.textContent = 'clicked-v1' }
+  document.body.append(button)
+  state.button = button
+})
+afterEach(() => {
+  state.events.push('after-each-one')
+  state.button.onclick = null
+  state.button.remove()
+  state.button = undefined
+})
+afterAll(() => {
+  state.events.push('after-all-one')
+  delete globalThis.__browserSetupValue
+  console.log('BROWSER_SETUP_FILE ' + JSON.stringify({ file: state.file, events: state.events, branch: state.branch, mode: state.mode, setupRuns: globalThis.__browserSetupRuns, domCount: document.querySelectorAll('#setup-button').length, setupGlobalRemoved: !('__browserSetupValue' in globalThis) }))
+})

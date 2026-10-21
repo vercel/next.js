@@ -1,0 +1,632 @@
+[
+  {
+    "event": "case-result",
+    "test": {
+      "type": "test",
+      "id": "-1247806485_0_0",
+      "name": "pass",
+      "fullName": "outer > pass",
+      "project": "",
+      "options": {
+        "tags": [],
+        "timeout": 5000,
+        "mode": "run"
+      },
+      "tags": [],
+      "meta": {},
+      "result": {
+        "state": "passed"
+      },
+      "annotations": [],
+      "artifacts": []
+    },
+    "moduleId": "/private/tmp/next-testing-vitest-blob-slice/nested-pass-fail-retry-s56rZr/pass.case.mjs",
+    "relativeModuleId": "pass.case.mjs",
+    "parent": "-1247806485_0"
+  },
+  {
+    "event": "case-result",
+    "test": {
+      "type": "test",
+      "id": "-1247806485_0_1",
+      "name": "skip",
+      "fullName": "outer > skip",
+      "project": "",
+      "options": {
+        "tags": [],
+        "timeout": 5000,
+        "mode": "skip"
+      },
+      "tags": [],
+      "meta": {},
+      "result": {
+        "state": "skipped"
+      },
+      "annotations": [],
+      "artifacts": []
+    },
+    "moduleId": "/private/tmp/next-testing-vitest-blob-slice/nested-pass-fail-retry-s56rZr/pass.case.mjs",
+    "relativeModuleId": "pass.case.mjs",
+    "parent": "-1247806485_0"
+  },
+  {
+    "event": "case-result",
+    "test": {
+      "type": "test",
+      "id": "-1247806485_0_2",
+      "name": "todo",
+      "fullName": "outer > todo",
+      "project": "",
+      "options": {
+        "tags": [],
+        "timeout": 5000,
+        "mode": "todo"
+      },
+      "tags": [],
+      "meta": {},
+      "result": {
+        "state": "skipped"
+      },
+      "annotations": [],
+      "artifacts": []
+    },
+    "moduleId": "/private/tmp/next-testing-vitest-blob-slice/nested-pass-fail-retry-s56rZr/pass.case.mjs",
+    "relativeModuleId": "pass.case.mjs",
+    "parent": "-1247806485_0"
+  },
+  {
+    "event": "case-result",
+    "test": {
+      "type": "test",
+      "id": "-1247806485_0_3_0",
+      "name": "retry",
+      "fullName": "outer > nested > retry",
+      "project": "",
+      "options": {
+        "retry": 1,
+        "tags": [],
+        "timeout": 5000,
+        "mode": "run"
+      },
+      "tags": [],
+      "meta": {},
+      "result": {
+        "state": "passed",
+        "errors": [
+          {
+            "stack": "Error: first retry failure\n    at /private/tmp/next-testing-vitest-blob-slice/nested-pass-fail-retry-s56rZr/pass.case.mjs:1:335\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1632:35\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:2794:26\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3334:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3329:10)\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3314:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3272:10)\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3895:64",
+            "message": "first retry failure",
+            "constructor": "Function<Error>",
+            "name": "Error",
+            "toString": "Function<toString>",
+            "stacks": [
+              {
+                "method": "",
+                "file": "/private/tmp/next-testing-vitest-blob-slice/nested-pass-fail-retry-s56rZr/pass.case.mjs",
+                "line": 1,
+                "column": 335
+              }
+            ]
+          }
+        ]
+      },
+      "annotations": [],
+      "artifacts": []
+    },
+    "moduleId": "/private/tmp/next-testing-vitest-blob-slice/nested-pass-fail-retry-s56rZr/pass.case.mjs",
+    "relativeModuleId": "pass.case.mjs",
+    "parent": "-1247806485_0_3"
+  },
+  {
+    "event": "case-result",
+    "test": {
+      "type": "test",
+      "id": "-1247806485_0_3_1",
+      "name": "failure",
+      "fullName": "outer > nested > failure",
+      "project": "",
+      "options": {
+        "tags": [],
+        "timeout": 5000,
+        "mode": "run"
+      },
+      "tags": [],
+      "meta": {},
+      "result": {
+        "state": "failed",
+        "errors": [
+          {
+            "message": "expected { actual: 1 } to deeply equal { actual: 2 }",
+            "actual": "{\n  \"actual\": 1,\n}",
+            "expected": "{\n  \"actual\": 2,\n}",
+            "showDiff": true,
+            "operator": "deepStrictEqual",
+            "diff": "- Expected\n+ Received\n\n  {\n-   \"actual\": 2,\n+   \"actual\": 1,\n  }",
+            "name": "AssertionError",
+            "ok": false,
+            "stack": "AssertionError: expected { actual: 1 } to deeply equal { actual: 2 }\n    at /private/tmp/next-testing-vitest-blob-slice/nested-pass-fail-retry-s56rZr/pass.case.mjs:1:408\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1632:35\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:2794:26\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3334:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3329:10)\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3314:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3272:10)\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3895:64",
+            "stacks": [
+              {
+                "method": "",
+                "file": "/private/tmp/next-testing-vitest-blob-slice/nested-pass-fail-retry-s56rZr/pass.case.mjs",
+                "line": 1,
+                "column": 408
+              }
+            ]
+          }
+        ]
+      },
+      "annotations": [],
+      "artifacts": []
+    },
+    "moduleId": "/private/tmp/next-testing-vitest-blob-slice/nested-pass-fail-retry-s56rZr/pass.case.mjs",
+    "relativeModuleId": "pass.case.mjs",
+    "parent": "-1247806485_0_3"
+  },
+  {
+    "event": "module-end",
+    "moduleId": "/private/tmp/next-testing-vitest-blob-slice/nested-pass-fail-retry-s56rZr/pass.case.mjs",
+    "relativeModuleId": "pass.case.mjs",
+    "module": {
+      "type": "module",
+      "id": "-1247806485",
+      "project": "",
+      "meta": {},
+      "state": "failed",
+      "errors": [],
+      "children": [
+        {
+          "type": "suite",
+          "id": "-1247806485_0",
+          "name": "outer",
+          "fullName": "outer",
+          "project": "",
+          "options": {
+            "fails": false,
+            "tags": [],
+            "mode": "run"
+          },
+          "meta": {},
+          "state": "failed",
+          "errors": [],
+          "children": [
+            {
+              "type": "test",
+              "id": "-1247806485_0_0",
+              "name": "pass",
+              "fullName": "outer > pass",
+              "project": "",
+              "options": {
+                "tags": [],
+                "timeout": 5000,
+                "mode": "run"
+              },
+              "tags": [],
+              "meta": {},
+              "result": {
+                "state": "passed"
+              },
+              "annotations": [],
+              "artifacts": []
+            },
+            {
+              "type": "test",
+              "id": "-1247806485_0_1",
+              "name": "skip",
+              "fullName": "outer > skip",
+              "project": "",
+              "options": {
+                "tags": [],
+                "timeout": 5000,
+                "mode": "skip"
+              },
+              "tags": [],
+              "meta": {},
+              "result": {
+                "state": "skipped"
+              },
+              "annotations": [],
+              "artifacts": []
+            },
+            {
+              "type": "test",
+              "id": "-1247806485_0_2",
+              "name": "todo",
+              "fullName": "outer > todo",
+              "project": "",
+              "options": {
+                "tags": [],
+                "timeout": 5000,
+                "mode": "todo"
+              },
+              "tags": [],
+              "meta": {},
+              "result": {
+                "state": "skipped"
+              },
+              "annotations": [],
+              "artifacts": []
+            },
+            {
+              "type": "suite",
+              "id": "-1247806485_0_3",
+              "name": "nested",
+              "fullName": "outer > nested",
+              "project": "",
+              "options": {
+                "fails": false,
+                "tags": [],
+                "mode": "run"
+              },
+              "meta": {},
+              "state": "failed",
+              "errors": [],
+              "children": [
+                {
+                  "type": "test",
+                  "id": "-1247806485_0_3_0",
+                  "name": "retry",
+                  "fullName": "outer > nested > retry",
+                  "project": "",
+                  "options": {
+                    "retry": 1,
+                    "tags": [],
+                    "timeout": 5000,
+                    "mode": "run"
+                  },
+                  "tags": [],
+                  "meta": {},
+                  "result": {
+                    "state": "passed",
+                    "errors": [
+                      {
+                        "stack": "Error: first retry failure\n    at /private/tmp/next-testing-vitest-blob-slice/nested-pass-fail-retry-s56rZr/pass.case.mjs:1:335\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1632:35\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:2794:26\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3334:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3329:10)\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3314:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3272:10)\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3895:64",
+                        "message": "first retry failure",
+                        "constructor": "Function<Error>",
+                        "name": "Error",
+                        "toString": "Function<toString>",
+                        "stacks": [
+                          {
+                            "method": "",
+                            "file": "/private/tmp/next-testing-vitest-blob-slice/nested-pass-fail-retry-s56rZr/pass.case.mjs",
+                            "line": 1,
+                            "column": 335
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "annotations": [],
+                  "artifacts": []
+                },
+                {
+                  "type": "test",
+                  "id": "-1247806485_0_3_1",
+                  "name": "failure",
+                  "fullName": "outer > nested > failure",
+                  "project": "",
+                  "options": {
+                    "tags": [],
+                    "timeout": 5000,
+                    "mode": "run"
+                  },
+                  "tags": [],
+                  "meta": {},
+                  "result": {
+                    "state": "failed",
+                    "errors": [
+                      {
+                        "message": "expected { actual: 1 } to deeply equal { actual: 2 }",
+                        "actual": "{\n  \"actual\": 1,\n}",
+                        "expected": "{\n  \"actual\": 2,\n}",
+                        "showDiff": true,
+                        "operator": "deepStrictEqual",
+                        "diff": "- Expected\n+ Received\n\n  {\n-   \"actual\": 2,\n+   \"actual\": 1,\n  }",
+                        "name": "AssertionError",
+                        "ok": false,
+                        "stack": "AssertionError: expected { actual: 1 } to deeply equal { actual: 2 }\n    at /private/tmp/next-testing-vitest-blob-slice/nested-pass-fail-retry-s56rZr/pass.case.mjs:1:408\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1632:35\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:2794:26\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3334:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3329:10)\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3314:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3272:10)\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3895:64",
+                        "stacks": [
+                          {
+                            "method": "",
+                            "file": "/private/tmp/next-testing-vitest-blob-slice/nested-pass-fail-retry-s56rZr/pass.case.mjs",
+                            "line": 1,
+                            "column": 408
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "annotations": [],
+                  "artifacts": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "event": "case-result",
+    "test": {
+      "type": "test",
+      "id": "1642762346_0",
+      "name": "other pass",
+      "fullName": "other pass",
+      "project": "",
+      "options": {
+        "tags": [],
+        "timeout": 5000,
+        "mode": "run"
+      },
+      "tags": [],
+      "meta": {},
+      "result": {
+        "state": "passed"
+      },
+      "annotations": [],
+      "artifacts": []
+    },
+    "moduleId": "/private/tmp/next-testing-vitest-blob-slice/nested-pass-fail-retry-s56rZr/other.case.mjs",
+    "relativeModuleId": "other.case.mjs",
+    "parent": "1642762346"
+  },
+  {
+    "event": "module-end",
+    "moduleId": "/private/tmp/next-testing-vitest-blob-slice/nested-pass-fail-retry-s56rZr/other.case.mjs",
+    "relativeModuleId": "other.case.mjs",
+    "module": {
+      "type": "module",
+      "id": "1642762346",
+      "project": "",
+      "meta": {},
+      "state": "passed",
+      "errors": [],
+      "children": [
+        {
+          "type": "test",
+          "id": "1642762346_0",
+          "name": "other pass",
+          "fullName": "other pass",
+          "project": "",
+          "options": {
+            "tags": [],
+            "timeout": 5000,
+            "mode": "run"
+          },
+          "tags": [],
+          "meta": {},
+          "result": {
+            "state": "passed"
+          },
+          "annotations": [],
+          "artifacts": []
+        }
+      ]
+    }
+  },
+  {
+    "event": "run-end",
+    "reason": "failed",
+    "modules": [
+      {
+        "type": "module",
+        "id": "-1247806485",
+        "project": "",
+        "meta": {},
+        "state": "failed",
+        "errors": [],
+        "children": [
+          {
+            "type": "suite",
+            "id": "-1247806485_0",
+            "name": "outer",
+            "fullName": "outer",
+            "project": "",
+            "options": {
+              "fails": false,
+              "tags": [],
+              "mode": "run"
+            },
+            "meta": {},
+            "state": "failed",
+            "errors": [],
+            "children": [
+              {
+                "type": "test",
+                "id": "-1247806485_0_0",
+                "name": "pass",
+                "fullName": "outer > pass",
+                "project": "",
+                "options": {
+                  "tags": [],
+                  "timeout": 5000,
+                  "mode": "run"
+                },
+                "tags": [],
+                "meta": {},
+                "result": {
+                  "state": "passed"
+                },
+                "annotations": [],
+                "artifacts": []
+              },
+              {
+                "type": "test",
+                "id": "-1247806485_0_1",
+                "name": "skip",
+                "fullName": "outer > skip",
+                "project": "",
+                "options": {
+                  "tags": [],
+                  "timeout": 5000,
+                  "mode": "skip"
+                },
+                "tags": [],
+                "meta": {},
+                "result": {
+                  "state": "skipped"
+                },
+                "annotations": [],
+                "artifacts": []
+              },
+              {
+                "type": "test",
+                "id": "-1247806485_0_2",
+                "name": "todo",
+                "fullName": "outer > todo",
+                "project": "",
+                "options": {
+                  "tags": [],
+                  "timeout": 5000,
+                  "mode": "todo"
+                },
+                "tags": [],
+                "meta": {},
+                "result": {
+                  "state": "skipped"
+                },
+                "annotations": [],
+                "artifacts": []
+              },
+              {
+                "type": "suite",
+                "id": "-1247806485_0_3",
+                "name": "nested",
+                "fullName": "outer > nested",
+                "project": "",
+                "options": {
+                  "fails": false,
+                  "tags": [],
+                  "mode": "run"
+                },
+                "meta": {},
+                "state": "failed",
+                "errors": [],
+                "children": [
+                  {
+                    "type": "test",
+                    "id": "-1247806485_0_3_0",
+                    "name": "retry",
+                    "fullName": "outer > nested > retry",
+                    "project": "",
+                    "options": {
+                      "retry": 1,
+                      "tags": [],
+                      "timeout": 5000,
+                      "mode": "run"
+                    },
+                    "tags": [],
+                    "meta": {},
+                    "result": {
+                      "state": "passed",
+                      "errors": [
+                        {
+                          "stack": "Error: first retry failure\n    at /private/tmp/next-testing-vitest-blob-slice/nested-pass-fail-retry-s56rZr/pass.case.mjs:1:335\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1632:35\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:2794:26\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3334:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3329:10)\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3314:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3272:10)\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3895:64",
+                          "message": "first retry failure",
+                          "constructor": "Function<Error>",
+                          "name": "Error",
+                          "toString": "Function<toString>",
+                          "stacks": [
+                            {
+                              "method": "",
+                              "file": "/private/tmp/next-testing-vitest-blob-slice/nested-pass-fail-retry-s56rZr/pass.case.mjs",
+                              "line": 1,
+                              "column": 335
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    "annotations": [],
+                    "artifacts": []
+                  },
+                  {
+                    "type": "test",
+                    "id": "-1247806485_0_3_1",
+                    "name": "failure",
+                    "fullName": "outer > nested > failure",
+                    "project": "",
+                    "options": {
+                      "tags": [],
+                      "timeout": 5000,
+                      "mode": "run"
+                    },
+                    "tags": [],
+                    "meta": {},
+                    "result": {
+                      "state": "failed",
+                      "errors": [
+                        {
+                          "message": "expected { actual: 1 } to deeply equal { actual: 2 }",
+                          "actual": "{\n  \"actual\": 1,\n}",
+                          "expected": "{\n  \"actual\": 2,\n}",
+                          "showDiff": true,
+                          "operator": "deepStrictEqual",
+                          "diff": "- Expected\n+ Received\n\n  {\n-   \"actual\": 2,\n+   \"actual\": 1,\n  }",
+                          "name": "AssertionError",
+                          "ok": false,
+                          "stack": "AssertionError: expected { actual: 1 } to deeply equal { actual: 2 }\n    at /private/tmp/next-testing-vitest-blob-slice/nested-pass-fail-retry-s56rZr/pass.case.mjs:1:408\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1632:35\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:2794:26\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3334:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3329:10)\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3314:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3272:10)\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3895:64",
+                          "stacks": [
+                            {
+                              "method": "",
+                              "file": "/private/tmp/next-testing-vitest-blob-slice/nested-pass-fail-retry-s56rZr/pass.case.mjs",
+                              "line": 1,
+                              "column": 408
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    "annotations": [],
+                    "artifacts": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "module",
+        "id": "1642762346",
+        "project": "",
+        "meta": {},
+        "state": "passed",
+        "errors": [],
+        "children": [
+          {
+            "type": "test",
+            "id": "1642762346_0",
+            "name": "other pass",
+            "fullName": "other pass",
+            "project": "",
+            "options": {
+              "tags": [],
+              "timeout": 5000,
+              "mode": "run"
+            },
+            "tags": [],
+            "meta": {},
+            "result": {
+              "state": "passed"
+            },
+            "annotations": [],
+            "artifacts": []
+          }
+        ]
+      }
+    ],
+    "errors": [
+      {
+        "name": "Error",
+        "message": "foreign replay rejection"
+      }
+    ],
+    "sameModules": [true, true],
+    "sameCases": [true, true, true, true, true, true]
+  },
+  {
+    "event": "close"
+  }
+]

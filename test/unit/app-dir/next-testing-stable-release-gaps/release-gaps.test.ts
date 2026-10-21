@@ -2749,17 +2749,22 @@ it.each([
       total: report.numTotalTests,
       passed: report.numPassedTests,
     }).toEqual({ code: 1, success: false, total: 2, passed: 2 })
+    const mutationMessage = importedConfig
+      ? 'Next config imported module changed after its actual load'
+      : mutation === 'configuration-addition'
+        ? 'Compiler coverage configuration inventory changed after selection'
+        : 'Compiler coverage analysis inputs changed after selection'
+    const hasMutationDiagnostic = (
+      diagnostic: Extract<ResultEvent, { type: 'diagnostic' }>['diagnostic']
+    ): boolean =>
+      diagnostic.message.includes(mutationMessage) ||
+      (diagnostic.errors ?? []).some(hasMutationDiagnostic) ||
+      (diagnostic.cause !== undefined &&
+        hasMutationDiagnostic(diagnostic.cause))
     expect(
       (report.next?.events as ResultEvent[] | undefined)?.some(
         (event) =>
-          event.type === 'diagnostic' &&
-          event.diagnostic.message.includes(
-            importedConfig
-              ? 'Next config imported module changed after its actual load'
-              : mutation === 'configuration-addition'
-                ? 'Compiler coverage configuration inventory changed after selection'
-                : 'Compiler coverage analysis inputs changed after selection'
-          )
+          event.type === 'diagnostic' && hasMutationDiagnostic(event.diagnostic)
       )
     ).toBe(true)
     for (const file of ['coverage-final.json', 'lcov.info'])

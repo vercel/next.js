@@ -1,0 +1,40 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CALLBACK_SHAPE",
+    "value": {
+      "callback": {
+        "type": "function",
+        "name": "",
+        "length": 0,
+        "tag": "[object Function]",
+        "functionPrototype": true,
+        "asyncPrototype": false,
+        "constructorName": "Function",
+        "keys": ["length", "name"],
+        "descriptors": [
+          {
+            "key": "length",
+            "value": 0,
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": true
+          },
+          {
+            "key": "name",
+            "value": "",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": true
+          }
+        ]
+      },
+      "value": 7,
+      "originalEvaluations": 0
+    }
+  }
+]

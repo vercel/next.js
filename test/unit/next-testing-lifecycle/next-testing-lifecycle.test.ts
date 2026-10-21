@@ -27,6 +27,184 @@ const run = (collector: ReturnType<typeof createCollector>) =>
   runCollected(collector.close(), options(), () => {})
 
 describe('Next-owned Vitest lifecycle', () => {
+  it('provides fresh base test APIs to synchronous and asynchronous suite factories', async () => {
+    const c = createCollector('file')
+    const events: unknown[] = []
+    c.api.describe('sync factory', (provided) => {
+      events.push(['sync', typeof provided, provided === c.api.test])
+      provided.beforeEach(() => {
+        events.push(['beforeEach'])
+      })
+      provided('one', () => {
+        events.push(['one'])
+      })
+      provided.skip('skip', () => {
+        throw new Error('must skip')
+      })
+      provided.extend({ value: 3 })('fixture', ({ value }) => {
+        events.push(['fixture', value])
+        expect(value).toBe(3)
+      })
+      c.api.describe('nested', (nested) => {
+        events.push(['nested', nested === provided, nested === c.api.test])
+        nested('inner', () => {
+          events.push(['inner'])
+        })
+      })
+    })
+    c.api.describe('async factory', async (provided) => {
+      events.push(['async', typeof provided, provided === c.api.test])
+      await Promise.resolve()
+      provided('after await', () => {
+        events.push(['after await'])
+      })
+    })
+    c.api.describe.each([4])('table %i', function (value) {
+      events.push(['table', value, arguments.length])
+      c.api.test('row', () => {
+        events.push(['row', value])
+      })
+    })
+    c.api.describe.skip('skipped factory', (provided) => {
+      events.push(['skip factory', typeof provided])
+      provided('skipped child', () => {
+        throw new Error('must skip')
+      })
+    })
+    await c.settle()
+    const result = await run(c)
+    expect(result.cases.map(({ status }) => status)).toEqual([
+      'passed',
+      'skipped',
+      'passed',
+      'passed',
+      'passed',
+      'passed',
+      'skipped',
+    ])
+    expect(events).toEqual([
+      ['sync', 'function', false],
+      ['nested', false, false],
+      ['async', 'function', false],
+      ['table', 4, 1],
+      ['skip factory', 'function'],
+      ['beforeEach'],
+      ['one'],
+      ['beforeEach'],
+      ['fixture', 3],
+      ['beforeEach'],
+      ['inner'],
+      ['after await'],
+      ['row', 4],
+    ])
+  })
+
+  it('resolves Unicode fixture dependencies through factories, aliases, builders and overrides', async () => {
+    const c = createCollector('file')
+    const events: unknown[] = []
+    const custom = c.api.test.extend<{
+      café: number
+      Δ: number
+      数据: { total: number }
+    }>({
+      café: 2,
+      Δ: 3,
+      数据: async ({ café, Δ }, provide) => {
+        events.push(['data+', café, Δ])
+        await provide({ total: café + Δ })
+        events.push(['data-'])
+      },
+    })
+    const owned = custom.extend('résumé', ({ 数据 }, { onCleanup }) => {
+      events.push(['builder+', 数据.total])
+      onCleanup(() => {
+        events.push(['builder-'])
+      })
+      return 数据.total * 2
+    })
+    owned(
+      'unicode dependency aliases',
+      ({ café: accent, 数据: { total }, résumé: result }) => {
+        expect([accent, total, result]).toEqual([2, 5, 10])
+        events.push(['body', accent, total, result])
+      }
+    )
+    c.api.describe('override', () => {
+      owned.override({ café: 4 })
+      owned(
+        'unicode dependency replacement',
+        ({ café: accent, 数据: { total }, résumé: result }) => {
+          expect([accent, total, result]).toEqual([4, 7, 14])
+          events.push(['body', accent, total, result])
+        }
+      )
+    })
+    const execution = await run(c)
+    expect(execution.cases.map((test) => test.status)).toEqual([
+      'passed',
+      'passed',
+    ])
+    expect(execution.errors).toEqual([])
+    expect(events).toEqual([
+      ['data+', 2, 3],
+      ['builder+', 5],
+      ['body', 2, 5, 10],
+      ['builder-'],
+      ['data-'],
+      ['data+', 4, 3],
+      ['builder+', 7],
+      ['body', 4, 7, 14],
+      ['builder-'],
+      ['data-'],
+    ])
+  })
+
+  it('exposes global suite aliases and the deprecated scoped fixture override', async () => {
+    const c = createCollector('file')
+    const test = c.api.test.extend({ value: 'base' })
+    expect(test.describe).toBe(c.api.describe)
+    expect(test.suite).toBe(c.api.suite)
+    expect(test.skip.describe).toBe(c.api.describe)
+    expect(test.concurrent.suite).toBe(c.api.suite)
+    const values: string[] = []
+    const warning = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      test.describe('outer', () => {
+        test('base', ({ value }) => values.push(value))
+        test.suite('nested', () => {
+          expect(test.scoped({ value: 'nested' })).toBe(test)
+          test('override', ({ value }) => values.push(value))
+        })
+        test('after nested', ({ value }) => values.push(value))
+      })
+      test.suite.each([1, 2])('table %i', (row) => {
+        test(`row ${row}`, ({ value }) => values.push(`${value}:${row}`))
+      })
+      test.skip.describe('suite ignores test modifier', () => {
+        test('runs', ({ value }) => values.push(value))
+      })
+      expect(warning).toHaveBeenCalledTimes(1)
+      expect(warning).toHaveBeenCalledWith(
+        'test.scoped() is deprecated and will be removed in future versions. Please use test.override() instead.'
+      )
+      const result = await run(c)
+      expect(result.errors).toEqual([])
+      expect(result.cases.map((test) => test.status)).toEqual(
+        Array(6).fill('passed')
+      )
+      expect(values).toEqual([
+        'base',
+        'nested',
+        'base',
+        'base:1',
+        'base:2',
+        'base',
+      ])
+    } finally {
+      warning.mockRestore()
+    }
+  })
+
   it('lists settled runnable declarations without hooks, fixtures or test execution', async () => {
     const c = createCollector('file')
     const never = () => {
@@ -1461,10 +1639,12 @@ describe('Next-owned Vitest lifecycle', () => {
     ).toThrow('multiple callbacks')
     const result = await run(c)
     expect(result.cases[0].status).toBe('failed')
-    expect(String(result.cases[0].errors[0].error)).toContain('after 1ms')
+    expect(String(result.cases[0].errors[0].error)).toBe(
+      'Error: Test timed out in 1ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".'
+    )
   })
 
-  it('rejects injected fixture tuples while preserving static array values', async () => {
+  it('rejects unknown fixture options while preserving static array values', async () => {
     const c = createCollector('file')
     expect(() =>
       c.api.test.extend<{ value: unknown }>({
@@ -1472,10 +1652,10 @@ describe('Next-owned Vitest lifecycle', () => {
           async ({}, provide: (value: unknown) => Promise<void>) => {
             await provide(42)
           },
-          { injected: true },
+          { auto: false, unknown: true },
         ] as any,
       })
-    ).toThrow('fixture option "injected"')
+    ).toThrow('fixture option "unknown"')
     const arrayTest = c.api.test.extend<{ value: unknown[] }>({
       value: [42, { label: 'data' }],
     })
@@ -2537,7 +2717,13 @@ describe('Next-owned Vitest lifecycle', () => {
     const owned = c.api.test.extend('value', value)
     owned('plain value', ({ value: actual }) => expect(actual).toBe(value))
     const result = await run(c)
-    expect(result.cases[0].status).toBe('passed')
+    expect(result.cases[0].status).toBe('failed')
+    expect(result.cases[0].errors).toHaveLength(1)
+    const failure = result.cases[0].errors[0]
+    expect(failure.phase).toBe('test')
+    expect(failure.error).toHaveProperty('matcherResult.actual', {})
+    expect(failure.error).toHaveProperty('matcherResult.expected', value)
+    expect(failure.error).toHaveProperty('matcherResult.name', 'toBe')
     expect(result.errors).toEqual([])
   })
 
@@ -2888,7 +3074,7 @@ it('runs C/D facade integration in a fresh process', async () => {
   ]).catch((error) => {
     throw new Error([error.message, error.stdout, error.stderr].join('\n'))
   })
-  expect(stdout).toContain('# tests 51')
+  expect(stdout).toContain('# tests 66')
   expect(stdout).toContain('# fail 0')
 }, 30000)
 
@@ -5267,3 +5453,2589 @@ it('uses the actual Browser env backend for literal subjects and preserves Node 
       })
   }
 }, 45000)
+
+it('injects fixture values at registration with nullish fallback and lazy cleanup', async () => {
+  const data = { label: 'provided' }
+  const provided: Record<string, unknown> = {
+    value: 'provided',
+    zero: 0,
+    disabled: false,
+    empty: '',
+    nullable: null,
+    data,
+    factory: data,
+  }
+  const reads: string[] = []
+  const trace: string[] = []
+  const c = createCollector('injected', {
+    injectValue(name) {
+      reads.push(name)
+      return provided[name]
+    },
+  })
+  const test = c.api.test.extend<{
+    value: string
+    zero: number
+    disabled: boolean
+    empty: string
+    nullable: string
+    missing: string
+    data: typeof data
+    factory: typeof data
+    fallback: string
+    derived: string
+  }>({
+    value: ['default', { injected: true }],
+    zero: [99, { injected: true }],
+    disabled: [true, { injected: true }],
+    empty: ['default', { injected: true }],
+    nullable: ['null-default', { injected: true }],
+    missing: ['missing-default', { injected: true }],
+    data: [{ label: 'default' }, { injected: true }],
+    factory: [
+      async ({}, provide) => {
+        trace.push('provided factory ran')
+        await provide(data)
+      },
+      { injected: true },
+    ],
+    fallback: [
+      async ({}, provide) => {
+        trace.push('setup')
+        await provide('fallback')
+        trace.push('cleanup')
+      },
+      { injected: true },
+    ],
+    derived: async ({ value, fallback }, provide) => {
+      await provide(value + '/' + fallback)
+    },
+  })
+  provided.value = 'changed after registration'
+  test('consumer', ({
+    value,
+    zero,
+    disabled,
+    empty,
+    nullable,
+    missing,
+    data: actual,
+    factory,
+    derived,
+  }) => {
+    expect({
+      value,
+      zero,
+      disabled,
+      empty,
+      nullable,
+      missing,
+      derived,
+    }).toEqual({
+      value: 'provided',
+      zero: 0,
+      disabled: false,
+      empty: '',
+      nullable: 'null-default',
+      missing: 'missing-default',
+      derived: 'provided/fallback',
+    })
+    expect(actual).toBe(data)
+    expect(factory).toBe(data)
+    expect(trace).toEqual(['setup'])
+  })
+  c.api.afterAll(() => {
+    expect(trace).toEqual(['setup', 'cleanup'])
+  })
+  const result = await run(c)
+  expect(result.cases.map(({ status }) => status)).toEqual(['passed'])
+  expect(result.errors).toEqual([])
+  expect(reads).toEqual([
+    'value',
+    'zero',
+    'disabled',
+    'empty',
+    'nullable',
+    'missing',
+    'data',
+    'factory',
+    'fallback',
+  ])
+})
+
+it('preserves plain and explicit fixture overrides and typed injected builder options', async () => {
+  const c = createCollector('injected-overrides', {
+    injectValue: () => 'provided',
+  })
+  const base = c.api.test.extend<{ value: string }>({
+    value: ['default', { injected: true }],
+  })
+  const plain = base.extend({ value: 'plain' })
+  const enabled = base.extend({
+    value: ['enabled-default', { injected: true }],
+  })
+  const disabled = base.extend({
+    value: ['disabled-default', { injected: false }],
+  })
+  plain('plain', ({ value }) => {
+    const exact: string = value
+    expect(exact).toBe('plain')
+  })
+  enabled('enabled', ({ value }) => expect(value).toBe('provided'))
+  disabled('disabled', ({ value }) => expect(value).toBe('disabled-default'))
+  c.api.describe('override', () => {
+    base.override('value', { injected: true }, 'override-default')
+    base('explicit override', ({ value }) => expect(value).toBe('provided'))
+  })
+  c.api.describe('plain override', () => {
+    base.override('value', 'plain-override')
+    base('plain override', ({ value }) => expect(value).toBe('plain-override'))
+  })
+  const file = c.api.test.extend(
+    'file',
+    { scope: 'file', injected: true },
+    'file-default'
+  )
+  file('file options', ({ file }) => {
+    const exact: string = file
+    expect(exact).toBe('provided')
+  })
+  if (false) {
+    // @ts-expect-error injected is a boolean in the public fixture options.
+    c.api.test.extend('invalid', { injected: 'yes' }, 1)
+  }
+  const result = await run(c)
+  expect(result.cases.map(({ status }) => status)).toEqual(
+    Array(6).fill('passed')
+  )
+  expect(result.errors).toEqual([])
+})
+
+it('collects tagged each and for tables with fixture context and stable public names', async () => {
+  const collector = createCollector('tagged')
+  const rows: unknown[] = []
+  const { test, describe } = collector.api
+  test.each`
+    left | right | total
+    ${1} | ${2}  | ${3}
+    ${2} | ${5}  | ${7}
+  `('adds $left and $right', ({ left, right, total }) => {
+    expect(left + right).toBe(total)
+    rows.push({ api: 'test.each', left, right, total })
+  })
+  const fixtureTest = test.extend<{ tone: string }>({ tone: 'fixture' })
+  fixtureTest.for`label | value
+    ${'alpha'} | ${3}
+    ${'beta'} | ${6}
+  `('$label is $value', { retry: 0 }, ({ label, value }, { tone, signal }) => {
+    expect(signal.aborted).toBe(false)
+    rows.push({ api: 'test.for', label, value, tone })
+  })
+  describe.each`
+    label           | value
+    ${'each-suite'} | ${9}
+  `('$label', ({ label, value }) => {
+    test('records the suite table row', () => {
+      rows.push({ api: 'describe.each', label, value })
+    })
+  })
+  describe.for`label | value
+    ${'for-suite'} | ${12}
+  `('$label', { retry: 0 }, ({ label, value }) => {
+    test('records the for suite table row', () => {
+      rows.push({ api: 'describe.for', label, value })
+    })
+  })
+  const result = await run(collector)
+  expect(result.cases.map(({ name, status }) => [name, status])).toEqual([
+    ['adds 1 and 2', 'passed'],
+    ['adds 2 and 5', 'passed'],
+    ['alpha is 3', 'passed'],
+    ['beta is 6', 'passed'],
+    ['each-suite > records the suite table row', 'passed'],
+    ['for-suite > records the for suite table row', 'passed'],
+  ])
+  expect(rows).toEqual([
+    { api: 'test.each', left: 1, right: 2, total: 3 },
+    { api: 'test.each', left: 2, right: 5, total: 7 },
+    { api: 'test.for', label: 'alpha', value: 3, tone: 'fixture' },
+    { api: 'test.for', label: 'beta', value: 6, tone: 'fixture' },
+    { api: 'describe.each', label: 'each-suite', value: 9 },
+    { api: 'describe.for', label: 'for-suite', value: 12 },
+  ])
+})
+
+it('preserves object-prototype fixture names across extensions and dependencies', async () => {
+  const c = createCollector('file')
+  const events: unknown[] = []
+  const named = c.api.test.extend<{
+    toString: string
+    constructor: { tag: string }
+    hasOwnProperty: number
+    __proto__: { count: number }
+  }>({
+    toString: 'text',
+    constructor: { tag: 'base' },
+    hasOwnProperty: 3,
+    ['__proto__']: { count: 5 },
+  })
+  named(
+    'static fixture names',
+    ({ toString, constructor, hasOwnProperty, __proto__ }) => {
+      expect([
+        toString,
+        constructor.tag,
+        hasOwnProperty,
+        __proto__.count,
+      ]).toEqual(['text', 'base', 3, 5])
+      events.push([
+        'static',
+        toString,
+        constructor.tag,
+        hasOwnProperty,
+        __proto__.count,
+      ])
+    }
+  )
+  const factories = named
+    .extend<{ toString: string }>({
+      toString: async ({ toString, constructor }, provide) => {
+        events.push(['factory+', toString, constructor.tag])
+        await provide(`${toString}:${constructor.tag}`)
+        events.push(['factory-'])
+      },
+    })
+    .extend(
+      'hasOwnProperty',
+      async ({ __proto__, hasOwnProperty }, { onCleanup }) => {
+        events.push(['builder+', __proto__.count, hasOwnProperty])
+        onCleanup(() => {
+          events.push(['builder-'])
+        })
+        return __proto__.count + hasOwnProperty
+      }
+    )
+  factories('factory dependencies', ({ toString, hasOwnProperty }) => {
+    expect([toString, hasOwnProperty]).toEqual(['text:base', 8])
+    events.push(['factory body', toString, hasOwnProperty])
+  })
+  c.api.describe('suite override', () => {
+    factories.override('constructor', { tag: 'nested' })
+    factories.override('__proto__', { count: 7 })
+    factories('overridden dependencies', ({ toString, hasOwnProperty }) => {
+      expect([toString, hasOwnProperty]).toEqual(['text:nested', 10])
+      events.push(['override body', toString, hasOwnProperty])
+    })
+  })
+  factories('sibling dependencies', ({ toString, hasOwnProperty }) => {
+    expect([toString, hasOwnProperty]).toEqual(['text:base', 8])
+    events.push(['sibling body', toString, hasOwnProperty])
+  })
+
+  const result = await run(c)
+  expect(result.errors).toEqual([])
+  expect(result.cases.map((test) => test.status)).toEqual(
+    Array(4).fill('passed')
+  )
+  expect(events).toEqual([
+    ['static', 'text', 'base', 3, 5],
+    ['factory+', 'text', 'base'],
+    ['builder+', 5, 3],
+    ['factory body', 'text:base', 8],
+    ['builder-'],
+    ['factory-'],
+    ['factory+', 'text', 'nested'],
+    ['builder+', 7, 3],
+    ['override body', 'text:nested', 10],
+    ['builder-'],
+    ['factory-'],
+    ['factory+', 'text', 'base'],
+    ['builder+', 5, 3],
+    ['sibling body', 'text:base', 8],
+    ['builder-'],
+    ['factory-'],
+  ])
+})
+
+it.each(['case', 'suite'])(
+  'retains enqueue-time asynchronous ancestry and FIFO slots for queued %s work',
+  async (kind) => {
+    const { getOriginatingHook, getOriginatingScopeAncestors } = await import(
+      'next/dist/experimental/testing/runner/async-context'
+    )
+    const deferred = () => {
+      let resolve!: () => void
+      const promise = new Promise<void>((done) => {
+        resolve = done
+      })
+      return { promise, resolve }
+    }
+    const leftEntered = deferred()
+    const rightSetup = deferred()
+    const rightEntered = deferred()
+    const releaseLeft = deferred()
+    const releaseRight = deferred()
+    const c = createCollector('queued-owners')
+    const hookIds = new Map<string, string>()
+    const entries: string[] = []
+    const origins: {
+      name: string
+      owner: string
+      ancestors: readonly string[]
+    }[] = []
+    let leftCount = 0
+    let rightCount = 0
+    let active = 0
+    let maximum = 0
+    c.api.aroundAll(async (execute) => {
+      hookIds.set('parent', getOriginatingHook()!.id)
+      await execute()
+    })
+    const body = (name: string, owner: string) => async () => {
+      entries.push(name)
+      origins.push({ name, owner, ancestors: getOriginatingScopeAncestors() })
+      active++
+      maximum = Math.max(maximum, active)
+      try {
+        if (name.startsWith('left')) {
+          if (++leftCount === 2) leftEntered.resolve()
+          await releaseLeft.promise
+        } else {
+          if (++rightCount === 2) rightEntered.resolve()
+          await releaseRight.promise
+        }
+      } finally {
+        active--
+      }
+    }
+    const suite = (name: string, cases: string[]) => {
+      c.api.describe.concurrent(name, () => {
+        c.api.aroundAll(async (execute) => {
+          hookIds.set(name, getOriginatingHook()!.id)
+          await execute()
+        })
+        if (kind === 'case' && name === 'right')
+          c.api.beforeAll(async () => {
+            await leftEntered.promise
+            rightSetup.resolve()
+          })
+        for (const nameOfCase of cases)
+          c.api.test.concurrent(nameOfCase, body(nameOfCase, name))
+      })
+    }
+    if (kind === 'case') {
+      suite('left', ['left first', 'left second'])
+      suite('right', ['right first', 'right second'])
+    } else {
+      for (const name of [
+        'left first',
+        'left second',
+        'right first',
+        'right second',
+      ])
+        suite(name, [name])
+    }
+    const running = runCollected(
+      c.close(),
+      { ...options(), maxConcurrency: 2 },
+      () => {}
+    )
+    try {
+      await leftEntered.promise
+      if (kind === 'case') await rightSetup.promise
+      // Let the right declarations reach their occupied FIFO queue, rather
+      // than relying on a wall-clock delay or on the release callback's owner.
+      await new Promise<void>(setImmediate)
+      expect(entries).toEqual(['left first', 'left second'])
+      releaseLeft.resolve()
+      await rightEntered.promise
+      expect(entries).toEqual([
+        'left first',
+        'left second',
+        'right first',
+        'right second',
+      ])
+      expect(maximum).toBe(2)
+      for (const origin of origins.filter(({ name }) =>
+        name.startsWith('right')
+      )) {
+        expect(origin.ancestors).toContain(hookIds.get(origin.owner))
+        expect(origin.ancestors).toContain(hookIds.get('parent'))
+        for (const [name, id] of hookIds)
+          if (name.startsWith('left'))
+            expect(origin.ancestors).not.toContain(id)
+      }
+    } finally {
+      releaseLeft.resolve()
+      releaseRight.resolve()
+      await running
+    }
+    const result = await running
+    expect(result.errors).toEqual([])
+    expect(result.cases.map(({ status }) => status)).toEqual([
+      'passed',
+      'passed',
+      'passed',
+      'passed',
+    ])
+    expect(active).toBe(0)
+  }
+)
+
+it.each(['body', 'setup'])(
+  'aborts only the attempt owning a %s deadline while retaining sibling cleanup and unopened-work fences',
+  async (phase) => {
+    const c = createCollector('timeout-owners')
+    let releaseSibling!: () => void
+    const timeoutObserved = new Promise<void>((resolve) => {
+      releaseSibling = resolve
+    })
+    const healthySignals: boolean[] = []
+    const ownSignals: boolean[] = []
+    const fixtures: string[] = []
+    const owned = c.api.test.extend({
+      token: async ({ task }, provide) => {
+        fixtures.push('start ' + task.name)
+        await provide(task.id)
+        fixtures.push('finish ' + task.name)
+      },
+    })
+    const waitForAbort = (signal: AbortSignal) =>
+      new Promise<void>((resolve) => {
+        signal.addEventListener(
+          'abort',
+          () => {
+            releaseSibling()
+            resolve()
+          },
+          { once: true }
+        )
+      })
+    const observed = (name: string, signal: AbortSignal) => {
+      if (name === 'healthy') healthySignals.push(signal.aborted)
+      if (name === 'timeout') ownSignals.push(signal.aborted)
+    }
+    owned.aroundEach(async (execute, { task, token, signal }) => {
+      expect(token).toBe(task.id)
+      await execute()
+      observed(task.name, signal)
+    })
+    owned.beforeEach(({ task, signal, onTestFinished }) => {
+      onTestFinished(({ signal }) => observed(task.name, signal))
+      if (phase === 'setup' && task.name === 'timeout')
+        return waitForAbort(signal)
+    }, 100)
+    owned.afterEach(({ task, signal }) => observed(task.name, signal))
+    owned.concurrent('timeout', { timeout: 100 }, async ({ signal }) => {
+      if (phase !== 'body')
+        throw new Error('a timed-out setup must not enter its body')
+      await waitForAbort(signal)
+    })
+    owned.concurrent('healthy', async ({ signal }) => {
+      await timeoutObserved
+      healthySignals.push(signal.aborted)
+    })
+    owned('unopened tail', () => {})
+    const result = await runCollected(
+      c.close(),
+      { ...options(), maxConcurrency: 2 },
+      () => {}
+    )
+    expect(healthySignals).toEqual([false, false, false, false])
+    expect(ownSignals).toEqual([true, true, true])
+    expect(
+      Object.fromEntries(result.cases.map(({ name, status }) => [name, status]))
+    ).toEqual({
+      timeout: 'failed',
+      healthy: 'passed',
+      'unopened tail': phase === 'body' ? 'passed' : 'cancelled',
+    })
+    expect(
+      result.cases
+        .find(({ name }) => name === 'timeout')!
+        .errors.map(({ phase }) => phase)
+    ).toEqual([phase === 'body' ? 'test' : 'beforeEach'])
+    expect(result.cases.find(({ name }) => name === 'healthy')!.errors).toEqual(
+      []
+    )
+    expect(
+      fixtures.filter((event) => event.startsWith('start ')).sort()
+    ).toEqual(
+      fixtures
+        .filter((event) => event.startsWith('finish '))
+        .map((event) => event.replace('finish ', 'start '))
+        .sort()
+    )
+    expect(result.interrupted).toBe(true)
+  }
+)
+
+it.each(['explicit', 'runner', 'collection'] as const)(
+  'reports the effective %s body timeout at its captured declaration while retaining settlement fences',
+  async (source) => {
+    const duration = { explicit: 5, runner: 7, collection: 9 }[source]
+    const c = createCollector('body-timeout-origin', {
+      getRuntimeConfig: () =>
+        source === 'collection' ? { testTimeout: duration } : {},
+    })
+    const cleanup: string[] = []
+    let taskKeys: string[] = []
+    function registerTimedCase() {
+      c.api.test(
+        'deadline',
+        source === 'explicit' ? { timeout: duration } : {},
+        async ({ signal, task, onTestFinished }) => {
+          taskKeys = Object.keys(task)
+          onTestFinished(() => {
+            cleanup.push('finished')
+          })
+          await new Promise<void>((resolve) =>
+            signal.addEventListener(
+              'abort',
+              () => {
+                cleanup.push('settled')
+                resolve()
+              },
+              { once: true }
+            )
+          )
+        }
+      )
+    }
+    registerTimedCase()
+    c.api.test('following', () => {
+      cleanup.push('following')
+    })
+    const declaration = c.root.children[0]
+    const descriptor = Object.getOwnPropertyDescriptor(
+      declaration,
+      'registrationError'
+    )
+    expect(descriptor).toMatchObject({ enumerable: false, writable: false })
+    const result = await runCollected(
+      c.close(),
+      { ...options(), testTimeout: source === 'runner' ? duration : 100 },
+      () => {}
+    )
+    expect(result.cases.map(({ status }) => status)).toEqual([
+      'failed',
+      'passed',
+    ])
+    expect(cleanup).toEqual(['settled', 'finished', 'following'])
+    expect(result.interrupted).toBe(true)
+    const error = result.cases[0].errors[0].error as Error
+    const message = `Test timed out in ${duration}ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".`
+    expect(error.name).toBe('Error')
+    expect(error.message).toBe(message)
+    expect(error.stack).toContain(`Error: ${message}\n`)
+    expect(error.stack).toContain('registerTimedCase')
+    expect(error.stack).not.toContain('Timeout.<anonymous>')
+    expect(error).not.toHaveProperty('cause')
+    expect(taskKeys).not.toContain('registrationError')
+  }
+)
+
+it('preserves a non-body hook deadline diagnostic and unopened-work poisoning', async () => {
+  const c = createCollector('hook-timeout-origin')
+  const cleanup: string[] = []
+  c.api.beforeEach(({ signal }) => {
+    return new Promise<void>((resolve) =>
+      signal.addEventListener(
+        'abort',
+        () => {
+          cleanup.push('settled')
+          resolve()
+        },
+        { once: true }
+      )
+    )
+  }, 5)
+  c.api.test('blocked', () => {
+    throw new Error('a timed-out hook must not enter its body')
+  })
+  c.api.test('unopened', () => {})
+  const result = await run(c)
+  expect(result.cases.map(({ status }) => status)).toEqual([
+    'failed',
+    'cancelled',
+  ])
+  expect(cleanup).toEqual(['settled'])
+  expect(result.interrupted).toBe(true)
+  expect(result.cases[0].errors).toHaveLength(1)
+  expect(result.cases[0].errors[0].phase).toBe('beforeEach')
+  const error = result.cases[0].errors[0].error as Error
+  expect(error.message).toBe(
+    'Hook timed out in 5ms.\nIf this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".'
+  )
+  expect(error.stack).toContain('next-testing-lifecycle.test.ts')
+  expect(error.stack).not.toContain('Timeout.<anonymous>')
+  expect(error).not.toHaveProperty('cause')
+})
+
+it('continues after real setup and teardown wrapper settlement with separate phase origins', async () => {
+  const c = createCollector('around-phase-origins')
+  const trace: string[] = []
+  function registerWrapper() {
+    c.api.aroundEach(async (execute, { task, signal }) => {
+      if (task.name === 'following') {
+        await execute()
+        return
+      }
+      const expired = new Promise<void>((resolve) =>
+        signal.addEventListener('abort', () => resolve(), { once: true })
+      )
+      if (task.name === 'teardown') await execute()
+      await expired
+      trace.push('settled ' + task.name)
+    }, 5)
+  }
+  registerWrapper()
+  c.api.test('setup', () => {
+    throw new Error('timed-out setup must not invoke body')
+  })
+  c.api.test('teardown', () => {
+    trace.push('body teardown')
+  })
+  c.api.test('following', () => {
+    trace.push('following')
+  })
+  const result = await run(c)
+  expect(result.cases.map(({ status }) => status)).toEqual([
+    'failed',
+    'failed',
+    'passed',
+  ])
+  expect(trace).toEqual([
+    'settled setup',
+    'body teardown',
+    'settled teardown',
+    'following',
+  ])
+  expect(result.interrupted).toBe(true)
+  for (const [index, phase] of ['setup', 'teardown'].entries()) {
+    const error = result.cases[index].errors[0].error as Error
+    const message = `The ${phase} phase of "aroundEach" hook timed out after 5ms.`
+    expect(error.name).toBe(
+      phase === 'setup' ? 'AroundHookSetupError' : 'AroundHookTeardownError'
+    )
+    expect(error.message).toBe(message)
+    expect(error.stack).toContain(`Error: ${message}\n`)
+    expect(error.stack).toContain('registerWrapper')
+    expect(error.stack).not.toContain('Timeout.<anonymous>')
+  }
+})
+
+it('preserves a healthy concurrent sibling and following work after wrapper cleanup', async () => {
+  const c = createCollector('around-concurrent-settlement')
+  let releaseSibling!: () => void
+  const expired = new Promise<void>((resolve) => {
+    releaseSibling = resolve
+  })
+  const trace: string[] = []
+  const signals: boolean[] = []
+  c.api.aroundEach(async (execute, { task, signal }) => {
+    if (task.name === 'timeout') {
+      signal.addEventListener('abort', releaseSibling, { once: true })
+      await execute()
+      await expired
+      trace.push('wrapper settled')
+    } else {
+      await execute()
+      signals.push(signal.aborted)
+    }
+  }, 10)
+  c.api.test.concurrent('timeout', ({ onTestFinished }) => {
+    onTestFinished(() => {
+      trace.push('finished before timeout')
+    })
+  })
+  c.api.test.concurrent('healthy', async ({ signal }) => {
+    await expired
+    signals.push(signal.aborted)
+  })
+  c.api.test('following', () => {
+    trace.push('following')
+  })
+  const result = await runCollected(
+    c.close(),
+    { ...options(), maxConcurrency: 2 },
+    () => {}
+  )
+  expect(result.cases.map(({ name, status }) => [name, status]).sort()).toEqual(
+    [
+      ['timeout', 'failed'],
+      ['healthy', 'passed'],
+      ['following', 'passed'],
+    ].sort()
+  )
+  expect(trace).toEqual([
+    'finished before timeout',
+    'wrapper settled',
+    'following',
+  ])
+  expect(signals).toEqual([false, false, false])
+  expect(result.interrupted).toBe(true)
+})
+
+it.each(['setup', 'teardown'] as const)(
+  'retains unopened-work poisoning until the actual %s wrapper settles',
+  async (phase) => {
+    const c = createCollector('around-pending-settlement')
+    let release!: () => void
+    let completed!: () => void
+    const pending = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const finished = new Promise<void>((resolve) => {
+      completed = resolve
+    })
+    c.api.aroundEach(async (execute) => {
+      try {
+        if (phase === 'teardown') await execute()
+        await pending
+      } finally {
+        completed()
+      }
+    }, 5)
+    c.api.test('timeout', () => {
+      if (phase === 'setup') throw new Error('must not enter setup body')
+    })
+    c.api.test('following', () => {
+      throw new Error('must not start before wrapper settlement')
+    })
+    try {
+      const result = await run(c)
+      expect(result.cases.map(({ status }) => status)).toEqual([
+        'failed',
+        'cancelled',
+      ])
+      expect(result.interrupted).toBe(true)
+    } finally {
+      release()
+      await finished
+    }
+  }
+)
+
+it.each(['retry', 'repeat'] as const)(
+  'admits a %s only after its own timed-out body, teardown and onCaseEnd close',
+  async (kind) => {
+    const c = createCollector('body-deadline-continuation')
+    const trace: string[] = []
+    const contexts: unknown[] = []
+    const signals: AbortSignal[] = []
+    let firstEnded!: () => void
+    const ended = new Promise<void>((resolve) => {
+      firstEnded = resolve
+    })
+    let releaseEnd!: () => void
+    const closed = new Promise<void>((resolve) => {
+      releaseEnd = resolve
+    })
+    c.api.test(
+      'same case',
+      { timeout: 5, ...(kind === 'retry' ? { retry: 1 } : { repeats: 1 }) },
+      async (context) => {
+        const { task, signal, onTestFailed, onTestFinished } = context
+        contexts.push(context)
+        signals.push(signal)
+        const attempt =
+          kind === 'retry' ? task.result!.retryCount : task.result!.repeatCount
+        trace.push('body ' + attempt)
+        onTestFinished(() => {
+          trace.push('finished ' + attempt)
+        })
+        if (attempt === 0) {
+          await new Promise<void>((resolve) => {
+            onTestFailed(() => {
+              trace.push('failed 0')
+              resolve()
+            })
+          })
+          trace.push('settled 0')
+        } else {
+          expect(signal.aborted).toBe(true)
+          context.onTestFinished(() => {
+            trace.push('shared context finished 1')
+          })
+        }
+      }
+    )
+    c.api.test('following', () => {
+      trace.push('following')
+    })
+    let first = true
+    const running = runCollected(
+      c.close(),
+      {
+        ...options(),
+        async onCaseEnd(result) {
+          if (result.name !== 'same case' || !first) return
+          first = false
+          trace.push('onCaseEnd 0')
+          firstEnded()
+          await closed
+          trace.push('closed onCaseEnd 0')
+        },
+      },
+      () => {}
+    )
+    try {
+      await ended
+      expect(trace).toEqual([
+        'body 0',
+        'finished 0',
+        'failed 0',
+        'settled 0',
+        'onCaseEnd 0',
+      ])
+    } finally {
+      releaseEnd()
+    }
+    const result = await running
+    expect(result.cases.map(({ status }) => status)).toEqual([
+      'failed',
+      'passed',
+      'passed',
+    ])
+    expect(trace).toEqual([
+      'body 0',
+      'finished 0',
+      'failed 0',
+      'settled 0',
+      'onCaseEnd 0',
+      'closed onCaseEnd 0',
+      'body 1',
+      'shared context finished 1',
+      'finished 1',
+      'following',
+    ])
+    expect(new Set(contexts).size).toBe(1)
+    expect(new Set(signals).size).toBe(1)
+    expect(result.interrupted).toBe(kind === 'repeat')
+  }
+)
+
+it('retains each new body deadline and its actual settlement across repeated timeouts', async () => {
+  const c = createCollector('repeated-body-deadlines')
+  const trace: string[] = []
+  c.api.test('twice', { timeout: 5, repeats: 1 }, async (context) => {
+    const attempt = context.task.result!.repeatCount
+    trace.push('body ' + attempt)
+    await new Promise<void>((resolve) => {
+      context.onTestFailed(() => {
+        trace.push('failed ' + attempt)
+        resolve()
+      })
+    })
+    trace.push('settled ' + attempt)
+  })
+  c.api.test('following', () => {
+    trace.push('following')
+  })
+  const result = await run(c)
+  expect(result.cases.map(({ status }) => status)).toEqual([
+    'failed',
+    'failed',
+    'passed',
+  ])
+  expect(trace).toEqual([
+    'body 0',
+    'failed 0',
+    'settled 0',
+    'body 1',
+    'failed 1',
+    'settled 1',
+    'following',
+  ])
+  for (const attempt of result.cases.slice(0, 2)) {
+    expect(attempt.errors).toHaveLength(1)
+    expect((attempt.errors[0].error as Error).message).toBe(
+      'Test timed out in 5ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".'
+    )
+  }
+  expect(result.interrupted).toBe(true)
+})
+
+it('does not excuse a foreign unsettled deadline when admitting a retry', async () => {
+  const c = createCollector('foreign-body-deadline')
+  let releaseForeign!: () => void
+  const pending = new Promise<void>((resolve) => {
+    releaseForeign = resolve
+  })
+  let ownBodies = 0
+  c.api.test.concurrent('foreign', { timeout: 5 }, async () => {
+    await pending
+  })
+  c.api.test.concurrent(
+    'own',
+    { timeout: 10, retry: 1 },
+    async ({ onTestFailed }) => {
+      ownBodies++
+      await new Promise<void>((resolve) => {
+        onTestFailed(() => resolve())
+      })
+    }
+  )
+  c.api.test('following', () => {
+    throw new Error('foreign pending work must retain the poison')
+  })
+  try {
+    const result = await runCollected(
+      c.close(),
+      { ...options(), maxConcurrency: 2 },
+      () => {}
+    )
+    expect(ownBodies).toBe(1)
+    expect(
+      result.cases.map(({ name, status }) => [name, status]).sort()
+    ).toEqual(
+      [
+        ['foreign', 'failed'],
+        ['own', 'failed'],
+        ['following', 'cancelled'],
+      ].sort()
+    )
+    expect(result.interrupted).toBe(true)
+  } finally {
+    releaseForeign()
+    await pending
+  }
+})
+
+it('keeps run cancellation dominant after an otherwise settled body deadline', async () => {
+  const c = createCollector('cancel-body-retry')
+  const controller = new AbortController()
+  let bodies = 0
+  c.api.test('timeout', { timeout: 5, retry: 1 }, async ({ onTestFailed }) => {
+    bodies++
+    await new Promise<void>((resolve) => {
+      onTestFailed(() => resolve())
+    })
+  })
+  c.api.test('following', () => {
+    throw new Error('cancelled work must not execute')
+  })
+  const result = await runCollected(
+    c.close(),
+    {
+      ...options(),
+      signal: controller.signal,
+      onCaseEnd(result) {
+        if (result.name === 'timeout') controller.abort(new Error('cancel'))
+      },
+    },
+    () => {}
+  )
+  expect(bodies).toBe(1)
+  expect(result.cases.map(({ status }) => status)).toEqual([
+    'failed',
+    'cancelled',
+  ])
+  expect(result.interrupted).toBe(true)
+})
+
+it('does not admit a retry through the foreign around-timer capture window', async () => {
+  const c = createCollector('foreign-around-admission')
+  let releaseForeign!: () => void
+  const pending = new Promise<void>((resolve) => {
+    releaseForeign = resolve
+  })
+  let aroundExpired!: () => void
+  const expired = new Promise<void>((resolve) => {
+    aroundExpired = resolve
+  })
+  let ownBodies = 0
+  c.api.aroundEach(async (execute, { task, signal }) => {
+    if (task.name === 'foreign')
+      signal.addEventListener('abort', aroundExpired, { once: true })
+    await execute()
+    if (task.name === 'foreign') await pending
+  }, 10)
+  c.api.test.concurrent('foreign', () => {})
+  c.api.test.concurrent(
+    'own',
+    { timeout: 5, retry: 1 },
+    async ({ onTestFailed }) => {
+      ownBodies++
+      await new Promise<void>((resolve) => {
+        onTestFailed(() => resolve())
+      })
+    }
+  )
+  c.api.test('following', () => {
+    throw new Error('a foreign around deadline must block unopened work')
+  })
+  try {
+    const result = await runCollected(
+      c.close(),
+      {
+        ...options(),
+        maxConcurrency: 2,
+        async onCaseEnd(result) {
+          if (result.name === 'own') await expired
+        },
+      },
+      () => {}
+    )
+    expect(ownBodies).toBe(1)
+    expect(result.cases.filter(({ name }) => name === 'own')).toHaveLength(1)
+    expect(result.cases.find(({ name }) => name === 'following')!.status).toBe(
+      'cancelled'
+    )
+    expect(result.interrupted).toBe(true)
+  } finally {
+    releaseForeign()
+    await pending
+  }
+})
+
+it('keeps a settled expected-failure timeout from borrowing another case retry recovery', async () => {
+  const c = createCollector('foreign-expected-deadline')
+  c.api.test.fails(
+    'expected timeout',
+    { timeout: 5 },
+    async ({ onTestFailed }) => {
+      await new Promise<void>((resolve) => onTestFailed(() => resolve()))
+    }
+  )
+  let bodies = 0
+  c.api.test(
+    'recovered retry',
+    { timeout: 5, retry: 1 },
+    async ({ onTestFailed }) => {
+      if (bodies++ === 0)
+        await new Promise<void>((resolve) => onTestFailed(() => resolve()))
+    }
+  )
+  const result = await run(c)
+  expect(result.cases.map(({ status }) => status)).toEqual([
+    'passed',
+    'failed',
+    'passed',
+  ])
+  expect(result.interrupted).toBe(false)
+})
+
+it('does not release a non-body historical deadline after another successful body retry', async () => {
+  const c = createCollector('foreign-around-expected-deadline')
+  c.api.aroundEach(async (execute, { signal, task }) => {
+    await execute()
+    if (task.name === 'expected wrapper timeout') {
+      await new Promise<void>((resolve) =>
+        signal.addEventListener('abort', () => resolve(), { once: true })
+      )
+    }
+  }, 5)
+  c.api.test.fails('expected wrapper timeout', () => {})
+  let bodies = 0
+  c.api.test(
+    'recovered retry',
+    { timeout: 5, retry: 1 },
+    async ({ onTestFailed }) => {
+      if (bodies++ === 0)
+        await new Promise<void>((resolve) => onTestFailed(() => resolve()))
+    }
+  )
+  const result = await run(c)
+  expect(result.cases.map(({ status }) => status)).toEqual([
+    'passed',
+    'failed',
+    'passed',
+  ])
+  expect(result.interrupted).toBe(true)
+})
+
+it('keeps file cleanup errors dominant after successful body retry recovery', async () => {
+  const c = createCollector('body-retry-file-cleanup')
+  let bodies = 0
+  c.api.afterAll(() => {
+    throw new Error('file cleanup failure')
+  })
+  c.api.test(
+    'recovered',
+    { timeout: 5, retry: 1 },
+    async ({ onTestFailed }) => {
+      if (bodies++ === 0)
+        await new Promise<void>((resolve) => onTestFailed(() => resolve()))
+    }
+  )
+  const result = await run(c)
+  expect(result.cases.map(({ status }) => status)).toEqual(['failed', 'passed'])
+  expect(result.errors.map(({ error }) => (error as Error).message)).toEqual([
+    'file cleanup failure',
+  ])
+  expect(result.interrupted).toBe(true)
+})
+
+it('does not let an expected timeout borrow a successful retry of a later repeat of the same case', async () => {
+  const c = createCollector('same-case-expected-body-deadline')
+  let bodies = 0
+  const events: unknown[] = []
+  c.api.test.fails(
+    'expected repeats',
+    { timeout: 5, retry: 1, repeats: 1 },
+    async ({ signal, task }) => {
+      const current = bodies++
+      events.push([
+        'body',
+        current,
+        task.result!.retryCount,
+        task.result!.repeatCount,
+        signal.aborted,
+      ])
+      if (current === 0) {
+        await new Promise<void>((resolve) =>
+          signal.addEventListener(
+            'abort',
+            () => {
+              events.push(['abort', current])
+              resolve()
+            },
+            { once: true }
+          )
+        )
+        events.push(['settled', current, signal.aborted])
+      } else if (current === 2) throw new Error('expected final retry failure')
+    }
+  )
+  const result = await run(c)
+  expect(result.cases.map(({ status }) => status)).toEqual([
+    'passed',
+    'failed',
+    'passed',
+  ])
+  expect(events).toEqual([
+    ['body', 0, 0, 0, false],
+    ['abort', 0],
+    ['settled', 0, true],
+    ['body', 1, 0, 1, true],
+    ['body', 2, 1, 1, true],
+  ])
+  expect((result.cases[1].errors[0].error as Error).message).toBe(
+    'Expect test to fail'
+  )
+  expect(result.interrupted).toBe(false)
+})
+
+it('carries only actual body deadline registrations privately without changing Error own fields', async () => {
+  const c = createCollector('private-body-registration')
+  c.api.test(
+    'deadline',
+    { timeout: 5 },
+    ({ signal }) =>
+      new Promise<void>((resolve) =>
+        signal.addEventListener('abort', () => resolve(), { once: true })
+      )
+  )
+  const declaration = c.root.children[0]
+  const registration = Object.getOwnPropertyDescriptor(
+    declaration,
+    'registrationError'
+  )!.value
+  const result = await run(c)
+  const failure = result.cases[0].errors[0]
+  const error = failure.error as Error
+  expect(failure.registrationError).toBe(registration)
+  expect(
+    Object.getOwnPropertyDescriptor(failure, 'registrationError')
+  ).toMatchObject({ enumerable: false, writable: false })
+  expect(Object.keys(failure)).toEqual(['phase', 'error'])
+  expect({ ...failure }).not.toHaveProperty('registrationError')
+  expect(error).not.toHaveProperty('registrationError')
+  expect(Object.getOwnPropertyNames(error).sort()).toEqual(
+    ['message', 'operation', 'stack'].sort()
+  )
+  expect(error.stack).toBe(registration.stack)
+
+  const user = createCollector('user-error-registration')
+  const actual = new Error('ordinary error')
+  user.api.test('user', () => {
+    throw actual
+  })
+  const before = Object.getOwnPropertyDescriptors(actual)
+  const failed = (await run(user)).cases[0].errors[0]
+  expect(failed.error).toBe(actual)
+  expect(failed).not.toHaveProperty('registrationError')
+  expect(Object.getOwnPropertyDescriptors(actual)).toEqual(before)
+  const hook = createCollector('hook-registration')
+  hook.api.beforeEach(
+    ({ signal }) =>
+      new Promise<void>((resolve) =>
+        signal.addEventListener('abort', () => resolve(), { once: true })
+      ),
+    5
+  )
+  hook.api.test('blocked', () => {
+    throw new Error('must not enter')
+  })
+  const hookFailure = (await run(hook)).cases[0].errors[0]
+  expect(hookFailure.phase).toBe('beforeEach')
+  expect(hookFailure.registrationError).toBe(hookFailure.error)
+  expect(
+    Object.getOwnPropertyDescriptor(hookFailure, 'registrationError')
+  ).toMatchObject({ enumerable: false, writable: false })
+  expect(hookFailure.error).not.toHaveProperty('registrationError')
+})
+
+it('uses actual fixture-builder receivers and fresh default modifiers while preserving override suite scope', async () => {
+  const c = createCollector('fixture-receivers')
+  const events: unknown[] = []
+  const own = c.api.test.extend('base', 'own')
+  const other = c.api.test.extend('base', 'other')
+  const same = Reflect.apply(own.extend, own, ['value', 'same'])
+  same('same', ({ base, value }) => events.push(['same', base, value]))
+  const foreign = Reflect.apply(own.extend, other, ['value', 'foreign'])
+  foreign('foreign', ({ base, value }) => events.push(['foreign', base, value]))
+  own.skip.extend('value', 'fresh')('direct skip', ({ base, value }) =>
+    events.push(['direct skip', base, value])
+  )
+  const borrowedSkip = Reflect.apply(own.skip.extend, other, [
+    'value',
+    'borrowed',
+  ])
+  borrowedSkip('borrowed skip', ({ base, value }) =>
+    events.push(['borrowed skip', base, value])
+  )
+  own.concurrent.extend('value', 'serial')(
+    'fresh concurrency',
+    ({ base, task }) =>
+      events.push(['fresh concurrency', base, task.concurrent])
+  )
+  c.api.describe('override', () => {
+    const returned = Reflect.apply(own.override, other, ['base', 'changed'])
+    expect(returned).toBe(other)
+    own('unchanged own', ({ base }) => events.push(['own', base]))
+    other('changed other', ({ base }) => events.push(['other', base]))
+  })
+  own('outside', ({ base }) => events.push(['outside', base]))
+  const result = await run(c)
+  expect(result.cases.map(({ status }) => status)).toEqual(
+    Array(8).fill('passed')
+  )
+  expect(events).toEqual([
+    ['same', 'own', 'same'],
+    ['foreign', 'other', 'foreign'],
+    ['direct skip', 'own', 'fresh'],
+    ['borrowed skip', 'other', 'borrowed'],
+    ['fresh concurrency', 'own', undefined],
+    ['own', 'own'],
+    ['other', 'changed'],
+    ['outside', 'own'],
+  ])
+})
+
+it('retains actual unbound fixture operation refusals without adding public API properties', () => {
+  const c = createCollector('unbound-fixture-receivers')
+  const api = c.api.test.extend('value', 1)
+  const keys = Reflect.ownKeys(api)
+  for (const operation of [api.extend, api.override]) {
+    expect(() => Reflect.apply(operation, undefined, ['value', 2])).toThrow(
+      "Cannot read properties of undefined (reading 'getFixtures')"
+    )
+  }
+  expect(Reflect.ownKeys(api)).toEqual(keys)
+  expect(Object.getOwnPropertySymbols(api)).toEqual([])
+  c.close()
+})
+
+it('dispatches cached receiver fixtures to the current collector while rejecting a closed async origin first', async () => {
+  let active: ReturnType<typeof createCollector> | undefined
+  const first = createCollector('cached-fixtures', {
+    getActiveCollector: () => active,
+  })
+  const original = first.api.test.extend('base', 'original')
+  const receiver = first.api.test.extend('base', 'receiver')
+  const extend = original.extend
+  const override = original.override
+  first.close()
+  const next = createCollector('current-fixtures')
+  active = next
+  const events: unknown[] = []
+  const fresh = Reflect.apply(extend, receiver, ['value', 'current'])
+  fresh('redirected', ({ base, value }) => events.push([base, value]))
+  expect(Reflect.apply(override, receiver, ['base', 'overridden'])).toBe(
+    receiver
+  )
+  receiver('redirected override', ({ base }) => events.push([base]))
+
+  const late: Error[] = []
+  const scope = createAsyncScope(
+    { kind: 'collection', context: { id: 'old', name: 'old' } },
+    (error) => late.push(error)
+  )
+  let release!: () => void
+  const gate = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const reads: PropertyKey[] = []
+  const observedReceiver = new Proxy(receiver, {
+    get(target, key, actualReceiver) {
+      reads.push(key)
+      return Reflect.get(target, key, actualReceiver)
+    },
+  })
+  const pending = scope.run(() =>
+    gate.then(() => Reflect.apply(extend, observedReceiver, ['late', true]))
+  )
+  scope.close()
+  release()
+  await expect(pending).rejects.toThrow('closed collection scope "old"')
+  expect(reads).toEqual([])
+  expect(late).toHaveLength(1)
+  const result = await run(next)
+  expect(result.cases.map(({ status }) => status)).toEqual(['passed', 'passed'])
+  expect(events).toEqual([['receiver', 'current'], ['overridden']])
+})
+
+it('recognizes options-only fixture builders while retaining ordinary values and actual omitted arguments', async () => {
+  const c = createCollector('options-only-builders')
+  const events: unknown[] = []
+  for (const [name, args] of [
+    ['file', [{ scope: 'file' }]],
+    ['worker', [{ scope: 'worker' }]],
+    ['mixed', [{ auto: false, extra: 3 }]],
+    ['explicit undefined', [{ scope: 'test' }, undefined]],
+    ['empty undefined', [{}, undefined]],
+    ['omitted', []],
+    ['object', [{ port: 3 }]],
+    ['array', [['one', 'two']]],
+  ] as const) {
+    const api = Reflect.apply(c.api.test.extend, c.api.test, ['value', ...args])
+    api(name, ({ value }) => {
+      events.push([
+        name,
+        value && typeof value === 'object' ? Object.keys(value) : value,
+      ])
+    })
+  }
+  const overridden = c.api.test.extend('value', () => ({ initial: true }))
+  c.api.describe('override', () => {
+    Reflect.apply(overridden.override, overridden, ['value', { auto: false }])
+    overridden('options-only override', ({ value }) => {
+      events.push(['override', Object.keys(value)])
+    })
+  })
+  const result = await run(c)
+  expect(result.cases.map(({ status }) => status)).toEqual(
+    Array(9).fill('passed')
+  )
+  expect(events).toEqual([
+    ['file', []],
+    ['worker', []],
+    ['mixed', []],
+    ['explicit undefined', []],
+    ['empty undefined', []],
+    ['omitted', undefined],
+    ['object', ['port']],
+    ['array', ['0', '1']],
+    ['override', []],
+  ])
+})
+
+it('captures options-only proxy fields in the target registration order without consuming ordinary object values', () => {
+  const c = createCollector('options-only-reads')
+  const events: unknown[] = []
+  const selected = new Proxy(
+    { auto: false, scope: 'test', injected: false, ignored: true },
+    {
+      ownKeys(target) {
+        events.push('keys')
+        return Reflect.ownKeys(target)
+      },
+      getOwnPropertyDescriptor(target, key) {
+        events.push(['descriptor', key])
+        return Reflect.getOwnPropertyDescriptor(target, key)
+      },
+      get(target, key, receiver) {
+        events.push(['get', key])
+        return Reflect.get(target, key, receiver)
+      },
+    }
+  )
+  c.api.test.extend('value', selected)
+  expect(events).toEqual([
+    'keys',
+    ['descriptor', 'auto'],
+    ['descriptor', 'scope'],
+    ['descriptor', 'injected'],
+    ['descriptor', 'ignored'],
+    'keys',
+    ['descriptor', 'auto'],
+    ['descriptor', 'scope'],
+    ['descriptor', 'injected'],
+    ['descriptor', 'ignored'],
+    ['get', 'auto'],
+    ['get', 'scope'],
+    ['get', 'injected'],
+  ])
+  events.length = 0
+  const ordinary = new Proxy(
+    { port: 3 },
+    {
+      ownKeys(target) {
+        events.push('ordinary keys')
+        return Reflect.ownKeys(target)
+      },
+    }
+  )
+  c.api.test.extend('value', ordinary)
+  expect(events).toEqual(['ordinary keys'])
+  c.close()
+})
+
+it('accounts for a settled expected body deadline only after its own cleanup and completion', async () => {
+  const c = createCollector('expected-body-publication')
+  const events: string[] = []
+  const owned = c.api.test.extend<{ resource: string }>({
+    resource: async ({}, provide) => {
+      events.push('fixture setup')
+      await provide('live')
+      events.push('fixture cleanup')
+    },
+  })
+  owned.fails(
+    'expected settled deadline',
+    { timeout: 5 },
+    async ({ resource, signal, onTestFinished, onTestFailed }) => {
+      events.push(resource)
+      onTestFinished(() => {
+        events.push('finished')
+      })
+      onTestFailed(() => {
+        events.push('failed')
+      })
+      await new Promise<void>((resolve) =>
+        signal.addEventListener(
+          'abort',
+          () => {
+            events.push('abort')
+            resolve()
+          },
+          { once: true }
+        )
+      )
+      events.push('body settled')
+    }
+  )
+  c.api.test('following', ({ signal }) => {
+    events.push(signal.aborted ? 'following aborted' : 'following live')
+  })
+  const result = await runCollected(
+    c.close(),
+    {
+      ...options(),
+      onCaseEnd: (row) => {
+        events.push(`case end ${row.name}`)
+      },
+    },
+    () => {}
+  )
+  expect(result.cases.map(({ status }) => status)).toEqual(['passed', 'passed'])
+  expect(events).toEqual([
+    'fixture setup',
+    'live',
+    'abort',
+    'body settled',
+    'fixture cleanup',
+    'finished',
+    'failed',
+    'case end expected settled deadline',
+    'following live',
+    'case end following',
+  ])
+  expect(result.errors).toEqual([])
+  expect(result.interrupted).toBe(false)
+})
+
+it('retains cancellation from the completion callback after a settled expected body deadline', async () => {
+  const c = createCollector('expected-body-completion-cancel')
+  const controller = new AbortController()
+  c.api.test.fails(
+    'expected settled deadline',
+    { timeout: 5 },
+    async ({ signal }) => {
+      await new Promise<void>((resolve) =>
+        signal.addEventListener('abort', () => resolve(), { once: true })
+      )
+    }
+  )
+  const result = await runCollected(
+    c.close(),
+    {
+      ...options(),
+      signal: controller.signal,
+      onCaseEnd: () => {
+        controller.abort(new Error('cancel at completion'))
+      },
+    },
+    () => {}
+  )
+  expect(result.cases.map(({ status }) => status)).toEqual(['passed'])
+  expect(result.errors).toEqual([])
+  expect(result.interrupted).toBe(true)
+})
+
+it('publishes one actual logical-case result after retry/repeat cleanup and before later work', async () => {
+  const c = createCollector('logical-case-results')
+  const trace: string[] = []
+  const seen: Task[] = []
+  let tries = 0
+  let repetitions = 0
+  let actualTask: Task | undefined
+  c.api.afterEach(({ task }) => {
+    trace.push(`after:${task.name}`)
+  })
+  c.api.test('retry', { retry: 1 }, ({ task, onTestFinished }) => {
+    actualTask ??= task
+    expect(task).toBe(actualTask)
+    onTestFinished(() => {
+      Object.assign(task.meta, { closed: true })
+      trace.push(`finished:${++tries}`)
+    })
+    if (tries === 0) throw new Error('first retry failure')
+  })
+  c.api.test('repeat failure', { repeats: 1 }, () => {
+    if (repetitions++ === 0) throw new Error('first repeat failure')
+  })
+  c.api.test.skip('static skip', () => {
+    throw new Error('must remain skipped')
+  })
+  c.api.test.todo('todo')
+  c.api.test('runtime skip', { retry: 2, repeats: 2 }, ({ skip }) => {
+    skip('actual skip')
+  })
+  c.api.test('following', () => {
+    trace.push('following')
+  })
+  const observations: unknown[] = []
+  const result = await runCollected(
+    c.close(),
+    {
+      ...options(),
+      onCaseEnd(value) {
+        trace.push(
+          `attempt:${value.name}:${value.attempt.retry}:${value.attempt.repeat}`
+        )
+      },
+      async onCaseResult(task, value) {
+        seen.push(task)
+        observations.push([task.name, value.status, value.pending ?? false])
+        if (task.name === 'retry') {
+          expect(task).toBe(actualTask)
+          expect(task.meta).toHaveProperty('closed', true)
+          expect(task.file.tasks).toHaveLength(6)
+          expect(task.file.tasks[5].name).toBe('following')
+          expect(trace).not.toContain('following')
+          expect(trace.slice(0, 6)).toEqual([
+            'after:retry',
+            'finished:1',
+            'attempt:retry:0:0',
+            'after:retry',
+            'finished:2',
+            'attempt:retry:1:0',
+          ])
+        }
+        await Promise.resolve()
+        trace.push(`logical:${task.name}`)
+      },
+    },
+    () => {}
+  )
+  expect(observations).toEqual([
+    ['retry', 'passed', false],
+    ['repeat failure', 'failed', false],
+    ['static skip', 'skipped', false],
+    ['todo', 'skipped', false],
+    ['runtime skip', 'skipped', true],
+    ['following', 'passed', false],
+  ])
+  expect(new Set(seen).size).toBe(6)
+  expect(result.cases).toHaveLength(8)
+  expect(trace.indexOf('logical:runtime skip')).toBeLessThan(
+    trace.indexOf('following')
+  )
+  expect(
+    result.cases.find((value) => value.name === 'repeat failure')!.errors[0]
+      .error
+  ).toMatchObject({ message: 'first repeat failure' })
+})
+
+it('awaits the actual logical result producer before admitting the next case', async () => {
+  const c = createCollector('logical-case-barrier')
+  const trace: string[] = []
+  let entered!: () => void
+  const callbackEntered = new Promise<void>((resolve) => {
+    entered = resolve
+  })
+  let release!: () => void
+  const callbackReleased = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  c.api.test('first', () => {
+    trace.push('first')
+  })
+  c.api.test('following', () => {
+    trace.push('following')
+  })
+  const running = runCollected(
+    c.close(),
+    {
+      ...options(),
+      async onCaseResult(task) {
+        trace.push(`result:${task.name}`)
+        if (task.name === 'first') {
+          entered()
+          await callbackReleased
+        }
+      },
+    },
+    () => {}
+  )
+  await callbackEntered
+  try {
+    expect(trace).toEqual(['first', 'result:first'])
+  } finally {
+    release()
+  }
+  const result = await running
+  expect(trace).toEqual([
+    'first',
+    'result:first',
+    'following',
+    'result:following',
+  ])
+  expect(result.cases.map((value) => value.status)).toEqual([
+    'passed',
+    'passed',
+  ])
+})
+
+it('qualifies completed failed-body snapshot ownership in a fresh process', async () => {
+  const { stdout } = await promisify(execFile)(process.execPath, [
+    '--test-reporter=tap',
+    '--import',
+    require.resolve('tsx'),
+    join(__dirname, 'failed-body-snapshots.ts'),
+  ]).catch((error) => {
+    throw new Error([error.message, error.stdout, error.stderr].join('\n'))
+  })
+  expect(stdout).toContain('# tests 3')
+  expect(stdout).toContain('# fail 0')
+}, 30000)
+
+it('qualifies deferred body assertion snapshot ownership in a fresh process', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [
+      '--test-reporter=tap',
+      '--import',
+      require.resolve('tsx'),
+      join(__dirname, 'failed-body-snapshots.ts'),
+    ],
+    { env: { ...process.env, NEXT_TEST_DEFERRED_SNAPSHOT_CONTRACT: '1' } }
+  ).catch((error) => {
+    throw new Error([error.message, error.stdout, error.stderr].join('\n'))
+  })
+  expect(stdout).toContain('# tests 6')
+  expect(stdout).toContain('# fail 0')
+}, 30000)
+
+it('retains operation phase ancestry and the original closed-owner fence', async () => {
+  const { runWithCasePhase, getOriginatingCasePhase, captureAsyncScope } =
+    await import('next/dist/experimental/testing/runner/async-context')
+  const failures: Error[] = []
+  const owner = createAsyncScope(
+    { kind: 'collection', context: { id: 'collection', name: 'collection' } },
+    (error) => failures.push(error)
+  )
+  let captured: ReturnType<typeof captureAsyncScope> | undefined
+  const c = createCollector('phase-ancestry')
+  const phases: unknown[] = []
+  c.api.test('body', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const setup = runWithCasePhase('beforeEach', async () => {
+      await gate
+      return getOriginatingCasePhase()
+    })
+    await runWithCasePhase('test', async () => {
+      const actual = getOriginatingCasePhase()
+      phases.push(actual?.phase)
+      captured = captureAsyncScope()
+      release()
+      phases.push((await setup)?.phase)
+      phases.push(getOriginatingCasePhase()?.phase)
+    })
+  })
+  await owner.run(() =>
+    runCollected(
+      c.close(),
+      { ...options(), onLateFailure: (error) => failures.push(error) },
+      () => {}
+    )
+  )
+  owner.close()
+  expect(phases).toEqual(['test', 'beforeEach', 'test'])
+  expect(() => captured!.run(() => {})).toThrow('closed attempt scope')
+  expect(failures).toHaveLength(1)
+})
+
+it.each(['stack', 'list', 'parallel'] as const)(
+  'calls actual returned beforeEach functions once with no receiver or supplied arguments: %s',
+  async (sequence) => {
+    const c = createCollector('returned-cleanup-call')
+    const rows: unknown[] = []
+    const roles: unknown[] = []
+    const boundReceiver = { bound: true }
+    const lexicalReceiver = { lexical: true }
+    const record = (name: string, receiver: unknown, args: unknown[]) => {
+      rows.push([name, receiver, args])
+    }
+    const makeArrow = function (this: unknown) {
+      return (...args: unknown[]) => {
+        record('arrow', this === lexicalReceiver, args)
+      }
+    }
+    const factories: [string, () => Function][] = [
+      [
+        'normal',
+        () =>
+          function (this: unknown, ...args: unknown[]) {
+            record('normal', this === undefined, args)
+          },
+      ],
+      [
+        'proxy',
+        () =>
+          new Proxy(
+            function (this: unknown, ...args: unknown[]) {
+              record('proxy', this === undefined, args)
+            },
+            {
+              apply(target, receiver, args) {
+                record('apply', receiver === undefined, args)
+                return Reflect.apply(target, receiver, args)
+              },
+            }
+          ),
+      ],
+      [
+        'bound',
+        () =>
+          function (this: unknown, ...args: unknown[]) {
+            record('bound', this === boundReceiver, args)
+          }.bind(boundReceiver, 'bound argument'),
+      ],
+      ['arrow', () => makeArrow.call(lexicalReceiver)],
+      [
+        'async',
+        () =>
+          async function (this: unknown, ...args: unknown[]) {
+            await Promise.resolve()
+            record('async', this === undefined, args)
+          },
+      ],
+      [
+        'default',
+        () =>
+          function (this: unknown, value = 'default') {
+            rows.push(['default', this === undefined, arguments.length, value])
+          },
+      ],
+    ]
+    for (const [name, make] of factories) {
+      c.api.describe(name, () => {
+        c.api.beforeEach(() => {
+          rows.push(['before', name])
+          return make()
+        })
+        c.api.test('body', () => {
+          rows.push(['body', name])
+        })
+      })
+    }
+    const result = await runCollected(
+      c.close(),
+      {
+        ...options(),
+        sequence: { hooks: sequence },
+        runWithCasePhase(phase, callback, authoredCallback) {
+          if (phase === 'cleanup') roles.push([phase, authoredCallback])
+          return callback()
+        },
+      },
+      () => {}
+    )
+    expect(result.cases.map(({ status }) => status)).toEqual(
+      Array(6).fill('passed')
+    )
+    expect(result.errors).toEqual([])
+    expect(rows).toEqual([
+      ['before', 'normal'],
+      ['body', 'normal'],
+      ['normal', true, []],
+      ['before', 'proxy'],
+      ['body', 'proxy'],
+      ['apply', true, []],
+      ['proxy', true, []],
+      ['before', 'bound'],
+      ['body', 'bound'],
+      ['bound', true, ['bound argument']],
+      ['before', 'arrow'],
+      ['body', 'arrow'],
+      ['arrow', true, []],
+      ['before', 'async'],
+      ['body', 'async'],
+      ['async', true, []],
+      ['before', 'default'],
+      ['body', 'default'],
+      ['default', true, 0, 'default'],
+    ])
+    expect(roles).toEqual(
+      Array(6)
+        .fill([
+          ['cleanup', undefined],
+          ['cleanup', true],
+        ])
+        .flat()
+    )
+  }
+)
+
+it.each(['stack', 'list', 'parallel'] as const)(
+  'retains setup fixture closure and refuses injection into returned beforeEach functions: %s',
+  async (sequence) => {
+    const c = createCollector('returned-cleanup-fixtures')
+    const rows: unknown[] = []
+    const custom = c.api.test.extend<{
+      setup: string
+      cleanupOnly: string
+    }>({
+      setup: async ({}, provide) => {
+        rows.push('setup')
+        await provide('fixture value')
+        rows.push('teardown')
+      },
+      cleanupOnly: async ({}, provide) => {
+        rows.push('unexpected cleanup fixture')
+        await provide('unused')
+      },
+    })
+    c.api.describe('closure', () => {
+      custom.beforeEach(
+        ({ setup }) =>
+          function (this: unknown, ...args: unknown[]) {
+            rows.push(['closure', this === undefined, args, setup])
+          }
+      )
+      custom('body', ({ setup }) => {
+        rows.push(['body', setup])
+      })
+    })
+    c.api.describe('returned callback parameters are not fixtures', () => {
+      custom.beforeEach(({ setup }) => {
+        rows.push(['before', setup])
+        return function ({ cleanupOnly }: { cleanupOnly: string }) {
+          rows.push(['unexpected cleanup body', cleanupOnly])
+        }
+      })
+      custom('body', ({ setup }) => {
+        rows.push(['body', setup])
+      })
+    })
+    const result = await runCollected(
+      c.close(),
+      { ...options(), sequence: { hooks: sequence } },
+      () => {}
+    )
+    expect(result.cases.map(({ status }) => status)).toEqual([
+      'passed',
+      'failed',
+    ])
+    expect(result.errors).toEqual([])
+    expect(result.cases[1].errors).toHaveLength(1)
+    expect(result.cases[1].errors[0].phase).toBe('cleanup')
+    expect(result.cases[1].errors[0].error).toBeInstanceOf(TypeError)
+    expect((result.cases[1].errors[0].error as Error).message).toContain(
+      'cleanupOnly'
+    )
+    expect(rows).toEqual([
+      'setup',
+      ['body', 'fixture value'],
+      ['closure', true, [], 'fixture value'],
+      'teardown',
+      'setup',
+      ['before', 'fixture value'],
+      ['body', 'fixture value'],
+      'teardown',
+    ])
+  }
+)
+
+it.each(
+  (['stack', 'list', 'parallel'] as const).flatMap((sequence) =>
+    [
+      {
+        name: 'local budget',
+        global: 1000,
+        local: 10,
+        delay: 40,
+        passed: false,
+      },
+      {
+        name: 'larger local budget',
+        global: 10,
+        local: 1000,
+        delay: 40,
+        passed: true,
+      },
+      {
+        name: 'disabled local budget',
+        global: 10,
+        local: 0,
+        delay: 40,
+        passed: true,
+      },
+      {
+        name: 'inherited budget',
+        global: 10,
+        local: undefined,
+        delay: 40,
+        passed: false,
+      },
+    ].map((setting) => [sequence, setting] as const)
+  )
+)(
+  'keeps returned beforeEach cleanup budgets independent of the outer drain: %s %s',
+  async (sequence, setting) => {
+    const c = createCollector('returned-cleanup-budget')
+    const events: string[] = []
+    const receivers: unknown[] = []
+    let settled = Promise.resolve()
+    c.api.beforeEach(() => {
+      events.push('setup')
+      return async function (this: unknown, ...args: unknown[]) {
+        receivers.push([this === undefined, args])
+        events.push('cleanup-start')
+        settled = new Promise<void>((resolve) => {
+          setTimeout(() => {
+            events.push('cleanup-end')
+            resolve()
+          }, setting.delay)
+        })
+        await settled
+      }
+    }, setting.local)
+    c.api.test('body', () => {
+      events.push('body')
+    })
+    c.api.afterAll(async () => {
+      events.push('afterAll-start')
+      await settled
+      events.push('afterAll-end')
+    }, 1000)
+    const result = await runCollected(
+      c.close(),
+      {
+        ...options(),
+        hookTimeout: setting.global,
+        sequence: { hooks: sequence },
+      },
+      () => {}
+    )
+    expect(receivers).toEqual([[true, []]])
+    expect(result.cases).toHaveLength(1)
+    expect(result.cases[0].status).toBe(setting.passed ? 'passed' : 'failed')
+    expect(result.errors).toEqual([])
+    expect(result.interrupted).toBe(!setting.passed)
+    expect(
+      result.cases[0].errors.map(({ phase, error }) => {
+        if (!(error instanceof Error))
+          throw new Error('Expected a cleanup deadline Error.')
+        return [phase, error.message]
+      })
+    ).toEqual(
+      setting.passed
+        ? []
+        : [
+            [
+              'cleanup',
+              `Hook timed out in ${setting.local ?? setting.global}ms.\nIf this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".`,
+            ],
+          ]
+    )
+    expect(events).toEqual(
+      setting.passed
+        ? [
+            'setup',
+            'body',
+            'cleanup-start',
+            'cleanup-end',
+            'afterAll-start',
+            'afterAll-end',
+          ]
+        : [
+            'setup',
+            'body',
+            'cleanup-start',
+            'afterAll-start',
+            'cleanup-end',
+            'afterAll-end',
+          ]
+    )
+  }
+)
+
+it.each(
+  (['stack', 'list', 'parallel'] as const).flatMap((sequence) =>
+    (['beforeEach', 'afterEach', 'cleanup'] as const).map(
+      (phase) => [sequence, phase] as const
+    )
+  )
+)(
+  'aborts actual case-hook deadlines before failure processing: %s %s',
+  async (sequence, phase) => {
+    const c = createCollector('hook-deadline-signal')
+    const events: string[] = []
+    const pending: Promise<void>[] = []
+    const observed: { signal?: AbortSignal; state?: string } = {}
+    const wait = (role: string) => {
+      events.push(role + '-start')
+      const work = new Promise<void>((resolve) => {
+        setTimeout(() => {
+          events.push(role + '-end')
+          resolve()
+        }, 40)
+      })
+      pending.push(work)
+      return work
+    }
+    c.api.beforeEach(async (context) => {
+      observed.signal = context.signal
+      context.signal.addEventListener(
+        'abort',
+        () => {
+          observed.state = context.task.result?.state
+          events.push('abort')
+        },
+        { once: true }
+      )
+      context.onTestFinished(() => {
+        events.push('finished')
+      })
+      if (phase === 'beforeEach') await wait(phase)
+      if (phase === 'cleanup')
+        return async function (this: unknown, ...args: unknown[]) {
+          expect(this).toBeUndefined()
+          expect(args).toEqual([])
+          await wait(phase)
+        }
+    }, 10)
+    c.api.afterEach(async () => {
+      if (phase === 'afterEach') await wait(phase)
+    }, 10)
+    c.api.afterAll(async () => {
+      await Promise.all(pending)
+    }, 1000)
+    c.api.test('body', () => {
+      events.push('body')
+    })
+    const result = await runCollected(
+      c.close(),
+      {
+        ...options(),
+        sequence: { hooks: sequence },
+        onCaseEnd: () => {
+          events.push('case-end')
+        },
+      },
+      () => {}
+    )
+    expect(result.cases[0].status).toBe('failed')
+    expect(result.interrupted).toBe(true)
+    expect(result.errors).toEqual([])
+    expect(result.cases[0].errors).toHaveLength(1)
+    expect(result.cases[0].errors[0].phase).toBe(phase)
+    expect(observed.signal?.aborted).toBe(true)
+    expect(observed.signal?.reason).toBe(result.cases[0].errors[0].error)
+    expect(observed.state).toBe(phase === 'beforeEach' ? 'run' : 'pass')
+    expect(events.filter((event) => event === 'abort')).toHaveLength(1)
+    expect(events.indexOf('abort')).toBeLessThan(events.indexOf('finished'))
+    expect(events.indexOf('finished')).toBeLessThan(events.indexOf('case-end'))
+    expect(events.includes('body')).toBe(phase !== 'beforeEach')
+  }
+)
+
+it.each(
+  (['stack', 'list', 'parallel'] as const).flatMap((sequence) =>
+    (['beforeEach', 'afterEach', 'cleanup'] as const).map(
+      (phase) => [sequence, phase] as const
+    )
+  )
+)(
+  'leaves ordinary case-hook failures un-aborted: %s %s',
+  async (sequence, phase) => {
+    const c = createCollector('ordinary-hook-failure-signal')
+    const thrown = new Error('ordinary hook failure')
+    let signal: AbortSignal | undefined
+    let aborts = 0
+    c.api.beforeEach((context) => {
+      signal = context.signal
+      context.signal.addEventListener('abort', () => {
+        aborts++
+      })
+      if (phase === 'beforeEach') throw thrown
+      if (phase === 'cleanup')
+        return () => {
+          throw thrown
+        }
+    }, 1000)
+    c.api.afterEach(() => {
+      if (phase === 'afterEach') throw thrown
+    }, 1000)
+    c.api.test('body', () => {})
+    const result = await runCollected(
+      c.close(),
+      { ...options(), sequence: { hooks: sequence } },
+      () => {}
+    )
+    expect(result.cases[0].status).toBe('failed')
+    expect(result.cases[0].errors).toEqual([{ phase, error: thrown }])
+    expect(result.interrupted).toBe(false)
+    expect(signal?.aborted).toBe(false)
+    expect(aborts).toBe(0)
+  }
+)
+
+it.each(['stack', 'list', 'parallel'] as const)(
+  'preserves external cancellation over a later returned-hook deadline: %s',
+  async (sequence) => {
+    const c = createCollector('cancelled-hook-deadline-signal')
+    const external = new AbortController()
+    const reason = new Error('external cancellation')
+    let signal: AbortSignal | undefined
+    let aborts = 0
+    let pending = Promise.resolve()
+    c.api.beforeEach((context) => {
+      signal = context.signal
+      context.signal.addEventListener('abort', () => {
+        aborts++
+      })
+      return async () => {
+        pending = new Promise<void>((resolve) => setTimeout(resolve, 40))
+        queueMicrotask(() => external.abort(reason))
+        await pending
+      }
+    }, 10)
+    c.api.afterAll(async () => {
+      await pending
+    }, 1000)
+    c.api.test('body', () => {})
+    const result = await runCollected(
+      c.close(),
+      { runId: 'run', signal: external.signal, sequence: { hooks: sequence } },
+      () => {}
+    )
+    await pending
+    expect(signal?.reason).toBe(reason)
+    expect(aborts).toBe(1)
+    expect(result.interrupted).toBe(true)
+  }
+)
+
+it.each(['stack', 'list', 'parallel'] as const)(
+  'keeps disabled returned-hook deadlines and settled hooks un-aborted: %s',
+  async (sequence) => {
+    const c = createCollector('disabled-hook-deadline-signal')
+    let signal: AbortSignal | undefined
+    let aborts = 0
+    c.api.beforeEach((context) => {
+      signal = context.signal
+      context.signal.addEventListener('abort', () => {
+        aborts++
+      })
+      return async () => {
+        await new Promise<void>((resolve) => setTimeout(resolve, 40))
+      }
+    }, 0)
+    c.api.test('body', () => {})
+    const result = await runCollected(
+      c.close(),
+      { ...options(), hookTimeout: 10, sequence: { hooks: sequence } },
+      () => {}
+    )
+    expect(result.cases[0].status).toBe('passed')
+    expect(result.interrupted).toBe(false)
+    expect(signal?.aborted).toBe(false)
+    expect(aborts).toBe(0)
+  }
+)
+
+it.each(['stack', 'list', 'parallel'] as const)(
+  'retains non-body publication veto after an expected BODY failure and returned-hook deadline: %s',
+  async (sequence) => {
+    const c = createCollector('expected-failure-hook-deadline-signal')
+    let signal: AbortSignal | undefined
+    let pending = Promise.resolve()
+    c.api.beforeEach((context) => {
+      signal = context.signal
+      return async () => {
+        pending = new Promise<void>((resolve) => setTimeout(resolve, 40))
+        await pending
+      }
+    }, 10)
+    c.api.afterAll(async () => {
+      await pending
+    }, 1000)
+    c.api.test.fails('body', () => {
+      throw new Error('expected body failure')
+    })
+    const result = await runCollected(
+      c.close(),
+      { ...options(), sequence: { hooks: sequence } },
+      () => {}
+    )
+    expect(result.cases[0].status).toBe('passed')
+    expect(result.cases[0].errors).toEqual([])
+    expect(signal?.reason).toBeInstanceOf(Error)
+    expect(signal?.reason).toMatchObject({
+      message:
+        'Hook timed out in 10ms.\nIf this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".',
+    })
+    expect(result.interrupted).toBe(true)
+  }
+)
+
+it.each(['stack', 'list', 'parallel'] as const)(
+  'retains the registered hook deadline, source and abort identity in %s order',
+  async (sequence) => {
+    for (const role of ['beforeEach', 'afterEach', 'cleanup'] as const) {
+      const c = createCollector('registered-hook-deadline-' + sequence + role)
+      const aborted: unknown[] = []
+      let signal: AbortSignal | undefined
+      const pending = (context: { signal: AbortSignal }) => {
+        signal = context.signal
+        return new Promise<void>((resolve) => {
+          context.signal.addEventListener(
+            'abort',
+            () => {
+              const error = context.signal.reason as Error
+              aborted.push(error, error.message, error.stack)
+              resolve()
+            },
+            { once: true }
+          )
+        })
+      }
+      function registerDeadlineHook() {
+        if (role === 'beforeEach') c.api.beforeEach(pending, 5)
+        else if (role === 'afterEach') c.api.afterEach(pending, 5)
+        else c.api.beforeEach((context) => () => pending(context), 5)
+      }
+      registerDeadlineHook()
+      c.api.test('one', () => {})
+      const result = await runCollected(
+        c.close(),
+        { ...options(), sequence: { hooks: sequence } },
+        () => {}
+      )
+      expect(result.cases[0].status).toBe('failed')
+      expect(result.interrupted).toBe(true)
+      expect(result.cases[0].errors).toHaveLength(1)
+      const failure = result.cases[0].errors[0]
+      const error = failure.error as Error
+      const message =
+        'Hook timed out in 5ms.\nIf this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".'
+      expect(error.message).toBe(message)
+      expect(error.stack).toContain('registerDeadlineHook')
+      expect(error.stack).not.toContain('Timeout.<anonymous>')
+      expect(signal?.reason).toBe(error)
+      expect(aborted).toEqual([error, message, error.stack])
+      expect(Reflect.ownKeys(error)).toEqual(['stack', 'message', 'operation'])
+      expect(
+        Object.getOwnPropertyDescriptor(failure, 'registrationError')
+      ).toMatchObject({ value: error, enumerable: false })
+      expect(Object.keys(failure)).toEqual(['phase', 'error'])
+      expect(error).not.toHaveProperty('cause')
+    }
+  }
+)
+
+it('keeps generic listener resource deadlines separate from registered hook diagnostics', async () => {
+  const c = createCollector('generic-listener-deadline')
+  c.api.test('one', ({ onTestFinished }) => {
+    onTestFinished(() => new Promise<void>(() => {}), 5)
+  })
+  const result = await run(c)
+  expect(result.cases[0].status).toBe('failed')
+  expect(result.cases[0].errors).toHaveLength(1)
+  const error = result.cases[0].errors[0].error as Error
+  expect(error.message).toBe('Next test timed out after 5ms.')
+  expect(error.stack).toContain('Timeout.<anonymous>')
+  expect(Reflect.ownKeys(error)).toEqual(['stack', 'message', 'operation'])
+})
+
+it('retains one hook registration and its captured budget across repeated executions', async () => {
+  const c = createCollector('reused-hook-registration')
+  function registerReusedDeadlineHook() {
+    c.api.beforeEach(
+      ({ signal }) =>
+        new Promise<void>((resolve) => {
+          signal.addEventListener('abort', () => resolve(), { once: true })
+        }),
+      5
+    )
+  }
+  registerReusedDeadlineHook()
+  c.api.test('one', () => {})
+  const suite = c.close()
+  const hook = suite.hooks.beforeEach[0]
+  const registration = hook.registrationError
+  expect(registration).toBeInstanceOf(Error)
+  expect(Object.keys(hook)).not.toContain('registrationError')
+  let previous: Error | undefined
+  for (const fallback of [15, 50]) {
+    const result = await runCollected(
+      suite,
+      { ...options(), hookTimeout: fallback },
+      () => {}
+    )
+    const error = result.cases[0].errors[0].error as Error
+    expect(result.interrupted).toBe(true)
+    expect(error.message).toBe(
+      'Hook timed out in 5ms.\nIf this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".'
+    )
+    expect(error.stack).toContain(`Error: ${error.message}\n`)
+    expect(error.stack).toContain('registerReusedDeadlineHook')
+    expect(error).not.toBe(previous)
+    expect(hook.registrationError).toBe(registration)
+    expect(hook.timeout).toBe(5)
+    previous = error
+  }
+})
+
+it.each(['stack', 'list', 'parallel'] as const)(
+  'retains authored All-hook deadline identity and origin in %s order',
+  async (sequence) => {
+    for (const role of ['beforeAll', 'afterAll'] as const) {
+      const c = createCollector('registered-all-hook-' + sequence + role)
+      function registerAuthoredAllDeadline() {
+        c.api[role](() => new Promise<void>(() => {}), 5)
+      }
+      registerAuthoredAllDeadline()
+      c.api.test('one', () => {})
+      const result = await runCollected(
+        c.close(),
+        { ...options(), sequence: { hooks: sequence } },
+        () => {}
+      )
+      expect(result.cases[0].status).toBe(
+        role === 'beforeAll' ? 'skipped' : 'passed'
+      )
+      expect(result.interrupted).toBe(true)
+      expect(result.errors).toHaveLength(1)
+      const failure = result.errors[0]
+      const error = failure.error as Error
+      expect(failure.phase).toBe(role)
+      expect(error.message).toBe(
+        'Hook timed out in 5ms.\nIf this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".'
+      )
+      expect(error.stack).toContain('registerAuthoredAllDeadline')
+      expect(error.stack).not.toContain('Timeout.<anonymous>')
+      expect(Reflect.ownKeys(error)).toEqual(['stack', 'message', 'operation'])
+      expect(
+        Object.getOwnPropertyDescriptor(failure, 'registrationError')
+      ).toMatchObject({ value: error, enumerable: false, writable: false })
+      expect(Object.keys(failure)).toEqual(['phase', 'error'])
+      expect(error).not.toHaveProperty('registrationError')
+    }
+  }
+)
+
+it.each(['stack', 'list', 'parallel'] as const)(
+  'preserves disabled and inherited registered All-hook budgets in %s order',
+  async (sequence) => {
+    for (const role of ['beforeAll', 'afterAll'] as const) {
+      const disabled = createCollector('disabled-all-hook-' + sequence + role)
+      disabled.api[role](
+        () => new Promise<void>((resolve) => setTimeout(resolve, 5)),
+        0
+      )
+      disabled.api.test('one', () => {})
+      const passed = await runCollected(
+        disabled.close(),
+        { ...options(), hookTimeout: 1, sequence: { hooks: sequence } },
+        () => {}
+      )
+      expect(passed.cases[0].status).toBe('passed')
+      expect(passed.errors).toEqual([])
+      expect(passed.interrupted).toBe(false)
+
+      const inherited = createCollector('inherited-all-hook-' + sequence + role)
+      function registerInheritedAllDeadline() {
+        inherited.api[role](() => new Promise<void>(() => {}))
+      }
+      registerInheritedAllDeadline()
+      inherited.api.test('one', () => {})
+      const failed = await runCollected(
+        inherited.close(),
+        { ...options(), hookTimeout: 5, sequence: { hooks: sequence } },
+        () => {}
+      )
+      expect(failed.errors).toHaveLength(1)
+      const failure = failed.errors[0]
+      const error = failure.error as Error
+      expect(error.message).toContain('Hook timed out in 5ms.\n')
+      expect(error.stack).toContain('registerInheritedAllDeadline')
+      expect(failure.registrationError).toBe(error)
+    }
+  }
+)
+
+it('associates the actual parallel All-hook failure with its own registration', async () => {
+  for (const role of ['beforeAll', 'afterAll'] as const) {
+    const c = createCollector('parallel-selected-all-hook-' + role)
+    function registerHealthyAllHook() {
+      c.api[role](() => {}, 20)
+    }
+    function registerFailingAllHook() {
+      c.api[role](() => new Promise<void>(() => {}), 5)
+    }
+    registerHealthyAllHook()
+    registerFailingAllHook()
+    c.api.test('one', () => {})
+    const result = await runCollected(
+      c.close(),
+      { ...options(), sequence: { hooks: 'parallel' } },
+      () => {}
+    )
+    expect(result.errors).toHaveLength(1)
+    const error = result.errors[0].error as Error
+    expect(error.message).toContain('Hook timed out in 5ms.\n')
+    expect(error.stack).toContain('registerFailingAllHook')
+    expect(error.stack).not.toContain('registerHealthyAllHook')
+    expect(result.errors[0].registrationError).toBe(error)
+  }
+})
+
+it('preserves generic suite integration deadlines without an authored hook carrier', async () => {
+  for (const stage of ['begin', 'finalize'] as const) {
+    const c = createCollector('generic-suite-integration-' + stage)
+    c.api.beforeAll(() => {}, 5)
+    c.api.test('one', () => {})
+    const result = await runCollected(c.close(), options(), () => {}, {
+      beginHook: () =>
+        stage === 'begin'
+          ? new Promise<never>(() => {})
+          : {
+              finalize: () => new Promise<void>(() => {}),
+              dispose: async () => {},
+            },
+      setActiveHook: () => {},
+    })
+    expect(result.errors).toHaveLength(1)
+    const failure = result.errors[0]
+    const error = failure.error as Error
+    expect(error.message).toBe('Next test timed out after 5ms.')
+    expect(error.stack).toContain('Timeout.<anonymous>')
+    expect(failure).not.toHaveProperty('registrationError')
+  }
+})
+
+it('retains the captured All-hook budget and stack header when its declaration is reused', async () => {
+  for (const role of ['beforeAll', 'afterAll'] as const) {
+    const c = createCollector('reused-all-registration-' + role)
+    function registerReusedAllDeadline() {
+      c.api[role](() => new Promise<void>(() => {}), 5)
+    }
+    registerReusedAllDeadline()
+    c.api.test('one', () => {})
+    const suite = c.close()
+    const hook = suite.hooks[role][0]
+    const registration = hook.registrationError
+    let previous: Error | undefined
+    for (const hookTimeout of [15, 50]) {
+      const result = await runCollected(
+        suite,
+        { ...options(), hookTimeout },
+        () => {}
+      )
+      const error = result.errors[0].error as Error
+      expect(error.message).toContain('Hook timed out in 5ms.\n')
+      expect(error.stack).toContain(`Error: ${error.message}\n`)
+      expect(error.stack).toContain('registerReusedAllDeadline')
+      expect(error).not.toBe(previous)
+      expect(hook.registrationError).toBe(registration)
+      expect(hook.timeout).toBe(5)
+      previous = error
+    }
+  }
+})
+
+it('runs actual Chai prototype descriptor callbacks with guarded receiver and lifetime controls', async () => {
+  const fs = await import('node:fs/promises')
+  const { tmpdir } = await import('node:os')
+  const base = process.env.NEXT_TESTING_CHAI199_EVIDENCE ?? tmpdir()
+  await fs.mkdir(base, { recursive: true })
+  const evidence = await fs.mkdtemp(join(base, 'next-chai-descriptors-'))
+  const argv = [
+    '--test-reporter=tap',
+    '--import',
+    require.resolve('tsx'),
+    join(__dirname, 'chai-descriptors-integration.ts'),
+  ]
+  const pending = promisify(execFile)(process.execPath, argv, {
+    timeout: 20000,
+  })
+  const child = pending.child
+  const closed = new Promise<{
+    code: number | null
+    signal: NodeJS.Signals | null
+  }>((resolve) => {
+    child.once('close', (code, signal) => resolve({ code, signal }))
+  })
+  let stdout = ''
+  let stderr = ''
+  let failure: unknown
+  try {
+    try {
+      const result = await pending
+      stdout = result.stdout
+      stderr = result.stderr
+    } catch (error) {
+      failure = error
+      const raw = error as { stdout?: string; stderr?: string }
+      stdout = raw.stdout ?? ''
+      stderr = raw.stderr ?? ''
+    }
+    const actualClose = await closed
+    await fs.writeFile(join(evidence, 'stdout.log'), stdout)
+    await fs.writeFile(join(evidence, 'stderr.log'), stderr)
+    await fs.writeFile(
+      join(evidence, 'owned-child.json'),
+      JSON.stringify(
+        {
+          pid: child.pid,
+          argv: [process.execPath, ...argv],
+          actualClose,
+          stdoutClosed: child.stdout?.destroyed,
+          stderrClosed: child.stderr?.destroyed,
+          error: failure === undefined ? null : String(failure),
+        },
+        null,
+        2
+      )
+    )
+    if (failure !== undefined) throw failure
+    expect(actualClose).toEqual({ code: 0, signal: null })
+    expect(stdout).toContain('# tests 4')
+    expect(stdout).toContain('# pass 4')
+    expect(stdout).toContain('# fail 0')
+  } finally {
+    if (!process.env.NEXT_TESTING_CHAI199_EVIDENCE)
+      await fs.rm(evidence, { recursive: true, force: true })
+  }
+}, 30000)

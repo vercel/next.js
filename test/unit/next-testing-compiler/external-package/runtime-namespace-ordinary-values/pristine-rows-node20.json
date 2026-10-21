@@ -1,0 +1,901 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_ESM_NAMESPACE",
+    "value": {
+      "name": "ordinary-shape",
+      "namespace": {
+        "type": "object",
+        "brand": false,
+        "keys": [
+          "evaluation",
+          "state",
+          "alias",
+          "replace",
+          "read",
+          "fail",
+          "default",
+          "Symbol(Symbol.toStringTag)"
+        ],
+        "prototype": "null",
+        "tag": "Module",
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "evaluation",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "state",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "alias",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "replace",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "read",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "fail",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "default",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "Symbol(Symbol.toStringTag)",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": false
+          }
+        ]
+      },
+      "root": {
+        "type": "object",
+        "brand": false,
+        "keys": ["value", "token"],
+        "prototype": "Object.prototype",
+        "tag": null,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "value",
+            "valueType": "number",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "token",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          }
+        ]
+      },
+      "read": {
+        "type": "function",
+        "brand": false,
+        "keys": ["length", "name", "prototype"],
+        "prototype": "Function.prototype",
+        "tag": null,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "length",
+            "valueType": "number",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": true
+          },
+          {
+            "key": "name",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": true
+          },
+          {
+            "key": "prototype",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": false,
+            "configurable": false
+          }
+        ]
+      },
+      "identity": [
+        [true, true, true],
+        [true, true, true],
+        [true, true, true]
+      ],
+      "differentPromises": true,
+      "stateSame": true,
+      "values": [1, 1],
+      "calls": [
+        [1, true, "namespace"],
+        [1, false, "unbound"]
+      ],
+      "count": 1
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_ESM_NAMESPACE",
+    "value": {
+      "name": "ordinary-live-reset",
+      "before": {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": [
+            "evaluation",
+            "state",
+            "alias",
+            "replace",
+            "read",
+            "fail",
+            "default",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototype": "null",
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "evaluation",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "state",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "alias",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "replace",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "read",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "fail",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "root": {
+          "type": "object",
+          "brand": false,
+          "keys": ["value", "token"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "value",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "token",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "value": 2
+      },
+      "changed": {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": [
+            "evaluation",
+            "state",
+            "alias",
+            "replace",
+            "read",
+            "fail",
+            "default",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototype": "null",
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "evaluation",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "state",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "alias",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "replace",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "read",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "fail",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "root": {
+          "type": "object",
+          "brand": false,
+          "keys": ["value", "token"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "value",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "token",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "value": 99,
+        "stateSame": true,
+        "nextSame": true,
+        "heldSame": false,
+        "heldValue": 2,
+        "call": [99, true, "changed"]
+      },
+      "after": {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": [
+            "evaluation",
+            "state",
+            "alias",
+            "replace",
+            "read",
+            "fail",
+            "default",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototype": "null",
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "evaluation",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "state",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "alias",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "replace",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "read",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "fail",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "valueType": "undefined",
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "root": {
+          "type": "object",
+          "brand": false,
+          "keys": ["value", "token"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "value",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "token",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "value": 3,
+        "count": 3
+      },
+      "identity": [
+        [true, false],
+        [false, true]
+      ],
+      "defaultIdentity": [
+        [true, false, false, false],
+        [false, true, true, false],
+        [false, true, true, false],
+        [false, false, false, true]
+      ],
+      "readIdentity": false,
+      "heldAfter": 99
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_ESM_NAMESPACE",
+    "value": {
+      "name": "ordinary-errors",
+      "before": {
+        "type": "object",
+        "brand": false,
+        "keys": [
+          "evaluation",
+          "state",
+          "alias",
+          "replace",
+          "read",
+          "fail",
+          "default",
+          "Symbol(Symbol.toStringTag)"
+        ],
+        "prototype": "null",
+        "tag": "Module",
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "evaluation",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "state",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "alias",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "replace",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "read",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "fail",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "default",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "Symbol(Symbol.toStringTag)",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": false
+          }
+        ]
+      },
+      "after": {
+        "type": "object",
+        "brand": false,
+        "keys": [
+          "evaluation",
+          "state",
+          "alias",
+          "replace",
+          "read",
+          "fail",
+          "default",
+          "Symbol(Symbol.toStringTag)"
+        ],
+        "prototype": "null",
+        "tag": "Module",
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "evaluation",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "state",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "alias",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "replace",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "read",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "fail",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "default",
+            "valueType": "undefined",
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "Symbol(Symbol.toStringTag)",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": false
+          }
+        ]
+      },
+      "default": {
+        "type": "object",
+        "brand": false,
+        "keys": ["value", "token"],
+        "prototype": "Object.prototype",
+        "tag": null,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "value",
+            "valueType": "number",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "token",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          }
+        ]
+      },
+      "call": {
+        "shape": {
+          "type": "object",
+          "brand": false,
+          "keys": ["stack", "message"],
+          "prototype": "[object Object]",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "stack",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "message",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            }
+          ]
+        },
+        "name": "SyntaxError",
+        "message": "leaf namespace raw",
+        "rawSame": true,
+        "causeSame": false,
+        "cause": {
+          "type": "undefined"
+        }
+      },
+      "getter": {
+        "shape": {
+          "type": "object",
+          "brand": false,
+          "keys": ["stack", "message"],
+          "prototype": "[object Object]",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "stack",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "message",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            }
+          ]
+        },
+        "name": "SyntaxError",
+        "message": "leaf namespace raw",
+        "rawSame": true,
+        "causeSame": false,
+        "cause": {
+          "type": "undefined"
+        }
+      },
+      "sameError": true,
+      "unaffected": true,
+      "count": 4
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_ESM_NAMESPACE",
+    "value": {
+      "name": "ordinary-unused",
+      "rootCount": 4,
+      "unusedCount": 0,
+      "factoryCalls": 0
+    }
+  }
+]

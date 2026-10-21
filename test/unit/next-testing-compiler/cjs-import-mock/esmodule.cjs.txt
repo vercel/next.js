@@ -1,0 +1,3 @@
+Object.defineProperty(exports, '__esModule', { value: true })
+exports.default = function primary(value) { return value + 2 }
+exports.named = 17

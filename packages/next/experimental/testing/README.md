@@ -38,3 +38,9 @@ resolved by the Next-only opt-in. Other public subpaths, browser/editor executio
 and broad installed helper compatibility are separate requirements. Ordinary
 Node imports are not redirected: only the Next test compiler supplies supported
 runtime aliases.
+
+The separate [editor discovery and watch controls](./editor-api.md) guide
+describes the qualified Next-owned protocol and its current execution scope.
+
+The [streamed route response guide](./rsc-route-rendering.md) covers reading
+headers, consuming HTML or Flight, and closing an unfinished RSC route response.

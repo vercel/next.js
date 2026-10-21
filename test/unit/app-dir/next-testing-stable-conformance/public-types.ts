@@ -5,10 +5,18 @@ import {
   expectTypeOf,
   vi,
   createExpect,
+  beforeAll,
+  afterAll,
+  beforeEach,
+  afterEach,
+  aroundAll,
+  aroundEach,
   type TestAPI,
   type TestContext,
   type ProvidedContext,
   type TestAnnotation,
+  type Suite,
+  type File,
 } from 'next/experimental/testing/vitest'
 assertType<number>(42)
 expectTypeOf(42).toEqualTypeOf<number>()
@@ -336,3 +344,334 @@ scopedWorker('worker and file values', ({ port, connection }) => {
   expectTypeOf(port).toEqualTypeOf<number>()
   expectTypeOf(connection).toEqualTypeOf<string>()
 })
+
+// Tagged tables use the target's dynamic row type while preserving fixture context.
+import { describe as taggedDescribe } from 'next/experimental/testing/vitest'
+test.each`
+  left | right
+  ${1} | ${2}
+`('tagged each $left', ({ left, right }) => {
+  expectTypeOf(left).toEqualTypeOf<any>()
+  expectTypeOf(right).toEqualTypeOf<any>()
+})
+const taggedFixture = test.extend<{ label: string }>({ label: 'typed' })
+taggedFixture.for`value
+  ${42}
+`(
+  'tagged for $value',
+  { retry: 0 },
+  ({ value }, { label, signal, expect: local }) => {
+    expectTypeOf(value).toEqualTypeOf<any>()
+    expectTypeOf(label).toEqualTypeOf<string>()
+    expectTypeOf(signal).toEqualTypeOf<AbortSignal>()
+    expectTypeOf(local).toEqualTypeOf<TestContext['expect']>()
+  }
+)
+taggedDescribe.each`value
+  ${42}
+`('tagged suite each $value', ({ value }) => {
+  expectTypeOf(value).toEqualTypeOf<any>()
+})
+taggedDescribe.for`value
+  ${42}
+`('tagged suite for $value', { retry: 0 }, ({ value }) => {
+  expectTypeOf(value).toEqualTypeOf<any>()
+})
+
+// Global hooks accept the target's explicit context type parameters.
+if (false) {
+  type ExtraHookContext = { label: string }
+  beforeAll<ExtraHookContext>(({ label }, owner) => {
+    expectTypeOf(label).toEqualTypeOf<string>()
+    expectTypeOf(owner).toEqualTypeOf<Readonly<Suite | File>>()
+  })
+  afterAll<ExtraHookContext>(({ label }, owner) => {
+    expectTypeOf(label).toEqualTypeOf<string>()
+    expectTypeOf(owner).toEqualTypeOf<Readonly<Suite | File>>()
+  })
+  beforeEach<ExtraHookContext>(({ label, task }, owner) => {
+    expectTypeOf(label).toEqualTypeOf<string>()
+    expectTypeOf(task).toEqualTypeOf<TestContext['task']>()
+    expectTypeOf(owner).toEqualTypeOf<Readonly<Suite>>()
+  })
+  afterEach<ExtraHookContext>(({ label, signal }, owner) => {
+    expectTypeOf(label).toEqualTypeOf<string>()
+    expectTypeOf(signal).toEqualTypeOf<AbortSignal>()
+    expectTypeOf(owner).toEqualTypeOf<Readonly<Suite>>()
+  })
+  aroundEach<ExtraHookContext>(async (runTest, { label, task }, owner) => {
+    expectTypeOf(runTest).toEqualTypeOf<() => Promise<void>>()
+    expectTypeOf(label).toEqualTypeOf<string>()
+    expectTypeOf(task).toEqualTypeOf<TestContext['task']>()
+    expectTypeOf(owner).toEqualTypeOf<Readonly<Suite>>()
+    await runTest()
+  })
+  aroundAll<ExtraHookContext>(async (runSuite, { label }, owner) => {
+    expectTypeOf(runSuite).toEqualTypeOf<() => Promise<void>>()
+    expectTypeOf(label).toEqualTypeOf<string>()
+    expectTypeOf(owner).toEqualTypeOf<Readonly<Suite | File>>()
+    await runSuite()
+  })
+  beforeAll((context) => {
+    expectTypeOf(context).toEqualTypeOf<object>()
+    // @ts-expect-error A global suite hook does not receive an attempt context.
+    void context.task
+  })
+}
+
+if (false) {
+  const aliased = test.extend<{ label: string }>({ label: 'base' })
+  aliased.describe('typed describe alias', () => {
+    aliased('fixture types', ({ label }) => {
+      expectTypeOf(label).toEqualTypeOf<string>()
+    })
+  })
+  aliased.suite.each([42])('typed suite alias %i', (value) => {
+    expectTypeOf(value).toEqualTypeOf<number>()
+  })
+  expectTypeOf(aliased.scoped({ label: 'override' })).toEqualTypeOf<
+    TestAPI<{ label: string }>
+  >()
+  // @ts-expect-error Existing fixture types remain enforced through scoped().
+  aliased.scoped({ label: 42 })
+}
+
+if (false) {
+  test.describe('typed suite factory', (provided) => {
+    const api: typeof test = provided
+    const custom = api.extend<{ token: number }>({ token: 7 })
+    custom('typed fixture', ({ token }) => {
+      expectTypeOf(token).toEqualTypeOf<number>()
+    })
+    provided.beforeEach(({ expect }) => {
+      expect(1).toBe(1)
+    })
+    // @ts-expect-error Provided APIs preserve declared fixture types.
+    custom('wrong', ({ missing }) => {})
+  })
+  test.describe('async typed suite factory', async (provided) => {
+    await Promise.resolve()
+    provided('after await', ({ expect }) => {
+      expect(2).toBe(2)
+    })
+  })
+}
+
+const prototypeNamedFixtures = test.extend<{
+  toString: string
+  constructor: { tag: string }
+  hasOwnProperty: number
+  __proto__: { count: number }
+}>({
+  toString: 'text',
+  constructor: { tag: 'base' },
+  hasOwnProperty: 3,
+  ['__proto__']: { count: 5 },
+})
+prototypeNamedFixtures.extend(
+  'hasOwnProperty',
+  ({ __proto__, hasOwnProperty }) => __proto__.count + hasOwnProperty
+)(
+  'typed object-prototype fixture names',
+  ({ toString, constructor, hasOwnProperty, __proto__ }) => {
+    expectTypeOf(toString).toEqualTypeOf<string>()
+    expectTypeOf(constructor.tag).toEqualTypeOf<string>()
+    expectTypeOf(hasOwnProperty).toEqualTypeOf<number>()
+    expectTypeOf(__proto__.count).toEqualTypeOf<number>()
+  }
+)
+
+// Public helper authors can name the same options and callback types as callers.
+import type {
+  SuiteOptions,
+  TestOptions,
+  TestFunction,
+} from 'next/experimental/testing/vitest'
+const publicCaseOptions: TestOptions = {
+  timeout: 2000,
+  retry: 0,
+  repeats: 0,
+  concurrent: false,
+  meta: {},
+}
+const publicSuiteOptions: SuiteOptions = {
+  ...publicCaseOptions,
+  shuffle: false,
+}
+function registerPublicCallback<Context extends object>(
+  api: TestAPI<Context>,
+  callback: TestFunction<Context>
+) {
+  api('typed public helper', publicCaseOptions, callback)
+}
+const publicFixtureApi = test.extend('amount', () => 4)
+const publicFixtureCallback: TestFunction<{ amount: number }> = async ({
+  amount,
+  expect,
+  task,
+}) => {
+  await Promise.resolve()
+  expectTypeOf(amount).toEqualTypeOf<number>()
+  expectTypeOf(task.name).toEqualTypeOf<string>()
+  expect(amount).toBe(4)
+}
+registerPublicCallback(publicFixtureApi, publicFixtureCallback)
+expectTypeOf(publicSuiteOptions.shuffle).toEqualTypeOf<boolean | undefined>()
+type PublicCallbackAmount = Parameters<
+  TestFunction<{ amount: number }>
+>[0]['amount']
+const publicCallbackAmount: PublicCallbackAmount = 4
+// @ts-expect-error Generic callback fixture values keep their declared type.
+const invalidPublicCallbackAmount: PublicCallbackAmount = 'wrong'
+const invalidPublicCaseOptions: TestOptions = {
+  // @ts-expect-error Case deadlines require a number.
+  timeout: 'bad',
+}
+const invalidPublicSuiteOptions: SuiteOptions = {
+  // @ts-expect-error Suite shuffle requires a boolean.
+  shuffle: 'bad',
+}
+void publicCallbackAmount
+void invalidPublicCallbackAmount
+void invalidPublicCaseOptions
+void invalidPublicSuiteOptions
+
+// Public listeners keep their named handler types and Awaitable<void> result.
+import {
+  onTestFinished as publicFinished,
+  onTestFailed as publicFailed,
+  type OnTestFinishedHandler,
+  type OnTestFailedHandler,
+} from 'next/experimental/testing/vitest'
+const finishedHandler: OnTestFinishedHandler = async ({ task, signal }) => {
+  const name: string = task.name
+  const aborted: boolean = signal.aborted
+  void name
+  void aborted
+}
+const failedHandler: OnTestFailedHandler = ({ task }) => {
+  const name: string = task.name
+  void name
+}
+// @ts-expect-error Public handler aliases require Awaitable<void>.
+const invalidFinished: OnTestFinishedHandler = async () => 1
+// @ts-expect-error Public handler aliases require Awaitable<void>.
+const invalidFailed: OnTestFailedHandler = () => 1
+test('public listener declarations', ({ onTestFinished, onTestFailed }) => {
+  onTestFinished(finishedHandler)
+  onTestFailed(failedHandler)
+  publicFinished(finishedHandler)
+  publicFailed(failedHandler)
+  // @ts-expect-error Context listeners retain the target return constraint.
+  onTestFinished(async () => 1)
+  // @ts-expect-error Context listeners retain the target return constraint.
+  onTestFailed(() => 1)
+  // @ts-expect-error Global listeners retain the target return constraint.
+  publicFinished(async () => 1)
+  // @ts-expect-error Global listeners retain the target return constraint.
+  publicFailed(() => 1)
+})
+const listenerFixture = test.extend<{ value: number }>({ value: 1 })
+listenerFixture.concurrent.for([1])(
+  'fixture listener %i',
+  (_item, { value, onTestFinished }) => {
+    const fixtureValue: number = value
+    void fixtureValue
+    // @ts-expect-error Modified/table/fixture APIs retain the public context.
+    onTestFinished(() => value)
+  }
+)
+test.describe('listener suite factory', (owned) => {
+  owned('factory listener context', ({ onTestFailed }) => {
+    // @ts-expect-error Suite factories retain the public context.
+    onTestFailed(() => 1)
+  })
+})
+void invalidFinished
+void invalidFailed
+
+// Public suite factories retain callback fixture inference and awaitable void.
+import {
+  describe as factoryDescribe,
+  type SuiteFactory,
+  type TestAPI as FactoryTestAPI,
+} from 'next/experimental/testing/vitest'
+{
+  const direct: SuiteFactory = (api) => {
+    const equivalent: FactoryTestAPI = api
+    equivalent('factory context', ({ expect }) => expect(true).toBe(true))
+  }
+  const generic: SuiteFactory<{ token: string }> = async (api) => {
+    api('generic factory context', ({ token }) => {
+      assertType<string>(token)
+      // @ts-expect-error The callback retains the selected fixture value type.
+      assertType<number>(token)
+    })
+  }
+  const fulfilled: PromiseLike<void> = Promise.resolve()
+  const thenable: SuiteFactory = () => fulfilled
+  // @ts-expect-error Factories resolve void, rather than arbitrary values.
+  const invalidReturn: SuiteFactory = () => 42
+  // @ts-expect-error Factories receive a test API, rather than a test context.
+  const invalidParameter: SuiteFactory = ({ expect }) => {
+    expect(true).toBe(true)
+  }
+  // @ts-expect-error Generic fixture declarations preserve value types.
+  const invalidGeneric: SuiteFactory<{ token: string }> = (
+    api: FactoryTestAPI<{ token: number }>
+  ) => {}
+  const primitive: SuiteFactory<string> = (api) => {
+    api('primitive intersection', (context) => {
+      assertType<string>(context)
+    })
+  }
+  factoryDescribe('default factory', direct)
+  factoryDescribe('thenable factory', thenable)
+  factoryDescribe('generic factory', generic)
+  factoryDescribe<{ token: string }>('generic options factory', {}, generic)
+  void primitive
+  void invalidReturn
+  void invalidParameter
+  void invalidGeneric
+}
+
+// Boolean environment flag names retain their value constraint through the facade.
+const environmentFacade: typeof vi = vi.stubEnv('DEV', true).unstubAllEnvs()
+vi.stubEnv('PROD', false)
+vi.stubEnv('SSR', undefined)
+vi.stubEnv('ordinary', 'controlled')
+vi.stubEnv('dev', 'true')
+// @ts-expect-error Boolean environment flags accept booleans rather than strings.
+vi.stubEnv('DEV', 'false')
+// @ts-expect-error Ordinary environment names accept strings rather than booleans.
+vi.stubEnv('ordinary', false)
+// @ts-expect-error Boolean flag classification is case sensitive.
+vi.stubEnv('dev', true)
+// @ts-expect-error Environment values are not numbers.
+vi.stubEnv('ordinary', 42)
+// @ts-expect-error The public fluent return does not expose private disposal.
+vi.stubEnv('SSR', true).dispose()
+void environmentFacade
+
+// Only interval tick mode accepts a numeric interval argument.
+{
+  const manual: typeof vi = vi.setTimerTickMode('manual')
+  const automatic: typeof vi = vi.setTimerTickMode('nextTimerAsync')
+  const interval: typeof vi = vi.setTimerTickMode('interval')
+  const customInterval: typeof vi = vi.setTimerTickMode('interval', 12)
+  const detached = vi.setTimerTickMode
+  const detachedInterval: typeof vi = detached('interval', 20)
+  // @ts-expect-error Manual mode does not accept an interval argument.
+  vi.setTimerTickMode('manual', 12)
+  // @ts-expect-error nextTimerAsync mode does not accept an interval argument.
+  vi.setTimerTickMode('nextTimerAsync', 12)
+  // @ts-expect-error Even an undefined second argument belongs only to interval mode.
+  vi.setTimerTickMode('manual', undefined)
+  // @ts-expect-error Intervals use numbers.
+  vi.setTimerTickMode('interval', '12')
+  // @ts-expect-error Only the supported mode literals are admitted.
+  vi.setTimerTickMode('automatic')
+  // @ts-expect-error Fluent public utilities do not expose the private disposer.
+  vi.setTimerTickMode('interval', 12).dispose()
+  void [manual, automatic, interval, customInterval, detachedInterval]
+}

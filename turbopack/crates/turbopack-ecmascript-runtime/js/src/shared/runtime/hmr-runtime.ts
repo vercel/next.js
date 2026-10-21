@@ -657,7 +657,14 @@ function instantiateModuleShared(
   }
 
   // 6. ESM interop (same in both)
-  if (module.namespaceObject && module.exports !== module.namespaceObject) {
+  if (
+    module.namespaceObject &&
+    module.exports !== module.namespaceObject &&
+    !(
+      hasOwnProperty.call(module, 'commonJsNamespacePublished') &&
+      module.commonJsNamespacePublished === true
+    )
+  ) {
     // in case of a circular dependency: cjs1 -> esm2 -> cjs1
     interopEsm(module.exports, module.namespaceObject)
   }

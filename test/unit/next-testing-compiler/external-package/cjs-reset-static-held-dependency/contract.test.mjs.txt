@@ -1,0 +1,16 @@
+import { test, expect, vi } from 'vitest'
+import { types } from 'node:util'
+function shape(namespace) {
+ return { nativeBrand: types.isModuleNamespaceObject(namespace), keys: Reflect.ownKeys(namespace).map(key => typeof key === 'symbol' ? String(key) : key), prototypeNull: Object.getPrototypeOf(namespace) === null, tag: namespace[Symbol.toStringTag] ?? null, extensible: Object.isExtensible(namespace), sealed: Object.isSealed(namespace), frozen: Object.isFrozen(namespace), descriptors: Reflect.ownKeys(namespace).map(key => { const d = Object.getOwnPropertyDescriptor(namespace,key); return { key: typeof key === 'symbol' ? String(key) : key, valueType: typeof d.value, get: typeof d.get, set: typeof d.set, writable: d.writable ?? null, enumerable: d.enumerable, configurable: d.configurable } }) }
+}
+import initialDefault, * as initialNamespace from './root.cjs'
+test('holds the ordinary static CommonJS namespace while dynamic imports reset', async () => {
+ const first = await import('./root.cjs')
+ vi.resetModules()
+ const second = await import('./root.cjs')
+ const held = initialNamespace.default
+ const fresh = second.default
+ console.log('WS2_EXTERNAL_CJS_STATIC_HELD:' + JSON.stringify({ initialDefault:initialDefault === held, initialNamespace:initialNamespace === first, freshNamespace:initialNamespace === second, freshDefault:held === fresh, dependency:held.dependency ? held.dependency === fresh.dependency : null, values:[typeof held === 'function' ? held('static') : held.evaluation,typeof fresh === 'function' ? fresh('static') : fresh.evaluation], namespaceShapes:[shape(initialNamespace),shape(first),shape(second)], defaultShapes:[shape(held),shape(fresh)] }))
+ expect(initialNamespace).toBe(first)
+ expect(held).not.toBe(fresh)
+})

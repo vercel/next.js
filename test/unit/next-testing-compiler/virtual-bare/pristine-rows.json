@@ -1,0 +1,60 @@
+[
+  {
+    "stream": "stdout",
+    "value": {
+      "name": "bare",
+      "value": 73,
+      "defaultSource": "virtual",
+      "throughConsumer": 73,
+      "defaultIdentity": true,
+      "namespaceIdentity": true,
+      "keys": ["value", "default"]
+    }
+  },
+  {
+    "stream": "stdout",
+    "value": {
+      "name": "async",
+      "value": 91
+    }
+  },
+  {
+    "stream": "stdout",
+    "value": {
+      "name": "scoped",
+      "value": 117
+    }
+  },
+  {
+    "stream": "stdout",
+    "value": {
+      "name": "namespace",
+      "before": {
+        "keys": ["value", "default"],
+        "descriptor": {
+          "value": 73,
+          "writable": true,
+          "enumerable": true,
+          "configurable": true
+        },
+        "prototype": true,
+        "tag": null,
+        "extensible": true
+      },
+      "after": {
+        "same": true,
+        "set": true,
+        "added": true,
+        "value": 74,
+        "extra": 8,
+        "keys": ["value", "default", "added"],
+        "descriptor": {
+          "value": 74,
+          "writable": true,
+          "enumerable": true,
+          "configurable": true
+        }
+      }
+    }
+  }
+]

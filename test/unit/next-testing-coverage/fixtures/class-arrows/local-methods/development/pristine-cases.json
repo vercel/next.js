@@ -1,0 +1,190 @@
+{
+  "numTotalTestSuites": 1,
+  "numPassedTestSuites": 1,
+  "numFailedTestSuites": 0,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 1,
+  "numPassedTests": 1,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1792586814167,
+  "success": true,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [],
+          "fullName": "typed class callables",
+          "status": "passed",
+          "title": "typed class callables",
+          "duration": 1.2660840000000064,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1792586814336,
+      "endTime": 1792586814337.266,
+      "status": "passed",
+      "message": "",
+      "name": "/private/tmp/next-testing-ws5-class-callables192/probe07-genuine-local-methods-development/fixture/contract.case.mjs"
+    }
+  ],
+  "coverageMap": {
+    "/private/tmp/next-testing-ws5-class-callables192/probe07-genuine-local-methods-development/fixture/subject.ts": {
+      "path": "/private/tmp/next-testing-ws5-class-callables192/probe07-genuine-local-methods-development/fixture/subject.ts",
+      "statementMap": {
+        "0": {
+          "start": { "line": 1, "column": 23 },
+          "end": { "line": 1, "column": null }
+        },
+        "1": {
+          "start": { "line": 2, "column": 41 },
+          "end": { "line": 2, "column": 59 }
+        },
+        "2": {
+          "start": { "line": 5, "column": 31 },
+          "end": { "line": 5, "column": 51 }
+        },
+        "3": {
+          "start": { "line": 6, "column": 32 },
+          "end": { "line": 6, "column": 59 }
+        },
+        "4": {
+          "start": { "line": 7, "column": 42 },
+          "end": { "line": 7, "column": 60 }
+        },
+        "5": {
+          "start": { "line": 8, "column": 34 },
+          "end": { "line": 8, "column": 61 }
+        },
+        "6": {
+          "start": { "line": 11, "column": 18 },
+          "end": { "line": 11, "column": null }
+        },
+        "7": {
+          "start": { "line": 12, "column": 2 },
+          "end": { "line": 12, "column": null }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "prefix",
+          "decl": {
+            "start": { "line": 2, "column": 9 },
+            "end": { "line": 2, "column": 16 }
+          },
+          "loc": {
+            "start": { "line": 2, "column": 39 },
+            "end": { "line": 2, "column": null }
+          },
+          "line": 2
+        },
+        "1": {
+          "name": "constructor",
+          "decl": {
+            "start": { "line": 5, "column": 2 },
+            "end": { "line": 5, "column": 14 }
+          },
+          "loc": {
+            "start": { "line": 5, "column": 29 },
+            "end": { "line": 5, "column": null }
+          },
+          "line": 5
+        },
+        "2": {
+          "name": "read",
+          "decl": {
+            "start": { "line": 6, "column": 2 },
+            "end": { "line": 6, "column": 7 }
+          },
+          "loc": {
+            "start": { "line": 6, "column": 30 },
+            "end": { "line": 6, "column": null }
+          },
+          "line": 6
+        },
+        "3": {
+          "name": "combine",
+          "decl": {
+            "start": { "line": 7, "column": 9 },
+            "end": { "line": 7, "column": 17 }
+          },
+          "loc": {
+            "start": { "line": 7, "column": 40 },
+            "end": { "line": 7, "column": null }
+          },
+          "line": 7
+        },
+        "4": {
+          "name": "method",
+          "decl": {
+            "start": { "line": 8, "column": 2 },
+            "end": { "line": 8, "column": 9 }
+          },
+          "loc": {
+            "start": { "line": 8, "column": 32 },
+            "end": { "line": 8, "column": null }
+          },
+          "line": 8
+        },
+        "5": {
+          "name": "exercise",
+          "decl": {
+            "start": { "line": 10, "column": 16 },
+            "end": { "line": 10, "column": 25 }
+          },
+          "loc": {
+            "start": { "line": 10, "column": 48 },
+            "end": { "line": 13, "column": null }
+          },
+          "line": 10
+        }
+      },
+      "branchMap": {},
+      "s": { "0": 1, "1": 2, "2": 2, "3": 2, "4": 2, "5": 2, "6": 2, "7": 2 },
+      "f": { "0": 2, "1": 2, "2": 2, "3": 1, "4": 2, "5": 2 },
+      "b": {},
+      "meta": {
+        "lastBranch": 0,
+        "lastFunction": 6,
+        "lastStatement": 8,
+        "seen": {
+          "s:1:23:1:Infinity": 0,
+          "f:2:9:2:16": 0,
+          "s:2:41:2:59": 1,
+          "f:5:2:5:14": 1,
+          "s:5:31:5:51": 2,
+          "f:6:2:6:7": 2,
+          "s:6:32:6:59": 3,
+          "f:7:9:7:17": 3,
+          "s:7:42:7:60": 4,
+          "f:8:2:8:9": 4,
+          "s:8:34:8:61": 5,
+          "f:10:16:10:25": 5,
+          "s:11:18:11:Infinity": 6,
+          "s:12:2:12:Infinity": 7
+        },
+        "fnNames": {}
+      }
+    }
+  }
+}

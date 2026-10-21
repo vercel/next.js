@@ -1,0 +1,4 @@
+import * as ws2Native from 'node:cluster'
+import {token as peerToken,read as readPeer} from './peer.mjs';globalThis.__ws2Cross??={};globalThis.__ws2Cross['reverse-root']=(globalThis.__ws2Cross['reverse-root']??0)+1;export const evaluation=globalThis.__ws2Cross['reverse-root'];export const token={kind:'root',count:0};export {peerToken};export function read(){return [token.count,peerToken.count,readPeer()]}
+
+globalThis.__ws2NativeGraphs??={};globalThis.__ws2NativeGraphs['reverse']={namespace:ws2Native,setup:ws2Native.setupPrimary};

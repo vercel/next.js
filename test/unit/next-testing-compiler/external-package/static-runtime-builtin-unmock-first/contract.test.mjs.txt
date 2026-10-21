@@ -1,0 +1,23 @@
+import { test, expect, vi } from 'vitest'
+import { types } from 'node:util'
+import * as heldStatic from "node:fs"
+vi.mock("node:fs", () => ({value:5}))
+function shape(namespace) {
+ return { nativeBrand: types.isModuleNamespaceObject(namespace), keys: Reflect.ownKeys(namespace).map(key => typeof key === 'symbol' ? String(key) : key), prototypeNull: Object.getPrototypeOf(namespace) === null, tag: namespace[Symbol.toStringTag] ?? null, extensible: Object.isExtensible(namespace), sealed: Object.isSealed(namespace), frozen: Object.isFrozen(namespace), descriptors: Reflect.ownKeys(namespace).map(key => { const d = Object.getOwnPropertyDescriptor(namespace,key); return { key: typeof key === 'symbol' ? String(key) : key, valueType: typeof d.value, get: typeof d.get, set: typeof d.set, writable: d.writable ?? null, enumerable: d.enumerable, configurable: d.configurable } }) }
+}
+test("native builtin static and runtime unmock-first",async()=>{
+const before=await import("node:fs")
+vi.doUnmock("node:fs")
+const released=await import("node:fs")
+vi.resetModules()
+const afterReset=await import("node:fs")
+vi.doUnmock("node:fs")
+const repeated=await import("node:fs")
+vi.doMock("node:fs", ()=>({value:73}))
+const mocked=await import("node:fs")
+vi.doUnmock("node:fs")
+const final=await import("node:fs")
+console.log('WS2_EXTERNAL_STATIC_RUNTIME_UNMOCK_FIRST:'+JSON.stringify({beforeStatic:before===heldStatic,staticValue:heldStatic.value,mockedValue:mocked.value,releasedValue:released.value??null,releasedResetIdentity:released===afterReset,repeatedIdentity:afterReset===repeated,finalIdentity:final===repeated,shapes:[before,released,afterReset,repeated,mocked,final,heldStatic].map(shape)}))
+expect(mocked.value).toBe(73)
+expect(heldStatic.value).toBe(5)
+})

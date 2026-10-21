@@ -1,0 +1,22 @@
+[
+  {
+    "name": "ordinary namespaces retain complete order descriptors receiver and alias identity",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "ordinary live bindings held values and reset generations retain exact identities",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "ordinary function errors and redefined namespace getters retain raw errors",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "namespace certificate retention does not evaluate an unused target or factory",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

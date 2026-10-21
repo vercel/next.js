@@ -1,0 +1,424 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_NAMESPACE",
+    "value": {
+      "name": "declarations",
+      "shape": {
+        "keys": [
+          "evaluation",
+          "token",
+          "value",
+          "bump",
+          "Thing",
+          "default",
+          "Symbol(Symbol.toStringTag)"
+        ],
+        "prototypeNull": true,
+        "objectPrototype": false,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "tag": "[object Module]",
+        "brand": false,
+        "descriptors": [
+          [
+            "evaluation",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "token",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "value",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "bump",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "Thing",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "default",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "Symbol(Symbol.toStringTag)",
+            {
+              "enumerable": false,
+              "configurable": false,
+              "writable": false,
+              "type": "string"
+            }
+          ]
+        ]
+      },
+      "values": [0, 1, 1],
+      "same": true,
+      "defaultSame": true
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_NAMESPACE",
+    "value": {
+      "name": "aliases",
+      "shape": {
+        "keys": ["z", "a", "other", "tail", "Symbol(Symbol.toStringTag)"],
+        "prototypeNull": true,
+        "objectPrototype": false,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "tag": "[object Module]",
+        "brand": false,
+        "descriptors": [
+          [
+            "z",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "a",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "other",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "tail",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "Symbol(Symbol.toStringTag)",
+            {
+              "enumerable": false,
+              "configurable": false,
+              "writable": false,
+              "type": "string"
+            }
+          ]
+        ]
+      },
+      "same": true,
+      "values": ["second", "first", "tail"]
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_NAMESPACE",
+    "value": {
+      "name": "forward",
+      "shape": {
+        "keys": [
+          "first",
+          "renamed",
+          "mutable",
+          "bump",
+          "namespace",
+          "last",
+          "Symbol(Symbol.toStringTag)"
+        ],
+        "prototypeNull": true,
+        "objectPrototype": false,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "tag": "[object Module]",
+        "brand": false,
+        "descriptors": [
+          [
+            "first",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "renamed",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "mutable",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "bump",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "namespace",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "last",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "Symbol(Symbol.toStringTag)",
+            {
+              "enumerable": false,
+              "configurable": false,
+              "writable": false,
+              "type": "string"
+            }
+          ]
+        ]
+      },
+      "peerShape": {
+        "keys": ["mutable", "bump", "token", "Symbol(Symbol.toStringTag)"],
+        "prototypeNull": true,
+        "objectPrototype": false,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "tag": "[object Module]",
+        "brand": false,
+        "descriptors": [
+          [
+            "mutable",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "bump",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "token",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "Symbol(Symbol.toStringTag)",
+            {
+              "enumerable": false,
+              "configurable": false,
+              "writable": false,
+              "type": "string"
+            }
+          ]
+        ]
+      },
+      "values": [0, 1, 1],
+      "same": [true, true, true]
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_NAMESPACE",
+    "value": {
+      "name": "mutation",
+      "before": {
+        "keys": ["token", "value", "bump", "Symbol(Symbol.toStringTag)"],
+        "prototypeNull": true,
+        "objectPrototype": false,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "tag": "[object Module]",
+        "brand": false,
+        "descriptors": [
+          [
+            "token",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "value",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "bump",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "Symbol(Symbol.toStringTag)",
+            {
+              "enumerable": false,
+              "configurable": false,
+              "writable": false,
+              "type": "string"
+            }
+          ]
+        ]
+      },
+      "after": {
+        "keys": [
+          "token",
+          "bump",
+          "value",
+          "extra",
+          "Symbol(Symbol.toStringTag)"
+        ],
+        "prototypeNull": true,
+        "objectPrototype": false,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "tag": "[object Module]",
+        "brand": false,
+        "descriptors": [
+          [
+            "token",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "bump",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "value",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "get": "function",
+              "set": "undefined"
+            }
+          ],
+          [
+            "extra",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "type": "string"
+            }
+          ],
+          [
+            "Symbol(Symbol.toStringTag)",
+            {
+              "enumerable": false,
+              "configurable": false,
+              "writable": false,
+              "type": "string"
+            }
+          ]
+        ]
+      },
+      "deleted": true,
+      "defined": true,
+      "added": true,
+      "same": true,
+      "values": [1, 1, "extra"]
+    }
+  }
+]

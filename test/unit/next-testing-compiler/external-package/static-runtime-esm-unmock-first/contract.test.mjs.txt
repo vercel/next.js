@@ -1,0 +1,23 @@
+import { test, expect, vi } from 'vitest'
+import { types } from 'node:util'
+import * as heldStatic from "ws2-genuine-external-esm"
+vi.mock("ws2-genuine-external-esm", () => ({value:5}))
+function shape(namespace) {
+ return { nativeBrand: types.isModuleNamespaceObject(namespace), keys: Reflect.ownKeys(namespace).map(key => typeof key === 'symbol' ? String(key) : key), prototypeNull: Object.getPrototypeOf(namespace) === null, tag: namespace[Symbol.toStringTag] ?? null, extensible: Object.isExtensible(namespace), sealed: Object.isSealed(namespace), frozen: Object.isFrozen(namespace), descriptors: Reflect.ownKeys(namespace).map(key => { const d = Object.getOwnPropertyDescriptor(namespace,key); return { key: typeof key === 'symbol' ? String(key) : key, valueType: typeof d.value, get: typeof d.get, set: typeof d.set, writable: d.writable ?? null, enumerable: d.enumerable, configurable: d.configurable } }) }
+}
+test("native esm static and runtime unmock-first",async()=>{
+const before=await import("ws2-genuine-external-esm")
+vi.doUnmock("ws2-genuine-external-esm")
+const released=await import("ws2-genuine-external-esm")
+vi.resetModules()
+const afterReset=await import("ws2-genuine-external-esm")
+vi.doUnmock("ws2-genuine-external-esm")
+const repeated=await import("ws2-genuine-external-esm")
+vi.doMock("ws2-genuine-external-esm", ()=>({value:73}))
+const mocked=await import("ws2-genuine-external-esm")
+vi.doUnmock("ws2-genuine-external-esm")
+const final=await import("ws2-genuine-external-esm")
+console.log('WS2_EXTERNAL_STATIC_RUNTIME_UNMOCK_FIRST:'+JSON.stringify({beforeStatic:before===heldStatic,staticValue:heldStatic.value,mockedValue:mocked.value,releasedValue:released.value??null,releasedResetIdentity:released===afterReset,repeatedIdentity:afterReset===repeated,finalIdentity:final===repeated,shapes:[before,released,afterReset,repeated,mocked,final,heldStatic].map(shape)}))
+expect(mocked.value).toBe(73)
+expect(heldStatic.value).toBe(5)
+})

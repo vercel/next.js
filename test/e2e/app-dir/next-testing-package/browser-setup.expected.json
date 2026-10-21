@@ -1,0 +1,523 @@
+{
+  "reference": {
+    "vitest": "5.0.4",
+    "@vitest/browser-playwright": "5.0.4",
+    "playwright": "1.64.0",
+    "engine": "chromium",
+    "sequence": {
+      "setupFiles": "list"
+    },
+    "sourceSHA256": {
+      "a.test.mjs": "89f536a81a292aa6862327917197cd3546af70d4124e0beb9407a662764d336c",
+      "b.test.mjs": "b542d3959f0f8f9c3dd634d87d84ab87695d961bdfc7b03c8b84ad8df2ac2026",
+      "package.json": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+      "setup-one.mjs": "41b9484cec26af6daa55b1776280ea16880149f34adbf2e0bb1a82c9d2a2dffc",
+      "setup-state.mjs": "4615ffac281bce7d02165338baa6d6f3fc450fbbc5da274606a4ccb689f38380",
+      "setup-two.mjs": "6d7bc28df5d2c375becab67af9b61454c845214be2841fbd1b8f7ec776c8ec1c",
+      "setup.css": "f19db88cd28c18e83f2e861ea5852c253f00f12345c5880533adfd5a9246e049"
+    }
+  },
+  "modes": {
+    "development": {
+      "cases": [
+        {
+          "fullName": "a setup creates a real styled interactive DOM",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "a setup hooks create fresh DOM for the following case",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "b setup creates a real styled interactive DOM",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "b setup hooks create fresh DOM for the following case",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "kind": "BROWSER_SETUP_CASE",
+          "row": {
+            "file": "a",
+            "case": 1,
+            "events": [
+              "setup-one-start",
+              "setup-one-end",
+              "setup-two",
+              "before-all-one",
+              "before-all-two",
+              "before-each-one",
+              "before-each-two",
+              "case-one",
+              "button-click"
+            ],
+            "branch": "browser-development",
+            "mode": "development",
+            "setupRuns": 1,
+            "text": "clicked-v1",
+            "color": "rgb(17, 34, 51)"
+          }
+        },
+        {
+          "kind": "BROWSER_SETUP_CASE",
+          "row": {
+            "file": "a",
+            "case": 2,
+            "events": [
+              "setup-one-start",
+              "setup-one-end",
+              "setup-two",
+              "before-all-one",
+              "before-all-two",
+              "before-each-one",
+              "before-each-two",
+              "case-one",
+              "button-click",
+              "after-each-two",
+              "after-each-one",
+              "before-each-one",
+              "before-each-two",
+              "case-two"
+            ],
+            "branch": "browser-development",
+            "mode": "development",
+            "setupRuns": 1,
+            "text": "ready-v1",
+            "color": "rgb(17, 34, 51)"
+          }
+        },
+        {
+          "kind": "BROWSER_SETUP_FILE",
+          "row": {
+            "file": "a",
+            "events": [
+              "setup-one-start",
+              "setup-one-end",
+              "setup-two",
+              "before-all-one",
+              "before-all-two",
+              "before-each-one",
+              "before-each-two",
+              "case-one",
+              "button-click",
+              "after-each-two",
+              "after-each-one",
+              "before-each-one",
+              "before-each-two",
+              "case-two",
+              "after-each-two",
+              "after-each-one",
+              "after-all-two",
+              "after-all-one"
+            ],
+            "branch": "browser-development",
+            "mode": "development",
+            "setupRuns": 1,
+            "domCount": 0,
+            "setupGlobalRemoved": true
+          }
+        },
+        {
+          "kind": "BROWSER_SETUP_CASE",
+          "row": {
+            "file": "b",
+            "case": 1,
+            "events": [
+              "setup-one-start",
+              "setup-one-end",
+              "setup-two",
+              "before-all-one",
+              "before-all-two",
+              "before-each-one",
+              "before-each-two",
+              "case-one",
+              "button-click"
+            ],
+            "branch": "browser-development",
+            "mode": "development",
+            "setupRuns": 1,
+            "text": "clicked-v1",
+            "color": "rgb(17, 34, 51)"
+          }
+        },
+        {
+          "kind": "BROWSER_SETUP_CASE",
+          "row": {
+            "file": "b",
+            "case": 2,
+            "events": [
+              "setup-one-start",
+              "setup-one-end",
+              "setup-two",
+              "before-all-one",
+              "before-all-two",
+              "before-each-one",
+              "before-each-two",
+              "case-one",
+              "button-click",
+              "after-each-two",
+              "after-each-one",
+              "before-each-one",
+              "before-each-two",
+              "case-two"
+            ],
+            "branch": "browser-development",
+            "mode": "development",
+            "setupRuns": 1,
+            "text": "ready-v1",
+            "color": "rgb(17, 34, 51)"
+          }
+        },
+        {
+          "kind": "BROWSER_SETUP_FILE",
+          "row": {
+            "file": "b",
+            "events": [
+              "setup-one-start",
+              "setup-one-end",
+              "setup-two",
+              "before-all-one",
+              "before-all-two",
+              "before-each-one",
+              "before-each-two",
+              "case-one",
+              "button-click",
+              "after-each-two",
+              "after-each-one",
+              "before-each-one",
+              "before-each-two",
+              "case-two",
+              "after-each-two",
+              "after-each-one",
+              "after-all-two",
+              "after-all-one"
+            ],
+            "branch": "browser-development",
+            "mode": "development",
+            "setupRuns": 1,
+            "domCount": 0,
+            "setupGlobalRemoved": true
+          }
+        }
+      ]
+    },
+    "production": {
+      "cases": [
+        {
+          "fullName": "a setup creates a real styled interactive DOM",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "a setup hooks create fresh DOM for the following case",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "b setup creates a real styled interactive DOM",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "b setup hooks create fresh DOM for the following case",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "kind": "BROWSER_SETUP_CASE",
+          "row": {
+            "file": "a",
+            "case": 1,
+            "events": [
+              "setup-one-start",
+              "setup-one-end",
+              "setup-two",
+              "before-all-one",
+              "before-all-two",
+              "before-each-one",
+              "before-each-two",
+              "case-one",
+              "button-click"
+            ],
+            "branch": "browser-production",
+            "mode": "production",
+            "setupRuns": 1,
+            "text": "clicked-v1",
+            "color": "rgb(17, 34, 51)"
+          }
+        },
+        {
+          "kind": "BROWSER_SETUP_CASE",
+          "row": {
+            "file": "a",
+            "case": 2,
+            "events": [
+              "setup-one-start",
+              "setup-one-end",
+              "setup-two",
+              "before-all-one",
+              "before-all-two",
+              "before-each-one",
+              "before-each-two",
+              "case-one",
+              "button-click",
+              "after-each-two",
+              "after-each-one",
+              "before-each-one",
+              "before-each-two",
+              "case-two"
+            ],
+            "branch": "browser-production",
+            "mode": "production",
+            "setupRuns": 1,
+            "text": "ready-v1",
+            "color": "rgb(17, 34, 51)"
+          }
+        },
+        {
+          "kind": "BROWSER_SETUP_FILE",
+          "row": {
+            "file": "a",
+            "events": [
+              "setup-one-start",
+              "setup-one-end",
+              "setup-two",
+              "before-all-one",
+              "before-all-two",
+              "before-each-one",
+              "before-each-two",
+              "case-one",
+              "button-click",
+              "after-each-two",
+              "after-each-one",
+              "before-each-one",
+              "before-each-two",
+              "case-two",
+              "after-each-two",
+              "after-each-one",
+              "after-all-two",
+              "after-all-one"
+            ],
+            "branch": "browser-production",
+            "mode": "production",
+            "setupRuns": 1,
+            "domCount": 0,
+            "setupGlobalRemoved": true
+          }
+        },
+        {
+          "kind": "BROWSER_SETUP_CASE",
+          "row": {
+            "file": "b",
+            "case": 1,
+            "events": [
+              "setup-one-start",
+              "setup-one-end",
+              "setup-two",
+              "before-all-one",
+              "before-all-two",
+              "before-each-one",
+              "before-each-two",
+              "case-one",
+              "button-click"
+            ],
+            "branch": "browser-production",
+            "mode": "production",
+            "setupRuns": 1,
+            "text": "clicked-v1",
+            "color": "rgb(17, 34, 51)"
+          }
+        },
+        {
+          "kind": "BROWSER_SETUP_CASE",
+          "row": {
+            "file": "b",
+            "case": 2,
+            "events": [
+              "setup-one-start",
+              "setup-one-end",
+              "setup-two",
+              "before-all-one",
+              "before-all-two",
+              "before-each-one",
+              "before-each-two",
+              "case-one",
+              "button-click",
+              "after-each-two",
+              "after-each-one",
+              "before-each-one",
+              "before-each-two",
+              "case-two"
+            ],
+            "branch": "browser-production",
+            "mode": "production",
+            "setupRuns": 1,
+            "text": "ready-v1",
+            "color": "rgb(17, 34, 51)"
+          }
+        },
+        {
+          "kind": "BROWSER_SETUP_FILE",
+          "row": {
+            "file": "b",
+            "events": [
+              "setup-one-start",
+              "setup-one-end",
+              "setup-two",
+              "before-all-one",
+              "before-all-two",
+              "before-each-one",
+              "before-each-two",
+              "case-one",
+              "button-click",
+              "after-each-two",
+              "after-each-one",
+              "before-each-one",
+              "before-each-two",
+              "case-two",
+              "after-each-two",
+              "after-each-one",
+              "after-all-two",
+              "after-all-one"
+            ],
+            "branch": "browser-production",
+            "mode": "production",
+            "setupRuns": 1,
+            "domCount": 0,
+            "setupGlobalRemoved": true
+          }
+        }
+      ]
+    }
+  },
+  "failure": {
+    "reference": {
+      "sourceSHA256": {
+        "a.test.mjs": "b2228e5ab272444b6cbf3aebedf06babe7f3719caaa44b9c8e7f20e705775333",
+        "package.json": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+        "setup-one.mjs": "833f730aa71e4fbf732cdddd83a78b1c2a1b402b3c18dd72f2d0676eafccfb07",
+        "setup-three.mjs": "ca8214d647e6233f60a6c5fdbdf1395801dc87dff9a0daf6f2d47e5664b82429",
+        "setup-two.mjs": "7d6898d09b4d56e88551fd326fd0b5e48e7655d8cf2def34e2daa05d1bda7655"
+      },
+      "vitest": "5.0.4",
+      "cause": {
+        "message": "awaited setup failed",
+        "file": "setup-two.mjs",
+        "line": 4,
+        "column": 7
+      },
+      "outerMessage": "Failed to import test file <setup-two absolute path>"
+    },
+    "modes": {
+      "development": {
+        "status": 1,
+        "cases": [],
+        "rows": [
+          {
+            "kind": "BROWSER_SETUP_FAILURE",
+            "row": {
+              "phase": "first-start"
+            }
+          },
+          {
+            "kind": "BROWSER_SETUP_FAILURE",
+            "row": {
+              "phase": "first-end"
+            }
+          },
+          {
+            "kind": "BROWSER_SETUP_FAILURE",
+            "row": {
+              "phase": "second-start"
+            }
+          }
+        ]
+      },
+      "production": {
+        "status": 1,
+        "cases": [],
+        "rows": [
+          {
+            "kind": "BROWSER_SETUP_FAILURE",
+            "row": {
+              "phase": "first-start"
+            }
+          },
+          {
+            "kind": "BROWSER_SETUP_FAILURE",
+            "row": {
+              "phase": "first-end"
+            }
+          },
+          {
+            "kind": "BROWSER_SETUP_FAILURE",
+            "row": {
+              "phase": "second-start"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "exportedPromise": {
+    "reference": {
+      "sourceSHA256": {
+        "a.test.mjs": "ece7803f12a1554ca6c11f77b3f52f44950227ac4ce3d86177d0695878481239",
+        "package.json": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+        "setup-one.mjs": "704185969570565ca9afeb850742e5ed93f2188fc55cbe72757cd7405fa2f0cf",
+        "setup-two.mjs": "4148b2d124ad86ad1c0c8e8cf9b54b85459100a1eea430b562990eb715224676"
+      },
+      "vitest": "5.0.4",
+      "evaluationBoundary": "real MessageChannel browser turn; pending default export remains unsettled"
+    },
+    "modes": {
+      "development": {
+        "status": 0,
+        "cases": [
+          {
+            "fullName": "setup awaits module evaluation without awaiting its default Promise export",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "rows": [
+          {
+            "kind": "BROWSER_SETUP_PROMISE",
+            "row": {
+              "events": ["first-start", "first-end", "second"],
+              "mode": "development"
+            }
+          }
+        ]
+      },
+      "production": {
+        "status": 0,
+        "cases": [
+          {
+            "fullName": "setup awaits module evaluation without awaiting its default Promise export",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "rows": [
+          {
+            "kind": "BROWSER_SETUP_PROMISE",
+            "row": {
+              "events": ["first-start", "first-end", "second"],
+              "mode": "production"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

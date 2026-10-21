@@ -1,0 +1,1 @@
+import * as peer from 'node:fs';export const value=peer;export {nested} from './peer.mjs'

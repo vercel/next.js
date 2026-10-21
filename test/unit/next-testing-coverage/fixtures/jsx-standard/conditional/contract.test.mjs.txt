@@ -1,0 +1,6 @@
+import { expect, test } from 'vitest'
+import { Conditional } from './subject.tsx'
+test('renders both authored JSX branches', () => {
+  expect(Conditional({ active: true }).props.children).toBe('yes!')
+  expect(Conditional({ active: false }).props.children).toBe('no!')
+})

@@ -1,0 +1,643 @@
+{
+  "file": "/private/tmp/next-testing-parallel-20261019/coverage-imports194/.next-test-class-functions196-observed12-local-functions-development/subject.ts",
+  "sourceMap": {
+    "version": 3,
+    "sources": [
+      "/private/tmp/next-testing-parallel-20261019/coverage-imports194/.next-test-class-functions196-observed12-local-functions-development/subject.ts"
+    ],
+    "names": [],
+    "mappings": ";;;;A;;;;;;AAAA,MAAM,SAAiB;AACvB,SAAS,OAAO,KAAa;IAAY,OAAO,QAAQ;AAAG;AACpD,MAAM;IAEX,YAAY,KAAa,CAAE;QAAE,IAAI,CAAC,KAAK,GAAG;IAAO;IACxC,OAAO,SAAU,KAAa;QAAY,OAAO,IAAI,CAAC,KAAK,GAAG;IAAO,EAAE;IAChF,OAAgB,UAAU,SAAU,KAAa;QAAY,OAAO,QAAQ;IAAG,EAAE;IACjF,OAAO,KAAa,EAAU;QAAE,OAAO,IAAI,CAAC,KAAK,GAAG;IAAO;AAC7D;AACO,SAAS,SAAS,KAAa;IACpC,MAAM,UAAU,IAAI,QAAQ,OAAO;IACnC,OAAO,QAAQ,IAAI,CAAC,UAAU,QAAQ,OAAO,CAAC,SAAS,QAAQ,MAAM,CAAC;AACxE",
+    "sourcesContent": [
+      "const offset: number = 2;\nfunction prefix(value: number): number { return value + 1; }\nexport class Counter {\n  declare total: number;\n  constructor(value: number) { this.total = value; }\n  readonly read = function (delta: number): number { return this.total + delta; };\n  static readonly combine = function (value: number): number { return value * 2; };\n  method(delta: number): number { return this.total + delta; }\n}\nexport function exercise(value: number): number {\n  const counter = new Counter(prefix(value));\n  return counter.read(offset) + Counter.combine(value) + counter.method(offset);\n}\n"
+    ]
+  },
+  "coverage": {
+    "url": "file:///private/tmp/next-testing-parallel-20261019/coverage-imports194/.next-test-class-functions196-observed12-local-functions-development/.next/.next-test-c53b5d24-9ee0-4741-b0c3-7e6975ee2839/server/chunks/0y-q_ass-functions196-observed12-local-functions-development_subject_ts_1oi0b-o6rgolo._.js",
+    "functions": [
+      {
+        "isBlockCoverage": true,
+        "ranges": [
+          {
+            "startOffset": 0,
+            "endOffset": 912,
+            "count": 0
+          }
+        ]
+      }
+    ]
+  },
+  "model": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-imports194/.next-test-class-functions196-observed12-local-functions-development/subject.ts",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 1,
+          "column": 23
+        },
+        "end": {
+          "line": 1,
+          "column": 24
+        }
+      },
+      "1": {
+        "start": {
+          "line": 2,
+          "column": 41
+        },
+        "end": {
+          "line": 2,
+          "column": 58
+        }
+      },
+      "2": {
+        "start": {
+          "line": 6,
+          "column": 18
+        },
+        "end": {
+          "line": 6,
+          "column": 81
+        }
+      },
+      "3": {
+        "start": {
+          "line": 7,
+          "column": 28
+        },
+        "end": {
+          "line": 7,
+          "column": 82
+        }
+      },
+      "4": {
+        "start": {
+          "line": 5,
+          "column": 31
+        },
+        "end": {
+          "line": 5,
+          "column": 50
+        }
+      },
+      "5": {
+        "start": {
+          "line": 6,
+          "column": 53
+        },
+        "end": {
+          "line": 6,
+          "column": 79
+        }
+      },
+      "6": {
+        "start": {
+          "line": 7,
+          "column": 63
+        },
+        "end": {
+          "line": 7,
+          "column": 80
+        }
+      },
+      "7": {
+        "start": {
+          "line": 8,
+          "column": 34
+        },
+        "end": {
+          "line": 8,
+          "column": 60
+        }
+      },
+      "8": {
+        "start": {
+          "line": 11,
+          "column": 18
+        },
+        "end": {
+          "line": 11,
+          "column": 44
+        }
+      },
+      "9": {
+        "start": {
+          "line": 12,
+          "column": 2
+        },
+        "end": {
+          "line": 12,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "prefix",
+        "decl": {
+          "start": {
+            "line": 2,
+            "column": 9
+          },
+          "end": {
+            "line": 2,
+            "column": 15
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 39
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "line": 2
+      },
+      "1": {
+        "name": "constructor",
+        "decl": {
+          "start": {
+            "line": 5,
+            "column": 2
+          },
+          "end": {
+            "line": 5,
+            "column": 13
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 5,
+            "column": 29
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        },
+        "line": 5
+      },
+      "2": {
+        "name": "(anonymous_2)",
+        "decl": {
+          "start": {
+            "line": 6,
+            "column": 18
+          },
+          "end": {
+            "line": 6,
+            "column": 26
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 6,
+            "column": 51
+          },
+          "end": {
+            "line": 6,
+            "column": 81
+          }
+        },
+        "line": 6
+      },
+      "3": {
+        "name": "(anonymous_3)",
+        "decl": {
+          "start": {
+            "line": 7,
+            "column": 28
+          },
+          "end": {
+            "line": 7,
+            "column": 36
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 7,
+            "column": 61
+          },
+          "end": {
+            "line": 7,
+            "column": 82
+          }
+        },
+        "line": 7
+      },
+      "4": {
+        "name": "method",
+        "decl": {
+          "start": {
+            "line": 8,
+            "column": 2
+          },
+          "end": {
+            "line": 8,
+            "column": 8
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 8,
+            "column": 32
+          },
+          "end": {
+            "line": 8,
+            "column": null
+          }
+        },
+        "line": 8
+      },
+      "5": {
+        "name": "exercise",
+        "decl": {
+          "start": {
+            "line": 10,
+            "column": 16
+          },
+          "end": {
+            "line": 10,
+            "column": 24
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 10,
+            "column": 48
+          },
+          "end": {
+            "line": 13,
+            "column": null
+          }
+        },
+        "line": 10
+      }
+    },
+    "branchMap": {},
+    "s": {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0,
+      "9": 0
+    },
+    "f": {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 6,
+      "lastStatement": 10,
+      "seen": {
+        "s:1:23:1:24": 0,
+        "f:2:9:2:15": 0,
+        "s:2:41:2:58": 1,
+        "s:6:18:6:81": 2,
+        "s:7:28:7:82": 3,
+        "f:5:2:5:13": 1,
+        "s:5:31:5:50": 4,
+        "f:6:18:6:26": 2,
+        "s:6:53:6:79": 5,
+        "f:7:28:7:36": 3,
+        "s:7:63:7:80": 6,
+        "f:8:2:8:8": 4,
+        "s:8:34:8:60": 7,
+        "f:10:16:10:24": 5,
+        "s:11:18:11:44": 8,
+        "s:12:2:12:Infinity": 9
+      },
+      "fnNames": {}
+    }
+  },
+  "observed": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-imports194/.next-test-class-functions196-observed12-local-functions-development/subject.ts",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 1,
+          "column": 23
+        },
+        "end": {
+          "line": 1,
+          "column": null
+        }
+      },
+      "1": {
+        "start": {
+          "line": 2,
+          "column": 41
+        },
+        "end": {
+          "line": 2,
+          "column": 59
+        }
+      },
+      "2": {
+        "start": {
+          "line": 6,
+          "column": 18
+        },
+        "end": {
+          "line": 6,
+          "column": 82
+        }
+      },
+      "3": {
+        "start": {
+          "line": 7,
+          "column": 28
+        },
+        "end": {
+          "line": 7,
+          "column": 83
+        }
+      },
+      "4": {
+        "start": {
+          "line": 5,
+          "column": 31
+        },
+        "end": {
+          "line": 5,
+          "column": 51
+        }
+      },
+      "5": {
+        "start": {
+          "line": 6,
+          "column": 53
+        },
+        "end": {
+          "line": 6,
+          "column": 80
+        }
+      },
+      "6": {
+        "start": {
+          "line": 7,
+          "column": 63
+        },
+        "end": {
+          "line": 7,
+          "column": 81
+        }
+      },
+      "7": {
+        "start": {
+          "line": 8,
+          "column": 34
+        },
+        "end": {
+          "line": 8,
+          "column": 61
+        }
+      },
+      "8": {
+        "start": {
+          "line": 11,
+          "column": 18
+        },
+        "end": {
+          "line": 11,
+          "column": null
+        }
+      },
+      "9": {
+        "start": {
+          "line": 12,
+          "column": 2
+        },
+        "end": {
+          "line": 12,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "prefix",
+        "decl": {
+          "start": {
+            "line": 2,
+            "column": 9
+          },
+          "end": {
+            "line": 2,
+            "column": 16
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 29
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "line": 2
+      },
+      "1": {
+        "name": "constructor",
+        "decl": {
+          "start": {
+            "line": 5,
+            "column": 2
+          },
+          "end": {
+            "line": 5,
+            "column": 14
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 5,
+            "column": 29
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        },
+        "line": 5
+      },
+      "2": {
+        "name": "(anonymous_2)",
+        "decl": {
+          "start": {
+            "line": 6,
+            "column": 18
+          },
+          "end": {
+            "line": 6,
+            "column": 28
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 6,
+            "column": 41
+          },
+          "end": {
+            "line": 6,
+            "column": 82
+          }
+        },
+        "line": 6
+      },
+      "3": {
+        "name": "(anonymous_3)",
+        "decl": {
+          "start": {
+            "line": 7,
+            "column": 28
+          },
+          "end": {
+            "line": 7,
+            "column": 38
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 7,
+            "column": 51
+          },
+          "end": {
+            "line": 7,
+            "column": 83
+          }
+        },
+        "line": 7
+      },
+      "4": {
+        "name": "method",
+        "decl": {
+          "start": {
+            "line": 8,
+            "column": 2
+          },
+          "end": {
+            "line": 8,
+            "column": 9
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 8,
+            "column": 32
+          },
+          "end": {
+            "line": 8,
+            "column": null
+          }
+        },
+        "line": 8
+      },
+      "5": {
+        "name": "exercise",
+        "decl": {
+          "start": {
+            "line": 10,
+            "column": 16
+          },
+          "end": {
+            "line": 10,
+            "column": 25
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 10,
+            "column": 38
+          },
+          "end": {
+            "line": 13,
+            "column": null
+          }
+        },
+        "line": 10
+      }
+    },
+    "branchMap": {},
+    "s": {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0,
+      "9": 0
+    },
+    "f": {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 6,
+      "lastStatement": 10,
+      "seen": {
+        "s:1:23:1:Infinity": 0,
+        "f:2:9:2:16": 0,
+        "s:2:41:2:59": 1,
+        "s:6:18:6:82": 2,
+        "s:7:28:7:83": 3,
+        "f:5:2:5:14": 1,
+        "s:5:31:5:51": 4,
+        "f:6:18:6:28": 2,
+        "s:6:53:6:80": 5,
+        "f:7:28:7:38": 3,
+        "s:7:63:7:81": 6,
+        "f:8:2:8:9": 4,
+        "s:8:34:8:61": 7,
+        "f:10:16:10:25": 5,
+        "s:11:18:11:Infinity": 8,
+        "s:12:2:12:Infinity": 9
+      },
+      "fnNames": {}
+    }
+  },
+  "actualNative": {
+    "profile": {
+      "id": "class-callables",
+      "environment": "node",
+      "mode": "development",
+      "runtime": "nodejs",
+      "bundler": "turbopack"
+    },
+    "sourceHash": "d4a3d1732b92d5de905010b6162f30755bbd61b6c5add11304af40893a9f0cbc",
+    "entryId": "coverage-source:828d19118c1cd19cb696675bb09c81707481d9dede7d7156ddf6e86f87c5d7bf",
+    "revision": "1f221c60-2ba2-4894-a9b9-abb69929f769"
+  },
+  "rawFiles": {
+    "compiledInput": "99259-convert-2-input.v8",
+    "authoredInput": "99259-convert-3-input.v8",
+    "nativeInput": "99259-native-1-input.v8"
+  },
+  "codeSHA256": "7fd1527ed269df85670173eac682203440dbeaa5c25ad92791c0942d51ecd353",
+  "sourceSHA256": "d4a3d1732b92d5de905010b6162f30755bbd61b6c5add11304af40893a9f0cbc",
+  "allRawCountsHeld": true
+}

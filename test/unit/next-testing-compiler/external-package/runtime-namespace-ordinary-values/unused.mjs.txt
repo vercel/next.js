@@ -1,0 +1,1 @@
+globalThis.__ws2FUnused=(globalThis.__ws2FUnused||0)+1;export const value=globalThis.__ws2FUnused;

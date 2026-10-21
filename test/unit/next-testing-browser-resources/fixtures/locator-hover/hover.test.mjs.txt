@@ -1,0 +1,23 @@
+import { afterEach, expect, test } from 'vitest'
+import { page } from 'vitest/browser'
+import { createElement, useState } from 'react'
+import { createRoot } from 'react-dom/client'
+import { flushSync } from 'react-dom'
+let root
+afterEach(() => { if (root) { flushSync(() => root.unmount()); root=undefined } document.body.replaceChildren(); document.body.removeAttribute('style') })
+function settled(operation){try{return Promise.resolve(operation()).then(value=>({returnedUndefined:value===undefined}),error=>({name:error.name,message:error.message}))}catch(error){return Promise.resolve({name:error.name,message:error.message})}}
+function trace(element) { const events=[]; for(const type of ['pointerover','pointerenter','mouseover','mouseenter','pointermove','mousemove','pointerout','pointerleave','mouseout','mouseleave']) element.addEventListener(type,event=>events.push({type:event.type,constructor:event.constructor.name,target:event.target===element,currentTarget:event.currentTarget===element,relatedBody:event.relatedTarget===document.body,trusted:event.isTrusted,bubbles:event.bubbles,composed:event.composed,detail:event.detail,button:event.button,buttons:event.buttons,x:event.clientX,y:event.clientY,text:element.textContent}));return events }
+async function anchor(){document.body.style.cssText='margin:0;min-height:480px;position:relative';const button=document.createElement('button');button.textContent='Pointer anchor';button.style.cssText='position:absolute;left:20px;top:20px;width:80px;height:30px';document.body.append(button);await page.getByRole('button',{name:'Pointer anchor',exact:true}).click();return {element:button,events:trace(button)}}
+for(const method of ['hover','unhover']) for(const rendering of ['DOM','React']) {
+ test('late native '+method+' '+rendering,async()=>{
+  const origin=await anchor(),label='Late '+method+' '+rendering
+  const pending=settled(()=>page.getByRole('button',{name:label,exact:true})[method]({timeout:500}))
+  await Promise.resolve()
+  let button
+  if(rendering==='DOM') {button=document.createElement('button');button.setAttribute('aria-label',label);button.textContent='Hovered 0';button.style.cssText='position:absolute;left:200px;top:20px;width:80px;height:30px';button.addEventListener('mouseenter',()=>{button.textContent='Hovered 1'});document.body.append(button)}
+  else {function Button(){const [hovered,setHovered]=useState(false);return createElement('button',{'aria-label':label,onMouseEnter:()=>setHovered(true),style:{position:'absolute',left:'200px',top:'20px',width:'80px',height:'30px'}},'Hovered '+Number(hovered))};const container=document.createElement('div');document.body.append(container);root=createRoot(container);flushSync(()=>root.render(createElement(Button)));button=container.querySelector('button')}
+  const events=trace(button),outcome=await pending
+  console.log('HOVER_RAW '+JSON.stringify({name:method+' '+rendering,mode:process.env.NODE_ENV,connected:button.isConnected,label:button.getAttribute('aria-label'),text:button.textContent,events,anchorEvents:origin.events,outcome}))
+  expect(outcome).toEqual({returnedUndefined:true});expect(button.textContent).toBe(method==='hover'?'Hovered 1':'Hovered 0');expect(origin.events.some(event=>event.type==='mouseleave')).toBe(true);expect(events.every(event=>event.trusted&&event.target&&event.currentTarget)).toBe(true);expect(events.some(event=>event.type==='mouseenter')).toBe(method==='hover')
+ })
+}

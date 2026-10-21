@@ -11,7 +11,7 @@ use swc_core::{
 use turbo_rcstr::rcstr;
 use turbo_tasks::{FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType},
+    chunk::{AsyncModuleInfo, ChunkingContext},
     reference::{ModuleReference, ModuleReferences},
     resolve::ExternalType,
 };
@@ -21,6 +21,7 @@ use crate::{
     ast_path_trie::AstPathId,
     code_gen::{AstModifier, CodeGeneration, CodeGenerationHoistedStmt},
     references::esm::base::ReferencedAsset,
+    side_effect_optimization::reference::EcmascriptModulePartReference,
     utils::AstSyntaxContext,
 };
 
@@ -95,13 +96,7 @@ async fn get_inherit_async_referenced_asset(
     let Some(ty) = &trait_ref.chunking_type() else {
         return Ok(None);
     };
-    if !matches!(
-        ty,
-        ChunkingType::Parallel {
-            inherit_async: true,
-            ..
-        }
-    ) {
+    if !ty.is_inherit_async() {
         return Ok(None);
     };
     let referenced_asset: ReferencedAsset =
@@ -119,11 +114,36 @@ impl AsyncModule {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<AsyncModuleIdents>> {
         let async_module_info = async_module_info.await?;
+        let ordered_references = if let Some(graph) = async_module_info.runtime_import_demands {
+            let graph = graph.await?;
+            let mut references = graph
+                .edges
+                .iter()
+                .map(async |edge| Ok(edge.await?.reference))
+                .try_join()
+                .await?;
+            references.extend(
+                graph
+                    .native_imports
+                    .iter()
+                    .map(async |edge| Ok(edge.await?.reference))
+                    .try_join()
+                    .await?,
+            );
+            references
+        } else {
+            Vec::new()
+        };
 
         let reference_idents = references
             .await?
             .iter()
             .map(async |r| {
+                // These imports are already settled at their exact ordered readsite.
+                // Compiler-owned part references still need their normal namespace await.
+                if ordered_references.contains(r) {
+                    return Ok(None);
+                }
                 let Some(referenced_asset) = get_inherit_async_referenced_asset(*r).await? else {
                     return Ok(None);
                 };
@@ -196,29 +216,42 @@ impl AsyncModule {
 
     /// Returns
     #[turbo_tasks::function]
-    pub fn module_options(
+    pub async fn module_options(
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Vc<OptionAsyncModuleOptions> {
-        if async_module_info.is_none() {
-            return Vc::cell(None);
-        }
+    ) -> Result<Vc<OptionAsyncModuleOptions>> {
+        let Some(info) = async_module_info else {
+            return Ok(Vc::cell(None));
+        };
 
-        Vc::cell(Some(AsyncModuleOptions {
-            has_top_level_await: self.has_top_level_await,
+        let has_demands = if let Some(graph) = info.await?.runtime_import_demands {
+            !graph.await?.edges.is_empty()
+        } else {
+            false
+        };
+        Ok(Vc::cell(Some(AsyncModuleOptions {
+            has_top_level_await: self.has_top_level_await || has_demands,
             lower_async_to_generator: self.lower_async_to_generator,
-        }))
+        })))
     }
 }
 
+#[derive(Default)]
+pub(crate) struct AsyncModuleCodeGeneration {
+    pub before_static_demands: CodeGeneration,
+    pub after_imports: CodeGeneration,
+}
+
 impl AsyncModule {
-    pub async fn code_generation(
+    pub(crate) async fn code_generation(
         self: Vc<Self>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         references: Vc<ModuleReferences>,
+        part_references: &[ResolvedVc<EcmascriptModulePartReference>],
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<CodeGeneration> {
+    ) -> Result<AsyncModuleCodeGeneration> {
         let mut generated = CodeGeneration::empty();
+        let mut before_static_demands = CodeGeneration::empty();
         if self.await?.lower_async_to_generator {
             generated
                 .visitors
@@ -229,9 +262,78 @@ impl AsyncModule {
                 .get_async_idents(async_module_info, references, chunking_context)
                 .await?;
 
-            if !async_idents.is_empty() {
+            // Part namespaces are already instantiated before ordered static demands.
+            // Subscribe now so a rejected demand cannot leave those real promises unobserved;
+            // their result is still awaited after the ordered imports below.
+            let has_demands = if let Some(graph) = async_module_info.await?.runtime_import_demands {
+                !graph.await?.edges.is_empty()
+            } else {
+                false
+            };
+            let part_idents = if has_demands {
+                self.get_async_idents(
+                    async_module_info,
+                    Vc::cell(
+                        part_references
+                            .iter()
+                            .copied()
+                            .map(ResolvedVc::upcast)
+                            .collect(),
+                    ),
+                    chunking_context,
+                )
+                .await?
+            } else {
+                Vc::<AsyncModuleIdents>::cell(FxIndexSet::default()).await?
+            };
+            if !part_idents.is_empty() {
+                let idents = part_idents
+                    .iter()
+                    .map(|(ident, ctxt)| Ident::new(ident.clone().into(), DUMMY_SP, **ctxt))
+                    .collect::<Vec<_>>();
+
+                let [subscribe, await_parts] = [
+                    CodeGenerationHoistedStmt::new(
+                        rcstr!("__turbopack_async_part_dependencies__"),
+                        quote!(
+                            "var __turbopack_async_part_dependencies__ = __turbopack_handle_async_dependencies__($deps);"
+                                as Stmt,
+                            deps: Expr = Expr::Array(ArrayLit {
+                                span: DUMMY_SP,
+                                elems: idents
+                                    .iter()
+                                    .map(|ident| { Some(Expr::Ident(ident.clone()).into()) })
+                                    .collect(),
+                            })
+                        ),
+                    ),
+                    CodeGenerationHoistedStmt::new(
+                        rcstr!("__turbopack_async_part_dependencies__ await"),
+                        quote!(
+                            "($deps = __turbopack_async_part_dependencies__.then ? (await \
+                            __turbopack_async_part_dependencies__)() : __turbopack_async_part_dependencies__);" as Stmt,
+                            deps: AssignTarget = ArrayPat {
+                                span: DUMMY_SP,
+                                elems: idents
+                                    .into_iter()
+                                    .map(|ident| { Some(ident.into()) })
+                                    .collect(),
+                                optional: false,
+                                type_ann: None,
+                            }.into(),
+                        ),
+                    ),
+                ];
+                before_static_demands.hoisted_stmts.push(subscribe);
+                generated.hoisted_stmts.push(await_parts);
+            }
+            if async_idents
+                .iter()
+                .any(|ident| !part_idents.contains(ident))
+            {
                 let idents = async_idents
                     .iter()
+                    .filter(|ident| !part_idents.contains(*ident))
                     .map(|(ident, ctxt)| Ident::new(ident.clone().into(), DUMMY_SP, **ctxt))
                     .collect::<Vec<_>>();
 
@@ -264,16 +366,20 @@ impl AsyncModule {
                             }.into(),
                         )),
                 ]);
-                if self.await?.lower_async_to_generator {
-                    for statement in &mut generated.hoisted_stmts {
-                        statement.stmt.visit_mut_with(&mut LowerModuleAwait);
-                    }
-                }
-                return Ok(generated);
             }
         }
-
-        Ok(generated)
+        if self.await?.lower_async_to_generator {
+            for statement in &mut before_static_demands.hoisted_stmts {
+                statement.stmt.visit_mut_with(&mut LowerModuleAwait);
+            }
+            for statement in &mut generated.hoisted_stmts {
+                statement.stmt.visit_mut_with(&mut LowerModuleAwait);
+            }
+        }
+        Ok(AsyncModuleCodeGeneration {
+            before_static_demands,
+            after_imports: generated,
+        })
     }
 }
 

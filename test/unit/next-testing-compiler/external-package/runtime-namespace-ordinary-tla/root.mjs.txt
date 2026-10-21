@@ -1,0 +1,7 @@
+globalThis.__ws2FAsync=(globalThis.__ws2FAsync||0)+1;
+export const before=globalThis.__ws2FAsync;
+globalThis.__ws2FStart();
+await globalThis.__ws2FGate;
+export const after={before};
+export function read(){return after}
+export default after;

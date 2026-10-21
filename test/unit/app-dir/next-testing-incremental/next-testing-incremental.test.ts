@@ -1,9 +1,10 @@
 import { createHash } from 'crypto'
-import { execFileSync } from 'child_process'
+import { execFileSync, spawn } from 'child_process'
 import {
   mkdir,
   mkdtemp,
   readFile,
+  readdir,
   realpath,
   rm,
   symlink,
@@ -12,6 +13,8 @@ import {
 } from 'fs/promises'
 import { tmpdir } from 'os'
 import { basename, join } from 'path'
+import { retry } from 'next-test-utils'
+import type { ResultEvent } from 'next/dist/experimental/testing/reporting/events'
 import {
   readSourceDependencyAsset,
   selectSourceRelatedProjects,
@@ -126,6 +129,18 @@ describe('compiler-backed affected selection', () => {
 })
 
 describe('one-shot compiler source selection', () => {
+  it('selects production Node source consumers through the actual compiler graph', () => {
+    const stdout = execFileSync(
+      process.execPath,
+      [join(__dirname, 'production-related.cjs')],
+      { encoding: 'utf8', timeout: 150000 }
+    )
+    expect(stdout).toContain('"key":"alpha"')
+    expect(stdout).toContain('"key":"beta"')
+    expect(stdout).toContain('"key":"unrelated"')
+    expect(stdout).toContain('"key":"changed"')
+  }, 160000)
+
   let directory: string
   let projects: DiscoveredTestProject[]
   let plan: SourceSelectionPlan
@@ -321,3 +336,483 @@ describe('one-shot compiler source selection', () => {
     ).rejects.toThrow('missing-ref')
   })
 })
+
+interface RelatedWatchRow {
+  stage: string
+  cases?: { fullName: string; status: string; failureMessages: string[] }[]
+  outputs?: { case: string; value: number; shared: number; mode: string }[]
+  total?: number
+  passed?: number
+  success?: boolean
+  noNewReport?: boolean
+}
+
+interface RelatedWatchReport {
+  testResults: { assertionResults: NonNullable<RelatedWatchRow['cases']> }[]
+  next: { events: ResultEvent[] }
+  numTotalTests: number
+  numPassedTests: number
+  numFailedTests: number
+  success: boolean
+}
+
+it.each(['development', 'production'] as const)(
+  'retains related-watch discovery and selects actual %s source consumers',
+  async (mode) => {
+    const repo = join(__dirname, '../../../..')
+    const fixture = await mkdtemp(join(repo, '.next-related-watch-'))
+    const inputs = join(__dirname, 'related-watch')
+    const expected = (
+      JSON.parse(
+        await readFile(join(inputs, 'expected.json'), 'utf8')
+      ) as Record<typeof mode, RelatedWatchRow[]>
+    )[mode]
+    const originals = new Map<string, Buffer>()
+    for (const name of await readdir(inputs)) {
+      if (!name.endsWith('.txt')) continue
+      const bytes = await readFile(join(inputs, name))
+      originals.set(name.slice(0, -4), bytes)
+      await writeFile(join(fixture, name.slice(0, -4)), bytes)
+    }
+    await symlink(join(repo, 'node_modules'), join(fixture, 'node_modules'))
+    await writeFile(
+      join(fixture, 'next.config.mjs'),
+      'export default ' + JSON.stringify({ turbopack: { root: repo } }) + '\n'
+    )
+    await writeFile(
+      join(fixture, 'next.test.config.json'),
+      JSON.stringify({
+        maxWorkers: 1,
+        projects: [
+          {
+            name: 'related-watch',
+            environment: 'node',
+            mode,
+            include: ['*.test.mjs'],
+          },
+        ],
+      })
+    )
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      NODE_ENV: mode,
+      NEXT_TELEMETRY_DISABLED: '1',
+      FORCE_COLOR: '0',
+    }
+    delete env.CI
+    const outputFile = join(fixture, 'watch-result.json')
+    const child = spawn(
+      process.execPath,
+      [
+        join(repo, 'packages/next/dist/bin/next'),
+        'test',
+        fixture,
+        '--watch',
+        '--related',
+        'source-alpha.mjs',
+        '--reporter=default',
+        '--reporter=json',
+        '--outputFile',
+        outputFile,
+      ],
+      { cwd: fixture, env, stdio: ['ignore', 'pipe', 'pipe'] }
+    )
+    let stdout = ''
+    let stderr = ''
+    let failure: Error | undefined
+    let close:
+      | { code: number | null; signal: NodeJS.Signals | null }
+      | undefined
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk
+    })
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk
+    })
+    child.once('error', (error) => {
+      failure = error
+    })
+    child.once('close', (code, signal) => {
+      close = { code, signal }
+    })
+    const readiness = () =>
+      (stdout.match(/Waiting for file changes\.\.\./g) ?? []).length
+    let digest: string | undefined
+    let settled = 0
+    const history = []
+    async function readRun(row: (typeof expected)[number]) {
+      return retry(
+        async () => {
+          if (failure) throw failure
+          if (close)
+            throw new Error(
+              'Related watch exited before readiness: ' +
+                JSON.stringify({ close, stdout, stderr })
+            )
+          const raw = await readFile(outputFile)
+          const nextDigest = createHash('sha256').update(raw).digest('hex')
+          expect(nextDigest).not.toBe(digest)
+          expect(readiness()).toBeGreaterThan(settled)
+          const report: RelatedWatchReport = JSON.parse(raw.toString())
+          const cases = report.testResults
+            .flatMap((file) =>
+              file.assertionResults.map((test) => ({
+                fullName: test.fullName,
+                status: test.status,
+                failureMessages: test.failureMessages,
+              }))
+            )
+            .sort((a, b) => a.fullName.localeCompare(b.fullName))
+          const outputs = report.next.events
+            .filter((event) => event.type === 'output')
+            .flatMap((event) => event.text.split('\n'))
+            .filter((line) => line.startsWith('RELATED153:'))
+            .map((line) => JSON.parse(line.slice('RELATED153:'.length)))
+            .sort((a, b) => a.case.localeCompare(b.case))
+          expect({
+            cases,
+            outputs,
+            total: report.numTotalTests,
+            passed: report.numPassedTests,
+            success: report.success,
+          }).toEqual({
+            cases: row.cases,
+            outputs: row.outputs,
+            total: row.total,
+            passed: row.passed,
+            success: row.success,
+          })
+          expect(report.numFailedTests).toBe(0)
+          return { digest: nextDigest, settled: readiness() }
+        },
+        60000,
+        100,
+        'related source generation'
+      )
+    }
+    async function readUnrelatedSelection() {
+      await retry(
+        async () => {
+          if (failure) throw failure
+          expect(close).toBeUndefined()
+          expect(readiness()).toBeGreaterThan(settled)
+          expect(
+            createHash('sha256')
+              .update(await readFile(outputFile))
+              .digest('hex')
+          ).toBe(digest)
+        },
+        60000,
+        100,
+        'closed unrelated source selection'
+      )
+    }
+    try {
+      for (const row of expected) {
+        const edits: Record<string, readonly [string, string]> = {
+          'beta-edit': ['source-beta.mjs', 'export const value = 45\n'],
+          'shared-edit': ['shared.mjs', 'export const shared = 1\n'],
+          'unrelated-edit': ['unrelated.mjs', 'export const unused = 1\n'],
+          'alpha-edit': ['source-alpha.mjs', 'export const value = 44\n'],
+        }
+        const edit = edits[row.stage]
+        if (edit) await writeFile(join(fixture, edit[0]), edit[1])
+        if (row.noNewReport) {
+          await readUnrelatedSelection()
+          settled = readiness()
+        } else {
+          const observed = await readRun(row)
+          digest = observed.digest
+          settled = observed.settled
+        }
+        history.push(row.stage)
+      }
+      expect(history).toEqual([
+        'initial',
+        'beta-edit',
+        'shared-edit',
+        'unrelated-edit',
+        'alpha-edit',
+      ])
+      for (const name of ['alpha.test.mjs', 'beta.test.mjs', 'package.json'])
+        expect(await readFile(join(fixture, name))).toEqual(originals.get(name))
+      child.kill('SIGINT')
+      await retry(
+        () => expect(close).toEqual({ code: 130, signal: null }),
+        15000,
+        100,
+        'related watch cleanup'
+      )
+    } finally {
+      if (!close) {
+        child.kill('SIGTERM')
+        try {
+          await retry(
+            () => expect(close).toBeDefined(),
+            15000,
+            100,
+            'failed related watch cleanup'
+          )
+        } finally {
+          if (!close) {
+            child.kill('SIGKILL')
+            await retry(
+              () => expect(close).toBeDefined(),
+              5000,
+              100,
+              'forced related watch cleanup'
+            )
+          }
+        }
+      }
+      if (failure || close?.code !== 130)
+        console.error({ failure, close, stdout, stderr })
+      await rm(fixture, { recursive: true, force: true })
+    }
+  },
+  330000
+)
+
+it.each(['development', 'production'] as const)(
+  'retains changed-watch discovery and selects actual %s source consumers',
+  async (mode) => {
+    const repo = join(__dirname, '../../../..')
+    const fixture = await mkdtemp(join(repo, '.next-changed-watch-'))
+    const inputs = join(__dirname, 'related-watch')
+    const expected = (
+      JSON.parse(
+        await readFile(join(inputs, 'changed-watch.expected.json'), 'utf8')
+      ) as Record<typeof mode, RelatedWatchRow[]>
+    )[mode]
+    const originals = new Map<string, Buffer>()
+    for (const name of await readdir(inputs)) {
+      if (!name.endsWith('.txt')) continue
+      const bytes = await readFile(join(inputs, name))
+      originals.set(name.slice(0, -4), bytes)
+      await writeFile(join(fixture, name.slice(0, -4)), bytes)
+    }
+    await symlink(join(repo, 'node_modules'), join(fixture, 'node_modules'))
+    await writeFile(
+      join(fixture, 'next.config.mjs'),
+      'export default ' + JSON.stringify({ turbopack: { root: repo } }) + '\n'
+    )
+    await writeFile(
+      join(fixture, 'next.test.config.json'),
+      JSON.stringify({
+        maxWorkers: 1,
+        projects: [
+          {
+            name: 'changed-watch',
+            environment: 'node',
+            mode,
+            include: ['*.test.mjs'],
+          },
+        ],
+      })
+    )
+    await writeFile(
+      join(fixture, '.gitignore'),
+      'node_modules/\n.next-test*/\nwatch-result.json\n'
+    )
+    const git = (...args: string[]) =>
+      execFileSync(
+        'git',
+        [
+          '-c',
+          'core.hooksPath=/dev/null',
+          '-c',
+          'commit.gpgsign=false',
+          '-c',
+          'user.name=Test',
+          '-c',
+          'user.email=test@example.invalid',
+          ...args,
+        ],
+        { cwd: fixture, stdio: 'pipe' }
+      )
+    git('init', '-q')
+    git('add', '.')
+    git('commit', '-qm', 'changed watch baseline')
+    await writeFile(
+      join(fixture, 'source-alpha.mjs'),
+      'export const value = 42\n'
+    )
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      NODE_ENV: mode,
+      NEXT_TELEMETRY_DISABLED: '1',
+      FORCE_COLOR: '0',
+    }
+    delete env.CI
+    const outputFile = join(fixture, 'watch-result.json')
+    const child = spawn(
+      process.execPath,
+      [
+        join(repo, 'packages/next/dist/bin/next'),
+        'test',
+        fixture,
+        '--watch',
+        '--changed',
+        'HEAD',
+        '--reporter=default',
+        '--reporter=json',
+        '--outputFile',
+        outputFile,
+      ],
+      { cwd: fixture, env, stdio: ['ignore', 'pipe', 'pipe'] }
+    )
+    let stdout = ''
+    let stderr = ''
+    let failure: Error | undefined
+    let close:
+      | { code: number | null; signal: NodeJS.Signals | null }
+      | undefined
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk
+    })
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk
+    })
+    child.once('error', (error) => {
+      failure = error
+    })
+    child.once('close', (code, signal) => {
+      close = { code, signal }
+    })
+    const readiness = () =>
+      (stdout.match(/Waiting for file changes\.\.\./g) ?? []).length
+    let digest: string | undefined
+    let settled = 0
+    const history = []
+    async function readRun(row: (typeof expected)[number]) {
+      return retry(
+        async () => {
+          if (failure) throw failure
+          if (close)
+            throw new Error(
+              'Changed watch exited before readiness: ' +
+                JSON.stringify({ close, stdout, stderr })
+            )
+          const raw = await readFile(outputFile)
+          const nextDigest = createHash('sha256').update(raw).digest('hex')
+          expect(nextDigest).not.toBe(digest)
+          expect(readiness()).toBeGreaterThan(settled)
+          const report: RelatedWatchReport = JSON.parse(raw.toString())
+          const cases = report.testResults
+            .flatMap((file) =>
+              file.assertionResults.map((test) => ({
+                fullName: test.fullName,
+                status: test.status,
+                failureMessages: test.failureMessages,
+              }))
+            )
+            .sort((a, b) => a.fullName.localeCompare(b.fullName))
+          const outputs = report.next.events
+            .filter((event) => event.type === 'output')
+            .flatMap((event) => event.text.split('\n'))
+            .filter((line) => line.startsWith('RELATED153:'))
+            .map((line) => JSON.parse(line.slice('RELATED153:'.length)))
+            .sort((a, b) => a.case.localeCompare(b.case))
+          expect({
+            cases,
+            outputs,
+            total: report.numTotalTests,
+            passed: report.numPassedTests,
+            success: report.success,
+          }).toEqual({
+            cases: row.cases,
+            outputs: row.outputs,
+            total: row.total,
+            passed: row.passed,
+            success: row.success,
+          })
+          expect(report.numFailedTests).toBe(0)
+          return { digest: nextDigest, settled: readiness() }
+        },
+        60000,
+        100,
+        'changed source generation'
+      )
+    }
+    async function readUnrelatedSelection() {
+      await retry(
+        async () => {
+          if (failure) throw failure
+          expect(close).toBeUndefined()
+          expect(readiness()).toBeGreaterThan(settled)
+          expect(
+            createHash('sha256')
+              .update(await readFile(outputFile))
+              .digest('hex')
+          ).toBe(digest)
+        },
+        60000,
+        100,
+        'closed unrelated source selection'
+      )
+    }
+    try {
+      for (const row of expected) {
+        const edits: Record<string, readonly [string, string]> = {
+          'beta-edit': ['source-beta.mjs', 'export const value = 45\n'],
+          'shared-edit': ['shared.mjs', 'export const shared = 1\n'],
+          'unrelated-edit': ['unrelated.mjs', 'export const unused = 1\n'],
+          'alpha-edit': ['source-alpha.mjs', 'export const value = 44\n'],
+        }
+        const edit = edits[row.stage]
+        if (edit) await writeFile(join(fixture, edit[0]), edit[1])
+        if (row.noNewReport) {
+          await readUnrelatedSelection()
+          settled = readiness()
+        } else {
+          const observed = await readRun(row)
+          digest = observed.digest
+          settled = observed.settled
+        }
+        history.push(row.stage)
+      }
+      expect(history).toEqual([
+        'initial-alpha-modified',
+        'beta-edit',
+        'shared-edit',
+        'unrelated-edit',
+        'alpha-edit',
+      ])
+      for (const name of ['alpha.test.mjs', 'beta.test.mjs', 'package.json'])
+        expect(await readFile(join(fixture, name))).toEqual(originals.get(name))
+      child.kill('SIGINT')
+      await retry(
+        () => expect(close).toEqual({ code: 130, signal: null }),
+        15000,
+        100,
+        'changed watch cleanup'
+      )
+    } finally {
+      if (!close) {
+        child.kill('SIGTERM')
+        try {
+          await retry(
+            () => expect(close).toBeDefined(),
+            15000,
+            100,
+            'failed changed watch cleanup'
+          )
+        } finally {
+          if (!close) {
+            child.kill('SIGKILL')
+            await retry(
+              () => expect(close).toBeDefined(),
+              5000,
+              100,
+              'forced changed watch cleanup'
+            )
+          }
+        }
+      }
+      if (failure || close?.code !== 130)
+        console.error({ failure, close, stdout, stderr })
+      await rm(fixture, { recursive: true, force: true })
+    }
+  },
+  330000
+)

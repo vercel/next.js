@@ -1,0 +1,7 @@
+[
+  {
+    "name": "cancels every native factory without evaluating replacements",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

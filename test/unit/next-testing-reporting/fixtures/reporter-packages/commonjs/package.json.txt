@@ -1,0 +1,1 @@
+{"name": "@next-testing/reporter-commonjs", "version": "1.0.0", "type": "module", "exports": "./reporter.cjs"}

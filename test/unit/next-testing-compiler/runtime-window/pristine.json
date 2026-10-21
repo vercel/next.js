@@ -1,0 +1,28 @@
+{
+  "cases": [
+    {
+      "fullName": "observes typeof window after a real global stub",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "fullName": "restores authored window branches after the stub is removed",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "rows": [
+    {
+      "stage": "stubbed",
+      "initialType": "undefined",
+      "currentType": "object",
+      "marker": "authored-window"
+    },
+    {
+      "stage": "restored",
+      "initialType": "undefined",
+      "currentType": "undefined",
+      "marker": null
+    }
+  ]
+}

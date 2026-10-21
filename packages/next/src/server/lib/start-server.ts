@@ -142,6 +142,8 @@ export interface StartServerOptions {
   // this is dev-server only
   selfSignedCertificate?: SelfSignedCertificate
   serverFastRefresh?: boolean
+  /** Test-owned application servers must not mutate project agent documents. */
+  skipAgentFiles?: boolean
   /** Internal Next test-runner input; never loaded from user configuration. */
   browserFixtureHost?: BrowserFixtureHost
 }
@@ -209,6 +211,7 @@ export async function startServer(
     selfSignedCertificate,
     serverFastRefresh,
     browserFixtureHost,
+    skipAgentFiles,
   } = serverOptions
   if (browserFixtureHost && !isDev) {
     throw new Error(
@@ -536,35 +539,39 @@ export async function startServer(
             partialPrefetching: initResult.partialPrefetching,
           })
 
-          logAgentFileSync(
-            await syncAgentRulesForDev(dir, initResult.agentRules !== false),
-            (files) =>
-              `Generated ${files} for AI agents. Set \`agentRules: false\` in next.config to disable.`,
-            (files) =>
-              `Removed agent rules from ${files} because \`agentRules\` is disabled.`
-          )
-
-          if (!isCI) {
-            const { traceGlobals } =
-              require('../../trace/shared') as typeof import('../../trace/shared')
-            const telemetry = traceGlobals.get('telemetry') as
-              | InstanceType<typeof import('../../telemetry/storage').Telemetry>
-              | undefined
-            const agentFeedbackConfigured = initResult.agentFeedback === true
-            const telemetryEnabled = telemetry?.isEnabled === true
-
+          if (!skipAgentFiles) {
             logAgentFileSync(
-              await syncAgentFeedbackForDev(
-                dir,
-                agentFeedbackConfigured && telemetryEnabled
-              ),
+              await syncAgentRulesForDev(dir, initResult.agentRules !== false),
               (files) =>
-                `Generated agent feedback instructions in ${files}. Set \`experimental.agentFeedback: false\` in next.config to disable.`,
+                `Generated ${files} for AI agents. Set \`agentRules: false\` in next.config to disable.`,
               (files) =>
-                agentFeedbackConfigured
-                  ? `Removed agent feedback instructions from ${files} because Next.js Telemetry is disabled.`
-                  : `Removed agent feedback instructions from ${files} because \`experimental.agentFeedback\` is disabled.`
+                `Removed agent rules from ${files} because \`agentRules\` is disabled.`
             )
+
+            if (!isCI) {
+              const { traceGlobals } =
+                require('../../trace/shared') as typeof import('../../trace/shared')
+              const telemetry = traceGlobals.get('telemetry') as
+                | InstanceType<
+                    typeof import('../../telemetry/storage').Telemetry
+                  >
+                | undefined
+              const agentFeedbackConfigured = initResult.agentFeedback === true
+              const telemetryEnabled = telemetry?.isEnabled === true
+
+              logAgentFileSync(
+                await syncAgentFeedbackForDev(
+                  dir,
+                  agentFeedbackConfigured && telemetryEnabled
+                ),
+                (files) =>
+                  `Generated agent feedback instructions in ${files}. Set \`experimental.agentFeedback: false\` in next.config to disable.`,
+                (files) =>
+                  agentFeedbackConfigured
+                    ? `Removed agent feedback instructions from ${files} because Next.js Telemetry is disabled.`
+                    : `Removed agent feedback instructions from ${files} because \`experimental.agentFeedback\` is disabled.`
+              )
+            }
           }
         }
 

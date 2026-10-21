@@ -1,0 +1,25 @@
+import { test, expect, vi } from 'vitest'
+vi.mock('path', () => { globalThis.ws2CancelledCalls = (globalThis.ws2CancelledCalls ?? 0) + 1; return { join: () => 'cancelled' } })
+vi.unmock('node:path')
+vi.mock('node:os', () => { globalThis.ws2KeptCalls = (globalThis.ws2KeptCalls ?? 0) + 1; return { platform: () => 'kept' } })
+import * as path from 'path'
+import * as prefixed from 'node:path'
+import * as os from 'os'
+
+test('builtin-unmock-after', async () => {
+  const actual = await vi.importActual('node:path')
+  const dynamic = await import('node:path')
+  const descriptor = Object.getOwnPropertyDescriptor(path, 'join')
+  console.log('WS2_EXTERNAL_BUILTIN_UNMOCK:' + JSON.stringify({
+    value: path.join('alpha', 'beta'), prefixedValue: prefixed.join('alpha', 'beta'),
+    dynamicValue: dynamic.join('alpha', 'beta'), actual: actual.posix.join('alpha', 'beta'),
+    identity: path === prefixed, dynamicIdentity: path === dynamic,
+    actualIdentity: path === actual, cancelledCalls: globalThis.ws2CancelledCalls ?? 0,
+    keptCalls: globalThis.ws2KeptCalls ?? 0, os: os.platform(), 
+    keys: Object.keys(path), prototypeNull: Object.getPrototypeOf(path) === null,
+    tag: path[Symbol.toStringTag] ?? null,
+    descriptor: { get: typeof descriptor.get, writable: descriptor.writable ?? null,
+      enumerable: descriptor.enumerable, configurable: descriptor.configurable }
+  }))
+  expect(actual.posix.join('alpha', 'beta')).toBe('alpha/beta')
+})

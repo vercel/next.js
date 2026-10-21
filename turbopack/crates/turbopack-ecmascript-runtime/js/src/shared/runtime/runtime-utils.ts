@@ -543,7 +543,13 @@ const getProto: (obj: any) => any = Object.getPrototypeOf
   : (obj) => obj.__proto__
 
 /** Prototypes that are not expanded for exports */
-const LEAF_PROTOTYPES = [null, getProto({}), getProto([]), getProto(getProto)]
+const LEAF_PROTOTYPES = [
+  null,
+  getProto({}),
+  getProto([]),
+  getProto(getProto),
+  Promise.prototype,
+]
 
 /**
  * @param raw

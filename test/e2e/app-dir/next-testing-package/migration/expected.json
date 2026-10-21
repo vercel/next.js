@@ -1,0 +1,15 @@
+[
+  {
+    "language": "JavaScript",
+    "setupCalls": 1,
+    "beforeEachCalls": 1,
+    "calls": [[21]],
+    "label": "installed consumer"
+  },
+  {
+    "language": "TypeScript",
+    "setupCalls": 1,
+    "beforeEachCalls": 1,
+    "label": "installed consumer"
+  }
+]

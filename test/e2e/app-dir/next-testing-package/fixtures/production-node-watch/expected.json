@@ -1,0 +1,46 @@
+{
+  "caseFields": [
+    {
+      "fullName": "ordinary production Node watch retains fresh source and project identity",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "generations": [
+    {
+      "value": "source-one",
+      "dependency": "dependency-one",
+      "environment": "production",
+      "projectName": "production-node-one",
+      "executions": 1
+    },
+    {
+      "value": "source-two",
+      "dependency": "dependency-one",
+      "environment": "production",
+      "projectName": "production-node-one",
+      "executions": 1
+    },
+    {
+      "value": "source-two",
+      "dependency": "dependency-two",
+      "environment": "production",
+      "projectName": "production-node-one",
+      "executions": 1
+    },
+    {
+      "value": "source-two",
+      "dependency": "dependency-two",
+      "environment": "production",
+      "projectName": "production-node-two",
+      "executions": 1
+    },
+    {
+      "value": "source-two",
+      "dependency": "dependency-two",
+      "environment": "production",
+      "projectName": "production-node-two",
+      "executions": 1
+    }
+  ]
+}

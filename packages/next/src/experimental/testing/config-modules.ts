@@ -5,6 +5,7 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import globOriginal from 'next/dist/compiled/glob'
 import type { TestConfig, TestProjectConfig } from './config'
+import { assignBrowserInstanceIds } from './browser-instances'
 import { inheritGlobalTestSequence } from './runner/sequence'
 import { randomUUID } from 'node:crypto'
 import { openCompilerTransformBroker } from './compiler/transform-broker'
@@ -299,6 +300,16 @@ export async function openTestConfigModule(
       get compilerTransformInputs() {
         return [...transformInputs]
       },
+      retainForWatch(lifetime: AbortSignal) {
+        if (closing || closed || controller.signal.aborted)
+          throw new Error(
+            'The retained test configuration realm is unavailable; restart test watch.'
+          )
+        ownerSignal?.removeEventListener('abort', cancel)
+        ownerSignal = lifetime
+        if (ownerSignal.aborted) cancel()
+        else ownerSignal.addEventListener('abort', cancel, { once: true })
+      },
       retainCompilerTransformsForWatch(lifetime: AbortSignal) {
         if (!transformBroker || closing || closed || controller.signal.aborted)
           throw new Error(
@@ -442,6 +453,7 @@ export async function openTestProjectModules(
   const compilerRoot = await realpath(projectDir)
   const realms: ConfigRealm[] = []
   const owners = new Map<string, ConfigRealm>()
+  const projectRealms = new Map<TestProjectConfig, ConfigRealm>()
   const configs: TestProjectConfig[] = []
   let disposing: Promise<void> | undefined
   function dispose() {
@@ -467,17 +479,20 @@ export async function openTestProjectModules(
     // not inherit these defaults; only the root's provided context is shared.
     for (const [index, definition] of definitions.entries()) {
       if (typeof definition === 'string') continue
-      const inline = normalize({
+      const inlineProjects = normalize({
         ...value,
         test: { ...defaults, projects: [definition] },
-      }).projects[0]
-      if (
-        record(definition) &&
-        !(record(definition.test) ? definition.test.name : definition.name)
-      ) {
-        inline.profile.id = `project-${index}`
+      }).projects
+      for (const inline of inlineProjects) {
+        if (
+          !inline.browserInstance &&
+          record(definition) &&
+          !(record(definition.test) ? definition.test.name : definition.name)
+        ) {
+          inline.profile.id = `project-${index}`
+        }
+        configs.push(inline)
       }
-      configs.push(inline)
     }
     const files = await resolveTestProjectConfigs(
       definitions,
@@ -544,22 +559,20 @@ export async function openTestProjectModules(
         ...compilerOptions,
         test: { ...settings, name },
       })
-      const project = config.projects[0]
-      project.sequence = inheritGlobalTestSequence(
-        project.sequence,
-        validated.projects[0].sequence
-      )
-      if (realm.compilerAliases) project.compilerAliases = realm.compilerAliases
-      configs.push(project)
-      owners.set(project.profile.id, realm)
-    }
-    const names = new Set<string>()
-    for (const project of configs) {
-      if (names.has(project.profile.id)) {
-        throw new Error(`Duplicate project name "${project.profile.id}".`)
+      for (const project of config.projects) {
+        project.sequence = inheritGlobalTestSequence(
+          project.sequence,
+          validated.projects[0].sequence
+        )
+        if (realm.compilerAliases)
+          project.compilerAliases = realm.compilerAliases
+        configs.push(project)
+        projectRealms.set(project, realm)
       }
-      names.add(project.profile.id)
     }
+    assignBrowserInstanceIds(configs)
+    for (const [project, realm] of projectRealms)
+      owners.set(project.profile.id, realm)
     if (!configs.length)
       throw new Error('No test projects matched the project definitions.')
     return {

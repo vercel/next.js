@@ -1,0 +1,12 @@
+[
+  {
+    "name": "pending compiled original loader rejection false",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "pending compiled original loader rejection true",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

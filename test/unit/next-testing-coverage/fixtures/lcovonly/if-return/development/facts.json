@@ -1,0 +1,337 @@
+{
+  "file": "/private/tmp/next-testing-parallel-20261019/tooling156/.next-test-lcov-map150-development/subject.js",
+  "model": {
+    "path": "/private/tmp/next-testing-parallel-20261019/tooling156/.next-test-lcov-map150-development/subject.js",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 1,
+          "column": 32
+        },
+        "end": {
+          "line": 1,
+          "column": 64
+        }
+      },
+      "1": {
+        "start": {
+          "line": 1,
+          "column": 47
+        },
+        "end": {
+          "line": 1,
+          "column": 64
+        }
+      },
+      "2": {
+        "start": {
+          "line": 1,
+          "column": 65
+        },
+        "end": {
+          "line": 1,
+          "column": 81
+        }
+      },
+      "3": {
+        "start": {
+          "line": 2,
+          "column": 22
+        },
+        "end": {
+          "line": 2,
+          "column": null
+        }
+      },
+      "4": {
+        "start": {
+          "line": 2,
+          "column": 31
+        },
+        "end": {
+          "line": 2,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "choose",
+        "decl": {
+          "start": {
+            "line": 1,
+            "column": 16
+          },
+          "end": {
+            "line": 1,
+            "column": 22
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 30
+          },
+          "end": {
+            "line": 1,
+            "column": null
+          }
+        },
+        "line": 1
+      },
+      "1": {
+        "name": "(anonymous_1)",
+        "decl": {
+          "start": {
+            "line": 2,
+            "column": 22
+          },
+          "end": {
+            "line": 2,
+            "column": 27
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 31
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "line": 2
+      }
+    },
+    "branchMap": {
+      "0": {
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 32
+          },
+          "end": {
+            "line": 1,
+            "column": 64
+          }
+        },
+        "type": "if",
+        "locations": [
+          {
+            "start": {
+              "line": 1,
+              "column": 32
+            },
+            "end": {
+              "line": 1,
+              "column": 64
+            }
+          },
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 1
+      }
+    },
+    "s": {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0
+    },
+    "f": {
+      "0": 0,
+      "1": 0
+    },
+    "b": {
+      "0": [0, 0]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 2,
+      "lastStatement": 5,
+      "seen": {
+        "f:1:16:1:22": 0,
+        "b:1:32:1:64:undefined:undefined:undefined:undefined": 0,
+        "s:1:32:1:64": 0,
+        "s:1:47:1:64": 1,
+        "s:1:65:1:81": 2,
+        "s:2:22:2:Infinity": 3,
+        "f:2:22:2:27": 1,
+        "s:2:31:2:Infinity": 4
+      },
+      "fnNames": {}
+    }
+  },
+  "observed": {
+    "path": "/private/tmp/next-testing-parallel-20261019/tooling156/.next-test-lcov-map150-development/subject.js",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 1,
+          "column": 32
+        },
+        "end": {
+          "line": 1,
+          "column": 65
+        }
+      },
+      "1": {
+        "start": {
+          "line": 1,
+          "column": 47
+        },
+        "end": {
+          "line": 1,
+          "column": 65
+        }
+      },
+      "2": {
+        "start": {
+          "line": 1,
+          "column": 65
+        },
+        "end": {
+          "line": 1,
+          "column": 82
+        }
+      },
+      "3": {
+        "start": {
+          "line": 2,
+          "column": 22
+        },
+        "end": {
+          "line": 2,
+          "column": null
+        }
+      },
+      "4": {
+        "start": {
+          "line": 2,
+          "column": 31
+        },
+        "end": {
+          "line": 2,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "choose",
+        "decl": {
+          "start": {
+            "line": 1,
+            "column": 16
+          },
+          "end": {
+            "line": 1,
+            "column": 23
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 28
+          },
+          "end": {
+            "line": 1,
+            "column": null
+          }
+        },
+        "line": 1
+      },
+      "1": {
+        "name": "(anonymous_1)",
+        "decl": {
+          "start": {
+            "line": 2,
+            "column": 22
+          },
+          "end": {
+            "line": 2,
+            "column": 31
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 31
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "line": 2
+      }
+    },
+    "branchMap": {
+      "0": {
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 32
+          },
+          "end": {
+            "line": 1,
+            "column": 65
+          }
+        },
+        "type": "if",
+        "locations": [
+          {
+            "start": {
+              "line": 1,
+              "column": 32
+            },
+            "end": {
+              "line": 1,
+              "column": 65
+            }
+          },
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 1
+      }
+    },
+    "s": {
+      "0": 1,
+      "1": 1,
+      "2": 0,
+      "3": 1,
+      "4": 1
+    },
+    "f": {
+      "0": 1,
+      "1": 1
+    },
+    "b": {
+      "0": [1, 0]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 2,
+      "lastStatement": 5,
+      "seen": {
+        "f:1:16:1:23": 0,
+        "b:1:32:1:65:undefined:undefined:undefined:undefined": 0,
+        "s:1:32:1:65": 0,
+        "s:1:47:1:65": 1,
+        "s:1:65:1:82": 2,
+        "s:2:22:2:Infinity": 3,
+        "f:2:22:2:31": 1,
+        "s:2:31:2:Infinity": 4
+      },
+      "fnNames": {}
+    }
+  }
+}

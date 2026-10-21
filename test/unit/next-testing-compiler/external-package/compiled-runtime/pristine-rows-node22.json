@@ -1,0 +1,126 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_COMPILED_RUNTIME_RETRY",
+    "value": {
+      "calls": 3,
+      "errors": [
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "isCause": false,
+          "causeName": "Error",
+          "causeMessage": "owned compiled factory rejection",
+          "causeIdentity": true
+        },
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "isCause": false,
+          "causeName": "Error",
+          "causeMessage": "owned compiled factory rejection",
+          "causeIdentity": true
+        },
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "isCause": false,
+          "causeName": "Error",
+          "causeMessage": "owned compiled factory rejection",
+          "causeIdentity": true
+        }
+      ],
+      "errorIdentity": [false, false, false],
+      "originalIdentity": false,
+      "originalValues": [19, 19],
+      "originalEvaluations": [1, 2]
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_COMPILED_RUNTIME_PENDING_RESOLVE",
+    "value": {
+      "twoFactoriesEntered": false,
+      "callsWhileHeld": 1,
+      "calls": 1,
+      "secondOriginalIdentity": true,
+      "secondOriginalDefault": true,
+      "secondOriginalValue": 19,
+      "firstIndex": 1,
+      "secondIndex": null,
+      "laterIndex": 1,
+      "resetIndex": 1,
+      "valuesIdentity": [false, true, true],
+      "errorsIdentity": [true, true, true],
+      "errors": [null, null, null, null],
+      "originalIdentity": false,
+      "originalValues": [19, 19],
+      "originalEvaluations": [2, 3]
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_COMPILED_RUNTIME_PENDING_REJECT",
+    "value": {
+      "twoFactoriesEntered": false,
+      "callsWhileHeld": 1,
+      "calls": 3,
+      "secondOriginalIdentity": true,
+      "secondOriginalDefault": true,
+      "secondOriginalValue": 19,
+      "firstIndex": null,
+      "secondIndex": null,
+      "laterIndex": null,
+      "resetIndex": null,
+      "valuesIdentity": [false, true, true],
+      "errorsIdentity": [false, false, false],
+      "errors": [
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "isCause": false,
+          "causeName": "Error",
+          "causeMessage": "held compiled factory rejection",
+          "causeIdentity": true
+        },
+        null,
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "isCause": false,
+          "causeName": "Error",
+          "causeMessage": "held compiled factory rejection",
+          "causeIdentity": true
+        },
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "isCause": false,
+          "causeName": "Error",
+          "causeMessage": "held compiled factory rejection",
+          "causeIdentity": true
+        }
+      ],
+      "originalIdentity": false,
+      "originalValues": [19, 19],
+      "originalEvaluations": [3, 4]
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_COMPILED_RUNTIME_COLD_PENDING",
+    "value": {
+      "originalEnteredWhileHeld": true,
+      "callsWhileHeld": 1,
+      "calls": 1,
+      "evaluationsWhileHeld": 1,
+      "events": ["factory:1", "original:1", "original:2"],
+      "values": [79, 29, 79, 79, 29],
+      "mockIdentity": [false, true, true],
+      "originalIdentity": false,
+      "originalEvaluations": [1, 2],
+      "firstError": null,
+      "secondError": null
+    }
+  }
+]

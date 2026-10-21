@@ -1,0 +1,39 @@
+[
+  {
+    "stream": "stdout",
+    "value": {
+      "label": "object",
+      "sameOuter": false,
+      "laterSameOuter": false,
+      "sameNamespace": true,
+      "laterSameNamespace": true,
+      "sameDefault": true,
+      "evaluations": 1
+    }
+  },
+  {
+    "stream": "stdout",
+    "value": {
+      "label": "then",
+      "sameOuter": false,
+      "laterSameOuter": false,
+      "left": "then value",
+      "right": "then value",
+      "later": "then value",
+      "calls": 1
+    }
+  },
+  {
+    "stream": "stdout",
+    "value": {
+      "label": "rejection",
+      "sameOuter": false,
+      "statuses": ["rejected", "rejected"],
+      "names": ["Error", "Error"],
+      "messages": ["original then failure", "original then failure"],
+      "sameError": true,
+      "laterSameError": true,
+      "calls": 1
+    }
+  }
+]

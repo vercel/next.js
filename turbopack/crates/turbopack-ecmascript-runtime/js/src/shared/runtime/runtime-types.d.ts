@@ -135,6 +135,8 @@ type ExternalImport = (
 ) => Promise<Exports | EsmNamespaceObject>
 
 interface Module {
+  /** Set only by a certified completed CommonJS namespace publication. */
+  commonJsNamespacePublished?: true
   exports: Function | Exports | Promise<Exports> | AsyncModulePromise
   error: Error | undefined
   id: ModuleId
@@ -162,6 +164,7 @@ interface TurbopackBaseContext<M> {
     ancestors: readonly ModuleId[],
     load: () => unknown
   ) => ReturnType<EsmImport>
+  E: (id: ModuleId, expected: Module) => Exports | undefined
   s: EsmExport
   S: EsmReexport
   j: DynamicExport

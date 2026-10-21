@@ -1,0 +1,28 @@
+[
+  {
+    "event": "module-end",
+    "file": "first.test.mjs",
+    "state": "passed"
+  },
+  {
+    "event": "module-end",
+    "file": "second.test.mjs",
+    "state": "passed"
+  },
+  {
+    "event": "run-end",
+    "reason": "passed",
+    "files": ["first.test.mjs", "second.test.mjs"],
+    "states": ["passed", "passed"],
+    "errors": [
+      {
+        "name": "Error",
+        "message": "module hook rejected"
+      }
+    ],
+    "sameObjects": [true, true]
+  },
+  {
+    "event": "close"
+  }
+]

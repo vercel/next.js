@@ -1,0 +1,27 @@
+import { afterEach, expect, test } from 'vitest'
+import { page } from 'vitest/browser'
+import { createElement, useState } from 'react'
+import { createRoot } from 'react-dom/client'
+import { flushSync } from 'react-dom'
+let root
+afterEach(() => { if (root) { flushSync(() => root.unmount()); root=undefined } document.body.replaceChildren() })
+test('negative nth retains actual ordered node identities and bounds', () => {
+  const nodes=['First','Second','Third'].map(text => {const button=document.createElement('button');button.textContent=text;document.body.append(button);return button})
+  const query=page.getByRole('button')
+  const rows=[-4,-3,-2,-1,0,1,2,3].map(index => ({index,names:query.nth(index).elements().map(node=>node.textContent),identities:query.nth(index).elements().map(node=>nodes.indexOf(node))}))
+  const last=query.last().elements().map(node=>node.textContent)
+  console.log('LOCATOR_NTH_RAW '+JSON.stringify({name:'ordered negative queries',mode:process.env.NODE_ENV,rows,last}))
+  expect(rows).toEqual([{index:-4,names:[],identities:[]},{index:-3,names:['First'],identities:[0]},{index:-2,names:['Second'],identities:[1]},{index:-1,names:['Third'],identities:[2]},{index:0,names:['First'],identities:[0]},{index:1,names:['Second'],identities:[1]},{index:2,names:['Third'],identities:[2]},{index:3,names:[],identities:[]}])
+  expect(last).toEqual(['Third'])
+})
+test('negative nth click uses the actual controlled React last button', async () => {
+  function Buttons(){const [clicked,setClicked]=useState('none');return createElement('div',null,['First','Second','Third'].map(name=>createElement('button',{key:name,onClick:()=>setClicked(name)},name)),createElement('p',null,clicked))}
+  const container=document.createElement('div');document.body.append(container);root=createRoot(container);flushSync(()=>root.render(createElement(Buttons)))
+  const nodes=[...container.querySelectorAll('button')],events=[]
+  for(const node of nodes)for(const type of ['pointerdown','mousedown','pointerup','mouseup','click'])node.addEventListener(type,event=>events.push({type:event.type,trusted:event.isTrusted,target:nodes.indexOf(event.target),currentTarget:nodes.indexOf(event.currentTarget),bubbles:event.bubbles,composed:event.composed,button:event.button,buttons:event.buttons}))
+  let outcome
+  try{outcome={undefinedReturn:await page.getByRole('button').nth(-1).click({timeout:500})===undefined}}catch(error){outcome={name:error.name,message:error.message}}
+  const selected=container.querySelector('p').textContent
+  console.log('LOCATOR_NTH_RAW '+JSON.stringify({name:'controlled negative click',mode:process.env.NODE_ENV,outcome,selected,events}))
+  expect(outcome).toEqual({undefinedReturn:true});expect(selected).toBe('Third');expect(events.every(event=>event.target===2&&event.currentTarget===2&&event.trusted)).toBe(true)
+})

@@ -1,0 +1,1 @@
+{"name": "next-testing-reporter-package", "version": "1.0.0", "type": "module", "exports": {"import": "./reporter.mjs", "require": "./wrong.cjs"}}

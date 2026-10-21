@@ -1,0 +1,1 @@
+import {before,read as readPeer,peek} from './peer.mjs';export const evaluation=1;export const token={count:0};export function read(){return token.count};export const observations=before;export function peerRead(){return readPeer()};export function peekRoot(){return peek()};

@@ -1,0 +1,22 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_UNMOCK",
+    "value": {
+      "cjsCalls": 1,
+      "esmCalls": 1,
+      "activeCalls": 1,
+      "common": 73,
+      "esm": 74,
+      "active": "mock-active",
+      "commonIdentity": true,
+      "esmIdentity": true,
+      "actual": 19,
+      "actualIdentity": false,
+      "commonTag": null,
+      "commonKeys": ["value"],
+      "esmTag": null,
+      "esmKeys": ["value"]
+    }
+  }
+]

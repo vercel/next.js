@@ -1,0 +1,4 @@
+export function call(fn: (value: number) => number) { return fn(2) }
+export function run() { return call((value: number) => value + 1) }
+export function block(values: number[]) { return values.map((value: number) => { return value * 2 }) }
+export async function asynchronous(values: number[]) { return Promise.all(values.map(async (value: number) => value * 2)) }

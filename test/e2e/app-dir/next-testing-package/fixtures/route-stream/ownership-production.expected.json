@@ -1,0 +1,538 @@
+[
+  {
+    "group": "cancel",
+    "kind": "native",
+    "format": "html",
+    "response": {
+      "pathname": "/acme/stream-owner/alpha/c",
+      "search": "?tag=one&tag=two&unicode=%E2%9C%93&redirect=temporary",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "location": null,
+      "subject": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"],
+        "root": "acme",
+        "tag": ["one", "two"],
+        "unicode": "✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "rootLayout": true,
+      "nestedLayout": true,
+      "provider": true,
+      "fallback": true,
+      "redirectDigest": null,
+      "refresh": null
+    },
+    "after": {
+      "request": "cancel-native-html",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value",
+      "outcome": "fulfilled"
+    },
+    "following": {
+      "pathname": "/acme/stream-owner/alpha/c",
+      "search": "?tag=one&tag=two&unicode=%E2%9C%93",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "location": null,
+      "subject": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"],
+        "root": "acme",
+        "tag": ["one", "two"],
+        "unicode": "✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "rootLayout": true,
+      "nestedLayout": true,
+      "provider": true,
+      "fallback": false,
+      "redirectDigest": null,
+      "refresh": null
+    },
+    "followingAfter": {
+      "request": "following-cancel-native-html",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value",
+      "outcome": "fulfilled"
+    },
+    "barrier": {
+      "held": true,
+      "released": false
+    }
+  },
+  {
+    "group": "cancel",
+    "kind": "native",
+    "format": "flight",
+    "response": {
+      "pathname": "/acme/stream-owner/alpha/c",
+      "search": "?tag=one&tag=two&unicode=%E2%9C%93&redirect=temporary&_rsc=",
+      "status": 200,
+      "contentType": "text/x-component",
+      "location": null,
+      "subject": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"],
+        "root": "acme",
+        "tag": ["one", "two"],
+        "unicode": "✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "rootLayout": true,
+      "nestedLayout": true,
+      "provider": true,
+      "fallback": true,
+      "redirectDigest": null,
+      "refresh": null
+    },
+    "after": {
+      "request": "cancel-native-flight",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value",
+      "outcome": "fulfilled"
+    },
+    "following": {
+      "pathname": "/acme/stream-owner/alpha/c",
+      "search": "?tag=one&tag=two&unicode=%E2%9C%93&_rsc=",
+      "status": 200,
+      "contentType": "text/x-component",
+      "location": null,
+      "subject": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"],
+        "root": "acme",
+        "tag": ["one", "two"],
+        "unicode": "✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "rootLayout": true,
+      "nestedLayout": true,
+      "provider": true,
+      "fallback": false,
+      "redirectDigest": null,
+      "refresh": null
+    },
+    "followingAfter": {
+      "request": "following-cancel-native-flight",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value",
+      "outcome": "fulfilled"
+    },
+    "barrier": {
+      "held": true,
+      "released": false
+    }
+  },
+  {
+    "group": "cancel",
+    "kind": "explicit",
+    "format": "html",
+    "response": {
+      "pathname": "/acme/stream-owner/alpha/c",
+      "search": "?tag=one&tag=two&unicode=%E2%9C%93&redirect=temporary",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "location": null,
+      "subject": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"],
+        "root": "acme",
+        "tag": ["one", "two"],
+        "unicode": "✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "rootLayout": true,
+      "nestedLayout": true,
+      "provider": true,
+      "fallback": true,
+      "redirectDigest": null,
+      "refresh": null
+    },
+    "after": {
+      "request": "cancel-explicit-html",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value",
+      "outcome": "fulfilled"
+    },
+    "following": {
+      "pathname": "/acme/stream-owner/alpha/c",
+      "search": "?tag=one&tag=two&unicode=%E2%9C%93",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "location": null,
+      "subject": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"],
+        "root": "acme",
+        "tag": ["one", "two"],
+        "unicode": "✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "rootLayout": true,
+      "nestedLayout": true,
+      "provider": true,
+      "fallback": false,
+      "redirectDigest": null,
+      "refresh": null
+    },
+    "followingAfter": {
+      "request": "following-cancel-explicit-html",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value",
+      "outcome": "fulfilled"
+    },
+    "barrier": {
+      "held": true,
+      "released": false
+    }
+  },
+  {
+    "group": "cancel",
+    "kind": "explicit",
+    "format": "flight",
+    "response": {
+      "pathname": "/acme/stream-owner/alpha/c",
+      "search": "?tag=one&tag=two&unicode=%E2%9C%93&redirect=temporary&_rsc=",
+      "status": 200,
+      "contentType": "text/x-component",
+      "location": null,
+      "subject": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"],
+        "root": "acme",
+        "tag": ["one", "two"],
+        "unicode": "✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "rootLayout": true,
+      "nestedLayout": true,
+      "provider": true,
+      "fallback": true,
+      "redirectDigest": null,
+      "refresh": null
+    },
+    "after": {
+      "request": "cancel-explicit-flight",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value",
+      "outcome": "fulfilled"
+    },
+    "following": {
+      "pathname": "/acme/stream-owner/alpha/c",
+      "search": "?tag=one&tag=two&unicode=%E2%9C%93&_rsc=",
+      "status": 200,
+      "contentType": "text/x-component",
+      "location": null,
+      "subject": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"],
+        "root": "acme",
+        "tag": ["one", "two"],
+        "unicode": "✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "rootLayout": true,
+      "nestedLayout": true,
+      "provider": true,
+      "fallback": false,
+      "redirectDigest": null,
+      "refresh": null
+    },
+    "followingAfter": {
+      "request": "following-cancel-explicit-flight",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value",
+      "outcome": "fulfilled"
+    },
+    "barrier": {
+      "held": true,
+      "released": false
+    }
+  },
+  {
+    "group": "after",
+    "kind": "held",
+    "format": "html",
+    "response": {
+      "pathname": "/acme/stream-owner/alpha/c",
+      "search": "?tag=one&tag=two&unicode=%E2%9C%93",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "location": null,
+      "subject": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"],
+        "root": "acme",
+        "tag": ["one", "two"],
+        "unicode": "✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "rootLayout": true,
+      "nestedLayout": true,
+      "provider": true,
+      "fallback": false,
+      "redirectDigest": null,
+      "refresh": null
+    },
+    "after": {
+      "request": "after-held-html",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value",
+      "outcome": "fulfilled"
+    },
+    "following": {
+      "pathname": "/acme/stream-owner/alpha/c",
+      "search": "?tag=one&tag=two&unicode=%E2%9C%93",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "location": null,
+      "subject": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"],
+        "root": "acme",
+        "tag": ["one", "two"],
+        "unicode": "✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "rootLayout": true,
+      "nestedLayout": true,
+      "provider": true,
+      "fallback": false,
+      "redirectDigest": null,
+      "refresh": null
+    },
+    "followingAfter": {
+      "request": "following-after-held-html",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value",
+      "outcome": "fulfilled"
+    },
+    "barrier": {
+      "held": true,
+      "released": true
+    }
+  },
+  {
+    "group": "after",
+    "kind": "held",
+    "format": "flight",
+    "response": {
+      "pathname": "/acme/stream-owner/alpha/c",
+      "search": "?tag=one&tag=two&unicode=%E2%9C%93&_rsc=",
+      "status": 200,
+      "contentType": "text/x-component",
+      "location": null,
+      "subject": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"],
+        "root": "acme",
+        "tag": ["one", "two"],
+        "unicode": "✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "rootLayout": true,
+      "nestedLayout": true,
+      "provider": true,
+      "fallback": false,
+      "redirectDigest": null,
+      "refresh": null
+    },
+    "after": {
+      "request": "after-held-flight",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value",
+      "outcome": "fulfilled"
+    },
+    "following": {
+      "pathname": "/acme/stream-owner/alpha/c",
+      "search": "?tag=one&tag=two&unicode=%E2%9C%93&_rsc=",
+      "status": 200,
+      "contentType": "text/x-component",
+      "location": null,
+      "subject": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"],
+        "root": "acme",
+        "tag": ["one", "two"],
+        "unicode": "✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "rootLayout": true,
+      "nestedLayout": true,
+      "provider": true,
+      "fallback": false,
+      "redirectDigest": null,
+      "refresh": null
+    },
+    "followingAfter": {
+      "request": "following-after-held-flight",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value",
+      "outcome": "fulfilled"
+    },
+    "barrier": {
+      "held": true,
+      "released": true
+    }
+  },
+  {
+    "group": "after",
+    "kind": "rejected",
+    "format": "html",
+    "response": {
+      "pathname": "/acme/stream-owner/alpha/c",
+      "search": "?tag=one&tag=two&unicode=%E2%9C%93&after=reject",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "location": null,
+      "subject": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"],
+        "root": "acme",
+        "tag": ["one", "two"],
+        "unicode": "✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "rootLayout": true,
+      "nestedLayout": true,
+      "provider": true,
+      "fallback": false,
+      "redirectDigest": null,
+      "refresh": null
+    },
+    "after": {
+      "request": "after-rejected-html",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value",
+      "outcome": "rejected"
+    },
+    "following": {
+      "pathname": "/acme/stream-owner/alpha/c",
+      "search": "?tag=one&tag=two&unicode=%E2%9C%93",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "location": null,
+      "subject": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"],
+        "root": "acme",
+        "tag": ["one", "two"],
+        "unicode": "✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "rootLayout": true,
+      "nestedLayout": true,
+      "provider": true,
+      "fallback": false,
+      "redirectDigest": null,
+      "refresh": null
+    },
+    "followingAfter": {
+      "request": "following-after-rejected-html",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value",
+      "outcome": "fulfilled"
+    },
+    "barrier": {
+      "held": true,
+      "released": true
+    }
+  },
+  {
+    "group": "after",
+    "kind": "rejected",
+    "format": "flight",
+    "response": {
+      "pathname": "/acme/stream-owner/alpha/c",
+      "search": "?tag=one&tag=two&unicode=%E2%9C%93&after=reject&_rsc=",
+      "status": 200,
+      "contentType": "text/x-component",
+      "location": null,
+      "subject": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"],
+        "root": "acme",
+        "tag": ["one", "two"],
+        "unicode": "✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "rootLayout": true,
+      "nestedLayout": true,
+      "provider": true,
+      "fallback": false,
+      "redirectDigest": null,
+      "refresh": null
+    },
+    "after": {
+      "request": "after-rejected-flight",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value",
+      "outcome": "rejected"
+    },
+    "following": {
+      "pathname": "/acme/stream-owner/alpha/c",
+      "search": "?tag=one&tag=two&unicode=%E2%9C%93&_rsc=",
+      "status": 200,
+      "contentType": "text/x-component",
+      "location": null,
+      "subject": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"],
+        "root": "acme",
+        "tag": ["one", "two"],
+        "unicode": "✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "rootLayout": true,
+      "nestedLayout": true,
+      "provider": true,
+      "fallback": false,
+      "redirectDigest": null,
+      "refresh": null
+    },
+    "followingAfter": {
+      "request": "following-after-rejected-flight",
+      "root": "acme",
+      "header": "request-value",
+      "cookie": "session-value",
+      "outcome": "fulfilled"
+    },
+    "barrier": {
+      "held": true,
+      "released": true
+    }
+  }
+]

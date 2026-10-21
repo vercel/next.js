@@ -1,0 +1,15 @@
+{
+  "mode": "production",
+  "metadata": {
+    "path": "server/chunks/_0yis2ucy-sfv6._.js",
+    "sha256": "54281c0e4db701852749a91f9fb165d266a753f0ec09711f5fb5fdcea9fbf57a",
+    "mapPath": "server/chunks/_0yis2ucy-sfv6._.js.map",
+    "mapSha256": "4b7f078cec51875940697477432db87a48f56e4a64808c5c863c5fec061d4b49"
+  },
+  "sourceSHA256": "1fe383338fee4915eb1314f6c1c7cdbb7342cd6e12f8cfe02189b721f3345394",
+  "rawNativeMapSHA256": "4b7f078cec51875940697477432db87a48f56e4a64808c5c863c5fec061d4b49",
+  "emittedSHA256": "54281c0e4db701852749a91f9fb165d266a753f0ec09711f5fb5fdcea9fbf57a",
+  "normalizedMapSHA256": "44072d8b5efde2b5578c5d0f2cb72dedebe895c74b8eb0e6ad34218cd2ee4d93",
+  "completeRawV8FunctionsSHA256": "efae6fba581c210f4de1eeed49c6f0052eb941cb0003923035e23c8918f665bf",
+  "sourceModel": "actual authored AST and identity-map descriptors only; zero counters never become observed runtime facts"
+}

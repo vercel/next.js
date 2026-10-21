@@ -1,0 +1,5 @@
+globalThis.__ws2RuntimeLeafRoot=(globalThis.__ws2RuntimeLeafRoot||0)+1
+export const evaluation=globalThis.__ws2RuntimeLeafRoot
+export const marker={}
+export function read(value){return [evaluation,this?.evaluation??null,value]}
+export default {evaluation,marker,read}

@@ -1,0 +1,16 @@
+import {headers,cookies} from 'next/headers'
+import {tenant as rootTenant} from 'next/root-params'
+import {after} from 'next/server'
+import {notFound} from 'next/navigation'
+import Values from './Values'
+import {requests,completedRequests} from './state'
+export const dynamic='force-dynamic'
+export const runtime='nodejs'
+export default async function Page({params,searchParams}) {
+ const requestHeaders=await headers();const request=requestHeaders.get('x-route-request')
+ const values={params:await params,query:await searchParams,root:await rootTenant(),header:requestHeaders.get('x-route-proof'),cookie:(await cookies()).get('route-session')?.value??null,request}
+ requests.set(request,values)
+ after(async()=>{await Promise.resolve();completedRequests.push(request);console.log('ROUTE_NOT_FOUND_AFTER '+request)})
+ if(values.query.missing==='1') notFound()
+ return <Values values={values} outcome="healthy"/>
+}

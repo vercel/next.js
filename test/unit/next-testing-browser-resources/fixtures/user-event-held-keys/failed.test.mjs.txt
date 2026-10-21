@@ -1,0 +1,12 @@
+import { test, expect, beforeEach, afterAll } from 'vitest'
+import { userEvent } from 'vitest/browser'
+const globalKeys=[]
+for(const type of ['keydown','keyup'])document.addEventListener(type,event=>globalKeys.push({type,key:event.key,code:event.code,shift:event.shiftKey,repeat:event.repeat,trusted:event.isTrusted}))
+let prior=[]
+beforeEach(()=>{prior=globalKeys.splice(0);document.body.innerHTML=''})
+afterAll(async()=>{await userEvent.cleanup()})
+const input=()=>{const el=document.createElement('input');el.setAttribute('aria-label','entry');document.body.append(el);el.focus();return el}
+const trace=el=>{const events=[];for(const type of ['keydown','keypress','beforeinput','input','keyup'])el.addEventListener(type,event=>events.push({type,key:event.key??null,code:event.code??null,shift:event.shiftKey??null,ctrl:event.ctrlKey??null,meta:event.metaKey??null,repeat:event.repeat??null,inputType:event.inputType??null,data:event.data??null,trusted:event.isTrusted,value:el.value,selection:[el.selectionStart,el.selectionEnd]}));return events}
+const record=(name,el,events,extra={})=>console.log('HELD_RAW '+JSON.stringify({name,value:el.value,selection:[el.selectionStart,el.selectionEnd],events,...extra}))
+test('failed authored case retains a default held modifier until attempt cleanup',async()=>{const el=input(),events=trace(el);await userEvent.keyboard('{Shift>}');record('failed attempt holds modifier',el,events);throw new Error('intentional held-key cleanup probe')})
+test('following case receives cleanup after an authored failure',async()=>{const el=input(),events=trace(el);await userEvent.keyboard('a');record('following failed attempt cleanup',el,events,{prior});expect(el.value).toBe('a');expect(events.find(e=>e.type==='keydown').shift).toBe(false);expect(prior.filter(e=>e.type==='keyup'&&e.key==='Shift')).toHaveLength(1)})

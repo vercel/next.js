@@ -852,12 +852,13 @@ async function generateDynamicFlightRenderResult(
   // non-Cache-Components dev RSC path; unlike the Cache Components staged path
   // it has no detached validation, so the render is the only work to cancel.
   const requestAbortSignal =
-    process.env.__NEXT_DEV_SERVER &&
+    renderOpts.renderAbortSignal ??
+    (process.env.__NEXT_DEV_SERVER &&
     renderOpts.experimental.serverComponentsHmrCancellation === true &&
     requestStore.isHmrRefresh === true &&
     isNodeNextResponse(ctx.res)
       ? signalFromNodeResponse(ctx.res.originalResponse)
-      : undefined
+      : undefined)
 
   if (process.env.__NEXT_USE_NODE_STREAMS) {
     const debugChannel = setReactDebugChannel && createNodeDebugChannel()
@@ -887,7 +888,8 @@ async function generateDynamicFlightRenderResult(
         filterStackFrame,
         debugChannel: debugChannel?.serverSide,
         signal: requestAbortSignal,
-      }
+      },
+      renderOpts.renderAbortSignal
     )
 
     return new FlightRenderResult(
@@ -4000,7 +4002,9 @@ async function renderToStream(
                 filterStackFrame,
                 onError: serverComponentsErrorHandler,
                 debugChannel: debugChannel?.serverSide,
-              }
+                signal: renderOpts.renderAbortSignal,
+              },
+              renderOpts.renderAbortSignal
             )
           )
         } else {
@@ -4042,6 +4046,7 @@ async function renderToStream(
                 filterStackFrame,
                 onError: serverComponentsErrorHandler,
                 debugChannel: debugChannel?.serverSide,
+                signal: renderOpts.renderAbortSignal,
               }
             )
           )
@@ -4430,7 +4435,9 @@ async function renderToStream(
             {
               filterStackFrame,
               onError: serverComponentsErrorHandler,
-            }
+              signal: renderOpts.renderAbortSignal,
+            },
+            renderOpts.renderAbortSignal
           )
 
           if (reactServerResult === null) {
@@ -4522,6 +4529,7 @@ async function renderToStream(
             {
               filterStackFrame,
               onError: serverComponentsErrorHandler,
+              signal: renderOpts.renderAbortSignal,
             }
           )
 

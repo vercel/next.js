@@ -1,0 +1,17 @@
+[
+  {
+    "name": "supplies an explicit real external CommonJS package factory",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "loads a real external CommonJS original through the lazy native graph",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "loads a real external ESM original through the lazy native graph",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

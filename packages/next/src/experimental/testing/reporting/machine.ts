@@ -1,3 +1,4 @@
+import { assertReporterTaskTree, type ReporterTaskSnapshot } from './live-tasks'
 import { randomUUID } from 'node:crypto'
 import {
   mkdir,
@@ -10,7 +11,8 @@ import {
 } from 'node:fs/promises'
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { stripVTControlCharacters } from 'node:util'
-import type { ResultEvent } from './events'
+import type { ResultEvent, SerializedDiagnostic } from './events'
+import type { CustomReporterCompletion } from './custom-reporter-tasks'
 import {
   createTestReporter,
   formatDiagnostic,
@@ -69,7 +71,7 @@ export function parseResultReporters(
       !isCustomResultReporter(name)
     ) {
       throw new Error(
-        `Unsupported result reporter "${name}". Available: default, verbose, dot, tap, tap-flat, github-actions, json, junit, blob. Package and advanced custom reporter adapters remain unimplemented; use a JavaScript file path for completion hooks.`
+        `Unsupported result reporter "${name}". Available: default, verbose, dot, tap, tap-flat, github-actions, json, junit, blob, or a custom reporter file or package. Advanced custom reporter adapters remain unimplemented.`
       )
     }
   }
@@ -207,6 +209,8 @@ export function createMachineReporter(options: {
   writeError?: (text: string) => void
   presentation?: Omit<TestReporterOptions, 'write' | 'projectDir' | 'style'>
   collect?: boolean
+  replayTaskResults?: boolean
+  recordedReporterErrors?: SerializedDiagnostic[]
 }) {
   const enabled = options.reporters.some((name) => name !== 'default')
   const collector =
@@ -592,13 +596,63 @@ export function createMachineReporter(options: {
   }
   return {
     initialize,
+    get captureTaskResults() {
+      return (
+        custom?.captureTaskResults === true ||
+        options.reporters.includes('blob')
+      )
+    },
+    get needsTaskReplay() {
+      return custom?.captureTaskResults === true
+    },
     onEvent(event: ResultEvent) {
       if (!initialized)
         throw new Error(
           'Custom reporters must initialize before execution events.'
         )
       collector?.onEvent(event)
+      if (
+        !options.replayTaskResults ||
+        !custom?.captureTaskResults ||
+        event.type === 'output'
+      )
+        custom?.onEvent(
+          event,
+          event.type === 'file-end' || event.type === 'module-complete'
+            ? {
+                ...collector!.getResults(),
+                ...(event.type === 'module-complete'
+                  ? {
+                      files: [
+                        ...collector!.getResults().files,
+                        {
+                          entryId: event.entryId,
+                          status: event.status,
+                          durationMs: event.durationMs,
+                        },
+                      ],
+                    }
+                  : {}),
+                events: collector!.getEvents(),
+                status:
+                  event.status === 'cancelled'
+                    ? 'cancelled'
+                    : event.status === 'failed'
+                      ? 'failed'
+                      : 'passed',
+              }
+            : undefined
+        )
       for (const reporter of liveReporters) reporter.onEvent(event)
+    },
+    async replayFile(taskTree: ReporterTaskSnapshot) {
+      if (!custom?.captureTaskResults) return
+      const completion: CustomReporterCompletion = {
+        ...collector!.getResults(),
+        events: collector!.getEvents(),
+        status: 'passed',
+      }
+      await custom.replayFile(taskTree, completion)
     },
     getJson: json,
     getJUnit: junit,
@@ -610,6 +664,11 @@ export function createMachineReporter(options: {
         throw new Error(
           'Cannot publish a completed report before authoritative run cleanup.'
         )
+      const pendingBlobs: ((
+        errors: SerializedDiagnostic[]
+      ) => Promise<void>)[] = []
+      let recordedReporterErrors: SerializedDiagnostic[] =
+        options.recordedReporterErrors ?? []
       for (const reporter of options.reporters) {
         signal?.throwIfAborted()
         if (reporter === 'default' || isCustomResultReporter(reporter)) continue
@@ -631,47 +690,74 @@ export function createMachineReporter(options: {
           )
           continue
         }
-        const content =
-          reporter === 'junit'
-            ? junit()
-            : `${JSON.stringify(
-                reporter === 'blob'
-                  ? {
-                      version: 1,
-                      kind: 'next-test-results',
-                      projectDir: options.projectDir,
-                      referenceVersion: '5.0.4',
-                      events,
-                    }
-                  : json(),
-                null,
-                2
-              )}\n`
-        if (!options.outputFile) {
-          write(content)
-          continue
+        const publish = async (errorsForBlob: SerializedDiagnostic[]) => {
+          const content =
+            reporter === 'junit'
+              ? junit()
+              : `${JSON.stringify(
+                  reporter === 'blob'
+                    ? {
+                        version: 1,
+                        kind: 'next-test-results',
+                        projectDir: options.projectDir,
+                        referenceVersion: '5.0.4',
+                        events,
+                        ...(errorsForBlob.length
+                          ? { reporterErrors: errorsForBlob }
+                          : {}),
+                      }
+                    : json(),
+                  null,
+                  2
+                )}\n`
+          if (!options.outputFile) {
+            write(content)
+            return
+          }
+          const target = resolve(options.projectDir, options.outputFile)
+          const temporary = `${target}.${randomUUID()}.tmp`
+          await mkdir(dirname(target), { recursive: true })
+          try {
+            await writeFile(temporary, content, { flag: 'wx', signal })
+            signal?.throwIfAborted()
+            await rename(temporary, target)
+          } finally {
+            await unlink(temporary).catch((error: NodeJS.ErrnoException) => {
+              if (error.code !== 'ENOENT') throw error
+            })
+          }
         }
-        const target = resolve(options.projectDir, options.outputFile)
-        const temporary = `${target}.${randomUUID()}.tmp`
-        await mkdir(dirname(target), { recursive: true })
-        try {
-          await writeFile(temporary, content, { flag: 'wx', signal })
-          signal?.throwIfAborted()
-          await rename(temporary, target)
-        } finally {
-          await unlink(temporary).catch((error: NodeJS.ErrnoException) => {
-            if (error.code !== 'ENOENT') throw error
-          })
-        }
+        if (reporter === 'blob' && custom?.captureTaskResults)
+          pendingBlobs.push(publish)
+        else await publish(recordedReporterErrors)
       }
+      let customError: unknown
       if (custom) {
         const status = collector!.getSummary().status
         if (status === 'running')
           throw new Error(
             'Custom reporters require an authoritative terminal result.'
           )
-        await custom.finish({ ...collector!.getResults(), events, status })
+        try {
+          await custom.finish({
+            ...collector!.getResults(),
+            events,
+            status,
+            recordedReporterErrors: options.recordedReporterErrors,
+          })
+        } catch (error) {
+          customError = error
+        }
       }
+      if (pendingBlobs.length) {
+        recordedReporterErrors = [
+          ...recordedReporterErrors,
+          ...(await custom!.collectErrors()),
+        ]
+        for (const publish of pendingBlobs)
+          await publish(recordedReporterErrors)
+      }
+      if (customError) throw customError
     },
     async dispose() {
       const errors: unknown[] = []
@@ -709,7 +795,11 @@ export async function mergeResultReports(
   if (imported !== undefined) return imported
   const paths = names.filter((file) => file.endsWith('.json')).sort()
   if (!paths.length) throw new Error('No Next test result blobs found.')
-  const blobs: { projectDir: string; events: ResultEvent[] }[] = []
+  const blobs: {
+    projectDir: string
+    events: ResultEvent[]
+    reporterErrors?: SerializedDiagnostic[]
+  }[] = []
   const runIds = new Set<string>()
   const entries = new Set<string>()
   const eventTypes = new Set([
@@ -719,6 +809,9 @@ export async function mergeResultReports(
     'file-end',
     'case-start',
     'case-end',
+    'file-collected',
+    'task-update',
+    'module-complete',
     'suite-end',
     'diagnostic',
     'output',
@@ -744,6 +837,9 @@ export async function mergeResultReports(
       typeof blob.projectDir !== 'string' ||
       !isAbsolute(blob.projectDir) ||
       !Array.isArray(blob.events) ||
+      (blob.reporterErrors !== undefined &&
+        (!Array.isArray(blob.reporterErrors) ||
+          !blob.reporterErrors.every(validDiagnostic))) ||
       blob.events[0]?.type !== 'run-start' ||
       blob.events.at(-1)?.type !== 'run-end'
     ) {
@@ -759,6 +855,8 @@ export async function mergeResultReports(
     const endedEntries = new Set<string>()
     const startedAttempts = new Set<string>()
     const endedAttempts = new Set<string>()
+    const logicalCases = new Set<string>()
+    const collectedFiles = new Set<string>()
     const endedCases = new Set<string>()
     const endedSuites = new Set<string>()
     for (const [index, event] of blob.events.entries()) {
@@ -823,6 +921,9 @@ export async function mergeResultReports(
         [
           'case-start',
           'case-end',
+          'file-collected',
+          'task-update',
+          'module-complete',
           'test-annotation',
           'test-artifact',
           'suite-end',
@@ -837,6 +938,9 @@ export async function mergeResultReports(
         [
           'case-start',
           'case-end',
+          'file-collected',
+          'task-update',
+          'module-complete',
           'test-annotation',
           'test-artifact',
           'suite-end',
@@ -850,6 +954,7 @@ export async function mergeResultReports(
         event.type === 'case-end' ||
         event.type === 'suite-end' ||
         event.type === 'file-end' ||
+        event.type === 'module-complete' ||
         event.type === 'run-end'
       ) {
         if (
@@ -863,6 +968,65 @@ export async function mergeResultReports(
         }
         if (event.type === 'run-end' && event.status === 'skipped')
           throw new Error(`Invalid blob completion status: ${name}`)
+      }
+      if (event.type === 'file-collected' || event.type === 'task-update') {
+        assertReporterTaskTree(event.taskTree, event.entryId)
+        if (event.type === 'file-collected') {
+          if (collectedFiles.has(event.entryId))
+            throw new Error(`Duplicate collected task file in blob: ${name}`)
+          collectedFiles.add(event.entryId)
+        } else {
+          const ids = new Set<string>()
+          const visit = (task: import('./live-tasks').ReporterTaskSnapshot) => {
+            ids.add(task.id)
+            task.tasks?.forEach(visit)
+          }
+          visit(event.taskTree)
+          if (
+            !collectedFiles.has(event.entryId) ||
+            !Array.isArray(event.taskUpdateIds) ||
+            !event.taskUpdateIds.length ||
+            new Set(event.taskUpdateIds).size !== event.taskUpdateIds.length ||
+            event.taskUpdateIds.some(
+              (id: unknown) => typeof id !== 'string' || !ids.has(id)
+            ) ||
+            !Array.isArray(event.caseResults)
+          )
+            throw new Error(`Invalid live task update in blob: ${name}`)
+          for (const result of event.caseResults) {
+            assertReporterTaskTree(event.taskTree, event.entryId, result.caseId)
+            const logical = JSON.stringify([event.entryId, result.caseId])
+            const scope = JSON.stringify([
+              event.entryId,
+              result.caseId,
+              result.attempt?.id,
+            ])
+            if (
+              result.entryId !== event.entryId ||
+              typeof result.caseId !== 'string' ||
+              typeof result.name !== 'string' ||
+              typeof result.attempt?.id !== 'string' ||
+              !Number.isSafeInteger(result.attempt.retry) ||
+              result.attempt.retry < 0 ||
+              !Number.isSafeInteger(result.attempt.repeat) ||
+              result.attempt.repeat < 0 ||
+              !['passed', 'failed', 'skipped', 'cancelled'].includes(
+                result.status
+              ) ||
+              !Number.isFinite(result.durationMs) ||
+              result.durationMs < 0 ||
+              !Array.isArray(result.errors) ||
+              !result.errors.every(validDiagnostic) ||
+              !endedAttempts.has(scope) ||
+              logicalCases.has(logical) ||
+              !event.taskUpdateIds.includes(result.caseId)
+            )
+              throw new Error(
+                `Logical result lacks one actual completed case in blob: ${name}`
+              )
+            logicalCases.add(logical)
+          }
+        }
       }
       if (event.type === 'suite-end') {
         if (
@@ -1027,7 +1191,12 @@ export async function mergeResultReports(
       throw new Error(`Incomplete file results in blob: ${name}`)
     blobs.push(blob)
   }
-  const machine = createMachineReporter({ ...options, collect: true })
+  const machine = createMachineReporter({
+    ...options,
+    collect: true,
+    replayTaskResults: true,
+    recordedReporterErrors: blobs.flatMap((blob) => blob.reporterErrors ?? []),
+  })
   const human = options.reporters.includes('default')
     ? createTestReporter({
         projectDir: options.projectDir,
@@ -1086,7 +1255,27 @@ export async function mergeResultReports(
       if (end.status === 'failed') status = 'failed'
       else if (end.status === 'cancelled' && status !== 'failed')
         status = 'cancelled'
-      for (const event of blob.events.slice(1, -1)) emit({ ...event, runId })
+      const terminalTrees = new Map<string, ReporterTaskSnapshot>()
+      for (const event of blob.events) {
+        if (event.type === 'file-collected' || event.type === 'task-update')
+          terminalTrees.set(event.entryId, event.taskTree)
+      }
+      for (const event of blob.events.slice(1, -1)) {
+        emit({ ...event, runId })
+        if (event.type === 'file-end' && machine.needsTaskReplay) {
+          const tree = terminalTrees.get(event.entryId)
+          const entry = blob.events.find(
+            (candidate) =>
+              candidate.type === 'file-start' &&
+              candidate.entry.id === event.entryId
+          )
+          if (!tree || entry?.type !== 'file-start')
+            throw new Error(
+              'Logical-case reporter replay requires an actual recorded task graph.'
+            )
+          await machine.replayFile({ ...tree, filepath: entry.entry.file })
+        }
+      }
     }
     emit({
       version: 1,
@@ -1098,7 +1287,9 @@ export async function mergeResultReports(
     })
     const report = machine.getJson()
     await machine.finish()
-    return report.next.summary.status
+    return blobs.some((blob) => blob.reporterErrors?.length)
+      ? 'failed'
+      : report.next.summary.status
   } finally {
     try {
       await machine.dispose()

@@ -1,0 +1,26 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_BUILTIN_UNMOCK",
+    "value": {
+      "value": "kept",
+      "prefixedValue": "kept",
+      "dynamicValue": "kept",
+      "actual": "alpha/beta",
+      "identity": true,
+      "dynamicIdentity": true,
+      "actualIdentity": false,
+      "cancelledCalls": 0,
+      "keptCalls": 1,
+      "keys": ["join"],
+      "prototypeNull": false,
+      "tag": null,
+      "descriptor": {
+        "get": "undefined",
+        "writable": true,
+        "enumerable": true,
+        "configurable": true
+      }
+    }
+  }
+]

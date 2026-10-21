@@ -1307,3 +1307,1329 @@ it.each(['development', 'production'] as const)(
     })
   }
 )
+
+it('reconciles exact source/config/setup/add/delete paths when native notifications are omitted', async () => {
+  const root = await mkdtemp(
+    path.join(tmpdir(), 'next-testing-watch-reconcile-')
+  )
+  const output = path.join(root, 'custom-output')
+  const artifact = path.join(root, '.next-test-fixture')
+  const dependency = path.join(root, 'node_modules/helper/config.mjs')
+  await mkdir(output)
+  await mkdir(artifact)
+  await mkdir(path.dirname(dependency), { recursive: true })
+  await writeFile(dependency, 'first')
+  class Subscription extends EventEmitter {
+    closed = false
+    close() {
+      queueMicrotask(() => {
+        this.closed = true
+        this.emit('close')
+      })
+    }
+  }
+  const subscriptions: Subscription[] = []
+  const nativeWatch = jest.spyOn(fs, 'watch').mockImplementation(() => {
+    const subscription = new Subscription()
+    subscriptions.push(subscription)
+    return subscription as unknown as fs.FSWatcher
+  })
+  const changes: FileChange[] = []
+  const errors: unknown[] = []
+  let watcher: Awaited<ReturnType<typeof watchTestFiles>> | undefined
+  try {
+    watcher = await watchTestFiles({
+      directories: [root],
+      outputDirectories: [output],
+      dependencyFiles: [dependency],
+      artifactDirectories: [
+        { parentDirectory: root, basenamePrefixes: ['.next-test-'] },
+      ],
+      onChange: (change) => changes.push(change),
+      onError: (error) => errors.push(error),
+    })
+    // One actual native delivery updates the baseline. A later omitted event
+    // must publish only its own path, rather than redelivering that first write.
+    const delivered = path.join(root, 'native-source.ts')
+    await writeFile(delivered, 'native update')
+    const callback = Reflect.get(nativeWatch.mock.calls[0], 2) as unknown as (
+      event: string,
+      filename: string | null
+    ) => void
+    callback('rename', 'native-source.ts')
+    await retry(async () => {
+      expect(changes.flatMap((event) => event.changed)).toEqual([delivered])
+    })
+    changes.length = 0
+    const omitted = path.join(root, 'omitted-source.ts')
+    await writeFile(omitted, 'no native notification')
+    await retry(async () => {
+      expect(changes.flatMap((event) => event.changed)).toEqual([omitted])
+    })
+    changes.length = 0
+    await writeFile(delivered, 'covered by broad native event')
+    callback('rename', null)
+    await retry(async () => {
+      expect(changes.flatMap((event) => event.changed)).toEqual([root])
+    })
+    changes.length = 0
+    const broadBarrier = path.join(root, 'after-broad-scope.ts')
+    await writeFile(broadBarrier, 'later omitted native event')
+    await retry(async () => {
+      expect(changes.flatMap((event) => event.changed)).toEqual([broadBarrier])
+    })
+    for (const file of [
+      path.join(root, 'source.ts'),
+      path.join(root, '.env'),
+      path.join(root, 'setup.ts'),
+      path.join(root, 'added.test.ts'),
+      dependency,
+    ]) {
+      for (const value of ['other', 'third']) {
+        changes.length = 0
+        await writeFile(file, value)
+        await retry(async () => {
+          expect(errors).toEqual([])
+          expect(changes.flatMap((event) => event.changed)).toEqual([file])
+        })
+      }
+    }
+    changes.length = 0
+    const removed = path.join(root, 'added.test.ts')
+    await rm(removed)
+    await retry(async () => {
+      expect(changes.flatMap((event) => event.changed)).toEqual([removed])
+    })
+    changes.length = 0
+    const original = path.join(root, 'source.ts')
+    const renamed = path.join(root, 'renamed-source.ts')
+    await fs.promises.rename(original, renamed)
+    await retry(async () => {
+      expect(changes.flatMap((event) => event.changed).sort()).toEqual(
+        [original, renamed].sort()
+      )
+    })
+    changes.length = 0
+    await writeFile(path.join(output, 'emitted.js'), 'output')
+    await writeFile(path.join(artifact, 'entry.js'), 'artifact')
+    await writeFile(
+      path.join(root, 'node_modules/helper/unrelated.js'),
+      'installed'
+    )
+    await mkdir(path.join(root, '.git'))
+    await writeFile(path.join(root, '.git/index'), 'git')
+    const barrier = path.join(root, 'barrier.ts')
+    await writeFile(barrier, 'source')
+    await retry(async () => {
+      expect(changes.flatMap((event) => event.changed)).toEqual([barrier])
+      expect(errors).toEqual([])
+    })
+  } finally {
+    await watcher?.close()
+    nativeWatch.mockRestore()
+    await rm(root, { recursive: true, force: true })
+  }
+  expect(subscriptions).toHaveLength(2)
+  expect(subscriptions.every((subscription) => subscription.closed)).toBe(true)
+}, 30000)
+
+it('retains native changes until the initial reconciliation returns the watch source', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'next-testing-watch-ready-'))
+  const entered = deferred()
+  const release = deferred()
+  const notification = deferred()
+  const originalStat = fs.promises.stat
+  let held = false
+  const stat = jest
+    .spyOn(fs.promises, 'stat')
+    .mockImplementation(async (...args) => {
+      if (!held) {
+        held = true
+        entered.resolve()
+        await release.promise
+      }
+      return Reflect.apply(originalStat, fs.promises, args)
+    })
+  class Subscription extends EventEmitter {
+    close() {
+      queueMicrotask(() => this.emit('close'))
+    }
+  }
+  const nativeWatch = jest
+    .spyOn(fs, 'watch')
+    .mockImplementation(() => new Subscription() as unknown as fs.FSWatcher)
+  const originalTimeout = global.setTimeout
+  const timeout = jest
+    .spyOn(global, 'setTimeout')
+    .mockImplementation((callback, delay, ...args) => {
+      return originalTimeout(() => {
+        Reflect.apply(callback, undefined, args)
+        if (delay === 20) notification.resolve()
+      }, delay)
+    })
+  const changes: FileChange[] = []
+  const errors: unknown[] = []
+  const opening = watchTestFiles({
+    directories: [root],
+    outputDirectories: [],
+    onChange: (change) => changes.push(change),
+    onError: (error) => errors.push(error),
+  })
+  let watcher: Awaited<ReturnType<typeof watchTestFiles>> | undefined
+  try {
+    await retry(async () => {
+      expect(held).toBe(true)
+    })
+    await entered.promise
+    const file = path.join(root, 'startup.test.ts')
+    await writeFile(file, 'created before watch acquisition completed')
+    const callback = Reflect.get(nativeWatch.mock.calls[0], 2) as unknown as (
+      event: string,
+      filename: string | null
+    ) => void
+    callback('rename', 'startup.test.ts')
+    await notification.promise
+    expect(changes).toEqual([])
+    release.resolve()
+    watcher = await opening
+    await retry(async () => {
+      expect(changes.flatMap((change) => change.changed)).toEqual([file])
+      expect(errors).toEqual([])
+    })
+  } finally {
+    release.resolve()
+    watcher ??= await opening
+    await watcher.close()
+    timeout.mockRestore()
+    nativeWatch.mockRestore()
+    stat.mockRestore()
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+it('reports reconciliation failure and closes the acquired native subscriptions', async () => {
+  const root = await mkdtemp(
+    path.join(tmpdir(), 'next-testing-watch-scan-error-')
+  )
+  await writeFile(path.join(root, 'source.ts'), 'input')
+  class Subscription extends EventEmitter {
+    closed = false
+    close() {
+      queueMicrotask(() => {
+        this.closed = true
+        this.emit('close')
+      })
+    }
+  }
+  const subscriptions: Subscription[] = []
+  const nativeWatch = jest.spyOn(fs, 'watch').mockImplementation(() => {
+    const subscription = new Subscription()
+    subscriptions.push(subscription)
+    return subscription as unknown as fs.FSWatcher
+  })
+  const failure = new Error('actual input scan failed')
+  const read = jest.spyOn(fs.promises, 'lstat').mockRejectedValueOnce(failure)
+  const errors: unknown[] = []
+  let acquired: Awaited<ReturnType<typeof watchTestFiles>> | undefined
+  try {
+    await expect(
+      watchTestFiles({
+        directories: [root],
+        outputDirectories: [],
+        onChange: jest.fn(),
+        onError: (error) => errors.push(error),
+      }).then((source) => {
+        acquired = source
+        return source
+      })
+    ).rejects.toBe(failure)
+    expect(errors).toEqual([failure])
+    expect(subscriptions).toHaveLength(2)
+    expect(subscriptions.every((subscription) => subscription.closed)).toBe(
+      true
+    )
+  } finally {
+    await acquired?.close()
+    read.mockRestore()
+    nativeWatch.mockRestore()
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+it('awaits outstanding reconciliation reads before close releases the source', async () => {
+  const root = await mkdtemp(
+    path.join(tmpdir(), 'next-testing-watch-scan-close-')
+  )
+  await writeFile(path.join(root, 'source.ts'), 'input')
+  class Subscription extends EventEmitter {
+    close() {
+      queueMicrotask(() => this.emit('close'))
+    }
+  }
+  const nativeWatch = jest
+    .spyOn(fs, 'watch')
+    .mockImplementation(() => new Subscription() as unknown as fs.FSWatcher)
+  const entered = deferred()
+  const release = deferred()
+  const originalRead = fs.promises.lstat
+  let hold = false
+  let held = false
+  const read = jest
+    .spyOn(fs.promises, 'lstat')
+    .mockImplementation(async (...args) => {
+      if (hold && !held) {
+        held = true
+        entered.resolve()
+        await release.promise
+      }
+      return Reflect.apply(originalRead, fs.promises, args)
+    })
+  const changes: FileChange[] = []
+  const errors: unknown[] = []
+  const watcher = await watchTestFiles({
+    directories: [root],
+    outputDirectories: [],
+    onChange: (change) => changes.push(change),
+    onError: (error) => errors.push(error),
+  })
+  try {
+    hold = true
+    await retry(async () => {
+      expect(held).toBe(true)
+    })
+    await entered.promise
+    let closed = false
+    const closing = watcher.close().then(() => {
+      closed = true
+    })
+    await Promise.resolve()
+    expect(closed).toBe(false)
+    release.resolve()
+    await closing
+    expect(closed).toBe(true)
+    expect(changes).toEqual([])
+    expect(errors).toEqual([])
+  } finally {
+    release.resolve()
+    await watcher.close()
+    read.mockRestore()
+    nativeWatch.mockRestore()
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+it('does not repeat descendants covered by native populated-directory deletion or rename', async () => {
+  const root = await mkdtemp(
+    path.join(tmpdir(), 'next-testing-watch-directory-')
+  )
+  const deleted = path.join(root, 'deleted')
+  const moved = path.join(root, 'moved')
+  const renamed = path.join(root, 'renamed')
+  for (const directory of [deleted, moved]) {
+    await mkdir(path.join(directory, 'nested'), { recursive: true })
+    await writeFile(path.join(directory, 'nested/source.ts'), 'input')
+  }
+  class Subscription extends EventEmitter {
+    close() {
+      queueMicrotask(() => this.emit('close'))
+    }
+  }
+  const nativeWatch = jest
+    .spyOn(fs, 'watch')
+    .mockImplementation(() => new Subscription() as unknown as fs.FSWatcher)
+  const changes: FileChange[] = []
+  const errors: unknown[] = []
+  const watcher = await watchTestFiles({
+    directories: [root],
+    outputDirectories: [],
+    onChange: (change) => changes.push(change),
+    onError: (error) => errors.push(error),
+  })
+  const callback = Reflect.get(nativeWatch.mock.calls[0], 2) as (
+    event: string,
+    filename: string
+  ) => void
+  try {
+    await rm(deleted, { recursive: true })
+    callback('rename', 'deleted')
+    await retry(async () => {
+      expect(changes.flatMap((event) => event.changed)).toEqual([deleted])
+    })
+    changes.length = 0
+    const firstBarrier = path.join(root, 'after-delete.ts')
+    await writeFile(firstBarrier, 'omitted native notification')
+    await retry(async () => {
+      expect(changes.flatMap((event) => event.changed)).toEqual([firstBarrier])
+    })
+    changes.length = 0
+    await fs.promises.rename(moved, renamed)
+    callback('rename', 'moved')
+    callback('rename', 'renamed')
+    await retry(async () => {
+      expect(changes.flatMap((event) => event.changed)).toEqual([
+        moved,
+        renamed,
+      ])
+    })
+    changes.length = 0
+    const secondBarrier = path.join(root, 'after-rename.ts')
+    await writeFile(secondBarrier, 'omitted native notification')
+    await retry(async () => {
+      expect(changes.flatMap((event) => event.changed)).toEqual([secondBarrier])
+      expect(errors).toEqual([])
+    })
+  } finally {
+    await watcher.close()
+    nativeWatch.mockRestore()
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+describe('watch configuration fences during periodic input reconciliation', () => {
+  async function controlledSource(
+    directories: Parameters<typeof watchTestFiles>[0]
+  ) {
+    class Subscription extends EventEmitter {
+      closed = false
+      close() {
+        queueMicrotask(() => {
+          this.closed = true
+          this.emit('close')
+        })
+      }
+    }
+    const subscriptions: Subscription[] = []
+    const nativeWatch = jest.spyOn(fs, 'watch').mockImplementation(() => {
+      const subscription = new Subscription()
+      subscriptions.push(subscription)
+      return subscription as unknown as fs.FSWatcher
+    })
+    const periodic: {
+      callback(): void
+      timer: ReturnType<typeof setTimeout>
+    }[] = []
+    const originalTimeout = global.setTimeout
+    const timeout = jest
+      .spyOn(global, 'setTimeout')
+      .mockImplementation((callback, delay, ...args) => {
+        if (delay !== 1000) return originalTimeout(callback, delay, ...args)
+        const timer = originalTimeout(() => {}, 60000)
+        periodic.push({
+          callback: () => Reflect.apply(callback, undefined, args),
+          timer,
+        })
+        return timer
+      })
+    const gates = new Map<
+      string,
+      {
+        entered: ReturnType<typeof deferred>
+        release: ReturnType<typeof deferred>
+      }[]
+    >()
+    const originals = {
+      stat: fs.promises.stat,
+      lstat: fs.promises.lstat,
+    }
+    const reads = (['stat', 'lstat'] as const).map((name) =>
+      jest.spyOn(fs.promises, name).mockImplementation(async (...args) => {
+        // Keep the actual read result: native delivery must merge a path whose
+        // stale metadata is already owned by the asynchronous scan.
+        const result = await Reflect.apply(originals[name], fs.promises, args)
+        const gate = gates.get(String(args[0]))?.shift()
+        if (gate) {
+          gate.entered.resolve()
+          await gate.release.promise
+        }
+        return result
+      })
+    )
+    const watcher = await watchTestFiles(directories)
+    return {
+      watcher,
+      subscriptions,
+      hold(file: string) {
+        const gate = { entered: deferred(), release: deferred() }
+        const pending = gates.get(file) ?? []
+        pending.push(gate)
+        gates.set(file, pending)
+        return gate
+      },
+      async scan() {
+        await retry(async () => expect(periodic).toHaveLength(1))
+        const next = periodic.shift()!
+        clearTimeout(next.timer)
+        next.callback()
+      },
+      notify(root: string, filename: string) {
+        const call = nativeWatch.mock.calls.find(
+          (args) => args[0] === root && Reflect.get(args[1]!, 'recursive')
+        )!
+        const callback = Reflect.get(call, 2) as (
+          event: string,
+          filename: string
+        ) => void
+        callback('change', filename)
+      },
+      async restore() {
+        // Tests release consumed gates in their own finally blocks. Pending
+        // gates must also be released if an assertion interrupts acquisition.
+        for (const pending of gates.values())
+          for (const gate of pending) gate.release.resolve()
+        await watcher.close()
+        for (const next of periodic) clearTimeout(next.timer)
+        for (const read of reads) read.mockRestore()
+        timeout.mockRestore()
+        nativeWatch.mockRestore()
+      },
+    }
+  }
+
+  it('returns an unchanged configuration without joining the live scan and retains native and omitted changes', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'next-testing-watch-same-'))
+    const native = path.join(root, 'native.ts')
+    const omitted = path.join(root, 'omitted.ts')
+    const barrier = path.join(root, 'barrier.ts')
+    await writeFile(native, 'before')
+    const changes: FileChange[] = []
+    const errors: unknown[] = []
+    const options = {
+      directories: [root],
+      outputDirectories: [],
+      onChange: (change: FileChange) => changes.push(change),
+      onError: (error: unknown) => errors.push(error),
+    }
+    const source = await controlledSource(options)
+    const rootRead = source.hold(root)
+    const nativeRead = source.hold(native)
+    try {
+      await source.scan()
+      await rootRead.entered.promise
+      let updated = false
+      const updating = source.watcher.update(options).then(() => {
+        updated = true
+      })
+      await new Promise<void>(setImmediate)
+      expect(updated).toBe(true)
+      await updating
+      await writeFile(omitted, 'missed notification during unchanged update')
+      rootRead.release.resolve()
+      await nativeRead.entered.promise
+      await writeFile(native, 'delivered after this scan read old metadata')
+      source.notify(root, 'native.ts')
+      await retry(async () => {
+        expect(changes.flatMap((change) => change.changed)).toEqual([native])
+      })
+      nativeRead.release.resolve()
+      await retry(async () => {
+        expect(changes.flatMap((change) => change.changed)).toEqual([
+          native,
+          omitted,
+        ])
+      })
+      await writeFile(barrier, 'next reconciliation must not repeat native')
+      await source.scan()
+      await retry(async () => {
+        expect(changes.flatMap((change) => change.changed)).toEqual([
+          native,
+          omitted,
+          barrier,
+        ])
+        expect(errors).toEqual([])
+      })
+    } finally {
+      rootRead.release.resolve()
+      nativeRead.release.resolve()
+      await source.restore()
+      await rm(root, { recursive: true, force: true })
+    }
+    expect(
+      source.subscriptions.every((subscription) => subscription.closed)
+    ).toBe(true)
+  })
+
+  it.each(['roots', 'outputs', 'output files', 'dependencies', 'artifacts'])(
+    'awaits the old scan and a new baseline when %s change, including an identical update before that baseline exists',
+    async (kind) => {
+      const parent = await mkdtemp(
+        path.join(tmpdir(), 'next-testing-watch-config-')
+      )
+      const root = path.join(parent, 'first')
+      const other = path.join(parent, 'second')
+      const dependency = path.join(root, 'node_modules/helper/config.mjs')
+      await mkdir(path.dirname(dependency), { recursive: true })
+      await mkdir(other)
+      await writeFile(dependency, 'config')
+      const options = {
+        directories: [root],
+        outputDirectories: [],
+        onChange: jest.fn(),
+        onError: jest.fn(),
+      }
+      const source = await controlledSource(options)
+      const oldRead = source.hold(root)
+      const nextOptions = {
+        ...options,
+        ...(kind === 'roots' ? { directories: [other] } : {}),
+        ...(kind === 'outputs'
+          ? { outputDirectories: [path.join(root, 'build')] }
+          : {}),
+        ...(kind === 'output files'
+          ? { outputFiles: [path.join(root, 'result.json')] }
+          : {}),
+        ...(kind === 'dependencies' ? { dependencyFiles: [dependency] } : {}),
+        ...(kind === 'artifacts'
+          ? {
+              artifactDirectories: [
+                { parentDirectory: root, basenamePrefixes: ['.snapshot-'] },
+              ],
+            }
+          : {}),
+      }
+      let newRead: ReturnType<typeof source.hold> | undefined
+      try {
+        await source.scan()
+        await oldRead.entered.promise
+        newRead = source.hold(nextOptions.directories[0])
+        let updates = 0
+        const first = source.watcher.update(nextOptions).then(() => updates++)
+        const second = source.watcher.update(nextOptions).then(() => updates++)
+        await new Promise<void>(setImmediate)
+        expect(updates).toBe(0)
+        oldRead.release.resolve()
+        await newRead.entered.promise
+        expect(updates).toBe(0)
+        newRead.release.resolve()
+        await Promise.all([first, second])
+        expect(updates).toBe(2)
+        expect(options.onChange).not.toHaveBeenCalled()
+        expect(options.onError).not.toHaveBeenCalled()
+      } finally {
+        oldRead.release.resolve()
+        newRead?.release.resolve()
+        await source.restore()
+        await rm(parent, { recursive: true, force: true })
+      }
+      expect(
+        source.subscriptions.every((subscription) => subscription.closed)
+      ).toBe(true)
+    }
+  )
+
+  it.each(['close', 'failure'])(
+    'drains every started filesystem read on %s after an unchanged update returns',
+    async (kind) => {
+      const root = await mkdtemp(
+        path.join(tmpdir(), 'next-testing-watch-drain-')
+      )
+      const files = [path.join(root, 'first.ts'), path.join(root, 'second.ts')]
+      await Promise.all(files.map((file) => writeFile(file, 'source')))
+      const failure = new Error(
+        'native subscription failed during periodic scan'
+      )
+      const options = {
+        directories: [root],
+        outputDirectories: [],
+        onChange: jest.fn(),
+        onError: jest.fn(),
+      }
+      const source = await controlledSource(options)
+      const reads = files.map((file) => source.hold(file))
+      try {
+        await source.scan()
+        await Promise.all(reads.map((read) => read.entered.promise))
+        let updated = false
+        const updating = source.watcher.update(options).then(() => {
+          updated = true
+        })
+        await new Promise<void>(setImmediate)
+        expect(updated).toBe(true)
+        await updating
+        if (kind === 'failure') source.subscriptions[0].emit('error', failure)
+        let closed = false
+        const closing = source.watcher.close().then(() => {
+          closed = true
+        })
+        await new Promise<void>(setImmediate)
+        expect(closed).toBe(false)
+        reads[0].release.resolve()
+        await new Promise<void>(setImmediate)
+        expect(closed).toBe(false)
+        reads[1].release.resolve()
+        await closing
+        expect(closed).toBe(true)
+        expect(options.onChange).not.toHaveBeenCalled()
+        expect(options.onError.mock.calls).toEqual(
+          kind === 'failure' ? [[failure]] : []
+        )
+      } finally {
+        for (const read of reads) read.release.resolve()
+        await source.restore()
+        await rm(root, { recursive: true, force: true })
+      }
+      expect(
+        source.subscriptions.every((subscription) => subscription.closed)
+      ).toBe(true)
+    }
+  )
+})
+
+describe('bounded watch input read scheduling', () => {
+  it('continues ready paths while one read is held, retaining the whole baseline and the read bound', async () => {
+    const { readWatchInputSnapshot } = await import(
+      'next/dist/experimental/testing/incremental/watch-input-snapshot'
+    )
+    const temporary = await mkdtemp(path.join(tmpdir(), 'next-watch-slots-'))
+    const root = path.join(temporary, 'inputs')
+    const outside = path.join(temporary, 'outside')
+    const ignored = path.join(root, 'ignored')
+    await mkdir(root)
+    await mkdir(outside)
+    await mkdir(ignored)
+    const files = Array.from({ length: 512 }, (_, index) =>
+      path.join(root, `${String(index).padStart(3, '0')}.ts`)
+    )
+    await Promise.all(files.map((file) => writeFile(file, file)))
+    await writeFile(path.join(ignored, 'hidden.ts'), 'ignored')
+    await writeFile(path.join(outside, 'unfollowed.ts'), 'not a root')
+    const link = path.join(root, 'linked')
+    await symlink(outside, link, 'dir')
+    const entered = deferred()
+    const release = deferred()
+    const originalRead = fs.promises.lstat
+    let active = 0
+    let maximum = 0
+    const completed = new Set<string>()
+    const read = jest
+      .spyOn(fs.promises, 'lstat')
+      .mockImplementation(async (...args) => {
+        active++
+        maximum = Math.max(maximum, active)
+        try {
+          const value = await Reflect.apply(originalRead, fs.promises, args)
+          if (String(args[0]) === files[0]) {
+            entered.resolve()
+            await release.promise
+          }
+          completed.add(String(args[0]))
+          return value
+        } finally {
+          active--
+        }
+      })
+    let settled = false
+    const scanning = readWatchInputSnapshot({
+      roots: [root],
+      files: [],
+      ignored: (file) =>
+        file === ignored || file.startsWith(ignored + path.sep),
+      signal: new AbortController().signal,
+    }).finally(() => {
+      settled = true
+    })
+    try {
+      await entered.promise
+      await retry(
+        async () => {
+          expect(completed.has(files[files.length - 1])).toBe(true)
+          expect(completed.size).toBe(files.length)
+        },
+        3000,
+        10
+      )
+      expect(settled).toBe(false)
+      expect(maximum).toBeGreaterThan(1)
+      expect(maximum).toBeLessThanOrEqual(32)
+      expect(completed.has(ignored)).toBe(false)
+      release.resolve()
+      const snapshot = await scanning
+      expect([...snapshot.keys()].sort()).toEqual([root, ...files, link].sort())
+      expect(snapshot.get(root)).toMatch(/^directory:/)
+      expect(snapshot.get(files[0])).not.toMatch(/^directory:/)
+      expect(snapshot.get(link)).not.toMatch(/^directory:/)
+      expect(active).toBe(0)
+    } finally {
+      release.resolve()
+      await scanning.catch(() => {})
+      read.mockRestore()
+      await rm(temporary, { recursive: true, force: true })
+    }
+  })
+
+  it.each(['cancel', 'failure'] as const)(
+    'joins every started read before %s releases the scanner',
+    async (mode) => {
+      const { readWatchInputSnapshot } = await import(
+        'next/dist/experimental/testing/incremental/watch-input-snapshot'
+      )
+      const root = await mkdtemp(path.join(tmpdir(), 'next-watch-owned-reads-'))
+      const held = path.join(root, '00-held.ts')
+      const other = path.join(root, '01-other.ts')
+      await writeFile(held, 'held real input')
+      await writeFile(other, 'other real input')
+      const entered = deferred()
+      const release = deferred()
+      const otherDone = deferred()
+      const originalRead = fs.promises.lstat
+      const failure = new Error(`owned ${mode} input read`)
+      let active = 0
+      const read = jest
+        .spyOn(fs.promises, 'lstat')
+        .mockImplementation(async (...args) => {
+          active++
+          try {
+            const value = await Reflect.apply(originalRead, fs.promises, args)
+            if (String(args[0]) === held) {
+              entered.resolve()
+              await release.promise
+            } else if (String(args[0]) === other) {
+              otherDone.resolve()
+              if (mode === 'failure') throw failure
+            }
+            return value
+          } finally {
+            active--
+          }
+        })
+      const controller = new AbortController()
+      let settled = false
+      const scanning = readWatchInputSnapshot({
+        roots: [root],
+        files: [],
+        ignored: () => false,
+        signal: controller.signal,
+      }).finally(() => {
+        settled = true
+      })
+      try {
+        await entered.promise
+        await otherDone.promise
+        if (mode === 'cancel') controller.abort(failure)
+        await new Promise<void>((resolve) => setImmediate(resolve))
+        expect(settled).toBe(false)
+        expect(active).toBe(1)
+        release.resolve()
+        await expect(scanning).rejects.toBe(failure)
+        expect(active).toBe(0)
+      } finally {
+        release.resolve()
+        await scanning.catch(() => {})
+        read.mockRestore()
+        await rm(root, { recursive: true, force: true })
+      }
+    }
+  )
+})
+
+it('retains real missing-root errors and observes child symlink replacement without following it', async () => {
+  const { readWatchInputSnapshot } = await import(
+    'next/dist/experimental/testing/incremental/watch-input-snapshot'
+  )
+  const temporary = await mkdtemp(path.join(tmpdir(), 'next-watch-link-facts-'))
+  const root = path.join(temporary, 'inputs')
+  const alias = path.join(temporary, 'root-alias')
+  const externalDirectory = path.join(temporary, 'external')
+  const externalFile = path.join(temporary, 'external.ts')
+  await mkdir(root)
+  await mkdir(externalDirectory)
+  await writeFile(path.join(externalDirectory, 'hidden.ts'), 'not followed')
+  await writeFile(externalFile, 'not followed either')
+  await symlink(root, alias, 'dir')
+  const link = path.join(root, 'child')
+  await symlink(externalDirectory, link, 'dir')
+  const options = {
+    roots: [alias],
+    files: [],
+    ignored: () => false,
+    signal: new AbortController().signal,
+  }
+  try {
+    const first = await readWatchInputSnapshot(options)
+    expect([...first.keys()].sort()).toEqual(
+      [alias, path.join(alias, 'child')].sort()
+    )
+    expect(first.get(alias)).toMatch(/^directory:/)
+    expect(first.get(path.join(alias, 'child'))).not.toMatch(/^directory:/)
+    await rm(link)
+    await symlink(externalFile, link)
+    const second = await readWatchInputSnapshot(options)
+    expect([...second.keys()].sort()).toEqual([...first.keys()].sort())
+    expect(second.get(path.join(alias, 'child'))).not.toBe(
+      first.get(path.join(alias, 'child'))
+    )
+    await expect(
+      readWatchInputSnapshot({
+        ...options,
+        roots: [path.join(temporary, 'missing')],
+      })
+    ).rejects.toMatchObject({ code: 'ENOENT' })
+  } finally {
+    await rm(temporary, { recursive: true, force: true })
+  }
+})
+
+it('retains authored AGENTS.md creation, edits and deletion as real watch inputs', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'next-watch-agent-input-'))
+  const file = path.join(root, 'AGENTS.md')
+  const changes: FileChange[] = []
+  const errors: unknown[] = []
+  let watcher: Awaited<ReturnType<typeof watchTestFiles>> | undefined
+  try {
+    watcher = await watchTestFiles({
+      directories: [root],
+      outputDirectories: [],
+      onChange: (change) => changes.push(change),
+      onError: (error) => errors.push(error),
+    })
+    for (const content of [
+      '# Authored first rules\n',
+      '# Authored changed rules\n',
+      null,
+    ]) {
+      const start = changes.length
+      if (content === null) await rm(file)
+      else await writeFile(file, content)
+      await retry(async () => {
+        expect(
+          changes
+            .slice(start)
+            .some(
+              (change) =>
+                change.changed.includes(file) || change.changed.includes(root)
+            )
+        ).toBe(true)
+      })
+      expect(fs.existsSync(file)).toBe(content !== null)
+      if (content !== null) expect(fs.readFileSync(file, 'utf8')).toBe(content)
+    }
+    expect(errors).toEqual([])
+  } finally {
+    try {
+      await watcher?.close()
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  }
+})
+
+describe('closed retained setup source selection', () => {
+  type UnchangedInput = Parameters<
+    NonNullable<
+      import('next/dist/experimental/testing/incremental/watch-session').WatchSessionOptions<WatchDiscovery>['canSkipUnchangedRun']
+    >
+  >[0]
+  const setupFile = path.resolve('/retained/setup.mjs')
+  const entryFile = path.resolve('/retained/one.test.mjs')
+  const configFile = path.resolve('/retained/next.test.config.json')
+  const registry = (setupHash = 'setup-1'): WatchRegistrySnapshot => ({
+    configurationRevision: 'retained-config-1',
+    entries: [{ id: 'one', file: entryFile, sourceHash: 'entry-1' }],
+    inputs: [
+      { file: setupFile, sourceHash: setupHash },
+      { file: configFile, sourceHash: 'config-1' },
+    ],
+  })
+  const matching = async (options: {
+    previous: WatchRegistrySnapshot | undefined
+    current: WatchRegistrySnapshot | undefined
+    changedPaths: readonly string[] | undefined
+    setupFiles?: readonly string[]
+  }) => {
+    const { matchesRetainedSetupChange } = await import(
+      'next/dist/experimental/testing/incremental/registry-additions'
+    )
+    return matchesRetainedSetupChange({ setupFiles: [setupFile], ...options })
+  }
+
+  it('admits only existing owned setup paths while every other input and entry stays identical', async () => {
+    expect(
+      await matching({
+        previous: registry(),
+        current: registry('setup-2'),
+        changedPaths: [setupFile, setupFile],
+      })
+    ).toBe(true)
+    const controls = [
+      { previous: undefined },
+      { current: undefined },
+      { changedPaths: undefined },
+      { changedPaths: [] },
+      { changedPaths: [setupFile, entryFile] },
+      { changedPaths: ['setup.mjs'] },
+      { setupFiles: [] },
+      { current: { ...registry(), configurationRevision: 'other-config' } },
+      {
+        current: {
+          ...registry(),
+          entries: [{ id: 'one', file: entryFile, sourceHash: 'changed' }],
+        },
+      },
+      { current: { ...registry(), entries: [] } },
+      {
+        current: {
+          ...registry(),
+          entries: [...registry().entries, ...registry().entries],
+        },
+      },
+      {
+        current: {
+          ...registry(),
+          inputs: [{ file: setupFile, sourceHash: 'setup-2' }],
+        },
+      },
+      {
+        current: {
+          ...registry(),
+          inputs: [
+            { file: setupFile, sourceHash: 'setup-2' },
+            { file: configFile, sourceHash: 'changed-config' },
+          ],
+        },
+      },
+      {
+        current: {
+          ...registry(),
+          inputs: [...registry().inputs, ...registry().inputs],
+        },
+      },
+    ]
+    for (const control of controls)
+      expect(
+        await matching({
+          previous: registry(),
+          current: registry('setup-2'),
+          changedPaths: [setupFile],
+          ...control,
+        })
+      ).toBe(false)
+  })
+
+  it('commits the observed setup baseline without replacing a machine run, then selects only a new test', async () => {
+    let current = registry()
+    let revision = 'entries-1'
+    const runs: string[][] = []
+    const proof = jest.fn(
+      async ({ previousRegistry, discovery, changedPaths }: UnchangedInput) =>
+        matching({
+          previous: previousRegistry,
+          current: discovery.registry,
+          changedPaths,
+        })
+    )
+    const session = createWatchSession({
+      runEmpty: true,
+      discover: async () => ({
+        entryIds: current.entries.map((entry) => entry.id),
+        discoveryRevision: revision,
+        registry: current,
+      }),
+      canSkipUnchangedRun: proof,
+      run: async ({ selection }) => {
+        runs.push(selection.entryIds)
+        return { status: 'passed' as const }
+      },
+      onError: (error) => {
+        throw error
+      },
+    })
+    try {
+      await session.waitForIdle()
+      expect(proof).not.toHaveBeenCalled()
+      current = registry('setup-2')
+      session.invalidate({ registryPaths: [setupFile] })
+      await session.waitForIdle()
+      expect(runs).toEqual([['one']])
+      expect(proof).toHaveBeenCalledTimes(1)
+      const added = path.resolve('/retained/new.test.mjs')
+      current = {
+        ...current,
+        entries: [
+          ...current.entries,
+          { id: 'new', file: added, sourceHash: 'new-1' },
+        ],
+      }
+      revision = 'entries-2'
+      session.invalidate({ registryPaths: [added] })
+      await session.waitForIdle()
+      expect(runs).toEqual([['one'], ['new']])
+      expect(proof).toHaveBeenCalledTimes(1)
+    } finally {
+      await session.close()
+    }
+  })
+
+  it.each(['failed', 'cancelled'] as const)(
+    'does not reuse a %s run as a successful baseline',
+    async (status) => {
+      const proof = jest.fn(async () => true)
+      let nextStatus: 'passed' | 'failed' | 'cancelled' = 'passed'
+      const run = jest.fn(async () => ({ status: nextStatus }))
+      const session = createWatchSession({
+        discover: async () => ({
+          entryIds: ['one'],
+          discoveryRevision: 'same',
+          registry: registry(),
+        }),
+        canSkipUnchangedRun: proof,
+        run,
+        onError: (error) => {
+          throw error
+        },
+      })
+      try {
+        await session.waitForIdle()
+        nextStatus = status
+        session.invalidate({ invalidateAll: true })
+        await session.waitForIdle()
+        session.invalidate({ registryPaths: [setupFile] })
+        await session.waitForIdle()
+        expect(run).toHaveBeenCalledTimes(3)
+        expect(proof).not.toHaveBeenCalled()
+      } finally {
+        await session.close()
+      }
+    }
+  )
+
+  it('rejects a superseded proof after its actual owner settles and reruns the complete next batch', async () => {
+    const entered = deferred()
+    const released = deferred()
+    let proofSignal: AbortSignal | undefined
+    const proof = jest.fn(async ({ signal }: UnchangedInput) => {
+      proofSignal = signal
+      entered.resolve()
+      await released.promise
+      return true
+    })
+    const runs: string[][] = []
+    const session = createWatchSession({
+      discover: async () => ({
+        entryIds: ['one'],
+        discoveryRevision: 'same',
+        registry: registry(),
+      }),
+      canSkipUnchangedRun: proof,
+      run: async ({ selection }) => {
+        runs.push(selection.entryIds)
+        return { status: 'passed' as const }
+      },
+      onError: (error) => {
+        throw error
+      },
+    })
+    try {
+      await session.waitForIdle()
+      session.invalidate({ registryPaths: [setupFile] })
+      await entered.promise
+      session.invalidate({ registryPaths: [entryFile] })
+      expect(proofSignal?.aborted).toBe(true)
+      expect(runs).toEqual([['one']])
+      released.resolve()
+      await session.waitForIdle()
+      expect(runs).toEqual([['one'], ['one']])
+      expect(proof).toHaveBeenCalledTimes(1)
+    } finally {
+      released.resolve()
+      await session.close()
+    }
+  })
+
+  it('joins a cancelled selector before session close releases ownership', async () => {
+    const entered = deferred()
+    const released = deferred()
+    const proof = jest.fn(async ({ signal }: UnchangedInput) => {
+      entered.resolve()
+      await released.promise
+      expect(signal.aborted).toBe(true)
+      return true
+    })
+    const run = jest.fn(async () => ({ status: 'passed' as const }))
+    const session = createWatchSession({
+      discover: async () => ({ entryIds: ['one'], discoveryRevision: 'same' }),
+      canSkipUnchangedRun: proof,
+      run,
+      onError: (error) => {
+        throw error
+      },
+    })
+    await session.waitForIdle()
+    session.invalidate({ registryPaths: [setupFile] })
+    await entered.promise
+    let closed = false
+    const closing = session.close().then(() => {
+      closed = true
+    })
+    await Promise.resolve()
+    expect(closed).toBe(false)
+    released.resolve()
+    await closing
+    expect(run).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('closed compiler watch refinement', () => {
+  const discovery: WatchDiscovery = {
+    entryIds: ['alpha', 'beta'],
+    discoveryRevision: 'all-watched-entries',
+  }
+
+  it('awaits a compiler selection without shrinking watched discovery', async () => {
+    const ready = deferred()
+    const entered = deferred()
+    const runs: WatchRun<WatchDiscovery>[] = []
+    const session = createWatchSession({
+      discover: async () => discovery,
+      async selectTests({ discovery: current }) {
+        expect(current.entryIds).toEqual(['alpha', 'beta'])
+        entered.resolve()
+        await ready.promise
+        return { entryIds: ['alpha'], reason: 'compiler-dependencies' }
+      },
+      async run(run) {
+        runs.push(run)
+        return { status: 'passed' }
+      },
+      onError(error) {
+        throw error
+      },
+    })
+    try {
+      await entered.promise
+      expect(runs).toEqual([])
+      ready.resolve()
+      await session.waitForIdle()
+      expect(runs).toHaveLength(1)
+      expect(runs[0].selection.entryIds).toEqual(['alpha'])
+      expect(runs[0].discovery.entryIds).toEqual(['alpha', 'beta'])
+    } finally {
+      ready.resolve()
+      await session.close()
+    }
+  })
+
+  it('joins a superseded compiler plan before running the next selection', async () => {
+    const ready = deferred()
+    const entered = deferred()
+    let firstSignal: AbortSignal | undefined
+    let plans = 0
+    const runs: WatchRun<WatchDiscovery>[] = []
+    const session = createWatchSession({
+      discover: async () => discovery,
+      async selectTests({ signal, changedPaths }) {
+        if (++plans === 1) {
+          firstSignal = signal
+          entered.resolve()
+          await ready.promise
+          return { entryIds: ['alpha'], reason: 'compiler-dependencies' }
+        }
+        expect(changedPaths).toEqual(['/sources/beta.mjs'])
+        return { entryIds: ['beta'], reason: 'compiler-dependencies' }
+      },
+      async run(run) {
+        runs.push(run)
+        return { status: 'passed' }
+      },
+      onError(error) {
+        throw error
+      },
+    })
+    try {
+      await entered.promise
+      session.invalidate({ registryPaths: ['/sources/beta.mjs'] })
+      expect(firstSignal!.aborted).toBe(true)
+      expect(runs).toEqual([])
+      ready.resolve()
+      await session.waitForIdle()
+      expect(plans).toBe(2)
+      expect(runs).toHaveLength(1)
+      expect(runs[0].selection.entryIds).toEqual(['beta'])
+    } finally {
+      ready.resolve()
+      await session.close()
+    }
+  })
+
+  it.each([['foreign'], ['alpha', 'alpha']])(
+    'refuses invalid compiler entry selection %j',
+    async (...entryIds: string[]) => {
+      const errors: unknown[] = []
+      const run = jest.fn(async () => ({ status: 'passed' as const }))
+      const session = createWatchSession({
+        discover: async () => discovery,
+        selectTests: async () => ({
+          entryIds,
+          reason: 'compiler-dependencies',
+        }),
+        run,
+        onError: (error) => errors.push(error),
+      })
+      try {
+        await session.waitForIdle()
+        expect(run).not.toHaveBeenCalled()
+        expect(errors).toHaveLength(1)
+        expect(String(errors[0])).toContain('unknown entries')
+      } finally {
+        await session.close()
+      }
+    }
+  )
+
+  it('retains ordinary selection when the compiler cannot refine a generation', async () => {
+    const selections: string[][] = []
+    const session = createWatchSession({
+      discover: async () => discovery,
+      selectTests: async () => undefined,
+      async run({ selection }) {
+        selections.push(selection.entryIds)
+        return { status: 'passed' }
+      },
+      onError(error) {
+        throw error
+      },
+    })
+    try {
+      await session.waitForIdle()
+      session.invalidate({ registryPaths: ['/unknown/source.mjs'] })
+      await session.waitForIdle()
+      expect(selections).toEqual([
+        ['alpha', 'beta'],
+        ['alpha', 'beta'],
+      ])
+    } finally {
+      await session.close()
+    }
+  })
+})
+
+it('skips an exact empty compiler selection while retaining future watched entries', async () => {
+  let selected: string[] = []
+  const run = jest.fn(async (_run: WatchRun<WatchDiscovery>) => ({
+    status: 'passed' as const,
+  }))
+  const session = createWatchSession({
+    runEmpty: true,
+    discover: async () => ({
+      entryIds: ['alpha', 'beta'],
+      discoveryRevision: 'all-watched-entries',
+    }),
+    selectTests: async () => ({
+      entryIds: selected,
+      reason: 'compiler-dependencies',
+    }),
+    run,
+    onError(error) {
+      throw error
+    },
+  })
+  try {
+    await session.waitForIdle()
+    expect(run).not.toHaveBeenCalled()
+    selected = ['beta']
+    session.invalidate({ registryPaths: ['/sources/beta.mjs'] })
+    await session.waitForIdle()
+    expect(run).toHaveBeenCalledTimes(1)
+    expect(run.mock.calls[0][0].selection.entryIds).toEqual(['beta'])
+  } finally {
+    await session.close()
+  }
+})

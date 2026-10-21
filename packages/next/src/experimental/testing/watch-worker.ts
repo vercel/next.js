@@ -53,7 +53,8 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
       request.projects,
       request.certifiedTestConfig,
       controller.signal,
-      allocateArtifact
+      allocateArtifact,
+      request.retainedGlobalSetup
     )
     return { operation: 'plan', plan }
   }
@@ -82,7 +83,9 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
         : {}),
       signal: controller.signal,
       collectOnly: request.collectOnly,
+      captureTaskResults: request.captureTaskResults,
       inspect: request.inspect,
+      inspectBrk: request.inspectBrk,
       testNamePattern: request.testNamePattern,
       passWithNoTests: request.passWithNoTests,
       bailFailures: request.bailFailures,
@@ -94,6 +97,9 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
       ...(request.standardCoverageOptions
         ? {
             coverageSourcePlan: request.coverageSourcePlan,
+            nodeTypeScriptImportCoverage:
+              request.isolatedProfile === true &&
+              request.watchCoverage !== true,
             runtimeConfigurationPlan: request.runtimeConfigurationPlan,
             onCoverageSource: broker.analyzeCoverageSource,
           }

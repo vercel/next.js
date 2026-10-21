@@ -1,0 +1,3 @@
+import * as native from 'node:cluster'
+import { peerNamespace, value } from './peer.mjs'
+export const namespace=native; export {peerNamespace}; export const read=()=>({value,original:native.setupPrimary===globalThis.__ws2Original,patched:native.setupPrimary===globalThis.__ws2Patched})

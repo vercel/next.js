@@ -1,0 +1,22 @@
+[
+  {
+    "name": "held dependency lifetime reset",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "held dependency lifetime reregister",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "held dependency lifetime unregister",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "held cycle cache records after reset",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

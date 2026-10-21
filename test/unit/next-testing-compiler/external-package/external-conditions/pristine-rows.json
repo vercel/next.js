@@ -1,0 +1,20 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_CONDITIONS",
+    "value": {
+      "branch": "native-import",
+      "object": {
+        "value": 47
+      },
+      "default": {
+        "value": 53
+      },
+      "info": {
+        "same": true,
+        "tag": "Module",
+        "keys": ["branch", "default", "object"]
+      }
+    }
+  }
+]

@@ -1,0 +1,12 @@
+import { appendFileSync, readFileSync } from 'node:fs'
+export function record(project, file, phase) {
+  appendFileSync(process.env.NEXT_TEST_EDITOR_TRACE, JSON.stringify({ project, file, phase, pid: process.pid }) + '\n')
+}
+export async function body(project, file, { signal, onTestFinished }) {
+  onTestFinished(() => record(project, file, 'finished'))
+  record(project, file, 'body')
+  if (readFileSync(process.env.NEXT_TEST_EDITOR_CONTROL, 'utf8') === `${project}:${file}` && !signal.aborted) {
+    record(project, file, 'active')
+    await new Promise((resolve) => signal.addEventListener('abort', resolve, { once: true }))
+  }
+}

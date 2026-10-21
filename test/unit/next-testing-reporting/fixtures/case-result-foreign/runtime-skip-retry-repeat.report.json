@@ -1,0 +1,104 @@
+{
+  "numTotalTestSuites": 2,
+  "numPassedTestSuites": 2,
+  "numFailedTestSuites": 0,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 6,
+  "numPassedTests": 1,
+  "numFailedTests": 0,
+  "numPendingTests": 4,
+  "numTodoTests": 1,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1792504933036,
+  "success": true,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": ["runtime pending"],
+          "fullName": "runtime pending pass control",
+          "status": "passed",
+          "title": "pass control",
+          "duration": 1.3751660000000072,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": ["runtime pending"],
+          "fullName": "runtime pending static skipped control",
+          "status": "skipped",
+          "title": "static skipped control",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": ["runtime pending"],
+          "fullName": "runtime pending static todo control",
+          "status": "todo",
+          "title": "static todo control",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": ["runtime pending"],
+          "fullName": "runtime pending skip with note",
+          "status": "skipped",
+          "title": "skip with note",
+          "duration": 0.2902090000000044,
+          "failureMessages": [],
+          "meta": { "observed": "before skip" },
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": ["runtime pending"],
+          "fullName": "runtime pending skip after failed retry",
+          "status": "skipped",
+          "title": "skip after failed retry",
+          "duration": 3.031166999999982,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": ["runtime pending"],
+          "fullName": "runtime pending skip after failed repeat",
+          "status": "skipped",
+          "title": "skip after failed repeat",
+          "duration": 0.42012500000001296,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1792434637351,
+      "endTime": 1792434637352.3752,
+      "status": "passed",
+      "message": "",
+      "name": "/private/tmp/next-testing-ws4-foreign-pending147/pristine/contract.case.mjs"
+    }
+  ]
+}

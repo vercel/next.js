@@ -1,0 +1,149 @@
+{
+  "subject.ts": {
+    "path": "subject.ts",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 1,
+          "column": 23
+        },
+        "end": {
+          "line": 1,
+          "column": null
+        }
+      },
+      "1": {
+        "start": {
+          "line": 2,
+          "column": 41
+        },
+        "end": {
+          "line": 2,
+          "column": 59
+        }
+      },
+      "2": {
+        "start": {
+          "line": 4,
+          "column": 32
+        },
+        "end": {
+          "line": 4,
+          "column": 63
+        }
+      },
+      "3": {
+        "start": {
+          "line": 6,
+          "column": 50
+        },
+        "end": {
+          "line": 6,
+          "column": 83
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "prefix",
+        "decl": {
+          "start": {
+            "line": 2,
+            "column": 9
+          },
+          "end": {
+            "line": 2,
+            "column": 16
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 39
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "line": 2
+      },
+      "1": {
+        "name": "read",
+        "decl": {
+          "start": {
+            "line": 4,
+            "column": 2
+          },
+          "end": {
+            "line": 4,
+            "column": 7
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 4,
+            "column": 30
+          },
+          "end": {
+            "line": 4,
+            "column": null
+          }
+        },
+        "line": 4
+      },
+      "2": {
+        "name": "exercise",
+        "decl": {
+          "start": {
+            "line": 6,
+            "column": 16
+          },
+          "end": {
+            "line": 6,
+            "column": 25
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 6,
+            "column": 48
+          },
+          "end": {
+            "line": 6,
+            "column": null
+          }
+        },
+        "line": 6
+      }
+    },
+    "branchMap": {},
+    "s": {
+      "0": 1,
+      "1": 2,
+      "2": 2,
+      "3": 2
+    },
+    "f": {
+      "0": 2,
+      "1": 2,
+      "2": 2
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 3,
+      "lastStatement": 4,
+      "seen": {
+        "s:1:23:1:Infinity": 0,
+        "f:2:9:2:16": 0,
+        "s:2:41:2:59": 1,
+        "f:4:2:4:7": 1,
+        "s:4:32:4:63": 2,
+        "f:6:16:6:25": 2,
+        "s:6:50:6:83": 3
+      },
+      "fnNames": {}
+    }
+  }
+}

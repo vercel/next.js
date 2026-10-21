@@ -1,0 +1,2509 @@
+{
+  "reference": {
+    "target": "vitest@5.0.4",
+    "provider": "@vitest/browser-playwright@5.0.4/playwright@1.64.0 Chromium",
+    "runtime": "Node26.1.0",
+    "sourceSHA256": {
+      "hover.test.mjs": "55e845635be66ec30b657a90e77ee9e8ebee00be949f78ca45a87850eefc38f5",
+      "companion.test.mjs": "a1a398e7f8faf419b625aaff973fb04b53f8a43338fd10c20fdd22ed0a53d6f7"
+    },
+    "completeRows": 16,
+    "completeCases": 16,
+    "proof": "/private/tmp/next-testing-ws3-browser-locator-hover134/REFERENCE-AND-GAP01.json",
+    "companionProof": "/private/tmp/next-testing-ws3-browser-locator-hover134/COMPANION-REFERENCE01.json"
+  },
+  "phases": {
+    "deferred-hover-development": {
+      "mode": "development",
+      "cases": [
+        {
+          "fullName": "late native hover DOM",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "late native hover React",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "late native unhover DOM",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "late native unhover React",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "hover DOM",
+            "mode": "development",
+            "connected": true,
+            "label": "Late hover DOM",
+            "text": "Hovered 1",
+            "events": [
+              {
+                "type": "pointerover",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Hovered 0"
+              },
+              {
+                "type": "pointerenter",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Hovered 0"
+              },
+              {
+                "type": "mouseover",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Hovered 0"
+              },
+              {
+                "type": "mouseenter",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Hovered 1"
+              },
+              {
+                "type": "pointermove",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Hovered 1"
+              },
+              {
+                "type": "mousemove",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Hovered 1"
+              },
+              {
+                "type": "pointerover",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Hovered 1"
+              }
+            ],
+            "anchorEvents": [
+              {
+                "type": "pointerout",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Pointer anchor"
+              },
+              {
+                "type": "pointerleave",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Pointer anchor"
+              },
+              {
+                "type": "mouseout",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Pointer anchor"
+              },
+              {
+                "type": "mouseleave",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Pointer anchor"
+              }
+            ],
+            "outcome": {
+              "returnedUndefined": true
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "hover React",
+            "mode": "development",
+            "connected": true,
+            "label": "Late hover React",
+            "text": "Hovered 1",
+            "events": [
+              {
+                "type": "pointerover",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Hovered 0"
+              },
+              {
+                "type": "pointerenter",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Hovered 0"
+              },
+              {
+                "type": "mouseover",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Hovered 0"
+              },
+              {
+                "type": "mouseenter",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Hovered 0"
+              },
+              {
+                "type": "pointermove",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Hovered 0"
+              },
+              {
+                "type": "mousemove",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Hovered 0"
+              }
+            ],
+            "anchorEvents": [
+              {
+                "type": "pointerout",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Pointer anchor"
+              },
+              {
+                "type": "pointerleave",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Pointer anchor"
+              },
+              {
+                "type": "mouseout",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Pointer anchor"
+              },
+              {
+                "type": "mouseleave",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Pointer anchor"
+              }
+            ],
+            "outcome": {
+              "returnedUndefined": true
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "unhover DOM",
+            "mode": "development",
+            "connected": true,
+            "label": "Late unhover DOM",
+            "text": "Hovered 0",
+            "events": [],
+            "anchorEvents": [
+              {
+                "type": "pointerout",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 320,
+                "y": 240,
+                "text": "Pointer anchor"
+              },
+              {
+                "type": "pointerleave",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 320,
+                "y": 240,
+                "text": "Pointer anchor"
+              },
+              {
+                "type": "mouseout",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 320,
+                "y": 240,
+                "text": "Pointer anchor"
+              },
+              {
+                "type": "mouseleave",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 320,
+                "y": 240,
+                "text": "Pointer anchor"
+              }
+            ],
+            "outcome": {
+              "returnedUndefined": true
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "unhover React",
+            "mode": "development",
+            "connected": true,
+            "label": "Late unhover React",
+            "text": "Hovered 0",
+            "events": [],
+            "anchorEvents": [
+              {
+                "type": "pointerout",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 320,
+                "y": 240,
+                "text": "Pointer anchor"
+              },
+              {
+                "type": "pointerleave",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 320,
+                "y": 240,
+                "text": "Pointer anchor"
+              },
+              {
+                "type": "mouseout",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 320,
+                "y": 240,
+                "text": "Pointer anchor"
+              },
+              {
+                "type": "mouseleave",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 320,
+                "y": 240,
+                "text": "Pointer anchor"
+              }
+            ],
+            "outcome": {
+              "returnedUndefined": true
+            }
+          }
+        }
+      ]
+    },
+    "deferred-hover-production": {
+      "mode": "production",
+      "cases": [
+        {
+          "fullName": "late native hover DOM",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "late native hover React",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "late native unhover DOM",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "late native unhover React",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "hover DOM",
+            "mode": "production",
+            "connected": true,
+            "label": "Late hover DOM",
+            "text": "Hovered 1",
+            "events": [
+              {
+                "type": "pointerover",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Hovered 0"
+              },
+              {
+                "type": "pointerenter",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Hovered 0"
+              },
+              {
+                "type": "mouseover",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Hovered 0"
+              },
+              {
+                "type": "mouseenter",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Hovered 1"
+              },
+              {
+                "type": "pointermove",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Hovered 1"
+              },
+              {
+                "type": "mousemove",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Hovered 1"
+              },
+              {
+                "type": "pointerover",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Hovered 1"
+              }
+            ],
+            "anchorEvents": [
+              {
+                "type": "pointerout",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Pointer anchor"
+              },
+              {
+                "type": "pointerleave",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Pointer anchor"
+              },
+              {
+                "type": "mouseout",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Pointer anchor"
+              },
+              {
+                "type": "mouseleave",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Pointer anchor"
+              }
+            ],
+            "outcome": {
+              "returnedUndefined": true
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "hover React",
+            "mode": "production",
+            "connected": true,
+            "label": "Late hover React",
+            "text": "Hovered 1",
+            "events": [
+              {
+                "type": "pointerover",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Hovered 0"
+              },
+              {
+                "type": "pointerenter",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Hovered 0"
+              },
+              {
+                "type": "mouseover",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Hovered 0"
+              },
+              {
+                "type": "mouseenter",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Hovered 0"
+              },
+              {
+                "type": "pointermove",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Hovered 0"
+              },
+              {
+                "type": "mousemove",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Hovered 0"
+              }
+            ],
+            "anchorEvents": [
+              {
+                "type": "pointerout",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Pointer anchor"
+              },
+              {
+                "type": "pointerleave",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Pointer anchor"
+              },
+              {
+                "type": "mouseout",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Pointer anchor"
+              },
+              {
+                "type": "mouseleave",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": false,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 240,
+                "y": 35,
+                "text": "Pointer anchor"
+              }
+            ],
+            "outcome": {
+              "returnedUndefined": true
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "unhover DOM",
+            "mode": "production",
+            "connected": true,
+            "label": "Late unhover DOM",
+            "text": "Hovered 0",
+            "events": [],
+            "anchorEvents": [
+              {
+                "type": "pointerout",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 320,
+                "y": 240,
+                "text": "Pointer anchor"
+              },
+              {
+                "type": "pointerleave",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 320,
+                "y": 240,
+                "text": "Pointer anchor"
+              },
+              {
+                "type": "mouseout",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 320,
+                "y": 240,
+                "text": "Pointer anchor"
+              },
+              {
+                "type": "mouseleave",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 320,
+                "y": 240,
+                "text": "Pointer anchor"
+              }
+            ],
+            "outcome": {
+              "returnedUndefined": true
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "unhover React",
+            "mode": "production",
+            "connected": true,
+            "label": "Late unhover React",
+            "text": "Hovered 0",
+            "events": [],
+            "anchorEvents": [
+              {
+                "type": "pointerout",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 320,
+                "y": 240,
+                "text": "Pointer anchor"
+              },
+              {
+                "type": "pointerleave",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 320,
+                "y": 240,
+                "text": "Pointer anchor"
+              },
+              {
+                "type": "mouseout",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 320,
+                "y": 240,
+                "text": "Pointer anchor"
+              },
+              {
+                "type": "mouseleave",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "relatedBody": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 320,
+                "y": 240,
+                "text": "Pointer anchor"
+              }
+            ],
+            "outcome": {
+              "returnedUndefined": true
+            }
+          }
+        }
+      ]
+    },
+    "deferred-hover-companion-development": {
+      "mode": "development",
+      "source": "companion.test.mjs",
+      "nativeDiagnostics": 2,
+      "cases": [
+        {
+          "fullName": "companion hover timeout recovery",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "companion hover duplicate recovery",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "companion unhover never created body action",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "companion unhover late duplicates body action",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "companion hover timeout recovery",
+            "mode": "development",
+            "outcome": {
+              "error": {
+                "name": "TimeoutError",
+                "timeout": true,
+                "strict": false
+              }
+            },
+            "following": {
+              "returnedUndefined": true
+            },
+            "events": [
+              {
+                "type": "pointerover",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "pointerenter",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mouseover",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mouseenter",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "pointermove",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mousemove",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              }
+            ],
+            "anchorEvents": [
+              {
+                "type": "pointerout",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "pointerleave",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mouseout",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mouseleave",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              }
+            ],
+            "duplicateEvents": [],
+            "budgets": {
+              "missingQuery": 60,
+              "body": 500,
+              "healthy": 500
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "companion hover duplicate recovery",
+            "mode": "development",
+            "outcome": {
+              "error": {
+                "name": "Error",
+                "timeout": false,
+                "strict": true
+              }
+            },
+            "following": {
+              "returnedUndefined": true
+            },
+            "events": [
+              {
+                "type": "pointerover",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "pointerenter",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mouseover",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mouseenter",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "pointermove",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mousemove",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              }
+            ],
+            "anchorEvents": [
+              {
+                "type": "pointerout",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "pointerleave",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mouseout",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mouseleave",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              }
+            ],
+            "duplicateEvents": [[], []],
+            "budgets": {
+              "missingQuery": 60,
+              "body": 500,
+              "healthy": 500
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "companion unhover never created body action",
+            "mode": "development",
+            "outcome": {
+              "returnedUndefined": true
+            },
+            "following": {
+              "returnedUndefined": true
+            },
+            "events": [
+              {
+                "type": "pointerover",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "pointerenter",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mouseover",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mouseenter",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "pointermove",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mousemove",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              }
+            ],
+            "anchorEvents": [
+              {
+                "type": "pointerout",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 320,
+                "y": 240
+              },
+              {
+                "type": "pointerleave",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 320,
+                "y": 240
+              },
+              {
+                "type": "mouseout",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 320,
+                "y": 240
+              },
+              {
+                "type": "mouseleave",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 320,
+                "y": 240
+              }
+            ],
+            "duplicateEvents": [],
+            "budgets": {
+              "missingQuery": 60,
+              "body": 500,
+              "healthy": 500
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "companion unhover late duplicates body action",
+            "mode": "development",
+            "outcome": {
+              "returnedUndefined": true
+            },
+            "following": {
+              "returnedUndefined": true
+            },
+            "events": [
+              {
+                "type": "pointerover",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "pointerenter",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mouseover",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mouseenter",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "pointermove",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mousemove",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              }
+            ],
+            "anchorEvents": [
+              {
+                "type": "pointerout",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 320,
+                "y": 240
+              },
+              {
+                "type": "pointerleave",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 320,
+                "y": 240
+              },
+              {
+                "type": "mouseout",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 320,
+                "y": 240
+              },
+              {
+                "type": "mouseleave",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 320,
+                "y": 240
+              }
+            ],
+            "duplicateEvents": [[], []],
+            "budgets": {
+              "missingQuery": 60,
+              "body": 500,
+              "healthy": 500
+            }
+          }
+        }
+      ]
+    },
+    "deferred-hover-companion-production": {
+      "mode": "production",
+      "source": "companion.test.mjs",
+      "nativeDiagnostics": 2,
+      "cases": [
+        {
+          "fullName": "companion hover timeout recovery",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "companion hover duplicate recovery",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "companion unhover never created body action",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "companion unhover late duplicates body action",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "companion hover timeout recovery",
+            "mode": "production",
+            "outcome": {
+              "error": {
+                "name": "TimeoutError",
+                "timeout": true,
+                "strict": false
+              }
+            },
+            "following": {
+              "returnedUndefined": true
+            },
+            "events": [
+              {
+                "type": "pointerover",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "pointerenter",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mouseover",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mouseenter",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "pointermove",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mousemove",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              }
+            ],
+            "anchorEvents": [
+              {
+                "type": "pointerout",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "pointerleave",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mouseout",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mouseleave",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              }
+            ],
+            "duplicateEvents": [],
+            "budgets": {
+              "missingQuery": 60,
+              "body": 500,
+              "healthy": 500
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "companion hover duplicate recovery",
+            "mode": "production",
+            "outcome": {
+              "error": {
+                "name": "Error",
+                "timeout": false,
+                "strict": true
+              }
+            },
+            "following": {
+              "returnedUndefined": true
+            },
+            "events": [
+              {
+                "type": "pointerover",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "pointerenter",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mouseover",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mouseenter",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "pointermove",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mousemove",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              }
+            ],
+            "anchorEvents": [
+              {
+                "type": "pointerout",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "pointerleave",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mouseout",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mouseleave",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              }
+            ],
+            "duplicateEvents": [[], []],
+            "budgets": {
+              "missingQuery": 60,
+              "body": 500,
+              "healthy": 500
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "companion unhover never created body action",
+            "mode": "production",
+            "outcome": {
+              "returnedUndefined": true
+            },
+            "following": {
+              "returnedUndefined": true
+            },
+            "events": [
+              {
+                "type": "pointerover",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "pointerenter",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mouseover",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mouseenter",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "pointermove",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mousemove",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              }
+            ],
+            "anchorEvents": [
+              {
+                "type": "pointerout",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 320,
+                "y": 240
+              },
+              {
+                "type": "pointerleave",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 320,
+                "y": 240
+              },
+              {
+                "type": "mouseout",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 320,
+                "y": 240
+              },
+              {
+                "type": "mouseleave",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 320,
+                "y": 240
+              }
+            ],
+            "duplicateEvents": [],
+            "budgets": {
+              "missingQuery": 60,
+              "body": 500,
+              "healthy": 500
+            }
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "companion unhover late duplicates body action",
+            "mode": "production",
+            "outcome": {
+              "returnedUndefined": true
+            },
+            "following": {
+              "returnedUndefined": true
+            },
+            "events": [
+              {
+                "type": "pointerover",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "pointerenter",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mouseover",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mouseenter",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "pointermove",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              },
+              {
+                "type": "mousemove",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 440,
+                "y": 35
+              }
+            ],
+            "anchorEvents": [
+              {
+                "type": "pointerout",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 320,
+                "y": 240
+              },
+              {
+                "type": "pointerleave",
+                "constructor": "PointerEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": -1,
+                "buttons": 0,
+                "x": 320,
+                "y": 240
+              },
+              {
+                "type": "mouseout",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": true,
+                "composed": true,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 320,
+                "y": 240
+              },
+              {
+                "type": "mouseleave",
+                "constructor": "MouseEvent",
+                "target": true,
+                "currentTarget": true,
+                "trusted": true,
+                "bubbles": false,
+                "composed": false,
+                "detail": 0,
+                "button": 0,
+                "buttons": 0,
+                "x": 320,
+                "y": 240
+              }
+            ],
+            "duplicateEvents": [[], []],
+            "budgets": {
+              "missingQuery": 60,
+              "body": 500,
+              "healthy": 500
+            }
+          }
+        }
+      ]
+    }
+  }
+}

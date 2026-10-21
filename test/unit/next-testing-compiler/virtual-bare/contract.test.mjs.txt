@@ -1,0 +1,17 @@
+import {expect,test,vi} from 'vitest'
+vi.mock('ws2-completely-absent-package',()=>({value:73,default:{source:'virtual'}}))
+vi.mock('ws2-absent-async-package',async()=>({value:await Promise.resolve(91)}))
+vi.mock('@ws2/absent/subpath',()=>({value:117}))
+import fallback,{value} from 'ws2-completely-absent-package'
+import * as named from 'ws2-completely-absent-package'
+import {value as throughConsumer,fallback as consumerDefault} from './consumer.mjs'
+import {value as asyncValue} from 'ws2-absent-async-package'
+import {value as scopedValue} from '@ws2/absent/subpath'
+function row(value){console.log('WS2_VIRTUAL_RAW:'+JSON.stringify(value))}
+test('supplies a missing bare module through one actual factory across graph consumers',async()=>{
+ const dynamic=await import('ws2-completely-absent-package')
+ const result={name:'bare',value,defaultSource:fallback.source,throughConsumer,defaultIdentity:fallback===consumerDefault,namespaceIdentity:named===dynamic,keys:Object.keys(named)}
+ row(result);expect(value).toBe(73);expect(throughConsumer).toBe(73);expect(fallback).toBe(consumerDefault)
+})
+test('awaits an explicit missing bare module factory',()=>{row({name:'async',value:asyncValue});expect(asyncValue).toBe(91)})
+test('supplies a scoped missing bare subpath factory',()=>{row({name:'scoped',value:scopedValue});expect(scopedValue).toBe(117)})

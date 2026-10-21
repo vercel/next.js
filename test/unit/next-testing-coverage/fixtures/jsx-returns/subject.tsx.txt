@@ -1,0 +1,10 @@
+import React from 'react'
+import { label } from './helper.js'
+type Props = { name: string }
+export function MultilineReturn({ name }: Props): React.ReactElement {
+  return (
+    <p data-name={name}>
+      <span>{label(name)}</span>
+    </p>
+  )
+}

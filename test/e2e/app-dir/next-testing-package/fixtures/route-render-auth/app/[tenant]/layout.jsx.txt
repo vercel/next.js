@@ -1,0 +1,5 @@
+import Provider from './provider'
+export default async function Layout({children,params}) {
+ const {tenant}=await params
+ return <html><body><Provider label={tenant}><div data-root-layout={tenant}>{children}</div></Provider></body></html>
+}

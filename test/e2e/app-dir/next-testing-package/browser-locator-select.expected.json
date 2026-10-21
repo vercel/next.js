@@ -1,0 +1,915 @@
+{
+  "reference": {
+    "target": "vitest@5.0.4",
+    "provider": "@vitest/browser-playwright@5.0.4/playwright@1.64.0 Chromium",
+    "runtime": "Node26.1.0",
+    "sourceSHA256": {
+      "select.test.mjs": "3a53b558472065521f148f799ce131b187d186c07b14ce7af0d121de8132b193",
+      "controls.test.mjs": "32c1f6027f004b3a2d2e004bb94f229feae5490939d1be0b8151f8a6f17911b9"
+    },
+    "completeRows": 14,
+    "completeCases": 14,
+    "proof": "/private/tmp/next-testing-ws3-browser-locator-select135/REFERENCE-AND-GAP01.json",
+    "controlProof": "/private/tmp/next-testing-ws3-browser-locator-select135/SUPPLEMENT-REFERENCE01.json"
+  },
+  "phases": {
+    "deferred-selection-development": {
+      "mode": "development",
+      "source": "select.test.mjs",
+      "prefix": "SELECT_DELAYED_RAW ",
+      "nativeDiagnostics": 0,
+      "cases": [
+        {
+          "fullName": "initially absent selectOptions single string",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "initially absent selectOptions ordered string array",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "initially absent selectOptions empty selection",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "initially absent selectOptions controlled React",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "single string",
+            "mode": "development",
+            "missingAtCall": true,
+            "missingBeforeMount": true,
+            "outcome": {
+              "returnedUndefined": true
+            },
+            "events": [
+              {
+                "type": "input",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "cancelable": false,
+                "values": ["two"],
+                "labels": ["Beta"],
+                "selectedIndex": 1
+              },
+              {
+                "type": "change",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "cancelable": false,
+                "values": ["two"],
+                "labels": ["Beta"],
+                "selectedIndex": 1
+              }
+            ],
+            "value": "two",
+            "selectedIndex": 1,
+            "selected": [
+              {
+                "label": "Alpha",
+                "value": "one",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Beta",
+                "value": "two",
+                "selected": true,
+                "connected": true
+              },
+              {
+                "label": "Gamma",
+                "value": "three",
+                "selected": false,
+                "connected": true
+              }
+            ],
+            "originalNodes": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "ordered string array",
+            "mode": "development",
+            "missingAtCall": true,
+            "missingBeforeMount": true,
+            "outcome": {
+              "returnedUndefined": true
+            },
+            "events": [
+              {
+                "type": "input",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "cancelable": false,
+                "values": ["one", "three"],
+                "labels": ["Alpha", "Gamma"],
+                "selectedIndex": 0
+              },
+              {
+                "type": "change",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "cancelable": false,
+                "values": ["one", "three"],
+                "labels": ["Alpha", "Gamma"],
+                "selectedIndex": 0
+              }
+            ],
+            "value": "one",
+            "selectedIndex": 0,
+            "selected": [
+              {
+                "label": "Alpha",
+                "value": "one",
+                "selected": true,
+                "connected": true
+              },
+              {
+                "label": "Beta",
+                "value": "two",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Gamma",
+                "value": "three",
+                "selected": true,
+                "connected": true
+              }
+            ],
+            "originalNodes": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "empty selection",
+            "mode": "development",
+            "missingAtCall": true,
+            "missingBeforeMount": true,
+            "outcome": {
+              "returnedUndefined": true
+            },
+            "events": [
+              {
+                "type": "input",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "cancelable": false,
+                "values": [],
+                "labels": [],
+                "selectedIndex": -1
+              },
+              {
+                "type": "change",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "cancelable": false,
+                "values": [],
+                "labels": [],
+                "selectedIndex": -1
+              }
+            ],
+            "value": "",
+            "selectedIndex": -1,
+            "selected": [
+              {
+                "label": "Alpha",
+                "value": "one",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Beta",
+                "value": "two",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Gamma",
+                "value": "three",
+                "selected": false,
+                "connected": true
+              }
+            ],
+            "originalNodes": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "controlled React",
+            "mode": "development",
+            "missingAtCall": true,
+            "missingBeforeMount": true,
+            "outcome": {
+              "returnedUndefined": true
+            },
+            "events": [
+              {
+                "type": "input",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "cancelable": false,
+                "values": ["two", "three"],
+                "labels": ["Beta", "Gamma"],
+                "selectedIndex": 1
+              },
+              {
+                "type": "change",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "cancelable": false,
+                "values": ["two", "three"],
+                "labels": ["Beta", "Gamma"],
+                "selectedIndex": 1
+              }
+            ],
+            "value": "two",
+            "selectedIndex": 1,
+            "selected": [
+              {
+                "label": "Alpha",
+                "value": "one",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Beta",
+                "value": "two",
+                "selected": true,
+                "connected": true
+              },
+              {
+                "label": "Gamma",
+                "value": "three",
+                "selected": true,
+                "connected": true
+              }
+            ],
+            "originalNodes": true,
+            "output": "two,three"
+          }
+        }
+      ]
+    },
+    "deferred-selection-production": {
+      "mode": "production",
+      "source": "select.test.mjs",
+      "prefix": "SELECT_DELAYED_RAW ",
+      "nativeDiagnostics": 0,
+      "cases": [
+        {
+          "fullName": "initially absent selectOptions single string",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "initially absent selectOptions ordered string array",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "initially absent selectOptions empty selection",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "initially absent selectOptions controlled React",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "single string",
+            "mode": "production",
+            "missingAtCall": true,
+            "missingBeforeMount": true,
+            "outcome": {
+              "returnedUndefined": true
+            },
+            "events": [
+              {
+                "type": "input",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "cancelable": false,
+                "values": ["two"],
+                "labels": ["Beta"],
+                "selectedIndex": 1
+              },
+              {
+                "type": "change",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "cancelable": false,
+                "values": ["two"],
+                "labels": ["Beta"],
+                "selectedIndex": 1
+              }
+            ],
+            "value": "two",
+            "selectedIndex": 1,
+            "selected": [
+              {
+                "label": "Alpha",
+                "value": "one",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Beta",
+                "value": "two",
+                "selected": true,
+                "connected": true
+              },
+              {
+                "label": "Gamma",
+                "value": "three",
+                "selected": false,
+                "connected": true
+              }
+            ],
+            "originalNodes": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "ordered string array",
+            "mode": "production",
+            "missingAtCall": true,
+            "missingBeforeMount": true,
+            "outcome": {
+              "returnedUndefined": true
+            },
+            "events": [
+              {
+                "type": "input",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "cancelable": false,
+                "values": ["one", "three"],
+                "labels": ["Alpha", "Gamma"],
+                "selectedIndex": 0
+              },
+              {
+                "type": "change",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "cancelable": false,
+                "values": ["one", "three"],
+                "labels": ["Alpha", "Gamma"],
+                "selectedIndex": 0
+              }
+            ],
+            "value": "one",
+            "selectedIndex": 0,
+            "selected": [
+              {
+                "label": "Alpha",
+                "value": "one",
+                "selected": true,
+                "connected": true
+              },
+              {
+                "label": "Beta",
+                "value": "two",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Gamma",
+                "value": "three",
+                "selected": true,
+                "connected": true
+              }
+            ],
+            "originalNodes": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "empty selection",
+            "mode": "production",
+            "missingAtCall": true,
+            "missingBeforeMount": true,
+            "outcome": {
+              "returnedUndefined": true
+            },
+            "events": [
+              {
+                "type": "input",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "cancelable": false,
+                "values": [],
+                "labels": [],
+                "selectedIndex": -1
+              },
+              {
+                "type": "change",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "cancelable": false,
+                "values": [],
+                "labels": [],
+                "selectedIndex": -1
+              }
+            ],
+            "value": "",
+            "selectedIndex": -1,
+            "selected": [
+              {
+                "label": "Alpha",
+                "value": "one",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Beta",
+                "value": "two",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Gamma",
+                "value": "three",
+                "selected": false,
+                "connected": true
+              }
+            ],
+            "originalNodes": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "controlled React",
+            "mode": "production",
+            "missingAtCall": true,
+            "missingBeforeMount": true,
+            "outcome": {
+              "returnedUndefined": true
+            },
+            "events": [
+              {
+                "type": "input",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "cancelable": false,
+                "values": ["two", "three"],
+                "labels": ["Beta", "Gamma"],
+                "selectedIndex": 1
+              },
+              {
+                "type": "change",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "cancelable": false,
+                "values": ["two", "three"],
+                "labels": ["Beta", "Gamma"],
+                "selectedIndex": 1
+              }
+            ],
+            "value": "two",
+            "selectedIndex": 1,
+            "selected": [
+              {
+                "label": "Alpha",
+                "value": "one",
+                "selected": false,
+                "connected": true
+              },
+              {
+                "label": "Beta",
+                "value": "two",
+                "selected": true,
+                "connected": true
+              },
+              {
+                "label": "Gamma",
+                "value": "three",
+                "selected": true,
+                "connected": true
+              }
+            ],
+            "originalNodes": true,
+            "output": "two,three"
+          }
+        }
+      ]
+    },
+    "deferred-selection-controls-development": {
+      "mode": "development",
+      "source": "controls.test.mjs",
+      "prefix": "SELECT_DELAYED_CONTROL_RAW ",
+      "nativeDiagnostics": 3,
+      "cases": [
+        {
+          "fullName": "delayed selection missing-target retains following native work",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "delayed selection late-duplicates retains following native work",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "delayed selection missing-option retains following native work",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "mode": "missing-target",
+            "missingAtCall": true,
+            "missingBeforeMount": true,
+            "outcome": {
+              "error": {
+                "name": "TimeoutError",
+                "timeout": true,
+                "strict": false
+              }
+            },
+            "failedEvents": [],
+            "following": {
+              "returnedUndefined": true
+            },
+            "events": [
+              {
+                "type": "input",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "value": "two",
+                "selectedIndex": 1
+              },
+              {
+                "type": "change",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "value": "two",
+                "selectedIndex": 1
+              }
+            ],
+            "value": "two",
+            "selectedIndex": 1,
+            "originalNodes": true,
+            "selectedIdentity": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "mode": "late-duplicates",
+            "missingAtCall": true,
+            "missingBeforeMount": true,
+            "outcome": {
+              "error": {
+                "name": "Error",
+                "timeout": false,
+                "strict": true
+              }
+            },
+            "failedEvents": [[], []],
+            "following": {
+              "returnedUndefined": true
+            },
+            "events": [
+              {
+                "type": "input",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "value": "two",
+                "selectedIndex": 1
+              },
+              {
+                "type": "change",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "value": "two",
+                "selectedIndex": 1
+              }
+            ],
+            "value": "two",
+            "selectedIndex": 1,
+            "originalNodes": true,
+            "selectedIdentity": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "mode": "missing-option",
+            "missingAtCall": true,
+            "missingBeforeMount": true,
+            "outcome": {
+              "error": {
+                "name": "TimeoutError",
+                "timeout": true,
+                "strict": false
+              }
+            },
+            "failedEvents": [[]],
+            "following": {
+              "returnedUndefined": true
+            },
+            "events": [
+              {
+                "type": "input",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "value": "two",
+                "selectedIndex": 1
+              },
+              {
+                "type": "change",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "value": "two",
+                "selectedIndex": 1
+              }
+            ],
+            "value": "two",
+            "selectedIndex": 1,
+            "originalNodes": true,
+            "selectedIdentity": true
+          }
+        }
+      ]
+    },
+    "deferred-selection-controls-production": {
+      "mode": "production",
+      "source": "controls.test.mjs",
+      "prefix": "SELECT_DELAYED_CONTROL_RAW ",
+      "nativeDiagnostics": 3,
+      "cases": [
+        {
+          "fullName": "delayed selection missing-target retains following native work",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "delayed selection late-duplicates retains following native work",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "delayed selection missing-option retains following native work",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "mode": "missing-target",
+            "missingAtCall": true,
+            "missingBeforeMount": true,
+            "outcome": {
+              "error": {
+                "name": "TimeoutError",
+                "timeout": true,
+                "strict": false
+              }
+            },
+            "failedEvents": [],
+            "following": {
+              "returnedUndefined": true
+            },
+            "events": [
+              {
+                "type": "input",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "value": "two",
+                "selectedIndex": 1
+              },
+              {
+                "type": "change",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "value": "two",
+                "selectedIndex": 1
+              }
+            ],
+            "value": "two",
+            "selectedIndex": 1,
+            "originalNodes": true,
+            "selectedIdentity": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "mode": "late-duplicates",
+            "missingAtCall": true,
+            "missingBeforeMount": true,
+            "outcome": {
+              "error": {
+                "name": "Error",
+                "timeout": false,
+                "strict": true
+              }
+            },
+            "failedEvents": [[], []],
+            "following": {
+              "returnedUndefined": true
+            },
+            "events": [
+              {
+                "type": "input",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "value": "two",
+                "selectedIndex": 1
+              },
+              {
+                "type": "change",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "value": "two",
+                "selectedIndex": 1
+              }
+            ],
+            "value": "two",
+            "selectedIndex": 1,
+            "originalNodes": true,
+            "selectedIdentity": true
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "mode": "missing-option",
+            "missingAtCall": true,
+            "missingBeforeMount": true,
+            "outcome": {
+              "error": {
+                "name": "TimeoutError",
+                "timeout": true,
+                "strict": false
+              }
+            },
+            "failedEvents": [[]],
+            "following": {
+              "returnedUndefined": true
+            },
+            "events": [
+              {
+                "type": "input",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": true,
+                "value": "two",
+                "selectedIndex": 1
+              },
+              {
+                "type": "change",
+                "constructor": "Event",
+                "target": true,
+                "currentTarget": true,
+                "trusted": false,
+                "bubbles": true,
+                "composed": false,
+                "value": "two",
+                "selectedIndex": 1
+              }
+            ],
+            "value": "two",
+            "selectedIndex": 1,
+            "originalNodes": true,
+            "selectedIdentity": true
+          }
+        }
+      ]
+    }
+  }
+}

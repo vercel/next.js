@@ -1,0 +1,10 @@
+import {test,expect,vi} from 'vitest'
+import {types} from 'node:util'
+const counts=name=>[globalThis.__ws2Cross?.[name+'-root']??0,globalThis.__ws2Cross?.[name+'-peer']??0]
+const errorRow=(error,cause)=>({message:error.message,name:error.name,causeSame:error.cause===cause,causeName:error.cause?.name,causeMessage:error.cause?.message,causeCauseSame:error.cause?.cause===cause,keys:Reflect.ownKeys(error).map(String),causeKeys:error.cause?Reflect.ownKeys(error.cause).map(String):[]})
+const shape=namespace=>({keys:Reflect.ownKeys(namespace).map(key=>typeof key==='symbol'?String(key):key),prototypeNull:Object.getPrototypeOf(namespace)===null,objectPrototype:Object.getPrototypeOf(namespace)===Object.prototype,tag:Object.prototype.toString.call(namespace),brand:types.isModuleNamespaceObject(namespace),descriptors:Reflect.ownKeys(namespace).map(key=>{const d=Object.getOwnPropertyDescriptor(namespace,key);return [typeof key==='symbol'?String(key):key,{enumerable:d.enumerable,configurable:d.configurable,...('value'in d?{writable:d.writable,valueType:typeof d.value}:{get:typeof d.get,set:typeof d.set})}]})})
+test('genuine cjs factory wrapper cause descriptors',async()=>{
+ const raw=new Error('raw cjs failure');let calls=0;vi.doMock('ws2-genuine-external-original',()=>{calls++;throw raw})
+ const first=await import('ws2-genuine-external-original').catch(error=>error);const second=await import('ws2-genuine-external-original').catch(error=>error);vi.resetModules();const third=await import('ws2-genuine-external-original').catch(error=>error)
+ console.log('WS2_CROSS_CAUSE:'+JSON.stringify({kind:'cjs',calls,fresh:[first!==second,second!==third],raw:[first.cause===raw,second.cause===raw,third.cause===raw],messages:[first.message,second.message,third.message],names:[first.name,second.name,third.name],shapes:[shape(first),shape(second),shape(third)],causeShape:shape(raw)}));expect(calls).toBe(3);expect(first.cause).toBe(raw)
+})

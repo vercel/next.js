@@ -1,0 +1,12 @@
+function initial(): number { return 3 }
+export class Counter {
+  constructor(public value: number = initial()) {}
+  add(delta: number): number {
+    this.value += delta
+    return this.value
+  }
+}
+export function exercise(): number[] {
+  const counter = new Counter()
+  return [counter.value, counter.add(2)]
+}

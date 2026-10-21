@@ -1,0 +1,24 @@
+[
+  {
+    "name": "first",
+    "result": {
+      "state": "passed"
+    },
+    "options": {
+      "tags": [],
+      "timeout": 5000,
+      "mode": "run"
+    }
+  },
+  {
+    "name": "held second",
+    "result": {
+      "state": "pending"
+    },
+    "options": {
+      "tags": [],
+      "timeout": 5000,
+      "mode": "run"
+    }
+  }
+]

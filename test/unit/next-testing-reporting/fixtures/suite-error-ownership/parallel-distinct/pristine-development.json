@@ -1,0 +1,37 @@
+{
+  "cases": [
+    {
+      "fullName": "one",
+      "status": "skipped",
+      "failureMessages": []
+    },
+    {
+      "fullName": "two",
+      "status": "skipped",
+      "failureMessages": []
+    }
+  ],
+  "events": [["first"], ["second"]],
+  "callbacks": [
+    {
+      "event": "module-end",
+      "module": {
+        "type": "module",
+        "state": "failed",
+        "sameArrayMembers": true,
+        "errors": [
+          {
+            "id": 1,
+            "name": "Error",
+            "message": "same authored message"
+          }
+        ]
+      },
+      "suites": []
+    },
+    {
+      "event": "run-end",
+      "errors": []
+    }
+  ]
+}

@@ -61,6 +61,12 @@ export async function createTestWorkerLease(
     startupTimeoutMs?: number
     finishTimeoutMs?: number
     onEvent?(event: ResultEvent): void
+    /** A disposed file may notify its reporter while the shared owner is retained.
+     * This acknowledgement never authorizes final results or snapshot publication. */
+    onFileComplete?(
+      entryId: string,
+      result: WorkerFileCompletion['result']
+    ): void
     /** Execution cache/runtime resources remain retained until actual exit.
      * The outer compiler owner still retains source maps for staging returned facts. */
     release(): Promise<void>
@@ -312,6 +318,11 @@ export async function createTestWorkerLease(
         completions.push(completion)
         completionByRequest.set(active.id, completion)
         completed.set(active.id, origin)
+        if (origin.options.captureTaskResults)
+          options.onFileComplete?.(
+            origin.artifact.entryId,
+            structuredClone(completion.result)
+          )
         const done = active.done
         active = undefined
         clearTimeout(timer)
@@ -401,7 +412,7 @@ export async function createTestWorkerLease(
       return ownershipClosed()
     },
     /** Takes ownership of release even when the request is refused.
-     * Resolves only to permit the next request; all facts remain private. */
+     * Resolves only to permit the next request; final facts remain private. */
     enqueue(
       fileInput: WorkerInput,
       release: () => Promise<void>,

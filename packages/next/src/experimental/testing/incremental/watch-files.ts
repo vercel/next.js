@@ -1,5 +1,9 @@
 import path from 'path'
-import { watch, statSync } from 'fs'
+import { watch, statSync, lstatSync } from 'fs'
+import {
+  readWatchInputSnapshot,
+  watchInputSignature,
+} from './watch-input-snapshot'
 
 export interface WatchDirectories {
   /** Actual project/compiler roots; include workspace inputs outside the app. */
@@ -45,7 +49,8 @@ function contains(directory: string, file: string) {
  * Public native watcher subscriptions: startup errors reject, asynchronous
  * subscription errors stop the source and call onError. No error is merely
  * logged while pretending the source is live. Unknown filenames invalidate
- * all roots. This does not prove dependency coverage or infer import edges.
+ * all roots. Cooperative input reconciliation also catches changes omitted by
+ * native delivery. Neither source proves compiler dependencies or import edges.
  */
 export async function watchTestFiles(
   options: WatchDirectories & {
@@ -61,10 +66,22 @@ export async function watchTestFiles(
   const subscriptions = new Map<string, Subscription>()
   const stopping = new Set<Promise<void>>()
   let closed = false
+  let ready = false
   let closeWork: Promise<void> | undefined
   let notification: ReturnType<typeof setTimeout> | undefined
   let integrityCheck: ReturnType<typeof setInterval> | undefined
   const changed = new Set<string>()
+  const scanController = new AbortController()
+  let scanTimer: ReturnType<typeof setTimeout> | undefined
+  let scanWork: Promise<void> | undefined
+  let inputSnapshot: Map<string, string> | undefined
+  let scanConfiguration = ''
+  let scanRevision = 0
+  let nativePathsDuringScan: Set<string> | undefined
+  const nativeChanges = new Set<string>()
+  const broadNativeScopes = new Set<string>()
+  let broadNativeRevision = 0
+  let notificationWork: Promise<void> | undefined
 
   function ignored(absolute: string) {
     return (
@@ -106,10 +123,20 @@ export async function watchTestFiles(
     closed = true
     clearTimeout(notification)
     clearInterval(integrityCheck)
+    clearTimeout(scanTimer)
+    scanController.abort(new Error('Test watch source closed.'))
     changed.clear()
+    broadNativeScopes.clear()
+    nativeChanges.clear()
     for (const subscription of subscriptions.values()) stop(subscription)
     subscriptions.clear()
-    closeWork = Promise.all(stopping).then(() => {})
+    closeWork = Promise.all([
+      ...stopping,
+      scanWork?.catch(() => {}),
+      notificationWork?.catch(() => {}),
+    ]).then(() => {
+      inputSnapshot?.clear()
+    })
     return closeWork
   }
 
@@ -121,6 +148,80 @@ export async function watchTestFiles(
     options.onError(error)
   }
 
+  function refreshNativePath(snapshot: Map<string, string>, file: string) {
+    try {
+      const stats = directories.includes(file)
+        ? statSync(file, { bigint: true })
+        : lstatSync(file, { bigint: true })
+      snapshot.set(file, watchInputSignature(stats))
+    } catch (error) {
+      if (
+        (error as NodeJS.ErrnoException).code === 'ENOENT' ||
+        (error as NodeJS.ErrnoException).code === 'ENOTDIR'
+      ) {
+        snapshot.delete(file)
+      } else throw error
+    }
+  }
+
+  function queueChange(file: string, broadNativeScope = false, native = false) {
+    changed.add(file)
+    if (native) nativeChanges.add(file)
+    if (broadNativeScope) {
+      broadNativeScopes.add(file)
+      broadNativeRevision++
+    }
+    if (notificationWork) return
+    clearTimeout(notification)
+    notification = setTimeout(() => {
+      notification = undefined
+      if (closed || !ready) return
+      notificationWork = (async () => {
+        // A null/directory native event already invalidates its whole scope.
+        // Acquire its metadata baseline before publishing, rather than letting
+        // a later scan redeliver children covered by that broad invalidation.
+        while (broadNativeScopes.size) {
+          const revision = broadNativeRevision
+          const scopes = [...broadNativeScopes]
+          await scanWork
+          if (closed) return
+          await reconcile(scopes)
+          if (closed) return
+          if (revision !== broadNativeRevision) continue
+          for (const observed of changed) {
+            if (
+              !nativeChanges.has(observed) &&
+              scopes.some(
+                (scope) => scope !== observed && contains(scope, observed)
+              )
+            )
+              changed.delete(observed)
+          }
+          break
+        }
+        const paths = [...changed]
+        changed.clear()
+        broadNativeScopes.clear()
+        nativeChanges.clear()
+        // Exact native notifications retain the existing fast path. Refresh
+        // their entries so periodic reconciliation does not repeat the write.
+        for (const observed of paths) {
+          nativePathsDuringScan?.add(observed)
+          if (inputSnapshot) refreshNativePath(inputSnapshot, observed)
+        }
+        options.onChange({ changed: paths, removed: [] })
+      })()
+        .catch((error) => {
+          if (!closed) fail(error)
+        })
+        .finally(() => {
+          notificationWork = undefined
+          if (!closed && changed.size)
+            queueChange(changed.values().next().value!)
+        })
+    }, 20)
+  }
+
   function notify(root: string, filename: string | null) {
     if (closed) return
     try {
@@ -129,22 +230,75 @@ export async function watchTestFiles(
       subscriptions.get(root)?.assertRoot()
       const file = filename === null ? root : path.resolve(root, filename)
       if (filename !== null && contains(root, file) && ignored(file)) return
-      changed.add(contains(root, file) ? file : root)
-      clearTimeout(notification)
-      notification = setTimeout(() => {
-        notification = undefined
-        if (closed) return
-        const paths = [...changed]
-        changed.clear()
+      let broad = filename === null || !contains(root, file)
+      if (!broad) {
         try {
-          options.onChange({ changed: paths, removed: [] })
+          broad = lstatSync(file).isDirectory()
         } catch (error) {
-          fail(error)
+          if (
+            (error as NodeJS.ErrnoException).code !== 'ENOENT' &&
+            (error as NodeJS.ErrnoException).code !== 'ENOTDIR'
+          )
+            throw error
+          broad = inputSnapshot?.get(file)?.startsWith('directory:') === true
         }
-      }, 20)
+      }
+      queueChange(contains(root, file) ? file : root, broad, true)
     } catch (error) {
       fail(error)
     }
+  }
+
+  function reconcile(coveredScopes: readonly string[] = []): Promise<void> {
+    if (closed) return Promise.resolve()
+    if (scanWork) return scanWork
+    clearTimeout(scanTimer)
+    const revision = scanRevision
+    nativePathsDuringScan = new Set()
+    scanWork = (async () => {
+      for (const root of directories) subscriptions.get(root)?.assertRoot()
+      const next = await readWatchInputSnapshot({
+        roots: [...directories],
+        signal: scanController.signal,
+        files: [...dependencyFiles],
+        ignored,
+      })
+      if (closed || revision !== scanRevision) return
+      // A native batch may have published while asynchronous metadata reads
+      // were outstanding. Merge those paths at their current state, rather
+      // than restoring an older scan result and generating a duplicate rerun.
+      for (const file of nativePathsDuringScan!) refreshNativePath(next, file)
+      if (inputSnapshot) {
+        for (const [file, signature] of next) {
+          if (
+            inputSnapshot.get(file) !== signature &&
+            !coveredScopes.some((scope) => contains(scope, file))
+          )
+            queueChange(file)
+        }
+        for (const file of inputSnapshot.keys()) {
+          if (
+            !next.has(file) &&
+            !coveredScopes.some((scope) => contains(scope, file))
+          )
+            queueChange(file)
+        }
+      }
+      inputSnapshot = next
+    })()
+      .catch((error) => {
+        if (!closed && revision === scanRevision) {
+          fail(error)
+          throw error
+        }
+      })
+      .finally(() => {
+        scanWork = undefined
+        nativePathsDuringScan = undefined
+        if (!closed)
+          scanTimer = setTimeout(() => void reconcile().catch(() => {}), 1000)
+      })
+    return scanWork
   }
 
   function subscribe(root: string, guard = false): Subscription {
@@ -247,6 +401,18 @@ export async function watchTestFiles(
         (next.dependencyFiles ?? []).map((file) => path.resolve(file))
       )
       artifacts = nextArtifacts
+      const nextScanConfiguration = JSON.stringify([
+        directories,
+        outputs,
+        outputFiles,
+        [...dependencyFiles],
+        artifacts,
+      ])
+      if (nextScanConfiguration !== scanConfiguration) {
+        scanConfiguration = nextScanConfiguration
+        scanRevision++
+        inputSnapshot = undefined
+      }
       // Acquire replacements before releasing old roots: no subscription gap.
       for (const root of directories) {
         const existing = subscriptions.get(root)
@@ -264,6 +430,14 @@ export async function watchTestFiles(
         }
       }
       await Promise.all(stopping)
+      // An established baseline for this exact configuration remains valid
+      // while periodic reconciliation runs. Rediscovery must not join that
+      // unrelated scan; changed configurations still drain it before opening
+      // their new baseline. close() retains ownership of every started read.
+      if (!inputSnapshot) {
+        await scanWork
+        if (!closed && !inputSnapshot) await reconcile()
+      }
     } catch (error) {
       await close()
       throw error
@@ -283,5 +457,10 @@ export async function watchTestFiles(
       }
     }, 1000)
   }
+  // Deliver changes accumulated during the initial scan after the caller has
+  // received this source and installed its session. No native startup edit is
+  // absorbed solely into the reconciliation baseline.
+  ready = true
+  if (changed.size) queueChange(changed.values().next().value!)
   return { close, update }
 }

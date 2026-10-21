@@ -1760,6 +1760,224 @@ async function standardReportFixture() {
   }
 }
 
+it('accepts and deduplicates json-summary alongside the other standard reporters', async () => {
+  const { parseStandardCoverageOptions } = await import(
+    'next/dist/experimental/testing/coverage/options'
+  )
+  expect(
+    parseStandardCoverageOptions({
+      'coverage.reporter': ['json-summary', 'json', 'lcov', 'json-summary'],
+    })?.reporter
+  ).toEqual(['json-summary', 'json', 'lcov'])
+})
+
+it('parses finite negative uncovered-count thresholds without converting their units', async () => {
+  const { parseStandardCoverageOptions } = await import(
+    'next/dist/experimental/testing/coverage/options'
+  )
+  for (const value of [-3, '-3', '-0.5']) {
+    expect(
+      parseStandardCoverageOptions({ 'coverage.thresholds.lines': value })
+        ?.thresholds.lines
+    ).toBe(Number(value))
+  }
+  for (const value of ['-Infinity', 'Infinity', 'NaN', '']) {
+    expect(() =>
+      parseStandardCoverageOptions({ 'coverage.thresholds.lines': value })
+    ).toThrow('negative maximum uncovered count')
+  }
+})
+
+it.each([
+  {
+    name: 'passes at the maximum uncovered count',
+    thresholds: { statements: -2, functions: -1, branches: -1, lines: -2 },
+    errors: [],
+  },
+  {
+    name: 'fails above the maximum uncovered count',
+    thresholds: { statements: -1, functions: -0.5, branches: -0.5, lines: -1 },
+    errors: [
+      'Uncovered statements (2) exceed global threshold (1)',
+      'Uncovered functions (1) exceed global threshold (0.5)',
+      'Uncovered branches (1) exceed global threshold (0.5)',
+      'Uncovered lines (2) exceed global threshold (1)',
+    ],
+  },
+])(
+  'uses original declaration counts when a negative threshold $name',
+  async ({ thresholds, errors }) => {
+    const { publishStandardCoverage } = await import(
+      'next/dist/experimental/testing/coverage/report-standard'
+    )
+    const f = await standardReportFixture()
+    try {
+      const result = await publishStandardCoverage({
+        projectDir: f.root,
+        ...f,
+        config: { ...f.config, include: ['subject.mjs'], thresholds },
+        status: 'passed',
+      })
+      expect(result.thresholdErrors).toEqual(errors)
+      expect(result.published).toBe(true)
+      const report = JSON.parse(
+        await readFile(join(f.root, 'coverage/coverage-final.json'), 'utf8')
+      )
+      expect(Object.keys(report)).toEqual([f.file])
+      expect(result.summary?.statements).toEqual({
+        total: 4,
+        covered: 2,
+        percent: 50,
+      })
+    } finally {
+      await rm(f.root, { recursive: true, force: true })
+    }
+  }
+)
+
+it('matches the Istanbul empty coverage-map summary without changing threshold arithmetic', async () => {
+  const { standardCoverageJsonSummary, standardCoverageSummary } = await import(
+    'next/dist/experimental/testing/coverage/report-standard'
+  )
+  const metric = { total: 0, covered: 0, skipped: 0, pct: 'Unknown' }
+  expect(standardCoverageJsonSummary({})).toEqual({
+    total: {
+      statements: metric,
+      functions: metric,
+      branches: metric,
+      lines: metric,
+      branchesTrue: metric,
+    },
+  })
+  expect(standardCoverageSummary({}).lines.percent).toBe(100)
+})
+
+it('parses per-file threshold booleans without changing omitted or explicit false values', async () => {
+  const { parseStandardCoverageOptions } = await import(
+    'next/dist/experimental/testing/coverage/options'
+  )
+  for (const [value, expected] of [
+    [true, true],
+    ['true', true],
+    [false, false],
+    ['false', false],
+    [undefined, undefined],
+  ]) {
+    expect(
+      parseStandardCoverageOptions({
+        'coverage.thresholds.lines': 50,
+        'coverage.thresholds.perFile': value,
+      })?.thresholds.perFile
+    ).toBe(expected)
+  }
+  expect(() =>
+    parseStandardCoverageOptions({ 'coverage.thresholds.perFile': 'sometimes' })
+  ).toThrow('must be true or false')
+})
+
+it.each([
+  {
+    name: 'checks percentage limits separately',
+    thresholds: { lines: 50, perFile: true },
+    errors: [
+      'Coverage for lines (33.33%) does not meet global threshold (50%) for subject.mjs',
+      'Coverage for lines (0%) does not meet global threshold (50%) for unimported.mjs',
+    ],
+  },
+  {
+    name: 'allows the uncovered limit independently in each file',
+    thresholds: { statements: -2, perFile: true },
+    errors: [],
+  },
+  {
+    name: 'retains global aggregation when explicitly false',
+    thresholds: { statements: -2, perFile: false },
+    errors: ['Uncovered statements (4) exceed global threshold (2)'],
+  },
+])('per-file standard coverage $name', async ({ thresholds, errors }) => {
+  const { publishStandardCoverage } = await import(
+    'next/dist/experimental/testing/coverage/report-standard'
+  )
+  const f = await standardReportFixture()
+  try {
+    const result = await publishStandardCoverage({
+      projectDir: f.root,
+      ...f,
+      config: { ...f.config, thresholds },
+      status: 'passed',
+    })
+    expect(result.thresholdErrors).toEqual(errors)
+    expect(result.published).toBe(true)
+    expect(result.summary?.statements).toEqual({
+      total: 6,
+      covered: 2,
+      percent: 33.33,
+    })
+  } finally {
+    await rm(f.root, { recursive: true, force: true })
+  }
+})
+
+it('publishes the full json-summary contract and replaces prior standard artifacts on rerun', async () => {
+  const { publishStandardCoverage } = await import(
+    'next/dist/experimental/testing/coverage/report-standard'
+  )
+  const f = await standardReportFixture()
+  try {
+    await writeFile(
+      join(f.root, 'unimported.mjs'),
+      'export function untouched() {\n  return 9\n}\n'
+    )
+    const result = await publishStandardCoverage({
+      projectDir: f.root,
+      ...f,
+      config: { ...f.config, reporter: ['json', 'json-summary', 'lcov'] },
+      status: 'passed',
+    })
+    // Pinned Istanbul json-summary fields, including uncovered source totals.
+    const summary = {
+      total: {
+        lines: { total: 4, covered: 1, skipped: 0, pct: 25 },
+        statements: { total: 5, covered: 2, skipped: 0, pct: 40 },
+        functions: { total: 3, covered: 1, skipped: 0, pct: 33.33 },
+        branches: { total: 2, covered: 1, skipped: 0, pct: 50 },
+        branchesTrue: { total: 0, covered: 0, skipped: 0, pct: 'Unknown' },
+      },
+      [f.file]: {
+        lines: { total: 3, covered: 1, skipped: 0, pct: 33.33 },
+        functions: { total: 2, covered: 1, skipped: 0, pct: 50 },
+        statements: { total: 4, covered: 2, skipped: 0, pct: 50 },
+        branches: { total: 2, covered: 1, skipped: 0, pct: 50 },
+      },
+      [join(f.root, 'unimported.mjs')]: {
+        lines: { total: 1, covered: 0, skipped: 0, pct: 0 },
+        functions: { total: 1, covered: 0, skipped: 0, pct: 0 },
+        statements: { total: 1, covered: 0, skipped: 0, pct: 0 },
+        branches: { total: 0, covered: 0, skipped: 0, pct: 100 },
+      },
+    }
+    const report = join(f.root, 'coverage/coverage-summary.json')
+    expect(JSON.parse(await readFile(report, 'utf8'))).toEqual(summary)
+    expect(result.files).toContain(report)
+    expect(result.thresholdErrors).toHaveLength(1)
+    await publishStandardCoverage({
+      projectDir: f.root,
+      ...f,
+      config: { ...f.config, reporter: ['json-summary'] },
+      status: 'passed',
+    })
+    expect(JSON.parse(await readFile(report, 'utf8'))).toEqual(summary)
+    await expect(
+      readFile(join(f.root, 'coverage/coverage-final.json'))
+    ).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(
+      readFile(join(f.root, 'coverage/lcov.info'))
+    ).rejects.toMatchObject({ code: 'ENOENT' })
+  } finally {
+    await rm(f.root, { recursive: true, force: true })
+  }
+})
+
 it('merges standard hits by original location and derives Istanbul line and branch totals', async () => {
   const { mergeStandardCoverageData, standardCoverageSummary } = await import(
     'next/dist/experimental/testing/coverage/report-standard'
@@ -8961,3 +9179,626 @@ describe('private native compiler-source descriptor and module-role refusals (pr
     }
   )
 })
+
+it('accepts text-summary with combined standard reporters without duplicates', async () => {
+  const { parseStandardCoverageOptions } = await import(
+    'next/dist/experimental/testing/coverage/options'
+  )
+  expect(
+    parseStandardCoverageOptions({
+      'coverage.reporter': ['text-summary', 'json', 'text-summary'],
+    })?.reporter
+  ).toEqual(['text-summary', 'json'])
+})
+
+it('publishes the pinned text summary after standard coverage with threshold failures', async () => {
+  const { publishStandardCoverage } = await import(
+    'next/dist/experimental/testing/coverage/report-standard'
+  )
+  const f = await standardReportFixture()
+  try {
+    await writeFile(
+      join(f.root, 'unimported.mjs'),
+      'export function untouched() {\n  return 9\n}\n'
+    )
+    const result = await publishStandardCoverage({
+      projectDir: f.root,
+      ...f,
+      config: { ...f.config, reporter: ['text-summary', 'json'] },
+      status: 'passed',
+    })
+    expect(result.published).toBe(true)
+    expect(result.textSummary).toBe(
+      '\n=============================== Coverage summary ===============================\n' +
+        'Statements   : 40% ( 2/5 )\n' +
+        'Branches     : 50% ( 1/2 )\n' +
+        'Functions    : 33.33% ( 1/3 )\n' +
+        'Lines        : 25% ( 1/4 )\n' +
+        '================================================================================\n'
+    )
+    expect(result.thresholdErrors).toHaveLength(1)
+    expect(result.files).toEqual([join(f.root, 'coverage/coverage-final.json')])
+    expect(
+      Object.keys(JSON.parse(await readFile(result.files![0], 'utf8')))
+    ).toContain(f.file)
+    const failed = await publishStandardCoverage({
+      projectDir: f.root,
+      ...f,
+      config: { ...f.config, reporter: ['text-summary'] },
+      status: 'failed',
+    })
+    expect(failed.published).toBe(false)
+    expect(failed.textSummary).toBeUndefined()
+  } finally {
+    await rm(f.root, { recursive: true, force: true })
+  }
+})
+
+it('preserves the reference Unknown text summary for an empty coverage map', async () => {
+  const { standardCoverageTextSummary } = await import(
+    'next/dist/experimental/testing/coverage/report-standard'
+  )
+  expect(standardCoverageTextSummary({})).toBe(
+    '\n=============================== Coverage summary ===============================\n' +
+      'Statements   : Unknown% ( 0/0 )\n' +
+      'Branches     : Unknown% ( 0/0 )\n' +
+      'Functions    : Unknown% ( 0/0 )\n' +
+      'Lines        : Unknown% ( 0/0 )\n' +
+      '================================================================================\n'
+  )
+})
+
+it('maps actual typed callback functions and statements to the complete reference reports', async () => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'typescript-callbacks.cjs')],
+    { timeout: 180000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 4,
+    cases: 4,
+    completeReports: 4,
+  })
+}, 190000)
+
+it('maps computed-member typed callbacks to complete reference reports in both Node profiles', async () => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'computed-callbacks.cjs')],
+    { timeout: 180000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 4,
+    cases: 4,
+    completeReports: 4,
+  })
+}, 190000)
+
+it('maps static object-property typed arrows to complete reference reports in both Node profiles', async () => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  const result = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'object-arrows.cjs')],
+    { timeout: 180_000 }
+  )
+  expect(JSON.parse(result.stdout.trim())).toEqual({
+    profiles: 4,
+    cases: 4,
+    completeReports: 4,
+  })
+}, 180_000)
+
+it('maps function-expression callback boundaries to complete reference reports in both Node profiles', async () => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'function-callbacks.cjs')],
+    { timeout: 180000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 4,
+    cases: 4,
+    completeReports: 4,
+  })
+}, 190000)
+
+it('publishes complete pristine JSX and TSX standard coverage through the ordinary Node CLI in both profiles', async () => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'jsx-standard.cjs')],
+    { timeout: 180000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 4,
+    cases: 4,
+    completeReports: 4,
+  })
+}, 190000)
+
+it('keeps JSX report ownership bound to the current source/profile/entry/revision plans', async () => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'jsx-ownership.cjs')],
+    { timeout: 30000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({ controls: 7, passed: 7 })
+}, 40000)
+
+it('retains actual JSX initializer and logical-child ownership while rejecting ambiguous compiler roles', async () => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'jsx-owner-maps.cjs')],
+    { timeout: 30000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({ controls: 46, passed: 46 })
+}, 40000)
+
+it('publishes complete pristine nested, logical-child and typed-arrow JSX coverage in both Node profiles', async () => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'jsx-owner-reports.cjs')],
+    { timeout: 240000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 6,
+    cases: 6,
+    completeReports: 6,
+  })
+}, 250000)
+
+it('retains logical branch counters across typed fragment arrow conversions in both Node profiles', async () => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'jsx-fragment-reports.cjs')],
+    { timeout: 180000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 2,
+    cases: 4,
+    completeReports: 2,
+  })
+}, 190000)
+
+it('keeps fragment endpoints bound to unique compiler owners and the actual JSX profile', async () => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'jsx-fragment-maps.cjs')],
+    { timeout: 30000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({ controls: 66, passed: 66 })
+}, 40000)
+
+it('accepts and deduplicates explicit lcovonly while preserving the existing defaults', async () => {
+  const { parseStandardCoverageOptions } = await import(
+    'next/dist/experimental/testing/coverage/options'
+  )
+  expect(
+    parseStandardCoverageOptions({
+      'coverage.reporter': ['lcovonly', 'json', 'lcovonly'],
+    })?.reporter
+  ).toEqual(['lcovonly', 'json'])
+  expect(
+    parseStandardCoverageOptions({ 'coverage.include': ['subject.js'] })
+      ?.reporter
+  ).toEqual(['json', 'lcov'])
+  expect(parseStandardCoverageOptions({ coverage: true })).toBeUndefined()
+})
+
+it('matches complete genuine development/production LCOV-only bytes with and without JSON', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'lcovonly.cjs')],
+    { encoding: 'utf8', timeout: 180000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 2,
+    flavors: 2,
+    cases: 8,
+    completeCoverageReports: 2,
+    exactLcovReports: 4,
+  })
+}, 190000)
+
+it('binds same-line if-return branch endpoints through actual compiler roles without changing counters', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'if-return-maps.cjs')],
+    { encoding: 'utf8', timeout: 30000 }
+  )
+  expect(JSON.parse(result)).toEqual({ profiles: 2, controls: 44, passed: 44 })
+})
+
+it('binds conditional operands to unique authored and emitted roles without changing counters', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'conditional-operands.cjs')],
+    { encoding: 'utf8', timeout: 30000 }
+  )
+  expect(JSON.parse(result)).toEqual({ profiles: 2, controls: 42, passed: 42 })
+})
+
+it('matches complete genuine conditional coverage in development and production', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'conditional-reports.cjs')],
+    { encoding: 'utf8', timeout: 90000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 2,
+    cases: 2,
+    completeReports: 2,
+  })
+}, 100000)
+
+it('associates multiline JSX arrow endpoints only with unique real compiler terminal facts', async () => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'jsx-multiline-maps.cjs')],
+    { timeout: 30000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({ controls: 34, passed: 34 })
+}, 40000)
+
+it('publishes complete pristine multiline typed-arrow JSX coverage in both Node profiles', async () => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'jsx-multiline-reports.cjs')],
+    { timeout: 180000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 2,
+    cases: 2,
+    completeReports: 2,
+  })
+}, 190000)
+
+it('binds parenthesized JSX return endpoints only through real unique compiler facts', async () => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'jsx-return-maps.cjs')],
+    { timeout: 30000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({ controls: 46, passed: 46 })
+}, 40000)
+
+it('publishes complete pristine parenthesized multiline JSX return coverage in both Node profiles', async () => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'jsx-return-reports.cjs')],
+    { timeout: 180000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 2,
+    cases: 2,
+    completeReports: 2,
+  })
+}, 190000)
+
+it('binds multiline parenthesized logical JSX only through unique native compiler roles', async () => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'jsx-multiline-logical-maps.cjs')],
+    { timeout: 30000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({ controls: 92, passed: 92 })
+}, 40000)
+
+it('publishes complete pristine multiline logical JSX reports in both Node profiles', async () => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'jsx-multiline-logical-reports.cjs')],
+    { timeout: 180000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 2,
+    cases: 2,
+    completeReports: 2,
+  })
+}, 190000)
+
+it('retains prior multiline fragment coverage when the logical element repair is selected', async () => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'jsx-multiline-fragment-reports.cjs')],
+    { timeout: 180000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 2,
+    cases: 2,
+    completeReports: 2,
+    genuineReports: 2,
+    retainedDevelopmentDelta: false,
+  })
+}, 190000)
+
+it('retains complete pristine ownerless multiline logical return reports', async () => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'jsx-multiline-ownerless-reports.cjs')],
+    { timeout: 180000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 2,
+    cases: 2,
+    completeReports: 2,
+    genuineReports: 2,
+  })
+}, 190000)
+
+it('binds multiline Fragment coverage to actual native child and sibling mappings', async () => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'jsx-multiline-fragment-maps.cjs')],
+    { timeout: 30000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({ controls: 86, passed: 86 })
+}, 40000)
+
+it('retains actual parenthesis and owner map certificates for multiline JSX logical children', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'jsx-logical-shapes-maps.cjs')],
+    { encoding: 'utf8', timeout: 30000 }
+  )
+  expect(JSON.parse(result)).toEqual({ controls: 172, passed: 172 })
+})
+
+it('matches complete original-source coverage for parenthesized Fragment and unparenthesized element children', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'jsx-logical-shapes-reports.cjs')],
+    { encoding: 'utf8', timeout: 190000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 4,
+    cases: 4,
+    completeReports: 4,
+    genuineReports: 4,
+    retainedDevelopmentDelta: false,
+  })
+}, 200000)
+
+it('binds constructor property descriptors only through actual compiler assignments and maps', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'parameter-property-maps.cjs')],
+    { encoding: 'utf8', timeout: 30000 }
+  )
+  expect(JSON.parse(result)).toEqual({ controls: 170, passed: 170 })
+})
+
+it('matches complete pristine coverage for constructor parameter properties in both Node profiles', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'parameter-property-reports.cjs')],
+    { encoding: 'utf8', timeout: 420000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 10,
+    cases: 10,
+    completeReports: 10,
+    genuineReports: 10,
+  })
+}, 430000)
+
+it('binds runtime namespace descriptors through actual compiler IIFEs and publication mappings', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'namespace-maps.cjs')],
+    { encoding: 'utf8', timeout: 30000 }
+  )
+  expect(JSON.parse(result)).toEqual({ controls: 68, passed: 68 })
+})
+
+it('matches complete pristine runtime namespace coverage through the public CLI in both Node profiles', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'namespace-reports.cjs')],
+    { encoding: 'utf8', timeout: 120000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 2,
+    cases: 2,
+    completeReports: 2,
+    genuineReports: 2,
+  })
+}, 130000)
+
+it('binds enum member counters only through actual compiler owners, literal writes and maps', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'enum-maps.cjs')],
+    {
+      encoding: 'utf8',
+      timeout: 30000,
+    }
+  )
+  expect(JSON.parse(result)).toEqual({ controls: 270, passed: 270 })
+})
+
+it('matches complete pristine enum coverage through the public CLI in both Node profiles', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'enum-reports.cjs')],
+    {
+      encoding: 'utf8',
+      timeout: 420000,
+    }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 10,
+    cases: 10,
+    completeReports: 10,
+    genuineReports: 10,
+  })
+}, 430000)
+
+it('binds typed class arrow fields only through actual class, key and terminal maps', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'class-arrows-maps.cjs')],
+    { encoding: 'utf8', timeout: 30000 }
+  )
+  expect(JSON.parse(result)).toEqual({ controls: 60, passed: 60 })
+})
+
+it('matches complete pristine class arrow coverage and existing methods in both Node profiles', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'class-arrows-reports.cjs')],
+    { encoding: 'utf8', timeout: 250000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 6,
+    cases: 6,
+    completeReports: 6,
+    genuineReports: 6,
+  })
+}, 260000)
+
+it('matches complete genuine imported and untouched TypeScript reports while preserving selected JavaScript and JSX plans', async () => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'typescript-import-reports.cjs')],
+    { timeout: 300000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 14,
+    cases: 14,
+    completeReports: 14,
+    genuineReports: 14,
+  })
+}, 310000)
+
+it('binds class function endpoints only through actual owner, function, body and terminal roles', () => {
+  const result = require('child_process').execFileSync(
+    process.execPath,
+    [join(__dirname, 'class-functions-maps.cjs')],
+    { encoding: 'utf8' }
+  )
+  expect(JSON.parse(result)).toEqual({
+    actualFixtures: 8,
+    controls: 280,
+    countersHeld: true,
+    wholeDescriptorsHeldExceptQualifiedEnds: true,
+    lateFieldFailureAtomic: true,
+  })
+})
+
+it('matches full genuine executed and untouched class function reports in both Node modes', async () => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'class-functions-reports.cjs')],
+    { timeout: 240000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 8,
+    cases: 8,
+    completeReports: 8,
+    genuineReports: 8,
+  })
+}, 250000)
+
+it('binds constructor property call defaults only through unique real compiler roles', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'parameter-property-call-maps.cjs')],
+    { encoding: 'utf8', timeout: 30000 }
+  )
+  expect(JSON.parse(result)).toEqual({ controls: 72, passed: 72 })
+})
+
+it('matches complete pristine constructor call-default coverage for executed and untouched sources', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'parameter-property-call-reports.cjs')],
+    { encoding: 'utf8', timeout: 180000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 4,
+    cases: 4,
+    completeReports: 4,
+    genuineReports: 4,
+  })
+}, 190000)
+
+it('binds constructor property single-numeric-argument defaults through unique real compiler roles', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'parameter-property-literal-call-maps.cjs')],
+    { encoding: 'utf8', timeout: 30000 }
+  )
+  expect(JSON.parse(result)).toEqual({ controls: 128, passed: 128 })
+})
+
+it('matches complete pristine numeric-call-default coverage for executed and untouched sources', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'parameter-property-literal-call-reports.cjs')],
+    { encoding: 'utf8', timeout: 180000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 4,
+    cases: 4,
+    completeReports: 4,
+    genuineReports: 4,
+  })
+}, 190000)

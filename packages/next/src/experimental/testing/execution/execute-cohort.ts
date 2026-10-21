@@ -168,6 +168,16 @@ async function runCohort(
       startupTimeoutMs: first.fileTimeout,
       finishTimeoutMs: Math.max(...options.map((value) => value.fileTimeout)),
       onEvent: event,
+      onFileComplete(entryId, result) {
+        const owner = byEntry.get(entryId)
+        if (!owner) throw new Error('Unrequested shared module reporter owner.')
+        event({
+          ...envelope(),
+          type: 'module-complete',
+          ...result,
+          revision: cohort.artifacts[options.indexOf(owner)].revision,
+        })
+      },
       onOutput(stream, chunk) {
         event({
           ...envelope(),

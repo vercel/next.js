@@ -1,0 +1,239 @@
+{
+  "numTotalTestSuites": 1,
+  "numPassedTestSuites": 1,
+  "numFailedTestSuites": 0,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 1,
+  "numPassedTests": 1,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1792594272104,
+  "success": true,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [],
+          "fullName": "untouched class functions",
+          "status": "passed",
+          "title": "untouched class functions",
+          "duration": 1.689582999999999,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1792594272275,
+      "endTime": 1792594272276.6897,
+      "status": "passed",
+      "message": "",
+      "name": "/private/tmp/next-testing-ws5-class-functions196/genuine06-genuine-untouched-imported-production/fixture/contract.case.mjs"
+    }
+  ],
+  "coverageMap": {
+    "/private/tmp/next-testing-ws5-class-functions196/genuine06-genuine-untouched-imported-production/fixture/helper.ts": {
+      "path": "/private/tmp/next-testing-ws5-class-functions196/genuine06-genuine-untouched-imported-production/fixture/helper.ts",
+      "statementMap": {
+        "0": {
+          "start": { "line": 1, "column": 0 },
+          "end": { "line": 1, "column": null }
+        },
+        "1": {
+          "start": { "line": 2, "column": 30 },
+          "end": { "line": 2, "column": null }
+        },
+        "2": {
+          "start": { "line": 3, "column": 48 },
+          "end": { "line": 3, "column": 66 }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "prefix",
+          "decl": {
+            "start": { "line": 3, "column": 16 },
+            "end": { "line": 3, "column": 23 }
+          },
+          "loc": {
+            "start": { "line": 3, "column": 46 },
+            "end": { "line": 3, "column": null }
+          },
+          "line": 3
+        }
+      },
+      "branchMap": {},
+      "s": { "0": 0, "1": 0, "2": 0 },
+      "f": { "0": 0 },
+      "b": {},
+      "meta": {
+        "lastBranch": 0,
+        "lastFunction": 1,
+        "lastStatement": 3,
+        "seen": {
+          "s:1:0:1:Infinity": 0,
+          "s:2:30:2:Infinity": 1,
+          "f:3:16:3:23": 0,
+          "s:3:48:3:66": 2
+        },
+        "fnNames": {}
+      }
+    },
+    "/private/tmp/next-testing-ws5-class-functions196/genuine06-genuine-untouched-imported-production/fixture/subject.ts": {
+      "path": "/private/tmp/next-testing-ws5-class-functions196/genuine06-genuine-untouched-imported-production/fixture/subject.ts",
+      "statementMap": {
+        "0": {
+          "start": { "line": 1, "column": 0 },
+          "end": { "line": 1, "column": null }
+        },
+        "1": {
+          "start": { "line": 6, "column": 18 },
+          "end": { "line": 6, "column": null }
+        },
+        "2": {
+          "start": { "line": 7, "column": 28 },
+          "end": { "line": 7, "column": null }
+        },
+        "3": {
+          "start": { "line": 5, "column": 31 },
+          "end": { "line": 5, "column": 51 }
+        },
+        "4": {
+          "start": { "line": 6, "column": 53 },
+          "end": { "line": 6, "column": 80 }
+        },
+        "5": {
+          "start": { "line": 7, "column": 63 },
+          "end": { "line": 7, "column": 81 }
+        },
+        "6": {
+          "start": { "line": 8, "column": 34 },
+          "end": { "line": 8, "column": 61 }
+        },
+        "7": {
+          "start": { "line": 11, "column": 18 },
+          "end": { "line": 11, "column": null }
+        },
+        "8": {
+          "start": { "line": 12, "column": 2 },
+          "end": { "line": 12, "column": null }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "constructor",
+          "decl": {
+            "start": { "line": 5, "column": 2 },
+            "end": { "line": 5, "column": 14 }
+          },
+          "loc": {
+            "start": { "line": 5, "column": 29 },
+            "end": { "line": 5, "column": null }
+          },
+          "line": 5
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": { "line": 6, "column": 18 },
+            "end": { "line": 6, "column": 28 }
+          },
+          "loc": {
+            "start": { "line": 6, "column": 51 },
+            "end": { "line": 6, "column": null }
+          },
+          "line": 6
+        },
+        "2": {
+          "name": "(anonymous_2)",
+          "decl": {
+            "start": { "line": 7, "column": 28 },
+            "end": { "line": 7, "column": 38 }
+          },
+          "loc": {
+            "start": { "line": 7, "column": 61 },
+            "end": { "line": 7, "column": null }
+          },
+          "line": 7
+        },
+        "3": {
+          "name": "method",
+          "decl": {
+            "start": { "line": 8, "column": 2 },
+            "end": { "line": 8, "column": 9 }
+          },
+          "loc": {
+            "start": { "line": 8, "column": 32 },
+            "end": { "line": 8, "column": null }
+          },
+          "line": 8
+        },
+        "4": {
+          "name": "exercise",
+          "decl": {
+            "start": { "line": 10, "column": 16 },
+            "end": { "line": 10, "column": 25 }
+          },
+          "loc": {
+            "start": { "line": 10, "column": 48 },
+            "end": { "line": 13, "column": null }
+          },
+          "line": 10
+        }
+      },
+      "branchMap": {},
+      "s": {
+        "0": 0,
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0
+      },
+      "f": { "0": 0, "1": 0, "2": 0, "3": 0, "4": 0 },
+      "b": {},
+      "meta": {
+        "lastBranch": 0,
+        "lastFunction": 5,
+        "lastStatement": 9,
+        "seen": {
+          "s:1:0:1:Infinity": 0,
+          "s:6:18:6:Infinity": 1,
+          "s:7:28:7:Infinity": 2,
+          "f:5:2:5:14": 0,
+          "s:5:31:5:51": 3,
+          "f:6:18:6:28": 1,
+          "s:6:53:6:80": 4,
+          "f:7:28:7:38": 2,
+          "s:7:63:7:81": 5,
+          "f:8:2:8:9": 3,
+          "s:8:34:8:61": 6,
+          "f:10:16:10:25": 4,
+          "s:11:18:11:Infinity": 7,
+          "s:12:2:12:Infinity": 8
+        },
+        "fnNames": {}
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "sources": [
+    "/private/tmp/next-testing-parallel-20261019/tooling156/.next-test-lcov-map150-development/subject.js"
+  ],
+  "names": [],
+  "mappings": ";;;;A;A;A;;;A,I,+K,E,U,I,I,iL,E,I,8K,E,I,I,C;A,I,+K,E,S,I,I,iL,E,I,8K,E,I,I,C;;;;;A;;;;;;AAAO,SAAS,OAAO,KAAK;IAAI,IAAI,QAAQ,GAAG,OAAO,QAAQ;IAAG,OAAO,QAAQ;AAAE;AAC3E,MAAM,SAAS,CAAA,QAAS,QAAQ",
+  "sourcesContent": [
+    "export function choose(value) { if (value > 1) return value + 1; return value - 1 }\nexport const double = value => value * 2\n"
+  ]
+}

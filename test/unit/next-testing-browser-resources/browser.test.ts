@@ -429,3 +429,311 @@ describe('Next-managed browser resources', () => {
     expect(resource.context.pages()).toHaveLength(0)
   })
 })
+
+it('prepares the same actual project binding before connection and retains a healthy following connection', async () => {
+  const projectDir = join(__dirname, '../../..')
+  const { createRequire } = require('node:module')
+  const actual = createRequire(join(projectDir, 'package.json'))('playwright')
+  const controller = new AbortController()
+  const acquired = await createBrowserHost({
+    projectDir,
+    signal: controller.signal,
+  })
+  let connected: Browser | undefined
+  try {
+    const failure = new Error('actual preconnection callback rejected')
+    await expect(
+      connectBrowserHost({
+        projectDir,
+        wsEndpoint: acquired.wsEndpoint,
+        beforeConnect: async (playwright) => {
+          expect(playwright).toBe(actual)
+          throw failure
+        },
+      })
+    ).rejects.toBe(failure)
+    connected = await connectBrowserHost({
+      projectDir,
+      wsEndpoint: acquired.wsEndpoint,
+    })
+    expect(connected.isConnected()).toBe(true)
+    expect(connected.contexts()).toHaveLength(0)
+  } finally {
+    await connected?.close()
+    await acquired.dispose()
+  }
+})
+
+it('joins an acquired host cancelled while its actual preconnection callback is pending', async () => {
+  const projectDir = join(__dirname, '../../..')
+  const controller = new AbortController()
+  const acquired = await createBrowserHost({
+    projectDir,
+    signal: controller.signal,
+  })
+  let release!: () => void, entered!: () => void
+  const gate = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const prepared = new Promise<void>((resolve) => {
+    entered = resolve
+  })
+  const connecting = connectBrowserHost({
+    projectDir,
+    wsEndpoint: acquired.wsEndpoint,
+    timeout: 1000,
+    beforeConnect: async () => {
+      entered()
+      await gate
+    },
+  }).then(
+    (browser) => ({ browser }),
+    (error) => ({ error })
+  )
+  try {
+    await prepared
+    controller.abort(new Error('actual acquisition owner cancelled'))
+    await acquired.dispose()
+    release()
+    const outcome = await connecting
+    if ('browser' in outcome) {
+      await outcome.browser.close()
+      throw new Error('Cancelled acquired host accepted a connection')
+    }
+    expect(outcome.error).toBeDefined()
+    expect(outcome.error.message).toBeTruthy()
+  } finally {
+    release()
+    await connecting
+    await acquired.dispose()
+  }
+})
+
+describe('owned WebKit browser binding', () => {
+  const { createWebKitBrowserHost } =
+    require('next/dist/experimental/testing/browser/webkit-host') as typeof import('next/dist/experimental/testing/browser/webkit-host')
+
+  function deferred<T>() {
+    let resolve!: (value: T) => void
+    const promise = new Promise<T>((accept) => {
+      resolve = accept
+    })
+    return { promise, resolve }
+  }
+
+  function binding() {
+    const session = {
+      send: jest.fn(),
+      on: jest.fn(),
+      off: jest.fn(),
+      isDisposed: jest.fn(() => false),
+    }
+    const nativeContext = { guid: 'actual-context', pages: jest.fn() }
+    const nativePage = {
+      guid: 'actual-page',
+      browserContext: nativeContext,
+      mainFrame: () => ({ _id: 'actual-frame' }),
+      delegate: {
+        _session: session,
+        _calculateBootstrapScript: () => 'actual sdk bootstrap bytes',
+      },
+    }
+    nativeContext.pages.mockReturnValue([nativePage])
+    const native = {
+      contexts: jest.fn(() => [nativeContext]),
+      isConnected: jest.fn(() => true),
+    }
+    const browser = {
+      bind: jest.fn(async () => ({ endpoint: 'ws://127.0.0.1/owned' })),
+      unbind: jest.fn(async () => {}),
+      close: jest.fn(async () => {}),
+      _connection: { toImpl: jest.fn(() => native) },
+    }
+    const playwright = {
+      webkit: { launch: jest.fn(async () => browser) },
+    }
+    const context = { _guid: nativeContext.guid }
+    const page = {
+      _guid: nativePage.guid,
+      context: jest.fn(() => context),
+      isClosed: jest.fn(() => false),
+    }
+    async function acquire(signal = new AbortController().signal) {
+      return createWebKitBrowserHost(
+        { signal },
+        playwright as unknown as typeof import('playwright')
+      )
+    }
+    function pageOwner(host: BrowserHost) {
+      return host.webKitPageOwner!(
+        context as unknown as import('playwright').BrowserContext,
+        page as unknown as import('playwright').Page
+      )
+    }
+    return {
+      session,
+      nativeContext,
+      nativePage,
+      native,
+      browser,
+      playwright,
+      context,
+      page,
+      acquire,
+      pageOwner,
+    }
+  }
+
+  it('never launches an already cancelled host', async () => {
+    const fixture = binding()
+    const controller = new AbortController()
+    const reason = new Error('cancelled before launch')
+    controller.abort(reason)
+    await expect(fixture.acquire(controller.signal)).rejects.toBe(reason)
+    expect(fixture.playwright.webkit.launch).not.toHaveBeenCalled()
+  })
+
+  it('joins a late acquired browser before reporting launch cancellation', async () => {
+    const fixture = binding()
+    const launch = deferred<typeof fixture.browser>()
+    fixture.playwright.webkit.launch.mockReturnValueOnce(launch.promise)
+    const controller = new AbortController()
+    const reason = new Error('cancelled during launch')
+    const result = fixture.acquire(controller.signal).catch((error) => error)
+    controller.abort(reason)
+    expect(fixture.browser.close).not.toHaveBeenCalled()
+    launch.resolve(fixture.browser)
+    expect(await result).toBe(reason)
+    expect(fixture.browser.bind).not.toHaveBeenCalled()
+    expect(fixture.browser.unbind).not.toHaveBeenCalled()
+    expect(fixture.browser.close).toHaveBeenCalledTimes(1)
+  })
+
+  it('joins a late binding and closes only its acquired browser on cancellation', async () => {
+    const fixture = binding()
+    const bound = deferred<{ endpoint: string }>()
+    fixture.browser.bind.mockReturnValueOnce(bound.promise)
+    const controller = new AbortController()
+    const reason = new Error('cancelled during bind')
+    const result = fixture.acquire(controller.signal).catch((error) => error)
+    await Promise.resolve()
+    expect(fixture.browser.bind).toHaveBeenCalledTimes(1)
+    controller.abort(reason)
+    expect(fixture.browser.close).not.toHaveBeenCalled()
+    bound.resolve({ endpoint: 'ws://127.0.0.1/late' })
+    expect(await result).toBe(reason)
+    expect(fixture.browser.unbind).toHaveBeenCalledTimes(1)
+    expect(fixture.browser.close).toHaveBeenCalledTimes(1)
+  })
+
+  it('retains the actual binding error while joining partial acquisition', async () => {
+    const fixture = binding()
+    const failure = new Error('actual bind rejected')
+    fixture.browser.bind.mockRejectedValueOnce(failure)
+    await expect(fixture.acquire()).rejects.toBe(failure)
+    expect(fixture.browser.unbind).toHaveBeenCalledTimes(1)
+    expect(fixture.browser.close).toHaveBeenCalledTimes(1)
+  })
+
+  it('retains acquisition and both distinct cleanup errors in their actual order', async () => {
+    const fixture = binding()
+    const failure = new Error('binding failed')
+    const unbind = new Error('unbind failed')
+    const close = new Error('close failed')
+    fixture.browser.bind.mockRejectedValueOnce(failure)
+    fixture.browser.unbind.mockRejectedValueOnce(unbind)
+    fixture.browser.close.mockRejectedValueOnce(close)
+    const error = await fixture.acquire().catch((error) => error)
+    expect(error).toBeInstanceOf(BrowserFixtureError)
+    expect(error.errors[0]).toBe(failure)
+    expect(error.errors[1].errors).toEqual([unbind, close])
+    expect(fixture.browser.close).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes an acquired SDK without a local native binding', async () => {
+    const fixture = binding()
+    fixture.browser._connection.toImpl = undefined as any
+    await expect(fixture.acquire()).rejects.toThrow('local browser binding')
+    expect(fixture.browser.bind).not.toHaveBeenCalled()
+    expect(fixture.browser.close).toHaveBeenCalledTimes(1)
+  })
+
+  it('owns one joined disposal and invalidates capabilities before cleanup awaits', async () => {
+    const fixture = binding()
+    const host = await fixture.acquire()
+    const owner = fixture.pageOwner(host)
+    const unbinding = deferred<void>()
+    fixture.browser.unbind.mockReturnValueOnce(unbinding.promise)
+    const disposing = host.dispose()
+    expect(host.dispose()).toBe(disposing)
+    expect(() => owner.assertCurrent()).toThrow('closed or changed')
+    expect(fixture.browser.close).not.toHaveBeenCalled()
+    unbinding.resolve()
+    await disposing
+    expect(fixture.browser.unbind).toHaveBeenCalledTimes(1)
+    expect(fixture.browser.close).toHaveBeenCalledTimes(1)
+  })
+
+  it('reads only the exact live native page frame and SDK bootstrap bytes', async () => {
+    const fixture = binding()
+    const host = await fixture.acquire()
+    try {
+      const owner = fixture.pageOwner(host)
+      expect(owner.session).toBe(fixture.session)
+      expect(owner.contextGuid).toBe('actual-context')
+      expect(owner.pageGuid).toBe('actual-page')
+      expect(owner.mainFrameId()).toBe('actual-frame')
+      expect(owner.bootstrapSource()).toBe('actual sdk bootstrap bytes')
+      expect(fixture.session.send).not.toHaveBeenCalled()
+      expect(fixture.session.on).not.toHaveBeenCalled()
+      expect(fixture.session.off).not.toHaveBeenCalled()
+    } finally {
+      await host.dispose()
+    }
+  })
+
+  it('refuses foreign, duplicated and disconnected native page ownership', async () => {
+    const fixture = binding()
+    const host = await fixture.acquire()
+    try {
+      fixture.page.context.mockReturnValueOnce({ _guid: 'foreign' })
+      expect(() => fixture.pageOwner(host)).toThrow('outside its live')
+      fixture.native.contexts.mockReturnValueOnce([
+        fixture.nativeContext,
+        fixture.nativeContext,
+      ])
+      expect(() => fixture.pageOwner(host)).toThrow('actual native owner')
+      fixture.nativeContext.pages.mockReturnValueOnce([
+        fixture.nativePage,
+        fixture.nativePage,
+      ])
+      expect(() => fixture.pageOwner(host)).toThrow('actual native owner')
+      fixture.page.isClosed.mockReturnValueOnce(true)
+      expect(() => fixture.pageOwner(host)).toThrow('outside its live')
+      fixture.native.isConnected.mockReturnValueOnce(false)
+      expect(() => fixture.pageOwner(host)).toThrow('outside its live')
+    } finally {
+      await host.dispose()
+    }
+  })
+
+  it('refuses a removed native page and a replaced or disposed shared session', async () => {
+    const fixture = binding()
+    const host = await fixture.acquire()
+    try {
+      const owner = fixture.pageOwner(host)
+      fixture.nativeContext.pages.mockReturnValueOnce([])
+      expect(() => owner.mainFrameId()).toThrow('closed or changed')
+      fixture.native.contexts.mockReturnValueOnce([])
+      expect(() => owner.bootstrapSource()).toThrow('closed or changed')
+      fixture.session.isDisposed.mockReturnValueOnce(true)
+      expect(() => owner.assertCurrent()).toThrow('closed or changed')
+      fixture.nativePage.delegate._session = { ...fixture.session }
+      expect(() => owner.assertCurrent()).toThrow('closed or changed')
+    } finally {
+      await host.dispose()
+    }
+    // This is a shared SDK session: the host never sends detach/disable calls.
+    expect(fixture.session.send).not.toHaveBeenCalled()
+  })
+})

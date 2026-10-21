@@ -1,0 +1,2542 @@
+{
+  "referenceVersion": "5.0.4",
+  "revision": "61949134144d3690fe9f521260a16c779a6d3797",
+  "dependencies": {
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "@testing-library/react": "14.2.1",
+    "@testing-library/dom": "9.3.4",
+    "@testing-library/jest-dom": "6.4.2",
+    "jsdom": "24.0.0",
+    "lodash.debounce": "4.0.8",
+    "@juggle/resize-observer": "3.4.0"
+  },
+  "inputs": [
+    {
+      "path": "src/index.ts",
+      "sha256": "e6ec847ffd83a4f99181588ce715d189443908b1bf6dd3cde9ceff3f912b0cf8"
+    },
+    {
+      "path": "src/useBoolean/index.ts",
+      "sha256": "65f02d633af63174c953632020bd1f6d55c2d09139bd2b1884b9cfd007097d38"
+    },
+    {
+      "path": "src/useBoolean/useBoolean.demo.tsx",
+      "sha256": "484d9e022d8cc608f53edf7573191942136d68c80ac58558ae135210b44ababa"
+    },
+    {
+      "path": "src/useBoolean/useBoolean.md",
+      "sha256": "4249bead4e0734cc10202347cdd86a1c5e02d34db695715730e3ed04b754e268"
+    },
+    {
+      "path": "src/useBoolean/useBoolean.test.ts",
+      "sha256": "a7e7c7074a1a96718ce2d0069809c9f66846befe1de812a626aaf9b79e85c403"
+    },
+    {
+      "path": "src/useBoolean/useBoolean.ts",
+      "sha256": "60d89815356a443dbf1a3c735355be3c9eb549ed00f82c3cb1b45d9e37b9e6a2"
+    },
+    {
+      "path": "src/useClickAnyWhere/index.ts",
+      "sha256": "0e3e2fa2d45d34131d9b18350b9c84768af86fbecd9c8401b84ba7157313a6d4"
+    },
+    {
+      "path": "src/useClickAnyWhere/useClickAnyWhere.demo.tsx",
+      "sha256": "53787ae08c67c453e6bcab566bc680e1ba247dc0b89aa831ac905b1ef67f35dd"
+    },
+    {
+      "path": "src/useClickAnyWhere/useClickAnyWhere.md",
+      "sha256": "2a547c596ba4acd7e68dfbafdcf55b25d019c26b7bb7ae4adf311ec4fc6a6bec"
+    },
+    {
+      "path": "src/useClickAnyWhere/useClickAnyWhere.test.ts",
+      "sha256": "69a49772e58f04d39894713f55937153c3e5fe595c53a4d6272bc89be74a4702"
+    },
+    {
+      "path": "src/useClickAnyWhere/useClickAnyWhere.ts",
+      "sha256": "cbe0aec53b30aa54767941938ea4a364a91f3e91fa93e875097d1f5f9b88baee"
+    },
+    {
+      "path": "src/useCopyToClipboard/index.ts",
+      "sha256": "b82481a2211ddb2d068f5a3fb074e6d6d154f4a082141e067236de302d621a79"
+    },
+    {
+      "path": "src/useCopyToClipboard/useCopyToClipboard.demo.tsx",
+      "sha256": "2b8dc7251582497e7058d9b7f02729a8fe5f6efc15f3ffe9eaf9a2aa1a6f653c"
+    },
+    {
+      "path": "src/useCopyToClipboard/useCopyToClipboard.md",
+      "sha256": "3c1e819265c84381e9de89d0d0bc96fc6ef7375732258d0a720e67c0bee136aa"
+    },
+    {
+      "path": "src/useCopyToClipboard/useCopyToClipboard.test.ts",
+      "sha256": "038b140fad0dfd19e46dc5d265febf1ce929c80c31c384cda8ac85e31ba3a651"
+    },
+    {
+      "path": "src/useCopyToClipboard/useCopyToClipboard.ts",
+      "sha256": "11d4c8f4e22c31d9c6724b7c8b29a38a1ae604f93d505c8ea50c798a4b6039a8"
+    },
+    {
+      "path": "src/useCountdown/index.ts",
+      "sha256": "09507ca9496b952f7f6dc4ccbaf0a160b5cc18677671584bb331bee6b431be35"
+    },
+    {
+      "path": "src/useCountdown/useCountdown.demo.tsx",
+      "sha256": "7f137acf4667366daea8c1eb497b15668eee433829b1d80e218fa8c9662dd0f9"
+    },
+    {
+      "path": "src/useCountdown/useCountdown.md",
+      "sha256": "27841096c9160c4724be232555e9080331c26033e2402c25885ed05db5b4c09c"
+    },
+    {
+      "path": "src/useCountdown/useCountdown.test.ts",
+      "sha256": "4b776fd5afc6710a6020e9440c4df0da54f98661513ce6d3539f1049fb1350bd"
+    },
+    {
+      "path": "src/useCountdown/useCountdown.ts",
+      "sha256": "b8c424622c619228df6ea7b68894fe205a4d872567e5af271e0bff43bb6b7016"
+    },
+    {
+      "path": "src/useCounter/index.ts",
+      "sha256": "09a2ffec8e0b9c30ebf702564815ee6adbfe7a9e55d40c4413311d6ecf5ce4d5"
+    },
+    {
+      "path": "src/useCounter/useCounter.demo.tsx",
+      "sha256": "b8c60929c8d6de88136da62959a97095cccba8bfd751ded112588f0f3c9279e2"
+    },
+    {
+      "path": "src/useCounter/useCounter.md",
+      "sha256": "fc29d509c3a820a027f8b06717aa59c7fe95b627a1218c37882bb057b959f9b4"
+    },
+    {
+      "path": "src/useCounter/useCounter.test.ts",
+      "sha256": "1bc9b957688103f1c6dbd11c1a2a02b00a83768b8944730735a89b171aa1d430"
+    },
+    {
+      "path": "src/useCounter/useCounter.ts",
+      "sha256": "1c07b7ec0873824362ab99fcfd821b5467f246a86cac5375d352a0f0e03b0563"
+    },
+    {
+      "path": "src/useDarkMode/index.ts",
+      "sha256": "727d8d6d6dbe0419093836b6a64e2fde545fb965cb6829dabefcb89e6548f884"
+    },
+    {
+      "path": "src/useDarkMode/useDarkMode.demo.tsx",
+      "sha256": "4545fe500c5b18035fce8031023eeb1794a3b52a3af83705421f2d7e97b044ae"
+    },
+    {
+      "path": "src/useDarkMode/useDarkMode.md",
+      "sha256": "8a360d800b9b4d5abef6b0bbe4e8c410364738c796b3bfd2988e4c235f9e2b1c"
+    },
+    {
+      "path": "src/useDarkMode/useDarkMode.test.ts",
+      "sha256": "dfa072958d4a9fbb53015803e5aa03d020a1282009a8b1682e2374f2edf90a9c"
+    },
+    {
+      "path": "src/useDarkMode/useDarkMode.ts",
+      "sha256": "461b882a128b81836626e551b9d1e7832e8d8e97949c5d1bde55683eda7a9de0"
+    },
+    {
+      "path": "src/useDebounceCallback/index.ts",
+      "sha256": "9a4208861b11d19812d4da4b0e1a1103e51dbfb82279175ef75fa45ea3eae82b"
+    },
+    {
+      "path": "src/useDebounceCallback/useDebounceCallback.demo.tsx",
+      "sha256": "cc4bfc9c0e8051bd32affeac5fb637a2962cba7eeb8b5460a2b30f122c15c0f1"
+    },
+    {
+      "path": "src/useDebounceCallback/useDebounceCallback.md",
+      "sha256": "86ac2d5d87467122192fdadc6af0b2a183d3aa701a1ced6fffc8dd406a842379"
+    },
+    {
+      "path": "src/useDebounceCallback/useDebounceCallback.test.ts",
+      "sha256": "8a4e786a67093d8e64ea2cc1c6ab04d56468a4b25abec2fa7d554e62dc354ba7"
+    },
+    {
+      "path": "src/useDebounceCallback/useDebounceCallback.ts",
+      "sha256": "d4d68a5a0968b955dfeef0e5cf8bf9b9573b574348ee580239bf3dc9d6a470a5"
+    },
+    {
+      "path": "src/useDebounceValue/index.ts",
+      "sha256": "e307d0c8b6267ef65880ef8668b576c96e79331c03545a5092457189e5cccf67"
+    },
+    {
+      "path": "src/useDebounceValue/useDebounceValue.demo.tsx",
+      "sha256": "f2ea1f0cddc987a699f76c599cc46d320e4d8eaec9e8a4c93505e95dcf8c2bbb"
+    },
+    {
+      "path": "src/useDebounceValue/useDebounceValue.md",
+      "sha256": "8a6d161628ceb6730fad3add6e5af027b97fab02fed8e8cd443755c0d09d265f"
+    },
+    {
+      "path": "src/useDebounceValue/useDebounceValue.test.ts",
+      "sha256": "808ad3ae990cf6e28767d5b05446f6a930aa74805caa9aad2e87a41cef3782cb"
+    },
+    {
+      "path": "src/useDebounceValue/useDebounceValue.ts",
+      "sha256": "77496ed20ba595b8c7341f7a68edfed56d18eeec5877826920b71f5325c3902a"
+    },
+    {
+      "path": "src/useDocumentTitle/index.ts",
+      "sha256": "d6d9c3e0204d0c35e1abf3fb3e2979d5109261a1aa830a7b3c58101f8453cf11"
+    },
+    {
+      "path": "src/useDocumentTitle/useDocumentTitle.demo.tsx",
+      "sha256": "480bab5910c5269309a353d9c9d3e0aaef5ebb5f1dfb18f64d17be9a207d07db"
+    },
+    {
+      "path": "src/useDocumentTitle/useDocumentTitle.md",
+      "sha256": "2f35ba8046b8ebeb90de4c2ec9062b17b9fd994bfbdc9717d14435ca64ff01d2"
+    },
+    {
+      "path": "src/useDocumentTitle/useDocumentTitle.test.ts",
+      "sha256": "26e4c9b52e547ed71367e46533558ac4456bfb4b81bd6c433f83635f34d97f6a"
+    },
+    {
+      "path": "src/useDocumentTitle/useDocumentTitle.ts",
+      "sha256": "8891446e2818b37ac79c8bbe9b1af368aaf6cb7da2e06dc834b2fe0b8bf459ec"
+    },
+    {
+      "path": "src/useEventCallback/index.ts",
+      "sha256": "fd60037e28cfbef8d9cd9bd6797f6a5aceb1a90ffcf4dc18bc89438bf9d18dc2"
+    },
+    {
+      "path": "src/useEventCallback/useEventCallback.demo.tsx",
+      "sha256": "1a2aff55674a2108d361bfc494d7ef7db2857d8ba8e80a50bf6ea5e7552bab96"
+    },
+    {
+      "path": "src/useEventCallback/useEventCallback.md",
+      "sha256": "cf2e87b9af2c8a58a19348044f368854b61d6c1a4b8088c459d969f6bfcff12d"
+    },
+    {
+      "path": "src/useEventCallback/useEventCallback.test.tsx",
+      "sha256": "9dccdef8a97c7a918ee50ef126d31274a8d22fd6ece12a8d35dae59bc636a58e"
+    },
+    {
+      "path": "src/useEventCallback/useEventCallback.ts",
+      "sha256": "d922ec0106e499fd86ea6c4cdc162e9daca543030d1a0617a59c8a04f7836500"
+    },
+    {
+      "path": "src/useEventListener/index.ts",
+      "sha256": "6d1f750042132688cc702d3e297244e354c06cd431edf29754cff2dff37ee061"
+    },
+    {
+      "path": "src/useEventListener/useEventListener.demo.tsx",
+      "sha256": "027559a5631c6cc1b7a35a89d488d7f5dd8bc18a0d6872baf1871740b4da479c"
+    },
+    {
+      "path": "src/useEventListener/useEventListener.md",
+      "sha256": "baf26ee77346e5c61e79b261b8ba291fd6ed1827b81b0bd889218a88b1c4ceb5"
+    },
+    {
+      "path": "src/useEventListener/useEventListener.test.ts",
+      "sha256": "68036684edf6088b53882e5dbc81a4bca06a522aad1e3b5d02cfba3c02f2863f"
+    },
+    {
+      "path": "src/useEventListener/useEventListener.ts",
+      "sha256": "0ffba92b42103c68b6a982816f066da424acf8b1179d13bcd59aa14d93015ba0"
+    },
+    {
+      "path": "src/useHover/index.ts",
+      "sha256": "dc61abe9620ce4ba6a1031ded07710e30ca61391f606b965150b83e0d1840497"
+    },
+    {
+      "path": "src/useHover/useHover.demo.tsx",
+      "sha256": "4ba19392eda0f63598b2b80c6a6d5991f4cbc292d055c5b46f05d49369675139"
+    },
+    {
+      "path": "src/useHover/useHover.md",
+      "sha256": "91da8b8d1b1ea4bce076bf1f81939b4e6b4b880b8400740297f154af0fcd2358"
+    },
+    {
+      "path": "src/useHover/useHover.test.ts",
+      "sha256": "b7355a61c9b1650a1f398ccfa4d07ae8fe7202becef409875501c77df69ddd47"
+    },
+    {
+      "path": "src/useHover/useHover.ts",
+      "sha256": "0712b4f68a573b46db80b0126c8e85270c490606f2ba844f72995e4333063c98"
+    },
+    {
+      "path": "src/useIntersectionObserver/index.ts",
+      "sha256": "2134a46bfbe7875869d51a03e88cc3ab562664eb9b1539ac97640ff31efafb4b"
+    },
+    {
+      "path": "src/useIntersectionObserver/useIntersectionObserver.demo.tsx",
+      "sha256": "973d3b076e0a6ff3737cb625fec6f8b1980190af8c92e0553032082e77d4f4f1"
+    },
+    {
+      "path": "src/useIntersectionObserver/useIntersectionObserver.md",
+      "sha256": "b1f993dd9e6aa05f6ff0f04cb356733f75e2c10630c4b8eb167b2d3790771500"
+    },
+    {
+      "path": "src/useIntersectionObserver/useIntersectionObserver.ts",
+      "sha256": "47471a91cb8b149929f21d71e888a54a70e65e8d2881c7eb60c4a8e6493c2f01"
+    },
+    {
+      "path": "src/useInterval/index.ts",
+      "sha256": "e23fe83459957f94995d1caee5ce96c0ef2a2d9e9d8ea0eb71d236d42fd9fe36"
+    },
+    {
+      "path": "src/useInterval/useInterval.demo.tsx",
+      "sha256": "c3261eed5398519934050446ee45ba6a86cd63d1e4e1b5841358045bc6931b4c"
+    },
+    {
+      "path": "src/useInterval/useInterval.md",
+      "sha256": "ea73c95a8abb326b3d04fc4184d3a1a28ec35dd8a1e75128771157e25dbf986c"
+    },
+    {
+      "path": "src/useInterval/useInterval.test.ts",
+      "sha256": "ce1b2eaa2ba894a3d7e2d4d2163f39d2b349b3187ec894b53707d4aebbe1c896"
+    },
+    {
+      "path": "src/useInterval/useInterval.ts",
+      "sha256": "66dc974b121ac6929fdaf692e2647d2dcde23871a3263ef6f9875780d9b99402"
+    },
+    {
+      "path": "src/useIsClient/index.ts",
+      "sha256": "bec963c089cef7e486e0703b151e31bb65016cddbb4b3ad5a624a8a9a0006c6d"
+    },
+    {
+      "path": "src/useIsClient/useIsClient.demo.tsx",
+      "sha256": "6a12ff057ddfc46e4fc7dbe510f910f5db27ccc6d062db7f14b53d4f6bf34b9c"
+    },
+    {
+      "path": "src/useIsClient/useIsClient.md",
+      "sha256": "71a137e13db265c7902aae09956c81cd404945b879ffd8cfe3f1d4d327b4011b"
+    },
+    {
+      "path": "src/useIsClient/useIsClient.test.ts",
+      "sha256": "e782c892b4bb4297e0f5c8a081fad9ba8e48efc0a4664b6a73f1b378507ba0c6"
+    },
+    {
+      "path": "src/useIsClient/useIsClient.ts",
+      "sha256": "a308d304012963c9c3f24b5f77915544ccf922155785104c764f0a016cb8a088"
+    },
+    {
+      "path": "src/useIsMounted/index.ts",
+      "sha256": "fc2eb26223e257ac9035b133ee276507a768a5dcec53cf99c2342b4f3d91d83a"
+    },
+    {
+      "path": "src/useIsMounted/useIsMounted.demo.tsx",
+      "sha256": "5ac6a795d41b2d3d2d0704696a8b0090695bb04091e5f2ee17a9ec0187c3ef88"
+    },
+    {
+      "path": "src/useIsMounted/useIsMounted.md",
+      "sha256": "40f7905a03c7879e3483ddc3d79248219c008b237c5edf6d72f8f5c3af42bcaa"
+    },
+    {
+      "path": "src/useIsMounted/useIsMounted.test.ts",
+      "sha256": "a5fec60a5e747a9a4ea18ac78acb4cf9a377875611a4cd9f4a0ec7ecff274c5a"
+    },
+    {
+      "path": "src/useIsMounted/useIsMounted.ts",
+      "sha256": "f4c7b9e861cafe894d03e7686beec5d04918a45aa7fddc7dc60ab6913526a0c4"
+    },
+    {
+      "path": "src/useIsomorphicLayoutEffect/index.ts",
+      "sha256": "932a4a028a0d7c200b8d001ed1e5f433bfd998cd1afc7d69789e9bd5c049bbfd"
+    },
+    {
+      "path": "src/useIsomorphicLayoutEffect/useIsomorphicLayoutEffect.demo.tsx",
+      "sha256": "d2d820d6a9030008c8329fc7d2364a9ca74fb2a9f5c72fe131feb45c04eba421"
+    },
+    {
+      "path": "src/useIsomorphicLayoutEffect/useIsomorphicLayoutEffect.md",
+      "sha256": "f2f88ce9fb8548587285cb2015565892f89639b948b5d797956eefc95447da01"
+    },
+    {
+      "path": "src/useIsomorphicLayoutEffect/useIsomorphicLayoutEffect.ts",
+      "sha256": "00b552489f96403f5e364c26e414aefa8225e88867f0704ef76f86eec6566c38"
+    },
+    {
+      "path": "src/useLocalStorage/index.ts",
+      "sha256": "bf944f3c68349a28468dc162c26c47d935518e87eaf925556f03cb9d624c9a88"
+    },
+    {
+      "path": "src/useLocalStorage/useLocalStorage.demo.tsx",
+      "sha256": "4ace34d4ef7d7dce32ea7e2cad18bdee9272e317220be8e5948603b9c58646e6"
+    },
+    {
+      "path": "src/useLocalStorage/useLocalStorage.md",
+      "sha256": "6f6b9dae1d6ca9aa27044b592fa731f659d6c6f5b2b58035949d1d7af70ee68e"
+    },
+    {
+      "path": "src/useLocalStorage/useLocalStorage.test.ts",
+      "sha256": "f5ff1ffebe2592d387460796483b88a84516f79cc3e21b9007a4e45d857851e9"
+    },
+    {
+      "path": "src/useLocalStorage/useLocalStorage.ts",
+      "sha256": "ebce68a9b480e92709b29f4fbce7bc2bf8525a829f072bbe447d3f5b09e3b9bf"
+    },
+    {
+      "path": "src/useMap/index.ts",
+      "sha256": "2079ca1ff9c71d7e4d07aa51c0e9fa364041defb718542671eec49d6bac75841"
+    },
+    {
+      "path": "src/useMap/useMap.demo.tsx",
+      "sha256": "4c96ced17d1793504401bf6477183cad1d16e8585fa71544cff81ac23e1e1491"
+    },
+    {
+      "path": "src/useMap/useMap.md",
+      "sha256": "9092b13efbc335e1036f37a498f5cb1e68c84876afe92613a86bb414568fa978"
+    },
+    {
+      "path": "src/useMap/useMap.test.ts",
+      "sha256": "a440a4ab9f69c806adc7efd9142ccfaea658f39f9dd23d829b2da36dc7043100"
+    },
+    {
+      "path": "src/useMap/useMap.ts",
+      "sha256": "9c9efc1e95ad958daaeaa5247f1c94b74cb0c46b1c29ef760d5d8edd769f6e62"
+    },
+    {
+      "path": "src/useMediaQuery/index.ts",
+      "sha256": "01daa0fe82ba28eaf48f661ec2b211c81c980571092098e8c15819ec67fa7dbd"
+    },
+    {
+      "path": "src/useMediaQuery/useMediaQuery.demo.tsx",
+      "sha256": "83c4e6a8953ff47bf9c63618a78cff98090375df68198fff26f34fd2908b8234"
+    },
+    {
+      "path": "src/useMediaQuery/useMediaQuery.md",
+      "sha256": "745cfade26020e934819c0caf8980e8953345448d9f8a7a97d118bed4e46ae1f"
+    },
+    {
+      "path": "src/useMediaQuery/useMediaQuery.ts",
+      "sha256": "e66f6623402cd9bb40e190a0e946b906352e3b12fcdb827e451c47d4e7260406"
+    },
+    {
+      "path": "src/useOnClickOutside/index.ts",
+      "sha256": "66dd163578d55b416f78c3c2360673f7bf1c64fa791c175d3b799c2112959569"
+    },
+    {
+      "path": "src/useOnClickOutside/useOnClickOuside.test.ts",
+      "sha256": "81d5ab1f8c76d58c5aacd6ae969158afb90293d5e616b5175c5b3530362ab7c7"
+    },
+    {
+      "path": "src/useOnClickOutside/useOnClickOutside.demo.tsx",
+      "sha256": "76511aad89132b9ee0f7fd4ba3e85cd337f0a702069d4dce149b2807979277b6"
+    },
+    {
+      "path": "src/useOnClickOutside/useOnClickOutside.md",
+      "sha256": "cd22da0a177765e83dec27c251083386cf6ff484f02d18089b9ab8c4d1481b56"
+    },
+    {
+      "path": "src/useOnClickOutside/useOnClickOutside.ts",
+      "sha256": "7f468e44e022293ca1d95d8deb5a5b672986aed0114971d4fa4f188e1f87d760"
+    },
+    {
+      "path": "src/useReadLocalStorage/index.ts",
+      "sha256": "d398c4258991ab182bb7c882aafbde0008a49fe794116b74f5072461c894c9a8"
+    },
+    {
+      "path": "src/useReadLocalStorage/useReadLocalStorage.demo.tsx",
+      "sha256": "0592a9a4087d02e439a46ab3ae5ba94e9311a6a151d2711e0ea661648626ede3"
+    },
+    {
+      "path": "src/useReadLocalStorage/useReadLocalStorage.md",
+      "sha256": "51d0b0eea878df178840ade494991b5b92deafca659e7b43c733208b899ca6c4"
+    },
+    {
+      "path": "src/useReadLocalStorage/useReadLocalStorage.test.ts",
+      "sha256": "bf020a97e588624f68a03882852d2527e1b0a654920798e5007ba29dd12f5326"
+    },
+    {
+      "path": "src/useReadLocalStorage/useReadLocalStorage.ts",
+      "sha256": "5ea1fbac0b479867fef26faec23bedee5deef99dc97f0f7e30286e4e8d31f0ec"
+    },
+    {
+      "path": "src/useResizeObserver/index.ts",
+      "sha256": "c57026c2f0da85f7281ce6485b042b45e86265ebcd3fc74557081033dec277a4"
+    },
+    {
+      "path": "src/useResizeObserver/useResizeObserver.demo.tsx",
+      "sha256": "59624db052ed61c001401e147a13f97dd372f673f2ee0911900e42025e3bdf18"
+    },
+    {
+      "path": "src/useResizeObserver/useResizeObserver.md",
+      "sha256": "1e0bd5e4b58fd7e1a9cce593ed411335a01e6f7d3ccefc0ea7c3885a94d6ae8a"
+    },
+    {
+      "path": "src/useResizeObserver/useResizeObserver.test.tsx",
+      "sha256": "97e14c7dc32e922034d347eee2e73076b53df30de0b3677afef5e87886ff4128"
+    },
+    {
+      "path": "src/useResizeObserver/useResizeObserver.ts",
+      "sha256": "ebab77697eea4dfa0d4ce9c8b1b07b0cde84bd3f47ab44c9f7173d4b76e43eff"
+    },
+    {
+      "path": "src/useScreen/index.ts",
+      "sha256": "93c9e72f26f3adebda316a8d8ad85241a49400dc75db53b18a22728967e72a45"
+    },
+    {
+      "path": "src/useScreen/useScreen.demo.tsx",
+      "sha256": "82c7acf2cf5f522e7a44b1092333b9e833036f3df1a52773258f24859294903e"
+    },
+    {
+      "path": "src/useScreen/useScreen.md",
+      "sha256": "32719375b6818f4e15b38ce182e7031936cd68488ad1d45ba6b6ddf8ef24d142"
+    },
+    {
+      "path": "src/useScreen/useScreen.ts",
+      "sha256": "3b0bfe2d8201e1f63c3766cdea222ed1d31d61540dfb7237c187ef5a45cbd426"
+    },
+    {
+      "path": "src/useScript/index.ts",
+      "sha256": "867950f5240221f85ed4d53ef12106beb2157ccba783e6f405860bb6bdc782c6"
+    },
+    {
+      "path": "src/useScript/useScript.demo.tsx",
+      "sha256": "edefb1b6030f080a28e3f945217fa509dac818719f7232c79d3764e2701fa2a5"
+    },
+    {
+      "path": "src/useScript/useScript.md",
+      "sha256": "82e5c9020aa9ce99f6978f76947f2735bc9e1e3a03d1ebbb21f45a387081bbb7"
+    },
+    {
+      "path": "src/useScript/useScript.test.ts",
+      "sha256": "8e9a44a83564f08c40bfb93fbfebde0b78bdede39084c9f7a5c094996aa8587d"
+    },
+    {
+      "path": "src/useScript/useScript.ts",
+      "sha256": "c58f0d71f49d4398596ab049c8c880b8444ab848a45d852e32a0d2c9047dde49"
+    },
+    {
+      "path": "src/useScrollLock/index.ts",
+      "sha256": "b4622011cb5424026b54f316c65aec2ab1df9b32a37e722320948dd8934b080f"
+    },
+    {
+      "path": "src/useScrollLock/useScrollLock.demo.tsx",
+      "sha256": "005f1c34d2479d0cebcbbe6ac8dca812193e98adb27834782941c86666ca035c"
+    },
+    {
+      "path": "src/useScrollLock/useScrollLock.md",
+      "sha256": "a429936c25b5c2202c0e359644839b27e69146f5938e1ca0cd40bf49ba3a0da6"
+    },
+    {
+      "path": "src/useScrollLock/useScrollLock.test.ts",
+      "sha256": "9d6f7ceb2e8f98d351f5d4cdabba4c6aadd74b152febadb88fd528515ee183f9"
+    },
+    {
+      "path": "src/useScrollLock/useScrollLock.ts",
+      "sha256": "c6bfe35caf5a0b45f04d3d24983c730077d1769a059d0cb0a95f15c1c2a925ea"
+    },
+    {
+      "path": "src/useSessionStorage/index.ts",
+      "sha256": "e458b9d81ac5ab7398f835e01ddef6b25e26307a7ca2cb94ffa54d304608958d"
+    },
+    {
+      "path": "src/useSessionStorage/useSessionStorage.demo.tsx",
+      "sha256": "8bf3e54d7d48ff0c71da8149c4340d79cb7af0df911e9f8658b6444f38a8df52"
+    },
+    {
+      "path": "src/useSessionStorage/useSessionStorage.md",
+      "sha256": "35d7784356b27c8b08db03283bc332e36b34451c4e904811de3b8a6cda24f387"
+    },
+    {
+      "path": "src/useSessionStorage/useSessionStorage.test.ts",
+      "sha256": "921c1cacf3092d686743c157d09806367430b20968d0c9e56ce786481ced1a54"
+    },
+    {
+      "path": "src/useSessionStorage/useSessionStorage.ts",
+      "sha256": "302bafe6823dc303096a09dda92bf1d2bd2d6d15f0171e6e98ceb36285e6806b"
+    },
+    {
+      "path": "src/useStep/index.ts",
+      "sha256": "64def70cd9e05b85e89a000c4185cc54927a4c13e4400859e186d76356ec299a"
+    },
+    {
+      "path": "src/useStep/useStep.demo.tsx",
+      "sha256": "cec5b5b120952cdbb3d8b1c2da069426c64abd3f02308513271096bb3e8c0ea7"
+    },
+    {
+      "path": "src/useStep/useStep.md",
+      "sha256": "014560f432196b37a1025ce9873b22279aa4dac7fbd0d4a833dd984da359fc54"
+    },
+    {
+      "path": "src/useStep/useStep.test.ts",
+      "sha256": "6880fc08286008af0ea902a2798266b9e1fe04b1db4f7a5cb458442c86efee63"
+    },
+    {
+      "path": "src/useStep/useStep.ts",
+      "sha256": "34bcc7e6da2d4d6ec2653847ca537638a7df321c5659fcc819897c9e58ee3b37"
+    },
+    {
+      "path": "src/useTernaryDarkMode/index.ts",
+      "sha256": "e84ceab208cda637b1b31024d223289a8a15ebcf26de6923b1dd4dc1595d3bf0"
+    },
+    {
+      "path": "src/useTernaryDarkMode/useTernaryDarkMode.demo.tsx",
+      "sha256": "03cbaea2f8919278e9f869d986eabce86424ac53febfaae352275051c3515136"
+    },
+    {
+      "path": "src/useTernaryDarkMode/useTernaryDarkMode.md",
+      "sha256": "0cc0835f56715560658ad0ee76fc1c6f80aad5eeb97b52b642f91eb33fd4e853"
+    },
+    {
+      "path": "src/useTernaryDarkMode/useTernaryDarkMode.test.ts",
+      "sha256": "f708f5bae79a2bf47453439b934e102592c0d2a3d037d47e5f974fd3214cf08b"
+    },
+    {
+      "path": "src/useTernaryDarkMode/useTernaryDarkMode.ts",
+      "sha256": "8082f21a0199032a6c03c89af79fd2c3364f4fb1855e21ea563f9c8f937e2e00"
+    },
+    {
+      "path": "src/useTimeout/index.ts",
+      "sha256": "7a1197cc72e0243cf6ffe8eced9fefa617d5bd30d2bb9893aa3941992f38c86f"
+    },
+    {
+      "path": "src/useTimeout/useTimeout.demo.tsx",
+      "sha256": "db9d23c5ffb84fbebe26436f8419531de52c38cf6056a267b28710b5993f20d2"
+    },
+    {
+      "path": "src/useTimeout/useTimeout.md",
+      "sha256": "c66a43e578ad60c60b6c79b3e96d41fdd819bbb05098fa8a5dda523276a15a43"
+    },
+    {
+      "path": "src/useTimeout/useTimeout.test.ts",
+      "sha256": "7c98628831575c566ac391aee91fdc5be5e91d6fa9610f85c5e21cfdd215959d"
+    },
+    {
+      "path": "src/useTimeout/useTimeout.ts",
+      "sha256": "4e103bed428d392bbd71debd9a50730c764040d735bc9d616c53a125f2182e99"
+    },
+    {
+      "path": "src/useToggle/index.ts",
+      "sha256": "513d315c696d8781d83df2e5b8b0592ac703ae1dbe6adb501b4224887305c8df"
+    },
+    {
+      "path": "src/useToggle/useToggle.demo.tsx",
+      "sha256": "94f96b36cd99a7b36d04a6a9ae1fa644457c57a6cb38440e1e4a8a4ed324c522"
+    },
+    {
+      "path": "src/useToggle/useToggle.md",
+      "sha256": "124b12790affe440f4d09e6131f08f5c18c2e997a8021917cbe24bfd72fc1615"
+    },
+    {
+      "path": "src/useToggle/useToggle.test.ts",
+      "sha256": "f4314ccd8551be868d8b4e1fbe0a1889a2d61f3f53bd128c484822ee5d100fbf"
+    },
+    {
+      "path": "src/useToggle/useToggle.ts",
+      "sha256": "ab261e7acbe591bf2c5b7ea84b59c7e9083a1bbe08357e089e32310af818edcf"
+    },
+    {
+      "path": "src/useUnmount/index.ts",
+      "sha256": "14fca4d82c0a35eb57b18f89d537e95a0d78f5ee5237cde283de57a797edc042"
+    },
+    {
+      "path": "src/useUnmount/useUnmount.demo.tsx",
+      "sha256": "b54a4492ac4cae4f17ab5bf2de174e3d0507a8718029d2bf05efac8b55345d0d"
+    },
+    {
+      "path": "src/useUnmount/useUnmount.md",
+      "sha256": "87009c127c8d84302d549fae1bc2107085ce63805a07cfc949ced0b54ca3dab7"
+    },
+    {
+      "path": "src/useUnmount/useUnmount.test.ts",
+      "sha256": "1169180f703bc60b2927dd1c50d11e9fa77c19eed67debb792707ba608e07b94"
+    },
+    {
+      "path": "src/useUnmount/useUnmount.ts",
+      "sha256": "0e4ac73b00be2d9f83a8ed447842dc6c7e4101e4aa0b85a413ef1be160d2a94e"
+    },
+    {
+      "path": "src/useWindowSize/index.ts",
+      "sha256": "8438e157b3c18301aa688b8ae8cb1b6783d45cc4d400192b0b944f83992878e2"
+    },
+    {
+      "path": "src/useWindowSize/useWindowSize.demo.tsx",
+      "sha256": "ad7974259bed0a97ba3e5f3f67131e77910a9a799fad1aacfc302a1846223a83"
+    },
+    {
+      "path": "src/useWindowSize/useWindowSize.md",
+      "sha256": "441095a35b3d45c0b163364de51db83ce9f5eea29b61b09f9a1ce812df021b1f"
+    },
+    {
+      "path": "src/useWindowSize/useWindowSize.test.ts",
+      "sha256": "22decc1d0b1edb3a27add894dd28ca932d82bf9731de36c94801bfcee68b18cb"
+    },
+    {
+      "path": "src/useWindowSize/useWindowSize.ts",
+      "sha256": "00a55f34faf2166f26960e75c7ce4a8216b247bc0947974a7f6bd4c0d26ef5d1"
+    },
+    {
+      "path": "tests/mocks.ts",
+      "sha256": "1e947a85aeba23bc74e587f29458bd978de68ba728f1f48d81d58f27b5f82033"
+    },
+    {
+      "path": "tests/setup.ts",
+      "sha256": "1436ebf8604109a5d0f1ee5c486432a6276fa976c0a7a267062229da307a325c"
+    },
+    {
+      "path": "vitest.config.ts",
+      "sha256": "af7daa7ee765a308421e8c77fc9f0fd8d2a7157763ece3a29e95c733d7ab483f"
+    }
+  ],
+  "cases": [
+    {
+      "file": "src/useBoolean/useBoolean.test.ts",
+      "ancestorTitles": ["useBoolean()"],
+      "fullName": "useBoolean() should default value works (1)",
+      "status": "passed",
+      "title": "should default value works (1)",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useBoolean/useBoolean.test.ts",
+      "ancestorTitles": ["useBoolean()"],
+      "fullName": "useBoolean() should default value works (2)",
+      "status": "passed",
+      "title": "should default value works (2)",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useBoolean/useBoolean.test.ts",
+      "ancestorTitles": ["useBoolean()"],
+      "fullName": "useBoolean() should set to false (1)",
+      "status": "passed",
+      "title": "should set to false (1)",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useBoolean/useBoolean.test.ts",
+      "ancestorTitles": ["useBoolean()"],
+      "fullName": "useBoolean() should set to false (2)",
+      "status": "passed",
+      "title": "should set to false (2)",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useBoolean/useBoolean.test.ts",
+      "ancestorTitles": ["useBoolean()"],
+      "fullName": "useBoolean() should set to true (1)",
+      "status": "passed",
+      "title": "should set to true (1)",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useBoolean/useBoolean.test.ts",
+      "ancestorTitles": ["useBoolean()"],
+      "fullName": "useBoolean() should set to true (2)",
+      "status": "passed",
+      "title": "should set to true (2)",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useBoolean/useBoolean.test.ts",
+      "ancestorTitles": ["useBoolean()"],
+      "fullName": "useBoolean() should throw an error",
+      "status": "passed",
+      "title": "should throw an error",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useBoolean/useBoolean.test.ts",
+      "ancestorTitles": ["useBoolean()"],
+      "fullName": "useBoolean() should toggle value from prev using setValue",
+      "status": "passed",
+      "title": "should toggle value from prev using setValue",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useBoolean/useBoolean.test.ts",
+      "ancestorTitles": ["useBoolean()"],
+      "fullName": "useBoolean() should toggle value",
+      "status": "passed",
+      "title": "should toggle value",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useBoolean/useBoolean.test.ts",
+      "ancestorTitles": ["useBoolean()"],
+      "fullName": "useBoolean() should use boolean",
+      "status": "passed",
+      "title": "should use boolean",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useClickAnyWhere/useClickAnyWhere.test.ts",
+      "ancestorTitles": ["useClickAnyWhere()"],
+      "fullName": "useClickAnyWhere() should call handler (0)",
+      "status": "passed",
+      "title": "should call handler (0)",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useClickAnyWhere/useClickAnyWhere.test.ts",
+      "ancestorTitles": ["useClickAnyWhere()"],
+      "fullName": "useClickAnyWhere() should call handler (1) with MouseEvent",
+      "status": "passed",
+      "title": "should call handler (1) with MouseEvent",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useClickAnyWhere/useClickAnyWhere.test.ts",
+      "ancestorTitles": ["useClickAnyWhere()"],
+      "fullName": "useClickAnyWhere() should call handler (2)",
+      "status": "passed",
+      "title": "should call handler (2)",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useCopyToClipboard/useCopyToClipboard.test.ts",
+      "ancestorTitles": ["useCopyToClipboard()"],
+      "fullName": "useCopyToClipboard() should copy to the clipboard and the state",
+      "status": "passed",
+      "title": "should copy to the clipboard and the state",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useCopyToClipboard/useCopyToClipboard.test.ts",
+      "ancestorTitles": ["useCopyToClipboard()"],
+      "fullName": "useCopyToClipboard() should use clipboard",
+      "status": "passed",
+      "title": "should use clipboard",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useCountdown/useCountdown.test.ts",
+      "ancestorTitles": ["useCountdown()"],
+      "fullName": "useCountdown() should accept countStart",
+      "status": "passed",
+      "title": "should accept countStart",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useCountdown/useCountdown.test.ts",
+      "ancestorTitles": ["useCountdown()"],
+      "fullName": "useCountdown() should accept intervalMs",
+      "status": "passed",
+      "title": "should accept intervalMs",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useCountdown/useCountdown.test.ts",
+      "ancestorTitles": ["useCountdown()"],
+      "fullName": "useCountdown() should decrement count",
+      "status": "passed",
+      "title": "should decrement count",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useCountdown/useCountdown.test.ts",
+      "ancestorTitles": ["useCountdown()"],
+      "fullName": "useCountdown() should increment count",
+      "status": "passed",
+      "title": "should increment count",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useCountdown/useCountdown.test.ts",
+      "ancestorTitles": ["useCountdown()"],
+      "fullName": "useCountdown() should reset count",
+      "status": "passed",
+      "title": "should reset count",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useCountdown/useCountdown.test.ts",
+      "ancestorTitles": ["useCountdown()"],
+      "fullName": "useCountdown() should return callable functions",
+      "status": "passed",
+      "title": "should return callable functions",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useCountdown/useCountdown.test.ts",
+      "ancestorTitles": ["useCountdown()"],
+      "fullName": "useCountdown() should stop at countStop (default: 0)",
+      "status": "passed",
+      "title": "should stop at countStop (default: 0)",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useCountdown/useCountdown.test.ts",
+      "ancestorTitles": ["useCountdown()"],
+      "fullName": "useCountdown() should stop at custom countStop",
+      "status": "passed",
+      "title": "should stop at custom countStop",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useCountdown/useCountdown.test.ts",
+      "ancestorTitles": ["useCountdown()"],
+      "fullName": "useCountdown() should stop countdown",
+      "status": "passed",
+      "title": "should stop countdown",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useCountdown/useCountdown.test.ts",
+      "ancestorTitles": ["useCountdown()"],
+      "fullName": "useCountdown() should stop reversed countdown",
+      "status": "passed",
+      "title": "should stop reversed countdown",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useCounter/useCounter.test.ts",
+      "ancestorTitles": ["useCounter()"],
+      "fullName": "useCounter() should decrement counter with default value",
+      "status": "passed",
+      "title": "should decrement counter with default value",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useCounter/useCounter.test.ts",
+      "ancestorTitles": ["useCounter()"],
+      "fullName": "useCounter() should decrement counter",
+      "status": "passed",
+      "title": "should decrement counter",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useCounter/useCounter.test.ts",
+      "ancestorTitles": ["useCounter()"],
+      "fullName": "useCounter() should default value works",
+      "status": "passed",
+      "title": "should default value works",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useCounter/useCounter.test.ts",
+      "ancestorTitles": ["useCounter()"],
+      "fullName": "useCounter() should increment counter",
+      "status": "passed",
+      "title": "should increment counter",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useCounter/useCounter.test.ts",
+      "ancestorTitles": ["useCounter()"],
+      "fullName": "useCounter() should reset counter",
+      "status": "passed",
+      "title": "should reset counter",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useCounter/useCounter.test.ts",
+      "ancestorTitles": ["useCounter()"],
+      "fullName": "useCounter() should set counter with prev value",
+      "status": "passed",
+      "title": "should set counter with prev value",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useCounter/useCounter.test.ts",
+      "ancestorTitles": ["useCounter()"],
+      "fullName": "useCounter() should set counter",
+      "status": "passed",
+      "title": "should set counter",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useCounter/useCounter.test.ts",
+      "ancestorTitles": ["useCounter()"],
+      "fullName": "useCounter() should use counter",
+      "status": "passed",
+      "title": "should use counter",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useDarkMode/useDarkMode.test.ts",
+      "ancestorTitles": ["useDarkMode()"],
+      "fullName": "useDarkMode() should accept a custom default value",
+      "status": "passed",
+      "title": "should accept a custom default value",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useDarkMode/useDarkMode.test.ts",
+      "ancestorTitles": ["useDarkMode()"],
+      "fullName": "useDarkMode() should accept a custom localStorage key",
+      "status": "passed",
+      "title": "should accept a custom localStorage key",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useDarkMode/useDarkMode.test.ts",
+      "ancestorTitles": ["useDarkMode()"],
+      "fullName": "useDarkMode() should disable dark mode (1)",
+      "status": "passed",
+      "title": "should disable dark mode (1)",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useDarkMode/useDarkMode.test.ts",
+      "ancestorTitles": ["useDarkMode()"],
+      "fullName": "useDarkMode() should disable dark mode (2)",
+      "status": "passed",
+      "title": "should disable dark mode (2)",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useDarkMode/useDarkMode.test.ts",
+      "ancestorTitles": ["useDarkMode()"],
+      "fullName": "useDarkMode() should enable dark mode (1)",
+      "status": "passed",
+      "title": "should enable dark mode (1)",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useDarkMode/useDarkMode.test.ts",
+      "ancestorTitles": ["useDarkMode()"],
+      "fullName": "useDarkMode() should enable dark mode (2)",
+      "status": "passed",
+      "title": "should enable dark mode (2)",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useDarkMode/useDarkMode.test.ts",
+      "ancestorTitles": ["useDarkMode()"],
+      "fullName": "useDarkMode() should have a default value",
+      "status": "passed",
+      "title": "should have a default value",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useDarkMode/useDarkMode.test.ts",
+      "ancestorTitles": ["useDarkMode()"],
+      "fullName": "useDarkMode() should initiate correctly",
+      "status": "passed",
+      "title": "should initiate correctly",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useDarkMode/useDarkMode.test.ts",
+      "ancestorTitles": ["useDarkMode()"],
+      "fullName": "useDarkMode() should set dark mode",
+      "status": "passed",
+      "title": "should set dark mode",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useDarkMode/useDarkMode.test.ts",
+      "ancestorTitles": ["useDarkMode()"],
+      "fullName": "useDarkMode() should toggle dark mode",
+      "status": "passed",
+      "title": "should toggle dark mode",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useDebounceCallback/useDebounceCallback.test.ts",
+      "ancestorTitles": ["useDebounceCallback()"],
+      "fullName": "useDebounceCallback() should cancel the debounced callback",
+      "status": "passed",
+      "title": "should cancel the debounced callback",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useDebounceCallback/useDebounceCallback.test.ts",
+      "ancestorTitles": ["useDebounceCallback()"],
+      "fullName": "useDebounceCallback() should debounce the callback function",
+      "status": "passed",
+      "title": "should debounce the callback function",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useDebounceCallback/useDebounceCallback.test.ts",
+      "ancestorTitles": ["useDebounceCallback()"],
+      "fullName": "useDebounceCallback() should debounce the callback",
+      "status": "passed",
+      "title": "should debounce the callback",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useDebounceCallback/useDebounceCallback.test.ts",
+      "ancestorTitles": ["useDebounceCallback()"],
+      "fullName": "useDebounceCallback() should flush the debounced callback",
+      "status": "passed",
+      "title": "should flush the debounced callback",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useDebounceCallback/useDebounceCallback.test.ts",
+      "ancestorTitles": ["useDebounceCallback()"],
+      "fullName": "useDebounceCallback() should handle options",
+      "status": "passed",
+      "title": "should handle options",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useDebounceValue/useDebounceValue.test.ts",
+      "ancestorTitles": ["useDebounceValue()"],
+      "fullName": "useDebounceValue() should debounce the value update",
+      "status": "passed",
+      "title": "should debounce the value update",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useDebounceValue/useDebounceValue.test.ts",
+      "ancestorTitles": ["useDebounceValue()"],
+      "fullName": "useDebounceValue() should handle options",
+      "status": "passed",
+      "title": "should handle options",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useDocumentTitle/useDocumentTitle.test.ts",
+      "ancestorTitles": ["useDocumentTitle()"],
+      "fullName": "useDocumentTitle() should unset title on unmount with `preserveTitleOnUnmount` options to `false`",
+      "status": "passed",
+      "title": "should unset title on unmount with `preserveTitleOnUnmount` options to `false`",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useDocumentTitle/useDocumentTitle.test.ts",
+      "ancestorTitles": ["useDocumentTitle()"],
+      "fullName": "useDocumentTitle() shouldn't unset title on unmount with `preserveTitleOnUnmount` options to `true` (default)",
+      "status": "passed",
+      "title": "shouldn't unset title on unmount with `preserveTitleOnUnmount` options to `true` (default)",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useDocumentTitle/useDocumentTitle.test.ts",
+      "ancestorTitles": ["useDocumentTitle()"],
+      "fullName": "useDocumentTitle() title should be in the document",
+      "status": "passed",
+      "title": "title should be in the document",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useEventCallback/useEventCallback.test.tsx",
+      "ancestorTitles": ["useEventCallback()"],
+      "fullName": "useEventCallback() should allow to pass optional callback without errors",
+      "status": "passed",
+      "title": "should allow to pass optional callback without errors",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useEventCallback/useEventCallback.test.tsx",
+      "ancestorTitles": ["useEventCallback()"],
+      "fullName": "useEventCallback() should be typed accordingly",
+      "status": "passed",
+      "title": "should be typed accordingly",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useEventCallback/useEventCallback.test.tsx",
+      "ancestorTitles": ["useEventCallback()"],
+      "fullName": "useEventCallback() should call the callback when the event is triggered",
+      "status": "passed",
+      "title": "should call the callback when the event is triggered",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useEventCallback/useEventCallback.test.tsx",
+      "ancestorTitles": ["useEventCallback()"],
+      "fullName": "useEventCallback() should not call the callback during render",
+      "status": "passed",
+      "title": "should not call the callback during render",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useEventListener/useEventListener.test.ts",
+      "ancestorTitles": ["useEventListener()"],
+      "fullName": "useEventListener() should bind/unbind the event listener to the document when document is provided",
+      "status": "passed",
+      "title": "should bind/unbind the event listener to the document when document is provided",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useEventListener/useEventListener.test.ts",
+      "ancestorTitles": ["useEventListener()"],
+      "fullName": "useEventListener() should bind/unbind the event listener to the element when element is provided",
+      "status": "passed",
+      "title": "should bind/unbind the event listener to the element when element is provided",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useEventListener/useEventListener.test.ts",
+      "ancestorTitles": ["useEventListener()"],
+      "fullName": "useEventListener() should bind/unbind the event listener to the window when element is not provided",
+      "status": "passed",
+      "title": "should bind/unbind the event listener to the window when element is not provided",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useEventListener/useEventListener.test.ts",
+      "ancestorTitles": ["useEventListener()"],
+      "fullName": "useEventListener() should call the event listener handler when the event is triggered",
+      "status": "passed",
+      "title": "should call the event listener handler when the event is triggered",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useEventListener/useEventListener.test.ts",
+      "ancestorTitles": ["useEventListener()"],
+      "fullName": "useEventListener() should have the correct event type",
+      "status": "passed",
+      "title": "should have the correct event type",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useEventListener/useEventListener.test.ts",
+      "ancestorTitles": ["useEventListener()"],
+      "fullName": "useEventListener() should pass the options to the event listener",
+      "status": "passed",
+      "title": "should pass the options to the event listener",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useHover/useHover.test.ts",
+      "ancestorTitles": ["useHover()"],
+      "fullName": "useHover() result must be initially false",
+      "status": "passed",
+      "title": "result must be initially false",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useHover/useHover.test.ts",
+      "ancestorTitles": ["useHover()"],
+      "fullName": "useHover() value must be true when firing hover action on element",
+      "status": "passed",
+      "title": "value must be true when firing hover action on element",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useHover/useHover.test.ts",
+      "ancestorTitles": ["useHover()"],
+      "fullName": "useHover() value must turn back into false when firing mouseleave action on element",
+      "status": "passed",
+      "title": "value must turn back into false when firing mouseleave action on element",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useInterval/useInterval.test.ts",
+      "ancestorTitles": ["useInterval()"],
+      "fullName": "useInterval() should call clearTimeout on unmount",
+      "status": "passed",
+      "title": "should call clearTimeout on unmount",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useInterval/useInterval.test.ts",
+      "ancestorTitles": ["useInterval()"],
+      "fullName": "useInterval() should call set interval on start",
+      "status": "passed",
+      "title": "should call set interval on start",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useInterval/useInterval.test.ts",
+      "ancestorTitles": ["useInterval()"],
+      "fullName": "useInterval() should fire the callback function (1)",
+      "status": "passed",
+      "title": "should fire the callback function (1)",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useInterval/useInterval.test.ts",
+      "ancestorTitles": ["useInterval()"],
+      "fullName": "useInterval() should fire the callback function (2)",
+      "status": "passed",
+      "title": "should fire the callback function (2)",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useIsClient/useIsClient.test.ts",
+      "ancestorTitles": ["useIsClient()"],
+      "fullName": "useIsClient() should be false when rendering on the server",
+      "status": "skipped",
+      "title": "should be false when rendering on the server",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useIsClient/useIsClient.test.ts",
+      "ancestorTitles": ["useIsClient()"],
+      "fullName": "useIsClient() should be true when after hydration",
+      "status": "passed",
+      "title": "should be true when after hydration",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useIsMounted/useIsMounted.test.ts",
+      "ancestorTitles": ["useIsMounted()"],
+      "fullName": "useIsMounted() should return false when component is unmounted",
+      "status": "passed",
+      "title": "should return false when component is unmounted",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useIsMounted/useIsMounted.test.ts",
+      "ancestorTitles": ["useIsMounted()"],
+      "fullName": "useIsMounted() should return true when component is mounted",
+      "status": "passed",
+      "title": "should return true when component is mounted",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useLocalStorage/useLocalStorage.test.ts",
+      "ancestorTitles": ["useLocalStorage()"],
+      "fullName": "useLocalStorage() Initial state is a Date",
+      "status": "passed",
+      "title": "Initial state is a Date",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useLocalStorage/useLocalStorage.test.ts",
+      "ancestorTitles": ["useLocalStorage()"],
+      "fullName": "useLocalStorage() Initial state is a Map",
+      "status": "passed",
+      "title": "Initial state is a Map",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useLocalStorage/useLocalStorage.test.ts",
+      "ancestorTitles": ["useLocalStorage()"],
+      "fullName": "useLocalStorage() Initial state is a Set",
+      "status": "passed",
+      "title": "Initial state is a Set",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useLocalStorage/useLocalStorage.test.ts",
+      "ancestorTitles": ["useLocalStorage()"],
+      "fullName": "useLocalStorage() Initial state is a callback function",
+      "status": "passed",
+      "title": "Initial state is a callback function",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useLocalStorage/useLocalStorage.test.ts",
+      "ancestorTitles": ["useLocalStorage()"],
+      "fullName": "useLocalStorage() Initial state is an array",
+      "status": "passed",
+      "title": "Initial state is an array",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useLocalStorage/useLocalStorage.test.ts",
+      "ancestorTitles": ["useLocalStorage()"],
+      "fullName": "useLocalStorage() Remove the state removes localStorage key",
+      "status": "passed",
+      "title": "Remove the state removes localStorage key",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useLocalStorage/useLocalStorage.test.ts",
+      "ancestorTitles": ["useLocalStorage()"],
+      "fullName": "useLocalStorage() Update the state with a callback function multiple times per render",
+      "status": "passed",
+      "title": "Update the state with a callback function multiple times per render",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useLocalStorage/useLocalStorage.test.ts",
+      "ancestorTitles": ["useLocalStorage()"],
+      "fullName": "useLocalStorage() Update the state with a callback function",
+      "status": "passed",
+      "title": "Update the state with a callback function",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useLocalStorage/useLocalStorage.test.ts",
+      "ancestorTitles": ["useLocalStorage()"],
+      "fullName": "useLocalStorage() Update the state with null",
+      "status": "passed",
+      "title": "Update the state with null",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useLocalStorage/useLocalStorage.test.ts",
+      "ancestorTitles": ["useLocalStorage()"],
+      "fullName": "useLocalStorage() Update the state with undefined",
+      "status": "passed",
+      "title": "Update the state with undefined",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useLocalStorage/useLocalStorage.test.ts",
+      "ancestorTitles": ["useLocalStorage()"],
+      "fullName": "useLocalStorage() Update the state writes localStorage",
+      "status": "passed",
+      "title": "Update the state writes localStorage",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useLocalStorage/useLocalStorage.test.ts",
+      "ancestorTitles": ["useLocalStorage()"],
+      "fullName": "useLocalStorage() Update the state",
+      "status": "passed",
+      "title": "Update the state",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useLocalStorage/useLocalStorage.test.ts",
+      "ancestorTitles": ["useLocalStorage()"],
+      "fullName": "useLocalStorage() [Event] Update one hook updates the others",
+      "status": "passed",
+      "title": "[Event] Update one hook updates the others",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useLocalStorage/useLocalStorage.test.ts",
+      "ancestorTitles": ["useLocalStorage()"],
+      "fullName": "useLocalStorage() [Event] Updating one hook does not update others with a different key",
+      "status": "passed",
+      "title": "[Event] Updating one hook does not update others with a different key",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useLocalStorage/useLocalStorage.test.ts",
+      "ancestorTitles": ["useLocalStorage()"],
+      "fullName": "useLocalStorage() initial state is in the returned state",
+      "status": "passed",
+      "title": "initial state is in the returned state",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useLocalStorage/useLocalStorage.test.ts",
+      "ancestorTitles": ["useLocalStorage()"],
+      "fullName": "useLocalStorage() setValue is referentially stable",
+      "status": "passed",
+      "title": "setValue is referentially stable",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useLocalStorage/useLocalStorage.test.ts",
+      "ancestorTitles": ["useLocalStorage()"],
+      "fullName": "useLocalStorage() should handle undefined values with custom deserializer",
+      "status": "passed",
+      "title": "should handle undefined values with custom deserializer",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useLocalStorage/useLocalStorage.test.ts",
+      "ancestorTitles": ["useLocalStorage()"],
+      "fullName": "useLocalStorage() should use custom serializer and deserializer when provided",
+      "status": "passed",
+      "title": "should use custom serializer and deserializer when provided",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useLocalStorage/useLocalStorage.test.ts",
+      "ancestorTitles": ["useLocalStorage()"],
+      "fullName": "useLocalStorage() should use default JSON.stringify and JSON.parse when serializer/deserializer not provided",
+      "status": "passed",
+      "title": "should use default JSON.stringify and JSON.parse when serializer/deserializer not provided",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useMap/useMap.test.ts",
+      "ancestorTitles": ["useMap()"],
+      "fullName": "useMap() should add new value",
+      "status": "passed",
+      "title": "should add new value",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useMap/useMap.test.ts",
+      "ancestorTitles": ["useMap()"],
+      "fullName": "useMap() should be ok when initiated with a map",
+      "status": "passed",
+      "title": "should be ok when initiated with a map",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useMap/useMap.test.ts",
+      "ancestorTitles": ["useMap()"],
+      "fullName": "useMap() should be ok when initiated with an array",
+      "status": "passed",
+      "title": "should be ok when initiated with an array",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useMap/useMap.test.ts",
+      "ancestorTitles": ["useMap()"],
+      "fullName": "useMap() should be ok when initiated without nothing",
+      "status": "passed",
+      "title": "should be ok when initiated without nothing",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useMap/useMap.test.ts",
+      "ancestorTitles": ["useMap()"],
+      "fullName": "useMap() should change value reference equality after change",
+      "status": "passed",
+      "title": "should change value reference equality after change",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useMap/useMap.test.ts",
+      "ancestorTitles": ["useMap()"],
+      "fullName": "useMap() should keep actions reference equality after value change",
+      "status": "passed",
+      "title": "should keep actions reference equality after value change",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useMap/useMap.test.ts",
+      "ancestorTitles": ["useMap()"],
+      "fullName": "useMap() should remove existing value",
+      "status": "passed",
+      "title": "should remove existing value",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useMap/useMap.test.ts",
+      "ancestorTitles": ["useMap()"],
+      "fullName": "useMap() should reset the map state",
+      "status": "passed",
+      "title": "should reset the map state",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useMap/useMap.test.ts",
+      "ancestorTitles": ["useMap()"],
+      "fullName": "useMap() should setAll replaces all existing values",
+      "status": "passed",
+      "title": "should setAll replaces all existing values",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useMap/useMap.test.ts",
+      "ancestorTitles": ["useMap()"],
+      "fullName": "useMap() should update existing value",
+      "status": "passed",
+      "title": "should update existing value",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useOnClickOutside/useOnClickOuside.test.ts",
+      "ancestorTitles": ["useOnClickOutside("],
+      "fullName": "useOnClickOutside( should NOT call the handler when a clicking inside the element",
+      "status": "passed",
+      "title": "should NOT call the handler when a clicking inside the element",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useOnClickOutside/useOnClickOuside.test.ts",
+      "ancestorTitles": ["useOnClickOutside("],
+      "fullName": "useOnClickOutside( should NOT call the handler when clicking a non-connected element",
+      "status": "passed",
+      "title": "should NOT call the handler when clicking a non-connected element",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useOnClickOutside/useOnClickOuside.test.ts",
+      "ancestorTitles": ["useOnClickOutside("],
+      "fullName": "useOnClickOutside( should call the handler when a clicking outside the element (multiple refs with a null)",
+      "status": "passed",
+      "title": "should call the handler when a clicking outside the element (multiple refs with a null)",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useOnClickOutside/useOnClickOuside.test.ts",
+      "ancestorTitles": ["useOnClickOutside("],
+      "fullName": "useOnClickOutside( should call the handler when a clicking outside the element (multiple refs)",
+      "status": "passed",
+      "title": "should call the handler when a clicking outside the element (multiple refs)",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useOnClickOutside/useOnClickOuside.test.ts",
+      "ancestorTitles": ["useOnClickOutside("],
+      "fullName": "useOnClickOutside( should call the handler when a clicking outside the element (single ref)",
+      "status": "passed",
+      "title": "should call the handler when a clicking outside the element (single ref)",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useReadLocalStorage/useReadLocalStorage.test.ts",
+      "ancestorTitles": ["useReadLocalStorage()"],
+      "fullName": "useReadLocalStorage() should use read local storage",
+      "status": "passed",
+      "title": "should use read local storage",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useResizeObserver/useResizeObserver.test.tsx",
+      "ancestorTitles": ["useResizeObserver()"],
+      "fullName": "useResizeObserver() should return initial undefined sizes",
+      "status": "passed",
+      "title": "should return initial undefined sizes",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useResizeObserver/useResizeObserver.test.tsx",
+      "ancestorTitles": ["useResizeObserver()"],
+      "fullName": "useResizeObserver() should return the observed element sizes",
+      "status": "skipped",
+      "title": "should return the observed element sizes",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useResizeObserver/useResizeObserver.test.tsx",
+      "ancestorTitles": ["useResizeObserver()"],
+      "fullName": "useResizeObserver() should update size when element is resized",
+      "status": "skipped",
+      "title": "should update size when element is resized",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useResizeObserver/useResizeObserver.test.tsx",
+      "ancestorTitles": ["useResizeObserver()"],
+      "fullName": "useResizeObserver() should use onResize callback to update the size",
+      "status": "skipped",
+      "title": "should use onResize callback to update the size",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useScript/useScript.test.ts",
+      "ancestorTitles": ["useScript"],
+      "fullName": "useScript should handle script loading error",
+      "status": "passed",
+      "title": "should handle script loading error",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useScript/useScript.test.ts",
+      "ancestorTitles": ["useScript"],
+      "fullName": "useScript should have a `id` attribute when given",
+      "status": "passed",
+      "title": "should have a `id` attribute when given",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useScript/useScript.test.ts",
+      "ancestorTitles": ["useScript"],
+      "fullName": "useScript should remove script on unmount",
+      "status": "passed",
+      "title": "should remove script on unmount",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useScrollLock/useScrollLock.test.ts",
+      "ancestorTitles": ["useScrollLock()"],
+      "fullName": "useScrollLock() should add padding-right to prevent width reflow",
+      "status": "passed",
+      "title": "should add padding-right to prevent width reflow",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useScrollLock/useScrollLock.test.ts",
+      "ancestorTitles": ["useScrollLock()"],
+      "fullName": "useScrollLock() should fallback to document.body if the target element is not found",
+      "status": "passed",
+      "title": "should fallback to document.body if the target element is not found",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useScrollLock/useScrollLock.test.ts",
+      "ancestorTitles": ["useScrollLock()"],
+      "fullName": "useScrollLock() should initially lock and unlock body",
+      "status": "passed",
+      "title": "should initially lock and unlock body",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useScrollLock/useScrollLock.test.ts",
+      "ancestorTitles": ["useScrollLock()"],
+      "fullName": "useScrollLock() should initially lock and unlock the target element by selector",
+      "status": "passed",
+      "title": "should initially lock and unlock the target element by selector",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useScrollLock/useScrollLock.test.ts",
+      "ancestorTitles": ["useScrollLock()"],
+      "fullName": "useScrollLock() should initially lock and unlock the target element",
+      "status": "passed",
+      "title": "should initially lock and unlock the target element",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useScrollLock/useScrollLock.test.ts",
+      "ancestorTitles": ["useScrollLock()"],
+      "fullName": "useScrollLock() should keep the original style of the target element when it's unlocked",
+      "status": "passed",
+      "title": "should keep the original style of the target element when it's unlocked",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useScrollLock/useScrollLock.test.ts",
+      "ancestorTitles": ["useScrollLock()"],
+      "fullName": "useScrollLock() should lock and unlock manually",
+      "status": "passed",
+      "title": "should lock and unlock manually",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useScrollLock/useScrollLock.test.ts",
+      "ancestorTitles": ["useScrollLock()"],
+      "fullName": "useScrollLock() should not initially lock and unlock",
+      "status": "passed",
+      "title": "should not initially lock and unlock",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useScrollLock/useScrollLock.test.ts",
+      "ancestorTitles": ["useScrollLock()"],
+      "fullName": "useScrollLock() should unlock on unmount even with initial is locked",
+      "status": "passed",
+      "title": "should unlock on unmount even with initial is locked",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useSessionStorage/useSessionStorage.test.ts",
+      "ancestorTitles": ["useSessionStorage()"],
+      "fullName": "useSessionStorage() Initial state is a Date",
+      "status": "passed",
+      "title": "Initial state is a Date",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useSessionStorage/useSessionStorage.test.ts",
+      "ancestorTitles": ["useSessionStorage()"],
+      "fullName": "useSessionStorage() Initial state is a Map",
+      "status": "passed",
+      "title": "Initial state is a Map",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useSessionStorage/useSessionStorage.test.ts",
+      "ancestorTitles": ["useSessionStorage()"],
+      "fullName": "useSessionStorage() Initial state is a Set",
+      "status": "passed",
+      "title": "Initial state is a Set",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useSessionStorage/useSessionStorage.test.ts",
+      "ancestorTitles": ["useSessionStorage()"],
+      "fullName": "useSessionStorage() Initial state is a callback function",
+      "status": "passed",
+      "title": "Initial state is a callback function",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useSessionStorage/useSessionStorage.test.ts",
+      "ancestorTitles": ["useSessionStorage()"],
+      "fullName": "useSessionStorage() Initial state is an array",
+      "status": "passed",
+      "title": "Initial state is an array",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useSessionStorage/useSessionStorage.test.ts",
+      "ancestorTitles": ["useSessionStorage()"],
+      "fullName": "useSessionStorage() Remove the state removes sessionStorage key",
+      "status": "passed",
+      "title": "Remove the state removes sessionStorage key",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useSessionStorage/useSessionStorage.test.ts",
+      "ancestorTitles": ["useSessionStorage()"],
+      "fullName": "useSessionStorage() Update the state with a callback function multiple times per render",
+      "status": "passed",
+      "title": "Update the state with a callback function multiple times per render",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useSessionStorage/useSessionStorage.test.ts",
+      "ancestorTitles": ["useSessionStorage()"],
+      "fullName": "useSessionStorage() Update the state with a callback function",
+      "status": "passed",
+      "title": "Update the state with a callback function",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useSessionStorage/useSessionStorage.test.ts",
+      "ancestorTitles": ["useSessionStorage()"],
+      "fullName": "useSessionStorage() Update the state with undefined",
+      "status": "passed",
+      "title": "Update the state with undefined",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useSessionStorage/useSessionStorage.test.ts",
+      "ancestorTitles": ["useSessionStorage()"],
+      "fullName": "useSessionStorage() Update the state writes sessionStorage",
+      "status": "passed",
+      "title": "Update the state writes sessionStorage",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useSessionStorage/useSessionStorage.test.ts",
+      "ancestorTitles": ["useSessionStorage()"],
+      "fullName": "useSessionStorage() Update the state",
+      "status": "passed",
+      "title": "Update the state",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useSessionStorage/useSessionStorage.test.ts",
+      "ancestorTitles": ["useSessionStorage()"],
+      "fullName": "useSessionStorage() [Event] Update one hook updates the others",
+      "status": "passed",
+      "title": "[Event] Update one hook updates the others",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useSessionStorage/useSessionStorage.test.ts",
+      "ancestorTitles": ["useSessionStorage()"],
+      "fullName": "useSessionStorage() [Event] Updating one hook does not update others with a different key",
+      "status": "passed",
+      "title": "[Event] Updating one hook does not update others with a different key",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useSessionStorage/useSessionStorage.test.ts",
+      "ancestorTitles": ["useSessionStorage()"],
+      "fullName": "useSessionStorage() initial state is in the returned state",
+      "status": "passed",
+      "title": "initial state is in the returned state",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useSessionStorage/useSessionStorage.test.ts",
+      "ancestorTitles": ["useSessionStorage()"],
+      "fullName": "useSessionStorage() setValue is referentially stable",
+      "status": "passed",
+      "title": "setValue is referentially stable",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useSessionStorage/useSessionStorage.test.ts",
+      "ancestorTitles": ["useSessionStorage()"],
+      "fullName": "useSessionStorage() should handle undefined values with custom deserializer",
+      "status": "passed",
+      "title": "should handle undefined values with custom deserializer",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useSessionStorage/useSessionStorage.test.ts",
+      "ancestorTitles": ["useSessionStorage()"],
+      "fullName": "useSessionStorage() should use custom serializer and deserializer when provided",
+      "status": "passed",
+      "title": "should use custom serializer and deserializer when provided",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useSessionStorage/useSessionStorage.test.ts",
+      "ancestorTitles": ["useSessionStorage()"],
+      "fullName": "useSessionStorage() should use default JSON.stringify and JSON.parse when serializer/deserializer not provided",
+      "status": "passed",
+      "title": "should use default JSON.stringify and JSON.parse when serializer/deserializer not provided",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useStep/useStep.test.ts",
+      "ancestorTitles": ["useStep()"],
+      "fullName": "useStep() should decrement step",
+      "status": "passed",
+      "title": "should decrement step",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useStep/useStep.test.ts",
+      "ancestorTitles": ["useStep()"],
+      "fullName": "useStep() should increment step",
+      "status": "passed",
+      "title": "should increment step",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useStep/useStep.test.ts",
+      "ancestorTitles": ["useStep()"],
+      "fullName": "useStep() should reset step",
+      "status": "passed",
+      "title": "should reset step",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useStep/useStep.test.ts",
+      "ancestorTitles": ["useStep()"],
+      "fullName": "useStep() should return if next step is available",
+      "status": "passed",
+      "title": "should return if next step is available",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useStep/useStep.test.ts",
+      "ancestorTitles": ["useStep()"],
+      "fullName": "useStep() should return if prev step is available",
+      "status": "passed",
+      "title": "should return if prev step is available",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useStep/useStep.test.ts",
+      "ancestorTitles": ["useStep()"],
+      "fullName": "useStep() should set step",
+      "status": "passed",
+      "title": "should set step",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useStep/useStep.test.ts",
+      "ancestorTitles": ["useStep()"],
+      "fullName": "useStep() should use step",
+      "status": "passed",
+      "title": "should use step",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useTernaryDarkMode/useTernaryDarkMode.test.ts",
+      "ancestorTitles": ["useTernaryDarkMode()"],
+      "fullName": "useTernaryDarkMode() should accept a custom default value (dark)",
+      "status": "passed",
+      "title": "should accept a custom default value (dark)",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useTernaryDarkMode/useTernaryDarkMode.test.ts",
+      "ancestorTitles": ["useTernaryDarkMode()"],
+      "fullName": "useTernaryDarkMode() should accept a custom default value (light)",
+      "status": "passed",
+      "title": "should accept a custom default value (light)",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useTernaryDarkMode/useTernaryDarkMode.test.ts",
+      "ancestorTitles": ["useTernaryDarkMode()"],
+      "fullName": "useTernaryDarkMode() should accept a custom localStorage key",
+      "status": "passed",
+      "title": "should accept a custom localStorage key",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useTernaryDarkMode/useTernaryDarkMode.test.ts",
+      "ancestorTitles": ["useTernaryDarkMode()"],
+      "fullName": "useTernaryDarkMode() should initialize with default value (dark)",
+      "status": "passed",
+      "title": "should initialize with default value (dark)",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useTernaryDarkMode/useTernaryDarkMode.test.ts",
+      "ancestorTitles": ["useTernaryDarkMode()"],
+      "fullName": "useTernaryDarkMode() should initialize with default value (light)",
+      "status": "passed",
+      "title": "should initialize with default value (light)",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useTernaryDarkMode/useTernaryDarkMode.test.ts",
+      "ancestorTitles": ["useTernaryDarkMode()"],
+      "fullName": "useTernaryDarkMode() should setter work",
+      "status": "passed",
+      "title": "should setter work",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useTernaryDarkMode/useTernaryDarkMode.test.ts",
+      "ancestorTitles": ["useTernaryDarkMode()"],
+      "fullName": "useTernaryDarkMode() should toggle dark mode",
+      "status": "passed",
+      "title": "should toggle dark mode",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useTimeout/useTimeout.test.ts",
+      "ancestorTitles": ["useTimeout()"],
+      "fullName": "useTimeout() should call the callback after 1 min",
+      "status": "passed",
+      "title": "should call the callback after 1 min",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useTimeout/useTimeout.test.ts",
+      "ancestorTitles": ["useTimeout()"],
+      "fullName": "useTimeout() should not do anything if \"delay\" is null",
+      "status": "passed",
+      "title": "should not do anything if \"delay\" is null",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useToggle/useToggle.test.ts",
+      "ancestorTitles": ["use toggle()"],
+      "fullName": "use toggle() setValue should mutate the value",
+      "status": "passed",
+      "title": "setValue should mutate the value",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useToggle/useToggle.test.ts",
+      "ancestorTitles": ["use toggle()"],
+      "fullName": "use toggle() should default value works",
+      "status": "passed",
+      "title": "should default value works",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useToggle/useToggle.test.ts",
+      "ancestorTitles": ["use toggle()"],
+      "fullName": "use toggle() should use toggle be ok",
+      "status": "passed",
+      "title": "should use toggle be ok",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useToggle/useToggle.test.ts",
+      "ancestorTitles": ["use toggle()"],
+      "fullName": "use toggle() toggle should mutate the value",
+      "status": "passed",
+      "title": "toggle should mutate the value",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useUnmount/useUnmount.test.ts",
+      "ancestorTitles": ["useUnmount()"],
+      "fullName": "useUnmount() should call the cleanup function on unmount",
+      "status": "passed",
+      "title": "should call the cleanup function on unmount",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useWindowSize/useWindowSize.test.ts",
+      "ancestorTitles": ["useWindowSize()"],
+      "fullName": "useWindowSize() should debounce the callback",
+      "status": "passed",
+      "title": "should debounce the callback",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useWindowSize/useWindowSize.test.ts",
+      "ancestorTitles": ["useWindowSize()"],
+      "fullName": "useWindowSize() should initialize",
+      "status": "passed",
+      "title": "should initialize",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useWindowSize/useWindowSize.test.ts",
+      "ancestorTitles": ["useWindowSize()"],
+      "fullName": "useWindowSize() should return the corresponding height",
+      "status": "passed",
+      "title": "should return the corresponding height",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    },
+    {
+      "file": "src/useWindowSize/useWindowSize.test.ts",
+      "ancestorTitles": ["useWindowSize()"],
+      "fullName": "useWindowSize() should return the corresponding width",
+      "status": "passed",
+      "title": "should return the corresponding width",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    }
+  ],
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  }
+}

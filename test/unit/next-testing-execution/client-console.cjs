@@ -102,6 +102,12 @@ async function main() {
   let concurrent = 0,
     maximumConcurrent = 0
   const envMode = ['env', 'env-cold-config', 'env-cold-boolean'].includes(mode)
+  const setupMode = ['setup', 'setup-error', 'setup-dispose-error'].includes(
+    mode
+  )
+  const setupOrder = []
+  let collecting = false,
+    setupValue
   const envOrder = []
   let envFactoryCalls = 0
   // Component inputs; the native template supplies its actual import.meta.env.
@@ -144,9 +150,22 @@ async function main() {
     },
   }
   const file = {
-    collect: async (load) => load(),
-    validateBrowserClient: () => [],
+    collect: async (load) => {
+      if (setupMode) setupOrder.push('collect')
+      collecting = true
+      try {
+        return await load()
+      } finally {
+        collecting = false
+        if (setupMode) setupOrder.push('collected')
+      }
+    },
+    validateBrowserClient: () => {
+      if (setupMode) setupOrder.push('validate')
+      return []
+    },
     run: async () => {
+      if (setupMode) setupOrder.push('body')
       if (envMode) envOrder.push('body')
       if (mode === 'env-cold-config' || mode === 'env-cold-boolean') {
         const env = requireRuntime('./env')
@@ -201,6 +220,9 @@ async function main() {
     dispose: () => {
       console.error('file cleanup')
       trace.push('file')
+      if (setupMode) setupOrder.push('dispose')
+      if (mode === 'setup-dispose-error')
+        throw new Error('controlled setup owner disposal failure')
     },
     getSnapshotSummary: () => ({}),
     takeSnapshotUpdates: () => [],
@@ -210,6 +232,7 @@ async function main() {
     require.cache[filename] = { id: filename, filename, loaded: true, exports }
   }
   replace('../runner', {
+    getConsoleTask: () => ({ taskId: 'actual-runtime-console-task' }),
     initializeTestFile: (options) => {
       if (envMode) {
         assert.equal(envFactoryCalls, 1)
@@ -232,8 +255,14 @@ async function main() {
     createClientSourceMapResolver: () => ({ mapLocation: (value) => value }),
   })
   replace('./browser-context', {
+    cleanupBrowserKeyboard() {},
     initializeBrowserContext: () => ({
-      install() {},
+      install() {
+        if (setupMode) {
+          assert.equal(collecting, true)
+          setupOrder.push('browser-context')
+        }
+      },
       dispose() {
         trace.push('context')
       },
@@ -263,6 +292,11 @@ async function main() {
   try {
     await require(runtimePath).startClientTest(
       () => {
+        if (setupMode) {
+          assert.equal(collecting, true)
+          assert.equal(setupValue, 'awaited setup')
+          setupOrder.push('load')
+        }
         if (envMode) envOrder.push('load')
         if (mode === 'env') {
           const actual = requireRuntime('./env').getBrowserEnv(envDefaults)
@@ -278,7 +312,12 @@ async function main() {
             trace.push('mocks')
           },
         }),
-        register() {},
+        register() {
+          if (setupMode) {
+            assert.equal(collecting, true)
+            setupOrder.push('register')
+          }
+        },
       },
       undefined,
       envMode
@@ -286,6 +325,18 @@ async function main() {
             envFactoryCalls++
             envOrder.push('factory')
             return envDefaults
+          }
+        : undefined,
+      setupMode
+        ? async () => {
+            assert.equal(collecting, true)
+            setupOrder.push('setup-start')
+            await Promise.resolve()
+            assert.equal(collecting, true)
+            setupValue = 'awaited setup'
+            setupOrder.push('setup-end')
+            if (mode === 'setup-error')
+              throw new Error('controlled awaited setup failure')
           }
         : undefined
     )
@@ -302,7 +353,33 @@ async function main() {
     assert.equal(envFactoryCalls, 1)
     assert.deepEqual(envOrder, ['factory', 'initialize', 'load', 'body'])
   }
-  if (mode === 'send-error') {
+  if (setupMode) {
+    assert.equal(failure, undefined)
+    assert.deepEqual(setupOrder, [
+      'collect',
+      'browser-context',
+      'register',
+      'setup-start',
+      'setup-end',
+      ...(mode === 'setup-error' ? [] : ['load']),
+      'collected',
+      ...(mode === 'setup-error' ? [] : ['validate', 'body']),
+      'dispose',
+    ])
+    const complete = messages.at(-1)
+    assert.equal(complete.type, 'complete')
+    assert.equal(complete.status, mode === 'setup' ? 'passed' : 'failed')
+    assert.equal(complete.caseCount, mode === 'setup-error' ? 0 : 1)
+    const failures = messages.filter((row) => row.type === 'failure')
+    assert.equal(failures.length, mode === 'setup' ? 0 : 1)
+    if (failures.length)
+      assert.equal(
+        failures[0].error.message,
+        mode === 'setup-error'
+          ? 'controlled awaited setup failure'
+          : 'controlled setup owner disposal failure'
+      )
+  } else if (mode === 'send-error') {
     assert.match(failure.message, /Browser Mode RPC failed/)
     assert.equal(messages.at(-1).type, 'output')
   } else {
@@ -319,6 +396,14 @@ async function main() {
         ['stdout', 'mock cleanup\n'],
       ]
     )
+    for (const output of messages.filter((row) => row.type === 'output')) {
+      assert.deepEqual(output.console, {
+        taskId: 'actual-runtime-console-task',
+        size: output.text.length - 1,
+        browser: true,
+      })
+      assert.equal(typeof output.time, 'number')
+    }
     assert.equal(messages.at(-1).type, 'complete')
     assert.deepEqual(
       messages.map((row) => row.sequence),
@@ -332,6 +417,7 @@ async function main() {
     trace,
     maximumConcurrent,
     ...(envMode ? { envFactoryCalls, envOrder } : {}),
+    ...(setupMode ? { setupOrder } : {}),
     restored: true,
     failure: failure?.message,
   }

@@ -1,0 +1,12 @@
+[
+  {
+    "name": "loads real external package controls without mocking",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "preserves native external namespace descriptors and consumer identity",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

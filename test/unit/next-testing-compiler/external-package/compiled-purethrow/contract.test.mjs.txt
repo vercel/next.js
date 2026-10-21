@@ -1,0 +1,23 @@
+import {test,expect,vi} from 'vitest'
+const shape=(error,cause)=>({name:error?.name??null,message:error?.message??null,causeName:error?.cause?.name??null,causeMessage:error?.cause?.message??null,causeIdentity:error?.cause===cause,rawIdentity:error===cause,keys:error?Reflect.ownKeys(error).map(String):[],causeKeys:error?.cause&&typeof error.cause==='object'?Reflect.ownKeys(error.cause).map(String):null})
+test('pure throw compiled sync runtime factories retry with exact causes',async()=>{
+ const original=await import('./dependency.mjs');const cause=new Error('pure sync failure');let calls=0
+ vi.doMock('./dependency.mjs',()=>{calls++;throw cause})
+ const first=await import('./dependency.mjs').catch(error=>error);const second=await import('./dependency.mjs').catch(error=>error);vi.resetModules();const third=await import('./dependency.mjs').catch(error=>error);vi.doUnmock('./dependency.mjs');const released=await import('./dependency.mjs')
+ console.log('WS2_EXTERNAL_COMPILED_PURE_SYNC:'+JSON.stringify({calls,errors:[shape(first,cause),shape(second,cause),shape(third,cause)],identities:[first===second,second===third,first===third],original:original===released,evaluations:[original.evaluation,released.evaluation]}));expect(calls).toBe(3);expect(first.cause).toBe(cause)
+})
+test('pure throw compiled immediate async factories retry independently',async()=>{
+ vi.resetModules();const original=await import('./dependency.mjs');const cause=new Error('pure async failure');let calls=0
+ vi.doMock('./dependency.mjs',async()=>{calls++;throw cause})
+ const first=await import('./dependency.mjs').catch(error=>error);const second=await import('./dependency.mjs').catch(error=>error);vi.resetModules();const third=await import('./dependency.mjs').catch(error=>error);vi.doUnmock('./dependency.mjs');const released=await import('./dependency.mjs')
+ console.log('WS2_EXTERNAL_COMPILED_PURE_ASYNC:'+JSON.stringify({calls,errors:[shape(first,cause),shape(second,cause),shape(third,cause)],identities:[first===second,second===third,first===third],original:original===released,evaluations:[original.evaluation,released.evaluation]}));expect(calls).toBe(3);expect(second.cause).toBe(cause)
+})
+test('pure throw held factories share pending original fallback and retry failures',async()=>{
+ vi.resetModules();const original=await import('./dependency.mjs');const cause=new Error('pure held failure');let calls=0;let release;const gate=new Promise((_,reject)=>{release=reject})
+ vi.doMock('./dependency.mjs',async()=>{calls++;await gate;throw cause})
+ const pending=import('./dependency.mjs').then(value=>({value}),error=>({error}));await vi.waitFor(()=>expect(calls).toBe(1));const overlap=import('./dependency.mjs').then(value=>({value}),error=>({error}));const second=await overlap;release(cause);const first=await pending;const later=await import('./dependency.mjs').catch(error=>error);vi.resetModules();const reset=await import('./dependency.mjs').catch(error=>error);vi.doUnmock('./dependency.mjs');const released=await import('./dependency.mjs')
+ console.log('WS2_EXTERNAL_COMPILED_PURE_PENDING:'+JSON.stringify({calls,secondOriginal:second.value===original,errors:[shape(first.error,cause),shape(later,cause),shape(reset,cause)],identities:[first.error===later,later===reset,first.error===reset],original:original===released,evaluations:[original.evaluation,released.evaluation]}));expect(calls).toBe(3);expect(second.value).toBe(original);expect(later.cause).toBe(cause)
+})
+test('unused pure throw registration and unregistration evaluates nothing',()=>{
+ let calls=0;vi.doMock('./unused.mjs',()=>{calls++;throw new Error('unused')});vi.doUnmock('./unused.mjs');console.log('WS2_EXTERNAL_COMPILED_PURE_UNUSED:'+JSON.stringify({calls,evaluations:globalThis.__ws2PureThrowUnusedEvaluations??0}));expect(calls).toBe(0);expect(globalThis.__ws2PureThrowUnusedEvaluations??0).toBe(0)
+})

@@ -1,0 +1,32 @@
+[
+  {
+    "name": "runtime native cjs registration unregistration and reset identity",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "runtime native cjs registration without reset",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "runtime native cjs caches a failed factory across reset and can unregister",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "runtime native unused registration retains compiler IDs without evaluating originals",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "runtime native cjs pending RESOLVE imports and later cache",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "runtime native cjs pending REJECT imports and later cache",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

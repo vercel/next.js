@@ -1,0 +1,45 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_BUILTIN_UNMOCK",
+    "value": {
+      "value": "alpha/beta",
+      "prefixedValue": "alpha/beta",
+      "dynamicValue": "alpha/beta",
+      "actual": "alpha/beta",
+      "identity": true,
+      "dynamicIdentity": true,
+      "actualIdentity": true,
+      "cancelledCalls": 0,
+      "keptCalls": 0,
+      "keys": [
+        "_makeLong",
+        "basename",
+        "default",
+        "delimiter",
+        "dirname",
+        "extname",
+        "format",
+        "isAbsolute",
+        "join",
+        "matchesGlob",
+        "normalize",
+        "parse",
+        "posix",
+        "relative",
+        "resolve",
+        "sep",
+        "toNamespacedPath",
+        "win32"
+      ],
+      "prototypeNull": true,
+      "tag": "Module",
+      "descriptor": {
+        "get": "undefined",
+        "writable": true,
+        "enumerable": true,
+        "configurable": false
+      }
+    }
+  }
+]

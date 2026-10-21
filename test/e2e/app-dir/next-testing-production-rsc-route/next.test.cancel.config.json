@@ -1,0 +1,21 @@
+{
+  "maxWorkers": 1,
+  "projects": [
+    {
+      "name": "development-route-cancel",
+      "environment": "rsc",
+      "mode": "development",
+      "route": "/[tenant]/ancestor/[...slug]",
+      "include": ["route-render-cancel.case.jsx"],
+      "fileTimeout": 15000
+    },
+    {
+      "name": "production-route-cancel",
+      "environment": "rsc",
+      "mode": "production",
+      "route": "/[tenant]/ancestor/[...slug]",
+      "include": ["route-render-cancel.case.jsx"],
+      "fileTimeout": 15000
+    }
+  ]
+}

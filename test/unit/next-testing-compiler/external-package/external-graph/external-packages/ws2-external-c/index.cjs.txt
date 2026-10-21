@@ -1,0 +1,1 @@
+exports.a=require('ws2-external-a').object;exports.data=require('node:fs').readFileSync(__dirname+'/data.txt','utf8');

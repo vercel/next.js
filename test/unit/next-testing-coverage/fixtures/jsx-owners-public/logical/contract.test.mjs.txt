@@ -1,0 +1,6 @@
+import { expect, test } from 'vitest'
+import { Logical } from './subject.tsx'
+test('renders both logical child paths', () => {
+  expect(Logical({ active: true }).props.children.props.children).toBe('active!')
+  expect(Logical({ active: false }).props.children).toBe(false)
+})

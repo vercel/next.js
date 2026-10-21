@@ -1,0 +1,8 @@
+import { test, expect } from 'vitest'
+import { value } from './source-beta.mjs'
+import { shared } from './shared.mjs'
+test('beta dependency', () => {
+  expect(value).toBeGreaterThan(0)
+  expect(shared).toBeGreaterThanOrEqual(0)
+  console.log('RELATED153:' + JSON.stringify({ case: 'beta', value, shared, mode: process.env.NODE_ENV }))
+})

@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'util'
 import {
   createRuntimeConfigurationPlan,
   assertRuntimeConfigurationPlan,
@@ -51,16 +52,20 @@ export type WatchProcessRequest =
       projectDir: string
       projects: DiscoveredTestProject[]
       certifiedTestConfig: boolean
+      /** Only the parent's fulfilled, retained global setup watch owner. */
+      retainedGlobalSetup?: boolean
     }
   | { operation: 'metadata'; projectDir: string; profiles: TestProfile[] }
   | {
       operation: 'run'
+      captureTaskResults?: boolean
       compilerTransforms?: Record<
         string,
         import('./compiler/transform-broker').CompilerTransformDescriptor
       >
       collectOnly?: boolean
       inspect?: string
+      inspectBrk?: boolean
       projectDir: string
       projects: DiscoveredTestProject[]
       testNamePattern?: string | RegExp
@@ -355,6 +360,7 @@ export async function runWatchProcess(
           })
         : undefined
     disposeReporter = reporter?.dispose
+    let snapshotDiagnosticsClean = true
     const snapshotPlans = new Map<
       string,
       { file: string; updates: SnapshotUpdate[]; sourceHash?: string }
@@ -447,6 +453,36 @@ export async function runWatchProcess(
                   source: selected.source,
                   revision: selected.revision,
                   configurationImports: selected.configurationImports,
+                  ...(coverageSourcePlan.requests.some(
+                    (candidate) =>
+                      isDeepStrictEqual(candidate.profile, selected.profile) &&
+                      /\.[jt]sx$/.test(candidate.source.file)
+                  ) ||
+                  (request.operation === 'run' &&
+                    request.isolatedProfile === true &&
+                    request.watchCoverage !== true &&
+                    selected.profile.environment === 'node' &&
+                    selected.profile.runtime === 'nodejs' &&
+                    ['development', 'production'].includes(
+                      selected.profile.mode
+                    ) &&
+                    !selected.profile.browserClient &&
+                    selected.profile.route === undefined &&
+                    /\.[cm]?ts$/.test(selected.source.file) &&
+                    !/\.d\.[cm]?ts$/.test(selected.source.file))
+                    ? {
+                        nativeImportCoverageRoles: {
+                          version: 1 as const,
+                          assertLease() {
+                            signal.throwIfAborted()
+                            if (!artifactRoots.has(compiled.artifact.rootDir))
+                              throw new Error(
+                                'Planned JSX source artifact lease closed'
+                              )
+                          },
+                        },
+                      }
+                    : {}),
                 },
                 signal
               )
@@ -576,6 +612,24 @@ export async function runWatchProcess(
         if (value?.type === 'event') {
           try {
             const event = value.event
+            if (
+              event.type === 'diagnostic' &&
+              event.diagnostic.severity === 'error' &&
+              !(
+                request.operation === 'run' &&
+                request.isolatedProfile === true &&
+                request.updateSnapshots &&
+                event.runId === runId &&
+                event.entryId !== undefined &&
+                selectedFiles.has(event.entryId) &&
+                event.revision !== undefined &&
+                event.revision === collectionRevisions.get(event.entryId) &&
+                !snapshotPlans.has(event.entryId) &&
+                event.diagnostic.phase === 'runtime' &&
+                event.diagnostic.unhandled === 'rejection'
+              )
+            )
+              snapshotDiagnosticsClean = false
             if (!reporter)
               throw new Error('Metadata process sent execution events.')
             if (event.type === 'run-start') runId = event.runId
@@ -584,6 +638,7 @@ export async function runWatchProcess(
               if (
                 request.operation === 'run' &&
                 (request.collectOnly ||
+                  request.updateSnapshots ||
                   request.standardCoverageOptions ||
                   request.customCoverageRequests)
               ) {
@@ -599,6 +654,8 @@ export async function runWatchProcess(
               [
                 'case-start',
                 'case-end',
+                'file-collected',
+                'task-update',
                 'suite-end',
                 'test-annotation',
                 'test-artifact',
@@ -794,6 +851,14 @@ export async function runWatchProcess(
                 compilationFailures,
                 fileOutcomes,
                 allowCompilationFailure: request.watchCoverage === true,
+                ...(coverageSourcePlan && runtimeConfigurationPlan
+                  ? {
+                      sourcePlans: {
+                        sourcePlan: coverageSourcePlan,
+                        runtimeConfigurationPlan,
+                      },
+                    }
+                  : {}),
               })
               if (!facts) {
                 delete message.value.result.standardCoverage
@@ -853,18 +918,33 @@ export async function runWatchProcess(
           fail(error)
         }
       }
+      // Ordinary Node one-shot runs can finish with authored BODY failures.
+      // Every selected file must still provide its own qualified plan, including
+      // empty plans. Real watch and other execution profiles retain their policy.
+      const completedFailedNodeSnapshots =
+        request.operation === 'run' &&
+        request.isolatedProfile === true &&
+        snapshotDiagnosticsClean &&
+        request.projects.every(
+          (project) => project.profile.environment === 'node'
+        ) &&
+        selectedFiles.size > 0 &&
+        [...selectedFiles].every((entryId) => snapshotPlans.has(entryId))
       // A snapshot shortcut is a single explicit transaction. Provisional file
-      // success is insufficient: the compiler generation and every owned reader
+      // completion is insufficient: the compiler generation and every reader
       // must have exited cleanly before the parent writes any staged bytes.
       if (
         !failed &&
         !options.signal.aborted &&
         request.operation === 'run' &&
         request.updateSnapshots &&
-        runEnd?.status === 'passed' &&
         message?.type === 'result' &&
         message.value.operation === 'run' &&
-        message.value.result.status === 'passed' &&
+        ((runEnd?.status === 'passed' &&
+          message.value.result.status === 'passed') ||
+          (completedFailedNodeSnapshots &&
+            runEnd?.status === 'failed' &&
+            message.value.result.status === 'failed')) &&
         !message.value.result.unsafeCleanup
       ) {
         try {

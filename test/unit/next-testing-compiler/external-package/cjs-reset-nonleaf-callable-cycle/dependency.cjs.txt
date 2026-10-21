@@ -1,0 +1,2 @@
+globalThis.__ws2CallableDependency=(globalThis.__ws2CallableDependency||0)+1
+module.exports={evaluation:globalThis.__ws2CallableDependency,marker:{}, root:require('./root.cjs')}

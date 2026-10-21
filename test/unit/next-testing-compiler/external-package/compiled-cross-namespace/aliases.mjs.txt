@@ -1,0 +1,1 @@
+const first={name:'first'},second={name:'second'};export {second as z,first as a,first as other};export const tail='tail';

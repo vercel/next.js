@@ -1,0 +1,254 @@
+{
+  "reference": {
+    "vitest": "5.0.4",
+    "provider": "@vitest/browser-playwright5.0.4",
+    "playwright": "1.64.0",
+    "scope": "Chromium native pixel/direction wheel, repeat steps, Element and Locator targets and controlled component render turns; fake-clock and other-engine interactions remain unqualified"
+  },
+  "phases": {
+    "wheel-development": {
+      "mode": "development",
+      "cases": [
+        {
+          "fullName": "native wheel applies exact pixel deltas to a hovered element",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "direction options work through userEvent and locator wheel",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "native wheel drives controlled component render turns",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "native wheel repeats the requested number of pixel steps",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "wheel pixel delta",
+            "scrollLeft": 40,
+            "scrollTop": 120,
+            "events": [
+              {
+                "deltaX": 40,
+                "deltaY": 120,
+                "deltaMode": 0,
+                "trusted": true,
+                "buttons": 0,
+                "ctrl": false,
+                "shift": false
+              }
+            ]
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "wheel directions",
+            "scrollLeft": 100,
+            "scrollTop": 100,
+            "events": [
+              {
+                "deltaX": 0,
+                "deltaY": 100,
+                "deltaMode": 0,
+                "trusted": true,
+                "buttons": 0,
+                "ctrl": false,
+                "shift": false
+              },
+              {
+                "deltaX": 100,
+                "deltaY": 0,
+                "deltaMode": 0,
+                "trusted": true,
+                "buttons": 0,
+                "ctrl": false,
+                "shift": false
+              }
+            ]
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "wheel component turns",
+            "scrollLeft": 0,
+            "scrollTop": 0,
+            "events": [
+              {
+                "deltaX": 0,
+                "deltaY": 100,
+                "deltaMode": 0,
+                "trusted": true,
+                "buttons": 0,
+                "ctrl": false,
+                "shift": false
+              }
+            ],
+            "output": "100"
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "wheel repeated steps",
+            "scrollLeft": 0,
+            "scrollTop": 180,
+            "events": [
+              {
+                "deltaX": 0,
+                "deltaY": 90,
+                "deltaMode": 0,
+                "trusted": true,
+                "buttons": 0,
+                "ctrl": false,
+                "shift": false
+              },
+              {
+                "deltaX": 0,
+                "deltaY": 90,
+                "deltaMode": 0,
+                "trusted": true,
+                "buttons": 0,
+                "ctrl": false,
+                "shift": false
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "wheel-production": {
+      "mode": "production",
+      "cases": [
+        {
+          "fullName": "native wheel applies exact pixel deltas to a hovered element",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "direction options work through userEvent and locator wheel",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "native wheel drives controlled component render turns",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "native wheel repeats the requested number of pixel steps",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "wheel pixel delta",
+            "scrollLeft": 40,
+            "scrollTop": 120,
+            "events": [
+              {
+                "deltaX": 40,
+                "deltaY": 120,
+                "deltaMode": 0,
+                "trusted": true,
+                "buttons": 0,
+                "ctrl": false,
+                "shift": false
+              }
+            ]
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "wheel directions",
+            "scrollLeft": 100,
+            "scrollTop": 100,
+            "events": [
+              {
+                "deltaX": 0,
+                "deltaY": 100,
+                "deltaMode": 0,
+                "trusted": true,
+                "buttons": 0,
+                "ctrl": false,
+                "shift": false
+              },
+              {
+                "deltaX": 100,
+                "deltaY": 0,
+                "deltaMode": 0,
+                "trusted": true,
+                "buttons": 0,
+                "ctrl": false,
+                "shift": false
+              }
+            ]
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "wheel component turns",
+            "scrollLeft": 0,
+            "scrollTop": 0,
+            "events": [
+              {
+                "deltaX": 0,
+                "deltaY": 100,
+                "deltaMode": 0,
+                "trusted": true,
+                "buttons": 0,
+                "ctrl": false,
+                "shift": false
+              }
+            ],
+            "output": "100"
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "wheel repeated steps",
+            "scrollLeft": 0,
+            "scrollTop": 180,
+            "events": [
+              {
+                "deltaX": 0,
+                "deltaY": 90,
+                "deltaMode": 0,
+                "trusted": true,
+                "buttons": 0,
+                "ctrl": false,
+                "shift": false
+              },
+              {
+                "deltaX": 0,
+                "deltaY": 90,
+                "deltaMode": 0,
+                "trusted": true,
+                "buttons": 0,
+                "ctrl": false,
+                "shift": false
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

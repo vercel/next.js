@@ -1,0 +1,5589 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CALLABLE_MUTATION",
+    "value": {
+      "name": "deleted-label",
+      "before": {
+        "label": {
+          "value": {
+            "type": "string",
+            "value": "root"
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": true,
+          "enumerable": true,
+          "configurable": true
+        },
+        "method": {
+          "value": {
+            "type": "function",
+            "name": "member",
+            "length": 0,
+            "tag": "[object Function]",
+            "mock": false
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": true,
+          "enumerable": true,
+          "configurable": true
+        },
+        "evaluations": 1
+      },
+      "mutation": {
+        "label": null,
+        "method": {
+          "value": {
+            "type": "function",
+            "name": "member",
+            "length": 0,
+            "tag": "[object Function]",
+            "mock": false
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": true,
+          "enumerable": true,
+          "configurable": true
+        },
+        "late": null,
+        "evaluations": 1
+      },
+      "mocked": {
+        "first": {
+          "type": "object",
+          "tag": "[object Module]",
+          "nullPrototype": false,
+          "objectPrototype": true,
+          "functionPrototype": false,
+          "keys": ["label", "method", "default", "symbol:Symbol.toStringTag"],
+          "descriptors": [
+            {
+              "key": "label",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "function",
+                "name": "member",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "value": {
+                "type": "function",
+                "name": "callable",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.toStringTag",
+              "value": {
+                "type": "string",
+                "value": "Module"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ],
+          "prototype": null
+        },
+        "default": {
+          "type": "function",
+          "tag": "[object Function]",
+          "nullPrototype": false,
+          "objectPrototype": false,
+          "functionPrototype": true,
+          "keys": [
+            "length",
+            "name",
+            "prototype",
+            "_isMockFunction",
+            "getMockImplementation",
+            "mock",
+            "mockImplementation",
+            "mockImplementationOnce",
+            "withImplementation",
+            "mockReturnThis",
+            "mockReturnValue",
+            "mockReturnValueOnce",
+            "mockThrow",
+            "mockThrowOnce",
+            "mockResolvedValue",
+            "mockResolvedValueOnce",
+            "mockRejectedValue",
+            "mockRejectedValueOnce",
+            "mockClear",
+            "mockReset",
+            "mockRestore",
+            "mockName",
+            "getMockName",
+            "method",
+            "symbol:Symbol.dispose"
+          ],
+          "descriptors": [
+            {
+              "key": "length",
+              "value": {
+                "type": "number",
+                "value": 1
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "value": {
+                "type": "string",
+                "value": "callable"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "value": {
+                "type": "object",
+                "tag": "[object Object]",
+                "keys": ["constructor"]
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            },
+            {
+              "key": "_isMockFunction",
+              "value": {
+                "type": "boolean",
+                "value": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "getMockImplementation",
+              "value": {
+                "type": "function",
+                "name": "",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mock",
+              "value": {
+                "type": "object",
+                "tag": "[object Object]",
+                "keys": [
+                  "calls",
+                  "contexts",
+                  "instances",
+                  "invocationCallOrder",
+                  "settledResults",
+                  "results",
+                  "lastCall"
+                ]
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "mockImplementation",
+              "value": {
+                "type": "function",
+                "name": "mockImplementation",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockImplementationOnce",
+              "value": {
+                "type": "function",
+                "name": "mockImplementationOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "withImplementation",
+              "value": {
+                "type": "function",
+                "name": "withImplementation",
+                "length": 2,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnThis",
+              "value": {
+                "type": "function",
+                "name": "mockReturnThis",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnValue",
+              "value": {
+                "type": "function",
+                "name": "mockReturnValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockReturnValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockThrow",
+              "value": {
+                "type": "function",
+                "name": "mockThrow",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockThrowOnce",
+              "value": {
+                "type": "function",
+                "name": "mockThrowOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockResolvedValue",
+              "value": {
+                "type": "function",
+                "name": "mockResolvedValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockResolvedValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockResolvedValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRejectedValue",
+              "value": {
+                "type": "function",
+                "name": "mockRejectedValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRejectedValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockRejectedValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockClear",
+              "value": {
+                "type": "function",
+                "name": "mockClear",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReset",
+              "value": {
+                "type": "function",
+                "name": "mockReset",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRestore",
+              "value": {
+                "type": "function",
+                "name": "mockRestore",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockName",
+              "value": {
+                "type": "function",
+                "name": "mockName",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "getMockName",
+              "value": {
+                "type": "function",
+                "name": "getMockName",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "function",
+                "name": "member",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.dispose",
+              "value": {
+                "type": "function",
+                "name": "",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ],
+          "prototype": {
+            "keys": ["constructor"],
+            "descriptors": [
+              {
+                "key": "constructor",
+                "value": {
+                  "type": "function",
+                  "name": "callable",
+                  "length": 1,
+                  "tag": "[object Function]",
+                  "mock": true
+                },
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          }
+        },
+        "method": {
+          "type": "function",
+          "tag": "[object Function]",
+          "nullPrototype": false,
+          "objectPrototype": false,
+          "functionPrototype": true,
+          "keys": [
+            "length",
+            "name",
+            "prototype",
+            "_isMockFunction",
+            "getMockImplementation",
+            "mock",
+            "mockImplementation",
+            "mockImplementationOnce",
+            "withImplementation",
+            "mockReturnThis",
+            "mockReturnValue",
+            "mockReturnValueOnce",
+            "mockThrow",
+            "mockThrowOnce",
+            "mockResolvedValue",
+            "mockResolvedValueOnce",
+            "mockRejectedValue",
+            "mockRejectedValueOnce",
+            "mockClear",
+            "mockReset",
+            "mockRestore",
+            "mockName",
+            "getMockName",
+            "symbol:Symbol.dispose"
+          ],
+          "descriptors": [
+            {
+              "key": "length",
+              "value": {
+                "type": "number",
+                "value": 0
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "value": {
+                "type": "string",
+                "value": "member"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "value": {
+                "type": "object",
+                "tag": "[object Object]",
+                "keys": ["constructor"]
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            },
+            {
+              "key": "_isMockFunction",
+              "value": {
+                "type": "boolean",
+                "value": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "getMockImplementation",
+              "value": {
+                "type": "function",
+                "name": "",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mock",
+              "value": {
+                "type": "object",
+                "tag": "[object Object]",
+                "keys": [
+                  "calls",
+                  "contexts",
+                  "instances",
+                  "invocationCallOrder",
+                  "settledResults",
+                  "results",
+                  "lastCall"
+                ]
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "mockImplementation",
+              "value": {
+                "type": "function",
+                "name": "mockImplementation",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockImplementationOnce",
+              "value": {
+                "type": "function",
+                "name": "mockImplementationOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "withImplementation",
+              "value": {
+                "type": "function",
+                "name": "withImplementation",
+                "length": 2,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnThis",
+              "value": {
+                "type": "function",
+                "name": "mockReturnThis",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnValue",
+              "value": {
+                "type": "function",
+                "name": "mockReturnValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockReturnValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockThrow",
+              "value": {
+                "type": "function",
+                "name": "mockThrow",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockThrowOnce",
+              "value": {
+                "type": "function",
+                "name": "mockThrowOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockResolvedValue",
+              "value": {
+                "type": "function",
+                "name": "mockResolvedValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockResolvedValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockResolvedValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRejectedValue",
+              "value": {
+                "type": "function",
+                "name": "mockRejectedValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRejectedValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockRejectedValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockClear",
+              "value": {
+                "type": "function",
+                "name": "mockClear",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReset",
+              "value": {
+                "type": "function",
+                "name": "mockReset",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRestore",
+              "value": {
+                "type": "function",
+                "name": "mockRestore",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockName",
+              "value": {
+                "type": "function",
+                "name": "mockName",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "getMockName",
+              "value": {
+                "type": "function",
+                "name": "getMockName",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.dispose",
+              "value": {
+                "type": "function",
+                "name": "",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ],
+          "prototype": {
+            "keys": ["constructor"],
+            "descriptors": [
+              {
+                "key": "constructor",
+                "value": {
+                  "type": "function",
+                  "name": "member",
+                  "length": 0,
+                  "tag": "[object Function]",
+                  "mock": true
+                },
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          }
+        },
+        "outerSame": false,
+        "defaultSame": false,
+        "methodSame": false,
+        "namedMethodSame": true,
+        "namedLabel": {
+          "type": "undefined"
+        },
+        "defaultLabel": {
+          "type": "undefined"
+        },
+        "evaluations": 1
+      },
+      "after": {
+        "result": {
+          "type": "undefined"
+        },
+        "methodResult": {
+          "type": "undefined"
+        },
+        "calls": [[4]],
+        "memberCalls": [[]],
+        "secondCalls": [],
+        "evaluations": 1
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CALLABLE_MUTATION",
+    "value": {
+      "name": "hidden-label",
+      "before": {
+        "label": {
+          "value": {
+            "type": "string",
+            "value": "root"
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": true,
+          "enumerable": true,
+          "configurable": true
+        },
+        "method": {
+          "value": {
+            "type": "function",
+            "name": "member",
+            "length": 0,
+            "tag": "[object Function]",
+            "mock": false
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": true,
+          "enumerable": true,
+          "configurable": true
+        },
+        "evaluations": 1
+      },
+      "mutation": {
+        "label": {
+          "value": {
+            "type": "string",
+            "value": "root"
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": true,
+          "enumerable": false,
+          "configurable": true
+        },
+        "method": {
+          "value": {
+            "type": "function",
+            "name": "member",
+            "length": 0,
+            "tag": "[object Function]",
+            "mock": false
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": true,
+          "enumerable": true,
+          "configurable": true
+        },
+        "late": null,
+        "evaluations": 1
+      },
+      "mocked": {
+        "first": {
+          "type": "object",
+          "tag": "[object Module]",
+          "nullPrototype": false,
+          "objectPrototype": true,
+          "functionPrototype": false,
+          "keys": ["label", "method", "default", "symbol:Symbol.toStringTag"],
+          "descriptors": [
+            {
+              "key": "label",
+              "value": {
+                "type": "string",
+                "value": "root"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "function",
+                "name": "member",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "value": {
+                "type": "function",
+                "name": "callable",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.toStringTag",
+              "value": {
+                "type": "string",
+                "value": "Module"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ],
+          "prototype": null
+        },
+        "default": {
+          "type": "function",
+          "tag": "[object Function]",
+          "nullPrototype": false,
+          "objectPrototype": false,
+          "functionPrototype": true,
+          "keys": [
+            "length",
+            "name",
+            "prototype",
+            "_isMockFunction",
+            "getMockImplementation",
+            "mock",
+            "mockImplementation",
+            "mockImplementationOnce",
+            "withImplementation",
+            "mockReturnThis",
+            "mockReturnValue",
+            "mockReturnValueOnce",
+            "mockThrow",
+            "mockThrowOnce",
+            "mockResolvedValue",
+            "mockResolvedValueOnce",
+            "mockRejectedValue",
+            "mockRejectedValueOnce",
+            "mockClear",
+            "mockReset",
+            "mockRestore",
+            "mockName",
+            "getMockName",
+            "label",
+            "method",
+            "symbol:Symbol.dispose"
+          ],
+          "descriptors": [
+            {
+              "key": "length",
+              "value": {
+                "type": "number",
+                "value": 1
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "value": {
+                "type": "string",
+                "value": "callable"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "value": {
+                "type": "object",
+                "tag": "[object Object]",
+                "keys": ["constructor"]
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            },
+            {
+              "key": "_isMockFunction",
+              "value": {
+                "type": "boolean",
+                "value": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "getMockImplementation",
+              "value": {
+                "type": "function",
+                "name": "",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mock",
+              "value": {
+                "type": "object",
+                "tag": "[object Object]",
+                "keys": [
+                  "calls",
+                  "contexts",
+                  "instances",
+                  "invocationCallOrder",
+                  "settledResults",
+                  "results",
+                  "lastCall"
+                ]
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "mockImplementation",
+              "value": {
+                "type": "function",
+                "name": "mockImplementation",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockImplementationOnce",
+              "value": {
+                "type": "function",
+                "name": "mockImplementationOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "withImplementation",
+              "value": {
+                "type": "function",
+                "name": "withImplementation",
+                "length": 2,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnThis",
+              "value": {
+                "type": "function",
+                "name": "mockReturnThis",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnValue",
+              "value": {
+                "type": "function",
+                "name": "mockReturnValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockReturnValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockThrow",
+              "value": {
+                "type": "function",
+                "name": "mockThrow",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockThrowOnce",
+              "value": {
+                "type": "function",
+                "name": "mockThrowOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockResolvedValue",
+              "value": {
+                "type": "function",
+                "name": "mockResolvedValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockResolvedValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockResolvedValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRejectedValue",
+              "value": {
+                "type": "function",
+                "name": "mockRejectedValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRejectedValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockRejectedValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockClear",
+              "value": {
+                "type": "function",
+                "name": "mockClear",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReset",
+              "value": {
+                "type": "function",
+                "name": "mockReset",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRestore",
+              "value": {
+                "type": "function",
+                "name": "mockRestore",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockName",
+              "value": {
+                "type": "function",
+                "name": "mockName",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "getMockName",
+              "value": {
+                "type": "function",
+                "name": "getMockName",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "label",
+              "value": {
+                "type": "string",
+                "value": "root"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "function",
+                "name": "member",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.dispose",
+              "value": {
+                "type": "function",
+                "name": "",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ],
+          "prototype": {
+            "keys": ["constructor"],
+            "descriptors": [
+              {
+                "key": "constructor",
+                "value": {
+                  "type": "function",
+                  "name": "callable",
+                  "length": 1,
+                  "tag": "[object Function]",
+                  "mock": true
+                },
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          }
+        },
+        "method": {
+          "type": "function",
+          "tag": "[object Function]",
+          "nullPrototype": false,
+          "objectPrototype": false,
+          "functionPrototype": true,
+          "keys": [
+            "length",
+            "name",
+            "prototype",
+            "_isMockFunction",
+            "getMockImplementation",
+            "mock",
+            "mockImplementation",
+            "mockImplementationOnce",
+            "withImplementation",
+            "mockReturnThis",
+            "mockReturnValue",
+            "mockReturnValueOnce",
+            "mockThrow",
+            "mockThrowOnce",
+            "mockResolvedValue",
+            "mockResolvedValueOnce",
+            "mockRejectedValue",
+            "mockRejectedValueOnce",
+            "mockClear",
+            "mockReset",
+            "mockRestore",
+            "mockName",
+            "getMockName",
+            "symbol:Symbol.dispose"
+          ],
+          "descriptors": [
+            {
+              "key": "length",
+              "value": {
+                "type": "number",
+                "value": 0
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "value": {
+                "type": "string",
+                "value": "member"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "value": {
+                "type": "object",
+                "tag": "[object Object]",
+                "keys": ["constructor"]
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            },
+            {
+              "key": "_isMockFunction",
+              "value": {
+                "type": "boolean",
+                "value": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "getMockImplementation",
+              "value": {
+                "type": "function",
+                "name": "",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mock",
+              "value": {
+                "type": "object",
+                "tag": "[object Object]",
+                "keys": [
+                  "calls",
+                  "contexts",
+                  "instances",
+                  "invocationCallOrder",
+                  "settledResults",
+                  "results",
+                  "lastCall"
+                ]
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "mockImplementation",
+              "value": {
+                "type": "function",
+                "name": "mockImplementation",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockImplementationOnce",
+              "value": {
+                "type": "function",
+                "name": "mockImplementationOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "withImplementation",
+              "value": {
+                "type": "function",
+                "name": "withImplementation",
+                "length": 2,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnThis",
+              "value": {
+                "type": "function",
+                "name": "mockReturnThis",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnValue",
+              "value": {
+                "type": "function",
+                "name": "mockReturnValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockReturnValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockThrow",
+              "value": {
+                "type": "function",
+                "name": "mockThrow",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockThrowOnce",
+              "value": {
+                "type": "function",
+                "name": "mockThrowOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockResolvedValue",
+              "value": {
+                "type": "function",
+                "name": "mockResolvedValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockResolvedValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockResolvedValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRejectedValue",
+              "value": {
+                "type": "function",
+                "name": "mockRejectedValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRejectedValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockRejectedValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockClear",
+              "value": {
+                "type": "function",
+                "name": "mockClear",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReset",
+              "value": {
+                "type": "function",
+                "name": "mockReset",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRestore",
+              "value": {
+                "type": "function",
+                "name": "mockRestore",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockName",
+              "value": {
+                "type": "function",
+                "name": "mockName",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "getMockName",
+              "value": {
+                "type": "function",
+                "name": "getMockName",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.dispose",
+              "value": {
+                "type": "function",
+                "name": "",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ],
+          "prototype": {
+            "keys": ["constructor"],
+            "descriptors": [
+              {
+                "key": "constructor",
+                "value": {
+                  "type": "function",
+                  "name": "member",
+                  "length": 0,
+                  "tag": "[object Function]",
+                  "mock": true
+                },
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          }
+        },
+        "outerSame": false,
+        "defaultSame": false,
+        "methodSame": false,
+        "namedMethodSame": true,
+        "namedLabel": {
+          "type": "string",
+          "value": "root"
+        },
+        "defaultLabel": {
+          "type": "string",
+          "value": "root"
+        },
+        "evaluations": 1
+      },
+      "after": {
+        "result": {
+          "type": "undefined"
+        },
+        "methodResult": {
+          "type": "undefined"
+        },
+        "calls": [[4]],
+        "memberCalls": [[]],
+        "secondCalls": [],
+        "evaluations": 1
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CALLABLE_MUTATION",
+    "value": {
+      "name": "late-label",
+      "before": {
+        "label": {
+          "value": {
+            "type": "string",
+            "value": "root"
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": true,
+          "enumerable": true,
+          "configurable": true
+        },
+        "method": {
+          "value": {
+            "type": "function",
+            "name": "member",
+            "length": 0,
+            "tag": "[object Function]",
+            "mock": false
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": true,
+          "enumerable": true,
+          "configurable": true
+        },
+        "evaluations": 1
+      },
+      "mutation": {
+        "label": {
+          "value": {
+            "type": "string",
+            "value": "root"
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": true,
+          "enumerable": true,
+          "configurable": true
+        },
+        "method": {
+          "value": {
+            "type": "function",
+            "name": "member",
+            "length": 0,
+            "tag": "[object Function]",
+            "mock": false
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": true,
+          "enumerable": true,
+          "configurable": true
+        },
+        "late": {
+          "value": {
+            "type": "string",
+            "value": "late"
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": true,
+          "enumerable": true,
+          "configurable": true
+        },
+        "evaluations": 1
+      },
+      "mocked": {
+        "first": {
+          "type": "object",
+          "tag": "[object Module]",
+          "nullPrototype": false,
+          "objectPrototype": true,
+          "functionPrototype": false,
+          "keys": ["label", "method", "default", "symbol:Symbol.toStringTag"],
+          "descriptors": [
+            {
+              "key": "label",
+              "value": {
+                "type": "string",
+                "value": "root"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "function",
+                "name": "member",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "value": {
+                "type": "function",
+                "name": "callable",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.toStringTag",
+              "value": {
+                "type": "string",
+                "value": "Module"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ],
+          "prototype": null
+        },
+        "default": {
+          "type": "function",
+          "tag": "[object Function]",
+          "nullPrototype": false,
+          "objectPrototype": false,
+          "functionPrototype": true,
+          "keys": [
+            "length",
+            "name",
+            "prototype",
+            "_isMockFunction",
+            "getMockImplementation",
+            "mock",
+            "mockImplementation",
+            "mockImplementationOnce",
+            "withImplementation",
+            "mockReturnThis",
+            "mockReturnValue",
+            "mockReturnValueOnce",
+            "mockThrow",
+            "mockThrowOnce",
+            "mockResolvedValue",
+            "mockResolvedValueOnce",
+            "mockRejectedValue",
+            "mockRejectedValueOnce",
+            "mockClear",
+            "mockReset",
+            "mockRestore",
+            "mockName",
+            "getMockName",
+            "label",
+            "late",
+            "method",
+            "symbol:Symbol.dispose"
+          ],
+          "descriptors": [
+            {
+              "key": "length",
+              "value": {
+                "type": "number",
+                "value": 1
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "value": {
+                "type": "string",
+                "value": "callable"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "value": {
+                "type": "object",
+                "tag": "[object Object]",
+                "keys": ["constructor"]
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            },
+            {
+              "key": "_isMockFunction",
+              "value": {
+                "type": "boolean",
+                "value": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "getMockImplementation",
+              "value": {
+                "type": "function",
+                "name": "",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mock",
+              "value": {
+                "type": "object",
+                "tag": "[object Object]",
+                "keys": [
+                  "calls",
+                  "contexts",
+                  "instances",
+                  "invocationCallOrder",
+                  "settledResults",
+                  "results",
+                  "lastCall"
+                ]
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "mockImplementation",
+              "value": {
+                "type": "function",
+                "name": "mockImplementation",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockImplementationOnce",
+              "value": {
+                "type": "function",
+                "name": "mockImplementationOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "withImplementation",
+              "value": {
+                "type": "function",
+                "name": "withImplementation",
+                "length": 2,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnThis",
+              "value": {
+                "type": "function",
+                "name": "mockReturnThis",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnValue",
+              "value": {
+                "type": "function",
+                "name": "mockReturnValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockReturnValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockThrow",
+              "value": {
+                "type": "function",
+                "name": "mockThrow",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockThrowOnce",
+              "value": {
+                "type": "function",
+                "name": "mockThrowOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockResolvedValue",
+              "value": {
+                "type": "function",
+                "name": "mockResolvedValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockResolvedValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockResolvedValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRejectedValue",
+              "value": {
+                "type": "function",
+                "name": "mockRejectedValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRejectedValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockRejectedValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockClear",
+              "value": {
+                "type": "function",
+                "name": "mockClear",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReset",
+              "value": {
+                "type": "function",
+                "name": "mockReset",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRestore",
+              "value": {
+                "type": "function",
+                "name": "mockRestore",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockName",
+              "value": {
+                "type": "function",
+                "name": "mockName",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "getMockName",
+              "value": {
+                "type": "function",
+                "name": "getMockName",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "label",
+              "value": {
+                "type": "string",
+                "value": "root"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "late",
+              "value": {
+                "type": "string",
+                "value": "late"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "function",
+                "name": "member",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.dispose",
+              "value": {
+                "type": "function",
+                "name": "",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ],
+          "prototype": {
+            "keys": ["constructor"],
+            "descriptors": [
+              {
+                "key": "constructor",
+                "value": {
+                  "type": "function",
+                  "name": "callable",
+                  "length": 1,
+                  "tag": "[object Function]",
+                  "mock": true
+                },
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          }
+        },
+        "method": {
+          "type": "function",
+          "tag": "[object Function]",
+          "nullPrototype": false,
+          "objectPrototype": false,
+          "functionPrototype": true,
+          "keys": [
+            "length",
+            "name",
+            "prototype",
+            "_isMockFunction",
+            "getMockImplementation",
+            "mock",
+            "mockImplementation",
+            "mockImplementationOnce",
+            "withImplementation",
+            "mockReturnThis",
+            "mockReturnValue",
+            "mockReturnValueOnce",
+            "mockThrow",
+            "mockThrowOnce",
+            "mockResolvedValue",
+            "mockResolvedValueOnce",
+            "mockRejectedValue",
+            "mockRejectedValueOnce",
+            "mockClear",
+            "mockReset",
+            "mockRestore",
+            "mockName",
+            "getMockName",
+            "symbol:Symbol.dispose"
+          ],
+          "descriptors": [
+            {
+              "key": "length",
+              "value": {
+                "type": "number",
+                "value": 0
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "value": {
+                "type": "string",
+                "value": "member"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "value": {
+                "type": "object",
+                "tag": "[object Object]",
+                "keys": ["constructor"]
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            },
+            {
+              "key": "_isMockFunction",
+              "value": {
+                "type": "boolean",
+                "value": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "getMockImplementation",
+              "value": {
+                "type": "function",
+                "name": "",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mock",
+              "value": {
+                "type": "object",
+                "tag": "[object Object]",
+                "keys": [
+                  "calls",
+                  "contexts",
+                  "instances",
+                  "invocationCallOrder",
+                  "settledResults",
+                  "results",
+                  "lastCall"
+                ]
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "mockImplementation",
+              "value": {
+                "type": "function",
+                "name": "mockImplementation",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockImplementationOnce",
+              "value": {
+                "type": "function",
+                "name": "mockImplementationOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "withImplementation",
+              "value": {
+                "type": "function",
+                "name": "withImplementation",
+                "length": 2,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnThis",
+              "value": {
+                "type": "function",
+                "name": "mockReturnThis",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnValue",
+              "value": {
+                "type": "function",
+                "name": "mockReturnValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockReturnValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockThrow",
+              "value": {
+                "type": "function",
+                "name": "mockThrow",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockThrowOnce",
+              "value": {
+                "type": "function",
+                "name": "mockThrowOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockResolvedValue",
+              "value": {
+                "type": "function",
+                "name": "mockResolvedValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockResolvedValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockResolvedValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRejectedValue",
+              "value": {
+                "type": "function",
+                "name": "mockRejectedValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRejectedValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockRejectedValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockClear",
+              "value": {
+                "type": "function",
+                "name": "mockClear",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReset",
+              "value": {
+                "type": "function",
+                "name": "mockReset",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRestore",
+              "value": {
+                "type": "function",
+                "name": "mockRestore",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockName",
+              "value": {
+                "type": "function",
+                "name": "mockName",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "getMockName",
+              "value": {
+                "type": "function",
+                "name": "getMockName",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.dispose",
+              "value": {
+                "type": "function",
+                "name": "",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ],
+          "prototype": {
+            "keys": ["constructor"],
+            "descriptors": [
+              {
+                "key": "constructor",
+                "value": {
+                  "type": "function",
+                  "name": "member",
+                  "length": 0,
+                  "tag": "[object Function]",
+                  "mock": true
+                },
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          }
+        },
+        "outerSame": false,
+        "defaultSame": false,
+        "methodSame": false,
+        "namedMethodSame": true,
+        "namedLabel": {
+          "type": "string",
+          "value": "root"
+        },
+        "defaultLabel": {
+          "type": "string",
+          "value": "root"
+        },
+        "evaluations": 1
+      },
+      "after": {
+        "result": {
+          "type": "undefined"
+        },
+        "methodResult": {
+          "type": "undefined"
+        },
+        "calls": [[4]],
+        "memberCalls": [[]],
+        "secondCalls": [],
+        "evaluations": 1
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CALLABLE_MUTATION",
+    "value": {
+      "name": "deleted-method",
+      "before": {
+        "label": {
+          "value": {
+            "type": "string",
+            "value": "root"
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": true,
+          "enumerable": true,
+          "configurable": true
+        },
+        "method": {
+          "value": {
+            "type": "function",
+            "name": "member",
+            "length": 0,
+            "tag": "[object Function]",
+            "mock": false
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": true,
+          "enumerable": true,
+          "configurable": true
+        },
+        "evaluations": 1
+      },
+      "mutation": {
+        "label": {
+          "value": {
+            "type": "string",
+            "value": "root"
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": true,
+          "enumerable": true,
+          "configurable": true
+        },
+        "method": null,
+        "late": null,
+        "evaluations": 1
+      },
+      "mocked": {
+        "first": {
+          "type": "object",
+          "tag": "[object Module]",
+          "nullPrototype": false,
+          "objectPrototype": true,
+          "functionPrototype": false,
+          "keys": ["label", "method", "default", "symbol:Symbol.toStringTag"],
+          "descriptors": [
+            {
+              "key": "label",
+              "value": {
+                "type": "string",
+                "value": "root"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "value": {
+                "type": "function",
+                "name": "callable",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.toStringTag",
+              "value": {
+                "type": "string",
+                "value": "Module"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ],
+          "prototype": null
+        },
+        "default": {
+          "type": "function",
+          "tag": "[object Function]",
+          "nullPrototype": false,
+          "objectPrototype": false,
+          "functionPrototype": true,
+          "keys": [
+            "length",
+            "name",
+            "prototype",
+            "_isMockFunction",
+            "getMockImplementation",
+            "mock",
+            "mockImplementation",
+            "mockImplementationOnce",
+            "withImplementation",
+            "mockReturnThis",
+            "mockReturnValue",
+            "mockReturnValueOnce",
+            "mockThrow",
+            "mockThrowOnce",
+            "mockResolvedValue",
+            "mockResolvedValueOnce",
+            "mockRejectedValue",
+            "mockRejectedValueOnce",
+            "mockClear",
+            "mockReset",
+            "mockRestore",
+            "mockName",
+            "getMockName",
+            "label",
+            "symbol:Symbol.dispose"
+          ],
+          "descriptors": [
+            {
+              "key": "length",
+              "value": {
+                "type": "number",
+                "value": 1
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "value": {
+                "type": "string",
+                "value": "callable"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "value": {
+                "type": "object",
+                "tag": "[object Object]",
+                "keys": ["constructor"]
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            },
+            {
+              "key": "_isMockFunction",
+              "value": {
+                "type": "boolean",
+                "value": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "getMockImplementation",
+              "value": {
+                "type": "function",
+                "name": "",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mock",
+              "value": {
+                "type": "object",
+                "tag": "[object Object]",
+                "keys": [
+                  "calls",
+                  "contexts",
+                  "instances",
+                  "invocationCallOrder",
+                  "settledResults",
+                  "results",
+                  "lastCall"
+                ]
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "mockImplementation",
+              "value": {
+                "type": "function",
+                "name": "mockImplementation",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockImplementationOnce",
+              "value": {
+                "type": "function",
+                "name": "mockImplementationOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "withImplementation",
+              "value": {
+                "type": "function",
+                "name": "withImplementation",
+                "length": 2,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnThis",
+              "value": {
+                "type": "function",
+                "name": "mockReturnThis",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnValue",
+              "value": {
+                "type": "function",
+                "name": "mockReturnValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockReturnValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockThrow",
+              "value": {
+                "type": "function",
+                "name": "mockThrow",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockThrowOnce",
+              "value": {
+                "type": "function",
+                "name": "mockThrowOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockResolvedValue",
+              "value": {
+                "type": "function",
+                "name": "mockResolvedValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockResolvedValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockResolvedValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRejectedValue",
+              "value": {
+                "type": "function",
+                "name": "mockRejectedValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRejectedValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockRejectedValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockClear",
+              "value": {
+                "type": "function",
+                "name": "mockClear",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReset",
+              "value": {
+                "type": "function",
+                "name": "mockReset",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRestore",
+              "value": {
+                "type": "function",
+                "name": "mockRestore",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockName",
+              "value": {
+                "type": "function",
+                "name": "mockName",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "getMockName",
+              "value": {
+                "type": "function",
+                "name": "getMockName",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "label",
+              "value": {
+                "type": "string",
+                "value": "root"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.dispose",
+              "value": {
+                "type": "function",
+                "name": "",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ],
+          "prototype": {
+            "keys": ["constructor"],
+            "descriptors": [
+              {
+                "key": "constructor",
+                "value": {
+                  "type": "function",
+                  "name": "callable",
+                  "length": 1,
+                  "tag": "[object Function]",
+                  "mock": true
+                },
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          }
+        },
+        "method": {
+          "type": "undefined"
+        },
+        "outerSame": false,
+        "defaultSame": false,
+        "methodSame": true,
+        "namedMethodSame": true,
+        "namedLabel": {
+          "type": "string",
+          "value": "root"
+        },
+        "defaultLabel": {
+          "type": "string",
+          "value": "root"
+        },
+        "evaluations": 1
+      },
+      "after": {
+        "result": {
+          "type": "undefined"
+        },
+        "methodResult": {
+          "type": "undefined"
+        },
+        "calls": [[4]],
+        "memberCalls": null,
+        "secondCalls": [],
+        "evaluations": 1
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CALLABLE_MUTATION",
+    "value": {
+      "name": "hidden-method",
+      "before": {
+        "label": {
+          "value": {
+            "type": "string",
+            "value": "root"
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": true,
+          "enumerable": true,
+          "configurable": true
+        },
+        "method": {
+          "value": {
+            "type": "function",
+            "name": "member",
+            "length": 0,
+            "tag": "[object Function]",
+            "mock": false
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": true,
+          "enumerable": true,
+          "configurable": true
+        },
+        "evaluations": 1
+      },
+      "mutation": {
+        "label": {
+          "value": {
+            "type": "string",
+            "value": "root"
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": true,
+          "enumerable": true,
+          "configurable": true
+        },
+        "method": {
+          "value": {
+            "type": "function",
+            "name": "member",
+            "length": 0,
+            "tag": "[object Function]",
+            "mock": false
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": true,
+          "enumerable": false,
+          "configurable": true
+        },
+        "late": null,
+        "evaluations": 1
+      },
+      "mocked": {
+        "first": {
+          "type": "object",
+          "tag": "[object Module]",
+          "nullPrototype": false,
+          "objectPrototype": true,
+          "functionPrototype": false,
+          "keys": ["label", "method", "default", "symbol:Symbol.toStringTag"],
+          "descriptors": [
+            {
+              "key": "label",
+              "value": {
+                "type": "string",
+                "value": "root"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "function",
+                "name": "member",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "value": {
+                "type": "function",
+                "name": "callable",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.toStringTag",
+              "value": {
+                "type": "string",
+                "value": "Module"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ],
+          "prototype": null
+        },
+        "default": {
+          "type": "function",
+          "tag": "[object Function]",
+          "nullPrototype": false,
+          "objectPrototype": false,
+          "functionPrototype": true,
+          "keys": [
+            "length",
+            "name",
+            "prototype",
+            "_isMockFunction",
+            "getMockImplementation",
+            "mock",
+            "mockImplementation",
+            "mockImplementationOnce",
+            "withImplementation",
+            "mockReturnThis",
+            "mockReturnValue",
+            "mockReturnValueOnce",
+            "mockThrow",
+            "mockThrowOnce",
+            "mockResolvedValue",
+            "mockResolvedValueOnce",
+            "mockRejectedValue",
+            "mockRejectedValueOnce",
+            "mockClear",
+            "mockReset",
+            "mockRestore",
+            "mockName",
+            "getMockName",
+            "label",
+            "method",
+            "symbol:Symbol.dispose"
+          ],
+          "descriptors": [
+            {
+              "key": "length",
+              "value": {
+                "type": "number",
+                "value": 1
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "value": {
+                "type": "string",
+                "value": "callable"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "value": {
+                "type": "object",
+                "tag": "[object Object]",
+                "keys": ["constructor"]
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            },
+            {
+              "key": "_isMockFunction",
+              "value": {
+                "type": "boolean",
+                "value": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "getMockImplementation",
+              "value": {
+                "type": "function",
+                "name": "",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mock",
+              "value": {
+                "type": "object",
+                "tag": "[object Object]",
+                "keys": [
+                  "calls",
+                  "contexts",
+                  "instances",
+                  "invocationCallOrder",
+                  "settledResults",
+                  "results",
+                  "lastCall"
+                ]
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "mockImplementation",
+              "value": {
+                "type": "function",
+                "name": "mockImplementation",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockImplementationOnce",
+              "value": {
+                "type": "function",
+                "name": "mockImplementationOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "withImplementation",
+              "value": {
+                "type": "function",
+                "name": "withImplementation",
+                "length": 2,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnThis",
+              "value": {
+                "type": "function",
+                "name": "mockReturnThis",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnValue",
+              "value": {
+                "type": "function",
+                "name": "mockReturnValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockReturnValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockThrow",
+              "value": {
+                "type": "function",
+                "name": "mockThrow",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockThrowOnce",
+              "value": {
+                "type": "function",
+                "name": "mockThrowOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockResolvedValue",
+              "value": {
+                "type": "function",
+                "name": "mockResolvedValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockResolvedValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockResolvedValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRejectedValue",
+              "value": {
+                "type": "function",
+                "name": "mockRejectedValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRejectedValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockRejectedValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockClear",
+              "value": {
+                "type": "function",
+                "name": "mockClear",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReset",
+              "value": {
+                "type": "function",
+                "name": "mockReset",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRestore",
+              "value": {
+                "type": "function",
+                "name": "mockRestore",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockName",
+              "value": {
+                "type": "function",
+                "name": "mockName",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "getMockName",
+              "value": {
+                "type": "function",
+                "name": "getMockName",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "label",
+              "value": {
+                "type": "string",
+                "value": "root"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "function",
+                "name": "member",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.dispose",
+              "value": {
+                "type": "function",
+                "name": "",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ],
+          "prototype": {
+            "keys": ["constructor"],
+            "descriptors": [
+              {
+                "key": "constructor",
+                "value": {
+                  "type": "function",
+                  "name": "callable",
+                  "length": 1,
+                  "tag": "[object Function]",
+                  "mock": true
+                },
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          }
+        },
+        "method": {
+          "type": "function",
+          "tag": "[object Function]",
+          "nullPrototype": false,
+          "objectPrototype": false,
+          "functionPrototype": true,
+          "keys": [
+            "length",
+            "name",
+            "prototype",
+            "_isMockFunction",
+            "getMockImplementation",
+            "mock",
+            "mockImplementation",
+            "mockImplementationOnce",
+            "withImplementation",
+            "mockReturnThis",
+            "mockReturnValue",
+            "mockReturnValueOnce",
+            "mockThrow",
+            "mockThrowOnce",
+            "mockResolvedValue",
+            "mockResolvedValueOnce",
+            "mockRejectedValue",
+            "mockRejectedValueOnce",
+            "mockClear",
+            "mockReset",
+            "mockRestore",
+            "mockName",
+            "getMockName",
+            "symbol:Symbol.dispose"
+          ],
+          "descriptors": [
+            {
+              "key": "length",
+              "value": {
+                "type": "number",
+                "value": 0
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "value": {
+                "type": "string",
+                "value": "member"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "value": {
+                "type": "object",
+                "tag": "[object Object]",
+                "keys": ["constructor"]
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            },
+            {
+              "key": "_isMockFunction",
+              "value": {
+                "type": "boolean",
+                "value": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "getMockImplementation",
+              "value": {
+                "type": "function",
+                "name": "",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mock",
+              "value": {
+                "type": "object",
+                "tag": "[object Object]",
+                "keys": [
+                  "calls",
+                  "contexts",
+                  "instances",
+                  "invocationCallOrder",
+                  "settledResults",
+                  "results",
+                  "lastCall"
+                ]
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "mockImplementation",
+              "value": {
+                "type": "function",
+                "name": "mockImplementation",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockImplementationOnce",
+              "value": {
+                "type": "function",
+                "name": "mockImplementationOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "withImplementation",
+              "value": {
+                "type": "function",
+                "name": "withImplementation",
+                "length": 2,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnThis",
+              "value": {
+                "type": "function",
+                "name": "mockReturnThis",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnValue",
+              "value": {
+                "type": "function",
+                "name": "mockReturnValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockReturnValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockThrow",
+              "value": {
+                "type": "function",
+                "name": "mockThrow",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockThrowOnce",
+              "value": {
+                "type": "function",
+                "name": "mockThrowOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockResolvedValue",
+              "value": {
+                "type": "function",
+                "name": "mockResolvedValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockResolvedValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockResolvedValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRejectedValue",
+              "value": {
+                "type": "function",
+                "name": "mockRejectedValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRejectedValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockRejectedValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockClear",
+              "value": {
+                "type": "function",
+                "name": "mockClear",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReset",
+              "value": {
+                "type": "function",
+                "name": "mockReset",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRestore",
+              "value": {
+                "type": "function",
+                "name": "mockRestore",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockName",
+              "value": {
+                "type": "function",
+                "name": "mockName",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "getMockName",
+              "value": {
+                "type": "function",
+                "name": "getMockName",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.dispose",
+              "value": {
+                "type": "function",
+                "name": "",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ],
+          "prototype": {
+            "keys": ["constructor"],
+            "descriptors": [
+              {
+                "key": "constructor",
+                "value": {
+                  "type": "function",
+                  "name": "member",
+                  "length": 0,
+                  "tag": "[object Function]",
+                  "mock": true
+                },
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          }
+        },
+        "outerSame": false,
+        "defaultSame": false,
+        "methodSame": false,
+        "namedMethodSame": true,
+        "namedLabel": {
+          "type": "string",
+          "value": "root"
+        },
+        "defaultLabel": {
+          "type": "string",
+          "value": "root"
+        },
+        "evaluations": 1
+      },
+      "after": {
+        "result": {
+          "type": "undefined"
+        },
+        "methodResult": {
+          "type": "undefined"
+        },
+        "calls": [[4]],
+        "memberCalls": [[]],
+        "secondCalls": [],
+        "evaluations": 1
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CALLABLE_MUTATION",
+    "value": {
+      "name": "reinserted-label",
+      "before": {
+        "label": {
+          "value": {
+            "type": "string",
+            "value": "root"
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": true,
+          "enumerable": true,
+          "configurable": true
+        },
+        "method": {
+          "value": {
+            "type": "function",
+            "name": "member",
+            "length": 0,
+            "tag": "[object Function]",
+            "mock": false
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": true,
+          "enumerable": true,
+          "configurable": true
+        },
+        "evaluations": 1
+      },
+      "mutation": {
+        "label": {
+          "value": {
+            "type": "string",
+            "value": "reinserted"
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": true,
+          "enumerable": true,
+          "configurable": true
+        },
+        "method": {
+          "value": {
+            "type": "function",
+            "name": "member",
+            "length": 0,
+            "tag": "[object Function]",
+            "mock": false
+          },
+          "get": "undefined",
+          "set": "undefined",
+          "writable": true,
+          "enumerable": true,
+          "configurable": true
+        },
+        "late": null,
+        "evaluations": 1
+      },
+      "mocked": {
+        "first": {
+          "type": "object",
+          "tag": "[object Module]",
+          "nullPrototype": false,
+          "objectPrototype": true,
+          "functionPrototype": false,
+          "keys": ["label", "method", "default", "symbol:Symbol.toStringTag"],
+          "descriptors": [
+            {
+              "key": "label",
+              "value": {
+                "type": "string",
+                "value": "reinserted"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "function",
+                "name": "member",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "value": {
+                "type": "function",
+                "name": "callable",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.toStringTag",
+              "value": {
+                "type": "string",
+                "value": "Module"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ],
+          "prototype": null
+        },
+        "default": {
+          "type": "function",
+          "tag": "[object Function]",
+          "nullPrototype": false,
+          "objectPrototype": false,
+          "functionPrototype": true,
+          "keys": [
+            "length",
+            "name",
+            "prototype",
+            "_isMockFunction",
+            "getMockImplementation",
+            "mock",
+            "mockImplementation",
+            "mockImplementationOnce",
+            "withImplementation",
+            "mockReturnThis",
+            "mockReturnValue",
+            "mockReturnValueOnce",
+            "mockThrow",
+            "mockThrowOnce",
+            "mockResolvedValue",
+            "mockResolvedValueOnce",
+            "mockRejectedValue",
+            "mockRejectedValueOnce",
+            "mockClear",
+            "mockReset",
+            "mockRestore",
+            "mockName",
+            "getMockName",
+            "label",
+            "method",
+            "symbol:Symbol.dispose"
+          ],
+          "descriptors": [
+            {
+              "key": "length",
+              "value": {
+                "type": "number",
+                "value": 1
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "value": {
+                "type": "string",
+                "value": "callable"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "value": {
+                "type": "object",
+                "tag": "[object Object]",
+                "keys": ["constructor"]
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            },
+            {
+              "key": "_isMockFunction",
+              "value": {
+                "type": "boolean",
+                "value": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "getMockImplementation",
+              "value": {
+                "type": "function",
+                "name": "",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mock",
+              "value": {
+                "type": "object",
+                "tag": "[object Object]",
+                "keys": [
+                  "calls",
+                  "contexts",
+                  "instances",
+                  "invocationCallOrder",
+                  "settledResults",
+                  "results",
+                  "lastCall"
+                ]
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "mockImplementation",
+              "value": {
+                "type": "function",
+                "name": "mockImplementation",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockImplementationOnce",
+              "value": {
+                "type": "function",
+                "name": "mockImplementationOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "withImplementation",
+              "value": {
+                "type": "function",
+                "name": "withImplementation",
+                "length": 2,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnThis",
+              "value": {
+                "type": "function",
+                "name": "mockReturnThis",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnValue",
+              "value": {
+                "type": "function",
+                "name": "mockReturnValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockReturnValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockThrow",
+              "value": {
+                "type": "function",
+                "name": "mockThrow",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockThrowOnce",
+              "value": {
+                "type": "function",
+                "name": "mockThrowOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockResolvedValue",
+              "value": {
+                "type": "function",
+                "name": "mockResolvedValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockResolvedValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockResolvedValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRejectedValue",
+              "value": {
+                "type": "function",
+                "name": "mockRejectedValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRejectedValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockRejectedValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockClear",
+              "value": {
+                "type": "function",
+                "name": "mockClear",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReset",
+              "value": {
+                "type": "function",
+                "name": "mockReset",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRestore",
+              "value": {
+                "type": "function",
+                "name": "mockRestore",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockName",
+              "value": {
+                "type": "function",
+                "name": "mockName",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "getMockName",
+              "value": {
+                "type": "function",
+                "name": "getMockName",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "label",
+              "value": {
+                "type": "string",
+                "value": "reinserted"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "function",
+                "name": "member",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.dispose",
+              "value": {
+                "type": "function",
+                "name": "",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ],
+          "prototype": {
+            "keys": ["constructor"],
+            "descriptors": [
+              {
+                "key": "constructor",
+                "value": {
+                  "type": "function",
+                  "name": "callable",
+                  "length": 1,
+                  "tag": "[object Function]",
+                  "mock": true
+                },
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          }
+        },
+        "method": {
+          "type": "function",
+          "tag": "[object Function]",
+          "nullPrototype": false,
+          "objectPrototype": false,
+          "functionPrototype": true,
+          "keys": [
+            "length",
+            "name",
+            "prototype",
+            "_isMockFunction",
+            "getMockImplementation",
+            "mock",
+            "mockImplementation",
+            "mockImplementationOnce",
+            "withImplementation",
+            "mockReturnThis",
+            "mockReturnValue",
+            "mockReturnValueOnce",
+            "mockThrow",
+            "mockThrowOnce",
+            "mockResolvedValue",
+            "mockResolvedValueOnce",
+            "mockRejectedValue",
+            "mockRejectedValueOnce",
+            "mockClear",
+            "mockReset",
+            "mockRestore",
+            "mockName",
+            "getMockName",
+            "symbol:Symbol.dispose"
+          ],
+          "descriptors": [
+            {
+              "key": "length",
+              "value": {
+                "type": "number",
+                "value": 0
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "value": {
+                "type": "string",
+                "value": "member"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "value": {
+                "type": "object",
+                "tag": "[object Object]",
+                "keys": ["constructor"]
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            },
+            {
+              "key": "_isMockFunction",
+              "value": {
+                "type": "boolean",
+                "value": true
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "getMockImplementation",
+              "value": {
+                "type": "function",
+                "name": "",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mock",
+              "value": {
+                "type": "object",
+                "tag": "[object Object]",
+                "keys": [
+                  "calls",
+                  "contexts",
+                  "instances",
+                  "invocationCallOrder",
+                  "settledResults",
+                  "results",
+                  "lastCall"
+                ]
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "mockImplementation",
+              "value": {
+                "type": "function",
+                "name": "mockImplementation",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockImplementationOnce",
+              "value": {
+                "type": "function",
+                "name": "mockImplementationOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "withImplementation",
+              "value": {
+                "type": "function",
+                "name": "withImplementation",
+                "length": 2,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnThis",
+              "value": {
+                "type": "function",
+                "name": "mockReturnThis",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnValue",
+              "value": {
+                "type": "function",
+                "name": "mockReturnValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReturnValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockReturnValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockThrow",
+              "value": {
+                "type": "function",
+                "name": "mockThrow",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockThrowOnce",
+              "value": {
+                "type": "function",
+                "name": "mockThrowOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockResolvedValue",
+              "value": {
+                "type": "function",
+                "name": "mockResolvedValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockResolvedValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockResolvedValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRejectedValue",
+              "value": {
+                "type": "function",
+                "name": "mockRejectedValue",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRejectedValueOnce",
+              "value": {
+                "type": "function",
+                "name": "mockRejectedValueOnce",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockClear",
+              "value": {
+                "type": "function",
+                "name": "mockClear",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockReset",
+              "value": {
+                "type": "function",
+                "name": "mockReset",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockRestore",
+              "value": {
+                "type": "function",
+                "name": "mockRestore",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "mockName",
+              "value": {
+                "type": "function",
+                "name": "mockName",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "getMockName",
+              "value": {
+                "type": "function",
+                "name": "getMockName",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.dispose",
+              "value": {
+                "type": "function",
+                "name": "",
+                "length": 0,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ],
+          "prototype": {
+            "keys": ["constructor"],
+            "descriptors": [
+              {
+                "key": "constructor",
+                "value": {
+                  "type": "function",
+                  "name": "member",
+                  "length": 0,
+                  "tag": "[object Function]",
+                  "mock": true
+                },
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          }
+        },
+        "outerSame": false,
+        "defaultSame": false,
+        "methodSame": false,
+        "namedMethodSame": true,
+        "namedLabel": {
+          "type": "string",
+          "value": "reinserted"
+        },
+        "defaultLabel": {
+          "type": "string",
+          "value": "reinserted"
+        },
+        "evaluations": 1
+      },
+      "after": {
+        "result": {
+          "type": "undefined"
+        },
+        "methodResult": {
+          "type": "undefined"
+        },
+        "calls": [[4]],
+        "memberCalls": [[]],
+        "secondCalls": [],
+        "evaluations": 1
+      }
+    }
+  }
+]

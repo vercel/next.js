@@ -24,6 +24,9 @@ pub(crate) struct StaticMockPlan {
     pub api_bindings: Vec<(String, String)>,
     pub reset_modules: bool,
     pub runtime_requests: Vec<String>,
+    /// Inline terminal-throw forms still require a resolved native or compiled leaf-ESM
+    /// certificate.
+    pub throw_only_runtime_requests: Vec<String>,
 }
 impl StaticMockPlan {
     pub fn is_empty(&self) -> bool {
@@ -110,6 +113,122 @@ fn parse_source(source: &str, filename: &str) -> Result<(Program, u32)> {
         );
     }
     Ok((program, file.start_pos.0))
+}
+
+/// Source registration order for a certified public ESM namespace. The caller
+/// must separately match this complete table to the actual compiler module.
+enum RuntimeNamespaceExports {
+    Supported(Vec<String>),
+    Unsupported(&'static str),
+}
+
+pub(crate) fn runtime_namespace_exports(source: &str, filename: &str) -> Result<Vec<String>> {
+    match parsed_runtime_namespace_exports(source, filename)? {
+        RuntimeNamespaceExports::Supported(names) => Ok(names),
+        RuntimeNamespaceExports::Unsupported(reason) => bail!(reason),
+    }
+}
+
+/// Candidate data alone does not certify a compiler module or its export set.
+pub(crate) fn runtime_namespace_exports_candidate(
+    source: &str,
+    filename: &str,
+) -> Result<Option<Vec<String>>> {
+    match parsed_runtime_namespace_exports(source, filename)? {
+        RuntimeNamespaceExports::Supported(names) => Ok(Some(names)),
+        RuntimeNamespaceExports::Unsupported(_) => Ok(None),
+    }
+}
+
+fn parsed_runtime_namespace_exports(
+    source: &str,
+    filename: &str,
+) -> Result<RuntimeNamespaceExports> {
+    GLOBALS.set(&Default::default(), || {
+        let (program, _) = parse_source(source, filename)?;
+        let Program::Module(module) = program else {
+            return Ok(RuntimeNamespaceExports::Unsupported(
+                "Runtime namespace construction requires an actual ESM source",
+            ));
+        };
+        let mut names = Vec::new();
+        let export_name = |name: &ModuleExportName| match name {
+            ModuleExportName::Ident(ident) => ident.sym.to_string(),
+            ModuleExportName::Str(value) => value.value.to_string_lossy().into_owned(),
+        };
+        for item in module.body {
+            let ModuleItem::ModuleDecl(declaration) = item else {
+                continue;
+            };
+            match declaration {
+                ModuleDecl::ExportDecl(export) => match export.decl {
+                    Decl::Fn(function) => names.push(function.ident.sym.to_string()),
+                    Decl::Class(class) => names.push(class.ident.sym.to_string()),
+                    Decl::Var(declaration) => {
+                        for binding in declaration.decls {
+                            let Pat::Ident(ident) = binding.name else {
+                                return Ok(RuntimeNamespaceExports::Unsupported(
+                                    "Runtime namespace destructured exports are not qualified",
+                                ));
+                            };
+                            names.push(ident.id.sym.to_string());
+                        }
+                    }
+                    Decl::TsInterface(_) | Decl::TsTypeAlias(_) => {}
+                    _ => {
+                        return Ok(RuntimeNamespaceExports::Unsupported(
+                            "Runtime namespace declaration form is not qualified",
+                        ));
+                    }
+                },
+                ModuleDecl::ExportNamed(export) => {
+                    if export.type_only {
+                        continue;
+                    }
+                    for specifier in export.specifiers {
+                        match specifier {
+                            ExportSpecifier::Named(named) if !named.is_type_only => {
+                                names.push(export_name(
+                                    named.exported.as_ref().unwrap_or(&named.orig),
+                                ));
+                            }
+                            ExportSpecifier::Named(_) => {}
+                            ExportSpecifier::Namespace(namespace) => {
+                                names.push(export_name(&namespace.name))
+                            }
+                            ExportSpecifier::Default(_) => {
+                                return Ok(RuntimeNamespaceExports::Unsupported(
+                                    "Runtime namespace default forwarding is not qualified",
+                                ));
+                            }
+                        }
+                    }
+                }
+                ModuleDecl::ExportDefaultDecl(export) => match export.decl {
+                    DefaultDecl::TsInterfaceDecl(_) => {}
+                    _ => names.push("default".into()),
+                },
+                ModuleDecl::ExportDefaultExpr(_) => names.push("default".into()),
+                ModuleDecl::ExportAll(_) => {
+                    return Ok(RuntimeNamespaceExports::Unsupported(
+                        "Runtime namespace star exports are not qualified",
+                    ));
+                }
+                ModuleDecl::Import(_) => {}
+                _ => {
+                    return Ok(RuntimeNamespaceExports::Unsupported(
+                        "Runtime namespace module form is not qualified",
+                    ));
+                }
+            }
+        }
+        if names.iter().collect::<HashSet<_>>().len() != names.len() {
+            return Ok(RuntimeNamespaceExports::Unsupported(
+                "Runtime namespace export order must be unique",
+            ));
+        }
+        Ok(RuntimeNamespaceExports::Supported(names))
+    })
 }
 
 /// Validate directive prologues with the parser, including leading comments.
@@ -243,6 +362,25 @@ impl Visit for RuntimeImportShape {
     }
 }
 
+// This is only syntax admission for the native producer. Every candidate must
+// still resolve to the exact certified external module before code is emitted.
+fn native_static_request(call: &CallExpr) -> Option<&str> {
+    let argument = call.args.first()?;
+    if argument.spread.is_some() {
+        return None;
+    }
+    let Expr::Lit(Lit::Str(request)) = &*argument.expr else {
+        return None;
+    };
+    let request = request.value.as_str()?;
+    (!request.is_empty()
+        && !request.starts_with(['.', '/', '#', '\\'])
+        && !request.contains('?')
+        && !request.contains('#')
+        && (!request.contains(':') || request.starts_with("node:")))
+    .then_some(request)
+}
+
 fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMockPlan> {
     let (mut program, start_pos) = parse_source(source, filename)?;
     let unresolved = Mark::new();
@@ -259,6 +397,7 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
             api_bindings: Vec::new(),
             reset_modules: false,
             runtime_requests: Vec::new(),
+            throw_only_runtime_requests: Vec::new(),
         });
     };
     let mut bindings = HashSet::new();
@@ -293,10 +432,17 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
             }
         }
     }
+    let mut aliases = ApiAliases {
+        bindings: &bindings,
+        aliases: HashSet::new(),
+    };
+    module.visit_with(&mut aliases);
     let mut calls = MockCalls {
         bindings: &bindings,
+        alias_bindings: &aliases.aliases,
         identity_observers: &identity_observers,
         identity_observation: false,
+        strict_identity_observation: false,
         calls: Vec::new(),
         hoisted_calls: Vec::new(),
         actual_calls: Vec::new(),
@@ -309,7 +455,9 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
         value_alias: false,
     };
     module.visit_with(&mut calls);
-    if calls.identity_observation && calls.runtime_calls.is_empty() && calls.reset_calls.is_empty()
+    if (calls.identity_observation || calls.strict_identity_observation)
+        && calls.runtime_calls.is_empty()
+        && calls.reset_calls.is_empty()
     {
         // Keep ordinary files and the existing static-only admission unchanged.
         // Without a reset/runtime call, this is still a generic API value read.
@@ -347,7 +495,40 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
     if calls.reset_calls.iter().any(|call| !call.args.is_empty()) {
         bail!("vi.resetModules currently requires no arguments ({filename}).");
     }
+    let native_static = !calls.runtime_calls.is_empty()
+        && !calls.calls.is_empty()
+        && calls.hoisted_calls.is_empty()
+        && calls.actual_calls.is_empty()
+        && calls.mock_import_calls.is_empty()
+        && calls.unmock_calls.is_empty()
+        && calls.calls.iter().all(|call| {
+            native_static_request(call).is_some_and(|request| {
+                calls
+                    .runtime_calls
+                    .iter()
+                    .any(|(_, runtime)| native_static_request(runtime) == Some(request))
+            })
+        })
+        && calls.runtime_calls.iter().all(|(_, call)| {
+            native_static_request(call).is_some_and(|request| {
+                calls
+                    .calls
+                    .iter()
+                    .any(|declaration| native_static_request(declaration) == Some(request))
+            })
+        });
+    // Compiler candidates still need actual CommonJS graph/namespace certificates.
+    // The static-only extractor deliberately keeps its existing rejection below.
+    let actual_reset = allow_runtime
+        && !calls.actual_calls.is_empty()
+        && calls.calls.is_empty()
+        && calls.hoisted_calls.is_empty()
+        && calls.mock_import_calls.is_empty()
+        && calls.unmock_calls.is_empty()
+        && calls.runtime_calls.is_empty();
     if !calls.reset_calls.is_empty()
+        && !native_static
+        && !actual_reset
         && (!calls.calls.is_empty()
             || !calls.hoisted_calls.is_empty()
             || !calls.actual_calls.is_empty()
@@ -359,13 +540,15 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
              plans ({filename})."
         );
     }
+    let mut runtime_requests = Vec::new();
+    let mut throw_only_runtime_requests = Vec::new();
     if !calls.runtime_calls.is_empty() {
         let mut imports = RuntimeImportShape::default();
         module.visit_with(&mut imports);
         if imports.0 {
             bail!("Runtime mock imports require direct literals without attributes ({filename}).");
         }
-        if !calls.calls.is_empty()
+        if (!calls.calls.is_empty() && !native_static)
             || !calls.hoisted_calls.is_empty()
             || !calls.actual_calls.is_empty()
             || !calls.mock_import_calls.is_empty()
@@ -373,7 +556,6 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
         {
             bail!("Runtime module mocks cannot combine with hoisted mock helpers ({filename}).");
         }
-        let mut runtime_requests = Vec::new();
         for (registration, call) in &calls.runtime_calls {
             let arity = if *registration { 2 } else { 1 };
             if call.args.len() != arity
@@ -402,8 +584,17 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
                 }
                 let mut exports = FactoryExports::default();
                 inspect_factory_returns(factory, &mut exports);
+                let terminal_throw =
+                    !exports.has_object_return && runtime_factory_ends_in_throw(factory);
+                if terminal_throw
+                    && !throw_only_runtime_requests
+                        .iter()
+                        .any(|known| known == request)
+                {
+                    throw_only_runtime_requests.push(request.to_owned());
+                }
                 if exports.invalid
-                    || !exports.has_object_return
+                    || (!exports.has_object_return && !terminal_throw)
                     || exports
                         .names
                         .iter()
@@ -427,17 +618,20 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
                 runtime_requests.push(request.to_owned());
             }
         }
-        return Ok(StaticMockPlan {
-            source: source.into(),
-            declarations: Vec::new(),
-            hoisted: Vec::new(),
-            actual_imports: Vec::new(),
-            mock_imports: Vec::new(),
-            unmocks: Vec::new(),
-            api_bindings,
-            reset_modules: !calls.reset_calls.is_empty(),
-            runtime_requests,
-        });
+        if !native_static {
+            return Ok(StaticMockPlan {
+                source: source.into(),
+                declarations: Vec::new(),
+                hoisted: Vec::new(),
+                actual_imports: Vec::new(),
+                mock_imports: Vec::new(),
+                unmocks: Vec::new(),
+                api_bindings,
+                reset_modules: !calls.reset_calls.is_empty(),
+                runtime_requests,
+                throw_only_runtime_requests,
+            });
+        }
     }
     let reset_modules = !calls.reset_calls.is_empty();
     // SWC removes the leading UTF-8 BOM before assigning byte spans. Until
@@ -886,7 +1080,8 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
         unmocks,
         api_bindings,
         reset_modules,
-        runtime_requests: Vec::new(),
+        runtime_requests,
+        throw_only_runtime_requests,
     })
 }
 
@@ -931,6 +1126,18 @@ fn static_mock_options(expr: &Expr, unresolved: SyntaxContext) -> Option<bool> {
         }
         _ => None,
     }
+}
+
+fn runtime_factory_ends_in_throw(factory: &Expr) -> bool {
+    let body = match factory {
+        Expr::Arrow(arrow) => match &*arrow.body {
+            ArrowFunctionBody::FunctionBody(body) => Some(body),
+            _ => None,
+        },
+        Expr::Fn(function) => function.function.body.as_ref(),
+        _ => None,
+    };
+    body.is_some_and(|body| matches!(body.stmts.last(), Some(Stmt::Throw(_))))
 }
 
 fn inspect_factory_returns(factory: &Expr, exports: &mut FactoryExports) {
@@ -1034,10 +1241,30 @@ impl Visit for IdentityObserverUses<'_> {
     fn visit_ts_type(&mut self, _: &TsType) {}
 }
 
+struct ApiAliases<'a> {
+    bindings: &'a HashSet<Id>,
+    aliases: HashSet<Id>,
+}
+
+impl Visit for ApiAliases<'_> {
+    fn visit_var_declarator(&mut self, declaration: &VarDeclarator) {
+        if matches!(declaration.init.as_deref(), Some(Expr::Ident(ident)) if self.bindings.contains(&ident.to_id()))
+            && let Pat::Ident(alias) = &declaration.name
+        {
+            self.aliases.insert(alias.id.to_id());
+        }
+        declaration.visit_children_with(self);
+    }
+    fn visit_import_decl(&mut self, _: &ImportDecl) {}
+    fn visit_ts_type(&mut self, _: &TsType) {}
+}
+
 struct MockCalls<'a> {
     bindings: &'a HashSet<Id>,
+    alias_bindings: &'a HashSet<Id>,
     identity_observers: &'a HashSet<Id>,
     identity_observation: bool,
+    strict_identity_observation: bool,
     calls: Vec<CallExpr>,
     hoisted_calls: Vec<CallExpr>,
     actual_calls: Vec<CallExpr>,
@@ -1051,6 +1278,26 @@ struct MockCalls<'a> {
 }
 
 impl Visit for MockCalls<'_> {
+    fn visit_bin_expr(&mut self, expression: &BinExpr) {
+        // Strict equality immediately produces a boolean. Observing the API
+        // identity here cannot give another function a registration alias.
+        if self.allow_runtime && matches!(expression.op, BinaryOp::EqEqEq | BinaryOp::NotEqEq) {
+            let left_api = matches!(&*expression.left, Expr::Ident(ident) if self.bindings.contains(&ident.to_id()));
+            let right_api = matches!(&*expression.right, Expr::Ident(ident) if self.bindings.contains(&ident.to_id()));
+            if left_api || right_api {
+                self.strict_identity_observation = true;
+                if !left_api {
+                    expression.left.visit_with(self);
+                }
+                if !right_api {
+                    expression.right.visit_with(self);
+                }
+                return;
+            }
+        }
+        expression.visit_children_with(self);
+    }
+
     fn visit_var_declarator(&mut self, declaration: &VarDeclarator) {
         if matches!(declaration.init.as_deref(), Some(Expr::Ident(ident)) if self.bindings.contains(&ident.to_id()))
         {
@@ -1179,6 +1426,31 @@ impl Visit for MockCalls<'_> {
     }
     fn visit_member_expr(&mut self, member: &MemberExpr) {
         if let Expr::Ident(object) = &*member.obj {
+            if self.alias_bindings.contains(&object.to_id()) {
+                let name = match &member.prop {
+                    MemberProp::Ident(name) => Some(name.sym.as_ref()),
+                    MemberProp::Computed(property) => match &*property.expr {
+                        Expr::Lit(Lit::Str(name)) => name.value.as_str(),
+                        _ => None,
+                    },
+                    MemberProp::PrivateName(_) => None,
+                };
+                if matches!(
+                    name,
+                    Some(
+                        "mock"
+                            | "doMock"
+                            | "unmock"
+                            | "doUnmock"
+                            | "hoisted"
+                            | "importActual"
+                            | "importMock"
+                            | "resetModules"
+                    )
+                ) {
+                    self.invalid = true;
+                }
+            }
             if self.bindings.contains(&object.to_id()) {
                 if !matches!(&member.prop, MemberProp::Ident(name) if !matches!(name.sym.as_ref(), "mock" | "doMock" | "unmock" | "doUnmock" | "hoisted" | "importActual" | "importMock" | "resetModules"))
                 {
@@ -1468,6 +1740,128 @@ mod tests {
     use crate::testing_mock_source::{
         extract_static_mocks, extract_test_mocks, validate_mock_target_source,
     };
+
+    #[test]
+    fn retains_static_factory_and_runtime_calls_for_native_certification() {
+        for request in ["package", "node:fs"] {
+            let source = format!(
+                "import {{vi}} from \
+                 'vitest';vi.mock('{request}',()=>({{value:5}}));vi.doMock('{request}',\
+                 ()=>({{value:73}}));vi.resetModules();vi.doUnmock('{request}')"
+            );
+            let plan = extract_test_mocks(&source, "native-static-runtime.mjs").unwrap();
+            assert_eq!(plan.declarations.len(), 1);
+            assert_eq!(plan.declarations[0].request, request);
+            assert_eq!(plan.runtime_requests, [request]);
+            assert!(plan.reset_modules);
+            assert!(plan.source.contains("vi.doMock"));
+            assert!(extract_static_mocks(&source, "native-static-runtime.mjs").is_err());
+        }
+    }
+
+    #[test]
+    fn keeps_compiled_and_unpaired_static_runtime_mixtures_rejected() {
+        for source in [
+            "vi.mock('./dep',()=>({value:5}));vi.doMock('./dep',()=>({value:73}))",
+            "vi.mock('package',()=>({value:5}));vi.doMock('other',()=>({value:73}))",
+            "vi.mock('package',()=>({value:5}));vi.doMock('package',()=>({value:73}));vi.\
+             importActual('package')",
+        ] {
+            assert!(
+                extract_test_mocks(
+                    &format!("import {{vi}} from 'vitest';{source}"),
+                    "unpaired.mjs"
+                )
+                .is_err()
+            );
+        }
+    }
+
+    #[test]
+    fn records_native_certificate_requirement_for_straight_line_throw_factories() {
+        for factory in [
+            "()=>{throw failure}",
+            "function(){calls++;throw failure}",
+            "async()=>{const value=1;throw failure}",
+        ] {
+            let source = format!("import {{vi}} from 'vitest';vi.doMock('package',{factory})");
+            let plan = extract_test_mocks(&source, "native-throw.mjs").unwrap();
+            assert_eq!(plan.source, source);
+            assert_eq!(plan.runtime_requests, ["package"]);
+            assert_eq!(plan.throw_only_runtime_requests, ["package"]);
+            assert!(extract_static_mocks(&source, "native-throw.mjs").is_err());
+        }
+    }
+
+    #[test]
+    fn retains_compiled_terminal_throw_kind_without_rewriting_factory_sources() {
+        for factory in [
+            "()=>{throw failure}",
+            "function(){calls++;throw failure}",
+            "async()=>{throw failure}",
+            "async()=>{calls++;await gate;throw failure}",
+        ] {
+            let source =
+                format!("import {{vi}} from 'vitest';vi.doMock('./dependency.mjs',{factory})");
+            let plan = extract_test_mocks(&source, "compiled-purethrow.mjs").unwrap();
+            assert_eq!(plan.source, source);
+            assert_eq!(plan.runtime_requests, ["./dependency.mjs"]);
+            assert_eq!(plan.throw_only_runtime_requests, ["./dependency.mjs"]);
+            assert!(plan.declarations.is_empty());
+            assert!(extract_static_mocks(&source, "compiled-purethrow.mjs").is_err());
+        }
+    }
+
+    #[test]
+    fn retains_runtime_export_shape_rejections_without_a_straight_line_throw() {
+        for factory in [
+            "()=>{if(flag)throw failure}",
+            "()=>{throw failure;effect()}",
+            "()=>{if(flag)return dynamic;throw failure}",
+            "()=>{function nested(){throw failure}}",
+        ] {
+            let source = format!("import {{vi}} from 'vitest';vi.doMock('package',{factory})");
+            assert!(extract_test_mocks(&source, "native-throw-negative.mjs").is_err());
+        }
+        let plan = extract_test_mocks(
+            "import {vi} from 'vitest';vi.doMock('./subject',()=>({value:1}))",
+            "compiled.mjs",
+        )
+        .unwrap();
+        assert!(plan.throw_only_runtime_requests.is_empty());
+    }
+
+    #[test]
+    fn permits_immediate_strict_runtime_api_identity_without_source_edits() {
+        for comparison in ["returned===vi", "vi!==returned", "vi===vi"] {
+            let source = format!(
+                "import {{vi}} from 'vitest';const returned=vi.resetModules();const \
+                 same={comparison}"
+            );
+            let plan = extract_test_mocks(&source, "strict-identity.mjs").unwrap();
+            assert!(plan.reset_modules);
+            assert_eq!(plan.source, source);
+            assert!(extract_static_mocks(&source, "strict-identity.mjs").is_err());
+        }
+        for body in [
+            "const alias=vi;const same=vi===alias",
+            "consume(vi);const same=vi===true",
+            "const same=vi==true",
+            "const same=vi.mock===undefined",
+        ] {
+            let source = format!("import {{vi}} from 'vitest';vi.resetModules();{body}");
+            assert!(extract_test_mocks(&source, "strict-identity.mjs").is_err());
+        }
+        let ordinary = "import {vi} from 'vitest';const same=vi===true";
+        assert!(
+            extract_test_mocks(ordinary, "ordinary.mjs")
+                .unwrap()
+                .is_empty()
+        );
+        let static_mock =
+            "import {vi} from 'vitest';vi.mock('./dep',()=>({value:1}));const same=vi===true";
+        assert!(extract_test_mocks(static_mock, "static.mjs").is_err());
+    }
 
     #[test]
     fn permits_builtin_runtime_api_identity_observation_without_source_edits() {
@@ -2070,6 +2464,36 @@ mod tests {
     }
 
     #[test]
+    fn retains_actual_reset_as_a_compiler_candidate_only() {
+        let source =
+            "import {vi} from 'vitest';vi.resetModules();await vi.importActual('./root.cjs')";
+        assert!(extract_static_mocks(source, "spec.mjs").is_err());
+        let plan = extract_test_mocks(source, "spec.mjs").unwrap();
+        assert!(plan.reset_modules);
+        assert_eq!(plan.actual_imports.len(), 1);
+        assert_eq!(plan.actual_imports[0].request, "./root.cjs");
+        assert!(plan.source.contains("_a0"));
+        assert!(!plan.source.contains("vi.importActual"));
+        assert_eq!(plan.source.len(), source.len());
+        for request in ["./root.cjs?raw", "./root.cjs#part"] {
+            let error = extract_test_mocks(&source.replace("./root.cjs", request), "spec.mjs")
+                .err()
+                .unwrap();
+            assert!(error.to_string().contains("query strings or fragments"));
+        }
+        for operation in [
+            "vi.mock('./dep',()=>({value:1}))",
+            "vi.hoisted(()=>({value:1}))",
+            "vi.importMock('./dep')",
+            "vi.unmock('./dep')",
+            "vi.doMock('./dep',()=>({value:1}))",
+            "vi.doUnmock('./dep')",
+        ] {
+            assert!(extract_test_mocks(&format!("{source};{operation}"), "spec.mjs").is_err());
+        }
+    }
+
+    #[test]
     fn allows_factory_locals_and_respects_shadowing() {
         let plan = extract_static_mocks(
             "import { vi } from 'vitest'; vi.mock('./dep', async (original) => { const actual = \
@@ -2170,6 +2594,46 @@ mod import_mock_unmock_tests {
     }
 
     #[test]
+    fn rejects_module_helpers_through_direct_aliases_and_preserves_ordinary_aliases() {
+        for api in ["vi", "vitest as tools"] {
+            let local = if api == "vi" { "vi" } else { "tools" };
+            for helper in [
+                "mock",
+                "doMock",
+                "unmock",
+                "doUnmock",
+                "hoisted",
+                "importActual",
+                "importMock",
+                "resetModules",
+            ] {
+                for access in [format!("alias.{helper}"), format!("alias['{helper}']")] {
+                    let source = format!(
+                        "import{{{api}}}from'vitest';const alias={local};{access}('./dep')"
+                    );
+                    assert!(
+                        extract_test_mocks(&source, "entry.mjs").is_err(),
+                        "{source}"
+                    );
+                }
+            }
+        }
+        for statement in [
+            "const alias=vi;alias.fn()",
+            "const alias=vi;alias['fn']()",
+            "const alias=vi;alias.spyOn(object,'method')",
+            "const alias=vi;{const alias={unmock(){}};alias.unmock('./dep')}",
+            "const alias=vi;function nested(alias){alias.unmock('./dep')}",
+            "const alias={unmock(){}};alias.unmock('./dep')",
+        ] {
+            let source = format!("import{{vi}}from'vitest';{statement}");
+            let plan = extract_test_mocks(&source, "entry.mjs").unwrap();
+            assert!(plan.is_empty(), "{statement}");
+            assert_eq!(plan.source, source);
+        }
+    }
+
+    #[test]
     fn rejects_unsupported_new_helper_shapes_before_planning() {
         for statement in [
             "vi.importMock(name)",
@@ -2192,6 +2656,100 @@ mod import_mock_unmock_tests {
             assert!(
                 extract_test_mocks(&source, "entry.mjs").is_err(),
                 "{statement}"
+            );
+        }
+    }
+    #[test]
+    fn runtime_namespace_order_retains_declarations_aliases_and_type_erasure() {
+        let source = "export const z=1,a=2;const local=3;export {local as other};export function \
+                      fn(){};export class Thing{};export default local;export {value as \
+                      forwarded} from './peer';export * as namespace from './peer';export type \
+                      {Type} from './peer';export interface Interface{}";
+        assert_eq!(
+            crate::testing_mock_source::runtime_namespace_exports(source, "module.ts").unwrap(),
+            [
+                "z",
+                "a",
+                "other",
+                "fn",
+                "Thing",
+                "default",
+                "forwarded",
+                "namespace"
+            ]
+        );
+    }
+
+    #[test]
+    fn optional_namespace_order_preserves_strict_diagnostics_and_operational_errors() {
+        use crate::testing_mock_source::{
+            runtime_namespace_exports, runtime_namespace_exports_candidate,
+        };
+        for (source, reason) in [
+            (
+                "const ordinary=1",
+                "Runtime namespace construction requires an actual ESM source",
+            ),
+            (
+                "export const {value}=source",
+                "Runtime namespace destructured exports are not qualified",
+            ),
+            (
+                "export enum Value { One }",
+                "Runtime namespace declaration form is not qualified",
+            ),
+            (
+                "export * from './peer'",
+                "Runtime namespace star exports are not qualified",
+            ),
+            (
+                "export = value",
+                "Runtime namespace module form is not qualified",
+            ),
+            (
+                "const value=1;export {value as same,value as same}",
+                "Runtime namespace export order must be unique",
+            ),
+        ] {
+            assert_eq!(
+                runtime_namespace_exports(source, "module.ts")
+                    .unwrap_err()
+                    .to_string(),
+                reason,
+                "{source}"
+            );
+            assert!(
+                runtime_namespace_exports_candidate(source, "module.ts")
+                    .unwrap()
+                    .is_none(),
+                "{source}"
+            );
+        }
+        for source in [
+            "export const z=1,a=2;export {z as default}",
+            "export {};export type {Value} from './peer'",
+            "export function read(){};export class Thing{}",
+        ] {
+            assert_eq!(
+                runtime_namespace_exports_candidate(source, "module.ts").unwrap(),
+                Some(runtime_namespace_exports(source, "module.ts").unwrap()),
+                "{source}"
+            );
+        }
+        assert!(runtime_namespace_exports_candidate("export const =", "module.ts").is_err());
+    }
+
+    #[test]
+    fn runtime_namespace_order_refuses_ambiguous_or_unqualified_forms() {
+        for source in [
+            "export * from './peer'",
+            "export const {value}=source",
+            "export = value",
+            "export enum Value { One }",
+        ] {
+            assert!(
+                crate::testing_mock_source::runtime_namespace_exports(source, "module.ts").is_err(),
+                "{source}"
             );
         }
     }

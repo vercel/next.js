@@ -1,0 +1,17 @@
+import { test, expect, vi } from 'vitest'
+import { types } from 'node:util'
+function shape(namespace) {
+ return { nativeBrand: types.isModuleNamespaceObject(namespace), keys: Reflect.ownKeys(namespace).map(key => typeof key === 'symbol' ? String(key) : key), prototypeNull: Object.getPrototypeOf(namespace) === null, tag: namespace[Symbol.toStringTag] ?? null, extensible: Object.isExtensible(namespace), sealed: Object.isSealed(namespace), frozen: Object.isFrozen(namespace), descriptors: Reflect.ownKeys(namespace).map(key => { const d = Object.getOwnPropertyDescriptor(namespace,key); return { key: typeof key === 'symbol' ? String(key) : key, valueType: typeof d.value, get: typeof d.get, set: typeof d.set, writable: d.writable ?? null, enumerable: d.enumerable, configurable: d.configurable } }) }
+}
+test('preserves held CommonJS actual namespace mutation and reset identity',async()=>{
+ vi.resetModules()
+ const first=await vi.importActual('./root.cjs');const raw=first.default;const dependency=raw.dependency
+ const before={namespace:shape(first),raw:shape(raw),dependency:shape(dependency),evaluation:first.evaluation,dependencyEvaluation:dependency.evaluation,defaultIdentity:first.default===raw}
+ raw.evaluation=83;dependency.evaluation=91;raw.extra={marker:'held'}
+ if(typeof raw!=='function') raw.read=function(){return {namespaceReceiver:this===first,rawReceiver:this===raw,value:this?.evaluation??null}}
+ const cached=await vi.importActual('./root.cjs');const ordinary=await import('./root.cjs')
+ const mutated={namespace:shape(first),raw:shape(raw),dependency:shape(dependency),evaluation:first.evaluation,dependencyEvaluation:first.dependency.evaluation,hasExtra:Object.hasOwn(first,'extra'),defaultExtra:first.default.extra.marker,namespaceRead:typeof raw==='function'?null:first.read(),rawRead:typeof raw==='function'?null:raw.read(),call:typeof raw==='function'?raw('mutated'):null,identity:[first===cached,first===ordinary,raw===cached.default,dependency===cached.dependency]}
+ vi.resetModules();const after=await vi.importActual('./root.cjs');const afterOrdinary=await import('./root.cjs')
+ console.log('WS2_CJS_ACTUAL_RESET:'+JSON.stringify({before,mutated,after:{namespace:shape(after),raw:shape(after.default),dependency:shape(after.dependency),evaluation:after.evaluation,dependencyEvaluation:after.dependency.evaluation,hasExtra:Object.hasOwn(after.default,'extra'),call:typeof after.default==='function'?after.default('fresh'):after.default.read()},held:{namespace:shape(first),raw:shape(raw),evaluation:first.evaluation,dependencyEvaluation:dependency.evaluation},identity:[after===afterOrdinary,first===after,raw===after.default,dependency===after.dependency],counts:[globalThis.__ws2CjsDependencyRoot??globalThis.__ws2CallableRoot,globalThis.__ws2CjsDependencyLeaf??globalThis.__ws2CallableDependency]}))
+ expect(first).toBe(cached);expect(after).toBe(afterOrdinary)
+})

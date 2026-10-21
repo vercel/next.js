@@ -16,6 +16,61 @@ export interface WatchRegistrySnapshot {
   inputs: RegistryFile[]
 }
 
+/** Input identity only; a closed native plan must independently prove no test edge. */
+export function matchesRetainedSetupChange(options: {
+  previous: WatchRegistrySnapshot | undefined
+  current: WatchRegistrySnapshot | undefined
+  changedPaths: readonly string[] | undefined
+  setupFiles: readonly string[]
+}): boolean {
+  const { previous, current, changedPaths } = options
+  if (
+    !previous ||
+    !current ||
+    !changedPaths?.length ||
+    !current.entries.length ||
+    previous.configurationRevision !== current.configurationRevision ||
+    previous.entries.length !== current.entries.length
+  )
+    return false
+  const entries = new Map(current.entries.map((entry) => [entry.id, entry]))
+  if (
+    entries.size !== current.entries.length ||
+    new Set(previous.entries.map((entry) => entry.id)).size !==
+      previous.entries.length ||
+    previous.entries.some((entry) => {
+      const next = entries.get(entry.id)
+      return next?.file !== entry.file || next.sourceHash !== entry.sourceHash
+    })
+  )
+    return false
+  const inputs = new Map(current.inputs.map((input) => [input.file, input]))
+  const oldInputs = new Map(previous.inputs.map((input) => [input.file, input]))
+  const setup = new Set(options.setupFiles)
+  const changed = new Set(changedPaths)
+  if (
+    inputs.size !== current.inputs.length ||
+    oldInputs.size !== previous.inputs.length ||
+    inputs.size !== oldInputs.size ||
+    changedPaths.some(
+      (file) =>
+        !isAbsolute(file) ||
+        resolve(file) !== file ||
+        !setup.has(file) ||
+        !inputs.has(file) ||
+        !oldInputs.has(file)
+    )
+  )
+    return false
+  return previous.inputs.every((input) => {
+    const next = inputs.get(input.file)
+    return (
+      next !== undefined &&
+      (changed.has(input.file) || next.sourceHash === input.sourceHash)
+    )
+  })
+}
+
 /** Byte identities guard registry policy; they are not compiler dependencies. */
 export async function snapshotWatchRegistry(options: {
   configurationRevision: string

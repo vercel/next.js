@@ -70,18 +70,9 @@ pub(crate) async fn resolve_route(
     if config.await?.dynamic_params == Some(false) {
         bail!("RSC test routes do not yet support dynamicParams=false static-path enforcement");
     }
-    let tree = loader_tree.await?;
-    let mut pending = vec![&*tree];
-    while let Some(tree) = pending.pop() {
-        if tree
-            .parallel_routes
-            .keys()
-            .any(|key| key.as_str() != "children")
-        {
-            bail!("RSC test routes do not yet support parallel routing");
-        }
-        pending.extend(tree.parallel_routes.values());
-    }
+    // Default-only named slots belong to this same actual loader tree. The
+    // unique page and interception checks above still exclude named slot pages
+    // and route selection that would require navigation state.
     Ok(TestRoute {
         pathname,
         page: pages[0].clone(),

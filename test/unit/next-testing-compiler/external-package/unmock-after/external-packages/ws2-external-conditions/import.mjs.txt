@@ -1,0 +1,1 @@
+export const branch='native-import';export const object={value:47};export default {value:53}

@@ -1,0 +1,8 @@
+import { test, expect } from 'vitest'
+import { Step, choose } from './subject.ts'
+test('automatic enum members', () => {
+  expect(Step.First).toBe(0)
+  expect(Step[1]).toBe('Second')
+  expect(choose(true)).toBe(1)
+  expect(choose(false)).toBe(2)
+})

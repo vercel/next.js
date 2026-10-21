@@ -1,0 +1,162 @@
+[
+  {
+    "path": "/acme/panel",
+    "format": "html",
+    "status": 200,
+    "contentType": "text/html; charset=utf-8",
+    "subjects": [
+      {
+        "role": "children",
+        "tenant": "acme",
+        "item": null,
+        "root": "acme",
+        "tag": ["one", "two"],
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      {
+        "role": "activity",
+        "tenant": "acme",
+        "item": null,
+        "root": "acme",
+        "tag": ["one", "two"],
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      {
+        "role": "metrics",
+        "tenant": "acme",
+        "item": null,
+        "root": "acme",
+        "tag": ["one", "two"],
+        "header": "request-value",
+        "cookie": "session-value"
+      }
+    ],
+    "rootLayout": true,
+    "parallelLayout": true,
+    "provider": "acme",
+    "clientRequest": "html-root",
+    "after": "html-root"
+  },
+  {
+    "path": "/acme/panel",
+    "format": "flight",
+    "status": 200,
+    "contentType": "text/x-component",
+    "subjects": [
+      {
+        "role": "children",
+        "tenant": "acme",
+        "item": null,
+        "root": "acme",
+        "tag": ["one", "two"],
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      {
+        "role": "activity",
+        "tenant": "acme",
+        "item": null,
+        "root": "acme",
+        "tag": ["one", "two"],
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      {
+        "role": "metrics",
+        "tenant": "acme",
+        "item": null,
+        "root": "acme",
+        "tag": ["one", "two"],
+        "header": "request-value",
+        "cookie": "session-value"
+      }
+    ],
+    "rootLayout": true,
+    "parallelLayout": true,
+    "provider": "acme",
+    "clientRequest": "flight-root",
+    "after": "flight-root"
+  },
+  {
+    "path": "/acme/panel/report",
+    "format": "html",
+    "status": 200,
+    "contentType": "text/html; charset=utf-8",
+    "subjects": [
+      {
+        "role": "children",
+        "tenant": "acme",
+        "item": "report",
+        "root": "acme",
+        "tag": ["one", "two"],
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      {
+        "role": "activity",
+        "tenant": "acme",
+        "item": null,
+        "root": "acme",
+        "tag": ["one", "two"],
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      {
+        "role": "metrics",
+        "tenant": "acme",
+        "item": null,
+        "root": "acme",
+        "tag": ["one", "two"],
+        "header": "request-value",
+        "cookie": "session-value"
+      }
+    ],
+    "rootLayout": true,
+    "parallelLayout": true,
+    "provider": "acme",
+    "clientRequest": "html-nested",
+    "after": "html-nested"
+  },
+  {
+    "path": "/acme/panel/report",
+    "format": "flight",
+    "status": 200,
+    "contentType": "text/x-component",
+    "subjects": [
+      {
+        "role": "children",
+        "tenant": "acme",
+        "item": "report",
+        "root": "acme",
+        "tag": ["one", "two"],
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      {
+        "role": "activity",
+        "tenant": "acme",
+        "item": null,
+        "root": "acme",
+        "tag": ["one", "two"],
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      {
+        "role": "metrics",
+        "tenant": "acme",
+        "item": null,
+        "root": "acme",
+        "tag": ["one", "two"],
+        "header": "request-value",
+        "cookie": "session-value"
+      }
+    ],
+    "rootLayout": true,
+    "parallelLayout": true,
+    "provider": "acme",
+    "clientRequest": "flight-nested",
+    "after": "flight-nested"
+  }
+]

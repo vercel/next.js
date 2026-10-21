@@ -1,0 +1,62 @@
+[
+  {
+    "name": "cold original evaluation starts an ordered dependency factory",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "reverse original evaluation starts an ordered dependency factory",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "pending dependency factory gates original target execution and overlaps its real original",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "dependency rejection retries dependency and owner factories then retains successful exports",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "held dependency results survive reset and unregister independently",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "already loaded original dependencies are not reevaluated to start later registered factories",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "unused cross-target registrations and reset evaluate no graph or factory",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "mutually declared cycle factories retain pending original backedges",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "unused static binding still demands a declared dependency factory when its owner evaluates",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "a held first dependency reveals actual factory demand order for two static targets",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "a declared cycle backedge remains live after an earlier held dependency await",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "a held mock dependency also gates a later ordinary dependency evaluation",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

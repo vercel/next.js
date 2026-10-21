@@ -1,0 +1,2 @@
+import { expect, test } from 'vitest'
+test('does not evaluate selected coverage declarations', () => { expect(2).toBe(2); })

@@ -23,9 +23,18 @@ pub async fn compute_async_module_info(
     graphs: ResolvedVc<ModuleGraph>,
 ) -> Result<Vc<AsyncModulesInfo>> {
     // Layout segment optimization, we can individually compute the async modules for each graph.
+    let forced_async = if let Some(demands) = graphs.await?.runtime_import_demands {
+        demands.owners().to_resolved().await?
+    } else {
+        crate::module::Modules::empty().to_resolved().await?
+    };
     let mut result = None;
     for graph in graphs.iter_graphs().await? {
-        result = Some(compute_async_module_info_single(graph, result));
+        result = Some(compute_async_module_info_single(
+            graph,
+            result,
+            forced_async,
+        ));
     }
     Ok(result
         .context("There must be at least one single graph in the module graph")?
@@ -36,6 +45,7 @@ pub async fn compute_async_module_info(
 async fn compute_async_module_info_single(
     graph: OperationVc<ModuleGraphLayer>,
     parent_async_modules: Option<OperationVc<AsyncModulesInfo>>,
+    forced_async: ResolvedVc<crate::module::Modules>,
 ) -> Result<Vc<AsyncModulesInfo>> {
     let parent_async_modules = if let Some(parent_async_modules) = parent_async_modules {
         Some(parent_async_modules.read_strongly_consistent().await?)
@@ -43,11 +53,14 @@ async fn compute_async_module_info_single(
         None
     };
     let graph = graph.read_strongly_consistent().await?;
+    let forced_async = forced_async.await?;
     let self_async_modules = graph
         .iter_reachable_nodes()?
         .map(async |node| {
             Ok(match node {
-                SingleModuleGraphNode::Module(node) => node.is_self_async().await?.then_some(*node),
+                SingleModuleGraphNode::Module(node) => {
+                    (forced_async.contains(node) || *node.is_self_async().await?).then_some(*node)
+                }
                 SingleModuleGraphNode::VisitedModule { idx: _, module } => {
                     // If a module is async in the parent then we need to mark reverse dependencies
                     // async in this graph as well.

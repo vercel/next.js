@@ -1,0 +1,1 @@
+const dependency=require(globalThis.__ws2Choice?'./a.cjs':'./b.cjs');module.exports={dependency}

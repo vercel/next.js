@@ -42,6 +42,21 @@ export interface WatchRunResult {
 export interface WatchSessionOptions<Discovery extends WatchDiscovery> {
   signal?: AbortSignal
   discover(signal: AbortSignal): Promise<Discovery>
+  /** Optional closed-owner/compiler proof; uncertainty retains ordinary execution. */
+  canSkipUnchangedRun?(input: {
+    discovery: Discovery
+    previousRegistry: WatchRegistrySnapshot | undefined
+    changedPaths: readonly string[] | undefined
+    signal: AbortSignal
+  }): Promise<boolean>
+  /** A closed compiler plan can refine a run without dropping watched entries. */
+  selectTests?(input: {
+    discovery: Discovery
+    selection: AffectedSelection
+    changedPaths: readonly string[] | undefined
+    invalidateAll: boolean
+    signal: AbortSignal
+  }): Promise<AffectedSelection | undefined>
   /** Resolves only after all workers, compiler graphs and output owners close. */
   run(run: WatchRun<Discovery>): Promise<WatchRunResult>
   /** Publishes readiness after cleanup, baseline commitment and cancellation release. */
@@ -132,7 +147,30 @@ export function createWatchSession<Discovery extends WatchDiscovery>(
                 changedPaths: registryPaths,
               })
             : undefined
-        const selection =
+        let unchanged =
+          !globalInvalidation &&
+          changes === undefined &&
+          !registrySelection &&
+          discovery.entryIds.length > 0 &&
+          previousDiscoveryRevision === discovery.discoveryRevision &&
+          (await options.canSkipUnchangedRun?.({
+            discovery,
+            previousRegistry,
+            changedPaths: registryPaths,
+            signal: controller.signal,
+          })) === true
+        controller.signal.throwIfAborted()
+        if (
+          closed ||
+          pending ||
+          generation !== runGeneration ||
+          active !== controller
+        )
+          throw new SupersededTestRun()
+        let selection =
+          (unchanged
+            ? { entryIds: [], reason: 'compiler-dependencies' as const }
+            : undefined) ??
           registrySelection ??
           selectAffectedTests({
             entryIds: discovery.entryIds,
@@ -144,10 +182,40 @@ export function createWatchSession<Discovery extends WatchDiscovery>(
               (previousDiscoveryRevision !== undefined &&
                 previousDiscoveryRevision !== discovery.discoveryRevision),
           })
+        if (!unchanged && options.selectTests) {
+          const refined = await options.selectTests({
+            discovery,
+            selection,
+            changedPaths: registryPaths,
+            invalidateAll: globalInvalidation,
+            signal: controller.signal,
+          })
+          controller.signal.throwIfAborted()
+          if (
+            closed ||
+            pending ||
+            generation !== runGeneration ||
+            active !== controller
+          )
+            throw new SupersededTestRun()
+          if (refined) {
+            const current = new Set(discovery.entryIds)
+            if (
+              refined.entryIds.some((entryId) => !current.has(entryId)) ||
+              new Set(refined.entryIds).size !== refined.entryIds.length
+            )
+              throw new Error(
+                'Compiler watch selection contains unknown entries.'
+              )
+            selection = refined
+            unchanged =
+              refined.entryIds.length === 0 && discovery.entryIds.length > 0
+          }
+        }
         // Empty discovery is a valid watch state (e.g. the last test deleted).
         // Do not ask the one-shot runner to report "No test files selected".
         const result: WatchRunResult =
-          selection.entryIds.length || options.runEmpty
+          !unchanged && (selection.entryIds.length || options.runEmpty)
             ? await options.run({
                 discovery,
                 selection,

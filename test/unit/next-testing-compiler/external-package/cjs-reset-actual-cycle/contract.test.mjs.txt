@@ -1,0 +1,19 @@
+import { test, expect, vi } from 'vitest'
+import { types } from 'node:util'
+function shape(namespace) {
+ return { nativeBrand: types.isModuleNamespaceObject(namespace), keys: Reflect.ownKeys(namespace).map(key => typeof key === 'symbol' ? String(key) : key), prototypeNull: Object.getPrototypeOf(namespace) === null, tag: namespace[Symbol.toStringTag] ?? null, extensible: Object.isExtensible(namespace), sealed: Object.isSealed(namespace), frozen: Object.isFrozen(namespace), descriptors: Reflect.ownKeys(namespace).map(key => { const d = Object.getOwnPropertyDescriptor(namespace,key); return { key: typeof key === 'symbol' ? String(key) : key, valueType: typeof d.value, get: typeof d.get, set: typeof d.set, writable: d.writable ?? null, enumerable: d.enumerable, configurable: d.configurable } }) }
+}
+for (const order of ['actual-first','ordinary-first']) {
+ test('matches nonleaf CommonJS actual/original cache generations '+order,async()=>{
+  vi.resetModules()
+  const a=order==='actual-first'?await vi.importActual('./root.cjs'):await import('./root.cjs')
+  const b=order==='actual-first'?await import('./root.cjs'):await vi.importActual('./root.cjs')
+  const actualCached=await vi.importActual('./root.cjs');const ordinaryCached=await import('./root.cjs')
+  vi.resetModules();const afterActual=await vi.importActual('./root.cjs');const afterOrdinary=await import('./root.cjs')
+  vi.resetModules();const lastOrdinary=await import('./root.cjs');const lastActual=await vi.importActual('./root.cjs')
+  const namespaces=[a,b,actualCached,ordinaryCached,afterActual,afterOrdinary,lastOrdinary,lastActual]
+  const roots=namespaces.map(value=>value.default)
+  console.log('WS2_CJS_ACTUAL_RESET:'+JSON.stringify({order,namespaceShapes:namespaces.map(shape),rootShapes:roots.map(shape),dependencyShapes:roots.map(value=>shape(value.dependency)),namespaceIdentities:[a===b,actualCached===ordinaryCached,a===actualCached,a===afterActual,afterActual===afterOrdinary,afterActual===lastActual,lastOrdinary===lastActual],rootIdentities:[roots[0]===roots[1],roots[0]===roots[4],roots[4]===roots[6]],dependencyIdentities:roots.map(value=>value.dependency===roots[0].dependency),rootValues:roots.map(value=>value.evaluation),dependencyValues:roots.map(value=>value.dependency.evaluation),calls:roots.map(value=>typeof value==='function'?value('held'):value.read()),counts:[globalThis.__ws2CjsDependencyRoot??globalThis.__ws2CallableRoot,globalThis.__ws2CjsDependencyLeaf??globalThis.__ws2CallableDependency]}))
+  expect(roots.every(value=>value!==null&&(typeof value==='object'||typeof value==='function'))).toBe(true)
+ })
+}

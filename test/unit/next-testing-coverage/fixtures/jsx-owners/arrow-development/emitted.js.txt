@@ -1,0 +1,55 @@
+(()=>{"use strict";module.exports = [
+"[project]/.next-test-jsx144-arrow-development/contract.test.mjs [next-test-node] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/packages/next/dist/experimental/testing/vitest.js [next-test-node] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$jsx144$2d$arrow$2d$development$2f$subject$2e$tsx__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/.next-test-jsx144-arrow-development/subject.tsx [next-test-node] (ecmascript)");
+;
+;
+(0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["test"])('renders typed arrow component returns', ()=>{
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])((0, __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$jsx144$2d$arrow$2d$development$2f$subject$2e$tsx__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["Arrow"])({
+        name: 'first'
+    }).props).toEqual({
+        'data-name': 'first',
+        children: 'first!'
+    });
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])((0, __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$jsx144$2d$arrow$2d$development$2f$subject$2e$tsx__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["Arrow"])({
+        name: 'second'
+    }).props.children).toBe('second!');
+});
+}),
+"[project]/.next-test-jsx144-arrow-development/helper.js [next-test-node] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "label",
+    ()=>label
+]);
+function label(value) {
+    return value + '!';
+}
+}),
+"[project]/.next-test-jsx144-arrow-development/subject.tsx [next-test-node] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "Arrow",
+    ()=>Arrow
+]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$react$40$19$2e$3$2e$0$2d$canary$2d$b618bbb4$2d$20261007$2f$node_modules$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/.pnpm/react@19.3.0-canary-b618bbb4-20261007/node_modules/react/jsx-dev-runtime.js [next-test-node] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$jsx144$2d$arrow$2d$development$2f$helper$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/.next-test-jsx144-arrow-development/helper.js [next-test-node] (ecmascript)");
+;
+;
+const Arrow = ({ name })=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$react$40$19$2e$3$2e$0$2d$canary$2d$b618bbb4$2d$20261007$2f$node_modules$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+        "data-name": name,
+        children: (0, __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$jsx144$2d$arrow$2d$development$2f$helper$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["label"])(name)
+    }, void 0, false, {
+        fileName: "[project]/.next-test-jsx144-arrow-development/subject.tsx",
+        lineNumber: 5,
+        columnNumber: 3
+    }, ("TURBOPACK compile-time value", void 0));
+}),
+];})()
+
+//# sourceMappingURL=_next-test-jsx144-arrow-development_1cgt_ngl9aj3l._.js.map

@@ -1,0 +1,10 @@
+import { expect, test } from 'vitest'
+import { Multiline } from './subject.tsx'
+test('renders both multiline fragment logical child paths', () => {
+  const active = Multiline({ active: true }).props.children
+  expect(active[0].props.children).toBe('active!')
+  expect(active[1].props.children).toBe('tail!')
+  const inactive = Multiline({ active: false }).props.children
+  expect(inactive[0]).toBe(false)
+  expect(inactive[1].props.children).toBe('tail!')
+})

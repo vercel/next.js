@@ -1,0 +1,192 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_GRAPH_ACYCLIC",
+    "value": {
+      "calls": 1,
+      "identities": [
+        true,
+        true,
+        true,
+        false,
+        false,
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "reads": [
+        [3, 4],
+        [3, 4],
+        [3, 4],
+        [7, 8]
+      ],
+      "evaluations": [1, 1, 2, 1, 2],
+      "counts": {
+        "acyclic-peer": 2,
+        "acyclic-root": 2
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_GRAPH_CYCLE",
+    "value": {
+      "calls": 1,
+      "identities": [
+        true,
+        true,
+        true,
+        false,
+        false,
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "reads": [
+        [3, 4, 3],
+        [3, 4, 3],
+        [3, 4, 3],
+        [7, 8, 3]
+      ],
+      "evaluations": [1, 1, 2, 1, 2],
+      "counts": {
+        "cycle-peer": 2,
+        "cycle-root": 2
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_GRAPH_DIAMOND",
+    "value": {
+      "calls": 1,
+      "identities": [true, false, true, true, true, false],
+      "reads": [
+        [0, 9, 9, true],
+        [0, 9, 9, true],
+        [0, 9, 9, true],
+        [0, 0, 0, true]
+      ],
+      "evaluations": [1, 2, 2],
+      "counts": {
+        "diamond-left": 2,
+        "diamond-right": 2,
+        "diamond-root": 2,
+        "diamond-shared": 2
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_GRAPH_PENDING",
+    "value": {
+      "calls": 1,
+      "identities": [true, false, true, true, true, false, false],
+      "reads": [
+        [5, 6],
+        [5, 6],
+        [5, 6],
+        [0, 0]
+      ],
+      "evaluations": [1, 1, 2, 1],
+      "counts": {
+        "pending-peer": 2,
+        "pending-root": 2
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_GRAPH_RETRY",
+    "value": {
+      "calls": 3,
+      "errors": [
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "keys": ["stack", "message", "cause"],
+          "causeName": "Error",
+          "causeMessage": "graph factory failed",
+          "causeSame": true,
+          "rawSame": false
+        },
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "keys": ["stack", "message", "cause"],
+          "causeName": "Error",
+          "causeMessage": "graph factory failed",
+          "causeSame": true,
+          "rawSame": false
+        },
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "keys": ["stack", "message", "cause"],
+          "causeName": "Error",
+          "causeMessage": "graph factory failed",
+          "causeSame": true,
+          "rawSame": false
+        }
+      ],
+      "errorIdentity": [false, false],
+      "originalIdentity": [true, false, true],
+      "evaluations": [1, 1, 2, 2],
+      "counts": {
+        "retry-peer": 2,
+        "retry-root": 2
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_GRAPH_UNUSED",
+    "value": {
+      "calls": 0,
+      "counts": {}
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_GRAPH_RECOVERY",
+    "value": {
+      "calls": 3,
+      "errors": [
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "keys": ["stack", "message", "cause"],
+          "causeName": "Error",
+          "causeMessage": "conditional graph failure",
+          "causeSame": true,
+          "rawSame": false
+        },
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "keys": ["stack", "message", "cause"],
+          "causeName": "Error",
+          "causeMessage": "conditional graph failure",
+          "causeSame": true,
+          "rawSame": false
+        }
+      ],
+      "errorSame": false,
+      "identities": [true, true, true, true, true, false, false],
+      "reads": [
+        [12, 13],
+        [12, 13],
+        [0, 0]
+      ],
+      "evaluations": [1, 1, 1, 2],
+      "counts": {
+        "recovery-peer": 2,
+        "recovery-root": 2
+      }
+    }
+  }
+]

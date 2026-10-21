@@ -100,6 +100,7 @@ export function renderTapReport(
       ...events.flatMap((event) =>
         event.type === 'diagnostic' &&
         event.entryId === entry.id &&
+        event.diagnostic.unhandled !== 'rejection' &&
         event.diagnostic.severity === 'error'
           ? [event.diagnostic]
           : []
@@ -118,7 +119,7 @@ export function renderTapReport(
   }
   const unhandled = events.flatMap((event) =>
     event.type === 'diagnostic' &&
-    !event.entryId &&
+    (!event.entryId || event.diagnostic.unhandled === 'rejection') &&
     event.diagnostic.severity === 'error'
       ? [event.diagnostic]
       : []

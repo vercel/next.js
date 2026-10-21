@@ -1,0 +1,1 @@
+export const peer=1;export function load(name){return import(name)}

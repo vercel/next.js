@@ -1,0 +1,7 @@
+globalThis.__ws2CallableRoot=(globalThis.__ws2CallableRoot||0)+1
+const evaluation=globalThis.__ws2CallableRoot
+const dependency=require('./dependency.cjs')
+function exported(value){return [evaluation,dependency.evaluation,value]}
+exported.evaluation=evaluation
+exported.dependency=dependency
+module.exports=exported

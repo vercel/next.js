@@ -1,0 +1,2 @@
+import Provider from './Provider'
+export default function Layout({children}){return <html><body><Provider>{children}</Provider></body></html>}

@@ -184,17 +184,15 @@ export function validateTestProfile(profile: TestProfile): void {
     (profile.browserClient !== undefined &&
       (profile.browserClient !== true ||
         profile.environment !== 'browser' ||
-        profile.mode !== 'development' ||
         profile.route !== undefined)) ||
     (profile.route !== undefined &&
       (profile.environment !== 'rsc' ||
-        profile.mode !== 'development' ||
         !profile.route.startsWith('/') ||
         profile.route.includes('?') ||
         profile.route.includes('#')))
   ) {
     throw new Error(
-      'The test compiler supports route-less development or production entries and one-shot development Node RSC AppProject routes with Turbopack only'
+      'The test compiler supports route-less development or production entries and one-shot Node RSC AppProject routes with Turbopack only'
     )
   }
 }

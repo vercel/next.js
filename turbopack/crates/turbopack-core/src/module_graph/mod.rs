@@ -55,6 +55,7 @@ pub mod collect;
 pub mod merged_modules;
 pub mod module_batch;
 pub(crate) mod module_batches;
+pub mod runtime_import_demands;
 mod side_effect_module_info;
 pub mod style_groups;
 pub mod style_groups_graph;
@@ -805,6 +806,8 @@ pub struct ModuleGraph {
     input_graphs: Vec<OperationVc<SingleModuleGraph>>,
     input_binding_usage: Option<OperationVc<BindingUsageInfo>>,
 
+    runtime_import_demands: Option<ResolvedVc<runtime_import_demands::RuntimeImportDemandGraph>>,
+
     snapshot: ModuleGraphSnapshot,
 }
 
@@ -817,7 +820,7 @@ impl ModuleGraph {
         graphs: Vec<OperationVc<SingleModuleGraph>>,
         binding_usage: Option<OperationVc<BindingUsageInfo>>,
     ) -> Result<Vc<Self>> {
-        let graph = Self::from_graphs_inner(graphs, binding_usage)
+        let graph = Self::from_graphs_inner(graphs, binding_usage, None)
             .read_strongly_consistent()
             .await?;
 
@@ -828,10 +831,14 @@ impl ModuleGraph {
     async fn from_graphs_inner(
         graphs: Vec<OperationVc<SingleModuleGraph>>,
         binding_usage: Option<OperationVc<BindingUsageInfo>>,
+        runtime_import_demands: Option<
+            ResolvedVc<runtime_import_demands::RuntimeImportDemandGraph>,
+        >,
     ) -> Result<Vc<ModuleGraph>> {
         Ok(ModuleGraph {
             input_graphs: graphs.clone(),
             input_binding_usage: binding_usage,
+            runtime_import_demands,
             snapshot: ModuleGraphSnapshot {
                 graphs: graphs.iter().map(|g| g.connect()).try_join().await?,
                 skip_visited_module_children: false,
@@ -844,6 +851,22 @@ impl ModuleGraph {
             },
         }
         .cell())
+    }
+
+    /// Attach evaluation behavior to the same actual modules and references.
+    #[turbo_tasks::function]
+    pub async fn with_runtime_import_demands(
+        &self,
+        demands: ResolvedVc<runtime_import_demands::RuntimeImportDemandGraph>,
+    ) -> Result<Vc<Self>> {
+        let graph = Self::from_graphs_inner(
+            self.input_graphs.clone(),
+            self.input_binding_usage,
+            Some(demands),
+        )
+        .read_strongly_consistent()
+        .await?;
+        Ok(ReadRef::cell(graph))
     }
 
     #[turbo_tasks::function]
@@ -932,6 +955,18 @@ impl ModuleGraph {
             .try_flat_join()
             .await?;
 
+        if let Some(demands) = graph_ref.runtime_import_demands {
+            let demands = demands.for_owner(*module).to_resolved().await?;
+            if !demands.await?.is_empty()
+                || !demands.await?.native_imports.is_empty()
+                || !demands.await?.namespaces.is_empty()
+            {
+                return Ok(AsyncModuleInfo::with_runtime_import_demands(
+                    referenced_modules,
+                    *demands,
+                ));
+            }
+        }
         Ok(AsyncModuleInfo::new(referenced_modules))
     }
 
@@ -2824,6 +2859,175 @@ pub mod tests {
                 ]
             );
 
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_runtime_import_demands_keep_exact_async_graph_ownership() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            #[turbo_tasks::function(operation, root)]
+            async fn check(cycle: bool) -> Result<Vc<bool>> {
+                use crate::module_graph::runtime_import_demands::{
+                    RuntimeImportDemandEdge, RuntimeImportDemandGraph,
+                    RuntimeImportNamespaceCertificate,
+                };
+                let root = VirtualFileSystem::new_with_name(rcstr!("demand-test"))
+                    .root()
+                    .owned()
+                    .await?;
+                let repo = TestRepo::new_with_chunking_types(
+                    &root,
+                    [
+                        ("root.js", vec!["owner.js"]),
+                        ("shared.js", vec!["owner.js"]),
+                        ("dynamic.js", vec!["owner.js"]),
+                        ("plain.js", vec!["ordinary.js"]),
+                        ("owner.js", vec!["target.js"]),
+                        ("target.js", if cycle { vec!["owner.js"] } else { vec![] }),
+                    ],
+                    [
+                        (
+                            "shared.js",
+                            "owner.js",
+                            ChunkingType::Shared {
+                                inherit_async: true,
+                                merge_tag: None,
+                            },
+                        ),
+                        ("dynamic.js", "owner.js", ChunkingType::Async),
+                    ],
+                );
+                let make = |name| {
+                    Vc::upcast::<Box<dyn Module>>(MockModule::new(root.join(name).unwrap(), repo))
+                        .to_resolved()
+                };
+                let entry = make("root.js").await?;
+                let shared = make("shared.js").await?;
+                let dynamic = make("dynamic.js").await?;
+                let plain = make("plain.js").await?;
+                let owner = make("owner.js").await?;
+                let target = make("target.js").await?;
+                let graph = SingleModuleGraph::new_with_entry(
+                    ChunkGroupEntry::Entry {
+                        modules: vec![entry, shared, dynamic, plain],
+                        heuristics: EntryHeuristics::default(),
+                    },
+                    false,
+                    false,
+                );
+                let original = ModuleGraph::from_graphs(vec![graph], None)
+                    .connect()
+                    .to_resolved()
+                    .await?;
+                for module in [entry, shared, dynamic, plain, owner, target] {
+                    assert!(!original.async_module_info().is_async(module).await?);
+                    assert!(
+                        original
+                            .referenced_async_modules(*module)
+                            .await?
+                            .runtime_import_demands
+                            .is_none()
+                    );
+                }
+                let namespace = RuntimeImportNamespaceCertificate {
+                    kind: crate::module_graph::runtime_import_demands::RuntimeImportNamespaceKind::Esm,
+                    module: plain,
+                    export_order: vec![rcstr!("value")],
+                }
+                .resolved_cell();
+                let namespace_only = original
+                    .with_runtime_import_demands(
+                        *RuntimeImportDemandGraph {
+                            edges: Vec::new(),
+                            native_imports: Vec::new(),
+                            namespaces: vec![namespace],
+                        }
+                        .resolved_cell(),
+                    )
+                    .to_resolved()
+                    .await?;
+                for module in [entry, shared, dynamic, plain, owner, target] {
+                    assert!(!namespace_only.async_module_info().is_async(module).await?);
+                }
+                let namespace_info = namespace_only.referenced_async_modules(*plain).await?;
+                let namespace_plan = namespace_info.runtime_import_demands.unwrap().await?;
+                assert!(namespace_plan.edges.is_empty());
+                assert_eq!(namespace_plan.namespaces, [namespace]);
+                assert!(
+                    namespace_only
+                        .referenced_async_modules(*owner)
+                        .await?
+                        .runtime_import_demands
+                        .is_none()
+                );
+                let callable_namespace = RuntimeImportNamespaceCertificate {
+                    kind: crate::module_graph::runtime_import_demands::RuntimeImportNamespaceKind::CommonJsCallable,
+                    module: plain,
+                    export_order: Vec::new(),
+                }.resolved_cell();
+                let callable_only = original.with_runtime_import_demands(*RuntimeImportDemandGraph {
+                    edges: Vec::new(), native_imports: Vec::new(), namespaces: vec![callable_namespace],
+                }.resolved_cell()).to_resolved().await?;
+                for module in [entry, shared, dynamic, plain, owner, target] {
+                    assert!(!callable_only.async_module_info().is_async(module).await?);
+                }
+                let callable_info = callable_only.referenced_async_modules(*plain).await?;
+                let callable_plan = callable_info.runtime_import_demands.unwrap().await?;
+                assert!(callable_plan.edges.is_empty());
+                assert!(callable_plan.native_imports.is_empty());
+                assert_eq!(callable_plan.namespaces, [callable_namespace]);
+                assert!(callable_only.referenced_async_modules(*owner).await?.runtime_import_demands.is_none());
+                let reference = owner.references().await?[0];
+                let edge = RuntimeImportDemandEdge {
+                    owner,
+                    target,
+                    reference,
+                    site: 9,
+                    source_order: 3,
+                    evaluation_only: false,
+                }
+                .resolved_cell();
+                let demands = RuntimeImportDemandGraph {
+                    edges: vec![edge],
+                    native_imports: Vec::new(),
+                    namespaces: Vec::new(),
+                }
+                .resolved_cell();
+                let marked = original
+                    .with_runtime_import_demands(*demands)
+                    .to_resolved()
+                    .await?;
+                for module in [entry, shared, owner] {
+                    assert!(marked.async_module_info().is_async(module).await?);
+                }
+                for module in [dynamic, plain] {
+                    assert!(!marked.async_module_info().is_async(module).await?);
+                }
+                assert_eq!(marked.async_module_info().is_async(target).await?, cycle);
+                let info = marked.referenced_async_modules(*owner).await?;
+                let edges = info.runtime_import_demands.unwrap().await?;
+                assert_eq!(edges.len(), 1);
+                assert_eq!(edges[0], edge);
+                assert!(
+                    marked
+                        .referenced_async_modules(*entry)
+                        .await?
+                        .runtime_import_demands
+                        .is_none()
+                );
+                assert!(!original.async_module_info().is_async(owner).await?);
+                Ok(Vc::cell(true))
+            }
+            for cycle in [false, true] {
+                assert!(*check(cycle).read_strongly_consistent().await?);
+            }
             Ok(())
         })
         .await

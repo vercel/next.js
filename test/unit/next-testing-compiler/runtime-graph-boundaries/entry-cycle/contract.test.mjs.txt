@@ -1,0 +1,2 @@
+import {test,vi} from 'vitest'
+test('retains runtime graph certification before bodies',async()=>{console.log('WS2_GRAPH_BOUNDARY_BODY');vi.doMock('./target.mjs',()=>({value:3}));await import('./target.mjs')})

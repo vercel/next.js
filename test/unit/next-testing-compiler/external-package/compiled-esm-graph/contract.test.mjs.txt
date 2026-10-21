@@ -1,0 +1,44 @@
+import {test,expect,vi} from 'vitest'
+const counts=prefix=>Object.fromEntries(Object.entries(globalThis.__ws2Graph??{}).filter(([name])=>name.startsWith(prefix+'-')).sort())
+const errorRow=(error,cause)=>({name:error?.name??null,message:error?.message??null,keys:Reflect.ownKeys(error).map(String),causeName:error?.cause?.name??null,causeMessage:error?.cause?.message??null,causeSame:error?.cause===cause,rawSame:error===cause})
+test('acyclic runtime factory retains original graph and held references across reset',async()=>{
+ const before=await import('./acyclic/target.mjs');const originalPeer=await import('./acyclic/peer.mjs');before.token.count=3;before.peer.count=4;let calls=0;let actual
+ vi.doMock('./acyclic/target.mjs',async importOriginal=>{calls++;actual=await importOriginal();return {token:actual.token,peer:actual.peer,read:actual.read,evaluation:actual.evaluation}})
+ const first=await import('./acyclic/target.mjs');const second=await import('./acyclic/target.mjs');vi.resetModules();const retained=await import('./acyclic/target.mjs');const resetPeer=await import('./acyclic/peer.mjs');vi.doUnmock('./acyclic/target.mjs');const released=await import('./acyclic/target.mjs');released.token.count=7;released.peer.count=8
+ console.log('WS2_EXTERNAL_GRAPH_ACYCLIC:'+JSON.stringify({calls,identities:[actual===before,first===second,first===retained,first===before,before===released,originalPeer===resetPeer,before.peer===originalPeer.peer,released.peer===resetPeer.peer,retained.token===before.token,retained.peer===before.peer],reads:[before.read(),first.read(),retained.read(),released.read()],evaluations:[before.evaluation,actual.evaluation,released.evaluation,originalPeer.evaluation,resetPeer.evaluation],counts:counts('acyclic')}));expect(calls).toBe(1);expect(first).toBe(retained)
+})
+test('cycle runtime factory retains original graph and held references across reset',async()=>{
+ const before=await import('./cycle/target.mjs');const originalPeer=await import('./cycle/peer.mjs');before.token.count=3;before.peer.count=4;let calls=0;let actual
+ vi.doMock('./cycle/target.mjs',async importOriginal=>{calls++;actual=await importOriginal();return {token:actual.token,peer:actual.peer,read:actual.read,evaluation:actual.evaluation,getRoot:actual.getRoot}})
+ const first=await import('./cycle/target.mjs');const second=await import('./cycle/target.mjs');vi.resetModules();const retained=await import('./cycle/target.mjs');const resetPeer=await import('./cycle/peer.mjs');vi.doUnmock('./cycle/target.mjs');const released=await import('./cycle/target.mjs');released.token.count=7;released.peer.count=8
+ console.log('WS2_EXTERNAL_GRAPH_CYCLE:'+JSON.stringify({calls,identities:[actual===before,first===second,first===retained,first===before,before===released,originalPeer===resetPeer,before.peer===originalPeer.peer,released.peer===resetPeer.peer,retained.token===before.token,retained.peer===before.peer],reads:[before.read(),first.read(),retained.read(),released.read()],evaluations:[before.evaluation,actual.evaluation,released.evaluation,originalPeer.evaluation,resetPeer.evaluation],counts:counts('cycle')}));expect(calls).toBe(1);expect(first).toBe(retained)
+})
+test('diamond original graph deduplicates a shared dependency through factory reset and unmock',async()=>{
+ let calls=0;let actual
+ vi.doMock('./diamond/target.mjs',async importOriginal=>{calls++;actual=await importOriginal();return {token:actual.token,left:actual.left,right:actual.right,read:actual.read,evaluation:actual.evaluation}})
+ const first=await import('./diamond/target.mjs');first.left.count=9;const original=actual;vi.resetModules();const held=await import('./diamond/target.mjs');vi.doUnmock('./diamond/target.mjs');const released=await import('./diamond/target.mjs');const shared=await import('./diamond/shared.mjs')
+ console.log('WS2_EXTERNAL_GRAPH_DIAMOND:'+JSON.stringify({calls,identities:[first===held,first===original,first.left===first.right,released.left===released.right,released.left===shared.shared,first.left===released.left],reads:[original.read(),first.read(),held.read(),released.read()],evaluations:[original.evaluation,released.evaluation,shared.evaluation],counts:counts('diamond')}));expect(calls).toBe(1);expect(released.left).toBe(shared.shared)
+})
+test('held graph runtime factory pending imports use actual original and retain successful mock across reset',async()=>{
+ let release;const gate=new Promise(resolve=>{release=resolve});let calls=0;let actual
+ vi.doMock('./pending/target.mjs',async importOriginal=>{calls++;await gate;actual=await importOriginal();return {token:actual.token,peer:actual.peer,read:actual.read,evaluation:actual.evaluation}})
+ const pending=import('./pending/target.mjs');await vi.waitFor(()=>expect(calls).toBe(1));const overlap=await import('./pending/target.mjs');const peer=await import('./pending/peer.mjs');overlap.token.count=5;overlap.peer.count=6;release();const first=await pending;vi.resetModules();const retained=await import('./pending/target.mjs');vi.doUnmock('./pending/target.mjs');const released=await import('./pending/target.mjs')
+ console.log('WS2_EXTERNAL_GRAPH_PENDING:'+JSON.stringify({calls,identities:[actual===overlap,first===overlap,first===retained,first.token===overlap.token,first.peer===peer.peer,overlap===released,overlap.peer===released.peer],reads:[overlap.read(),first.read(),retained.read(),released.read()],evaluations:[overlap.evaluation,actual.evaluation,released.evaluation,peer.evaluation],counts:counts('pending')}));expect(calls).toBe(1);expect(actual).toBe(overlap)
+})
+test('graph runtime failures retry with original graph identity and reset cache boundaries',async()=>{
+ const cause=new Error('graph factory failed');let calls=0;const originals=[];let failing=true
+ vi.doMock('./retry/target.mjs',async importOriginal=>{calls++;const actual=await importOriginal();originals.push(actual);if(failing)throw cause;return {token:actual.token}})
+ const first=await import('./retry/target.mjs').catch(error=>error);const second=await import('./retry/target.mjs').catch(error=>error);vi.resetModules();const third=await import('./retry/target.mjs').catch(error=>error);vi.doUnmock('./retry/target.mjs');const released=await import('./retry/target.mjs')
+ console.log('WS2_EXTERNAL_GRAPH_RETRY:'+JSON.stringify({calls,errors:[errorRow(first,cause),errorRow(second,cause),errorRow(third,cause)],errorIdentity:[first===second,second===third],originalIdentity:[originals[0]===originals[1],originals[1]===originals[2],originals[2]===released],evaluations:[...originals.map(original=>original.evaluation),released.evaluation],counts:counts('retry')}));expect(calls).toBe(3);expect(third.cause).toBe(cause)
+})
+test('unused graph runtime registration does not evaluate factory or dependency closure',()=>{
+ let calls=0;vi.doMock('./unused/target.mjs',()=>{calls++;return {token:'mock'}});vi.doUnmock('./unused/target.mjs');vi.resetModules()
+ console.log('WS2_EXTERNAL_GRAPH_UNUSED:'+JSON.stringify({calls,counts:counts('unused')}));expect(calls).toBe(0);expect(counts('unused')).toEqual({})
+})
+
+test('conditional graph factory failures recover to the exact successful exports across reset',async()=>{
+ const cause=new Error('conditional graph failure');let calls=0;let failing=true;const originals=[]
+ vi.doMock('./recovery/target.mjs',async importOriginal=>{calls++;const actual=await importOriginal();originals.push(actual);if(failing)throw cause;return {token:actual.token,peer:actual.peer,read:actual.read,evaluation:actual.evaluation}})
+ const first=await import('./recovery/target.mjs').catch(error=>error);const second=await import('./recovery/target.mjs').catch(error=>error);failing=false;const recovered=await import('./recovery/target.mjs');const repeated=await import('./recovery/target.mjs');recovered.token.count=12;recovered.peer.count=13;vi.resetModules();const held=await import('./recovery/target.mjs');vi.doUnmock('./recovery/target.mjs');const released=await import('./recovery/target.mjs')
+ console.log('WS2_EXTERNAL_GRAPH_RECOVERY:'+JSON.stringify({calls,errors:[errorRow(first,cause),errorRow(second,cause)],errorSame:first===second,identities:[originals[0]===originals[1],originals[1]===originals[2],recovered===repeated,recovered===held,recovered.token===originals[2].token,recovered===released,recovered.token===released.token],reads:[recovered.read(),held.read(),released.read()],evaluations:[...originals.map(original=>original.evaluation),released.evaluation],counts:counts('recovery')}));expect(calls).toBe(3);expect(recovered).toBe(held);expect(first.cause).toBe(cause)
+})

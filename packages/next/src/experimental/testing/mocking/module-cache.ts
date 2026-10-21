@@ -10,12 +10,14 @@ export interface CompiledModuleCacheManifest {
   version: 1
   resettable: readonly ModuleId[]
   protected: readonly ModuleId[]
+  staticMocks?: readonly { initial: ModuleId; provider: ModuleId }[]
 }
 interface State {
   context: ModuleCacheContext
   modules: ModuleCacheContext['c']
   factories: ModuleCacheContext['M']
   ids: readonly ModuleId[]
+  staticMocks: ReadonlyMap<ModuleId, ModuleId>
   closed: boolean
   retire(
     modules: Iterable<{ exports: unknown; namespaceObject?: unknown }>
@@ -59,11 +61,39 @@ export function initializeModuleCache(
     throw new Error(
       'Resettable module IDs overlap protected runtime identities.'
     )
+  const staticMocks = new Map<ModuleId, ModuleId>()
+  const staticProviders = new Set<ModuleId>()
+  if (
+    manifest.staticMocks !== undefined &&
+    !Array.isArray(manifest.staticMocks)
+  )
+    throw new Error('Invalid compiler-owned static mock pairs.')
+  for (const pair of manifest.staticMocks ?? []) {
+    if (
+      !pair ||
+      typeof pair !== 'object' ||
+      Array.isArray(pair) ||
+      !validId(pair.initial) ||
+      !validId(pair.provider) ||
+      pair.initial === pair.provider ||
+      pair.initial === context.m.id ||
+      !protectedIds.has(pair.initial) ||
+      !ids.includes(pair.provider) ||
+      staticMocks.has(pair.initial) ||
+      staticProviders.has(pair.provider) ||
+      typeof context.M.get(pair.initial) !== 'function' ||
+      typeof context.M.get(pair.provider) !== 'function'
+    )
+      throw new Error('Invalid compiler-owned static mock pairs.')
+    staticMocks.set(pair.initial, pair.provider)
+    staticProviders.add(pair.provider)
+  }
   const state: State = {
     context,
     modules: context.c,
     factories: context.M,
     ids,
+    staticMocks,
     closed: false,
     retire,
   }
@@ -74,6 +104,50 @@ export function initializeModuleCache(
       if (active === state) active = undefined
     },
   }
+}
+
+/** Native runtime targets must belong to the same compiler-owned reset manifest. */
+export function assertNativeModuleOwnership(
+  context: ModuleCacheContext,
+  ids: readonly ModuleId[],
+  initial?: ModuleId
+): void {
+  const state = active
+  if (
+    !state ||
+    state.closed ||
+    state.context !== context ||
+    state.modules !== context.c ||
+    state.factories !== context.M ||
+    !ids.length ||
+    ids.some((id) => !validId(id) || !state.ids.includes(id)) ||
+    (initial !== undefined &&
+      (!validId(initial) || state.staticMocks.get(initial) !== ids[0]))
+  ) {
+    throw new Error(
+      'Native runtime target IDs are not owned by this module cache.'
+    )
+  }
+}
+
+/** Compiled static edges share the existing exact reset-cache owner. */
+export function assertRuntimeModuleOwnership(
+  context: ModuleCacheContext,
+  ids: readonly ModuleId[]
+): void {
+  const state = active
+  if (
+    !state ||
+    state.closed ||
+    state.context !== context ||
+    state.modules !== context.c ||
+    state.factories !== context.M ||
+    !ids.length ||
+    ids.some((id) => !validId(id) || !state.ids.includes(id))
+  )
+    throw new Error(
+      'Runtime static import IDs are not owned by this module cache.'
+    )
 }
 
 /** Reset actual evaluated modules, preserving factories, loaders and held namespaces. */

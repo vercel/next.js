@@ -1,0 +1,2 @@
+import {test,vi} from 'vitest'
+test('keeps uncertified pure-throw targets outside the runtime plan',async()=>{console.log('WS2_PURE_THROW_BOUNDARY_BODY');vi.doMock("./dependency.mjs",()=>{throw new Error('failure')});await import("./dependency.mjs")})

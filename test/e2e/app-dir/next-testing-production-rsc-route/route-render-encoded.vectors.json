@@ -1,0 +1,27 @@
+[
+  {
+    "name": "plain ASCII",
+    "pathname": "/acme/ancestor/alpha/c",
+    "tenant": "acme"
+  },
+  {
+    "name": "spaces in root and catch-all",
+    "pathname": "/ac%20me/ancestor/a%20b/c",
+    "tenant": "ac me"
+  },
+  {
+    "name": "Unicode in root and catch-all",
+    "pathname": "/%E6%9D%B1%E4%BA%AC/ancestor/%e2%9c%93/%F0%9F%9A%80",
+    "tenant": "東京"
+  },
+  {
+    "name": "literal percent and encoded slash",
+    "pathname": "/acme/ancestor/%2520/%252F/a%2Fb",
+    "tenant": "acme"
+  },
+  {
+    "name": "encoded slash in root and catch-all",
+    "pathname": "/a%2Fb/ancestor/a%2Fb/%252f",
+    "tenant": "a/b"
+  }
+]

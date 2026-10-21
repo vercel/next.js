@@ -1,14 +1,18 @@
 import { validateSynchronousClient } from '../client/validate'
 import { loadGlobalTestApi } from './invocation-platform'
 export { createModuleImportTracker } from './imports'
+export { getConsoleTask } from './async-context'
 import type { TestTagDefinition } from './tasks'
 import type { RuntimeOptions } from '../assertions/utilities'
 import {
   createAsyncScope,
   assertScopeActive,
   getOriginatingAttempt,
+  getOriginatingCasePhase,
+  runWithCasePhase,
   getOriginatingHook,
   getOriginatingCollection,
+  getOriginatingFileFixtures,
   getOriginatingScopeAncestors,
   getOriginatingUnhandledFailureSink,
 } from './async-context'
@@ -17,6 +21,7 @@ import {
   hasFocusedTests,
   collectTestCases,
   type CollectorDispatch,
+  type SuiteDeclaration,
 } from './collector'
 import { createAssertionRuntime } from '../assertions'
 import { assertAssertionRuntimeAccess } from '../assertions/assertion-platform'
@@ -40,7 +45,12 @@ export function getProvidedValue(key: string): unknown {
 }
 
 let activeFile: ReturnType<typeof createCollector> | undefined
+let publicSuiteAlias: SuiteDeclaration | undefined
 let assertions: Awaited<ReturnType<typeof createAssertionRuntime>> | undefined
+
+export function registerTestSuiteAlias(alias: SuiteDeclaration): void {
+  publicSuiteAlias = alias
+}
 
 export function getAssertionRuntime() {
   assertScopeActive()
@@ -77,7 +87,11 @@ export interface TestFileOptions {
   tags?: readonly TestTagDefinition[]
   strictTags?: boolean
   globals?: boolean
-  onUnhandledRejection?(reason: unknown): void
+  onUnhandledRejection?(
+    reason: unknown,
+    promise?: Promise<unknown>,
+    recordedBody?: boolean
+  ): void
   resourceLifetime?: 'attempt' | 'file'
   fakeTimers?: import('../assertions/utilities').FakeTimerOptions
   waitForImports?: () => Promise<void>
@@ -92,6 +106,14 @@ export interface TestFileOptions {
   sequence?: RunnerOptions['sequence']
   provide?: Record<string, unknown>
   updateSnapshots?: boolean
+  /** Actual isolated Node execution host admission; never a project setting. */
+  snapshotBodyFailures?: boolean
+  /** Actual isolated Node authored-beforeEach observation; disabled elsewhere. */
+  nativeBeforeEachAssertions?: boolean
+  /** Actual isolated Node authored-afterEach observation; disabled elsewhere. */
+  nativeAfterEachAssertions?: boolean
+  /** Actual isolated Node returned-beforeEach cleanup observation only. */
+  nativeBeforeEachCleanupAssertions?: boolean
   collectOnly?: boolean
   snapshotUpdateMode?: SnapshotUpdateMode
   mapSnapshotLocation?: Parameters<
@@ -196,10 +218,13 @@ export function initializeTestWorker({
 }
 
 /** Route arbitrary rejections through their actual async origin, including closed files. */
-export function routeUnhandledRejection(reason: unknown): boolean {
+export function routeUnhandledRejection(
+  reason: unknown,
+  promise?: Promise<unknown>
+): boolean {
   const sink = getOriginatingUnhandledFailureSink()
   if (sink) {
-    sink(reason)
+    sink(reason, promise)
     return true
   }
   if (activeWorker) {
@@ -219,6 +244,10 @@ function initializeFile(
     fileId,
     filePath,
     updateSnapshots = false,
+    snapshotBodyFailures = false,
+    nativeBeforeEachAssertions = false,
+    nativeAfterEachAssertions = false,
+    nativeBeforeEachCleanupAssertions = false,
     snapshotUpdateMode,
     collectOnly = false,
     mapSnapshotLocation,
@@ -274,6 +303,8 @@ function initializeFile(
     strictTags,
     sequence: collectionSequence,
     getRuntimeConfig: () => runtimeConfig,
+    injectValue: (name) => provide[name],
+    getSuiteAlias: () => publicSuiteAlias,
     getActiveCollector: worker ? () => worker.collector : undefined,
     isCollectingScope: () => getOriginatingCollection()?.id === fileId,
   })
@@ -301,18 +332,33 @@ function initializeFile(
           context: { id: `${fileId}/worker/fixtures`, name: filePath },
         },
         onLateFailure,
-        (reason) => onUnhandledFailure(reason)
+        (reason, promise) => onUnhandledFailure(reason, promise)
       )
   const workerFixtures =
     worker?.fixtures ?? createFixtureWorker((fn) => workerScope!.run(fn))
-  const onUnhandledFailure = (reason: unknown) => {
-    onUnhandledRejection?.(reason)
+  const onUnhandledFailure = (reason: unknown, promise?: Promise<unknown>) => {
+    const recordedBody =
+      snapshotBodyFailures &&
+      onUnhandledRejection !== undefined &&
+      promise !== undefined &&
+      fileAssertions?.observeNativeBodyRejection(reason, promise) === true
+    const recordedHook =
+      !recordedBody &&
+      (nativeBeforeEachAssertions ||
+        nativeAfterEachAssertions ||
+        nativeBeforeEachCleanupAssertions) &&
+      snapshotBodyFailures &&
+      onUnhandledRejection !== undefined &&
+      promise !== undefined &&
+      fileAssertions?.observeNativeHookRejection(reason, promise) === true
+    onUnhandledRejection?.(reason, promise, recordedBody)
+    if (recordedBody || recordedHook) return
     lateErrors.push(reason)
     worker?.fail(reason, fileId)
     if (reason instanceof Error) lateFailureSink?.(reason)
   }
   let fileAssertions: typeof assertions
-  let runSucceeded = false
+  let snapshotExecutionComplete = false
   let disposalSucceeded = false
   let runSignal: AbortSignal | undefined
   let state:
@@ -322,6 +368,16 @@ function initializeFile(
     | 'running'
     | 'finished'
     | 'disposed' = 'initialized'
+  const hasCompletedBodyExecution = () =>
+    state === 'disposed' &&
+    disposalSucceeded &&
+    (!worker || (worker.disposalSucceeded && !worker.failures.length)) &&
+    snapshotExecutionComplete &&
+    fileAssertions?.hasCompleteNativeBodyRejections() === true &&
+    !runSignal?.aborted &&
+    !lateErrors.length
+  const canPublishSnapshots = () =>
+    updateMode !== 'none' && hasCompletedBodyExecution()
   return {
     api: collector.api,
     filePath,
@@ -332,11 +388,25 @@ function initializeFile(
       const scope = createAsyncScope(
         { kind: 'collection', context: { id: fileId, name: filePath } },
         onLateFailure,
-        (reason) => onUnhandledFailure(reason)
+        (reason, promise) => onUnhandledFailure(reason, promise)
       )
       try {
         assertions = await createAssertionRuntime({
           testPath: filePath,
+          observeNativeUnhandledAssertions:
+            snapshotBodyFailures && onUnhandledRejection !== undefined,
+          observeNativeBeforeEachAssertions:
+            nativeBeforeEachAssertions &&
+            snapshotBodyFailures &&
+            onUnhandledRejection !== undefined,
+          observeNativeAfterEachAssertions:
+            nativeAfterEachAssertions &&
+            snapshotBodyFailures &&
+            onUnhandledRejection !== undefined,
+          observeNativeBeforeEachCleanupAssertions:
+            nativeBeforeEachCleanupAssertions &&
+            snapshotBodyFailures &&
+            onUnhandledRejection !== undefined,
           collectOnly,
           resourceLifetime,
           fakeTimers,
@@ -351,8 +421,10 @@ function initializeFile(
           snapshotUpdateMode: updateMode,
           mapSnapshotLocation,
           getCurrentAttempt: getActiveAttempt,
+          getCurrentCasePhase: getOriginatingCasePhase,
           getCurrentHook: getActiveHook,
           getCurrentCollection: getOriginatingCollection,
+          getCurrentFileFixtures: getOriginatingFileFixtures,
           getCurrentScopeAncestors: getOriginatingScopeAncestors,
         })
         fileAssertions = assertions
@@ -501,6 +573,7 @@ function initializeFile(
             filePath,
             onLateFailure,
             onUnhandledFailure,
+            runWithCasePhase,
             async beginAttempt(context) {
               const assertionScope = runtime.beginAttempt(context)
               let integration:
@@ -521,21 +594,45 @@ function initializeFile(
                 }
                 throw error
               }
+              let bodyAssertionFailure: unknown
               return {
+                ...(assertionScope.awaitBodyAssertions
+                  ? { awaitBodyAssertions: assertionScope.awaitBodyAssertions }
+                  : {}),
                 get expect() {
                   return assertionScope.expect
                 },
                 markSkipped: () => assertionScope.markSkipped(),
+                consumeBodyAssertionFailure(error: unknown) {
+                  if (
+                    bodyAssertionFailure === undefined ||
+                    bodyAssertionFailure !== error
+                  )
+                    return false
+                  bodyAssertionFailure = undefined
+                  return true
+                },
                 async finishTest(failed: boolean) {
+                  bodyAssertionFailure = undefined
+                  let nativeBodyFailure: unknown
                   const errors: unknown[] = []
                   for (const scope of [assertionScope, integration]) {
                     try {
                       await scope?.finishTest?.(failed || errors.length > 0)
                     } catch (error) {
+                      if (
+                        scope === assertionScope &&
+                        assertionScope.consumeBodyFailure(error)
+                      )
+                        nativeBodyFailure = error
                       errors.push(error)
                     }
                   }
-                  if (errors.length === 1) throw errors[0]
+                  if (errors.length === 1) {
+                    if (nativeBodyFailure === errors[0])
+                      bodyAssertionFailure = nativeBodyFailure
+                    throw errors[0]
+                  }
                   if (errors.length > 1)
                     throw new AggregateError(
                       errors,
@@ -544,13 +641,25 @@ function initializeFile(
                 },
                 async checkpoint() {
                   const errors: unknown[] = []
+                  let nativeHookFailure: { error: unknown } | undefined
                   for (const scope of [assertionScope, integration]) {
                     try {
                       await scope?.checkpoint?.()
                     } catch (error) {
+                      if (
+                        scope === assertionScope &&
+                        assertionScope.consumeNativeHookCheckpointFailure(error)
+                      )
+                        nativeHookFailure = { error }
                       errors.push(error)
                     }
                   }
+                  if (
+                    errors.length === 1 &&
+                    nativeHookFailure !== undefined &&
+                    nativeHookFailure.error === errors[0]
+                  )
+                    throw nativeHookFailure.error
                   if (errors.length)
                     throw new AggregateError(
                       errors,
@@ -592,6 +701,7 @@ function initializeFile(
           () => {},
           {
             beginHook: (context) => runtime.beginHook(context),
+            beginFileFixtures: (context) => runtime.beginFileFixtures(context),
             setActiveHook: () => {},
           },
           workerFixtures
@@ -614,19 +724,37 @@ function initializeFile(
         )
         reportedLateErrors = lateErrors.length
         const finalCases = getFinalCaseResults(result.cases)
-        runSucceeded =
+        // A completed body failure changes the logical result, not whether the
+        // snapshot owner finished. Hook/resource failures and interruptions still
+        // withhold every staged byte.
+        snapshotExecutionComplete =
           !result.interrupted &&
           !options.signal.aborted &&
           !result.errors.length &&
-          [...finalCases.values()].every(
+          ([...finalCases.values()].every(
             (test) => test.status === 'passed' || test.status === 'skipped'
-          )
+          ) ||
+            (snapshotBodyFailures === true &&
+              result.cases.every((test) =>
+                test.errors.every(
+                  (failure) =>
+                    failure.phase === 'test' ||
+                    (failure.phase === 'assertion' &&
+                      failure.snapshotBodyAssertion === test.attempt.id)
+                )
+              ) &&
+              [...finalCases.values()].every(
+                (test) => test.status !== 'cancelled'
+              )))
+        for (const test of result.cases)
+          for (const failure of test.errors)
+            delete (failure as { snapshotBodyAssertion?: string })
+              .snapshotBodyAssertion
         runtime.finishSnapshotSelection([...finalCases.values()], {
           partial:
             options.testNamePattern !== undefined ||
             hasFocusedTests(collector.root),
-          complete:
-            runSucceeded && !result.interrupted && !options.signal.aborted,
+          complete: snapshotExecutionComplete,
         })
         return result
       } catch (error) {
@@ -677,16 +805,14 @@ function initializeFile(
     getSnapshotSummary() {
       return fileAssertions?.getSnapshotSummary()
     },
+    canPublishSnapshots,
+    hasCompletedBodyExecution,
+    releaseNativeBodyRejectionRecords() {
+      fileAssertions?.releaseNativeBodyRejectionRecords()
+    },
     takeSnapshotUpdates() {
       if (updateMode === 'none') return []
-      if (
-        state !== 'disposed' ||
-        !disposalSucceeded ||
-        (worker && (!worker.disposalSucceeded || worker.failures.length > 0)) ||
-        !runSucceeded ||
-        runSignal?.aborted ||
-        lateErrors.length
-      ) {
+      if (!canPublishSnapshots()) {
         throw new Error(
           'Snapshot updates require successful execution and disposal without cancellation or late failures.'
         )

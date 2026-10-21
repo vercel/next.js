@@ -1,0 +1,56 @@
+import { appendFileSync } from 'node:fs'
+import { test, expect, chai } from 'vitest'
+const emit = row => appendFileSync(process.env.CONTRACT_ROWS, `${JSON.stringify(row)}\n`)
+const shape = d => d === undefined ? null : { keys: Reflect.ownKeys(d).map(String), configurable: d.configurable, enumerable: d.enumerable, writable: d.writable ?? null, valueType: 'value' in d ? typeof d.value : null, getType: typeof d.get, setType: typeof d.set }
+for (const key of ['assert', 'equal', 'not', 'to', 'absent199']) {
+  test(`prototype descriptor ${key}`, () => {
+    try {
+      const descriptor = Object.getOwnPropertyDescriptor(chai.Assertion.prototype, key)
+      emit({ key, descriptor: shape(descriptor) })
+      if (key === 'absent199') expect(descriptor).toBeUndefined()
+      else expect(descriptor).toBeDefined()
+      if (key === 'equal') descriptor.value.call(chai.expect(3), 3)
+      if (key === 'not') descriptor.get.call(chai.expect(3)).equal(4)
+      if (key === 'to') descriptor.get.call(chai.expect(3)).equal(3)
+      if (key === 'assert') descriptor.value.call(chai.expect(3), true, 'unexpected', 'unexpected')
+    } catch (error) { emit({ key, error: { name: error.name, message: error.message } }); throw error }
+  })
+}
+test('matcher plugin consumes method and property descriptors', () => {
+  chai.use(namespace => {
+    const equal = Object.getOwnPropertyDescriptor(namespace.Assertion.prototype, 'equal')
+    const not = Object.getOwnPropertyDescriptor(namespace.Assertion.prototype, 'not')
+    namespace.Assertion.addMethod('equalVia199', function(expected) { return equal.value.call(this, expected) })
+    namespace.Assertion.addMethod('notVia199', function(expected) { return equal.value.call(not.get.call(this), expected) })
+  })
+  chai.expect(3).equalVia199(3)
+  chai.expect(3).notVia199(4)
+  emit({ plugin: 'method-and-property', passed: true })
+})
+
+test('descriptor lookup identity and prototype keys', () => {
+  const equal1 = Object.getOwnPropertyDescriptor(chai.Assertion.prototype, 'equal')
+  const equal2 = Object.getOwnPropertyDescriptor(chai.Assertion.prototype, 'equal')
+  const not1 = Object.getOwnPropertyDescriptor(chai.Assertion.prototype, 'not')
+  const not2 = Object.getOwnPropertyDescriptor(chai.Assertion.prototype, 'not')
+  const missing = Symbol('missing')
+  emit({ id: 'identities', distinctDescriptors: equal1 !== equal2, sameMethod: equal1.value === equal2.value, sameDirectMethod: equal1.value === chai.Assertion.prototype.equal, sameGetter: not1.get === not2.get, symbolAbsent: Object.getOwnPropertyDescriptor(chai.Assertion.prototype, missing) === undefined, constructor: shape(Object.getOwnPropertyDescriptor(chai.Assertion.prototype, 'constructor')) })
+  expect(equal1.value).toBe(equal2.value)
+  expect(equal1.value).toBe(chai.Assertion.prototype.equal)
+})
+test('custom accessor does not execute during descriptor read', () => {
+  let getterCalls = 0
+  chai.Assertion.addProperty('descriptor199Accessor', function() { getterCalls++; return this })
+  const getter = Object.getOwnPropertyDescriptor(chai.Assertion.prototype, 'descriptor199Accessor')
+  emit({ id: 'custom-accessor', before: getterCalls, descriptor: shape(getter) })
+  getter.get.call(chai.expect(3)).equal(3)
+  expect(getterCalls).toBe(1)
+  emit({ id: 'custom-accessor', after: getterCalls })
+})
+test('descriptor fields mutation is independent', () => {
+  const descriptor = Object.getOwnPropertyDescriptor(chai.Assertion.prototype, 'equal')
+  descriptor.value = () => { throw new Error('local replacement') }
+  descriptor.enumerable = false
+  chai.expect(3).equal(3)
+  emit({ id: 'local-descriptor-mutation', fresh: shape(Object.getOwnPropertyDescriptor(chai.Assertion.prototype, 'equal')) })
+})

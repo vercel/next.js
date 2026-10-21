@@ -1,0 +1,4 @@
+'use client'
+import {createContext} from 'react'
+export const Scope=createContext('outside')
+export default function Provider({children}){return <Scope.Provider value="actual-layout">{children}</Scope.Provider>}

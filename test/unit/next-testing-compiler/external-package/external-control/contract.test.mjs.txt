@@ -1,0 +1,7 @@
+import{test,expect}from'vitest'
+import*as common from'ws2-genuine-external-original'
+import*as esm from'ws2-genuine-external-esm'
+test('loads real external package controls without mocking',()=>{console.log('WS2_EXTERNAL_CONTROL:'+JSON.stringify({commonValue:common.value,commonDefault:common.default.value,commonTag:common[Symbol.toStringTag]??null,commonKeys:Object.keys(common),esmValue:esm.value,esmDefault:esm.default.value}));expect(common.value).toBe(19);expect(esm.value).toBe(37)})
+
+import consumer from './control-consumer.cjs'
+test('preserves native external namespace descriptors and consumer identity',async()=>{const dynamic=await import('ws2-genuine-external-original');const value=Object.getOwnPropertyDescriptor(common,'value');const defaultValue=Object.getOwnPropertyDescriptor(common,'default');const tag=Object.getOwnPropertyDescriptor(common,Symbol.toStringTag);const row={dynamicIdentity:dynamic===common,consumerIdentity:consumer===common.default,consumerFunction:consumer.fn===common.fn,prototypeNull:Object.getPrototypeOf(common)===null,extensible:Object.isExtensible(common),sealed:Object.isSealed(common),frozen:Object.isFrozen(common),value,defaultDescriptor:{writable:defaultValue.writable,enumerable:defaultValue.enumerable,configurable:defaultValue.configurable},tag,ownKeys:Reflect.ownKeys(common).map(key=>typeof key==='symbol'?key.toString():key)};console.log('WS2_EXTERNAL_DESCRIPTORS:'+JSON.stringify(row));expect(row.dynamicIdentity).toBe(true);expect(row.consumerIdentity).toBe(true);expect(row.prototypeNull).toBe(true)})

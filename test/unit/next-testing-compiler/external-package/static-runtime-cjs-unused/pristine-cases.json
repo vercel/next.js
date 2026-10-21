@@ -1,0 +1,7 @@
+[
+  {
+    "name": "native cjs unused static and runtime registrations do not evaluate sources or factories",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

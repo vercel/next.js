@@ -1,0 +1,12 @@
+[
+  {
+    "fullName": "renders fragment logical child branches",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "fullName": "renders parenthesized typed fragment arrow",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

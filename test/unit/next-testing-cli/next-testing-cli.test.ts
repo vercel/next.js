@@ -49,6 +49,7 @@ import {
   runTypecheckProject,
 } from 'next/dist/experimental/testing/typecheck'
 import {
+  parseMaxWorkers,
   parseTestShard,
   shardTestProjects,
 } from 'next/dist/experimental/testing/scheduling'
@@ -1633,6 +1634,11 @@ describe('Next-owned test discovery and configuration', () => {
     { inspect: '0', watch: true },
     { inspect: '0', coverage: true },
     { inspect: '0', capabilities: true },
+    { inspectBrk: 'bad' },
+    { inspectBrk: '0', list: true },
+    { inspectBrk: '0', watch: true },
+    { inspectBrk: '0', coverage: true },
+    { inspectBrk: '0', capabilities: true },
   ])(
     'rejects invalid inspector combinations before reading project configuration: %j',
     async (options) => {
@@ -1673,7 +1679,7 @@ describe('Next-owned test discovery and configuration', () => {
         'production Node',
         'development Chromium client',
       ],
-      reports: ['json', 'text', 'lcov'],
+      reports: ['json', 'json-summary', 'text', 'text-summary', 'lcov'],
     })
     expect(inventory.features.coverage.metric).toContain(
       'non-whitespace mapped generated spans'
@@ -1781,14 +1787,14 @@ describe('Next-owned test discovery and configuration', () => {
     )
   })
 
-  it('rejects production route context before compilation', async () => {
+  it('rejects production routes outside an RSC profile before compilation', async () => {
     await writeFile(
       path.join(directory, 'next.test.config.json'),
       JSON.stringify({
         projects: [
           {
-            name: 'rsc',
-            environment: 'rsc',
+            name: 'node',
+            environment: 'node',
             mode: 'production',
             route: '/subject',
           },
@@ -1796,7 +1802,7 @@ describe('Next-owned test discovery and configuration', () => {
       })
     )
     await expect(nextTestRunner(directory, {})).rejects.toThrow(
-      'Production test execution supports route-less profiles only'
+      'Production route context requires an explicit Node RSC profile.'
     )
   })
 
@@ -2449,40 +2455,48 @@ describe('Next test orchestration', () => {
     expect(createSession).not.toHaveBeenCalled()
   })
 
-  it('retains default new-only snapshot ownership for a single route-aware RSC source', async () => {
-    project.profile = { ...project.profile, route: '/reference/[slug]' }
-    project.entries[0] = { ...project.entries[0], profile: project.profile }
-    artifact.profile = { ...project.profile, environment: 'rsc' }
-    const summary = await runTests('/application', [project], {
-      signal: new AbortController().signal,
-      write: jest.fn(),
-      snapshotUpdateMode: 'new',
-    })
-    expect(summary.status).toBe('passed')
-    expect(executeFile.mock.calls[0][1].snapshotUpdateMode).toBe('new')
-    expect(dispose).toHaveBeenCalledTimes(1)
-  })
-
-  it('rejects conflicting route snapshot writers even for default new-only mode', async () => {
-    project.profile = { ...project.profile, route: '/reference/[slug]' }
-    project.entries[0] = { ...project.entries[0], profile: project.profile }
-    const other = { ...project, profile: { ...project.profile, id: 'other' } }
-    other.entries = [
-      {
-        ...project.entries[0],
-        id: 'other:page.spec.tsx',
-        profile: other.profile,
-      },
-    ]
-    await expect(
-      runTests('/application', [project, other], {
+  it.each(['development', 'production'] as const)(
+    'retains default new-only snapshot ownership for a single %s route-aware RSC source',
+    async (mode) => {
+      process.env = { ...process.env, NODE_ENV: mode }
+      project.profile = { ...project.profile, mode, route: '/reference/[slug]' }
+      project.entries[0] = { ...project.entries[0], profile: project.profile }
+      artifact.profile = { ...project.profile, environment: 'rsc' }
+      const summary = await runTests('/application', [project], {
         signal: new AbortController().signal,
         write: jest.fn(),
         snapshotUpdateMode: 'new',
       })
-    ).rejects.toThrow('single selected profile per source file')
-    expect(createSession).not.toHaveBeenCalled()
-  })
+      expect(summary.status).toBe('passed')
+      expect(executeFile.mock.calls[0][1].snapshotUpdateMode).toBe('new')
+      expect(dispose).toHaveBeenCalledTimes(1)
+    }
+  )
+
+  it.each(['development', 'production'] as const)(
+    'rejects conflicting %s route snapshot writers even for default new-only mode',
+    async (mode) => {
+      process.env = { ...process.env, NODE_ENV: mode }
+      project.profile = { ...project.profile, mode, route: '/reference/[slug]' }
+      project.entries[0] = { ...project.entries[0], profile: project.profile }
+      const other = { ...project, profile: { ...project.profile, id: 'other' } }
+      other.entries = [
+        {
+          ...project.entries[0],
+          id: 'other:page.spec.tsx',
+          profile: other.profile,
+        },
+      ]
+      await expect(
+        runTests('/application', [project, other], {
+          signal: new AbortController().signal,
+          write: jest.fn(),
+          snapshotUpdateMode: 'new',
+        })
+      ).rejects.toThrow('single selected profile per source file')
+      expect(createSession).not.toHaveBeenCalled()
+    }
+  )
 
   it('distinguishes ordinary failures from unsafe compiler disposal for repeated runs', async () => {
     compile.mockRejectedValue(new Error('Invalid source'))
@@ -4970,6 +4984,332 @@ describe('Node watch machine generations', () => {
     )
   }
 
+  it.each([
+    [
+      'failed then recovered interruption',
+      ['failed', 'passed', 'cancelled'],
+      'cancelled',
+      1,
+    ],
+    ['passing interruption', ['passed', 'cancelled'], 'cancelled', 130],
+    ['passing quit', ['passed'], 'passed', 0],
+    ['failed then recovered quit', ['failed', 'passed'], 'passed', 1],
+    ['latest failure', ['failed'], 'failed', 1],
+    ['cancelled then recovered quit', ['cancelled', 'passed'], 'passed', 0],
+  ] as const)(
+    'retains the actual CLI exit for %s without changing watch results or events',
+    async (_name, statuses, status, exitCode) => {
+      const child = spawn(
+        process.execPath,
+        [
+          path.join(__dirname, 'cli-watch-exit.cjs'),
+          directory,
+          JSON.stringify(statuses),
+          status,
+        ],
+        { env: { ...process.env, NODE_ENV: 'development' } }
+      )
+      let stdout = ''
+      let stderr = ''
+      child.stdout.on('data', (chunk) => (stdout += chunk))
+      child.stderr.on('data', (chunk) => (stderr += chunk))
+      expect(await once(child, 'close')).toEqual([0, null])
+      expect(stderr).toBe('')
+      expect(JSON.parse(stdout)).toEqual({
+        exitCode,
+        statuses,
+        result: { status },
+        eventsUnchanged: true,
+      })
+    }
+  )
+
+  it.each(['development', 'production'] as const)(
+    'retains actual %s Browser client profiles across watch generations',
+    async (mode) => {
+      const savedEnv = process.env
+      process.env = { ...savedEnv, NODE_ENV: mode }
+      try {
+        await writeFile(
+          path.join(directory, 'next.test.config.json'),
+          JSON.stringify({
+            projects: [{ name: 'client', mode, browser: { enabled: true } }],
+          })
+        )
+        start()
+        await expectGeneration('watch-1')
+        invalidate()
+        await expectGeneration('watch-2')
+        expect(requests).toHaveLength(2)
+        for (const request of requests) {
+          expect(request.projects).toHaveLength(1)
+          expect(request.projects[0].profile).toMatchObject({
+            id: 'client',
+            environment: 'browser',
+            mode,
+            runtime: 'nodejs',
+            bundler: 'turbopack',
+            browserClient: true,
+          })
+        }
+        expect((await report()).next.events).toContainEqual(
+          expect.objectContaining({
+            type: 'file-start',
+            entry: expect.objectContaining({
+              profile: expect.objectContaining({ mode }),
+            }),
+          })
+        )
+      } finally {
+        controller.abort(new Error('Browser profile control finished'))
+        try {
+          await watching
+        } finally {
+          process.env = savedEnv
+        }
+      }
+    }
+  )
+
+  it('retains certified registered production component drivers across watch generations', async () => {
+    const savedEnv = process.env
+    process.env = { ...savedEnv, NODE_ENV: 'production' }
+    try {
+      await writeFile(
+        path.join(directory, 'Fixture.jsx'),
+        'export default function Fixture() { return null }\n'
+      )
+      await writeFile(
+        path.join(directory, 'Layout.jsx'),
+        'export default function Layout({ children }) { return children }\n'
+      )
+      await writeFile(
+        path.join(directory, 'next.test.config.json'),
+        JSON.stringify({
+          projects: [
+            {
+              name: 'registered-production',
+              environment: 'browser',
+              mode: 'production',
+              browserFixtures: [
+                {
+                  id: 'fixture',
+                  module: './Fixture.jsx',
+                  layout: './Layout.jsx',
+                },
+              ],
+            },
+          ],
+        })
+      )
+      start()
+      await expectGeneration('watch-1')
+      invalidate()
+      await expectGeneration('watch-2')
+      expect(requests).toHaveLength(2)
+      for (const request of requests) {
+        expect(request.projects).toHaveLength(1)
+        expect(request.projects[0].profile).toMatchObject({
+          id: 'registered-production',
+          environment: 'browser',
+          mode: 'production',
+          runtime: 'nodejs',
+          bundler: 'turbopack',
+        })
+        expect(request.projects[0].profile.browserClient).not.toBe(true)
+        expect(request.projects[0].browserFixtures).toEqual([
+          {
+            id: 'fixture',
+            module: path.join(directory, 'Fixture.jsx'),
+            exportName: 'default',
+            layout: path.join(directory, 'Layout.jsx'),
+          },
+        ])
+      }
+      expect((await report()).next.events).toContainEqual(
+        expect.objectContaining({
+          type: 'file-start',
+          entry: expect.objectContaining({
+            profile: expect.objectContaining({
+              mode: 'production',
+              environment: 'browser',
+            }),
+          }),
+        })
+      )
+    } finally {
+      controller.abort(
+        new Error('Registered production profile control finished')
+      )
+      try {
+        await watching
+      } finally {
+        process.env = savedEnv
+      }
+    }
+  })
+
+  it('retains actual production Node profiles and fresh generations through source invalidation', async () => {
+    const savedEnv = process.env
+    process.env = { ...savedEnv, NODE_ENV: 'production' }
+    try {
+      await writeFile(
+        path.join(directory, 'next.test.config.json'),
+        JSON.stringify({
+          projects: [{ name: 'production-node', mode: 'production' }],
+        })
+      )
+      start()
+      await expectGeneration('watch-1')
+      invalidate()
+      await expectGeneration('watch-2')
+      expect(requests).toHaveLength(2)
+      for (const request of requests) {
+        expect(request.projects).toHaveLength(1)
+        expect(request.projects[0].profile).toEqual({
+          id: 'production-node',
+          environment: 'node',
+          mode: 'production',
+          runtime: 'nodejs',
+          bundler: 'turbopack',
+        })
+      }
+      expect((await report()).next.events).toContainEqual(
+        expect.objectContaining({
+          type: 'file-start',
+          entry: expect.objectContaining({
+            profile: expect.objectContaining({ mode: 'production' }),
+          }),
+        })
+      )
+    } finally {
+      controller.abort(new Error('Production Node profile control finished'))
+      try {
+        await watching
+      } finally {
+        process.env = savedEnv
+      }
+    }
+  })
+
+  it('joins a cancelled production Node generation without publishing its incomplete passing events', async () => {
+    const savedEnv = process.env
+    process.env = { ...savedEnv, NODE_ENV: 'production' }
+    let release!: () => void
+    try {
+      await writeFile(
+        path.join(directory, 'next.test.config.json'),
+        JSON.stringify({
+          projects: [{ name: 'production-node', mode: 'production' }],
+        })
+      )
+      start()
+      await expectGeneration('watch-1')
+      const first = await readFile(path.join(directory, 'result.json'), 'utf8')
+      let began!: () => void
+      const started = new Promise<void>((resolve) => {
+        began = resolve
+      })
+      const cleanup = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      hold = async () => {
+        began()
+        await cleanup
+      }
+      invalidate()
+      await started
+      controller.abort(new Error('Production Node generation interrupted'))
+      expect(await readFile(path.join(directory, 'result.json'), 'utf8')).toBe(
+        first
+      )
+      release()
+      expect(await watching).toEqual({ status: 'cancelled' })
+      expect(await readFile(path.join(directory, 'result.json'), 'utf8')).toBe(
+        first
+      )
+      expect(requests).toHaveLength(2)
+      const watcher = await jest.mocked(watchTestFiles).mock.results[0].value
+      expect(watcher.close).toHaveBeenCalledTimes(1)
+    } finally {
+      release?.()
+      controller.abort(
+        new Error('Production Node cancellation control finished')
+      )
+      try {
+        await watching
+      } finally {
+        process.env = savedEnv
+      }
+    }
+  })
+
+  it('keeps empty production component registrations outside watch admission', async () => {
+    const savedEnv = process.env
+    process.env = { ...savedEnv, NODE_ENV: 'production' }
+    try {
+      await writeFile(
+        path.join(directory, 'next.test.config.json'),
+        JSON.stringify({
+          projects: [
+            {
+              name: 'empty-registered',
+              environment: 'browser',
+              mode: 'production',
+              browserFixtures: [],
+            },
+          ],
+        })
+      )
+      await expect(
+        watchTests(directory, { signal: controller.signal, write() {} })
+      ).rejects.toThrow(
+        'route-less development profiles and production Browser client profiles'
+      )
+      expect(runWatchProcess).not.toHaveBeenCalled()
+      expect(watchTestFiles).not.toHaveBeenCalled()
+    } finally {
+      process.env = savedEnv
+    }
+  })
+
+  it.each(['node', 'rsc', 'browser-driver', 'client-route'] as const)(
+    'retains the unqualified production %s watch gate before native metadata',
+    async (kind) => {
+      const savedEnv = process.env
+      process.env = { ...savedEnv, NODE_ENV: 'production' }
+      try {
+        const project = {
+          name: 'closed',
+          mode: 'production',
+          ...(kind === 'node'
+            ? { environment: 'rsc', route: '/explicit' }
+            : {}),
+          ...(kind === 'rsc' ? { environment: 'rsc' } : {}),
+          ...(kind === 'browser-driver' ? { environment: 'browser' } : {}),
+          ...(kind === 'client-route'
+            ? { browser: { enabled: true }, route: '/explicit' }
+            : {}),
+        }
+        await writeFile(
+          path.join(directory, 'next.test.config.json'),
+          JSON.stringify({ projects: [project] })
+        )
+        await expect(
+          watchTests(directory, { signal: controller.signal, write() {} })
+        ).rejects.toThrow(
+          kind === 'client-route'
+            ? '.browser.enabled requires an isolated client profile'
+            : 'route-less development profiles and production Browser client profiles'
+        )
+        expect(runWatchProcess).not.toHaveBeenCalled()
+        expect(watchTestFiles).not.toHaveBeenCalled()
+      } finally {
+        process.env = savedEnv
+      }
+    }
+  )
+
   it('expands coverage only for an observed active config reload, preserving a partial addition first', async () => {
     const configFile = path.join(directory, 'next.config.mjs')
     await writeFile(configFile, 'export default {}\n')
@@ -6550,3 +6890,2530 @@ describe('Browser env configuration forwarding', () => {
     }
   })
 })
+
+describe('Browser client viewport configuration', () => {
+  it('normalizes pinned defaults and partial dimensions without changing app drivers', () => {
+    const viewport = (value: unknown) =>
+      normalizeTestConfig({
+        test: { browser: { enabled: true, viewport: value } },
+      }).projects[0].browserViewport
+    expect(viewport(undefined)).toEqual({ width: 414, height: 896 })
+    expect(viewport(null)).toEqual({ width: 414, height: 896 })
+    expect(viewport({ width: 777 })).toEqual({ width: 777, height: 896 })
+    expect(viewport({ height: 480 })).toEqual({ width: 414, height: 480 })
+    expect(viewport({ width: 0, height: 0 })).toEqual({ width: 0, height: 0 })
+    expect(
+      normalizeTestConfig({
+        test: {
+          browser: { enabled: true, viewport: { width: 640, height: 480 } },
+          projects: [{ name: 'inherited' }],
+        },
+      }).projects[0].browserViewport
+    ).toEqual({ width: 640, height: 480 })
+    expect(
+      parseTestConfig({
+        projects: [{ name: 'driver', environment: 'browser' }],
+      }).projects[0].browserViewport
+    ).toBeUndefined()
+    for (const value of [-1, 1.5, Infinity, NaN, '640', true]) {
+      expect(() => viewport({ width: value })).toThrow(
+        'browser.viewport.width must be a non-negative integer'
+      )
+      expect(() => viewport({ height: value })).toThrow(
+        'browser.viewport.height must be a non-negative integer'
+      )
+    }
+    expect(() => viewport({ unknown: 1 })).toThrow('browser.viewport.unknown')
+  })
+  it('forwards resolved viewport settings to ordinary and watch-broker file execution', async () => {
+    const config = normalizeTestConfig({
+      test: {
+        browser: { enabled: true, viewport: { width: 640, height: 480 } },
+      },
+    }).projects[0]
+    const project: DiscoveredTestProject = {
+      ...config,
+      entries: [
+        {
+          id: 'env-entry',
+          file: '/application/env.case.mjs',
+          profile: config.profile,
+        },
+      ],
+    }
+    const artifact: any = {
+      version: 2,
+      kind: 'browser',
+      entryId: 'env-entry',
+      profile: config.profile,
+      revision: 'env-revision',
+      diagnostics: [],
+      client: { sourceFile: project.entries[0].file },
+    }
+    const session = {
+      compile: jest.fn(async () => artifact),
+      dispose: jest.fn(async () => {}),
+      shutdownCompilation: jest.fn(async () => {}),
+    }
+    const calls: ExecuteTestOptions[] = []
+    const executor = async (input: any, options: ExecuteTestOptions) => {
+      calls.push(options)
+      options.onEvent({
+        version: 1,
+        runId: options.runId,
+        timestamp: Date.now(),
+        type: 'file-start',
+        entry: options.entry,
+        revision: input.revision,
+      })
+      const result = {
+        entryId: input.entryId,
+        status: 'passed' as const,
+        durationMs: 0,
+      }
+      options.onEvent({
+        version: 1,
+        runId: options.runId,
+        timestamp: Date.now(),
+        type: 'file-end',
+        ...result,
+      })
+      return result
+    }
+    const compiler = jest.mocked(createTestCompilerSession),
+      executeMock = jest.mocked(execute)
+    const previousCompiler = compiler.getMockImplementation(),
+      previousExecute = executeMock.getMockImplementation()
+    const capability = jest.mocked(capabilities.requireTestCapability),
+      previousCapability = capability.getMockImplementation()
+    const previousNodeEnv = process.env.NODE_ENV
+    try {
+      ;(process.env as any).NODE_ENV = 'development'
+      capability.mockImplementation(() => {})
+      compiler.mockResolvedValue(session as any)
+      executeMock.mockImplementation(executor)
+      for (const broker of [false, true]) {
+        const summary = await runTests('/application', [project], {
+          signal: new AbortController().signal,
+          write: () => {},
+          ...(broker ? { execute: executor } : {}),
+        })
+        expect(summary.status).toBe('passed')
+      }
+      expect(calls).toHaveLength(2)
+      for (const actual of calls) {
+        expect(actual.browserViewport).toBe(project.browserViewport)
+        expect(actual.browserViewport).toEqual({ width: 640, height: 480 })
+      }
+      expect(session.dispose).toHaveBeenCalledTimes(2)
+    } finally {
+      compiler.mockImplementation(previousCompiler!)
+      executeMock.mockImplementation(previousExecute!)
+      capability.mockImplementation(previousCapability!)
+      if (previousNodeEnv === undefined) delete (process.env as any).NODE_ENV
+      else (process.env as any).NODE_ENV = previousNodeEnv
+    }
+  })
+})
+
+describe('explicit registered browser layout modules', () => {
+  it('normalizes the actual layout file and excludes both registered inputs from test discovery', async () => {
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), 'next-fixture-layout-')
+    )
+    try {
+      await cp(path.join(__dirname, 'registered-layout-fixtures'), directory, {
+        recursive: true,
+      })
+      const fixture = {
+        id: 'component',
+        module: './component.spec.jsx',
+        layout: './layout.spec.jsx',
+      }
+      const config = parseTestConfig({
+        projects: [
+          {
+            name: 'layout',
+            environment: 'browser',
+            browserFixtures: [fixture],
+          },
+        ],
+      })
+      const [project] = await discoverTests(directory, config)
+      expect(project.browserFixtures).toEqual([
+        {
+          ...fixture,
+          exportName: 'default',
+          module: await realpath(path.join(directory, fixture.module)),
+          layout: await realpath(path.join(directory, fixture.layout)),
+        },
+      ])
+      expect(project.entries.map((entry) => path.basename(entry.file))).toEqual(
+        ['driver.spec.mjs']
+      )
+      const [standalone] = await discoverTests(
+        directory,
+        parseTestConfig({
+          projects: [
+            {
+              name: 'standalone',
+              environment: 'browser',
+              browserFixtures: [{ id: 'component', module: fixture.module }],
+            },
+          ],
+        })
+      )
+      expect(standalone.browserFixtures![0]).not.toHaveProperty('layout')
+      expect(
+        standalone.entries.map((entry) => path.basename(entry.file))
+      ).toEqual(['driver.spec.mjs', 'layout.spec.jsx'])
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('uses the existing real-file boundary for invalid and escaping layout paths', async () => {
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), 'next-fixture-layout-path-')
+    )
+    const outside = await mkdtemp(
+      path.join(os.tmpdir(), 'next-fixture-layout-outside-')
+    )
+    try {
+      await cp(path.join(__dirname, 'registered-layout-fixtures'), directory, {
+        recursive: true,
+      })
+      const config = (layout: unknown) =>
+        parseTestConfig({
+          projects: [
+            {
+              name: 'layout',
+              environment: 'browser',
+              browserFixtures: [
+                { id: 'component', module: './component.spec.jsx', layout },
+              ],
+            },
+          ],
+        })
+      for (const layout of ['', null, 1])
+        expect(() => config(layout)).toThrow('layout must be a nonempty path')
+      await mkdir(path.join(directory, 'folder'))
+      await expect(
+        discoverTests(directory, config('./folder'))
+      ).rejects.toThrow('fixture layout is not a file')
+      await writeFile(
+        path.join(outside, 'layout.jsx'),
+        'export default function Layout() { return null }'
+      )
+      await symlink(
+        path.join(outside, 'layout.jsx'),
+        path.join(directory, 'linked-layout.jsx')
+      )
+      await expect(
+        discoverTests(directory, config('./linked-layout.jsx'))
+      ).rejects.toThrow('fixture layout must be inside the project')
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+      await rm(outside, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('production Browser client profile selection', () => {
+  it('keeps production client mode and its viewport distinct from production app drivers', () => {
+    const client = normalizeTestConfig({
+      test: { browser: { enabled: true }, mode: 'production' },
+    }).projects[0]
+    expect(client.profile).toMatchObject({
+      environment: 'browser',
+      browserClient: true,
+      mode: 'production',
+      runtime: 'nodejs',
+      bundler: 'turbopack',
+    })
+    expect(client.browserViewport).toEqual({ width: 414, height: 896 })
+    const driver = parseTestConfig({
+      projects: [
+        { name: 'driver', environment: 'browser', mode: 'production' },
+      ],
+    }).projects[0]
+    expect(driver.profile).toMatchObject({
+      environment: 'browser',
+      mode: 'production',
+    })
+    expect(driver.profile.browserClient).toBeUndefined()
+    expect(driver.browserViewport).toBeUndefined()
+    for (const unsupported of [
+      { route: '/page' },
+      { isolate: false },
+      { includeSource: ['*.ts'] },
+    ]) {
+      expect(() =>
+        normalizeTestConfig({
+          test: {
+            browser: { enabled: true },
+            mode: 'production',
+            ...unsupported,
+          },
+        })
+      ).toThrow()
+    }
+  })
+})
+
+describe('percentage worker budgets', () => {
+  afterEach(() => jest.restoreAllMocks())
+
+  it.each([
+    ['50%', 8],
+    ['1%', 1],
+    ['0%', 1],
+    ['150%', 16],
+    [' 25% ', 4],
+    ['33.5%', 5],
+    ['-20%', 1],
+  ])('resolves pinned host-relative worker limit %s', (value, expected) => {
+    jest.spyOn(os, 'availableParallelism').mockReturnValue(16)
+    expect(parseMaxWorkers(value)).toBe(expected)
+    expect(parseTestConfig({ maxWorkers: value }).maxWorkers).toBe(expected)
+  })
+
+  it('retains the existing scheduling budget after percentage resolution', () => {
+    jest.spyOn(os, 'availableParallelism').mockReturnValue(128)
+    expect(parseMaxWorkers('50%')).toBe(64)
+    expect(() => parseMaxWorkers('100%')).toThrow('between 1 and 64')
+    expect(() => parseMaxWorkers('invalid%')).toThrow('maxWorkers')
+  })
+})
+
+describe('Next-owned one-shot editor cancellation', () => {
+  const envelope = {
+    version: 1 as const,
+    runId: 'current/run:identity',
+    timestamp: 1,
+  }
+  async function read(url: string, method = 'GET') {
+    const { request } = await import('node:http')
+    return new Promise<{ code: number; text: string; allow?: string }>(
+      (resolve, reject) => {
+        const outgoing = request(url, { method, agent: false }, (response) => {
+          let text = ''
+          response.setEncoding('utf8')
+          response.on('data', (chunk) => {
+            text += chunk
+          })
+          response.once('end', () =>
+            resolve({
+              code: response.statusCode!,
+              text,
+              allow: response.headers.allow,
+            })
+          )
+          response.once('error', reject)
+        })
+        outgoing.once('error', reject)
+        outgoing.end()
+      }
+    )
+  }
+  it('finishes the acknowledged response before cancellation disposes its owned API', async () => {
+    const { openTestDiscoveryApi } = await import(
+      'next/dist/experimental/testing/editor-api'
+    )
+    let disposal: Promise<void> | undefined
+    let calls = 0
+    const api = await openTestDiscoveryApi('/selected', [], 0, {
+      cancelRun() {
+        calls++
+        disposal = api.dispose()
+      },
+    })
+    try {
+      expect(JSON.parse((await read(api.url)).text).controls).toEqual({
+        cancel: true,
+      })
+      api.onEvent({ ...envelope, type: 'run-start' })
+      const result = await read(
+        new URL(
+          '/v1/runs/' + encodeURIComponent(envelope.runId) + '/cancel',
+          api.url
+        ).href,
+        'POST'
+      )
+      expect(result.code).toBe(202)
+      expect(JSON.parse(result.text)).toEqual({
+        version: 1,
+        protocol: 'next-test-control',
+        command: 'cancel',
+        runId: envelope.runId,
+        status: 'accepted',
+      })
+      expect(calls).toBe(1)
+      await disposal
+      await expect(read(api.url)).rejects.toThrow()
+    } finally {
+      await api.dispose()
+    }
+  })
+  it('cancels only its current live run and keeps repeated requests idempotent', async () => {
+    const { openTestDiscoveryApi } = await import(
+      'next/dist/experimental/testing/editor-api'
+    )
+    const cancelRun = jest.fn()
+    const api = await openTestDiscoveryApi('/selected', [], 0, { cancelRun })
+    const target = new URL(
+      '/v1/runs/' + encodeURIComponent(envelope.runId) + '/cancel',
+      api.url
+    ).href
+    try {
+      expect((await read(target, 'POST')).code).toBe(409)
+      api.onEvent({ ...envelope, type: 'run-start' })
+      expect(
+        (await read(new URL('/v1/runs/foreign/cancel', api.url).href, 'POST'))
+          .code
+      ).toBe(409)
+      expect(
+        (await read(new URL('/v1/runs/%invalid/cancel', api.url).href, 'POST'))
+          .code
+      ).toBe(400)
+      expect(await read(target)).toMatchObject({ code: 405, allow: 'POST' })
+      expect(cancelRun).not.toHaveBeenCalled()
+      expect(JSON.parse((await read(target, 'POST')).text).status).toBe(
+        'accepted'
+      )
+      expect(JSON.parse((await read(target, 'POST')).text).status).toBe(
+        'already-requested'
+      )
+      expect(cancelRun).toHaveBeenCalledTimes(1)
+      api.onEvent({
+        ...envelope,
+        type: 'run-end',
+        status: 'cancelled',
+        durationMs: 1,
+      })
+      expect((await read(target, 'POST')).code).toBe(409)
+      expect(cancelRun).toHaveBeenCalledTimes(1)
+    } finally {
+      await api.dispose()
+    }
+  })
+  it('retains read-only discovery for callers that do not provide a control owner', async () => {
+    const { openTestDiscoveryApi } = await import(
+      'next/dist/experimental/testing/editor-api'
+    )
+    const api = await openTestDiscoveryApi('/selected', [], 0)
+    try {
+      api.onEvent({ ...envelope, type: 'run-start' })
+      expect(JSON.parse((await read(api.url)).text)).not.toHaveProperty(
+        'controls'
+      )
+      expect(
+        (
+          await read(
+            new URL(
+              '/v1/runs/' + encodeURIComponent(envelope.runId) + '/cancel',
+              api.url
+            ).href,
+            'POST'
+          )
+        ).code
+      ).toBe(405)
+    } finally {
+      await api.dispose()
+    }
+  })
+})
+
+it('cancels actual public one-shot dev and production runs through editor and SIGINT with complete cleanup', async () => {
+  const directory = await mkdtemp(
+    path.join(process.cwd(), '.next-test-editor-cancel-')
+  )
+  try {
+    const { runOwnedNode, assertOwnedNodeCompleted } = await import(
+      '../../e2e/app-dir/next-testing-package/process-supervisor.mjs'
+    )
+    const result = await runOwnedNode(
+      [
+        path.join(__dirname, 'editor-cancel-integration.mjs'),
+        path.dirname(require.resolve('next/package.json')),
+        path.join(directory, 'apps'),
+        path.join(directory, 'evidence'),
+      ],
+      {
+        cwd: process.cwd(),
+        env: { ...process.env, NEXT_TELEMETRY_DISABLED: '1' },
+        auditDir: path.join(directory, 'processes'),
+        timeoutMs: 90000,
+      }
+    )
+    assertOwnedNodeCompleted(result, 'actual editor cancellation')
+    if (result.status !== 0)
+      throw new Error([result.stdout, result.stderr].join('\n'))
+    expect(result.status).toBe(0)
+    expect(JSON.parse(result.stdout)).toEqual({
+      profiles: 2,
+      actualPublicRuns: 4,
+      cancellationAcknowledgements: 2,
+      allCleanupAndSnapshotGuards: true,
+    })
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+}, 100000)
+
+it('advertises the additional Node LCOV-only scope while retaining established report capabilities', async () => {
+  const log = jest.spyOn(console, 'log').mockImplementation(() => {})
+  try {
+    await nextTestRunner(
+      path.join(os.tmpdir(), 'next-test-missing-capability-project'),
+      { capabilities: true }
+    )
+    const inventory = JSON.parse(log.mock.calls[0][0])
+    expect(inventory.features.coverage.reports).toEqual([
+      'json',
+      'json-summary',
+      'text',
+      'text-summary',
+      'lcov',
+    ])
+    expect(inventory.features.coverage.additionalReports).toEqual([
+      {
+        name: 'lcovonly',
+        profiles: ['development Node', 'production Node'],
+        execution: 'one-shot',
+      },
+    ])
+    expect(inventory.features.coverage.lcovOnly).toContain(
+      '--coverage.reporter=lcovonly'
+    )
+  } finally {
+    log.mockRestore()
+  }
+})
+
+describe('independent Chromium Browser instances', () => {
+  const browser = (instances: unknown[]) => ({ enabled: true, instances })
+
+  it.each(['development', 'production'] as const)(
+    'retains %s profiles and exact names separately from compiler identities',
+    (mode) => {
+      const unnamed = normalizeTestConfig({
+        test: { mode, browser: browser([{ browser: 'chromium' }]) },
+      }).projects
+      expect(unnamed.map((project) => project.displayName)).toEqual([
+        'chromium',
+      ])
+      const projects = normalizeTestConfig({
+        test: {
+          name: 'parent',
+          mode,
+          browser: {
+            ...browser([
+              { browser: 'chromium' },
+              { browser: 'chromium', name: 'authored / label' },
+              { browser: 'chromium', name: '' },
+            ]),
+            viewport: { width: 640, height: 480 },
+          },
+        },
+      }).projects
+      expect(projects.map((project) => project.displayName)).toEqual([
+        'parent (chromium)',
+        'authored / label',
+        '',
+      ])
+      expect(new Set(projects.map((project) => project.profile.id)).size).toBe(
+        3
+      )
+      for (const project of projects) {
+        expect(project.profile).toEqual({
+          id: expect.stringMatching(/^browser-instance-\d+$/),
+          mode,
+          environment: 'browser',
+          runtime: 'nodejs',
+          bundler: 'turbopack',
+          browserClient: true,
+        })
+        expect(project.browserInstance).toEqual({ parentName: 'parent' })
+        expect(project.browserViewport).toEqual({ width: 640, height: 480 })
+      }
+      expect(projects[0].profile).not.toBe(projects[1].profile)
+    }
+  )
+
+  it('preserves ordinary identities and rejects duplicate public instance names', () => {
+    const projects = parseTestConfig({
+      projects: [
+        { name: 'browser-instance-0' },
+        { name: 'parent', browser: browser([{ browser: 'chromium' }]) },
+      ],
+    }).projects
+    expect(projects.map((project) => project.profile.id)).toEqual([
+      'browser-instance-0',
+      'browser-instance-1',
+    ])
+    expect(() =>
+      normalizeTestConfig({
+        test: {
+          browser: browser([
+            { browser: 'chromium', name: 'same' },
+            { browser: 'chromium', name: 'same' },
+          ]),
+        },
+      })
+    ).toThrow('Duplicate project name "same"')
+    const legacy = normalizeTestConfig({
+      test: { name: 'legacy', browser: { enabled: true } },
+    }).projects[0]
+    expect(legacy.profile.id).toBe('legacy')
+    expect(legacy.browserInstance).toBeUndefined()
+  })
+
+  it.each([
+    { instances: [] },
+    { instances: ['chromium'] },
+    { instances: [{ browser: 'firefox' }] },
+    { instances: [{ browser: 'webkit' }] },
+    { instances: [{ browser: 'chromium', name: 1 }] },
+    {
+      instances: [
+        { browser: 'chromium', viewport: { width: 100, height: 100 } },
+      ],
+    },
+  ])(
+    'retains explicit unqualified instance controls for $instances',
+    ({ instances }) => {
+      expect(() =>
+        normalizeTestConfig({ test: { browser: browser(instances) } })
+      ).toThrow()
+    }
+  )
+
+  it('selects public instance names and parent groups, including an empty name', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'next-instances-'))
+    try {
+      await writeFile(
+        path.join(directory, 'view.test.mjs'),
+        "test('view',()=>{})"
+      )
+      const config = normalizeTestConfig({
+        test: {
+          name: 'parent',
+          browser: browser([
+            { browser: 'chromium', name: 'first / client' },
+            { browser: 'chromium', name: '' },
+          ]),
+        },
+      })
+      const all = await discoverTests(directory, config, { project: 'parent' })
+      expect(all).toHaveLength(2)
+      expect(all.map((project) => project.entries[0].projectName)).toEqual([
+        'first / client',
+        '',
+      ])
+      expect(new Set(all.map((project) => project.entries[0].id)).size).toBe(2)
+      expect(
+        (
+          await discoverTests(directory, config, { project: 'first / client' })
+        ).map((project) => project.displayName)
+      ).toEqual(['first / client'])
+      expect(
+        (await discoverTests(directory, config, { project: '' })).map(
+          (project) => project.displayName
+        )
+      ).toEqual([''])
+      expect(
+        (await collectStaticTestCases(all)).cases.map(
+          (item) => item.projectName
+        )
+      ).toEqual(['first / client', ''])
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('retains all instances and their actual configuration owner in file projects', async () => {
+    const directory = await realpath(
+      await mkdtemp(path.join(os.tmpdir(), 'next-instance-projects-'))
+    )
+    try {
+      await writeFile(
+        path.join(directory, 'next.test.config.mjs'),
+        "export default {test:{projects:[{test:{browser:{enabled:true,instances:[{browser:'chromium',name:'inline first'},{browser:'chromium',name:'inline second'}]}}},'./vitest.client.config.mjs']}}"
+      )
+      await writeFile(
+        path.join(directory, 'vitest.client.config.mjs'),
+        "export default {plugins:[{name:'instance-owner',transform(code){return code.replace('MARKER','owned')}}],test:{name:'file-parent',browser:{enabled:true,instances:[{browser:'chromium',name:'file first'},{browser:'chromium',name:'file second'}]}}}"
+      )
+      const owner = await openTestConfiguration(directory)
+      try {
+        expect(
+          owner.config.projects.map((project) => project.displayName)
+        ).toEqual([
+          'inline first',
+          'inline second',
+          'file first',
+          'file second',
+        ])
+        expect(
+          new Set(owner.config.projects.map((project) => project.profile.id))
+            .size
+        ).toBe(4)
+        expect(owner.watchInputs).toContain(
+          path.join(directory, 'vitest.client.config.mjs')
+        )
+        expect(
+          owner.config.projects
+            .slice(2)
+            .map((project) => project.browserInstance)
+        ).toEqual([
+          { parentName: 'file-parent' },
+          { parentName: 'file-parent' },
+        ])
+        const descriptors = owner.compilerTransforms(owner.config.projects)
+        expect(Object.keys(descriptors)).toEqual(
+          owner.config.projects.slice(2).map((project) => project.profile.id)
+        )
+        for (const project of owner.config.projects.slice(2)) {
+          expect(
+            (
+              await requestCompilerTransform(descriptors[project.profile.id], {
+                file: path.join(directory, 'view.mjs'),
+                query: '',
+                moduleType: 'js',
+                code: 'export const value = "MARKER"',
+              })
+            ).code
+          ).toBe('export const value = "owned"')
+        }
+      } finally {
+        await owner.dispose()
+      }
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  }, 30000)
+})
+
+it.each([
+  'complete',
+  'real-watch',
+  'missing-plan',
+  'mixed-profile',
+  'cancelled-seal',
+  'unsafe-cleanup',
+  'nonzero-exit',
+  'aborted',
+  'edited-source',
+  'run-diagnostic',
+])(
+  'retains ordinary failed-body snapshot coordinator ownership: %s',
+  async (scenario) => {
+    const child = spawn(
+      process.execPath,
+      [
+        path.join(__dirname, 'coordinator-failed-snapshots.cjs'),
+        require.resolve('next/dist/experimental/testing/watch-process'),
+        scenario,
+      ],
+      {
+        env: { ...process.env, NODE_ENV: 'development' },
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: 15000,
+      }
+    )
+    let stdout = ''
+    let stderr = ''
+    child.stdout.setEncoding('utf8').on('data', (text) => {
+      stdout += text
+    })
+    child.stderr.setEncoding('utf8').on('data', (text) => {
+      stderr += text
+    })
+    const [code] = await once(child, 'close')
+    expect({ code, stderr }).toEqual({ code: 0, stderr: '' })
+    expect(JSON.parse(stdout)).toEqual({
+      scenario,
+      accepted: scenario === 'complete',
+      waitedForProcessAndBrokerClose: true,
+      sourceAndExistingByteFencesHeld: true,
+    })
+  }
+)
+
+describe('inactive Browser instances and exact parent labels', () => {
+  it.each([
+    ['development', '', 'chromium'],
+    ['production', '', 'chromium'],
+    ['development', 'parent / group α', 'parent / group α (chromium)'],
+    ['production', 'parent / group α', 'parent / group α (chromium)'],
+  ])(
+    'expands %s parent %j with public name %j and a separate compiler identity',
+    async (mode, parentName, expectedName) => {
+      const config = normalizeTestConfig({
+        test: {
+          name: parentName,
+          mode,
+          browser: { enabled: true, instances: [{ browser: 'chromium' }] },
+        },
+      })
+      const project = config.projects[0]
+      expect(project.displayName).toBe(expectedName)
+      expect(project.browserInstance).toEqual({ parentName })
+      expect(project.profile.id).toMatch(/^browser-instance-\d+$/)
+      expect(project.profile.mode).toBe(mode)
+      expect(
+        parseTestConfig({
+          projects: [
+            {
+              name: parentName,
+              mode,
+              browser: { enabled: true, instances: [{ browser: 'chromium' }] },
+            },
+          ],
+        }).projects[0].displayName
+      ).toBe(expectedName)
+      const directory = await realpath(
+        await mkdtemp(path.join(os.tmpdir(), 'next-parent-label-'))
+      )
+      try {
+        await writeFile(
+          path.join(directory, 'view.test.mjs'),
+          "test('view',()=>{})"
+        )
+        const selected = await discoverTests(directory, config, {
+          project: parentName,
+        })
+        expect(selected.map((item) => item.entries[0].projectName)).toEqual([
+          expectedName,
+        ])
+      } finally {
+        await rm(directory, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it.each(['development', 'production'] as const)(
+    'keeps disabled instances in their ordinary %s Node profile',
+    (mode) => {
+      const projects = normalizeTestConfig({
+        test: {
+          name: 'base-project',
+          mode,
+          browser: {
+            enabled: false,
+            instances: [{ browser: 'chromium', name: 'inactive-child' }],
+          },
+        },
+      }).projects
+      expect(projects).toHaveLength(1)
+      expect(projects[0].profile).toEqual({
+        id: 'base-project',
+        environment: 'node',
+        mode,
+        runtime: 'nodejs',
+        bundler: 'turbopack',
+      })
+      expect(projects[0].displayName).toBe('base-project')
+      expect(projects[0].browserInstance).toBeUndefined()
+      expect(projects[0].browserViewport).toBeUndefined()
+    }
+  )
+
+  it.each(['node', 'browser', 'rsc'])(
+    'preserves an explicit %s environment with inactive instances',
+    (environment) => {
+      expect(
+        normalizeTestConfig({
+          test: {
+            name: 'explicit',
+            environment,
+            browser: { enabled: false, instances: [{ browser: 'chromium' }] },
+          },
+        }).projects[0].profile
+      ).toEqual({
+        id: 'explicit',
+        environment,
+        mode: 'development',
+        runtime: 'nodejs',
+        bundler: 'turbopack',
+      })
+    }
+  )
+
+  it('retains the existing compiler identity grammar for profiles that do not expand', () => {
+    for (const name of ['', 'parent / group α']) {
+      for (const browser of [
+        undefined,
+        { enabled: true },
+        { enabled: false, instances: [{ browser: 'chromium' }] },
+      ]) {
+        expect(() =>
+          normalizeTestConfig({
+            test: { name, ...(browser ? { browser } : {}) },
+          })
+        ).toThrow('name must contain only letters')
+      }
+    }
+    expect(() =>
+      normalizeTestConfig({
+        test: {
+          name: 1,
+          browser: { enabled: true, instances: [{ browser: 'chromium' }] },
+        },
+      })
+    ).toThrow('name must contain only letters')
+  })
+})
+if (process.platform === 'win32') {
+  it.skip('POSIX cleanup verifier is unavailable on Windows', () => {})
+} else {
+  it('reclaims closed POSIX descendants within the existing cleanup budget and retains live/timeout failures', async () => {
+    const { execFileSync } = await import('node:child_process')
+    const result = execFileSync(
+      process.execPath,
+      [path.join(__dirname, 'process-supervisor-stress.mjs')],
+      { encoding: 'utf8', timeout: 170000 }
+    )
+    expect(JSON.parse(result)).toEqual({
+      closedChildren: 400,
+      actualOwnedRecords: 401,
+      cleanupBudgetMs: 3000,
+      liveChildRejected: true,
+      deadlineRejected: true,
+    })
+  }, 180000)
+}
+
+it.each([
+  'complete',
+  'pre-qualified',
+  'pre-no-entry',
+  'pre-foreign-entry',
+  'pre-wrong-revision',
+  'pre-wrong-run',
+  'pre-non-runtime',
+  'pre-non-rejection',
+  'pre-unknown-missing-receipt',
+  'post-receipt',
+  'run-diagnostic',
+  'missing-plan',
+  'real-watch',
+  'mixed-profile',
+  'unsafe-cleanup',
+  'nonzero-exit',
+  'aborted',
+  'edited-source',
+  'cancelled-seal',
+])(
+  'retains actual-entry native rejection snapshot receipt fences: %s',
+  async (scenario) => {
+    const { execFile } = await import('node:child_process')
+    const { promisify } = await import('node:util')
+    const { stdout } = await promisify(execFile)(process.execPath, [
+      path.join(__dirname, 'coordinator-native-rejections.cjs'),
+      require.resolve('next/dist/experimental/testing/watch-process'),
+      scenario,
+    ])
+    expect(JSON.parse(stdout)).toEqual({
+      scenario,
+      accepted: scenario === 'complete' || scenario === 'pre-qualified',
+      waitedForProcessAndBrokerClose: true,
+      sourceAndExistingByteFencesHeld: true,
+    })
+  },
+  15000
+)
+
+describe('owned watch editor generations', () => {
+  it('acknowledges reruns once, resets cancellation ownership and retains actual run and file identities', async () => {
+    const { openTestDiscoveryApi } = await import(
+      'next/dist/experimental/testing/editor-api'
+    )
+    const entry: TestEntry = {
+      id: 'watch:actual',
+      file: '/selected/actual.test.mjs',
+      profile: {
+        id: 'watch',
+        environment: 'node',
+        mode: 'development',
+        runtime: 'nodejs',
+        bundler: 'turbopack',
+      },
+    }
+    const cancelRun = jest.fn()
+    const rerun = jest.fn()
+    const api = await openTestDiscoveryApi('/selected', [entry], 0, {
+      cancelRun,
+      rerun,
+    })
+    const envelope = {
+      version: 1 as const,
+      runId: 'first/actual',
+      timestamp: 1,
+    }
+    const command = (id: string, action: string, method = 'POST') =>
+      fetch(
+        new URL('/v1/runs/' + encodeURIComponent(id) + '/' + action, api.url),
+        { method }
+      )
+    try {
+      expect((await (await fetch(api.url)).json()).controls).toEqual({
+        cancel: true,
+        rerun: true,
+      })
+      api.prepareRun([entry])
+      api.onEvent({ ...envelope, type: 'run-start' })
+      expect((await command(envelope.runId, 'rerun')).status).toBe(409)
+      expect((await command(envelope.runId, 'cancel')).status).toBe(202)
+      expect((await command(envelope.runId, 'cancel')).status).toBe(202)
+      expect(cancelRun).toHaveBeenCalledTimes(1)
+      expect(() => api.prepareRun([entry])).toThrow('not settled')
+      api.cancelledRunSettled()
+      expect((await (await fetch(api.url)).json()).run.status).toBe('cancelled')
+      const accepted = await command(envelope.runId, 'rerun')
+      expect(accepted.status).toBe(202)
+      expect(await accepted.json()).toMatchObject({
+        command: 'rerun',
+        runId: envelope.runId,
+        status: 'accepted',
+      })
+      expect(
+        await (await command(envelope.runId, 'rerun')).json()
+      ).toMatchObject({ status: 'already-requested' })
+      expect(rerun).toHaveBeenCalledTimes(1)
+      expect((await command(envelope.runId, 'rerun', 'GET')).status).toBe(405)
+      api.prepareRun([
+        {
+          ...entry,
+          id: 'watch:replacement',
+          file: '/selected/replacement.test.mjs',
+        },
+      ])
+      api.onEvent({ ...envelope, runId: 'second/actual', type: 'run-start' })
+      expect((await command(envelope.runId, 'cancel')).status).toBe(409)
+      expect((await command(envelope.runId, 'rerun')).status).toBe(409)
+      expect((await command('second/actual', 'cancel')).status).toBe(202)
+      expect(cancelRun).toHaveBeenCalledTimes(2)
+      expect(await (await fetch(api.url)).json()).toMatchObject({
+        run: { id: 'second/actual', status: 'running' },
+        files: [{ id: 'watch:replacement', file: 'replacement.test.mjs' }],
+        cases: [],
+      })
+      api.cancelledRunSettled()
+      expect(() =>
+        api.prepareRun([{ ...entry, file: '/foreign/file' }])
+      ).toThrow('outside')
+      expect((await (await fetch(api.url)).json()).files[0].id).toBe(
+        'watch:replacement'
+      )
+    } finally {
+      await api.dispose()
+    }
+  })
+
+  it.each(['development', 'production'] as const)(
+    'reruns and cancels actual %s CLI watch generations while keeping the API alive until final cleanup',
+    async (mode) => {
+      const { copyFile, readdir } = await import('node:fs/promises')
+      const directory = await mkdtemp(
+        path.join(process.cwd(), '.next-test-editor-watch-')
+      )
+      const controlsDirectory = await mkdtemp(
+        path.join(os.tmpdir(), 'next-editor-watch-controls-')
+      )
+      const app = path.join(directory, 'app')
+      const control = path.join(controlsDirectory, 'control.txt')
+      const trace = path.join(controlsDirectory, 'trace.txt')
+      const fixture = path.join(__dirname, 'fixtures/editor-watch')
+      await mkdir(app)
+      for (const name of ['contract.test.mjs'])
+        await copyFile(path.join(fixture, name + '.txt'), path.join(app, name))
+      await writeFile(control, 'healthy')
+      await writeFile(trace, '')
+      await writeFile(path.join(app, 'package.json'), '{"type":"module"}\n')
+      await writeFile(
+        path.join(app, 'next.test.config.json'),
+        JSON.stringify({
+          maxWorkers: 1,
+          projects: [
+            {
+              name: 'editor',
+              environment: 'node',
+              mode,
+              include: ['contract.test.mjs'],
+              testTimeout: 30000,
+            },
+          ],
+        })
+      )
+      const child = spawn(
+        process.execPath,
+        [
+          path.join(
+            path.dirname(require.resolve('next/package.json')),
+            'dist/bin/next'
+          ),
+          'test',
+          app,
+          '--watch',
+          '--api',
+          '0',
+          '--reporter=json',
+          '--outputFile',
+          path.join(app, 'result.json'),
+        ],
+        {
+          cwd: app,
+          env: {
+            ...process.env,
+            NODE_ENV: mode,
+            NEXT_TELEMETRY_DISABLED: '1',
+            NEXT_TEST_EDITOR_TRACE: trace,
+            NEXT_TEST_EDITOR_CONTROL: control,
+          },
+          stdio: ['ignore', 'pipe', 'pipe'],
+        }
+      )
+      const closed = once(child, 'close')
+      let stdout = '',
+        stderr = ''
+      child.stdout.on('data', (chunk) => {
+        stdout += chunk
+      })
+      child.stderr.on('data', (chunk) => {
+        stderr += chunk
+      })
+      let url = ''
+      async function current() {
+        if (child.exitCode !== null || child.signalCode !== null)
+          throw new Error('Watch CLI closed: ' + stdout + stderr)
+        const match =
+          /Next test discovery API: (http:\/\/127\.0\.0\.1:\d+\/v1\/discovery)/.exec(
+            stderr
+          )
+        expect(match).not.toBeNull()
+        url = match![1]
+        const response = await fetch(url, { signal: AbortSignal.timeout(5000) })
+        expect(response.status).toBe(200)
+        return response.json()
+      }
+      async function settled(previous?: string) {
+        let value: Awaited<ReturnType<typeof current>>
+        await retry(
+          async () => {
+            value = await current()
+            expect(value.run?.status).toBe('passed')
+            if (previous) expect(value.run.id).not.toBe(previous)
+          },
+          20000,
+          100
+        )
+        return value!
+      }
+      async function command(id: string, action: string) {
+        return fetch(
+          new URL('/v1/runs/' + encodeURIComponent(id) + '/' + action, url),
+          { method: 'POST', signal: AbortSignal.timeout(5000) }
+        )
+      }
+      try {
+        const first = await settled()
+        expect(first.controls).toEqual({ cancel: true, rerun: true })
+        expect(first.cases).toMatchObject([
+          { name: 'actual watch generation', status: 'passed' },
+        ])
+        expect((await command(first.run.id, 'rerun')).status).toBe(202)
+        const second = await settled(first.run.id)
+        expect(second.files).toEqual(first.files)
+        expect((await command(first.run.id, 'rerun')).status).toBe(409)
+        await writeFile(control, 'hold')
+        expect((await command(second.run.id, 'rerun')).status).toBe(202)
+        let active: Awaited<ReturnType<typeof current>>
+        await retry(
+          async () => {
+            active = await current()
+            expect(active.run.status).toBe('running')
+            expect(active.run.id).not.toBe(second.run.id)
+            expect(await readFile(trace, 'utf8')).toContain('body hold\n')
+          },
+          20000,
+          100
+        )
+        expect((await command(active!.run.id, 'cancel')).status).toBe(202)
+        await retry(
+          async () => {
+            const cancelled = await current()
+            expect(cancelled.run).toEqual({
+              id: active!.run.id,
+              status: 'cancelled',
+            })
+            const rows = (await readFile(trace, 'utf8')).trim().split('\n')
+            expect(
+              rows.filter((row) => row === 'fixture cleanup')
+            ).toHaveLength(3)
+            expect(rows.filter((row) => row === 'afterAll')).toHaveLength(3)
+          },
+          20000,
+          100
+        )
+        await writeFile(control, 'healthy')
+        expect((await command(active!.run.id, 'rerun')).status).toBe(202)
+        const fourth = await settled(active!.run.id)
+        expect(fourth.cases).toMatchObject([
+          { name: 'actual watch generation', status: 'passed' },
+        ])
+        expect((await command(active!.run.id, 'cancel')).status).toBe(409)
+        expect(child.kill('SIGINT')).toBe(true)
+        expect(await closed).toEqual([130, null])
+        const rows = (await readFile(trace, 'utf8')).trim().split('\n')
+        for (const event of [
+          'fixture setup',
+          'fixture cleanup',
+          'finished',
+          'afterAll',
+        ])
+          expect(rows.filter((row) => row === event)).toHaveLength(4)
+        expect(rows[0]).toBe('fixture setup')
+        expect(rows.at(-1)).toBe('afterAll')
+        expect(
+          (await readdir(app)).filter((name) => name.startsWith('.next-test-'))
+        ).toEqual([])
+        const { execFileSync } = await import('node:child_process')
+        expect(
+          execFileSync(
+            process.execPath,
+            [
+              path.join(__dirname, 'editor-watch-lock.cjs'),
+              require.resolve('next/dist/experimental/testing/scheduling'),
+              app,
+            ],
+            { encoding: 'utf8', timeout: 10000 }
+          )
+        ).toBe('released')
+        await expect(
+          fetch(url, { signal: AbortSignal.timeout(5000) })
+        ).rejects.toThrow()
+        for (const name of ['contract.test.mjs'])
+          expect(await readFile(path.join(app, name))).toEqual(
+            await readFile(path.join(fixture, name + '.txt'))
+          )
+      } catch (error) {
+        throw new Error(String(error) + '\n' + stdout + '\n' + stderr)
+      } finally {
+        if (child.exitCode === null && child.signalCode === null) {
+          child.kill('SIGTERM')
+          await closed
+        }
+        await Promise.all(
+          [directory, controlsDirectory].map((owner) =>
+            rm(owner, { recursive: true, force: true })
+          )
+        )
+      }
+    },
+    120000
+  )
+})
+
+describe('retained JSON global setup watch ownership', () => {
+  let directory: string
+  let trace: string
+  beforeEach(async () => {
+    directory = await mkdtemp(
+      path.join(os.tmpdir(), 'next-global-setup-watch-')
+    )
+    trace = path.join(directory, 'trace.jsonl')
+    await writeFile(trace, '')
+    await writeFile(
+      path.join(directory, 'next.test.config.json'),
+      JSON.stringify({
+        projects: [
+          {
+            name: 'retained',
+            environment: 'node',
+            mode: 'development',
+            include: ['*.test.mjs'],
+            globalSetup: ['./setup.mjs'],
+            provide: { configured: 'first' },
+          },
+        ],
+      })
+    )
+    await writeFile(
+      path.join(directory, 'setup.mjs'),
+      `import {appendFileSync} from 'node:fs';export default function(project){appendFileSync(${JSON.stringify(trace)},'setup\\n');project.provide('seed',{nested:{value:1}});return()=>appendFileSync(${JSON.stringify(trace)},'teardown\\n')}`
+    )
+  })
+  afterEach(async () => {
+    await rm(directory, { recursive: true, force: true })
+  })
+  async function rows() {
+    return (await readFile(trace, 'utf8')).trim().split('\n').filter(Boolean)
+  }
+
+  it('retains fulfilled actual provided context with fresh clones and one final teardown', async () => {
+    const generation = new AbortController()
+    const lifetime = new AbortController()
+    const owner = await openTestConfiguration(directory, generation.signal)
+    try {
+      expect(
+        await owner.retainGlobalSetupForWatch(
+          lifetime.signal,
+          owner.config.projects
+        )
+      ).toBe(true)
+      await owner.setup([])
+      expect(await rows()).toEqual([])
+      const first = structuredClone(owner.config.projects)
+      await owner.setup(first)
+      expect(first[0].provide).toEqual({
+        configured: 'first',
+        seed: { nested: { value: 1 } },
+      })
+      ;(first[0].provide!.seed as { nested: { value: number } }).nested.value =
+        99
+      generation.abort(new Error('original generation closed'))
+      await writeFile(
+        path.join(directory, 'setup.mjs'),
+        "throw new Error('edited setup must not run in this retained owner')"
+      )
+      expect(
+        await owner.retainGlobalSetupForWatch(
+          lifetime.signal,
+          owner.config.projects
+        )
+      ).toBe(true)
+      const next = structuredClone(owner.config.projects)
+      const laterGeneration = new AbortController()
+      laterGeneration.abort(new Error('later generation cancelled'))
+      await owner.setup(next, laterGeneration.signal)
+      expect(next[0].provide).toEqual({
+        configured: 'first',
+        seed: { nested: { value: 1 } },
+      })
+      expect(await rows()).toEqual(['setup'])
+    } finally {
+      await owner.dispose()
+      await owner.dispose()
+    }
+    expect(await rows()).toEqual(['setup', 'teardown'])
+    await expect(
+      owner.setup(structuredClone(owner.config.projects))
+    ).rejects.toThrow('retained global setup configuration is unavailable')
+  })
+
+  it('reopens after the original generation is cancelled before setup is entered', async () => {
+    const generation = new AbortController()
+    const lifetime = new AbortController()
+    const owner = await openTestConfiguration(directory, generation.signal)
+    expect(
+      await owner.retainGlobalSetupForWatch(
+        lifetime.signal,
+        owner.config.projects
+      )
+    ).toBe(true)
+    generation.abort(new Error('cancelled before setup'))
+    expect(
+      await owner.retainGlobalSetupForWatch(
+        lifetime.signal,
+        owner.config.projects
+      )
+    ).toBe(false)
+    await owner.dispose()
+    expect(await rows()).toEqual([])
+    const next = await openTestConfiguration(directory)
+    try {
+      expect(
+        await next.retainGlobalSetupForWatch(
+          lifetime.signal,
+          next.config.projects
+        )
+      ).toBe(true)
+      await next.setup(structuredClone(next.config.projects))
+      expect(await rows()).toEqual(['setup'])
+    } finally {
+      await next.dispose()
+    }
+    expect(await rows()).toEqual(['setup', 'teardown'])
+  })
+
+  it.each(['production', 'rsc', 'shared', 'jsdom'] as const)(
+    'keeps the actual %s selection generation-owned even after declared Node admission',
+    async (selection) => {
+      const generation = new AbortController()
+      const lifetime = new AbortController()
+      const owner = await openTestConfiguration(directory, generation.signal)
+      const effective = structuredClone(
+        applyTestConfigOverrides(owner.config, { retry: 2 }).projects
+      )
+      if (selection === 'production') effective[0].profile.mode = 'production'
+      else if (selection === 'rsc') effective[0].profile.environment = 'rsc'
+      else if (selection === 'shared') effective[0].isolate = false
+      else effective[0].executionEnvironment = { name: 'jsdom', options: {} }
+      try {
+        expect(
+          await owner.retainGlobalSetupForWatch(lifetime.signal, effective)
+        ).toBe(false)
+        expect(
+          await owner.retainGlobalSetupForWatch(
+            lifetime.signal,
+            owner.config.projects
+          )
+        ).toBe(true)
+        await owner.setup(effective)
+        expect(await rows()).toEqual(['setup'])
+        expect(
+          await owner.retainGlobalSetupForWatch(
+            lifetime.signal,
+            owner.config.projects
+          )
+        ).toBe(false)
+        generation.abort(new Error('actual unqualified generation closed'))
+      } finally {
+        await owner.dispose()
+      }
+      expect(await rows()).toEqual(['setup', 'teardown'])
+    }
+  )
+
+  it('does not memoize partial setup failure and drains its actual returned cleanup', async () => {
+    const file = path.join(directory, 'next.test.config.json')
+    const config = JSON.parse(await readFile(file, 'utf8'))
+    config.projects[0].globalSetup.push('./failure.mjs')
+    await writeFile(file, JSON.stringify(config))
+    await writeFile(
+      path.join(directory, 'failure.mjs'),
+      "export default function(){throw new Error('actual partial setup failure')}"
+    )
+    const lifetime = new AbortController()
+    const owner = await openTestConfiguration(directory)
+    try {
+      expect(
+        await owner.retainGlobalSetupForWatch(
+          lifetime.signal,
+          owner.config.projects
+        )
+      ).toBe(true)
+      await expect(
+        owner.setup(structuredClone(owner.config.projects))
+      ).rejects.toThrow('actual partial setup failure')
+      expect(
+        await owner.retainGlobalSetupForWatch(
+          lifetime.signal,
+          owner.config.projects
+        )
+      ).toBe(false)
+      expect(await rows()).toEqual(['setup', 'teardown'])
+    } finally {
+      await expect(owner.dispose()).rejects.toThrow(
+        'Test configuration session ended unexpectedly (exit)'
+      )
+    }
+    expect(await rows()).toEqual(['setup', 'teardown'])
+  })
+
+  it('refuses changed configuration bytes and preserves old teardown before replacement setup', async () => {
+    const lifetime = new AbortController()
+    const first = await openTestConfiguration(directory)
+    expect(
+      await first.retainGlobalSetupForWatch(
+        lifetime.signal,
+        first.config.projects
+      )
+    ).toBe(true)
+    await first.setup(structuredClone(first.config.projects))
+    const file = path.join(directory, 'next.test.config.json')
+    const config = JSON.parse(await readFile(file, 'utf8'))
+    config.projects[0].provide.configured = 'replacement'
+    await writeFile(file, JSON.stringify(config))
+    expect(
+      await first.retainGlobalSetupForWatch(
+        lifetime.signal,
+        first.config.projects
+      )
+    ).toBe(false)
+    await expect(
+      first.retainGlobalSetupForWatch(
+        lifetime.signal,
+        first.config.projects,
+        true
+      )
+    ).rejects.toThrow('changed during evaluation')
+    await first.dispose()
+    expect(await rows()).toEqual(['setup', 'teardown'])
+    const replacement = await openTestConfiguration(directory)
+    try {
+      expect(
+        await replacement.retainGlobalSetupForWatch(
+          lifetime.signal,
+          replacement.config.projects
+        )
+      ).toBe(true)
+      const selected = structuredClone(replacement.config.projects)
+      await replacement.setup(selected)
+      expect(selected[0].provide?.configured).toBe('replacement')
+      expect(await rows()).toEqual(['setup', 'teardown', 'setup'])
+    } finally {
+      await replacement.dispose()
+    }
+    expect(await rows()).toEqual(['setup', 'teardown', 'setup', 'teardown'])
+  })
+
+  it('refuses foreign or newly unqualified cached selections before a context handoff', async () => {
+    const lifetime = new AbortController()
+    const owner = await openTestConfiguration(directory)
+    try {
+      expect(
+        await owner.retainGlobalSetupForWatch(
+          lifetime.signal,
+          owner.config.projects
+        )
+      ).toBe(true)
+      await owner.setup(structuredClone(owner.config.projects))
+      const foreign = structuredClone(owner.config.projects)
+      foreign[0].profile.id = 'foreign'
+      await expect(owner.setup(foreign)).rejects.toThrow('Unknown project')
+      const shared = structuredClone(owner.config.projects)
+      shared[0].isolate = false
+      await expect(owner.setup(shared)).rejects.toThrow('Unsupported project')
+      expect(
+        await owner.retainGlobalSetupForWatch(
+          lifetime.signal,
+          owner.config.projects
+        )
+      ).toBe(false)
+      await expect(
+        owner.setup(structuredClone(owner.config.projects))
+      ).rejects.toThrow('retained global setup configuration is unavailable')
+      expect(await rows()).toEqual(['setup'])
+    } finally {
+      await owner.dispose()
+    }
+    expect(await rows()).toEqual(['setup', 'teardown'])
+  })
+
+  it('keeps pending setup generation-owned and permits a fresh healthy owner after cancellation', async () => {
+    const source = await readFile(path.join(directory, 'setup.mjs'), 'utf8')
+    await writeFile(
+      path.join(directory, 'setup.mjs'),
+      `import {appendFileSync} from 'node:fs';export default async function(){appendFileSync(${JSON.stringify(trace)},'entered\\n');await new Promise(()=>{})}`
+    )
+    const session = new AbortController()
+    const generation = new AbortController()
+    const lifetime = new AbortController()
+    const owner = await openTestConfiguration(directory, session.signal)
+    try {
+      expect(
+        await owner.retainGlobalSetupForWatch(
+          lifetime.signal,
+          owner.config.projects
+        )
+      ).toBe(true)
+      const pending = owner
+        .setup(structuredClone(owner.config.projects), generation.signal)
+        .then(
+          () => null,
+          (error) => error
+        )
+      await retry(
+        async () => expect(await rows()).toEqual(['entered']),
+        5000,
+        50
+      )
+      const cancellation = new Error('cancelled pending setup')
+      generation.abort(cancellation)
+      expect(await pending).toBe(cancellation)
+      expect(session.signal.aborted).toBe(false)
+      expect(
+        await owner.retainGlobalSetupForWatch(
+          lifetime.signal,
+          owner.config.projects
+        )
+      ).toBe(false)
+    } finally {
+      generation.abort(new Error('pending setup test closed'))
+      await owner.dispose()
+    }
+    expect(await rows()).toEqual(['entered'])
+    await writeFile(path.join(directory, 'setup.mjs'), source)
+    const recovered = await openTestConfiguration(directory)
+    try {
+      expect(
+        await recovered.retainGlobalSetupForWatch(
+          lifetime.signal,
+          recovered.config.projects
+        )
+      ).toBe(true)
+      await recovered.setup(structuredClone(recovered.config.projects))
+    } finally {
+      await recovered.dispose()
+    }
+    expect(await rows()).toEqual(['entered', 'setup', 'teardown'])
+  }, 30000)
+
+  it('revokes cached context with the actual closed realm after its lifetime aborts', async () => {
+    const lifetime = new AbortController()
+    const owner = await openTestConfiguration(directory)
+    try {
+      expect(
+        await owner.retainGlobalSetupForWatch(
+          lifetime.signal,
+          owner.config.projects
+        )
+      ).toBe(true)
+      await owner.setup(structuredClone(owner.config.projects))
+      lifetime.abort(new Error('actual watch lifetime closed'))
+      await owner.dispose()
+      await expect(
+        owner.retainGlobalSetupForWatch(
+          new AbortController().signal,
+          owner.config.projects
+        )
+      ).rejects.toThrow('retained global setup configuration is unavailable')
+      await expect(
+        owner.setup(structuredClone(owner.config.projects))
+      ).rejects.toThrow('retained global setup configuration is unavailable')
+    } finally {
+      await owner.dispose()
+    }
+    expect(await rows()).toEqual(['setup', 'teardown'])
+  })
+
+  it('does not memoize an initial aborted run while the first discovery session remains live', async () => {
+    const session = new AbortController()
+    const generation = new AbortController()
+    const lifetime = new AbortController()
+    const owner = await openTestConfiguration(directory, session.signal)
+    try {
+      expect(
+        await owner.retainGlobalSetupForWatch(
+          lifetime.signal,
+          owner.config.projects
+        )
+      ).toBe(true)
+      const cancellation = new Error('actual initial run already cancelled')
+      generation.abort(cancellation)
+      await expect(
+        owner.setup(structuredClone(owner.config.projects), generation.signal)
+      ).rejects.toBe(cancellation)
+      expect(session.signal.aborted).toBe(false)
+      expect(
+        await owner.retainGlobalSetupForWatch(
+          lifetime.signal,
+          owner.config.projects
+        )
+      ).toBe(false)
+      expect(await rows()).toEqual([])
+    } finally {
+      await owner.dispose()
+    }
+    const recovered = await openTestConfiguration(directory, session.signal)
+    try {
+      expect(
+        await recovered.retainGlobalSetupForWatch(
+          lifetime.signal,
+          recovered.config.projects
+        )
+      ).toBe(true)
+      await recovered.setup(
+        structuredClone(recovered.config.projects),
+        new AbortController().signal
+      )
+      expect(await rows()).toEqual(['setup'])
+    } finally {
+      await recovered.dispose()
+    }
+    expect(await rows()).toEqual(['setup', 'teardown'])
+  })
+
+  it.each(['development'] as const)(
+    'retains one global setup owner through actual %s CLI watch reruns and cancellation',
+    async (mode) => {
+      const { copyFile, readdir } = await import('node:fs/promises')
+      const directory = await mkdtemp(
+        path.join(process.cwd(), '.next-test-editor-watch-')
+      )
+      const controlsDirectory = await mkdtemp(
+        path.join(os.tmpdir(), 'next-editor-watch-controls-')
+      )
+      const app = path.join(directory, 'app')
+      const control = path.join(controlsDirectory, 'control.txt')
+      const trace = path.join(controlsDirectory, 'trace.txt')
+      const fixture = path.join(__dirname, 'fixtures/editor-watch')
+      await mkdir(app)
+      for (const name of ['contract.test.mjs', 'global-setup.mjs'])
+        await copyFile(path.join(fixture, name + '.txt'), path.join(app, name))
+      await writeFile(control, 'healthy')
+      await writeFile(trace, '')
+      await writeFile(path.join(app, 'package.json'), '{"type":"module"}\n')
+      await writeFile(
+        path.join(app, 'next.test.config.json'),
+        JSON.stringify({
+          maxWorkers: 1,
+          projects: [
+            {
+              name: 'editor',
+              environment: 'node',
+              mode,
+              include: ['contract.test.mjs'],
+              globalSetup: ['./global-setup.mjs'],
+              testTimeout: 30000,
+            },
+          ],
+        })
+      )
+      const child = spawn(
+        process.execPath,
+        [
+          path.join(
+            path.dirname(require.resolve('next/package.json')),
+            'dist/bin/next'
+          ),
+          'test',
+          app,
+          '--watch',
+          '--api',
+          '0',
+          '--reporter=json',
+          '--outputFile',
+          path.join(app, 'result.json'),
+        ],
+        {
+          cwd: app,
+          env: {
+            ...process.env,
+            NODE_ENV: mode,
+            NEXT_TELEMETRY_DISABLED: '1',
+            NEXT_TEST_EDITOR_TRACE: trace,
+            NEXT_TEST_EDITOR_CONTROL: control,
+          },
+          stdio: ['ignore', 'pipe', 'pipe'],
+        }
+      )
+      const closed = once(child, 'close')
+      let stdout = '',
+        stderr = ''
+      child.stdout.on('data', (chunk) => {
+        stdout += chunk
+      })
+      child.stderr.on('data', (chunk) => {
+        stderr += chunk
+      })
+      let url = ''
+      async function current() {
+        if (child.exitCode !== null || child.signalCode !== null)
+          throw new Error('Watch CLI closed: ' + stdout + stderr)
+        const match =
+          /Next test discovery API: (http:\/\/127\.0\.0\.1:\d+\/v1\/discovery)/.exec(
+            stderr
+          )
+        expect(match).not.toBeNull()
+        url = match![1]
+        const response = await fetch(url, { signal: AbortSignal.timeout(5000) })
+        expect(response.status).toBe(200)
+        return response.json()
+      }
+      async function settled(previous?: string) {
+        let value: Awaited<ReturnType<typeof current>>
+        await retry(
+          async () => {
+            value = await current()
+            expect(value.run?.status).toBe('passed')
+            if (previous) expect(value.run.id).not.toBe(previous)
+          },
+          20000,
+          100
+        )
+        return value!
+      }
+      async function command(id: string, action: string) {
+        return fetch(
+          new URL('/v1/runs/' + encodeURIComponent(id) + '/' + action, url),
+          { method: 'POST', signal: AbortSignal.timeout(5000) }
+        )
+      }
+      try {
+        const first = await settled()
+        expect(first.controls).toEqual({ cancel: true, rerun: true })
+        expect(first.cases).toMatchObject([
+          { name: 'actual watch generation', status: 'passed' },
+        ])
+        expect((await command(first.run.id, 'rerun')).status).toBe(202)
+        const second = await settled(first.run.id)
+        expect(second.files).toEqual(first.files)
+        expect((await command(first.run.id, 'rerun')).status).toBe(409)
+        await writeFile(control, 'hold')
+        expect((await command(second.run.id, 'rerun')).status).toBe(202)
+        let active: Awaited<ReturnType<typeof current>>
+        await retry(
+          async () => {
+            active = await current()
+            expect(active.run.status).toBe('running')
+            expect(active.run.id).not.toBe(second.run.id)
+            expect(await readFile(trace, 'utf8')).toContain('body hold\n')
+          },
+          20000,
+          100
+        )
+        expect((await command(active!.run.id, 'cancel')).status).toBe(202)
+        await retry(
+          async () => {
+            const cancelled = await current()
+            expect(cancelled.run).toEqual({
+              id: active!.run.id,
+              status: 'cancelled',
+            })
+            const rows = (await readFile(trace, 'utf8')).trim().split('\n')
+            expect(
+              rows.filter((row) => row === 'fixture cleanup')
+            ).toHaveLength(3)
+            expect(rows.filter((row) => row === 'afterAll')).toHaveLength(3)
+          },
+          20000,
+          100
+        )
+        await writeFile(control, 'healthy')
+        expect((await command(active!.run.id, 'rerun')).status).toBe(202)
+        const fourth = await settled(active!.run.id)
+        expect(fourth.cases).toMatchObject([
+          { name: 'actual watch generation', status: 'passed' },
+        ])
+        expect((await command(active!.run.id, 'cancel')).status).toBe(409)
+        expect(child.kill('SIGINT')).toBe(true)
+        expect(await closed).toEqual([130, null])
+        const rows = (await readFile(trace, 'utf8')).trim().split('\n')
+        for (const event of [
+          'fixture setup',
+          'fixture cleanup',
+          'finished',
+          'afterAll',
+        ])
+          expect(rows.filter((row) => row === event)).toHaveLength(4)
+        expect(rows.filter((row) => row === 'global setup')).toHaveLength(1)
+        expect(rows.filter((row) => row === 'global teardown')).toHaveLength(1)
+        expect(rows[0]).toBe('global setup')
+        expect(rows.at(-1)).toBe('global teardown')
+        expect(
+          (await readdir(app)).filter((name) => name.startsWith('.next-test-'))
+        ).toEqual([])
+        const { execFileSync } = await import('node:child_process')
+        expect(
+          execFileSync(
+            process.execPath,
+            [
+              path.join(__dirname, 'editor-watch-lock.cjs'),
+              require.resolve('next/dist/experimental/testing/scheduling'),
+              app,
+            ],
+            { encoding: 'utf8', timeout: 10000 }
+          )
+        ).toBe('released')
+        await expect(
+          fetch(url, { signal: AbortSignal.timeout(5000) })
+        ).rejects.toThrow()
+        for (const name of ['contract.test.mjs', 'global-setup.mjs'])
+          expect(await readFile(path.join(app, name))).toEqual(
+            await readFile(path.join(fixture, name + '.txt'))
+          )
+      } catch (error) {
+        throw new Error(String(error) + '\n' + stdout + '\n' + stderr)
+      } finally {
+        if (child.exitCode === null && child.signalCode === null) {
+          child.kill('SIGTERM')
+          await closed
+        }
+        await Promise.all(
+          [directory, controlsDirectory].map((owner) =>
+            rm(owner, { recursive: true, force: true })
+          )
+        )
+      }
+    },
+    120000
+  )
+})
+
+describe('fulfilled retained setup source selection admission', () => {
+  it('refuses an unfulfilled or failed setup and admits only the actual fulfilled owner', async () => {
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), 'next-setup-selection-')
+    )
+    const generation = new AbortController()
+    const lifetime = new AbortController()
+    let owner: Awaited<ReturnType<typeof openTestConfiguration>> | undefined
+    try {
+      await writeFile(
+        path.join(directory, 'next.test.config.json'),
+        JSON.stringify({
+          projects: [
+            {
+              name: 'retained',
+              environment: 'node',
+              mode: 'development',
+              globalSetup: ['./setup.mjs'],
+            },
+          ],
+        })
+      )
+      await writeFile(
+        path.join(directory, 'setup.mjs'),
+        "export default function(project){project.provide('seed',1)}"
+      )
+      owner = await openTestConfiguration(directory, generation.signal)
+      expect(
+        await owner.retainGlobalSetupForWatch(
+          lifetime.signal,
+          owner.config.projects,
+          false,
+          true
+        )
+      ).toBe(false)
+      expect(
+        await owner.retainGlobalSetupForWatch(
+          lifetime.signal,
+          owner.config.projects
+        )
+      ).toBe(true)
+      await owner.setup(
+        structuredClone(owner.config.projects),
+        generation.signal
+      )
+      expect(
+        await owner.retainGlobalSetupForWatch(
+          lifetime.signal,
+          owner.config.projects,
+          false,
+          true
+        )
+      ).toBe(true)
+      const changed = structuredClone(owner.config.projects)
+      changed[0].isolate = false
+      expect(
+        await owner.retainGlobalSetupForWatch(
+          lifetime.signal,
+          changed,
+          false,
+          true
+        )
+      ).toBe(false)
+      await writeFile(
+        path.join(directory, 'next.test.config.json'),
+        JSON.stringify({ projects: [] })
+      )
+      expect(
+        await owner.retainGlobalSetupForWatch(
+          lifetime.signal,
+          owner.config.projects,
+          false,
+          true
+        )
+      ).toBe(false)
+      await owner.dispose()
+      owner = undefined
+      await writeFile(
+        path.join(directory, 'next.test.config.json'),
+        JSON.stringify({
+          projects: [
+            {
+              name: 'retained',
+              environment: 'node',
+              mode: 'development',
+              globalSetup: ['./setup.mjs'],
+            },
+          ],
+        })
+      )
+      await writeFile(
+        path.join(directory, 'setup.mjs'),
+        "export default function(){throw new Error('real setup rejection')}"
+      )
+      owner = await openTestConfiguration(directory, generation.signal)
+      expect(
+        await owner.retainGlobalSetupForWatch(
+          lifetime.signal,
+          owner.config.projects
+        )
+      ).toBe(true)
+      await expect(
+        owner.setup(structuredClone(owner.config.projects), generation.signal)
+      ).rejects.toThrow('real setup rejection')
+      expect(
+        await owner.retainGlobalSetupForWatch(
+          lifetime.signal,
+          owner.config.projects,
+          false,
+          true
+        )
+      ).toBe(false)
+      await expect(owner.dispose()).rejects.toThrow(
+        'Test configuration session ended unexpectedly (exit)'
+      )
+      owner = undefined
+    } finally {
+      await owner?.dispose()
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('editor physical file reruns', () => {
+  const entry: TestEntry = {
+    id: 'first:only /physical',
+    file: '/selected/only.test.mjs',
+    profile: {
+      id: 'first',
+      environment: 'node',
+      mode: 'development',
+      runtime: 'nodejs',
+      bundler: 'turbopack',
+    },
+  }
+  const similar: TestEntry = {
+    ...entry,
+    id: 'first:similar',
+    file: '/selected/similar-only.test.mjs',
+  }
+  const envelope = {
+    version: 1 as const,
+    runId: 'settled/actual',
+    timestamp: 1,
+  }
+  const route = (runId: string, entryId: string) =>
+    '/v1/runs/' +
+    encodeURIComponent(runId) +
+    '/files/' +
+    encodeURIComponent(entryId) +
+    '/rerun'
+
+  it('keeps exact file ownership, acknowledges once and resets the next generation', async () => {
+    const { openTestDiscoveryApi } = await import(
+      'next/dist/experimental/testing/editor-api'
+    )
+    const rerun = jest.fn(),
+      rerunFile = jest.fn()
+    const api = await openTestDiscoveryApi('/selected', [entry, similar], 0, {
+      cancelRun() {},
+      rerun,
+      rerunFile,
+    })
+    const post = (id: string) =>
+      fetch(new URL(route(envelope.runId, id), api.url), { method: 'POST' })
+    try {
+      expect((await (await fetch(api.url)).json()).controls).toEqual({
+        cancel: true,
+        rerun: true,
+      })
+      expect((await (await fetch(api.url)).json()).fileControls).toEqual({
+        rerun: true,
+        entries: [entry.id, similar.id],
+      })
+      api.prepareRun([entry, similar])
+      api.onEvent({ ...envelope, type: 'run-start' })
+      api.onEvent({
+        ...envelope,
+        type: 'run-end',
+        status: 'passed',
+        durationMs: 0,
+      })
+      const accepted = await post(entry.id)
+      expect(accepted.status).toBe(202)
+      expect(await accepted.json()).toMatchObject({
+        command: 'rerun-file',
+        entryId: entry.id,
+        runId: envelope.runId,
+        status: 'accepted',
+      })
+      expect(await (await post(entry.id)).json()).toMatchObject({
+        status: 'already-requested',
+      })
+      expect((await post(similar.id)).status).toBe(409)
+      expect(
+        (
+          await fetch(
+            new URL(
+              '/v1/runs/' + encodeURIComponent(envelope.runId) + '/rerun',
+              api.url
+            ),
+            { method: 'POST' }
+          )
+        ).status
+      ).toBe(409)
+      expect(rerunFile.mock.calls).toEqual([[entry.id]])
+      expect(rerun).not.toHaveBeenCalled()
+      api.prepareRun([similar])
+      const next = { ...envelope, runId: 'next' }
+      api.onEvent({ ...next, type: 'run-start' })
+      api.onEvent({ ...next, type: 'run-end', status: 'passed', durationMs: 0 })
+      expect(
+        (await (await fetch(api.url)).json()).fileControls.entries
+      ).toEqual([similar.id])
+      expect(
+        (
+          await fetch(new URL(route(next.runId, entry.id), api.url), {
+            method: 'POST',
+          })
+        ).status
+      ).toBe(409)
+      expect(
+        (
+          await fetch(new URL(route(next.runId, similar.id), api.url), {
+            method: 'POST',
+          })
+        ).status
+      ).toBe(202)
+      expect(rerunFile.mock.calls).toEqual([[entry.id], [similar.id]])
+    } finally {
+      await api.dispose()
+    }
+  })
+
+  it.each([
+    'not started',
+    'running',
+    'stale',
+    'unknown',
+    'foreign profile',
+  ] as const)('does not execute a file action for %s', async (scenario) => {
+    const { openTestDiscoveryApi } = await import(
+      'next/dist/experimental/testing/editor-api'
+    )
+    const selected: TestEntry =
+      scenario === 'foreign profile'
+        ? { ...entry, profile: { ...entry.profile, environment: 'browser' } }
+        : entry
+    const rerunFile = jest.fn()
+    const api = await openTestDiscoveryApi('/selected', [selected], 0, {
+      cancelRun() {},
+      rerunFile,
+    })
+    try {
+      if (scenario !== 'not started') {
+        api.prepareRun([selected])
+        api.onEvent({ ...envelope, type: 'run-start' })
+        if (scenario !== 'running')
+          api.onEvent({
+            ...envelope,
+            type: 'run-end',
+            status: 'passed',
+            durationMs: 0,
+          })
+      }
+      const target = new URL(
+        route(
+          scenario === 'stale' ? 'stale' : envelope.runId,
+          scenario === 'unknown' ? 'unselected' : selected.id
+        ),
+        api.url
+      )
+      expect((await fetch(target, { method: 'POST' })).status).toBe(409)
+      expect(rerunFile).not.toHaveBeenCalled()
+      if (scenario === 'foreign profile')
+        expect(
+          (await (await fetch(api.url)).json()).fileControls
+        ).toBeUndefined()
+      expect((await fetch(target, { method: 'GET' })).status).toBe(405)
+      expect(
+        (
+          await fetch(new URL('/v1/runs/%ZZ/files/file/rerun', api.url), {
+            method: 'POST',
+          })
+        ).status
+      ).toBe(400)
+    } finally {
+      await api.dispose()
+    }
+  })
+
+  it('retains the first full rerun and reports file callback failures', async () => {
+    const { openTestDiscoveryApi } = await import(
+      'next/dist/experimental/testing/editor-api'
+    )
+    const rerun = jest.fn(),
+      rerunFile = jest.fn()
+    const api = await openTestDiscoveryApi('/selected', [entry], 0, {
+      cancelRun() {},
+      rerun,
+      rerunFile,
+    })
+    try {
+      api.onEvent({ ...envelope, type: 'run-start' })
+      api.onEvent({
+        ...envelope,
+        type: 'run-end',
+        status: 'passed',
+        durationMs: 0,
+      })
+      expect(
+        (
+          await fetch(
+            new URL(
+              '/v1/runs/' + encodeURIComponent(envelope.runId) + '/rerun',
+              api.url
+            ),
+            { method: 'POST' }
+          )
+        ).status
+      ).toBe(202)
+      expect(
+        (
+          await fetch(new URL(route(envelope.runId, entry.id), api.url), {
+            method: 'POST',
+          })
+        ).status
+      ).toBe(409)
+      expect(rerun).toHaveBeenCalledTimes(1)
+      expect(rerunFile).not.toHaveBeenCalled()
+    } finally {
+      await api.dispose()
+    }
+    const failure = new Error('controlled file owner failure')
+    const failed = await openTestDiscoveryApi('/selected', [entry], 0, {
+      cancelRun() {},
+      rerunFile() {
+        throw failure
+      },
+    })
+    failed.onEvent({ ...envelope, type: 'run-start' })
+    failed.onEvent({
+      ...envelope,
+      type: 'run-end',
+      status: 'passed',
+      durationMs: 0,
+    })
+    expect(
+      (
+        await fetch(new URL(route(envelope.runId, entry.id), failed.url), {
+          method: 'POST',
+        })
+      ).status
+    ).toBe(202)
+    expect((await fetch(failed.url)).status).toBe(503)
+    await expect(failed.dispose()).rejects.toBe(failure)
+  })
+
+  it.each(['development', 'production'] as const)(
+    'runs exactly one physical file/profile and restores full watch selection after cancellation in %s',
+    async (mode) => {
+      const { copyFile, readdir } = await import('node:fs/promises')
+      const directory = await mkdtemp(
+        path.join(process.cwd(), '.next-test-editor-file-')
+      )
+      const controls = await mkdtemp(
+        path.join(os.tmpdir(), 'next-editor-file-controls-')
+      )
+      const app = path.join(directory, 'app'),
+        trace = path.join(controls, 'trace.jsonl'),
+        control = path.join(controls, 'control.txt')
+      const fixture = path.join(__dirname, 'fixtures/editor-file')
+      await mkdir(app)
+      for (const file of [
+        'only.test.mjs',
+        'similar-only.test.mjs',
+        'resource.mjs',
+      ])
+        await copyFile(path.join(fixture, file + '.txt'), path.join(app, file))
+      await writeFile(trace, '')
+      await writeFile(control, '')
+      await writeFile(path.join(app, 'package.json'), '{"type":"module"}\n')
+      await writeFile(
+        path.join(app, 'next.test.config.json'),
+        JSON.stringify({
+          maxWorkers: 1,
+          projects: [
+            {
+              name: 'first',
+              environment: 'node',
+              mode,
+              include: ['*.test.mjs'],
+              provide: { project: 'first' },
+              testTimeout: 30000,
+            },
+            {
+              name: 'second',
+              environment: 'node',
+              mode,
+              include: ['only.test.mjs'],
+              provide: { project: 'second' },
+              testTimeout: 30000,
+            },
+          ],
+        })
+      )
+      const child = spawn(
+        process.execPath,
+        [
+          path.join(
+            path.dirname(require.resolve('next/package.json')),
+            'dist/bin/next'
+          ),
+          'test',
+          app,
+          '--watch',
+          '--api',
+          '0',
+          '--reporter=json',
+          '--outputFile',
+          path.join(app, 'result.json'),
+        ],
+        {
+          cwd: app,
+          env: {
+            ...process.env,
+            NODE_ENV: mode,
+            NEXT_TELEMETRY_DISABLED: '1',
+            NEXT_TEST_EDITOR_TRACE: trace,
+            NEXT_TEST_EDITOR_CONTROL: control,
+          },
+          stdio: ['ignore', 'pipe', 'pipe'],
+        }
+      )
+      const closed = once(child, 'close')
+      let stdout = '',
+        stderr = '',
+        url = ''
+      child.stdout.on('data', (chunk) => {
+        stdout += chunk
+      })
+      child.stderr.on('data', (chunk) => {
+        stderr += chunk
+      })
+      const commands: { run: string; file?: string; status: number }[] = []
+      const observations: unknown[] = []
+      type FileState = {
+        files: { id: string; file: string; project: string }[]
+        cases: { entryId: string }[]
+        run: { id: string; status: string }
+        fileControls: { entries: string[] }
+      }
+      const current = async (): Promise<FileState> => {
+        if (child.exitCode !== null || child.signalCode !== null)
+          throw new Error('File watch closed: ' + stdout + stderr)
+        const match =
+          /Next test discovery API: (http:\/\/127\.0\.0\.1:\d+\/v1\/discovery)/.exec(
+            stderr
+          )
+        expect(match).not.toBeNull()
+        url = match![1]
+        return (await fetch(url, { signal: AbortSignal.timeout(5000) })).json()
+      }
+      const settled = async (previous?: string) => {
+        let value: Awaited<ReturnType<typeof current>>
+        await retry(
+          async () => {
+            value = await current()
+            expect(value.run?.status).toBe('passed')
+            if (previous) expect(value.run.id).not.toBe(previous)
+          },
+          30000,
+          100
+        )
+        observations.push(value!)
+        return value!
+      }
+      const command = async (run: string, file?: string, action = 'rerun') => {
+        const response = await fetch(
+          new URL(
+            file === undefined
+              ? '/v1/runs/' + encodeURIComponent(run) + '/' + action
+              : route(run, file),
+            url
+          ),
+          { method: 'POST', signal: AbortSignal.timeout(5000) }
+        )
+        commands.push({ run, file, status: response.status })
+        return response
+      }
+      try {
+        const first = await settled()
+        expect(first.cases).toHaveLength(3)
+        expect(first.fileControls.entries).toEqual(
+          first.files.map((file) => file.id)
+        )
+        const firstOnly = first.files.find(
+          (file) => file.project === 'first' && file.file === 'only.test.mjs'
+        ).id
+        const secondOnly = first.files.find(
+          (file) => file.project === 'second' && file.file === 'only.test.mjs'
+        ).id
+        const similarFile = first.files.find(
+          (file) => file.file === 'similar-only.test.mjs'
+        ).id
+        let previous = first
+        for (const file of [firstOnly, secondOnly, similarFile]) {
+          expect((await command(previous.run.id, file)).status).toBe(202)
+          const value = await settled(previous.run.id)
+          expect(value.files).toEqual(first.files)
+          expect(value.cases).toHaveLength(1)
+          expect(value.cases[0].entryId).toBe(file)
+          expect((await command(previous.run.id, file)).status).toBe(409)
+          previous = value
+        }
+        expect((await command(previous.run.id)).status).toBe(202)
+        const all = await settled(previous.run.id)
+        expect(all.cases).toHaveLength(3)
+        await writeFile(control, 'first:only')
+        expect((await command(all.run.id, firstOnly)).status).toBe(202)
+        let active: Awaited<ReturnType<typeof current>>
+        await retry(
+          async () => {
+            active = await current()
+            expect(active.run?.status).toBe('running')
+            expect(active.cases).toHaveLength(1)
+            expect(active.cases[0].entryId).toBe(firstOnly)
+            expect(await readFile(trace, 'utf8')).toContain('"phase":"active"')
+          },
+          30000,
+          100
+        )
+        expect(
+          (await command(active!.run.id, undefined, 'cancel')).status
+        ).toBe(202)
+        await retry(
+          async () =>
+            expect((await current()).run).toEqual({
+              id: active!.run.id,
+              status: 'cancelled',
+            }),
+          30000,
+          100
+        )
+        await writeFile(control, '')
+        expect((await command(active!.run.id)).status).toBe(202)
+        const recovered = await settled(active!.run.id)
+        expect(recovered.cases).toHaveLength(3)
+        expect(recovered.files).toEqual(first.files)
+        expect(child.kill('SIGINT')).toBe(true)
+        expect(await closed).toEqual([130, null])
+        const rows = (await readFile(trace, 'utf8'))
+          .trim()
+          .split('\n')
+          .map((row) => JSON.parse(row))
+        for (const phase of ['body', 'finished', 'afterAll'])
+          expect(rows.filter((row) => row.phase === phase)).toHaveLength(13)
+        for (const pid of new Set(rows.map((row) => row.pid)))
+          expect(() => process.kill(pid, 0)).toThrow()
+        expect(
+          (await readdir(app)).filter((file) => file.startsWith('.next-test-'))
+        ).toEqual([])
+        const { execFileSync } = await import('node:child_process')
+        expect(
+          execFileSync(
+            process.execPath,
+            [
+              path.join(__dirname, 'editor-watch-lock.cjs'),
+              require.resolve('next/dist/experimental/testing/scheduling'),
+              app,
+            ],
+            { encoding: 'utf8', timeout: 10000 }
+          )
+        ).toBe('released')
+        await expect(
+          fetch(url, { signal: AbortSignal.timeout(5000) })
+        ).rejects.toThrow()
+        for (const file of [
+          'only.test.mjs',
+          'similar-only.test.mjs',
+          'resource.mjs',
+        ])
+          expect(await readFile(path.join(app, file))).toEqual(
+            await readFile(path.join(fixture, file + '.txt'))
+          )
+        const evidenceRoot = process.env.NEXT_TESTING_EDITOR_FILE_EVIDENCE
+        const evidence =
+          evidenceRoot &&
+          (mode === 'production'
+            ? path.join(evidenceRoot, 'production')
+            : evidenceRoot)
+        if (evidence) {
+          await mkdir(evidence, { recursive: true })
+          await writeFile(
+            path.join(evidence, 'completed.json'),
+            JSON.stringify(
+              {
+                commands,
+                observations,
+                rows,
+                closed: true,
+                lockReleased: true,
+                sourceHeld: true,
+              },
+              null,
+              2
+            )
+          )
+        }
+      } catch (error) {
+        throw new Error(String(error) + '\n' + stdout + '\n' + stderr)
+      } finally {
+        if (child.exitCode === null && child.signalCode === null) {
+          child.kill('SIGTERM')
+          await closed
+        }
+        await Promise.all(
+          [directory, controls].map((owner) =>
+            rm(owner, { recursive: true, force: true })
+          )
+        )
+      }
+    },
+    180000
+  )
+})
+
+it('fails a removed acknowledged editor file without running another file or applying passWithNoTests', async () => {
+  const directory = await mkdtemp(
+    path.join(process.cwd(), '.next-test-editor-file-missing-')
+  )
+  const controls = await mkdtemp(
+    path.join(os.tmpdir(), 'next-editor-file-missing-controls-')
+  )
+  try {
+    const { runOwnedNode, assertOwnedNodeCompleted } = await import(
+      '../../e2e/app-dir/next-testing-package/process-supervisor.mjs'
+    )
+    const result = await runOwnedNode(
+      [
+        path.join(__dirname, 'editor-file-missing.cjs'),
+        path.dirname(require.resolve('next/package.json')),
+        path.join(directory, 'app'),
+        path.join(directory, 'evidence'),
+      ],
+      {
+        cwd: process.cwd(),
+        env: {
+          ...process.env,
+          NODE_ENV: 'development',
+          NEXT_TELEMETRY_DISABLED: '1',
+        },
+        auditDir: path.join(controls, 'processes'),
+        timeoutMs: 90000,
+      }
+    )
+    assertOwnedNodeCompleted(result, 'missing acknowledged editor file')
+    if (result.status !== 0)
+      throw new Error([result.stdout, result.stderr].join('\n'))
+    expect(result.status).toBe(0)
+    expect(JSON.parse(result.stdout)).toEqual({
+      runs: 2,
+      removedSelectionFailed: true,
+      otherFileNotRun: true,
+      passWithNoTestsNotApplied: true,
+      cleanupHeld: true,
+    })
+    if (process.env.NEXT_TESTING_EDITOR_MISSING_EVIDENCE) {
+      const { cp } = await import('node:fs/promises')
+      await cp(directory, process.env.NEXT_TESTING_EDITOR_MISSING_EVIDENCE, {
+        recursive: true,
+        errorOnExist: true,
+        force: false,
+      })
+    }
+  } finally {
+    await Promise.all(
+      [directory, controls].map((owner) =>
+        rm(owner, { recursive: true, force: true })
+      )
+    )
+  }
+}, 100000)

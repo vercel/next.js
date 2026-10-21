@@ -1,0 +1,22 @@
+[
+  {
+    "name": "complete async callable automatic named publication",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete generator callable automatic named publication",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete async-generator callable automatic named publication",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "async automatic helper aliases retain fresh mocks and lazy originals",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

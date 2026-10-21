@@ -30,6 +30,23 @@ import {
 } from './collector-platform'
 import { shuffleTests, type TestSequenceOptions } from './sequence'
 
+const fixtureBuilderReceiver = Symbol('fixture builder receiver')
+type FixtureBuilderArguments = [unknown, unknown?, unknown?]
+type FixtureBuilderOperations = {
+  extend(...args: FixtureBuilderArguments): TestDeclaration
+  override(...args: FixtureBuilderArguments): void
+}
+
+function fixtureBuilderOperations(receiver: unknown): FixtureBuilderOperations {
+  const owner =
+    receiver == null
+      ? undefined
+      : (Reflect.get(Object(receiver), fixtureBuilderReceiver) as {
+          getFixtures(): FixtureBuilderOperations
+        })
+  return owner!.getFixtures()
+}
+
 export type TestMode = 'run' | 'skip' | 'todo' | 'only'
 export type HookName = 'beforeAll' | 'afterAll' | 'beforeEach' | 'afterEach'
 export type AroundHookName = 'aroundEach' | 'aroundAll'
@@ -54,14 +71,35 @@ export interface TestContext {
   skip(note?: string): never
   skip(condition: boolean, note?: string): void
   readonly signal: AbortSignal
+  onTestFinished(handler: OnTestFinishedHandler, timeout?: number): void
+  onTestFailed(handler: OnTestFailedHandler, timeout?: number): void
+}
+
+export type OnTestFinishedHandler = (
+  context: TestContext
+) => void | PromiseLike<void>
+export type OnTestFailedHandler = (
+  context: TestContext
+) => void | PromiseLike<void>
+
+// The collector executes internal callbacks and ignores their resolved values.
+// Public declarations retain the target's narrower listener return contract.
+export type InternalTestContext = Omit<
+  TestContext,
+  'onTestFinished' | 'onTestFailed'
+> & {
   onTestFinished(handler: TestBody, timeout?: number): void
   onTestFailed(handler: TestBody, timeout?: number): void
 }
-
-export type TestBody = (context: TestContext) => unknown | Promise<unknown>
-export type AroundEachBody<T extends object = {}> = (
+export type TestBody = (
+  context: InternalTestContext
+) => unknown | Promise<unknown>
+export type AroundEachBody<
+  T extends object = {},
+  Context extends object = TestContext,
+> = (
   runTest: () => Promise<void>,
-  context: TestContext & T,
+  context: Context & T,
   suite: Readonly<Suite>
 ) => unknown | Promise<unknown>
 export type AroundAllBody<T extends object = {}> = (
@@ -70,11 +108,13 @@ export type AroundAllBody<T extends object = {}> = (
   suite: Readonly<Suite>
 ) => unknown | Promise<unknown>
 export type AroundHook = {
+  readonly registrationErrors?: Readonly<Record<'setup' | 'teardown', Error>>
   fn: AroundEachBody | AroundAllBody
   fixtures: FixtureDefinitions
   timeout?: number
 }
 export type Hook = {
+  readonly registrationError?: Error
   fn: TestBody
   timeout?: number
   fixtures?: FixtureDefinitions
@@ -104,6 +144,8 @@ export interface SuiteOptions extends TestOptions {
 }
 
 export interface TestCase {
+  /** Actual declaration stack; kept off the public task and enumerable data. */
+  readonly registrationError?: Error
   type: 'test'
   meta: TaskMeta
   tags: string[]
@@ -137,12 +179,16 @@ type EachDeclaration<T extends readonly unknown[], Options = TestOptions> = {
   (name: Name, fn: EachCallback<T>, timeout?: number): void
   (name: Name, options: Options, fn: EachCallback<T>): void
 }
-type ForDeclaration<T, C extends object> = {
-  (name: Name, fn: (item: T, context: TestContext & C) => unknown): void
+type ForDeclaration<
+  T,
+  C extends object,
+  Context extends object = TestContext,
+> = {
+  (name: Name, fn: (item: T, context: Context & C) => unknown): void
   (
     name: Name,
     options: TestOptions,
-    fn: (item: T, context: TestContext & C) => unknown
+    fn: (item: T, context: Context & C) => unknown
   ): void
 }
 
@@ -199,25 +245,40 @@ type FixtureValue<E, K extends keyof E, C> = ((
     ? FixtureFactory<E[K], C>
     : never
   : E[K] | (E[K] extends any ? FixtureFactory<E[K], C> : never)
-type ObjectFixtureContext<E, T, K extends keyof E> = TestContext &
-  Omit<E, K> &
-  Omit<T, Exclude<keyof E, K>>
-type ObjectFixtures<E extends object, T extends object> = {
+type ObjectFixtureContext<
+  E,
+  T,
+  K extends keyof E,
+  Context extends object,
+> = Context & Omit<E, K> & Omit<T, Exclude<keyof E, K>>
+type ObjectFixtures<
+  E extends object,
+  T extends object,
+  Context extends object = TestContext,
+> = {
   [K in keyof E]:
-    | FixtureValue<E, K, ObjectFixtureContext<E, T, K>>
-    | [FixtureValue<E, K, ObjectFixtureContext<E, T, K>>, FixtureOptions]
+    | FixtureValue<E, K, ObjectFixtureContext<E, T, K, Context>>
+    | [
+        FixtureValue<E, K, ObjectFixtureContext<E, T, K, Context>>,
+        FixtureOptions,
+      ]
 }
-type ScopedFixtures<E extends ScopedFixturesDefinition, T extends object> = {
+type FlattenFixtureContext<T> = { [Key in keyof T]: T[Key] }
+type ScopedFixtures<
+  E extends ScopedFixturesDefinition,
+  T extends object,
+  Context extends object = TestContext,
+> = {
   [K in keyof NonNullable<E['$test']>]:
     | NonNullable<E['$test']>[K]
     | FixtureFactory<
         NonNullable<E['$test']>[K],
-        TestContext & T & ScopedFixtureValues<E>
+        Context & T & ScopedFixtureValues<E>
       >
     | [
         FixtureFactory<
           NonNullable<E['$test']>[K],
-          TestContext & T & ScopedFixtureValues<E>
+          Context & T & ScopedFixtureValues<E>
         >,
         FixtureOptions & { scope?: 'test' },
       ]
@@ -236,13 +297,18 @@ type ScopedFixtures<E extends ScopedFixturesDefinition, T extends object> = {
   ]
 }
 
-export interface TestDeclaration<T extends object = {}> {
+export interface TestDeclaration<
+  T extends object = {},
+  Context extends object = TestContext,
+> {
+  describe: SuiteDeclaration<Context>
+  suite: SuiteDeclaration<Context>
   beforeEach(
-    fn: (context: TestContext & T, suite: Readonly<Suite>) => unknown,
+    fn: (context: Context & T, suite: Readonly<Suite>) => unknown,
     timeout?: number
   ): void
   afterEach(
-    fn: (context: TestContext & T, suite: Readonly<Suite>) => unknown,
+    fn: (context: Context & T, suite: Readonly<Suite>) => unknown,
     timeout?: number
   ): void
   beforeAll(
@@ -253,110 +319,133 @@ export interface TestDeclaration<T extends object = {}> {
     fn: (context: FileFixtureContext<T>, suite: Readonly<Suite>) => unknown,
     timeout?: number
   ): void
-  aroundEach(fn: AroundEachBody<T>, timeout?: number): void
+  aroundEach(fn: AroundEachBody<T, Context>, timeout?: number): void
   aroundAll(fn: AroundAllBody<FileFixtureContext<T>>, timeout?: number): void
-  (
-    name: Name,
-    fn: (context: TestContext & T) => unknown,
-    timeout?: number
-  ): void
+  (name: Name, fn: (context: Context & T) => unknown, timeout?: number): void
   (
     name: Name,
     options: TestOptions,
-    fn: (context: TestContext & T) => unknown
+    fn: (context: Context & T) => unknown
   ): void
   (name: Name): void
-  readonly skip: TestDeclaration<T>
-  readonly only: TestDeclaration<T>
-  readonly todo: TestDeclaration<T>
-  readonly concurrent: TestDeclaration<T>
-  readonly fails: TestDeclaration<T>
+  readonly skip: TestDeclaration<T, Context>
+  readonly only: TestDeclaration<T, Context>
+  readonly todo: TestDeclaration<T, Context>
+  readonly concurrent: TestDeclaration<T, Context>
+  readonly fails: TestDeclaration<T, Context>
   each<C extends readonly unknown[]>(cases: readonly C[]): EachDeclaration<C>
   each<C>(cases: readonly C[]): EachDeclaration<[C]>
-  for<C>(cases: readonly C[]): ForDeclaration<C, T>
-  skipIf(condition: unknown): TestDeclaration<T>
-  runIf(condition: unknown): TestDeclaration<T>
+  each(strings: TemplateStringsArray, ...values: any[]): EachDeclaration<any[]>
+  for<C>(cases: readonly C[]): ForDeclaration<C, T, Context>
+  for(
+    strings: TemplateStringsArray,
+    ...values: any[]
+  ): ForDeclaration<any, T, Context>
+  skipIf(condition: unknown): TestDeclaration<T, Context>
+  runIf(condition: unknown): TestDeclaration<T, Context>
   extend<K extends string, V extends K extends keyof T ? T[K] : unknown>(
     name: K,
-    fn: BuilderFixtureFn<V, TestContext & T>
-  ): TestDeclaration<AddBuilderFixture<T, K, V, 'test'>>
+    fn: BuilderFixtureFn<V, Context & T>
+  ): TestDeclaration<AddBuilderFixture<T, K, V, 'test'>, Context>
   extend<K extends string, V extends K extends keyof T ? T[K] : unknown>(
     name: K,
     options: FixtureOptions & { scope: 'worker' },
     fn: BuilderFixtureFn<V, WorkerBuilderContext<T>>
-  ): TestDeclaration<AddBuilderFixture<T, K, V, 'worker'>>
+  ): TestDeclaration<AddBuilderFixture<T, K, V, 'worker'>, Context>
   extend<K extends string, V extends K extends keyof T ? T[K] : unknown>(
     name: K,
     options: FixtureOptions & { scope: 'file' },
     fn: BuilderFixtureFn<V, FileBuilderContext<T>>
-  ): TestDeclaration<AddBuilderFixture<T, K, V, 'file'>>
+  ): TestDeclaration<AddBuilderFixture<T, K, V, 'file'>, Context>
   extend<K extends string, V extends K extends keyof T ? T[K] : unknown>(
     name: K,
     options: FixtureOptions & { scope?: 'test' },
-    fn: BuilderFixtureFn<V, TestContext & T>
-  ): TestDeclaration<AddBuilderFixture<T, K, V, 'test'>>
+    fn: BuilderFixtureFn<V, Context & T>
+  ): TestDeclaration<AddBuilderFixture<T, K, V, 'test'>, Context>
   extend<K extends string, V extends K extends keyof T ? T[K] : unknown>(
     name: K,
     value: V extends (...args: any[]) => any ? never : V
-  ): TestDeclaration<AddBuilderFixture<T, K, V, 'test'>>
+  ): TestDeclaration<AddBuilderFixture<T, K, V, 'test'>, Context>
   extend<K extends string, V extends K extends keyof T ? T[K] : unknown>(
     name: K,
     options: FixtureOptions & { scope: 'worker' },
     value: V extends (...args: any[]) => any ? never : V
-  ): TestDeclaration<AddBuilderFixture<T, K, V, 'worker'>>
+  ): TestDeclaration<AddBuilderFixture<T, K, V, 'worker'>, Context>
   extend<K extends string, V extends K extends keyof T ? T[K] : unknown>(
     name: K,
     options: FixtureOptions & { scope: 'file' },
     value: V extends (...args: any[]) => any ? never : V
-  ): TestDeclaration<AddBuilderFixture<T, K, V, 'file'>>
+  ): TestDeclaration<AddBuilderFixture<T, K, V, 'file'>, Context>
   extend<K extends string, V extends K extends keyof T ? T[K] : unknown>(
     name: K,
     options: FixtureOptions & { scope?: 'test' },
     value: V extends (...args: any[]) => any ? never : V
-  ): TestDeclaration<AddBuilderFixture<T, K, V, 'test'>>
+  ): TestDeclaration<AddBuilderFixture<T, K, V, 'test'>, Context>
   extend<E extends object = object>(
-    fixtures: ObjectFixtures<E, T>
-  ): TestDeclaration<Omit<T, keyof E> & E>
+    fixtures: ObjectFixtures<E, T, Context>
+  ): TestDeclaration<FlattenFixtureContext<Omit<T, keyof E> & E>, Context>
   extend<E extends ScopedFixturesDefinition>(
-    fixtures: ScopedFixtures<E, T>
-  ): TestDeclaration<T & ScopedFixtureValues<E>>
+    fixtures: ScopedFixtures<E, T, Context>
+  ): TestDeclaration<T & ScopedFixtureValues<E>, Context>
   override<K extends keyof T>(
     name: K,
-    fn: BuilderFixtureFn<T[K], TestContext & T>
-  ): TestDeclaration<T>
-  override<K extends keyof T>(
-    name: K,
-    options: FixtureOptions,
-    fn: BuilderFixtureFn<T[K], TestContext & T>
-  ): TestDeclaration<T>
-  override<K extends keyof T>(
-    name: K,
-    value: T[K] extends (...args: any[]) => any ? never : T[K]
-  ): TestDeclaration<T>
+    fn: BuilderFixtureFn<T[K], Context & T>
+  ): TestDeclaration<T, Context>
   override<K extends keyof T>(
     name: K,
     options: FixtureOptions,
+    fn: BuilderFixtureFn<T[K], Context & T>
+  ): TestDeclaration<T, Context>
+  override<K extends keyof T>(
+    name: K,
     value: T[K] extends (...args: any[]) => any ? never : T[K]
-  ): TestDeclaration<T>
-  override(fixtures: Partial<ObjectFixtures<T, T>>): TestDeclaration<T>
+  ): TestDeclaration<T, Context>
+  override<K extends keyof T>(
+    name: K,
+    options: FixtureOptions,
+    value: T[K] extends (...args: any[]) => any ? never : T[K]
+  ): TestDeclaration<T, Context>
+  override(
+    fixtures: Partial<ObjectFixtures<T, T, Context>>
+  ): TestDeclaration<T, Context>
+  /** @deprecated Use test.override() instead. */
+  scoped(
+    fixtures: Partial<ObjectFixtures<T, T, Context>>
+  ): TestDeclaration<T, Context>
 }
 
-export interface SuiteDeclaration {
-  (name: Name, fn: () => unknown, timeout?: number): void
-  (name: Name, options: SuiteOptions, fn: () => unknown): void
+export interface SuiteDeclaration<Context extends object = TestContext> {
+  <ExtraContext extends object = object>(
+    name: Name,
+    fn: (test: TestDeclaration<ExtraContext, Context>) => unknown,
+    timeout?: number
+  ): void
+  <ExtraContext extends object = object>(
+    name: Name,
+    options: SuiteOptions,
+    fn: (test: TestDeclaration<ExtraContext, Context>) => unknown
+  ): void
   (name: Name): void
-  readonly skip: SuiteDeclaration
-  readonly only: SuiteDeclaration
-  readonly todo: SuiteDeclaration
-  readonly concurrent: SuiteDeclaration
-  readonly shuffle: SuiteDeclaration
+  readonly skip: SuiteDeclaration<Context>
+  readonly only: SuiteDeclaration<Context>
+  readonly todo: SuiteDeclaration<Context>
+  readonly concurrent: SuiteDeclaration<Context>
+  readonly shuffle: SuiteDeclaration<Context>
   each<C extends readonly unknown[]>(
     cases: readonly C[]
   ): EachDeclaration<C, SuiteOptions>
   each<C>(cases: readonly C[]): EachDeclaration<[C], SuiteOptions>
+  each(
+    strings: TemplateStringsArray,
+    ...values: any[]
+  ): EachDeclaration<any[], SuiteOptions>
   for<C>(cases: readonly C[]): EachDeclaration<[C], SuiteOptions>
-  skipIf(condition: unknown): SuiteDeclaration
-  runIf(condition: unknown): SuiteDeclaration
+  for(
+    strings: TemplateStringsArray,
+    ...values: any[]
+  ): EachDeclaration<any[], SuiteOptions>
+  skipIf(condition: unknown): SuiteDeclaration<Context>
+  runIf(condition: unknown): SuiteDeclaration<Context>
 }
 
 export function validateOptions(
@@ -567,6 +656,8 @@ export function createCollector(
     strictTags?: boolean
     sequence?: TestSequenceOptions
     getRuntimeConfig?: () => import('../assertions/utilities').RuntimeOptions
+    injectValue?: (name: string) => unknown
+    getSuiteAlias?: () => SuiteDeclaration | undefined
     getActiveCollector?: () => CollectorDispatch | undefined
     isCollectingScope?: () => boolean
   } = {}
@@ -679,7 +770,9 @@ export function createCollector(
           inheritedOptions
         )
         current.children.push(child)
-        const result = fn ? suiteStorage.run(child, () => fn()) : undefined
+        const result = fn
+          ? suiteStorage.run(child, () => fn(declaration('test', 'run')))
+          : undefined
         if (result && typeof result.then === 'function') {
           // Observe immediately, but report after every nested collection job
           // settles. The suite identity follows awaits without changing siblings.
@@ -771,7 +864,7 @@ export function createCollector(
             : options.todo
               ? 'todo'
               : mode
-        current.children.push({
+        const test: TestCase = {
           type: 'test',
           meta,
           tags,
@@ -782,9 +875,71 @@ export function createCollector(
           options: { ...options },
           fixtures,
           fn,
-        })
+        }
+        Object.defineProperty(test, 'registrationError', { value: new Error() })
+        current.children.push(test)
       }
     }
+    const builder: FixtureBuilderOperations = {
+      extend(...args) {
+        const active = redirected()
+        if (active) return active.extend(...args)
+        const [fixturesOrName, optionsOrValue, value] = args
+        assertCollecting()
+        const current = currentSuite()
+        const extra = normalizeFixtureArguments(
+          'test.extend',
+          fixturesOrName,
+          optionsOrValue,
+          value,
+          args.length >= 3
+        )
+        const extended = extendFixtures(
+          resolveFixtureDefinitions(fixtures, root),
+          extra,
+          false,
+          config.injectValue
+        )
+        validateFixtureDefinitions(
+          extended,
+          Object.keys(extra),
+          current === root
+        )
+        return declaration('test', 'run', extended)
+      },
+      override(...args) {
+        const active = redirected()
+        if (active) return active.override(...args)
+        const [fixturesOrName, optionsOrValue, value] = args
+        assertCollecting()
+        const current = currentSuite()
+        const extra = normalizeFixtureArguments(
+          'test.override',
+          fixturesOrName,
+          optionsOrValue,
+          value,
+          args.length >= 3
+        )
+        const inherited = fixturesFor(current)
+        for (const name of Object.keys(extra)) {
+          if (!(name in inherited))
+            throw new Error(`Cannot override unknown fixture "${name}".`)
+        }
+        const overridden = extendFixtures(
+          inherited,
+          extra,
+          true,
+          config.injectValue
+        )
+        validateFixtureDefinitions(
+          overridden,
+          Object.keys(extra),
+          current === root
+        )
+        current.fixtureOverrides.set(fixtures, overridden)
+      },
+    }
+    const receiverContext = { getFixtures: () => builder }
     return new Proxy(declare, {
       get(target, key, receiver) {
         if (kind === 'test' && (key === 'beforeAll' || key === 'afterAll'))
@@ -794,58 +949,34 @@ export function createCollector(
         if (kind === 'test' && (key === 'aroundEach' || key === 'aroundAll'))
           return around(key, fixtures)
         assertScopeActive()
+        if (kind === 'test' && (key === 'describe' || key === 'suite'))
+          return config.getSuiteAlias?.() ?? describe
+        if (key === 'scoped' && kind === 'test')
+          return function (this: TestDeclaration, values: object) {
+            console.warn(
+              'test.scoped() is deprecated and will be removed in future versions. Please use test.override() instead.'
+            )
+            this.override(values)
+            return this
+          }
+        if (key === fixtureBuilderReceiver && kind === 'test')
+          return receiverContext
         if (key === 'extend' && kind === 'test')
-          return (...args: [unknown, unknown?, unknown?]) => {
-            const active = redirected()
-            if (active) return active.extend(...args)
-            const [fixturesOrName, optionsOrValue, value] = args
-            assertCollecting()
-            const current = currentSuite()
-            const extra = normalizeFixtureArguments(
-              'test.extend',
-              fixturesOrName,
-              optionsOrValue,
-              value,
-              args.length >= 3
-            )
-            const extended = extendFixtures(
-              resolveFixtureDefinitions(fixtures, root),
-              extra
-            )
-            validateFixtureDefinitions(
-              extended,
-              Object.keys(extra),
-              current === root
-            )
-            return declaration(kind, mode, extended, declarationOptions)
+          return function (
+            this: TestDeclaration,
+            ...args: FixtureBuilderArguments
+          ) {
+            assertScopeActive()
+            return fixtureBuilderOperations(this).extend(...args)
           }
         if (key === 'override' && kind === 'test')
-          return (...args: [unknown, unknown?, unknown?]) => {
-            const active = redirected()
-            if (active) return active.override(...args)
-            const [fixturesOrName, optionsOrValue, value] = args
-            assertCollecting()
-            const current = currentSuite()
-            const extra = normalizeFixtureArguments(
-              'test.override',
-              fixturesOrName,
-              optionsOrValue,
-              value,
-              args.length >= 3
-            )
-            const inherited = fixturesFor(current)
-            for (const name of Object.keys(extra)) {
-              if (!(name in inherited))
-                throw new Error(`Cannot override unknown fixture "${name}".`)
-            }
-            const overridden = extendFixtures(inherited, extra, true)
-            validateFixtureDefinitions(
-              overridden,
-              Object.keys(extra),
-              current === root
-            )
-            current.fixtureOverrides.set(fixtures, overridden)
-            return receiver
+          return function (
+            this: TestDeclaration,
+            ...args: FixtureBuilderArguments
+          ) {
+            assertScopeActive()
+            fixtureBuilderOperations(this).override(...args)
+            return this
           }
         if (
           (key === 'each' || key === 'for') &&
@@ -944,8 +1075,14 @@ export function createCollector(
     })
   }
 
-  const test: TestDeclaration = declaration('test', 'run')
-  const describe: SuiteDeclaration = declaration('suite', 'run')
+  const test: TestDeclaration<{}, InternalTestContext> = declaration(
+    'test',
+    'run'
+  )
+  const describe: SuiteDeclaration<InternalTestContext> = declaration(
+    'suite',
+    'run'
+  )
   const hook =
     (name: HookName, fixtures?: FixtureDefinitions) =>
     (fn: TestBody, timeout?: number) => {
@@ -957,11 +1094,15 @@ export function createCollector(
       if (typeof fn !== 'function')
         throw new TypeError(`${name} requires a callback.`)
       if (timeout !== undefined) validateOptions({ timeout })
-      currentSuite().hooks[name].push({
+      const registered: Hook = {
         fn,
         fixtures,
         timeout: timeout ?? config.getRuntimeConfig?.().hookTimeout,
+      }
+      Object.defineProperty(registered, 'registrationError', {
+        value: new Error(),
       })
+      currentSuite().hooks[name].push(registered)
     }
   const around =
     (name: AroundHookName, fixtures: FixtureDefinitions = {}) =>
@@ -974,11 +1115,15 @@ export function createCollector(
       if (typeof fn !== 'function')
         throw new TypeError(`${name} requires a callback.`)
       if (timeout !== undefined) validateOptions({ timeout })
-      currentSuite().around[name].push({
+      const registered: AroundHook = {
         fn,
         fixtures,
         timeout: timeout ?? config.getRuntimeConfig?.().hookTimeout,
+      }
+      Object.defineProperty(registered, 'registrationErrors', {
+        value: { setup: new Error(), teardown: new Error() },
       })
+      currentSuite().around[name].push(registered)
     }
 
   return {

@@ -479,3 +479,86 @@ describe('parent-authorized snapshot updates', () => {
     expect(await readFile(path, 'utf8')).toBe('updated')
   })
 })
+
+it.each(['development', 'production'] as const)(
+  'commits completed failed Node body snapshots after a clean %s worker exit and holds exit failures',
+  async (mode) => {
+    const directory = await mkdtemp(
+      join(tmpdir(), 'next-failed-snapshot-parent-')
+    )
+    const path = join(directory, 'body.test.ts.snap')
+    const profile = {
+      id: 'node',
+      mode,
+      environment: 'node' as const,
+      runtime: 'nodejs' as const,
+      bundler: 'turbopack' as const,
+    }
+    const entry = {
+      id: 'node:failed-body',
+      file: join(directory, 'body.test.ts'),
+      profile,
+    }
+    const artifact: CompiledTestArtifact = {
+      version: 2,
+      kind: 'node',
+      entryId: entry.id,
+      profile,
+      revision: 'failed-body-revision',
+      rootDir: directory,
+      entryPath: 'body.js',
+      files: [],
+      diagnostics: [],
+    }
+    try {
+      for (const code of [1, 0]) {
+        await writeFile(path, 'original')
+        runWorker.mockReset()
+        let cacheDirectory: string | undefined
+        runWorker.mockImplementation(async (_worker, workerOptions) => {
+          cacheDirectory = (workerOptions.input as WorkerInput).cacheScope
+            .directory
+          expect(await readFile(path, 'utf8')).toBe('original')
+          workerOptions.onMessage({
+            type: 'complete',
+            result: {
+              entryId: artifact.entryId,
+              status: 'failed',
+              durationMs: 1,
+            },
+            snapshotUpdates: [
+              { path, previousContent: 'original', content: 'updated' },
+            ],
+          })
+          return { reason: 'exit', code, signal: null }
+        })
+        const result = await executeWithEnvironment(
+          artifact,
+          {
+            runId: 'failed-body-snapshots',
+            projectDir: directory,
+            entry,
+            setupFiles: [],
+            updateSnapshots: true,
+            testTimeout: 1000,
+            hookTimeout: 1000,
+            fileTimeout: 5000,
+            signal: new AbortController().signal,
+            onEvent() {},
+          },
+          process.env
+        )
+        expect(result.status).toBe('failed')
+        expect(await readFile(path, 'utf8')).toBe(
+          code === 0 ? 'updated' : 'original'
+        )
+        await expect(stat(cacheDirectory!)).rejects.toMatchObject({
+          code: 'ENOENT',
+        })
+      }
+    } finally {
+      runWorker.mockReset()
+      await rm(directory, { recursive: true, force: true })
+    }
+  }
+)

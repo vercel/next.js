@@ -1,0 +1,2 @@
+globalThis.__ws2Graph ??= {};globalThis.__ws2Graph['acyclic-peer']=(globalThis.__ws2Graph['acyclic-peer']??0)+1;export const evaluation=globalThis.__ws2Graph['acyclic-peer'];
+export const peer={kind:'peer',count:0};

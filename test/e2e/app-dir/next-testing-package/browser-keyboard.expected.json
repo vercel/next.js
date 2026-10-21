@@ -1,0 +1,2736 @@
+{
+  "reference": {
+    "vitest": "5.0.4",
+    "provider": "@vitest/browser-playwright5.0.4",
+    "playwright": "1.64.0",
+    "scope": "Native text, BMP Unicode, basic editing/selection, skipClick, recovery, controlled render turns; wider descriptor grammar/held keys, setup and supplementary Unicode qualification remain open"
+  },
+  "phases": {
+    "keyboard-development": {
+      "mode": "development",
+      "cases": [
+        {
+          "fullName": "type emits native character input and appends at the focused caret",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "type accepts a locator target and retains BMP Unicode bytes and events",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "keyboard edits the focused element with named keys and selection",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "skipClick types into the active element while retaining the requested locator",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "keyboard descriptor rejection leaves later native input available",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "native type drives controlled component render turns",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "type native caret",
+            "value": "aAxy1!",
+            "selection": [4, 4],
+            "events": [
+              {
+                "type": "focus",
+                "key": null,
+                "code": null,
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "keydown",
+                "key": "a",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "keypress",
+                "key": "a",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "a",
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "a",
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keyup",
+                "key": "a",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keydown",
+                "key": "A",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keypress",
+                "key": "A",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "A",
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "A",
+                "trusted": true,
+                "value": "aA",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keyup",
+                "key": "A",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aA",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keydown",
+                "key": "1",
+                "code": "Digit1",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aA",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keypress",
+                "key": "1",
+                "code": "Digit1",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aA",
+                "selection": [2, 2]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "1",
+                "trusted": true,
+                "value": "aA",
+                "selection": [2, 2]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "1",
+                "trusted": true,
+                "value": "aA1",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keyup",
+                "key": "1",
+                "code": "Digit1",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aA1",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keydown",
+                "key": "!",
+                "code": "Digit1",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aA1",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keypress",
+                "key": "!",
+                "code": "Digit1",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aA1",
+                "selection": [3, 3]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "!",
+                "trusted": true,
+                "value": "aA1",
+                "selection": [3, 3]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "!",
+                "trusted": true,
+                "value": "aA1!",
+                "selection": [4, 4]
+              },
+              {
+                "type": "keyup",
+                "key": "!",
+                "code": "Digit1",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aA1!",
+                "selection": [4, 4]
+              },
+              {
+                "type": "keydown",
+                "key": "x",
+                "code": "KeyX",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aA1!",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keypress",
+                "key": "x",
+                "code": "KeyX",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aA1!",
+                "selection": [2, 2]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "x",
+                "trusted": true,
+                "value": "aA1!",
+                "selection": [2, 2]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "x",
+                "trusted": true,
+                "value": "aAx1!",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keyup",
+                "key": "x",
+                "code": "KeyX",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aAx1!",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keydown",
+                "key": "y",
+                "code": "KeyY",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aAx1!",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keypress",
+                "key": "y",
+                "code": "KeyY",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aAx1!",
+                "selection": [3, 3]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "y",
+                "trusted": true,
+                "value": "aAx1!",
+                "selection": [3, 3]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "y",
+                "trusted": true,
+                "value": "aAxy1!",
+                "selection": [4, 4]
+              },
+              {
+                "type": "keyup",
+                "key": "y",
+                "code": "KeyY",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aAxy1!",
+                "selection": [4, 4]
+              }
+            ]
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "type BMP Unicode",
+            "value": "é東京✓",
+            "selection": [4, 4],
+            "events": [
+              {
+                "type": "focus",
+                "key": null,
+                "code": null,
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "é",
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "é",
+                "trusted": true,
+                "value": "é",
+                "selection": [1, 1]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "東",
+                "trusted": true,
+                "value": "é",
+                "selection": [1, 1]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "東",
+                "trusted": true,
+                "value": "é東",
+                "selection": [2, 2]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "京",
+                "trusted": true,
+                "value": "é東",
+                "selection": [2, 2]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "京",
+                "trusted": true,
+                "value": "é東京",
+                "selection": [3, 3]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "✓",
+                "trusted": true,
+                "value": "é東京",
+                "selection": [3, 3]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "✓",
+                "trusted": true,
+                "value": "é東京✓",
+                "selection": [4, 4]
+              }
+            ]
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "keyboard native editing",
+            "value": "XY",
+            "selection": [2, 2],
+            "events": [
+              {
+                "type": "focus",
+                "key": null,
+                "code": null,
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "keydown",
+                "key": "a",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "keypress",
+                "key": "a",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "a",
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "a",
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keyup",
+                "key": "a",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keydown",
+                "key": "b",
+                "code": "KeyB",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keypress",
+                "key": "b",
+                "code": "KeyB",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "b",
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "b",
+                "trusted": true,
+                "value": "ab",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keyup",
+                "key": "b",
+                "code": "KeyB",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "ab",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keydown",
+                "key": "c",
+                "code": "KeyC",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "ab",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keypress",
+                "key": "c",
+                "code": "KeyC",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "ab",
+                "selection": [2, 2]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "c",
+                "trusted": true,
+                "value": "ab",
+                "selection": [2, 2]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "c",
+                "trusted": true,
+                "value": "abc",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keyup",
+                "key": "c",
+                "code": "KeyC",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "abc",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keydown",
+                "key": "d",
+                "code": "KeyD",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "abc",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keypress",
+                "key": "d",
+                "code": "KeyD",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "abc",
+                "selection": [3, 3]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "d",
+                "trusted": true,
+                "value": "abc",
+                "selection": [3, 3]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "d",
+                "trusted": true,
+                "value": "abcd",
+                "selection": [4, 4]
+              },
+              {
+                "type": "keyup",
+                "key": "d",
+                "code": "KeyD",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "abcd",
+                "selection": [4, 4]
+              },
+              {
+                "type": "keydown",
+                "key": "ArrowLeft",
+                "code": "ArrowLeft",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "abcd",
+                "selection": [4, 4]
+              },
+              {
+                "type": "keyup",
+                "key": "ArrowLeft",
+                "code": "ArrowLeft",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "abcd",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keydown",
+                "key": "ArrowLeft",
+                "code": "ArrowLeft",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "abcd",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keyup",
+                "key": "ArrowLeft",
+                "code": "ArrowLeft",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "abcd",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keydown",
+                "key": "Backspace",
+                "code": "Backspace",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "abcd",
+                "selection": [2, 2]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "deleteContentBackward",
+                "data": null,
+                "trusted": true,
+                "value": "abcd",
+                "selection": [2, 2]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "deleteContentBackward",
+                "data": null,
+                "trusted": true,
+                "value": "acd",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keyup",
+                "key": "Backspace",
+                "code": "Backspace",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "acd",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keydown",
+                "key": "X",
+                "code": "KeyX",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "acd",
+                "selection": [0, 3]
+              },
+              {
+                "type": "keypress",
+                "key": "X",
+                "code": "KeyX",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "acd",
+                "selection": [0, 3]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "X",
+                "trusted": true,
+                "value": "acd",
+                "selection": [0, 3]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "X",
+                "trusted": true,
+                "value": "X",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keyup",
+                "key": "X",
+                "code": "KeyX",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "X",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keydown",
+                "key": "Y",
+                "code": "KeyY",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "X",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keypress",
+                "key": "Y",
+                "code": "KeyY",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "X",
+                "selection": [1, 1]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "Y",
+                "trusted": true,
+                "value": "X",
+                "selection": [1, 1]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "Y",
+                "trusted": true,
+                "value": "XY",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keyup",
+                "key": "Y",
+                "code": "KeyY",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "XY",
+                "selection": [2, 2]
+              }
+            ]
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "type skipClick",
+            "value": "one!",
+            "selection": [4, 4],
+            "events": [
+              {
+                "type": "keydown",
+                "key": "!",
+                "code": "Digit1",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "one",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keypress",
+                "key": "!",
+                "code": "Digit1",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "one",
+                "selection": [3, 3]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "!",
+                "trusted": true,
+                "value": "one",
+                "selection": [3, 3]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "!",
+                "trusted": true,
+                "value": "one!",
+                "selection": [4, 4]
+              },
+              {
+                "type": "keyup",
+                "key": "!",
+                "code": "Digit1",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "one!",
+                "selection": [4, 4]
+              }
+            ],
+            "second": {
+              "value": "two",
+              "events": []
+            },
+            "active": "first"
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "keyboard recoverable rejection",
+            "value": "after",
+            "selection": [5, 5],
+            "events": [
+              {
+                "type": "focus",
+                "key": null,
+                "code": null,
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "keydown",
+                "key": "a",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "keypress",
+                "key": "a",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "a",
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "a",
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keyup",
+                "key": "a",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keydown",
+                "key": "f",
+                "code": "KeyF",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keypress",
+                "key": "f",
+                "code": "KeyF",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "f",
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "f",
+                "trusted": true,
+                "value": "af",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keyup",
+                "key": "f",
+                "code": "KeyF",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "af",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keydown",
+                "key": "t",
+                "code": "KeyT",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "af",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keypress",
+                "key": "t",
+                "code": "KeyT",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "af",
+                "selection": [2, 2]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "t",
+                "trusted": true,
+                "value": "af",
+                "selection": [2, 2]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "t",
+                "trusted": true,
+                "value": "aft",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keyup",
+                "key": "t",
+                "code": "KeyT",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aft",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keydown",
+                "key": "e",
+                "code": "KeyE",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aft",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keypress",
+                "key": "e",
+                "code": "KeyE",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aft",
+                "selection": [3, 3]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "e",
+                "trusted": true,
+                "value": "aft",
+                "selection": [3, 3]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "e",
+                "trusted": true,
+                "value": "afte",
+                "selection": [4, 4]
+              },
+              {
+                "type": "keyup",
+                "key": "e",
+                "code": "KeyE",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "afte",
+                "selection": [4, 4]
+              },
+              {
+                "type": "keydown",
+                "key": "r",
+                "code": "KeyR",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "afte",
+                "selection": [4, 4]
+              },
+              {
+                "type": "keypress",
+                "key": "r",
+                "code": "KeyR",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "afte",
+                "selection": [4, 4]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "r",
+                "trusted": true,
+                "value": "afte",
+                "selection": [4, 4]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "r",
+                "trusted": true,
+                "value": "after",
+                "selection": [5, 5]
+              },
+              {
+                "type": "keyup",
+                "key": "r",
+                "code": "KeyR",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "after",
+                "selection": [5, 5]
+              }
+            ]
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "type component turns",
+            "value": "abc",
+            "selection": [3, 3],
+            "events": [
+              {
+                "type": "focus",
+                "key": null,
+                "code": null,
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "keydown",
+                "key": "a",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "keypress",
+                "key": "a",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "a",
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "a",
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keyup",
+                "key": "a",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keydown",
+                "key": "b",
+                "code": "KeyB",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keypress",
+                "key": "b",
+                "code": "KeyB",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "b",
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "b",
+                "trusted": true,
+                "value": "ab",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keyup",
+                "key": "b",
+                "code": "KeyB",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "ab",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keydown",
+                "key": "c",
+                "code": "KeyC",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "ab",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keypress",
+                "key": "c",
+                "code": "KeyC",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "ab",
+                "selection": [2, 2]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "c",
+                "trusted": true,
+                "value": "ab",
+                "selection": [2, 2]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "c",
+                "trusted": true,
+                "value": "abc",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keyup",
+                "key": "c",
+                "code": "KeyC",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "abc",
+                "selection": [3, 3]
+              }
+            ],
+            "output": "abc"
+          }
+        }
+      ]
+    },
+    "keyboard-production": {
+      "mode": "production",
+      "cases": [
+        {
+          "fullName": "type emits native character input and appends at the focused caret",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "type accepts a locator target and retains BMP Unicode bytes and events",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "keyboard edits the focused element with named keys and selection",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "skipClick types into the active element while retaining the requested locator",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "keyboard descriptor rejection leaves later native input available",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "native type drives controlled component render turns",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "type native caret",
+            "value": "aAxy1!",
+            "selection": [4, 4],
+            "events": [
+              {
+                "type": "focus",
+                "key": null,
+                "code": null,
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "keydown",
+                "key": "a",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "keypress",
+                "key": "a",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "a",
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "a",
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keyup",
+                "key": "a",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keydown",
+                "key": "A",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keypress",
+                "key": "A",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "A",
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "A",
+                "trusted": true,
+                "value": "aA",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keyup",
+                "key": "A",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aA",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keydown",
+                "key": "1",
+                "code": "Digit1",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aA",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keypress",
+                "key": "1",
+                "code": "Digit1",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aA",
+                "selection": [2, 2]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "1",
+                "trusted": true,
+                "value": "aA",
+                "selection": [2, 2]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "1",
+                "trusted": true,
+                "value": "aA1",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keyup",
+                "key": "1",
+                "code": "Digit1",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aA1",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keydown",
+                "key": "!",
+                "code": "Digit1",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aA1",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keypress",
+                "key": "!",
+                "code": "Digit1",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aA1",
+                "selection": [3, 3]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "!",
+                "trusted": true,
+                "value": "aA1",
+                "selection": [3, 3]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "!",
+                "trusted": true,
+                "value": "aA1!",
+                "selection": [4, 4]
+              },
+              {
+                "type": "keyup",
+                "key": "!",
+                "code": "Digit1",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aA1!",
+                "selection": [4, 4]
+              },
+              {
+                "type": "keydown",
+                "key": "x",
+                "code": "KeyX",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aA1!",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keypress",
+                "key": "x",
+                "code": "KeyX",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aA1!",
+                "selection": [2, 2]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "x",
+                "trusted": true,
+                "value": "aA1!",
+                "selection": [2, 2]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "x",
+                "trusted": true,
+                "value": "aAx1!",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keyup",
+                "key": "x",
+                "code": "KeyX",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aAx1!",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keydown",
+                "key": "y",
+                "code": "KeyY",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aAx1!",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keypress",
+                "key": "y",
+                "code": "KeyY",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aAx1!",
+                "selection": [3, 3]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "y",
+                "trusted": true,
+                "value": "aAx1!",
+                "selection": [3, 3]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "y",
+                "trusted": true,
+                "value": "aAxy1!",
+                "selection": [4, 4]
+              },
+              {
+                "type": "keyup",
+                "key": "y",
+                "code": "KeyY",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aAxy1!",
+                "selection": [4, 4]
+              }
+            ]
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "type BMP Unicode",
+            "value": "é東京✓",
+            "selection": [4, 4],
+            "events": [
+              {
+                "type": "focus",
+                "key": null,
+                "code": null,
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "é",
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "é",
+                "trusted": true,
+                "value": "é",
+                "selection": [1, 1]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "東",
+                "trusted": true,
+                "value": "é",
+                "selection": [1, 1]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "東",
+                "trusted": true,
+                "value": "é東",
+                "selection": [2, 2]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "京",
+                "trusted": true,
+                "value": "é東",
+                "selection": [2, 2]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "京",
+                "trusted": true,
+                "value": "é東京",
+                "selection": [3, 3]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "✓",
+                "trusted": true,
+                "value": "é東京",
+                "selection": [3, 3]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "✓",
+                "trusted": true,
+                "value": "é東京✓",
+                "selection": [4, 4]
+              }
+            ]
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "keyboard native editing",
+            "value": "XY",
+            "selection": [2, 2],
+            "events": [
+              {
+                "type": "focus",
+                "key": null,
+                "code": null,
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "keydown",
+                "key": "a",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "keypress",
+                "key": "a",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "a",
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "a",
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keyup",
+                "key": "a",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keydown",
+                "key": "b",
+                "code": "KeyB",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keypress",
+                "key": "b",
+                "code": "KeyB",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "b",
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "b",
+                "trusted": true,
+                "value": "ab",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keyup",
+                "key": "b",
+                "code": "KeyB",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "ab",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keydown",
+                "key": "c",
+                "code": "KeyC",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "ab",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keypress",
+                "key": "c",
+                "code": "KeyC",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "ab",
+                "selection": [2, 2]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "c",
+                "trusted": true,
+                "value": "ab",
+                "selection": [2, 2]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "c",
+                "trusted": true,
+                "value": "abc",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keyup",
+                "key": "c",
+                "code": "KeyC",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "abc",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keydown",
+                "key": "d",
+                "code": "KeyD",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "abc",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keypress",
+                "key": "d",
+                "code": "KeyD",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "abc",
+                "selection": [3, 3]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "d",
+                "trusted": true,
+                "value": "abc",
+                "selection": [3, 3]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "d",
+                "trusted": true,
+                "value": "abcd",
+                "selection": [4, 4]
+              },
+              {
+                "type": "keyup",
+                "key": "d",
+                "code": "KeyD",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "abcd",
+                "selection": [4, 4]
+              },
+              {
+                "type": "keydown",
+                "key": "ArrowLeft",
+                "code": "ArrowLeft",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "abcd",
+                "selection": [4, 4]
+              },
+              {
+                "type": "keyup",
+                "key": "ArrowLeft",
+                "code": "ArrowLeft",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "abcd",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keydown",
+                "key": "ArrowLeft",
+                "code": "ArrowLeft",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "abcd",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keyup",
+                "key": "ArrowLeft",
+                "code": "ArrowLeft",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "abcd",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keydown",
+                "key": "Backspace",
+                "code": "Backspace",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "abcd",
+                "selection": [2, 2]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "deleteContentBackward",
+                "data": null,
+                "trusted": true,
+                "value": "abcd",
+                "selection": [2, 2]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "deleteContentBackward",
+                "data": null,
+                "trusted": true,
+                "value": "acd",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keyup",
+                "key": "Backspace",
+                "code": "Backspace",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "acd",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keydown",
+                "key": "X",
+                "code": "KeyX",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "acd",
+                "selection": [0, 3]
+              },
+              {
+                "type": "keypress",
+                "key": "X",
+                "code": "KeyX",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "acd",
+                "selection": [0, 3]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "X",
+                "trusted": true,
+                "value": "acd",
+                "selection": [0, 3]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "X",
+                "trusted": true,
+                "value": "X",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keyup",
+                "key": "X",
+                "code": "KeyX",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "X",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keydown",
+                "key": "Y",
+                "code": "KeyY",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "X",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keypress",
+                "key": "Y",
+                "code": "KeyY",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "X",
+                "selection": [1, 1]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "Y",
+                "trusted": true,
+                "value": "X",
+                "selection": [1, 1]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "Y",
+                "trusted": true,
+                "value": "XY",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keyup",
+                "key": "Y",
+                "code": "KeyY",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "XY",
+                "selection": [2, 2]
+              }
+            ]
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "type skipClick",
+            "value": "one!",
+            "selection": [4, 4],
+            "events": [
+              {
+                "type": "keydown",
+                "key": "!",
+                "code": "Digit1",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "one",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keypress",
+                "key": "!",
+                "code": "Digit1",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "one",
+                "selection": [3, 3]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "!",
+                "trusted": true,
+                "value": "one",
+                "selection": [3, 3]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "!",
+                "trusted": true,
+                "value": "one!",
+                "selection": [4, 4]
+              },
+              {
+                "type": "keyup",
+                "key": "!",
+                "code": "Digit1",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "one!",
+                "selection": [4, 4]
+              }
+            ],
+            "second": {
+              "value": "two",
+              "events": []
+            },
+            "active": "first"
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "keyboard recoverable rejection",
+            "value": "after",
+            "selection": [5, 5],
+            "events": [
+              {
+                "type": "focus",
+                "key": null,
+                "code": null,
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "keydown",
+                "key": "a",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "keypress",
+                "key": "a",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "a",
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "a",
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keyup",
+                "key": "a",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keydown",
+                "key": "f",
+                "code": "KeyF",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keypress",
+                "key": "f",
+                "code": "KeyF",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "f",
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "f",
+                "trusted": true,
+                "value": "af",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keyup",
+                "key": "f",
+                "code": "KeyF",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "af",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keydown",
+                "key": "t",
+                "code": "KeyT",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "af",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keypress",
+                "key": "t",
+                "code": "KeyT",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "af",
+                "selection": [2, 2]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "t",
+                "trusted": true,
+                "value": "af",
+                "selection": [2, 2]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "t",
+                "trusted": true,
+                "value": "aft",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keyup",
+                "key": "t",
+                "code": "KeyT",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aft",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keydown",
+                "key": "e",
+                "code": "KeyE",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aft",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keypress",
+                "key": "e",
+                "code": "KeyE",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "aft",
+                "selection": [3, 3]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "e",
+                "trusted": true,
+                "value": "aft",
+                "selection": [3, 3]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "e",
+                "trusted": true,
+                "value": "afte",
+                "selection": [4, 4]
+              },
+              {
+                "type": "keyup",
+                "key": "e",
+                "code": "KeyE",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "afte",
+                "selection": [4, 4]
+              },
+              {
+                "type": "keydown",
+                "key": "r",
+                "code": "KeyR",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "afte",
+                "selection": [4, 4]
+              },
+              {
+                "type": "keypress",
+                "key": "r",
+                "code": "KeyR",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "afte",
+                "selection": [4, 4]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "r",
+                "trusted": true,
+                "value": "afte",
+                "selection": [4, 4]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "r",
+                "trusted": true,
+                "value": "after",
+                "selection": [5, 5]
+              },
+              {
+                "type": "keyup",
+                "key": "r",
+                "code": "KeyR",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "after",
+                "selection": [5, 5]
+              }
+            ]
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "type component turns",
+            "value": "abc",
+            "selection": [3, 3],
+            "events": [
+              {
+                "type": "focus",
+                "key": null,
+                "code": null,
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "keydown",
+                "key": "a",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "keypress",
+                "key": "a",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "a",
+                "trusted": true,
+                "value": "",
+                "selection": [0, 0]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "a",
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keyup",
+                "key": "a",
+                "code": "KeyA",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keydown",
+                "key": "b",
+                "code": "KeyB",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "keypress",
+                "key": "b",
+                "code": "KeyB",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "b",
+                "trusted": true,
+                "value": "a",
+                "selection": [1, 1]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "b",
+                "trusted": true,
+                "value": "ab",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keyup",
+                "key": "b",
+                "code": "KeyB",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "ab",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keydown",
+                "key": "c",
+                "code": "KeyC",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "ab",
+                "selection": [2, 2]
+              },
+              {
+                "type": "keypress",
+                "key": "c",
+                "code": "KeyC",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "ab",
+                "selection": [2, 2]
+              },
+              {
+                "type": "beforeinput",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "c",
+                "trusted": true,
+                "value": "ab",
+                "selection": [2, 2]
+              },
+              {
+                "type": "input",
+                "key": null,
+                "code": null,
+                "inputType": "insertText",
+                "data": "c",
+                "trusted": true,
+                "value": "abc",
+                "selection": [3, 3]
+              },
+              {
+                "type": "keyup",
+                "key": "c",
+                "code": "KeyC",
+                "inputType": null,
+                "data": null,
+                "trusted": true,
+                "value": "abc",
+                "selection": [3, 3]
+              }
+            ],
+            "output": "abc"
+          }
+        }
+      ]
+    }
+  }
+}

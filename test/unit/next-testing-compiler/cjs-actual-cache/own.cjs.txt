@@ -1,0 +1,1 @@
+exports.then = function then(resolve) { globalThis.__ws2CachedThenCalls = (globalThis.__ws2CachedThenCalls || 0) + 1; resolve('then value') }

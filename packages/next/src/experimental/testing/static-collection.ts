@@ -369,9 +369,9 @@ export async function collectStaticTestCases(
           cases.push({
             name: names.join(' > '),
             file,
-            ...(project.displayName
-              ? { projectName: project.displayName }
-              : {}),
+            ...(project.displayName === undefined
+              ? {}
+              : { projectName: project.displayName }),
             ...(task.location ? { location: task.location } : {}),
           })
       }

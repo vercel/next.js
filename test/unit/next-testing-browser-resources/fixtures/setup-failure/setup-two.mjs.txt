@@ -1,0 +1,4 @@
+if (globalThis.__setupFailureFirst !== 'awaited') throw new Error('setup order lost')
+console.log('BROWSER_SETUP_FAILURE ' + JSON.stringify({phase:'second-start'}))
+await Promise.resolve()
+throw new Error('awaited setup failed')

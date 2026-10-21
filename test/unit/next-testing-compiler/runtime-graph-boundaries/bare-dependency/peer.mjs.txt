@@ -1,0 +1,1 @@
+import * as fs from 'fs';export const nested=fs

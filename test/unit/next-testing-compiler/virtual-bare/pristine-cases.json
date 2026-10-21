@@ -1,0 +1,22 @@
+[
+  {
+    "name": "supplies a missing bare module through one actual factory across graph consumers",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "awaits an explicit missing bare module factory",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "supplies a scoped missing bare subpath factory",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "retains authored factory namespace descriptors and mutation across imports",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

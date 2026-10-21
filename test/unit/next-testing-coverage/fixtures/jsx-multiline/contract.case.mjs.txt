@@ -1,0 +1,6 @@
+import { expect, test } from 'vitest'
+import { MultilineArrow } from './subject.tsx'
+test('renders a multiline typed arrow component', () => {
+  expect(MultilineArrow({ name: 'first' }).props.children.props.children).toBe('first!')
+  expect(MultilineArrow({ name: 'second' }).props['data-name']).toBe('second')
+})

@@ -1,0 +1,11 @@
+import {test,expect,describe} from 'vitest'
+let retries=0
+let repetitions=0
+describe('live results',()=>{
+ test('passed',{meta:{mode:process.env.NODE_ENV}},({task,onTestFinished})=>{onTestFinished(()=>{task.meta.finished=true});expect(4).toBe(4)})
+ test('retried',{retry:1},()=>{expect(++retries).toBe(2)})
+ test('repeated',{repeats:1},()=>{expect(++repetitions).toBeGreaterThan(0)})
+ test('failed',()=>expect('actual').toBe('expected'))
+ test.skip('skipped',()=>{})
+ test.todo('todo')
+})

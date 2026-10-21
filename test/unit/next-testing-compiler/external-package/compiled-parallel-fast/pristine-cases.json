@@ -1,0 +1,12 @@
+[
+  {
+    "name": "compiled synchronous factory parallel imports",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "compiled immediate async factory parallel imports",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

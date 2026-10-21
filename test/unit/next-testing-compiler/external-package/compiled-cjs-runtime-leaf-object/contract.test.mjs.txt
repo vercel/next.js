@@ -1,0 +1,46 @@
+import { test, expect, vi } from 'vitest'
+import { types } from 'node:util'
+function shape(value) {
+ if (value===null || (typeof value!=='object'&&typeof value!=='function')) return {type:typeof value,value}
+ return {type:typeof value,nativeBrand:types.isModuleNamespaceObject(value),keys:Reflect.ownKeys(value).map(key=>typeof key==='symbol'?String(key):key),prototype:Object.getPrototypeOf(value)===null?'null':Object.getPrototypeOf(value)===Object.prototype?'Object.prototype':Object.getPrototypeOf(value)===Function.prototype?'Function.prototype':Object.prototype.toString.call(Object.getPrototypeOf(value)),tag:value[Symbol.toStringTag]??null,extensible:Object.isExtensible(value),sealed:Object.isSealed(value),frozen:Object.isFrozen(value),descriptors:Reflect.ownKeys(value).map(key=>{const d=Object.getOwnPropertyDescriptor(value,key);return {key:typeof key==='symbol'?String(key):key,valueType:typeof d.value,get:typeof d.get,set:typeof d.set,writable:d.writable??null,enumerable:d.enumerable,configurable:d.configurable}})}
+}
+function view(namespace) {const root=namespace?.default;return {namespace:shape(namespace),root:shape(root),dependency:root&&'dependency' in root?shape(root.dependency):null,evaluation:namespace?.evaluation??null,rootEvaluation:root?.evaluation??null,dependencyEvaluation:root?.dependency?.evaluation??null,call:typeof root==='function'?root.call(root,'held'):typeof root?.read==='function'?root.read.call(root,'held'):null,namedCall:typeof namespace?.read==='function'?namespace.read('named'):null}}
+function same(values) {return values.map(value=>values.map(other=>value===other))}
+function errorView(error,raw) {return {name:error?.name,message:error?.message,causeSame:error?.cause===raw,causeName:error?.cause?.name,causeMessage:error?.cause?.message,keys:Reflect.ownKeys(error).map(String),causeDescriptor:(()=>{const d=Object.getOwnPropertyDescriptor(error,'cause');return d?{writable:d.writable,enumerable:d.enumerable,configurable:d.configurable,valueSame:d.value===raw}:null})()}}
+function counts(){return {root:globalThis.__ws2CjsDependencyRoot??globalThis.__ws2CallableRoot??globalThis.__ws2RuntimeLeafRoot??0,dependency:globalThis.__ws2CjsDependencyLeaf??globalThis.__ws2CallableDependency??0}}
+function row(name,data){console.log('WS2_CJS_RUNTIME:'+JSON.stringify({name,...data}));expect(data).toBeDefined()}
+function clean(){vi.doUnmock('./root.cjs');vi.resetModules()}
+for (const warm of [false,true]) test('compiled CJS sync registration held/reset/unmock '+warm,async()=>{
+ clean();const before=warm?await import('./root.cjs'):null;let calls=0
+ vi.doMock('./root.cjs',()=>{calls++;return {evaluation:901,marker:{mock:true},read(value){return [901,this.evaluation??null,value]},default:{evaluation:901,read(value){return [901,this.evaluation,value]}}}})
+ const first=await import('./root.cjs');const again=await import('./root.cjs');vi.resetModules();const reset=await import('./root.cjs');vi.doUnmock('./root.cjs');const original=await import('./root.cjs');const cached=await import('./root.cjs');vi.resetModules();const fresh=await import('./root.cjs');const values=[first,again,reset,original,cached,fresh];row('sync-'+warm,{before:before?view(before):null,views:values.map(view),identities:same(values),heldOriginal:values.map(value=>value===before),rootIdentities:same(values.map(value=>value.default)),calls,counts:counts()})
+})
+test('compiled CJS pending resolve original fallback and held reset',async()=>{
+ clean();let calls=0;let entered;let release;const started=new Promise(resolve=>entered=resolve);const held=new Promise(resolve=>release=resolve)
+ vi.doMock('./root.cjs',async()=>{calls++;entered();await held;return {evaluation:902,marker:{mock:true},read(value){return [902,this.evaluation??null,value]},default:{evaluation:902,read(value){return [902,this.evaluation,value]}}}})
+ const first=import('./root.cjs');await started;const fallback=await import('./root.cjs');release();const mock=await first;const cached=await import('./root.cjs');vi.resetModules();const reset=await import('./root.cjs');vi.doUnmock('./root.cjs');const unmocked=await import('./root.cjs');const values=[fallback,mock,cached,reset,unmocked];row('pending-resolve',{views:values.map(view),identities:same(values),rootIdentities:same(values.map(value=>value.default)),calls,counts:counts()})
+})
+test('compiled CJS pending rejection fresh wrapped retry and reset',async()=>{
+ clean();let calls=0;let entered;let reject;const started=new Promise(resolve=>entered=resolve);const held=new Promise((_,fail)=>reject=fail);const raw=new TypeError('cjs runtime pending raw')
+ vi.doMock('./root.cjs',async()=>{calls++;if(calls===1){entered();await held}return {evaluation:903,marker:{mock:true},read(value){return [903,this.evaluation??null,value]},default:{evaluation:903,read(value){return [903,this.evaluation,value]}}}})
+ const first=import('./root.cjs').then(value=>({value}),error=>({error}));await started;const fallback=await import('./root.cjs');reject(raw);const rejected=await first;const retry=await import('./root.cjs');vi.resetModules();const reset=await import('./root.cjs');vi.doUnmock('./root.cjs');const unmocked=await import('./root.cjs');const values=[fallback,retry,reset,unmocked];row('pending-reject',{error:errorView(rejected.error,raw),views:values.map(view),identities:same(values),calls,counts:counts()})
+})
+test('compiled CJS synchronous failed factory retries preserve cause',async()=>{
+ clean();let calls=0;const raw=new RangeError('cjs runtime sync raw')
+ vi.doMock('./root.cjs',()=>{calls++;if(calls<3)throw raw;return {evaluation:904,marker:{mock:true},read(value){return [904,this.evaluation??null,value]},default:{evaluation:904,read(value){return [904,this.evaluation,value]}}}})
+ const errors=[];for(let index=0;index<2;index++){try{await import('./root.cjs')}catch(error){errors.push(error)}}
+ const success=await import('./root.cjs');vi.resetModules();const reset=await import('./root.cjs');row('sync-retry',{errors:errors.map(error=>errorView(error,raw)),errorIdentity:errors[0]===errors[1],causeIdentity:errors[0]?.cause===errors[1]?.cause,views:[success,reset].map(view),same:success===reset,calls,counts:counts()})
+})
+test('compiled CJS immediate async overlapping import ordering',async()=>{
+ clean();let calls=0;const order=[]
+ vi.doMock('./root.cjs',async()=>{calls++;order.push('factory');return {evaluation:905,marker:{mock:true},read(value){return [905,this.evaluation??null,value]},default:{evaluation:905,read(value){return [905,this.evaluation,value]}}}})
+ const first=import('./root.cjs').then(value=>{order.push('first');return value});const second=import('./root.cjs').then(value=>{order.push('second');return value});order.push('started');const values=await Promise.all([first,second]);const cached=await import('./root.cjs');row('immediate-async',{order,views:[...values,cached].map(view),identities:same([...values,cached]),calls,counts:counts()})
+})
+test('compiled CJS held factory across unregistration and replacement',async()=>{
+ clean();let calls=0;let replacementCalls=0;let entered;let release;const started=new Promise(resolve=>entered=resolve);const held=new Promise(resolve=>release=resolve)
+ vi.doMock('./root.cjs',async()=>{calls++;entered();await held;return {evaluation:906,marker:{mock:true},read(value){return [906,this.evaluation??null,value]},default:{evaluation:906,read(value){return [906,this.evaluation,value]}}}})
+ const first=import('./root.cjs');await started;vi.doUnmock('./root.cjs');const original=await import('./root.cjs');vi.doMock('./root.cjs',()=>{replacementCalls++;return {evaluation:907,marker:{mock:true},read(value){return [907,this.evaluation??null,value]},default:{evaluation:907,read(value){return [907,this.evaluation,value]}}}});const replacement=await import('./root.cjs');release();const old=await first;const later=await import('./root.cjs');vi.resetModules();const reset=await import('./root.cjs');row('held-replace',{views:[original,replacement,old,later,reset].map(view),identities:same([original,replacement,old,later,reset]),calls,replacementCalls,counts:counts()})
+})
+test('compiled CJS unused registration/unregistration does not evaluate',async()=>{
+ clean();const before=counts();let calls=0;vi.doMock('./unused.cjs',()=>{calls++;return {default:{unused:true}}});vi.doUnmock('./unused.cjs');vi.resetModules();row('unused',{before,after:counts(),unused:globalThis.__ws2RuntimeUnused??0,calls})
+})

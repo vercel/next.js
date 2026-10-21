@@ -1,0 +1,2 @@
+globalThis.__ws2Graph ??= {};globalThis.__ws2Graph['diamond-shared']=(globalThis.__ws2Graph['diamond-shared']??0)+1;export const evaluation=globalThis.__ws2Graph['diamond-shared'];
+export const shared={kind:'shared',count:0};

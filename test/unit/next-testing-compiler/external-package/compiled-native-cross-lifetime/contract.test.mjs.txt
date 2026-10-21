@@ -1,0 +1,43 @@
+import {test,expect,vi} from 'vitest'
+import {types} from 'node:util'
+const nativeRows=()=>Object.entries(globalThis.__ws2NativeGraphs??{}).map(([name,value])=>({name,namespace:shape(value.namespace),sameSetup:value.namespace.setupPrimary===value.setup}));
+const counts=name=>[globalThis.__ws2Cross?.[name+'-root']??0,globalThis.__ws2Cross?.[name+'-peer']??0]
+const errorRow=(error,cause)=>({message:error.message,name:error.name,causeSame:error.cause===cause,causeName:error.cause?.name,causeMessage:error.cause?.message,causeCauseSame:error.cause?.cause===cause,keys:Reflect.ownKeys(error).map(String),causeKeys:error.cause?Reflect.ownKeys(error.cause).map(String):[]})
+const shape=namespace=>({keys:Reflect.ownKeys(namespace).map(key=>typeof key==='symbol'?String(key):key),prototypeNull:Object.getPrototypeOf(namespace)===null,objectPrototype:Object.getPrototypeOf(namespace)===Object.prototype,tag:Object.prototype.toString.call(namespace),brand:types.isModuleNamespaceObject(namespace),descriptors:Reflect.ownKeys(namespace).map(key=>{const d=Object.getOwnPropertyDescriptor(namespace,key);return [typeof key==='symbol'?String(key):key,{enumerable:d.enumerable,configurable:d.configurable,...('value'in d?{writable:d.writable,valueType:typeof d.value}:{get:typeof d.get,set:typeof d.set})}]})})
+ test('held dependency lifetime reset',async()=>{
+  let roots=0;let peers=0;let nexts=0;let release;let signal;const started=new Promise(resolve=>signal=resolve);const events=[]
+  vi.doMock('./reset/target.mjs',async original=>{roots++;events.push('root-start');const value=await original();events.push('root-original');return {token:value.token,peerToken:value.peerToken,read:value.read,evaluation:value.evaluation}})
+  vi.doMock('./reset/peer.mjs',async()=>{peers++;events.push('peer-start');signal();const value=await new Promise(resolve=>release=resolve);return {token:value.token,read:value.read,evaluation:value.evaluation}})
+  const pending=import('./reset/target.mjs');await started;const before=counts('reset')
+  if('reset'==='reset')vi.resetModules();else if('reset'==='reregister')vi.doMock('./reset/peer.mjs',()=>{nexts++;const token={count:42};return {token,read:()=>token.count,evaluation:42}});else vi.doUnmock('./reset/peer.mjs')
+  const token={count:41};release({token,read:()=>token.count,evaluation:41});const root=await pending;const peer=await import('./reset/peer.mjs');const held=await import('./reset/target.mjs')
+  console.log('WS2_CROSS_LIFETIME:'+JSON.stringify({mode:'reset',before,events,calls:[roots,peers,nexts],evaluations:counts('reset'),same:[root===held,root.peerToken===token,root.peerToken===peer.token],values:[root.read(),peer.read()],shapes:[shape(root),shape(peer),shape(held)]}));expect(roots).toBe(1)
+ })
+ test('held dependency lifetime reregister',async()=>{
+  let roots=0;let peers=0;let nexts=0;let release;let signal;const started=new Promise(resolve=>signal=resolve);const events=[]
+  vi.doMock('./reregister/target.mjs',async original=>{roots++;events.push('root-start');const value=await original();events.push('root-original');return {token:value.token,peerToken:value.peerToken,read:value.read,evaluation:value.evaluation}})
+  vi.doMock('./reregister/peer.mjs',async()=>{peers++;events.push('peer-start');signal();const value=await new Promise(resolve=>release=resolve);return {token:value.token,read:value.read,evaluation:value.evaluation}})
+  const pending=import('./reregister/target.mjs');await started;const before=counts('reregister')
+  if('reregister'==='reset')vi.resetModules();else if('reregister'==='reregister')vi.doMock('./reregister/peer.mjs',()=>{nexts++;const token={count:42};return {token,read:()=>token.count,evaluation:42}});else vi.doUnmock('./reregister/peer.mjs')
+  const token={count:41};release({token,read:()=>token.count,evaluation:41});const root=await pending;const peer=await import('./reregister/peer.mjs');const held=await import('./reregister/target.mjs')
+  console.log('WS2_CROSS_LIFETIME:'+JSON.stringify({mode:'reregister',before,events,calls:[roots,peers,nexts],evaluations:counts('reregister'),same:[root===held,root.peerToken===token,root.peerToken===peer.token],values:[root.read(),peer.read()],shapes:[shape(root),shape(peer),shape(held)]}));expect(roots).toBe(1)
+ })
+ test('held dependency lifetime unregister',async()=>{
+  let roots=0;let peers=0;let nexts=0;let release;let signal;const started=new Promise(resolve=>signal=resolve);const events=[]
+  vi.doMock('./unregister/target.mjs',async original=>{roots++;events.push('root-start');const value=await original();events.push('root-original');return {token:value.token,peerToken:value.peerToken,read:value.read,evaluation:value.evaluation}})
+  vi.doMock('./unregister/peer.mjs',async()=>{peers++;events.push('peer-start');signal();const value=await new Promise(resolve=>release=resolve);return {token:value.token,read:value.read,evaluation:value.evaluation}})
+  const pending=import('./unregister/target.mjs');await started;const before=counts('unregister')
+  if('unregister'==='reset')vi.resetModules();else if('unregister'==='reregister')vi.doMock('./unregister/peer.mjs',()=>{nexts++;const token={count:42};return {token,read:()=>token.count,evaluation:42}});else vi.doUnmock('./unregister/peer.mjs')
+  const token={count:41};release({token,read:()=>token.count,evaluation:41});const root=await pending;const peer=await import('./unregister/peer.mjs');const held=await import('./unregister/target.mjs')
+  console.log('WS2_CROSS_LIFETIME:'+JSON.stringify({mode:'unregister',before,events,calls:[roots,peers,nexts],evaluations:counts('unregister'),same:[root===held,root.peerToken===token,root.peerToken===peer.token],values:[root.read(),peer.read()],shapes:[shape(root),shape(peer),shape(held)]}));expect(roots).toBe(1)
+ })
+test('held cycle cache records after reset',async()=>{
+ const events=[];let roots=0;let peers=0;let thirds=0;let release;let signal;const started=new Promise(resolve=>signal=resolve)
+ vi.doMock('./reset-cycle/target.mjs',async original=>{events.push('root-start');roots++;const value=await original();events.push('root-original');return {token:value.token,peerToken:value.peerToken,getRoot:value.getRoot,read:value.read}})
+ vi.doMock('./reset-cycle/peer.mjs',async original=>{events.push('peer-start');peers++;const value=await original();events.push('peer-original');return {token:{kind:'mock-peer',count:15},root:value.root,read:value.read}})
+ vi.doMock('./reset-cycle/third.mjs',async()=>{events.push('third-start');thirds++;signal();const value=await new Promise(resolve=>release=resolve);return {token:value.token}})
+ const pending=import('./reset-cycle/target.mjs');await started;const before={events:[...events],calls:[roots,peers,thirds],evaluations:counts('reset-cycle')};vi.resetModules();release({token:{count:16}});const root=await pending;const peer=await import('./reset-cycle/peer.mjs');const third=await import('./reset-cycle/third.mjs')
+ console.log('WS2_CROSS_RESET_CYCLE:'+JSON.stringify({before,events,calls:[roots,peers,thirds],evaluations:[...counts('reset-cycle'),globalThis.__ws2Cross?.['reset-cycle-third']??0],same:[root.peerToken===peer.token,peer.root()===root.token],values:[root.read(),peer.read(),third.token.count],shapes:[shape(root),shape(peer),shape(third)]}));expect(roots).toBe(1)
+})
+
+test('records complete native namespace observations after the graph controls',()=>{console.log('WS2_CROSS_NATIVE_OBSERVATIONS:'+JSON.stringify(nativeRows()));expect(nativeRows().every(row=>row.sameSetup)).toBe(true)})

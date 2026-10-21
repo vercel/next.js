@@ -123,20 +123,99 @@ await root.getByRole('button', { name: 'Count 1', exact: true }).waitFor()
 See the complete imports and assertions in [the TypeScript case](mounting/mount-ts.case.ts)
 and [the JavaScript case](mounting/mount-js.case.js). Both assert a `/docs/` URL
 from `basePath`, server-rendered heading text, hydration, and interaction. Negative
-type fixtures reject component values in place of IDs and primitive props. This does not enable production
-component mounting or arbitrary in-memory component mounting.
+type fixtures reject component values in place of IDs and primitive props.
+
+The separate [registered production component example](fixtures/registered-production-component-watch)
+uses actual production builds with an explicit registered fixture and layout.
+Its maintained verifier preserves three complete reference rows for server
+rendering, hydration, provider context, native clicks and fresh source/CSS
+revisions, then cancels after a real mount. Route-less production Node watch
+also supports source, dependency and configuration changes, terminal reruns,
+failed-generation recovery and owned active cancellation. Production RSC watch,
+unregistered application drivers, production setup/coverage combinations and
+arbitrary in-memory component mounting remain separate requirements.
 
 Browser evidence requires one real PNG screenshot and ZIP trace per expected
 case/attempt, with unique paths and artifact events before the terminal result.
 The production browser phase requires one case; mounting requires both distinct
 JavaScript and TypeScript cases. All phases audit owned process cleanup.
 
+## Buffered route rendering
+
+Explicit force-dynamic Node RSC routes on Turbopack can use `rsc.renderRoute`
+to inspect complete HTML or Flight responses. The result retains the response
+status and headers, request inputs, layouts and provider context, and waits for
+`after()` work to finish. Late redirects retain the final HTML refresh metadata
+or Flight redirect digest.
+
+The [late redirect case](fixtures/late-streamed-redirect/late-redirect.case.jsx.txt)
+and its [maintained verifier](verify-late-streamed-redirect.mjs) cover development
+and production responses followed by a healthy request. This API returns a
+complete buffered result. Static/PPR routes and Server Action transport remain
+separate requirements.
+
+## Streaming route rendering
+
+The same explicit force-dynamic Node RSC profiles can use
+`rsc.renderRouteStream({ cacheScope: "file", format: "html", url })` to consume
+the real AppPage response as a `ReadableStream<Uint8Array>`. The `flight` format
+is also supported in development and production.
+
+```jsx
+const result = await rsc.renderRouteStream({
+  cacheScope: 'file',
+  format: 'html',
+  url: 'http://localhost/acme/example',
+})
+try {
+  const response = await result.response
+  expect(response.status).toBe(200)
+  const reader = result.stream.getReader()
+  try {
+    for (;;) {
+      const chunk = await reader.read()
+      if (chunk.done) break
+      expect(chunk.value).toBeInstanceOf(Uint8Array)
+    }
+  } finally {
+    reader.releaseLock()
+  }
+  expect(await result.completed).toEqual({ status: 'completed' })
+} finally {
+  await result.dispose()
+}
+```
+
+`response` resolves when the actual response commits its headers. Its status,
+header dictionary and detached header arrays are readonly snapshots. A late
+redirect may arrive later in the body as HTML refresh metadata or a Flight
+redirect digest, after a successful response has already committed.
+
+Consume or cancel the body before awaiting `completed`. Completion also joins
+request cleanup and `after()` work. Cancelling a native stream reader closes
+its pending reads; `dispose(reason)` errors pending reads with that reason.
+An unfinished response completes with `{ status: "aborted", reason }`, retaining
+the original cancellation reason. Real source, response and cleanup failures
+reject `completed` and remain visible at test cleanup, even when the authored
+case asserted the rejection.
+
+The [maintained verifier](verify-route-stream.mjs) compares real fallback and
+late-redirect behavior, cancellation, held or failing `after()` work, and healthy
+following requests against ordinary AppPage responses in both modes. It retains
+the real cleanup failures as failed cases. Public types are checked with
+Bundler resolution and Node16 CommonJS; Node16 ESM requires the explicit
+`next/experimental/testing/rsc.js` subpath. Buffered `rsc.renderRoute` keeps its
+existing result and ownership behavior.
+
 ## Next steps
 
-When moving existing tests, replace runtime imports with the installed
-`next/experimental/testing/vitest` entry point and select an explicit JSON project.
-`compatibility: "vitest"` names an authoring subset, not automatic migration of
-Vitest configuration, Vite plugins, DOM environments, reporters, or arbitrary APIs.
+Existing test bodies can keep their `vitest` imports through the Next-owned test
+compiler. The [migration example](MIGRATION.md) configures the separate TypeScript
+opt-in, shared helpers and setup for an installed consumer. Select the required
+execution profile and check `next test --capabilities` for its current scope.
+Compatible executable Vitest configuration is translated by the compatibility
+loader; compiler-dependent Vite plugins and broader API/profile combinations
+still need an explicit mapping or implementation.
 Development Node factory mocks accept string literals and type-safe literal
 `import()` targets. Ordered setup files run first against the original graph;
 the per-spec mock substitution remains isolated to that spec.

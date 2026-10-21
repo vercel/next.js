@@ -1,0 +1,190 @@
+import { afterEach, expect, test } from "vitest";
+import { page, userEvent } from "vitest/browser";
+import { createElement, useState } from "react";
+import { createRoot } from "react-dom/client";
+import { flushSync } from "react-dom";
+
+afterEach(() => {
+  document.body.innerHTML = "";
+});
+const input = (name, value = "", tag = "input") => {
+  const element = document.createElement(tag);
+  element.setAttribute("aria-label", name);
+  element.value = value;
+  document.body.append(element);
+  return element;
+};
+const trace = (element, events) => {
+  for (const type of [
+    "keydown",
+    "keypress",
+    "keyup",
+    "copy",
+    "cut",
+    "paste",
+    "beforeinput",
+    "input",
+  ]) {
+    element.addEventListener(type, (event) =>
+      events.push({
+        target: element.getAttribute("aria-label"),
+        type,
+        key: event.key ?? null,
+        code: event.code ?? null,
+        modifiers: [
+          event.ctrlKey ?? false,
+          event.metaKey ?? false,
+          event.altKey ?? false,
+          event.shiftKey ?? false,
+        ],
+        inputType: event.inputType ?? null,
+        data: event.data ?? null,
+        clipboard: event.clipboardData
+          ? {
+              types: [...event.clipboardData.types],
+              text: event.clipboardData.getData("text/plain"),
+            }
+          : null,
+        trusted: event.isTrusted,
+        value: element.value,
+        selection: [
+          element.selectionStart,
+          element.selectionEnd,
+          element.selectionDirection,
+        ],
+      }),
+    );
+  }
+};
+const row = (name, events, values) =>
+  console.log("CLIPBOARD_RAW " + JSON.stringify({ name, events, ...values }));
+
+test("copy pastes the native selected Unicode bytes into another input", async () => {
+  const source = input("source", "before é東京✓ after"),
+    target = input("target", "[]"),
+    events = [];
+  trace(source, events);
+  trace(target, events);
+  await userEvent.click(source);
+  source.setSelectionRange(7, 11);
+  const copied = await userEvent.copy();
+  await userEvent.click(page.getByLabelText("target"));
+  target.setSelectionRange(1, 1);
+  const pasted = await userEvent.paste();
+  expect(source.value).toBe("before é東京✓ after");
+  expect(target.value).toBe("[é東京✓]");
+  expect([copied, pasted]).toEqual([undefined, undefined]);
+  row("copy Unicode", events, {
+    source: source.value,
+    target: target.value,
+    selection: [target.selectionStart, target.selectionEnd],
+    returnedUndefined: copied === undefined && pasted === undefined,
+  });
+});
+
+test("cut moves a native textarea selection and preserves the following keyboard input", async () => {
+  const source = input("source", "one middle three", "textarea"),
+    target = input("target", "start:"),
+    events = [];
+  trace(source, events);
+  trace(target, events);
+  await userEvent.click(source);
+  source.setSelectionRange(4, 10);
+  const cut = await userEvent.cut();
+  expect(source.value).toBe("one  three");
+  await userEvent.click(target);
+  target.setSelectionRange(6, 6);
+  const pasted = await userEvent.paste();
+  await userEvent.keyboard("!");
+  expect(target.value).toBe("start:middle!");
+  row("cut textarea", events, {
+    source: source.value,
+    target: target.value,
+    selection: [target.selectionStart, target.selectionEnd],
+    returnedUndefined: cut === undefined && pasted === undefined,
+  });
+});
+
+test("prevented clipboard defaults retain real events and the previous copied value", async () => {
+  const source = input("source", "owned-seed"),
+    target = input("target", "target"),
+    events = [];
+  await userEvent.click(source);
+  source.select();
+  await userEvent.copy();
+  trace(source, events);
+  trace(target, events);
+  source.addEventListener("copy", (event) => event.preventDefault());
+  source.addEventListener("cut", (event) => event.preventDefault());
+  source.value = "blocked";
+  source.select();
+  await userEvent.copy();
+  await userEvent.cut();
+  expect(source.value).toBe("blocked");
+  await userEvent.click(target);
+  target.select();
+  const prevent = (event) => event.preventDefault();
+  target.addEventListener("paste", prevent);
+  await userEvent.paste();
+  expect(target.value).toBe("target");
+  target.removeEventListener("paste", prevent);
+  await userEvent.paste();
+  expect(target.value).toBe("owned-seed");
+  row("prevented defaults", events, {
+    source: source.value,
+    target: target.value,
+    selection: [target.selectionStart, target.selectionEnd],
+  });
+});
+
+test("independent setup instances paste into a controlled component and release modifiers", async () => {
+  const source = input("source", "component-π"),
+    host = document.createElement("div"),
+    events = [];
+  document.body.append(host);
+  function Controlled() {
+    const [value, setValue] = useState("");
+    return createElement(
+      "div",
+      null,
+      createElement("input", {
+        "aria-label": "controlled",
+        value,
+        onChange: (event) => setValue(event.target.value),
+      }),
+      createElement("output", { "data-testid": "result" }, value),
+    );
+  }
+  const root = createRoot(host);
+  flushSync(() => root.render(createElement(Controlled)));
+  try {
+    const first = userEvent.setup(),
+      second = userEvent.setup();
+    const target = page.getByLabelText("controlled").element();
+    trace(source, events);
+    trace(target, events);
+    await first.click(source);
+    source.select();
+    await first.copy();
+    await second.click(target);
+    await second.paste();
+    await expect
+      .element(page.getByTestId("result"))
+      .toHaveTextContent("component-π");
+    await second.cut();
+    await userEvent.keyboard("!");
+    await expect
+      .element(page.getByTestId("result"))
+      .toHaveTextContent("component-π!");
+    await first.cleanup();
+    await second.cleanup();
+    row("controlled setup instances", events, {
+      source: source.value,
+      target: target.value,
+      output: host.querySelector("output").textContent,
+      selection: [target.selectionStart, target.selectionEnd],
+    });
+  } finally {
+    flushSync(() => root.unmount());
+  }
+});

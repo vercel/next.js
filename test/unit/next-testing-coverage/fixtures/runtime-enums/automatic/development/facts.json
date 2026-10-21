@@ -1,0 +1,801 @@
+{
+  "file": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime176-automatic-development/subject.ts",
+  "sourceMap": {
+    "version": 3,
+    "sources": [
+      "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime176-automatic-development/subject.ts"
+    ],
+    "names": [],
+    "mappings": ";;;;;;;;;;;;;;;;;;;;;;;;;AAAO,IAAA,AAAK,8BAAA;;;;WAAA;;AAKL,SAAS,OAAO,MAAe;IACpC,IAAI,QAAQ;IACZ;AACF",
+    "sourcesContent": [
+      "export enum Step {\n  First,\n  Second,\n  Third,\n}\nexport function choose(active: boolean) {\n  if (active) return Step.Second\n  return Step.Third\n}\n"
+    ]
+  },
+  "model": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime176-automatic-development/subject.ts",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 7,
+          "column": 2
+        },
+        "end": {
+          "line": 7,
+          "column": null
+        }
+      },
+      "1": {
+        "start": {
+          "line": 7,
+          "column": 14
+        },
+        "end": {
+          "line": 7,
+          "column": null
+        }
+      },
+      "2": {
+        "start": {
+          "line": 8,
+          "column": 2
+        },
+        "end": {
+          "line": 8,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "choose",
+        "decl": {
+          "start": {
+            "line": 6,
+            "column": 16
+          },
+          "end": {
+            "line": 6,
+            "column": 22
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 6,
+            "column": 40
+          },
+          "end": {
+            "line": 9,
+            "column": null
+          }
+        },
+        "line": 6
+      }
+    },
+    "branchMap": {
+      "0": {
+        "loc": {
+          "start": {
+            "line": 7,
+            "column": 2
+          },
+          "end": {
+            "line": 7,
+            "column": null
+          }
+        },
+        "type": "if",
+        "locations": [
+          {
+            "start": {
+              "line": 7,
+              "column": 2
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          },
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 7
+      }
+    },
+    "s": {
+      "0": 0,
+      "1": 0,
+      "2": 0
+    },
+    "f": {
+      "0": 0
+    },
+    "b": {
+      "0": [0, 0]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 1,
+      "lastStatement": 3,
+      "seen": {
+        "f:6:16:6:22": 0,
+        "b:7:2:7:Infinity:undefined:undefined:undefined:undefined": 0,
+        "s:7:2:7:Infinity": 0,
+        "s:7:14:7:Infinity": 1,
+        "s:8:2:8:Infinity": 2
+      },
+      "fnNames": {}
+    }
+  },
+  "observed": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime176-automatic-development/subject.ts",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 1,
+          "column": 12
+        },
+        "end": {
+          "line": 1,
+          "column": null
+        }
+      },
+      "1": {
+        "start": {
+          "line": 7,
+          "column": 2
+        },
+        "end": {
+          "line": 7,
+          "column": null
+        }
+      },
+      "2": {
+        "start": {
+          "line": 7,
+          "column": 14
+        },
+        "end": {
+          "line": 7,
+          "column": null
+        }
+      },
+      "3": {
+        "start": {
+          "line": 8,
+          "column": 2
+        },
+        "end": {
+          "line": 8,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "(anonymous_0)",
+        "decl": {
+          "start": {
+            "line": 1,
+            "column": 12
+          },
+          "end": {
+            "line": 1,
+            "column": null
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 12
+          },
+          "end": {
+            "line": 1,
+            "column": null
+          }
+        },
+        "line": 1
+      },
+      "1": {
+        "name": "choose",
+        "decl": {
+          "start": {
+            "line": 6,
+            "column": 16
+          },
+          "end": {
+            "line": 6,
+            "column": 23
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 6,
+            "column": 38
+          },
+          "end": {
+            "line": 9,
+            "column": null
+          }
+        },
+        "line": 6
+      }
+    },
+    "branchMap": {
+      "0": {
+        "loc": {
+          "start": {
+            "line": 7,
+            "column": 2
+          },
+          "end": {
+            "line": 7,
+            "column": null
+          }
+        },
+        "type": "if",
+        "locations": [
+          {
+            "start": {
+              "line": 7,
+              "column": 2
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          },
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 7
+      }
+    },
+    "s": {
+      "0": 1,
+      "1": 2,
+      "2": 1,
+      "3": 1
+    },
+    "f": {
+      "0": 1,
+      "1": 2
+    },
+    "b": {
+      "0": [1, 1]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 2,
+      "lastStatement": 4,
+      "seen": {
+        "s:1:12:1:Infinity": 0,
+        "f:1:12:1:Infinity": 0,
+        "f:6:16:6:23": 1,
+        "b:7:2:7:Infinity:undefined:undefined:undefined:undefined": 0,
+        "s:7:2:7:Infinity": 1,
+        "s:7:14:7:Infinity": 2,
+        "s:8:2:8:Infinity": 3
+      },
+      "fnNames": {}
+    }
+  },
+  "generated": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime176-automatic-development/.next/.next-test-8d4e2095-ed21-4a8e-9fc4-21e05a3b4c66/server/chunks/_next-test-ts-runtime176-automatic-development_06ogaylvx8_f3._.js",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 37,
+          "column": null
+        }
+      },
+      "1": {
+        "start": {
+          "line": 1,
+          "column": 19
+        },
+        "end": {
+          "line": 37,
+          "column": 2
+        }
+      },
+      "2": {
+        "start": {
+          "line": 5,
+          "column": 0
+        },
+        "end": {
+          "line": 5,
+          "column": null
+        }
+      },
+      "3": {
+        "start": {
+          "line": 6,
+          "column": 174
+        },
+        "end": {
+          "line": 6,
+          "column": 290
+        }
+      },
+      "4": {
+        "start": {
+          "line": 7,
+          "column": 186
+        },
+        "end": {
+          "line": 7,
+          "column": 310
+        }
+      },
+      "5": {
+        "start": {
+          "line": 10,
+          "column": 0
+        },
+        "end": {
+          "line": 15,
+          "column": null
+        }
+      },
+      "6": {
+        "start": {
+          "line": 11,
+          "column": 4
+        },
+        "end": {
+          "line": 11,
+          "column": null
+        }
+      },
+      "7": {
+        "start": {
+          "line": 12,
+          "column": 4
+        },
+        "end": {
+          "line": 12,
+          "column": null
+        }
+      },
+      "8": {
+        "start": {
+          "line": 13,
+          "column": 4
+        },
+        "end": {
+          "line": 13,
+          "column": null
+        }
+      },
+      "9": {
+        "start": {
+          "line": 14,
+          "column": 4
+        },
+        "end": {
+          "line": 14,
+          "column": null
+        }
+      },
+      "10": {
+        "start": {
+          "line": 20,
+          "column": 0
+        },
+        "end": {
+          "line": 25,
+          "column": null
+        }
+      },
+      "11": {
+        "start": {
+          "line": 22,
+          "column": 8
+        },
+        "end": {
+          "line": 22,
+          "column": 12
+        }
+      },
+      "12": {
+        "start": {
+          "line": 24,
+          "column": 8
+        },
+        "end": {
+          "line": 24,
+          "column": null
+        }
+      },
+      "13": {
+        "start": {
+          "line": 26,
+          "column": 25
+        },
+        "end": {
+          "line": 31,
+          "column": 5
+        }
+      },
+      "14": {
+        "start": {
+          "line": 27,
+          "column": 4
+        },
+        "end": {
+          "line": 27,
+          "column": null
+        }
+      },
+      "15": {
+        "start": {
+          "line": 28,
+          "column": 4
+        },
+        "end": {
+          "line": 28,
+          "column": null
+        }
+      },
+      "16": {
+        "start": {
+          "line": 29,
+          "column": 4
+        },
+        "end": {
+          "line": 29,
+          "column": null
+        }
+      },
+      "17": {
+        "start": {
+          "line": 30,
+          "column": 4
+        },
+        "end": {
+          "line": 30,
+          "column": null
+        }
+      },
+      "18": {
+        "start": {
+          "line": 33,
+          "column": 4
+        },
+        "end": {
+          "line": 33,
+          "column": null
+        }
+      },
+      "19": {
+        "start": {
+          "line": 33,
+          "column": 16
+        },
+        "end": {
+          "line": 33,
+          "column": null
+        }
+      },
+      "20": {
+        "start": {
+          "line": 34,
+          "column": 4
+        },
+        "end": {
+          "line": 34,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "(anonymous_0)",
+        "decl": {
+          "start": {
+            "line": 1,
+            "column": 1
+          },
+          "end": {
+            "line": 1,
+            "column": 2
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 5
+          },
+          "end": {
+            "line": 37,
+            "column": 3
+          }
+        },
+        "line": 1
+      },
+      "1": {
+        "name": "(anonymous_1)",
+        "decl": {
+          "start": {
+            "line": 2,
+            "column": 109
+          },
+          "end": {
+            "line": 2,
+            "column": 110
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 136
+          },
+          "end": {
+            "line": 16,
+            "column": 1
+          }
+        },
+        "line": 2
+      },
+      "2": {
+        "name": "(anonymous_2)",
+        "decl": {
+          "start": {
+            "line": 10,
+            "column": 207
+          },
+          "end": {
+            "line": 10,
+            "column": 208
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 10,
+            "column": 211
+          },
+          "end": {
+            "line": 15,
+            "column": 1
+          }
+        },
+        "line": 10
+      },
+      "3": {
+        "name": "(anonymous_3)",
+        "decl": {
+          "start": {
+            "line": 17,
+            "column": 102
+          },
+          "end": {
+            "line": 17,
+            "column": 103
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 17,
+            "column": 129
+          },
+          "end": {
+            "line": 36,
+            "column": 1
+          }
+        },
+        "line": 17
+      },
+      "4": {
+        "name": "(anonymous_4)",
+        "decl": {
+          "start": {
+            "line": 22,
+            "column": 4
+          },
+          "end": {
+            "line": 22,
+            "column": 5
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 22,
+            "column": 8
+          },
+          "end": {
+            "line": 22,
+            "column": 12
+          }
+        },
+        "line": 22
+      },
+      "5": {
+        "name": "(anonymous_5)",
+        "decl": {
+          "start": {
+            "line": 24,
+            "column": 4
+          },
+          "end": {
+            "line": 24,
+            "column": 5
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 24,
+            "column": 8
+          },
+          "end": {
+            "line": 24,
+            "column": null
+          }
+        },
+        "line": 24
+      },
+      "6": {
+        "name": "(anonymous_6)",
+        "decl": {
+          "start": {
+            "line": 26,
+            "column": 25
+          },
+          "end": {
+            "line": 26,
+            "column": 33
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 26,
+            "column": 40
+          },
+          "end": {
+            "line": 31,
+            "column": 1
+          }
+        },
+        "line": 26
+      },
+      "7": {
+        "name": "choose",
+        "decl": {
+          "start": {
+            "line": 32,
+            "column": 9
+          },
+          "end": {
+            "line": 32,
+            "column": 15
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 32,
+            "column": 24
+          },
+          "end": {
+            "line": 35,
+            "column": null
+          }
+        },
+        "line": 32
+      }
+    },
+    "branchMap": {
+      "0": {
+        "loc": {
+          "start": {
+            "line": 33,
+            "column": 4
+          },
+          "end": {
+            "line": 33,
+            "column": null
+          }
+        },
+        "type": "if",
+        "locations": [
+          {
+            "start": {
+              "line": 33,
+              "column": 4
+            },
+            "end": {
+              "line": 33,
+              "column": null
+            }
+          },
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 33
+      }
+    },
+    "s": {
+      "0": 1,
+      "1": 1,
+      "2": 1,
+      "3": 1,
+      "4": 1,
+      "5": 1,
+      "6": 1,
+      "7": 1,
+      "8": 1,
+      "9": 1,
+      "10": 1,
+      "11": 2,
+      "12": 2,
+      "13": 1,
+      "14": 1,
+      "15": 1,
+      "16": 1,
+      "17": 1,
+      "18": 2,
+      "19": 1,
+      "20": 1
+    },
+    "f": {
+      "0": 1,
+      "1": 1,
+      "2": 1,
+      "3": 1,
+      "4": 2,
+      "5": 2,
+      "6": 1,
+      "7": 2
+    },
+    "b": {
+      "0": [1, 1]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 8,
+      "lastStatement": 21,
+      "seen": {
+        "s:1:0:37:Infinity": 0,
+        "f:1:1:1:2": 0,
+        "s:1:19:37:2": 1,
+        "f:2:109:2:110": 1,
+        "s:5:0:5:Infinity": 2,
+        "s:6:174:6:290": 3,
+        "s:7:186:7:310": 4,
+        "s:10:0:15:Infinity": 5,
+        "f:10:207:10:208": 2,
+        "s:11:4:11:Infinity": 6,
+        "s:12:4:12:Infinity": 7,
+        "s:13:4:13:Infinity": 8,
+        "s:14:4:14:Infinity": 9,
+        "f:17:102:17:103": 3,
+        "s:20:0:25:Infinity": 10,
+        "f:22:4:22:5": 4,
+        "s:22:8:22:12": 11,
+        "f:24:4:24:5": 5,
+        "s:24:8:24:Infinity": 12,
+        "s:26:25:31:5": 13,
+        "f:26:25:26:33": 6,
+        "s:27:4:27:Infinity": 14,
+        "s:28:4:28:Infinity": 15,
+        "s:29:4:29:Infinity": 16,
+        "s:30:4:30:Infinity": 17,
+        "f:32:9:32:15": 7,
+        "b:33:4:33:Infinity:undefined:undefined:undefined:undefined": 0,
+        "s:33:4:33:Infinity": 18,
+        "s:33:16:33:Infinity": 19,
+        "s:34:4:34:Infinity": 20
+      },
+      "fnNames": {}
+    }
+  }
+}

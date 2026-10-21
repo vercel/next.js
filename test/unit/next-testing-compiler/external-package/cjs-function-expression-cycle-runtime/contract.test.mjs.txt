@@ -1,0 +1,25 @@
+import {test,expect,vi} from 'vitest'
+import {types} from 'node:util'
+function shape(value) {
+ if (value===null || (typeof value!=='object' && typeof value!=='function')) return {type:typeof value,value}
+ return {type:typeof value,brand:types.isModuleNamespaceObject(value),keys:Reflect.ownKeys(value).map(String),prototype:Object.getPrototypeOf(value)===null?'null':Object.getPrototypeOf(value)===Object.prototype?'Object.prototype':Object.getPrototypeOf(value)===Function.prototype?'Function.prototype':Object.prototype.toString.call(Object.getPrototypeOf(value)),tag:value[Symbol.toStringTag]??null,extensible:Object.isExtensible(value),sealed:Object.isSealed(value),frozen:Object.isFrozen(value),descriptors:Reflect.ownKeys(value).map(key=>{const d=Object.getOwnPropertyDescriptor(value,key);return {key:String(key),valueType:typeof d.value,get:typeof d.get,set:typeof d.set,writable:d.writable??null,enumerable:d.enumerable,configurable:d.configurable}})}
+}
+function view(namespace) {
+ const raw=namespace.default;const result=raw.call(raw,'held',raw);const dependency=result[4];const detached=raw('detached',undefined)
+ return {namespace:shape(namespace),raw:shape(raw),name:raw.name,length:raw.length,functionTag:Object.prototype.toString.call(raw),prototype:shape(raw.prototype),prototypeConstructorSame:raw.prototype.constructor===raw,dependency:shape(dependency),dependencyRoot:dependency.root?shape(dependency.root):null,call:result.slice(0,4),detached:detached.slice(0,4)}
+}
+function same(values){return values.map(value=>values.map(other=>value===other))}
+function counts(){return {root:globalThis.__ws2ExprRoot??0,dependency:globalThis.__ws2ExprDependency??0,unused:globalThis.__ws2ExprUnused??0}}
+function row(name,data){console.log('WS2_CJS_FUNCTION_EXPRESSION:'+JSON.stringify({name,...data}));expect(data).toBeDefined()}
+function clean(){vi.doUnmock('./root.cjs');vi.resetModules()}
+test('anonymous function original loader remains lazy and exact under runtime registration',async()=>{
+ clean();let calls=0;let helper;const before=counts();vi.doMock('./root.cjs',async original=>{calls++;helper=original;const actual=await original();return {default:actual.default,held:actual}});const registered=counts();const mocked=await import('./root.cjs');const held=mocked.held;const again=await helper();vi.resetModules();const reset=await import('./root.cjs');vi.doUnmock('./root.cjs');const ordinary=await import('./root.cjs');
+ row('runtime',{before,registered,calls,mock:shape(mocked),held:view(held),again:view(again),ordinary:view(ordinary),helperSame:held===again,rawSame:held.default===ordinary.default,mockResetSame:mocked===reset,counts:counts()})
+})
+test('pending anonymous function factory original fallback and reset keep held identities',async()=>{
+ clean();let calls=0;let enter;let release;const entered=new Promise(resolve=>enter=resolve);const hold=new Promise(resolve=>release=resolve);vi.doMock('./root.cjs',async()=>{calls++;enter();await hold;return {default:function mocked(value){return value},marker:{mock:true}}});const first=import('./root.cjs');await entered;const original=await import('./root.cjs');vi.resetModules();const originalReset=await import('./root.cjs');release();const mocked=await first;const cached=await import('./root.cjs');vi.doUnmock('./root.cjs');const ordinary=await import('./root.cjs');
+ row('pending',{original:view(original),originalReset:view(originalReset),ordinary:view(ordinary),originalIdentities:same([original,originalReset,ordinary]),mock:shape(mocked),mockRaw:shape(mocked.default),mockCached:mocked===cached,calls,counts:counts()})
+})
+test('unused anonymous function target and factory remain unevaluated',async()=>{
+ clean();const before=counts();let calls=0;vi.doMock('./unused.cjs',()=>{calls++;return {default:null}});vi.doUnmock('./unused.cjs');vi.resetModules();row('unused',{before,after:counts(),calls})
+})

@@ -1,0 +1,13 @@
+import {expect,test,vi} from 'vitest'
+vi.mock('ws2-absent-namespace-package',()=>({value:73,default:{source:'namespace'}}))
+import * as namespace from 'ws2-absent-namespace-package'
+test('retains authored factory namespace descriptors and mutation across imports',async()=>{
+ const before={keys:Reflect.ownKeys(namespace).map(String),descriptor:Object.getOwnPropertyDescriptor(namespace,'value'),prototype:Object.getPrototypeOf(namespace)===Object.prototype,tag:namespace[Symbol.toStringTag]??null,extensible:Object.isExtensible(namespace)}
+ const set=Reflect.set(namespace,'value',74)
+ const added=Reflect.set(namespace,'added',8)
+ const dynamic=await import('ws2-absent-namespace-package')
+ const after={same:namespace===dynamic,set,added,value:dynamic.value,extra:dynamic.added,keys:Reflect.ownKeys(dynamic).map(String),descriptor:Object.getOwnPropertyDescriptor(dynamic,'value')}
+ console.log('WS2_VIRTUAL_RAW:'+JSON.stringify({name:'namespace',before,after}))
+ expect(dynamic.value).toBe(74)
+ expect(dynamic).toBe(namespace)
+})

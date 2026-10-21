@@ -1,0 +1,22 @@
+import { afterEach, expect, test } from 'vitest'
+import { page } from 'vitest/browser'
+import { createElement, useState } from 'react'
+import { createRoot } from 'react-dom/client'
+import { flushSync } from 'react-dom'
+let root
+afterEach(() => { if (root) { flushSync(() => root.unmount()); root = undefined } document.body.replaceChildren() })
+const options = [['Alpha', 'one'], ['Beta', 'two'], ['Gamma', 'three']]
+function trace(element) { const events = []; for (const type of ['input', 'change']) element.addEventListener(type, event => events.push({ type:event.type, constructor:event.constructor.name, target:event.target===element, currentTarget:event.currentTarget===element, trusted:event.isTrusted, bubbles:event.bubbles, composed:event.composed, cancelable:event.cancelable, values:[...element.selectedOptions].map(option=>option.value), labels:[...element.selectedOptions].map(option=>option.textContent), selectedIndex:element.selectedIndex })); return events }
+function mount(multiple) { const element=document.createElement('select'); element.setAttribute('aria-label','Late choices'); element.multiple=multiple; for(const [label,value] of options) {const option=document.createElement('option');option.textContent=label;option.value=value;element.append(option)} element.options[0].selected=true; document.body.append(element); return element }
+function settled(operation) { return operation.then(value=>({returnedUndefined:value===undefined}),error=>({error:{name:error.name,message:error.message,stack:error.stack}})) }
+function record(name,element,events,nodes,missingAtCall,missingBeforeMount,outcome,extra={}) { console.log('SELECT_DELAYED_RAW '+JSON.stringify({name,mode:process.env.NODE_ENV,missingAtCall,missingBeforeMount,outcome,events,value:element.value,selectedIndex:element.selectedIndex,selected:[...element.options].map(option=>({label:option.textContent,value:option.value,selected:option.selected,connected:option.isConnected})),originalNodes:[...element.options].every((option,index)=>option===nodes[index]),...extra})) }
+for(const [name,values,multiple,expected] of [['single string','two',false,['two']],['ordered string array',['three','one'],true,['one','three']],['empty selection',[],true,[]]]) test('initially absent selectOptions '+name,async()=>{
+ const query=page.getByLabelText('Late choices'),missingAtCall=query.elements().length===0,pending=settled(query.selectOptions(values,{timeout:500})); await Promise.resolve();const missingBeforeMount=query.elements().length===0,element=mount(multiple),nodes=[...element.options],events=trace(element),outcome=await pending
+ record(name,element,events,nodes,missingAtCall,missingBeforeMount,outcome)
+ expect(outcome).toEqual({returnedUndefined:true});expect([...element.selectedOptions].map(option=>option.value)).toEqual(expected);expect(events.map(event=>event.type)).toEqual(['input','change']);expect(events.every(event=>event.target&&event.currentTarget)).toBe(true)
+})
+test('initially absent selectOptions controlled React',async()=>{
+ function Controlled(){const [values,setValues]=useState(['one']);return createElement('section',null,createElement('select',{multiple:true,'aria-label':'Late choices',value:values,onChange:event=>setValues([...event.currentTarget.selectedOptions].map(option=>option.value))},...options.map(([label,value])=>createElement('option',{key:value,value},label))),createElement('output',{'data-testid':'selection'},values.join(',')))}
+ const query=page.getByLabelText('Late choices'),missingAtCall=query.elements().length===0,pending=settled(query.selectOptions(['two','three'],{timeout:500}));await Promise.resolve();const missingBeforeMount=query.elements().length===0,container=document.createElement('div');document.body.append(container);root=createRoot(container);flushSync(()=>root.render(createElement(Controlled)));const element=query.element(),nodes=[...element.options],events=trace(element),outcome=await pending,output=page.getByTestId('selection').element().textContent
+ record('controlled React',element,events,nodes,missingAtCall,missingBeforeMount,outcome,{output});expect(outcome).toEqual({returnedUndefined:true});expect(output).toBe('two,three');expect(events.map(event=>event.type)).toEqual(['input','change'])
+})

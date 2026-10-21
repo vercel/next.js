@@ -1,0 +1,33 @@
+import { expect, test, vi } from 'vitest'
+import mockDefault, { named as mockNamed } from './throws.cjs'
+import * as mockNamespace from './throws.cjs'
+import actualDefault, { sameOriginal, value as actualValue } from './actual.cjs'
+import callableDefault, { named as callableNamed } from './callable.cjs'
+
+vi.mock('./throws.cjs', () => ({ default: 'mock-default', named: vi.fn(() => 61) }))
+vi.mock('./actual.cjs', async (importOriginal) => {
+  const first = await importOriginal()
+  const second = await importOriginal()
+  return { default: first.default.add, value: first.default.value, sameOriginal: first === second }
+})
+vi.mock('./callable.cjs', () => ({ default: vi.fn(() => 29), named: 'mock-callable' }))
+
+function row(value) { console.log('WS2_CJS_FACTORY_RAW:' + JSON.stringify(value)) }
+
+test('explicit CJS object factory is the only evaluated replacement', () => {
+  const result = { name: 'unevaluated', default: mockDefault, named: mockNamed(), namedMock: vi.isMockFunction(mockNamed), namespaceDefault: mockNamespace.default === mockDefault, namespaceNamed: mockNamespace.named === mockNamed, originalEvaluated: globalThis.__ws2FactoryThrowEvaluated === true }
+  row(result)
+  expect(result).toEqual({ name: 'unevaluated', default: 'mock-default', named: 61, namedMock: true, namespaceDefault: true, namespaceNamed: true, originalEvaluated: false })
+})
+
+test('CJS object factory original thunk retains one actual module', () => {
+  const result = { name: 'actual', value: actualValue, result: actualDefault(2, 3), sameOriginal, originalMock: vi.isMockFunction(actualDefault), evaluations: globalThis.__ws2FactoryActualEvaluations }
+  row(result)
+  expect(result).toEqual({ name: 'actual', value: 13, result: 5, sameOriginal: true, originalMock: false, evaluations: 1 })
+})
+
+test('explicit factory replaces a callable CJS target with authored exports', () => {
+  const result = { name: 'callable', result: callableDefault(), defaultMock: vi.isMockFunction(callableDefault), named: callableNamed, originalEvaluated: globalThis.__ws2FactoryCallableEvaluated === true }
+  row(result)
+  expect(result).toEqual({ name: 'callable', result: 29, defaultMock: true, named: 'mock-callable', originalEvaluated: false })
+})

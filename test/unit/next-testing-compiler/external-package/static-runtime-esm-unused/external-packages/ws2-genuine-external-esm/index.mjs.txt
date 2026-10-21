@@ -1,0 +1,2 @@
+globalThis.ws2StaticRuntimeOriginalEvaluations=(globalThis.ws2StaticRuntimeOriginalEvaluations??0)+1
+export const value=37;export default {value:41}

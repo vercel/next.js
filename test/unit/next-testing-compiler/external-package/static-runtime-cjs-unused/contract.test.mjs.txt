@@ -1,0 +1,11 @@
+import {test,expect,vi} from 'vitest'
+vi.mock("ws2-genuine-external-original",()=>{globalThis.ws2StaticRuntimeStaticFactories=(globalThis.ws2StaticRuntimeStaticFactories??0)+1;return {value:5}})
+test('native cjs unused static and runtime registrations do not evaluate sources or factories',()=>{
+ vi.doMock("ws2-genuine-external-original",()=>{globalThis.ws2StaticRuntimeRuntimeFactories=(globalThis.ws2StaticRuntimeRuntimeFactories??0)+1;return {value:73}})
+ vi.doUnmock("ws2-genuine-external-original")
+ const row={staticFactories:globalThis.ws2StaticRuntimeStaticFactories??0,runtimeFactories:globalThis.ws2StaticRuntimeRuntimeFactories??0,originalEvaluations:(globalThis.ws2StaticRuntimeOriginalEvaluations??0)}
+ console.log('WS2_EXTERNAL_STATIC_RUNTIME_UNUSED:'+JSON.stringify(row))
+ expect(row.staticFactories).toBe(0)
+ expect(row.runtimeFactories).toBe(0)
+ expect(row.originalEvaluations).toBe(0)
+})

@@ -8,6 +8,8 @@ export interface TestProcessOptions {
   input: unknown
   /** Only explicit file-worker debugging may add an inspector argument. */
   inspect?: string
+  /** Pause this inspected file worker before evaluating its entry. */
+  inspectBrk?: boolean
   signal?: AbortSignal
   /** Omit only when a parent lease owns the lifetime and cancellation. */
   timeoutMs?: number
@@ -38,6 +40,14 @@ export function runTestProcess(
   options: TestProcessOptions
 ): Promise<TestProcessExit> {
   const inspect = parseTestInspectAddress(options.inspect)
+  if (
+    (options.inspectBrk !== undefined &&
+      typeof options.inspectBrk !== 'boolean') ||
+    (options.inspectBrk && !inspect)
+  )
+    return Promise.reject(
+      new Error('Break-on-start inspection requires an inspector address.')
+    )
   const grace = options.shutdownGraceMs ?? 1000
   const timeouts =
     options.timeoutMs === undefined ? [grace] : [options.timeoutMs, grace]
@@ -64,7 +74,9 @@ export function runTestProcess(
       // Do not inherit the coordinator's inspector port or execution hooks.
       execArgv: [
         '--enable-source-maps',
-        ...(inspect ? [`--inspect=${inspect}`] : []),
+        ...(inspect
+          ? [`--inspect${options.inspectBrk ? '-brk' : ''}=${inspect}`]
+          : []),
       ],
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
       serialization: 'advanced',

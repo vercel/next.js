@@ -1,0 +1,8 @@
+globalThis.__setupPromiseEvents = ['first-start']
+await new Promise(resolve => {
+ const channel = new MessageChannel()
+ channel.port1.onmessage = () => { channel.port1.close(); channel.port2.close(); resolve() }
+ channel.port2.postMessage('finish setup evaluation')
+})
+globalThis.__setupPromiseEvents.push('first-end')
+export default new Promise(() => {})

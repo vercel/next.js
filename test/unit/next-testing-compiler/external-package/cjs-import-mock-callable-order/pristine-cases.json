@@ -1,0 +1,37 @@
+[
+  {
+    "name": "complete named callable automatic-only namespace",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete anonymous callable automatic-only namespace",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete arrow callable automatic-only namespace",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete class callable automatic-only namespace",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete bound callable automatic-only namespace",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete own-default callable automatic-only namespace",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete falsy-flag callable automatic-only namespace",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

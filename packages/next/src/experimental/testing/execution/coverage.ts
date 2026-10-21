@@ -43,17 +43,29 @@ export function assertCoverageRequest(
 }
 
 /** Every started retry must finish; skipped/unstarted cases need no interval. */
-export function createCoverageAttemptTracker() {
+export function createCoverageAttemptTracker(
+  options: { deferNativeRejections?: boolean } = {}
+) {
   const started = new Map<string, string>()
   const ended = new Set<string>()
   let invalid = false
+  let pendingNativeRejections = false
+  let receivedCompletion = false
   return {
     observe(event: ResultEvent) {
       if (
         event.type === 'diagnostic' &&
-        event.diagnostic.severity === 'error'
+        (event.diagnostic.severity === 'error' ||
+          (options.deferNativeRejections && receivedCompletion))
       ) {
-        invalid = true
+        if (
+          options.deferNativeRejections &&
+          !receivedCompletion &&
+          event.diagnostic.phase === 'runtime' &&
+          event.diagnostic.unhandled === 'rejection'
+        )
+          pendingNativeRejections = true
+        else invalid = true
       }
       if (event.type !== 'case-start' && event.type !== 'case-end') return
       const { id, retry, repeat } = event.attempt
@@ -86,8 +98,17 @@ export function createCoverageAttemptTracker() {
           invalid = true
       }
     },
+    observeCoverageCompletion(complete: boolean) {
+      receivedCompletion = true
+      if (complete) pendingNativeRejections = false
+      else invalid = true
+    },
     get complete() {
-      return !invalid && [...started.keys()].every((id) => ended.has(id))
+      return (
+        !invalid &&
+        !pendingNativeRejections &&
+        [...started.keys()].every((id) => ended.has(id))
+      )
     },
   }
 }

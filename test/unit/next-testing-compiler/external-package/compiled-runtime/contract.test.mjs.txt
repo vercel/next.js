@@ -1,0 +1,97 @@
+import { test, expect, vi } from 'vitest'
+const errorShape = (error, cause) => error ? { name: error.name, message: error.message, isCause: error === cause, causeName: error.cause?.name ?? null, causeMessage: error.cause?.message ?? null, causeIdentity: error.cause === cause } : null
+test('compiled runtime factories retry failed user evaluations with fresh wrappers and exact cause', async () => {
+ const before = await import('./dependency.mjs')
+ const failure = new Error('owned compiled factory rejection')
+ let calls = 0
+ let shouldFail = true
+ vi.doMock('./dependency.mjs', () => { calls++; if (shouldFail) throw failure; return { value: 73 } })
+ const first = await import('./dependency.mjs').then(value => null, error => error)
+ const second = await import('./dependency.mjs').then(value => null, error => error)
+ vi.resetModules()
+ const third = await import('./dependency.mjs').then(value => null, error => error)
+ vi.doUnmock('./dependency.mjs')
+ const released = await import('./dependency.mjs')
+ console.log('WS2_EXTERNAL_COMPILED_RUNTIME_RETRY:' + JSON.stringify({ calls, errors: [errorShape(first,failure),errorShape(second,failure),errorShape(third,failure)], errorIdentity: [first === second,first === third,second === third], originalIdentity: before === released, originalValues: [before.value,released.value], originalEvaluations: [before.evaluation,released.evaluation] }))
+ expect(calls).toBe(3)
+ expect(first.cause).toBe(failure)
+ expect(second).not.toBe(first)
+ expect(third).not.toBe(second)
+ shouldFail = false
+})
+
+test('compiled runtime pending RESOLVE consumers retain original and registration identities', async () => {
+ const original = await import('./dependency.mjs')
+ const failure = new Error('held compiled factory rejection')
+ let release
+ const gate = new Promise((resolve,reject) => { release = resolve })
+ let calls = 0
+ vi.doMock('./dependency.mjs', async () => { const index = ++calls; await gate; return { value: 73,index } })
+ const firstPending = import('./dependency.mjs').then(value => ({value}),error => ({error}))
+ const secondPending = import('./dependency.mjs').then(value => ({value}),error => ({error}))
+ let twoFactoriesEntered = false
+ try { await vi.waitFor(() => expect(calls).toBe(2), { timeout: 1000, interval: 10 }); twoFactoriesEntered = true } catch {}
+ const callsWhileHeld = calls
+ release(undefined)
+ const first = await firstPending
+ const second = await secondPending
+ const later = await import('./dependency.mjs').then(value => ({value}),error => ({error}))
+ vi.resetModules()
+ const afterReset = await import('./dependency.mjs').then(value => ({value}),error => ({error}))
+ vi.doUnmock('./dependency.mjs')
+ const released = await import('./dependency.mjs')
+ console.log('WS2_EXTERNAL_COMPILED_RUNTIME_PENDING_RESOLVE:' + JSON.stringify({ twoFactoriesEntered,callsWhileHeld,calls, secondOriginalIdentity: second.value === original, secondOriginalDefault: second.value?.default === original.default, secondOriginalValue: second.value?.value ?? null, firstIndex: first.value?.index ?? null, secondIndex: second.value?.index ?? null, laterIndex: later.value?.index ?? null, resetIndex: afterReset.value?.index ?? null, valuesIdentity: [first.value === second.value,later.value === first.value,afterReset.value === later.value], errorsIdentity: [first.error === second.error,first.error === later.error,later.error === afterReset.error], errors: [errorShape(first.error,failure),errorShape(second.error,failure),errorShape(later.error,failure),errorShape(afterReset.error,failure)], originalIdentity: original === released, originalValues: [original.value,released.value], originalEvaluations: [original.evaluation,released.evaluation] }))
+ expect(callsWhileHeld).toBe(1)
+ expect(second.value).toBe(original)
+})
+
+test('compiled runtime pending REJECT consumers retain original and registration identities', async () => {
+ const original = await import('./dependency.mjs')
+ const failure = new Error('held compiled factory rejection')
+ let release
+ const gate = new Promise((resolve,reject) => { release = reject })
+ let calls = 0
+ vi.doMock('./dependency.mjs', async () => { const index = ++calls; await gate; return { value: 73,index } })
+ const firstPending = import('./dependency.mjs').then(value => ({value}),error => ({error}))
+ const secondPending = import('./dependency.mjs').then(value => ({value}),error => ({error}))
+ let twoFactoriesEntered = false
+ try { await vi.waitFor(() => expect(calls).toBe(2), { timeout: 1000, interval: 10 }); twoFactoriesEntered = true } catch {}
+ const callsWhileHeld = calls
+ release(failure)
+ const first = await firstPending
+ const second = await secondPending
+ const later = await import('./dependency.mjs').then(value => ({value}),error => ({error}))
+ vi.resetModules()
+ const afterReset = await import('./dependency.mjs').then(value => ({value}),error => ({error}))
+ vi.doUnmock('./dependency.mjs')
+ const released = await import('./dependency.mjs')
+ console.log('WS2_EXTERNAL_COMPILED_RUNTIME_PENDING_REJECT:' + JSON.stringify({ twoFactoriesEntered,callsWhileHeld,calls, secondOriginalIdentity: second.value === original, secondOriginalDefault: second.value?.default === original.default, secondOriginalValue: second.value?.value ?? null, firstIndex: first.value?.index ?? null, secondIndex: second.value?.index ?? null, laterIndex: later.value?.index ?? null, resetIndex: afterReset.value?.index ?? null, valuesIdentity: [first.value === second.value,later.value === first.value,afterReset.value === later.value], errorsIdentity: [first.error === second.error,first.error === later.error,later.error === afterReset.error], errors: [errorShape(first.error,failure),errorShape(second.error,failure),errorShape(later.error,failure),errorShape(afterReset.error,failure)], originalIdentity: original === released, originalValues: [original.value,released.value], originalEvaluations: [original.evaluation,released.evaluation] }))
+ expect(callsWhileHeld).toBe(1)
+ expect(second.value).toBe(original)
+})
+
+test('compiled pending factory imports a cold original without duplicate factory evaluation', async () => {
+ globalThis.ws2ColdRuntimeEvents = []
+ let release
+ const gate = new Promise(resolve => { release = resolve })
+ let calls = 0
+ vi.doMock('./cold-dependency.mjs', async () => { calls++; globalThis.ws2ColdRuntimeEvents.push('factory:' + calls); await gate; return { value: 79 } })
+ const firstPending = import('./cold-dependency.mjs').then(value => ({value}),error => ({error}))
+ const secondPending = import('./cold-dependency.mjs').then(value => ({value}),error => ({error}))
+ let originalEnteredWhileHeld = false
+ try { await vi.waitFor(() => expect(globalThis.ws2ColdRuntimeEvaluations).toBe(1), { timeout: 1000, interval: 10 }); originalEnteredWhileHeld = true } catch {}
+ const callsWhileHeld = calls
+ const evaluationsWhileHeld = globalThis.ws2ColdRuntimeEvaluations ?? 0
+ release()
+ const first = await firstPending
+ const second = await secondPending
+ const later = await import('./cold-dependency.mjs')
+ vi.resetModules()
+ const afterReset = await import('./cold-dependency.mjs')
+ vi.doUnmock('./cold-dependency.mjs')
+ const released = await import('./cold-dependency.mjs')
+ console.log('WS2_EXTERNAL_COMPILED_RUNTIME_COLD_PENDING:' + JSON.stringify({ originalEnteredWhileHeld,callsWhileHeld,calls,evaluationsWhileHeld,events: globalThis.ws2ColdRuntimeEvents,values: [first.value?.value ?? null,second.value?.value ?? null,later.value,afterReset.value,released.value],mockIdentity: [first.value === second.value,later === first.value,afterReset === later],originalIdentity: released === second.value,originalEvaluations: [second.value?.evaluation ?? null,released.evaluation],firstError: first.error?.message ?? null,secondError: second.error?.message ?? null }))
+ expect(originalEnteredWhileHeld).toBe(true)
+ expect(calls).toBe(1)
+ expect(second.value.value).toBe(29)
+})

@@ -1,0 +1,7 @@
+[
+  {
+    "name": "runtime graph certificates preserve configured resolver target and unused physical source",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

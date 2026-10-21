@@ -1,0 +1,6 @@
+import React from 'react'
+import { label } from './helper.js'
+type Props = { active: boolean }
+export function Logical({ active }: Props) {
+  return <section>{active && <span>{label('active')}</span>}</section>
+}

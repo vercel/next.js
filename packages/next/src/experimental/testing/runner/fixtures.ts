@@ -7,15 +7,14 @@ type FixtureFactory = (
 export interface FixtureOptions {
   scope?: 'test' | 'file' | 'worker'
   auto?: boolean
+  injected?: boolean
 }
 export type BuilderFixtureFn<T, Context> = (
   context: Context,
   fixture: { onCleanup(cleanup: Cleanup): void }
 ) => T | Promise<T>
 
-export type FixtureDefinition =
-  | unknown
-  | [unknown, { scope?: 'test' | 'file' | 'worker'; auto?: boolean }]
+export type FixtureDefinition = unknown | [unknown, FixtureOptions]
 export interface FixtureRegistration {
   name: string
   definition: FixtureDefinition
@@ -63,6 +62,12 @@ export function resolveFixtureDefinitions(
   return definitions
 }
 
+function hasBuilderFixtureOptions(value: object): boolean {
+  return Object.keys(value).some(
+    (key) => key === 'auto' || key === 'scope' || key === 'injected'
+  )
+}
+
 export function normalizeFixtureArguments(
   api: 'test.extend' | 'test.override',
   fixturesOrName: unknown,
@@ -81,9 +86,25 @@ export function normalizeFixtureArguments(
   }
   let options: FixtureOptions | undefined
   let value: unknown
-  if (hasOptions) {
+  if (hasOptions && maybeValue !== undefined) {
     options = optionsOrValue as FixtureOptions
     value = maybeValue
+  } else if (
+    optionsOrValue !== null &&
+    typeof optionsOrValue === 'object' &&
+    !Array.isArray(optionsOrValue) &&
+    hasBuilderFixtureOptions(optionsOrValue)
+  ) {
+    const candidate = optionsOrValue as FixtureOptions
+    // The target's builder and tuple parsers independently select options.
+    // Capture actual fields once, in that parser's order, before later use.
+    if (hasBuilderFixtureOptions(candidate)) {
+      const auto = candidate.auto ?? false
+      const scope = candidate.scope ?? 'test'
+      const injected = candidate.injected ?? false
+      options = { auto, scope, injected }
+      value = {}
+    } else value = [{}, candidate]
   } else value = optionsOrValue
   if (typeof value === 'function') {
     const builder = value as BuilderFixtureFn<unknown, Record<string, unknown>>
@@ -108,9 +129,13 @@ export function normalizeFixtureArguments(
 export function extendFixtures(
   base: FixtureDefinitions,
   extra: Record<string, FixtureDefinition>,
-  inheritOwner = false
+  inheritOwner = false,
+  injectValue?: (name: string) => unknown
 ): FixtureDefinitions {
-  const definitions = { ...base }
+  const definitions: FixtureDefinitions = Object.assign(
+    Object.create(null),
+    base
+  )
   if (inheritOwner)
     fixtureDefinitionOwners.set(
       definitions,
@@ -118,9 +143,18 @@ export function extendFixtures(
     )
   else fixtureDefinitionOrder.set(definitions, nextFixtureDefinitionOrder++)
   for (const [name, definition] of Object.entries(extra)) {
+    let resolved = definition
+    if (
+      Array.isArray(definition) &&
+      definition.length === 2 &&
+      definition[1] &&
+      typeof definition[1] === 'object' &&
+      definition[1].injected
+    )
+      resolved = [injectValue?.(name) ?? definition[0], definition[1]]
     definitions[name] = {
       name,
-      definition,
+      definition: resolved,
       parent: definitions[name],
     }
   }
@@ -168,7 +202,7 @@ function dependencies(fn: Function): string[] {
       if (property.startsWith('...'))
         unsupported('fixture destructuring rest properties')
       const name = property.replace(/:.*|=.*/g, '').trim()
-      if (!/^[A-Za-z_$][\w$]*$/.test(name))
+      if (!/^[$_\p{ID_Start}][$\u200c\u200d\p{ID_Continue}]*$/u.test(name))
         unsupported('nested or computed fixture destructuring')
       return name
     })
@@ -210,7 +244,7 @@ function normalize(registration: FixtureRegistration): Fixture {
   ) {
     const [value, options] = definition
     for (const key of Object.keys(options))
-      if (key !== 'scope' && key !== 'auto')
+      if (key !== 'scope' && key !== 'auto' && key !== 'injected')
         unsupported(`fixture option "${key}"`)
     if (
       options.scope !== undefined &&
@@ -388,7 +422,7 @@ export function createFixtureFile(
         if (cache.has(registration)) return cache.get(registration)!
         const pending = (async () => {
           if (typeof fixture.value !== 'function') return fixture.value
-          const deps: Record<string, unknown> = {}
+          const deps: Record<string, unknown> = Object.create(null)
           for (const dependency of dependencies(fixture.value)) {
             const dependencyRegistration =
               dependency === name && registration.parent
@@ -446,7 +480,7 @@ export function createFixtureFile(
 
       return {
         cleanups,
-        async invoke(fn: Function) {
+        async invoke(fn: Function, runCallback?: <T>(fn: () => T) => T) {
           const values = reuseContext
             ? context
             : (Object.defineProperties(
@@ -488,7 +522,7 @@ export function createFixtureFile(
               value,
             })
           }
-          return fn(values)
+          return runCallback ? runCallback(() => fn(values)) : fn(values)
         },
       }
     },

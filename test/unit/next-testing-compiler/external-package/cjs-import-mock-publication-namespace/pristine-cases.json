@@ -1,0 +1,22 @@
+[
+  {
+    "name": "unmocked ordinary publication namespace",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "unmocked async publication namespace",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "unmocked generator publication namespace",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "unmocked async-generator publication namespace",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

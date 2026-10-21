@@ -1,0 +1,25 @@
+import {expect,test,vi} from 'vitest'
+vi.mock('ws2-import-mock-absent-package',()=>({value:73,default:{source:'virtual-import'}}))
+vi.mock('ws2-import-mock-absent-async-package',async()=>({value:await Promise.resolve(91)}))
+vi.mock('@ws2/import-mock-absent/subpath',()=>({value:117}))
+import * as staticNamespace from 'ws2-import-mock-absent-package'
+import {value as consumerValue,fallback as consumerDefault} from './consumer.mjs'
+function row(value){console.log('WS2_VIRTUAL_IMPORT_RAW:'+JSON.stringify(value))}
+test('shares a registered missing bare factory with importMock and graph consumers',async()=>{
+ const mocked=await vi.importMock('ws2-import-mock-absent-package')
+ const again=await vi.importMock('ws2-import-mock-absent-package')
+ const dynamic=await import('ws2-import-mock-absent-package')
+ const result={name:'bare-helper',value:mocked.value,consumerValue,same:mocked===again,staticIdentity:mocked===staticNamespace,dynamicIdentity:mocked===dynamic,defaultIdentity:mocked.default===consumerDefault,keys:Object.keys(mocked),descriptor:Object.getOwnPropertyDescriptor(mocked,'value'),prototype:Object.getPrototypeOf(mocked)===Object.prototype,tag:mocked[Symbol.toStringTag]??null}
+ row(result);expect(mocked.value).toBe(73);expect(mocked).toBe(again);expect(mocked===dynamic).toBe(false)
+})
+test('awaits a registered missing async factory through importMock',async()=>{
+ const first=await vi.importMock('ws2-import-mock-absent-async-package')
+ const second=await vi.importMock('ws2-import-mock-absent-async-package')
+ row({name:'async-helper',value:first.value,same:first===second,keys:Object.keys(first)});expect(first.value).toBe(91);expect(first).toBe(second)
+})
+test('shares a scoped missing factory with importMock and later imports',async()=>{
+ const mocked=await vi.importMock('@ws2/import-mock-absent/subpath')
+ const updated=Reflect.set(mocked,'value',118)
+ const dynamic=await import('@ws2/import-mock-absent/subpath')
+ row({name:'scoped-helper',value:mocked.value,updated,same:mocked===dynamic,dynamicValue:dynamic.value,keys:Object.keys(mocked)});expect(updated).toBe(true);expect(dynamic.value).toBe(118);expect(mocked===dynamic).toBe(false)
+})

@@ -1,0 +1,45 @@
+[
+  {
+    "stream": "stdout",
+    "value": {
+      "name": "bare-fs",
+      "value": 23,
+      "throughConsumer": 23,
+      "dynamicIdentity": true,
+      "prefixedIdentity": true,
+      "prefixedLabel": "bare-fs",
+      "helperIdentity": false,
+      "helperDefaultShared": true,
+      "calls": 1,
+      "keys": ["readFileSync", "label"],
+      "prototype": true,
+      "tag": null
+    }
+  },
+  {
+    "stream": "stdout",
+    "value": {
+      "name": "prefixed-os",
+      "value": "mock-platform",
+      "bareLabel": "prefixed-os",
+      "bareIdentity": true,
+      "dynamicIdentity": true,
+      "helperIdentity": false,
+      "helperFunctionShared": true,
+      "keys": ["platform", "label"]
+    }
+  },
+  {
+    "stream": "stdout",
+    "value": {
+      "name": "builtin-original",
+      "value": "mock-join",
+      "original": {
+        "joinType": "function",
+        "defaultJoinIdentity": true,
+        "tag": "Module",
+        "same": true
+      }
+    }
+  }
+]

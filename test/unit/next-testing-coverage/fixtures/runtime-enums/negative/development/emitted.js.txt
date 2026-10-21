@@ -1,0 +1,40 @@
+(()=>{"use strict";module.exports = [
+"[project]/.next-test-ts-runtime176-negative-development/contract.case.mjs [next-test-node] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/packages/next/dist/experimental/testing/vitest.js [next-test-node] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$ts$2d$runtime176$2d$negative$2d$development$2f$subject$2e$ts__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/.next-test-ts-runtime176-negative-development/subject.ts [next-test-node] (ecmascript)");
+;
+;
+(0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["test"])('negative and resumed numeric enum members', ()=>{
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])(__TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$ts$2d$runtime176$2d$negative$2d$development$2f$subject$2e$ts__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["Value"].Following).toBe(-1);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])(__TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$ts$2d$runtime176$2d$negative$2d$development$2f$subject$2e$ts__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["Value"][-2]).toBe('Negative');
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])(__TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$ts$2d$runtime176$2d$negative$2d$development$2f$subject$2e$ts__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["Value"][-1]).toBe('Following');
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])((0, __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$ts$2d$runtime176$2d$negative$2d$development$2f$subject$2e$ts__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["choose"])(true)).toBe(-2);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])((0, __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$ts$2d$runtime176$2d$negative$2d$development$2f$subject$2e$ts__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["choose"])(false)).toBe(7);
+});
+}),
+"[project]/.next-test-ts-runtime176-negative-development/subject.ts [next-test-node] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "Value",
+    ()=>Value,
+    "choose",
+    ()=>choose
+]);
+var Value = /*#__PURE__*/ function(Value) {
+    Value[Value["Negative"] = -2] = "Negative";
+    Value[Value["Following"] = -1] = "Following";
+    Value[Value["Later"] = 7] = "Later";
+    return Value;
+}({});
+function choose(active) {
+    if (active) return -2;
+    return 7;
+}
+}),
+];})()
+
+//# sourceMappingURL=_next-test-ts-runtime176-negative-development_0r0v8m_1x1ivh._.js.map

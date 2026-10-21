@@ -1,0 +1,30 @@
+import { expect, test } from 'vitest'
+
+function geometry() {
+  return {
+    width: window.innerWidth,
+    height: window.innerHeight,
+    narrow: matchMedia('(max-width: 700px)').matches,
+  }
+}
+
+const collection = geometry()
+
+test('configured viewport applies before collection and controls responsive layout', () => {
+  const style = document.createElement('style')
+  style.textContent = '.viewport-probe { width: 100px } @media (max-width: 700px) { .viewport-probe { width: 50px } }'
+  const element = document.createElement('div')
+  element.className = 'viewport-probe'
+  document.head.append(style)
+  document.body.append(element)
+  try {
+    const body = geometry()
+    const cssWidth = getComputedStyle(element).width
+    console.log('BROWSER_VIEWPORT_RAW ' + JSON.stringify({ collection, body, cssWidth }))
+    expect(body).toEqual(collection)
+    expect(cssWidth).toBe(body.narrow ? '50px' : '100px')
+  } finally {
+    element.remove()
+    style.remove()
+  }
+})

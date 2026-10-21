@@ -1,0 +1,3311 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_STATIC_RUNTIME_PENDING",
+    "value": {
+      "calls": 3,
+      "callsWhileHeld": 1,
+      "settledBeforeRelease": true,
+      "beforeStatic": true,
+      "staticValue": 5,
+      "secondOriginal": true,
+      "secondStatic": false,
+      "values": [null, null, null, null],
+      "mockIdentity": [true, true],
+      "errorIdentity": [false, false],
+      "errors": [
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "causeIdentity": true,
+          "causeName": "Error",
+          "causeMessage": "static runtime native pending failure",
+          "rawIdentity": false
+        },
+        null,
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "causeIdentity": true,
+          "causeName": "Error",
+          "causeMessage": "static runtime native pending failure",
+          "rawIdentity": false
+        },
+        {
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "causeIdentity": true,
+          "causeName": "Error",
+          "causeMessage": "static runtime native pending failure",
+          "rawIdentity": false
+        }
+      ],
+      "shapes": [
+        {
+          "nativeBrand": false,
+          "keys": ["value"],
+          "prototypeNull": false,
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "value",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        {
+          "nativeBrand": false,
+          "keys": ["value"],
+          "prototypeNull": false,
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "value",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        {
+          "nativeBrand": false,
+          "keys": [
+            "Dir",
+            "Dirent",
+            "F_OK",
+            "FileReadStream",
+            "FileWriteStream",
+            "R_OK",
+            "ReadStream",
+            "Stats",
+            "W_OK",
+            "WriteStream",
+            "X_OK",
+            "_toUnixTimestamp",
+            "access",
+            "accessSync",
+            "appendFile",
+            "appendFileSync",
+            "chmod",
+            "chmodSync",
+            "chown",
+            "chownSync",
+            "close",
+            "closeSync",
+            "constants",
+            "copyFile",
+            "copyFileSync",
+            "cp",
+            "cpSync",
+            "createReadStream",
+            "createWriteStream",
+            "default",
+            "exists",
+            "existsSync",
+            "fchmod",
+            "fchmodSync",
+            "fchown",
+            "fchownSync",
+            "fdatasync",
+            "fdatasyncSync",
+            "fstat",
+            "fstatSync",
+            "fsync",
+            "fsyncSync",
+            "ftruncate",
+            "ftruncateSync",
+            "futimes",
+            "futimesSync",
+            "lchmod",
+            "lchmodSync",
+            "lchown",
+            "lchownSync",
+            "link",
+            "linkSync",
+            "lstat",
+            "lstatSync",
+            "lutimes",
+            "lutimesSync",
+            "mkdir",
+            "mkdirSync",
+            "mkdtemp",
+            "mkdtempSync",
+            "open",
+            "openAsBlob",
+            "openSync",
+            "opendir",
+            "opendirSync",
+            "promises",
+            "read",
+            "readFile",
+            "readFileSync",
+            "readSync",
+            "readdir",
+            "readdirSync",
+            "readlink",
+            "readlinkSync",
+            "readv",
+            "readvSync",
+            "realpath",
+            "realpathSync",
+            "rename",
+            "renameSync",
+            "rm",
+            "rmSync",
+            "rmdir",
+            "rmdirSync",
+            "stat",
+            "statSync",
+            "statfs",
+            "statfsSync",
+            "symlink",
+            "symlinkSync",
+            "truncate",
+            "truncateSync",
+            "unlink",
+            "unlinkSync",
+            "unwatchFile",
+            "utimes",
+            "utimesSync",
+            "watch",
+            "watchFile",
+            "write",
+            "writeFile",
+            "writeFileSync",
+            "writeSync",
+            "writev",
+            "writevSync",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototypeNull": true,
+          "tag": "Module",
+          "extensible": false,
+          "sealed": true,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "Dir",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "Dirent",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "F_OK",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "FileReadStream",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "FileWriteStream",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "R_OK",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "ReadStream",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "Stats",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "W_OK",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "WriteStream",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "X_OK",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "_toUnixTimestamp",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "access",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "accessSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "appendFile",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "appendFileSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "chmod",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "chmodSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "chown",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "chownSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "close",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "closeSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "constants",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "copyFile",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "copyFileSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "cp",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "cpSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "createReadStream",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "createWriteStream",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "default",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "exists",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "existsSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fchmod",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fchmodSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fchown",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fchownSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fdatasync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fdatasyncSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fstat",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fstatSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fsync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fsyncSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "ftruncate",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "ftruncateSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "futimes",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "futimesSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "lchmod",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "lchmodSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "lchown",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "lchownSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "link",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "linkSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "lstat",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "lstatSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "lutimes",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "lutimesSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "mkdir",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "mkdirSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "mkdtemp",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "mkdtempSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "open",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "openAsBlob",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "openSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "opendir",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "opendirSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "promises",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "read",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readFile",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readFileSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readdir",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readdirSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readlink",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readlinkSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readv",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readvSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "realpath",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "realpathSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "rename",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "renameSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "rm",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "rmSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "rmdir",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "rmdirSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "stat",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "statSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "statfs",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "statfsSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "symlink",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "symlinkSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "truncate",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "truncateSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "unlink",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "unlinkSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "unwatchFile",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "utimes",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "utimesSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "watch",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "watchFile",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "write",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "writeFile",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "writeFileSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "writeSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "writev",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "writevSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        null,
+        {
+          "nativeBrand": false,
+          "keys": [
+            "Dir",
+            "Dirent",
+            "F_OK",
+            "FileReadStream",
+            "FileWriteStream",
+            "R_OK",
+            "ReadStream",
+            "Stats",
+            "W_OK",
+            "WriteStream",
+            "X_OK",
+            "_toUnixTimestamp",
+            "access",
+            "accessSync",
+            "appendFile",
+            "appendFileSync",
+            "chmod",
+            "chmodSync",
+            "chown",
+            "chownSync",
+            "close",
+            "closeSync",
+            "constants",
+            "copyFile",
+            "copyFileSync",
+            "cp",
+            "cpSync",
+            "createReadStream",
+            "createWriteStream",
+            "default",
+            "exists",
+            "existsSync",
+            "fchmod",
+            "fchmodSync",
+            "fchown",
+            "fchownSync",
+            "fdatasync",
+            "fdatasyncSync",
+            "fstat",
+            "fstatSync",
+            "fsync",
+            "fsyncSync",
+            "ftruncate",
+            "ftruncateSync",
+            "futimes",
+            "futimesSync",
+            "lchmod",
+            "lchmodSync",
+            "lchown",
+            "lchownSync",
+            "link",
+            "linkSync",
+            "lstat",
+            "lstatSync",
+            "lutimes",
+            "lutimesSync",
+            "mkdir",
+            "mkdirSync",
+            "mkdtemp",
+            "mkdtempSync",
+            "open",
+            "openAsBlob",
+            "openSync",
+            "opendir",
+            "opendirSync",
+            "promises",
+            "read",
+            "readFile",
+            "readFileSync",
+            "readSync",
+            "readdir",
+            "readdirSync",
+            "readlink",
+            "readlinkSync",
+            "readv",
+            "readvSync",
+            "realpath",
+            "realpathSync",
+            "rename",
+            "renameSync",
+            "rm",
+            "rmSync",
+            "rmdir",
+            "rmdirSync",
+            "stat",
+            "statSync",
+            "statfs",
+            "statfsSync",
+            "symlink",
+            "symlinkSync",
+            "truncate",
+            "truncateSync",
+            "unlink",
+            "unlinkSync",
+            "unwatchFile",
+            "utimes",
+            "utimesSync",
+            "watch",
+            "watchFile",
+            "write",
+            "writeFile",
+            "writeFileSync",
+            "writeSync",
+            "writev",
+            "writevSync",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototypeNull": true,
+          "tag": "Module",
+          "extensible": false,
+          "sealed": true,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "Dir",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "Dirent",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "F_OK",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "FileReadStream",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "FileWriteStream",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "R_OK",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "ReadStream",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "Stats",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "W_OK",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "WriteStream",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "X_OK",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "_toUnixTimestamp",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "access",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "accessSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "appendFile",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "appendFileSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "chmod",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "chmodSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "chown",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "chownSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "close",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "closeSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "constants",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "copyFile",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "copyFileSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "cp",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "cpSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "createReadStream",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "createWriteStream",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "default",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "exists",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "existsSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fchmod",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fchmodSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fchown",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fchownSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fdatasync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fdatasyncSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fstat",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fstatSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fsync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fsyncSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "ftruncate",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "ftruncateSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "futimes",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "futimesSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "lchmod",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "lchmodSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "lchown",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "lchownSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "link",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "linkSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "lstat",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "lstatSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "lutimes",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "lutimesSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "mkdir",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "mkdirSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "mkdtemp",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "mkdtempSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "open",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "openAsBlob",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "openSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "opendir",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "opendirSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "promises",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "read",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readFile",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readFileSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readdir",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readdirSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readlink",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readlinkSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readv",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readvSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "realpath",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "realpathSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "rename",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "renameSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "rm",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "rmSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "rmdir",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "rmdirSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "stat",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "statSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "statfs",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "statfsSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "symlink",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "symlinkSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "truncate",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "truncateSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "unlink",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "unlinkSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "unwatchFile",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "utimes",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "utimesSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "watch",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "watchFile",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "write",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "writeFile",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "writeFileSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "writeSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "writev",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "writevSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        null,
+        null,
+        {
+          "nativeBrand": false,
+          "keys": [
+            "Dir",
+            "Dirent",
+            "F_OK",
+            "FileReadStream",
+            "FileWriteStream",
+            "R_OK",
+            "ReadStream",
+            "Stats",
+            "W_OK",
+            "WriteStream",
+            "X_OK",
+            "_toUnixTimestamp",
+            "access",
+            "accessSync",
+            "appendFile",
+            "appendFileSync",
+            "chmod",
+            "chmodSync",
+            "chown",
+            "chownSync",
+            "close",
+            "closeSync",
+            "constants",
+            "copyFile",
+            "copyFileSync",
+            "cp",
+            "cpSync",
+            "createReadStream",
+            "createWriteStream",
+            "default",
+            "exists",
+            "existsSync",
+            "fchmod",
+            "fchmodSync",
+            "fchown",
+            "fchownSync",
+            "fdatasync",
+            "fdatasyncSync",
+            "fstat",
+            "fstatSync",
+            "fsync",
+            "fsyncSync",
+            "ftruncate",
+            "ftruncateSync",
+            "futimes",
+            "futimesSync",
+            "lchmod",
+            "lchmodSync",
+            "lchown",
+            "lchownSync",
+            "link",
+            "linkSync",
+            "lstat",
+            "lstatSync",
+            "lutimes",
+            "lutimesSync",
+            "mkdir",
+            "mkdirSync",
+            "mkdtemp",
+            "mkdtempSync",
+            "open",
+            "openAsBlob",
+            "openSync",
+            "opendir",
+            "opendirSync",
+            "promises",
+            "read",
+            "readFile",
+            "readFileSync",
+            "readSync",
+            "readdir",
+            "readdirSync",
+            "readlink",
+            "readlinkSync",
+            "readv",
+            "readvSync",
+            "realpath",
+            "realpathSync",
+            "rename",
+            "renameSync",
+            "rm",
+            "rmSync",
+            "rmdir",
+            "rmdirSync",
+            "stat",
+            "statSync",
+            "statfs",
+            "statfsSync",
+            "symlink",
+            "symlinkSync",
+            "truncate",
+            "truncateSync",
+            "unlink",
+            "unlinkSync",
+            "unwatchFile",
+            "utimes",
+            "utimesSync",
+            "watch",
+            "watchFile",
+            "write",
+            "writeFile",
+            "writeFileSync",
+            "writeSync",
+            "writev",
+            "writevSync",
+            "Symbol(Symbol.toStringTag)"
+          ],
+          "prototypeNull": true,
+          "tag": "Module",
+          "extensible": false,
+          "sealed": true,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "Dir",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "Dirent",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "F_OK",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "FileReadStream",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "FileWriteStream",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "R_OK",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "ReadStream",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "Stats",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "W_OK",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "WriteStream",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "X_OK",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "_toUnixTimestamp",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "access",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "accessSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "appendFile",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "appendFileSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "chmod",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "chmodSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "chown",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "chownSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "close",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "closeSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "constants",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "copyFile",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "copyFileSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "cp",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "cpSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "createReadStream",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "createWriteStream",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "default",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "exists",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "existsSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fchmod",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fchmodSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fchown",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fchownSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fdatasync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fdatasyncSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fstat",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fstatSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fsync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "fsyncSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "ftruncate",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "ftruncateSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "futimes",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "futimesSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "lchmod",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "lchmodSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "lchown",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "lchownSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "link",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "linkSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "lstat",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "lstatSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "lutimes",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "lutimesSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "mkdir",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "mkdirSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "mkdtemp",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "mkdtempSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "open",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "openAsBlob",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "openSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "opendir",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "opendirSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "promises",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "read",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readFile",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readFileSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readdir",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readdirSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readlink",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readlinkSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readv",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "readvSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "realpath",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "realpathSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "rename",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "renameSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "rm",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "rmSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "rmdir",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "rmdirSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "stat",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "statSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "statfs",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "statfsSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "symlink",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "symlinkSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "truncate",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "truncateSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "unlink",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "unlinkSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "unwatchFile",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "utimes",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "utimesSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "watch",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "watchFile",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "write",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "writeFile",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "writeFileSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "writeSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "writev",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "writevSync",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": false
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        }
+      ],
+      "releasedActual": true,
+      "releasedHeldActual": false,
+      "releasedValue": null,
+      "heldOriginalDefault": true,
+      "heldOriginalFunction": true
+    }
+  }
+]

@@ -1,0 +1,7 @@
+[
+  {
+    "name": "compiler-owned native and compiled runtime target identities without reset",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

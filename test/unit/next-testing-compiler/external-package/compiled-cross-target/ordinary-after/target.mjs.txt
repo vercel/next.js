@@ -1,0 +1,1 @@
+import {token} from './peer.mjs';import {value} from './ordinary.mjs';globalThis.__ws2Cross??={};globalThis.__ws2Cross['ordinary-after-root']=(globalThis.__ws2Cross['ordinary-after-root']??0)+1;export {token,value};export function read(){return [token.count,value]}

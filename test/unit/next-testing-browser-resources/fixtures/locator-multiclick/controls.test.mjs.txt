@@ -1,0 +1,21 @@
+import { afterEach, expect, test } from 'vitest'
+import { page } from 'vitest/browser'
+afterEach(()=>document.body.replaceChildren())
+function failure(error){return {name:error.name,message:error.message,stack:error.stack}}
+function settle(promise){return promise.then(value=>({returnedUndefined:value===undefined}),error=>({error:failure(error)}))}
+function button(name){const element=document.createElement('button');element.textContent=name;const events=[];for(const type of ['pointerdown','mousedown','pointerup','mouseup','click','dblclick'])element.addEventListener(type,event=>events.push({type:event.type,constructor:event.constructor.name,trusted:event.isTrusted,target:event.target===element,currentTarget:event.currentTarget===element,detail:event.detail,button:event.button,buttons:event.buttons}));document.body.append(element);return{element,events}}
+for(const [method,count]of [['dblClick',2],['tripleClick',3]]){
+ test('missing '+method+' native timeout recovers before healthy work',async()=>{
+  const outcome=await settle(page.getByRole('button',{name:'Never created',exact:true})[method]({timeout:60}))
+  const healthy=button('Healthy '+method),following=await settle(page.getByRole('button',{name:'Healthy '+method,exact:true})[method]({timeout:500}))
+  console.log('MULTICLICK_CONTROL_RAW '+JSON.stringify({name:method+' timeout recovery',mode:process.env.NODE_ENV,outcome,following,events:healthy.events,connected:healthy.element.isConnected}))
+  expect(outcome.error?.name).toBe('TimeoutError');expect(outcome.error?.message).toContain('Timeout 60ms exceeded');expect(following).toEqual({returnedUndefined:true});expect(healthy.events.filter(event=>event.type==='click')).toHaveLength(count)
+ })
+ test('late duplicate '+method+' fails natively and the realm stays live',async()=>{
+  const pending=settle(page.getByRole('button',{name:'Late duplicates',exact:true})[method]({timeout:500}))
+  await Promise.resolve()
+  const first=button('Late duplicates'),second=button('Late duplicates'),outcome=await pending,healthy=button('Following '+method),following=await settle(page.getByRole('button',{name:'Following '+method,exact:true})[method]({timeout:500}))
+  console.log('MULTICLICK_CONTROL_RAW '+JSON.stringify({name:method+' duplicate recovery',mode:process.env.NODE_ENV,outcome,firstEvents:first.events,secondEvents:second.events,following,events:healthy.events,connected:[first.element.isConnected,second.element.isConnected,healthy.element.isConnected]}))
+  expect(outcome.error?.message).toContain('strict mode violation');expect(first.events).toEqual([]);expect(second.events).toEqual([]);expect(following).toEqual({returnedUndefined:true});expect(healthy.events.filter(event=>event.type==='click')).toHaveLength(count)
+ })
+}

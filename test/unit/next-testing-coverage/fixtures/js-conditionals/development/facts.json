@@ -1,0 +1,208 @@
+{
+  "file": "file:///private/tmp/next-testing-parallel-20261019/authoring-hooks163/.next-test-conditional164-development/subject.mjs",
+  "model": {
+    "path": "file:///private/tmp/next-testing-parallel-20261019/authoring-hooks163/.next-test-conditional164-development/subject.mjs",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 2,
+          "column": 2
+        },
+        "end": {
+          "line": 2,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "subject",
+        "decl": {
+          "start": {
+            "line": 1,
+            "column": 16
+          },
+          "end": {
+            "line": 1,
+            "column": 23
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 31
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "line": 1
+      }
+    },
+    "branchMap": {
+      "0": {
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 9
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "type": "cond-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 2,
+              "column": 21
+            },
+            "end": {
+              "line": 2,
+              "column": 30
+            }
+          },
+          {
+            "start": {
+              "line": 2,
+              "column": 33
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          }
+        ],
+        "line": 2
+      }
+    },
+    "s": {
+      "0": 3
+    },
+    "f": {
+      "0": 3
+    },
+    "b": {
+      "0": [2, 1]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 1,
+      "lastStatement": 1,
+      "seen": {
+        "f:1:16:1:23": 0,
+        "s:2:2:2:Infinity": 0,
+        "b:2:21:2:30:2:33:2:Infinity": 0
+      },
+      "fnNames": {}
+    }
+  },
+  "observed": {
+    "path": "file:///private/tmp/next-testing-parallel-20261019/authoring-hooks163/.next-test-conditional164-development/subject.mjs",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 2,
+          "column": 2
+        },
+        "end": {
+          "line": 2,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "subject",
+        "decl": {
+          "start": {
+            "line": 1,
+            "column": 16
+          },
+          "end": {
+            "line": 1,
+            "column": 23
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 31
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "line": 1
+      }
+    },
+    "branchMap": {
+      "0": {
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 9
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "type": "cond-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 2,
+              "column": 21
+            },
+            "end": {
+              "line": 2,
+              "column": 33
+            }
+          },
+          {
+            "start": {
+              "line": 2,
+              "column": 33
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          }
+        ],
+        "line": 2
+      }
+    },
+    "s": {
+      "0": 3
+    },
+    "f": {
+      "0": 3
+    },
+    "b": {
+      "0": [2, 1]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 1,
+      "lastStatement": 1,
+      "seen": {
+        "b:2:21:2:33:2:33:2:Infinity": 0,
+        "f:1:16:1:23": 0,
+        "s:2:2:2:Infinity": 0
+      },
+      "fnNames": {}
+    }
+  },
+  "sourceSHA256": "46c35f2f9c59f5ab040e4e43bd301053a4aa333dbf056d6a0669094bfa77634b",
+  "producer": {
+    "path": "server/chunks/_next-test-conditional164-development_0175ikidxa2gg._.js",
+    "sha256": "697406cf1248c1ce1eb6ba4c6fe05b501cd295eb0902d522290afb499dbbd3f3",
+    "mapPath": "server/chunks/_next-test-conditional164-development_0175ikidxa2gg._.js.map",
+    "mapSha256": "3f61378e19eb13be3b26058737d8b690721c3095ee79b45f638a01677da4b661"
+  }
+}

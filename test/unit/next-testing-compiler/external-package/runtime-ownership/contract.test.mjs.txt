@@ -1,0 +1,26 @@
+import { test, expect, vi } from 'vitest'
+import * as staticPackage from 'ws2-genuine-external-original'
+import * as staticBuiltin from 'node:fs'
+import * as staticCompiled from './dependency.mjs'
+test('compiler-owned native and compiled runtime target identities across reset', async () => {
+ const packageBefore = await import('ws2-genuine-external-original')
+ const builtinBefore = await import('node:fs')
+ const compiledBefore = await import('./dependency.mjs')
+ let packageCalls = 0, builtinCalls = 0, compiledCalls = 0
+ vi.doMock('ws2-genuine-external-original', async original => { packageCalls++; return { value: 73, same: await original() === packageBefore } })
+ vi.doMock('node:fs', async original => { builtinCalls++; return { value: 81, same: await original() === builtinBefore } })
+ vi.doMock('./dependency.mjs', async original => { compiledCalls++; return { value: 91, same: await original() === compiledBefore } })
+ const packageMock = await import('ws2-genuine-external-original')
+ const builtinMock = await import('node:fs')
+ const compiledMock = await import('./dependency.mjs')
+ vi.resetModules()
+ const packageSecond = await import('ws2-genuine-external-original')
+ const builtinSecond = await import('node:fs')
+ const compiledSecond = await import('./dependency.mjs')
+ vi.doUnmock('ws2-genuine-external-original'); vi.doUnmock('node:fs'); vi.doUnmock('./dependency.mjs')
+ const packageReleased = await import('ws2-genuine-external-original')
+ const builtinReleased = await import('node:fs')
+ const compiledReleased = await import('./dependency.mjs')
+ console.log('WS2_EXTERNAL_NATIVE_OWNERSHIP_RESET:' + JSON.stringify({ calls: [packageCalls,builtinCalls,compiledCalls], values: [packageMock.value,builtinMock.value,compiledMock.value], actualIdentity: [packageMock.same,builtinMock.same,compiledMock.same], staticIdentity: [staticPackage === packageBefore,staticBuiltin === builtinBefore,staticCompiled === compiledBefore], mockIdentity: [packageMock === packageSecond,builtinMock === builtinSecond,compiledMock === compiledSecond], releasedIdentity: [packageReleased === packageBefore,builtinReleased === builtinBefore,compiledReleased === compiledBefore], heldValues: [packageBefore.value,compiledBefore.value,packageMock.value,builtinMock.value,compiledMock.value] }))
+ expect([packageMock.value,builtinMock.value,compiledMock.value]).toEqual([73,81,91])
+})

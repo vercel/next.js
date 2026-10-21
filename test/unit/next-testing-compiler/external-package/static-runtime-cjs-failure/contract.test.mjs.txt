@@ -1,0 +1,26 @@
+import { test, expect, vi } from 'vitest'
+import { types } from 'node:util'
+import * as heldStatic from "ws2-genuine-external-original"
+vi.mock("ws2-genuine-external-original", () => ({value:5}))
+function shape(namespace) {
+ return { nativeBrand: types.isModuleNamespaceObject(namespace), keys: Reflect.ownKeys(namespace).map(key => typeof key === 'symbol' ? String(key) : key), prototypeNull: Object.getPrototypeOf(namespace) === null, tag: namespace[Symbol.toStringTag] ?? null, extensible: Object.isExtensible(namespace), sealed: Object.isSealed(namespace), frozen: Object.isFrozen(namespace), descriptors: Reflect.ownKeys(namespace).map(key => { const d = Object.getOwnPropertyDescriptor(namespace,key); return { key: typeof key === 'symbol' ? String(key) : key, valueType: typeof d.value, get: typeof d.get, set: typeof d.set, writable: d.writable ?? null, enumerable: d.enumerable, configurable: d.configurable } }) }
+}
+test("native cjs static and runtime failure",async()=>{
+const before=await import("ws2-genuine-external-original")
+const failure=new Error('static runtime native failure')
+let calls=0
+const originals=[]
+vi.doMock("ws2-genuine-external-original", async original=>{calls++;originals.push(await original());throw failure})
+const first=await import("ws2-genuine-external-original").then(value=>({value}),error=>({error}))
+const second=await import("ws2-genuine-external-original").then(value=>({value}),error=>({error}))
+vi.resetModules()
+const third=await import("ws2-genuine-external-original").then(value=>({value}),error=>({error}))
+vi.doUnmock("ws2-genuine-external-original")
+const released=await import("ws2-genuine-external-original")
+const errorShape = error => error ? {name:error.name,message:error.message,causeIdentity:error.cause===failure,causeName:error.cause?.name??null,causeMessage:error.cause?.message??null,rawIdentity:error===failure}:null
+
+const row={calls,staticValue:heldStatic.value,beforeStatic:before===heldStatic,beforeShape:shape(before),staticShape:shape(heldStatic),errors:[first,second,third].map(item=>errorShape(item.error)),errorIdentity:[first.error===second.error,first.error===third.error,second.error===third.error],originalIdentity:[originals[0]===originals[1],originals[0]===originals[2],released===originals[2]],originalShapes:originals.map(shape),releasedShape:shape(released),releasedValue:released.value??null}
+console.log('WS2_EXTERNAL_STATIC_RUNTIME_FAILURE:'+JSON.stringify(row))
+expect(calls).toBe(3)
+expect(first.error.cause).toBe(failure)
+})

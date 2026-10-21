@@ -25,14 +25,19 @@ export function createChaiNamespace(
     )
   }
   let namespace: ChaiNamespace
-  const prototype = new Proxy(Object.create(null), {
+  const prototype: object = new Proxy(Object.create(null), {
     get(_target, key) {
       if (key === 'constructor') return Assertion
       return getAssertionRuntime().readChaiPrototype(key, prototype)
     },
-    getOwnPropertyDescriptor() {
-      getAssertionRuntime().assertChaiNamespaceAccess()
-      return unsupported()
+    getOwnPropertyDescriptor(_target, key): PropertyDescriptor | undefined {
+      const descriptor = getAssertionRuntime().readChaiPrototypeDescriptor(
+        key,
+        prototype
+      )
+      if (descriptor && key === 'constructor')
+        return { ...descriptor, value: Assertion }
+      return descriptor
     },
     getPrototypeOf() {
       getAssertionRuntime().assertChaiNamespaceAccess()
@@ -47,7 +52,7 @@ export function createChaiNamespace(
       return unsupported()
     },
   })
-  function Assertion(...args: unknown[]) {
+  function Assertion(...args: unknown[]): object {
     if (new.target && new.target !== Assertion) return unsupported()
     return getAssertionRuntime().constructChaiNamespaceAssertion(
       args,

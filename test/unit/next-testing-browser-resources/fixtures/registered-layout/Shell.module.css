@@ -1,0 +1,7 @@
+.shell {
+  color: rgb(12, 34, 56);
+  padding: 13px;
+}
+.shell button {
+  color: inherit;
+}

@@ -1,5 +1,6 @@
 import type { TestArtifact } from '../runner/tasks'
 import { relative, sep } from 'node:path'
+import { isDeepStrictEqual } from 'node:util'
 import type { createTestReporter } from './reporter'
 import type { CaseResult, ResultEvent, SerializedDiagnostic } from './events'
 import { orderTestDeclarations, orderTestSpecifications } from './task-order'
@@ -8,6 +9,7 @@ type Results = ReturnType<ReturnType<typeof createTestReporter>['getResults']>
 export interface CustomReporterCompletion extends Results {
   events: ResultEvent[]
   status: 'passed' | 'failed' | 'cancelled'
+  recordedReporterErrors?: SerializedDiagnostic[]
 }
 
 type State = 'passed' | 'failed' | 'skipped' | 'pending'
@@ -92,6 +94,39 @@ const stateOf = (status?: string): State =>
     ? status
     : 'pending'
 
+/** Resolve only the actual preceding suite result referenced by this diagnostic. */
+export function isReportedSuiteError(
+  event: Extract<ResultEvent, { type: 'diagnostic' }>,
+  events: readonly ResultEvent[]
+): boolean {
+  const owner = event.suiteError
+  const at = events.indexOf(event)
+  if (
+    !owner ||
+    at < 0 ||
+    !event.entryId ||
+    !event.revision ||
+    !Number.isSafeInteger(owner.index) ||
+    owner.index < 0
+  )
+    return false
+  const matches = events
+    .slice(0, at)
+    .filter(
+      (previous): previous is Extract<ResultEvent, { type: 'suite-end' }> =>
+        previous.type === 'suite-end' &&
+        previous.runId === event.runId &&
+        previous.entryId === event.entryId &&
+        previous.revision === event.revision &&
+        previous.suiteId === owner.suiteId
+    )
+  return (
+    matches.length === 1 &&
+    matches[0].errors[owner.index] !== undefined &&
+    isDeepStrictEqual(matches[0].errors[owner.index], event.diagnostic)
+  )
+}
+
 /** Final task views come from retained producer events, never replayed hooks. */
 export function createCustomReporterModules(
   projectDir: string,
@@ -109,13 +144,15 @@ export function createCustomReporterModules(
     const rootResult = completion.suites.find(
       (suite) => suite.suiteId === entry.id && suite.entryId === entry.id
     )
-    const project = { name: entry.profile.id }
+    const project = { name: entry.projectName ?? entry.profile.id }
     const rootChildren: Task[] = []
     const fileErrors = [
       ...(rootResult?.errors ?? []),
       ...completion.events.flatMap((event) =>
         event.type === 'diagnostic' &&
         event.entryId === entry.id &&
+        !isReportedSuiteError(event, completion.events) &&
+        event.diagnostic.unhandled !== 'rejection' &&
         event.diagnostic.severity === 'error'
           ? [event.diagnostic]
           : []
@@ -190,6 +227,17 @@ export function createCustomReporterModules(
       const name = test.testName ?? test.name
       const metadata = test.meta ?? {}
       const state = test.bail ? 'pending' : stateOf(test.status)
+      const errors = completion.events.flatMap((event) =>
+        event.type === 'case-end' &&
+        event.entryId === test.entryId &&
+        event.caseId === test.caseId
+          ? event.errors.flatMap((error) =>
+              error.name === 'AggregateError' && error.errors
+                ? error.errors
+                : [error]
+            )
+          : []
+      )
       parent.children.push(
         expose({
           type: 'test',
@@ -209,8 +257,8 @@ export function createCustomReporterModules(
             state,
             ...(state === 'skipped'
               ? { note: test.note }
-              : test.errors.length
-                ? { errors: test.errors }
+              : errors.length
+                ? { errors }
                 : state === 'failed'
                   ? { errors: [] }
                   : {}),

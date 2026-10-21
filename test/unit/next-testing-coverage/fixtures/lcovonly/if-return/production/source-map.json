@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "sources": [
+    "/private/tmp/next-testing-parallel-20261019/tooling156/.next-test-lcov-map150-production/subject.js"
+  ],
+  "names": [],
+  "mappings": ";;;;;A;A;A;;;A,I,6C,E,U,I,I,+C,E,I,+C,E,I,I,C;A,I,6C,E,S,I,I,+C,E,I,+C,E,I,I,C;;;;;A;;;;;;AAAO,SAAS,OAAO,KAAK;IAAI,IAAI,QAAQ,GAAG,OAAO,QAAQ;IAAG,OAAO,QAAQ;AAAE;AAC3E,MAAM,SAAS,CAAA,QAAS,QAAQ;;;;;A,4E;A,+E;A;;;;;;;;;;;;A,M;A,M;A,e;I,8D;I;A;A,e,iB,qB,M;I,K,mB,qD;;I,M,e,E;I,I,uB,Y;Q,M,Q,G,C,a,G,C,C,O;I,O;Q,K,M,Q,a,M;I;A;A,S;I,O,W,yB,C;A;;;;;A;;;;;;;;;;;;;;I,O,E;e;;I,wB,E;e;;;A,I;A,4E;A,+E;A,I;A,S,yB,O;I,I,S,M,I,M;I,M,U;Q,G,O;Q,U,I;I;I,U;I,wB,Q,gB;I,O;Q;Y,I,Y,S,U;Q;I;A;A,S;I,M,U;I,M,U,yB,O,K,I;I,I,C,S;Q,M,I,M;I;I,I,C,S;Q,M,I,M;I;I,Q,M,C,c;I,I,U,Q,Q,C,G,C;I,I,C,S;Q,U,Q,a,C;Q,Q,Q,C,G,C,S;I;I,O;A",
+  "sourcesContent": [
+    "export function choose(value) { if (value > 1) return value + 1; return value - 1 }\nexport const double = value => value * 2\n"
+  ]
+}

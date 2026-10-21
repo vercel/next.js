@@ -1,0 +1,275 @@
+{
+  "reference": {
+    "target": "vitest@5.0.4",
+    "provider": "@vitest/browser-playwright@5.0.4/playwright@1.64.0 Chromium",
+    "runtime": "Node26.1.0",
+    "sourceSHA256": {
+      "negative-nth.test.mjs": "b32a74ddd2d239117d8478f10eb6f8fbf7982d2735851ab050d65699cf03fa32"
+    },
+    "completeRows": 4,
+    "completeCases": 4,
+    "proof": "/private/tmp/next-testing-ws3-locator-negative-nth130/REFERENCE-AND-GAP01.json"
+  },
+  "phases": {
+    "negative-nth-development": {
+      "mode": "development",
+      "cases": [
+        {
+          "fullName": "negative nth retains actual ordered node identities and bounds",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "negative nth click uses the actual controlled React last button",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "ordered negative queries",
+            "mode": "development",
+            "rows": [
+              {
+                "index": -4,
+                "names": [],
+                "identities": []
+              },
+              {
+                "index": -3,
+                "names": ["First"],
+                "identities": [0]
+              },
+              {
+                "index": -2,
+                "names": ["Second"],
+                "identities": [1]
+              },
+              {
+                "index": -1,
+                "names": ["Third"],
+                "identities": [2]
+              },
+              {
+                "index": 0,
+                "names": ["First"],
+                "identities": [0]
+              },
+              {
+                "index": 1,
+                "names": ["Second"],
+                "identities": [1]
+              },
+              {
+                "index": 2,
+                "names": ["Third"],
+                "identities": [2]
+              },
+              {
+                "index": 3,
+                "names": [],
+                "identities": []
+              }
+            ],
+            "last": ["Third"]
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "controlled negative click",
+            "mode": "development",
+            "outcome": {
+              "undefinedReturn": true
+            },
+            "selected": "Third",
+            "events": [
+              {
+                "type": "pointerdown",
+                "trusted": true,
+                "target": 2,
+                "currentTarget": 2,
+                "bubbles": true,
+                "composed": true,
+                "button": 0,
+                "buttons": 1
+              },
+              {
+                "type": "mousedown",
+                "trusted": true,
+                "target": 2,
+                "currentTarget": 2,
+                "bubbles": true,
+                "composed": true,
+                "button": 0,
+                "buttons": 1
+              },
+              {
+                "type": "pointerup",
+                "trusted": true,
+                "target": 2,
+                "currentTarget": 2,
+                "bubbles": true,
+                "composed": true,
+                "button": 0,
+                "buttons": 0
+              },
+              {
+                "type": "mouseup",
+                "trusted": true,
+                "target": 2,
+                "currentTarget": 2,
+                "bubbles": true,
+                "composed": true,
+                "button": 0,
+                "buttons": 0
+              },
+              {
+                "type": "click",
+                "trusted": true,
+                "target": 2,
+                "currentTarget": 2,
+                "bubbles": true,
+                "composed": true,
+                "button": 0,
+                "buttons": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "negative-nth-production": {
+      "mode": "production",
+      "cases": [
+        {
+          "fullName": "negative nth retains actual ordered node identities and bounds",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "negative nth click uses the actual controlled React last button",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "rows": [
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "ordered negative queries",
+            "mode": "production",
+            "rows": [
+              {
+                "index": -4,
+                "names": [],
+                "identities": []
+              },
+              {
+                "index": -3,
+                "names": ["First"],
+                "identities": [0]
+              },
+              {
+                "index": -2,
+                "names": ["Second"],
+                "identities": [1]
+              },
+              {
+                "index": -1,
+                "names": ["Third"],
+                "identities": [2]
+              },
+              {
+                "index": 0,
+                "names": ["First"],
+                "identities": [0]
+              },
+              {
+                "index": 1,
+                "names": ["Second"],
+                "identities": [1]
+              },
+              {
+                "index": 2,
+                "names": ["Third"],
+                "identities": [2]
+              },
+              {
+                "index": 3,
+                "names": [],
+                "identities": []
+              }
+            ],
+            "last": ["Third"]
+          }
+        },
+        {
+          "stream": "stdout",
+          "row": {
+            "name": "controlled negative click",
+            "mode": "production",
+            "outcome": {
+              "undefinedReturn": true
+            },
+            "selected": "Third",
+            "events": [
+              {
+                "type": "pointerdown",
+                "trusted": true,
+                "target": 2,
+                "currentTarget": 2,
+                "bubbles": true,
+                "composed": true,
+                "button": 0,
+                "buttons": 1
+              },
+              {
+                "type": "mousedown",
+                "trusted": true,
+                "target": 2,
+                "currentTarget": 2,
+                "bubbles": true,
+                "composed": true,
+                "button": 0,
+                "buttons": 1
+              },
+              {
+                "type": "pointerup",
+                "trusted": true,
+                "target": 2,
+                "currentTarget": 2,
+                "bubbles": true,
+                "composed": true,
+                "button": 0,
+                "buttons": 0
+              },
+              {
+                "type": "mouseup",
+                "trusted": true,
+                "target": 2,
+                "currentTarget": 2,
+                "bubbles": true,
+                "composed": true,
+                "button": 0,
+                "buttons": 0
+              },
+              {
+                "type": "click",
+                "trusted": true,
+                "target": 2,
+                "currentTarget": 2,
+                "bubbles": true,
+                "composed": true,
+                "button": 0,
+                "buttons": 0
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

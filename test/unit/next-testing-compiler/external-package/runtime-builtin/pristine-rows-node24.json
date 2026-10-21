@@ -1,0 +1,1971 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_NATIVE_RUNTIME",
+    "value": {
+      "before": "function",
+      "first": 73,
+      "second": 73,
+      "mockIdentity": true,
+      "original": "function",
+      "sameOriginal": true,
+      "afterMockReset": 73,
+      "mockResetIdentity": true,
+      "calls": 1,
+      "released": "function",
+      "releasedIdentity": false,
+      "originalResetIdentity": false,
+      "replacement": 91,
+      "replacementIdentity": false,
+      "finalIdentity": false,
+      "heldOriginal": "function",
+      "heldMock": 73,
+      "staticBeforeIdentity": true,
+      "staticReleasedIdentity": false,
+      "staticBrand": false,
+      "staticShape": {
+        "nativeBrand": false,
+        "keys": [
+          "EOL",
+          "arch",
+          "availableParallelism",
+          "constants",
+          "cpus",
+          "default",
+          "devNull",
+          "endianness",
+          "freemem",
+          "getPriority",
+          "homedir",
+          "hostname",
+          "loadavg",
+          "machine",
+          "networkInterfaces",
+          "platform",
+          "release",
+          "setPriority",
+          "tmpdir",
+          "totalmem",
+          "type",
+          "uptime",
+          "userInfo",
+          "version",
+          "Symbol(Symbol.toStringTag)"
+        ],
+        "prototypeNull": true,
+        "tag": "Module",
+        "extensible": false,
+        "sealed": true,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "EOL",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "arch",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "availableParallelism",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "constants",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "cpus",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "default",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "devNull",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "endianness",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "freemem",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "getPriority",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "homedir",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "hostname",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "loadavg",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "machine",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "networkInterfaces",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "platform",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "release",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "setPriority",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "tmpdir",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "totalmem",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "type",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "uptime",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "userInfo",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "version",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "Symbol(Symbol.toStringTag)",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": false
+          }
+        ]
+      },
+      "beforeAliasIdentity": true,
+      "beforeShape": {
+        "nativeBrand": false,
+        "keys": [
+          "EOL",
+          "arch",
+          "availableParallelism",
+          "constants",
+          "cpus",
+          "default",
+          "devNull",
+          "endianness",
+          "freemem",
+          "getPriority",
+          "homedir",
+          "hostname",
+          "loadavg",
+          "machine",
+          "networkInterfaces",
+          "platform",
+          "release",
+          "setPriority",
+          "tmpdir",
+          "totalmem",
+          "type",
+          "uptime",
+          "userInfo",
+          "version",
+          "Symbol(Symbol.toStringTag)"
+        ],
+        "prototypeNull": true,
+        "tag": "Module",
+        "extensible": false,
+        "sealed": true,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "EOL",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "arch",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "availableParallelism",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "constants",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "cpus",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "default",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "devNull",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "endianness",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "freemem",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "getPriority",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "homedir",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "hostname",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "loadavg",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "machine",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "networkInterfaces",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "platform",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "release",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "setPriority",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "tmpdir",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "totalmem",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "type",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "uptime",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "userInfo",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "version",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "Symbol(Symbol.toStringTag)",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": false
+          }
+        ]
+      },
+      "releasedShape": {
+        "nativeBrand": false,
+        "keys": [
+          "EOL",
+          "arch",
+          "availableParallelism",
+          "constants",
+          "cpus",
+          "default",
+          "devNull",
+          "endianness",
+          "freemem",
+          "getPriority",
+          "homedir",
+          "hostname",
+          "loadavg",
+          "machine",
+          "networkInterfaces",
+          "platform",
+          "release",
+          "setPriority",
+          "tmpdir",
+          "totalmem",
+          "type",
+          "uptime",
+          "userInfo",
+          "version",
+          "Symbol(Symbol.toStringTag)"
+        ],
+        "prototypeNull": true,
+        "tag": "Module",
+        "extensible": false,
+        "sealed": true,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "EOL",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "arch",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "availableParallelism",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "constants",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "cpus",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "default",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "devNull",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "endianness",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "freemem",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "getPriority",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "homedir",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "hostname",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "loadavg",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "machine",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "networkInterfaces",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "platform",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "release",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "setPriority",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "tmpdir",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "totalmem",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "type",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "uptime",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "userInfo",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "version",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "Symbol(Symbol.toStringTag)",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": false
+          }
+        ]
+      },
+      "afterOriginalResetShape": {
+        "nativeBrand": false,
+        "keys": [
+          "EOL",
+          "arch",
+          "availableParallelism",
+          "constants",
+          "cpus",
+          "default",
+          "devNull",
+          "endianness",
+          "freemem",
+          "getPriority",
+          "homedir",
+          "hostname",
+          "loadavg",
+          "machine",
+          "networkInterfaces",
+          "platform",
+          "release",
+          "setPriority",
+          "tmpdir",
+          "totalmem",
+          "type",
+          "uptime",
+          "userInfo",
+          "version",
+          "Symbol(Symbol.toStringTag)"
+        ],
+        "prototypeNull": true,
+        "tag": "Module",
+        "extensible": false,
+        "sealed": true,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "EOL",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "arch",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "availableParallelism",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "constants",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "cpus",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "default",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "devNull",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "endianness",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "freemem",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "getPriority",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "homedir",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "hostname",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "loadavg",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "machine",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "networkInterfaces",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "platform",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "release",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "setPriority",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "tmpdir",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "totalmem",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "type",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "uptime",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "userInfo",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "version",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "Symbol(Symbol.toStringTag)",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": false
+          }
+        ]
+      },
+      "defaultIdentity": true,
+      "memberIdentity": true
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_NATIVE_RUNTIME_WITHOUT_RESET",
+    "value": {
+      "value": 73,
+      "sameOriginal": true,
+      "calls": 1,
+      "releasedIdentity": true,
+      "replaced": 91,
+      "replacedIdentity": false,
+      "held": 73,
+      "finalIdentity": true
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_NATIVE_RUNTIME_FAILURE",
+    "value": {
+      "calls": 3,
+      "firstIsFailure": false,
+      "sameSecond": false,
+      "sameAfterReset": false,
+      "error": {
+        "name": "Error",
+        "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+        "causeName": "Error",
+        "causeMessage": "ws2 native runtime factory failure",
+        "causeIsFailure": true
+      },
+      "releasedIdentity": false,
+      "releasedShape": {
+        "nativeBrand": false,
+        "keys": [
+          "EOL",
+          "arch",
+          "availableParallelism",
+          "constants",
+          "cpus",
+          "default",
+          "devNull",
+          "endianness",
+          "freemem",
+          "getPriority",
+          "homedir",
+          "hostname",
+          "loadavg",
+          "machine",
+          "networkInterfaces",
+          "platform",
+          "release",
+          "setPriority",
+          "tmpdir",
+          "totalmem",
+          "type",
+          "uptime",
+          "userInfo",
+          "version",
+          "Symbol(Symbol.toStringTag)"
+        ],
+        "prototypeNull": true,
+        "tag": "Module",
+        "extensible": false,
+        "sealed": true,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "EOL",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "arch",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "availableParallelism",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "constants",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "cpus",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "default",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "devNull",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "endianness",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "freemem",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "getPriority",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "homedir",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "hostname",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "loadavg",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "machine",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "networkInterfaces",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "platform",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "release",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "setPriority",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "tmpdir",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "totalmem",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "type",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "uptime",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "userInfo",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "version",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "Symbol(Symbol.toStringTag)",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": false
+          }
+        ]
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_NATIVE_RUNTIME_UNUSED",
+    "value": {
+      "evaluations": 0,
+      "factories": 0
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_NATIVE_RUNTIME_PENDING_RESOLVE",
+    "value": {
+      "twoFactoriesEntered": false,
+      "callsWhileHeld": 1,
+      "calls": 1,
+      "secondOriginalIdentity": true,
+      "secondOriginalBrand": false,
+      "secondOriginalDefault": true,
+      "secondOriginalShape": {
+        "nativeBrand": false,
+        "keys": [
+          "EOL",
+          "arch",
+          "availableParallelism",
+          "constants",
+          "cpus",
+          "default",
+          "devNull",
+          "endianness",
+          "freemem",
+          "getPriority",
+          "homedir",
+          "hostname",
+          "loadavg",
+          "machine",
+          "networkInterfaces",
+          "platform",
+          "release",
+          "setPriority",
+          "tmpdir",
+          "totalmem",
+          "type",
+          "uptime",
+          "userInfo",
+          "version",
+          "Symbol(Symbol.toStringTag)"
+        ],
+        "prototypeNull": true,
+        "tag": "Module",
+        "extensible": false,
+        "sealed": true,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "EOL",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "arch",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "availableParallelism",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "constants",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "cpus",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "default",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "devNull",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "endianness",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "freemem",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "getPriority",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "homedir",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "hostname",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "loadavg",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "machine",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "networkInterfaces",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "platform",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "release",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "setPriority",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "tmpdir",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "totalmem",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "type",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "uptime",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "userInfo",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "version",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "Symbol(Symbol.toStringTag)",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": false
+          }
+        ]
+      },
+      "firstIndex": 1,
+      "secondIndex": null,
+      "sameValues": false,
+      "sameErrors": true,
+      "firstError": null,
+      "secondError": null,
+      "laterIndex": 1,
+      "laterIsFirst": true,
+      "laterIsSecond": false,
+      "laterError": null,
+      "laterErrorIsFirst": true,
+      "resetIndex": 1,
+      "resetIsLater": true,
+      "resetError": null,
+      "resetErrorIsLater": true
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_NATIVE_RUNTIME_PENDING_REJECT",
+    "value": {
+      "twoFactoriesEntered": false,
+      "callsWhileHeld": 1,
+      "calls": 3,
+      "secondOriginalIdentity": true,
+      "secondOriginalBrand": false,
+      "secondOriginalDefault": true,
+      "secondOriginalShape": {
+        "nativeBrand": false,
+        "keys": [
+          "EOL",
+          "arch",
+          "availableParallelism",
+          "constants",
+          "cpus",
+          "default",
+          "devNull",
+          "endianness",
+          "freemem",
+          "getPriority",
+          "homedir",
+          "hostname",
+          "loadavg",
+          "machine",
+          "networkInterfaces",
+          "platform",
+          "release",
+          "setPriority",
+          "tmpdir",
+          "totalmem",
+          "type",
+          "uptime",
+          "userInfo",
+          "version",
+          "Symbol(Symbol.toStringTag)"
+        ],
+        "prototypeNull": true,
+        "tag": "Module",
+        "extensible": false,
+        "sealed": true,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "EOL",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "arch",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "availableParallelism",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "constants",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "cpus",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "default",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "devNull",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "endianness",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "freemem",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "getPriority",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "homedir",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "hostname",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "loadavg",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "machine",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "networkInterfaces",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "platform",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "release",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "setPriority",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "tmpdir",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "totalmem",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "type",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "uptime",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "userInfo",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "version",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": false
+          },
+          {
+            "key": "Symbol(Symbol.toStringTag)",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": false
+          }
+        ]
+      },
+      "firstIndex": null,
+      "secondIndex": null,
+      "sameValues": false,
+      "sameErrors": false,
+      "firstError": {
+        "name": "Error",
+        "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+        "cause": true
+      },
+      "secondError": null,
+      "laterIndex": null,
+      "laterIsFirst": true,
+      "laterIsSecond": false,
+      "laterError": {
+        "name": "Error",
+        "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+        "cause": true
+      },
+      "laterErrorIsFirst": false,
+      "resetIndex": null,
+      "resetIsLater": true,
+      "resetError": {
+        "name": "Error",
+        "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+        "cause": true
+      },
+      "resetErrorIsLater": false
+    }
+  }
+]

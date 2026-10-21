@@ -538,9 +538,6 @@ async fn validate_client_graph(
 
 #[turbo_tasks::function]
 pub(crate) async fn context(project: ResolvedVc<Project>) -> Result<Vc<ModuleAssetContext>> {
-    if !project.next_mode().await?.is_development() {
-        bail!("Browser Mode currently requires one-shot development client entries");
-    }
     let config = project.next_config();
     if !config.experimental_swc_plugins().await?.is_empty()
         || !config
@@ -653,13 +650,25 @@ pub(crate) struct ClientTestEndpoint {
     pub project: ResolvedVc<Project>,
     pub path: FileSystemPath,
     pub id: RcStr,
+    pub setup_paths: Vec<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
 impl ClientTestEndpoint {
     #[turbo_tasks::function]
-    pub fn new(project: ResolvedVc<Project>, path: FileSystemPath, id: RcStr) -> Vc<Self> {
-        Self { project, path, id }.cell()
+    pub fn new(
+        project: ResolvedVc<Project>,
+        path: FileSystemPath,
+        id: RcStr,
+        setup_paths: Vec<FileSystemPath>,
+    ) -> Vc<Self> {
+        Self {
+            project,
+            path,
+            id,
+            setup_paths,
+        }
+        .cell()
     }
 
     #[turbo_tasks::function]
@@ -710,11 +719,48 @@ impl ClientTestEndpoint {
         } else {
             ""
         };
+        let mut setup_loads = String::new();
+        for (index, path) in this.setup_paths.iter().enumerate() {
+            let name = format!("INNER_TEST_SETUP_{index}");
+            let module = prepared
+                .setup_context
+                .process(
+                    Vc::upcast(FileSource::new(path.clone())),
+                    ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
+                )
+                .module()
+                .to_resolved()
+                .await?;
+            let source = crate::testing::setup_module_source(path.clone()).await?;
+            let wrapper = prepared
+                .setup_context
+                .process(
+                    *source,
+                    ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
+                        rcstr!("INNER_TEST_SETUP_SUBJECT") => module
+                    })),
+                )
+                .module()
+                .to_resolved()
+                .await?;
+            internal_assets.insert(name.clone().into(), wrapper);
+            setup_loads.push_str(&format!(
+                "await require(/*turbopackChunkingType: shared*/ '{name}');\n"
+            ));
+        }
+        let setup_runtime = if setup_loads.is_empty() {
+            String::new()
+        } else {
+            format!("loadSetupModules = async () => {{\n{setup_loads}}};")
+        };
         let source = load_next_js_template_no_imports(
             "client-test.js",
             this.project.project_path().owned().await?,
             &[("VAR_TEST_MODULE", "INNER_TEST_MODULE")],
-            &[("__next_test_client_mocks__", mock_runtime)],
+            &[
+                ("__next_test_client_mocks__", mock_runtime),
+                ("__next_test_client_setup__", setup_runtime.as_str()),
+            ],
             &[],
         )
         .await?;
@@ -757,9 +803,32 @@ impl ClientTestEndpoint {
         let this = self.await?;
         let group = self.chunk_group().await?;
         let client_root = this.project.client_relative_path().owned().await?;
+        let mut assets = group.assets.owned().await?;
+        if let Some(params) = &group.chunk_group_bootstrap_params {
+            // Shared-runtime production entries normally inline these params in the app HTML.
+            // The isolated test document instead loads an owned script before the final runtime,
+            // preserving the ordinary evaluated entry graph and its production chunk options.
+            let bootstrap = VirtualOutputAsset::new(
+                client_root.join(&format!("static/chunks/next-test-{}.bootstrap.js", this.id))?,
+                AssetContent::file(
+                    FileContent::Content(File::from(format!(
+                        "(globalThis.TURBOPACK || (globalThis.TURBOPACK = \
+                         [])).push([document.currentScript,{params}]);"
+                    )))
+                    .cell(),
+                ),
+            )
+            .to_resolved()
+            .await?;
+            let runtime_index = assets
+                .len()
+                .checked_sub(1)
+                .context("Shared Browser runtime asset is missing")?;
+            assets.insert(runtime_index, ResolvedVc::upcast(bootstrap));
+        }
         let mut scripts = Vec::new();
         let mut styles = Vec::new();
-        for asset in group.assets.await?.iter() {
+        for asset in assets.iter() {
             let path = asset.path().await?;
             let relative = client_root
                 .get_path_to(&path)
@@ -777,7 +846,6 @@ impl ClientTestEndpoint {
         }
         let metadata =
             serde_json::json!({"version":1,"asyncScope":"promise-continuations-v1","creatorScope":"synchronous-source-v1","creatorPromiseRoute":"native-engine-v1","scripts":scripts,"styles":styles}).to_string();
-        let mut assets = group.assets.owned().await?;
         assets.extend(group.referenced_assets.await?.iter().copied());
         let mut generated_scripts = Vec::new();
         let mut generated_paths = HashSet::new();
@@ -1049,6 +1117,114 @@ mod tests {
             }
         }
         selected.context("Expected the actual JavaScript module rule")
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn setup_namespace_wrapper_retains_the_original_authored_context() -> Result<()> {
+        #[turbo_tasks::function(operation, root)]
+        async fn operation(disk_root: turbo_rcstr::RcStr) -> Result<()> {
+            let root = DiskFileSystem::new(rcstr!("browser-setup-wrapper"), Vc::cell(disk_root))
+                .root()
+                .owned()
+                .await?;
+            let path = root.join("nested/setup.mjs")?;
+            let nested = ModuleOptionsContext {
+                module_fragments_enabled: true,
+                follow_reexports: true,
+                ecmascript: EcmascriptOptionsContext {
+                    lower_async_to_generator: true,
+                    browser_creator_scope: true,
+                    ..Default::default()
+                },
+                ..Default::default()
+            }
+            .resolved_cell();
+            let options = ModuleOptionsContext {
+                module_fragments_enabled: true,
+                follow_reexports: true,
+                rules: vec![(ContextCondition::InPath(root.join("nested")?), nested)],
+                ..Default::default()
+            }
+            .resolved_cell();
+            let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
+                NodeJsEnvironment::default().resolved_cell(),
+            ));
+            let context = ModuleAssetContext::new(
+                TransitionOptions::default().cell(),
+                CompileTimeInfo::new(environment),
+                *options,
+                ResolveOptionsContext::default().cell(),
+                Layer::new(rcstr!("next-test-client")),
+            )
+            .to_resolved()
+            .await?;
+            let authored = context
+                .process(
+                    Vc::upcast(FileSource::new(path.clone())),
+                    ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
+                )
+                .module()
+                .to_resolved()
+                .await?;
+            let original = full_client_module(authored)
+                .await?
+                .context("Authored module")?;
+            let source = crate::testing::setup_module_source(path.clone()).await?;
+            let wrapper = context
+                .process(
+                    *source,
+                    ReferenceType::Internal(ResolvedVc::cell(turbo_tasks::fxindexmap! {
+                        rcstr!("INNER_TEST_SETUP_SUBJECT") => authored
+                    })),
+                )
+                .module()
+                .to_resolved()
+                .await?;
+            let wrapper_module = full_client_module(wrapper)
+                .await?
+                .context("Whole synthetic wrapper")?;
+            let wrapper_options = wrapper_module.await?.options.await?;
+            assert!(wrapper_options.module_fragments_enabled);
+            assert!(wrapper_options.follow_reexports);
+            assert!(wrapper_options.lower_async_to_generator);
+            assert!(wrapper_options.browser_creator_scope);
+            assert!(original.await?.options.await?.module_fragments_enabled);
+            assert!(original.await?.options.await?.follow_reexports);
+            assert!(options.await?.module_fragments_enabled);
+            assert!(options.await?.follow_reexports);
+            assert!(nested.await?.module_fragments_enabled);
+            assert!(nested.await?.follow_reexports);
+            let original_context: ResolvedVc<Box<dyn AssetContext>> = ResolvedVc::upcast(context);
+            assert_eq!(original.await?.asset_context, original_context);
+            assert_eq!(wrapper_module.await?.asset_context, original_context);
+            assert_eq!(
+                wrapper_module
+                    .await?
+                    .inner_assets
+                    .context("Internal setup reference")?
+                    .await?
+                    .get("INNER_TEST_SETUP_SUBJECT"),
+                Some(&authored),
+                "Wrapper must retain the exact processed setup"
+            );
+            Ok(())
+        }
+        let tasks = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        let directory = tempfile::tempdir()?;
+        std::fs::create_dir(directory.path().join("nested"))?;
+        std::fs::write(
+            directory.path().join("nested/setup.mjs"),
+            "export const value = 1;\n",
+        )?;
+        let disk_root = directory.path().canonicalize()?;
+        let disk_root = disk_root.to_str().context("UTF-8 temporary path")?.into();
+        tasks
+            .run_once(async move { operation(disk_root).read_strongly_consistent().await })
+            .await?;
+        Ok(())
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

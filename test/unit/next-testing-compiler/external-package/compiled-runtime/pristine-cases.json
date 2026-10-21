@@ -1,0 +1,22 @@
+[
+  {
+    "name": "compiled runtime factories retry failed user evaluations with fresh wrappers and exact cause",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "compiled runtime pending RESOLVE consumers retain original and registration identities",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "compiled runtime pending REJECT consumers retain original and registration identities",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "compiled pending factory imports a cold original without duplicate factory evaluation",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

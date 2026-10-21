@@ -1,0 +1,7 @@
+[
+  {
+    "name": "native ESM static and runtime registrations retain authored ordering",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

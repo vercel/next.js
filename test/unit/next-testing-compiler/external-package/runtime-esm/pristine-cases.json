@@ -1,0 +1,32 @@
+[
+  {
+    "name": "runtime native esm registration unregistration and reset identity",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "runtime native esm registration without reset",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "runtime native esm caches a failed factory across reset and can unregister",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "runtime native unused registration retains compiler IDs without evaluating originals",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "runtime native esm pending RESOLVE imports and later cache",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "runtime native esm pending REJECT imports and later cache",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

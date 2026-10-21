@@ -11,7 +11,8 @@ export async function planSourceSelection(
   projects: DiscoveredTestProject[],
   certifiedTestConfig: boolean,
   signal: AbortSignal,
-  allocateArtifact: NonNullable<TestCompilerSessionOptions['allocateArtifact']>
+  allocateArtifact: NonNullable<TestCompilerSessionOptions['allocateArtifact']>,
+  retainedGlobalSetup = false
 ): Promise<SourceSelectionPlan> {
   const provenance = await beginConfigProvenance(async (source, file) => {
     const swc =
@@ -28,9 +29,15 @@ export async function planSourceSelection(
       signal.throwIfAborted()
       const supported =
         project.profile.environment === 'node' &&
-        project.profile.mode === 'development' &&
         project.isolate !== false &&
-        !project.globalSetup?.length &&
+        (!project.globalSetup?.length ||
+          (retainedGlobalSetup &&
+            projects.length === 1 &&
+            project.profile.mode === 'development' &&
+            project.profile.runtime === 'nodejs' &&
+            project.profile.bundler === 'turbopack' &&
+            project.profile.route === undefined &&
+            !project.customCoverage)) &&
         !project.executionEnvironment &&
         !project.entries.some(
           (entry) => entry.typecheck || entry.executionEnvironment
@@ -41,7 +48,7 @@ export async function planSourceSelection(
           >
         | undefined
       if (supported && project.entries.length) {
-        ;(process.env as any).NODE_ENV = 'development'
+        ;(process.env as any).NODE_ENV = project.profile.mode
         const { createTestCompilerSession } = await import(
           '../compiler/index.js'
         )

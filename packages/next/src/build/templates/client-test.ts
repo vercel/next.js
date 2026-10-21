@@ -3,9 +3,11 @@ const { startClientTest } =
   require('next/dist/experimental/testing/client/runtime') as typeof import('../../experimental/testing/client/runtime')
 
 let moduleMocks: Parameters<typeof startClientTest>[1]
+let loadSetupModules: Parameters<typeof startClientTest>[4]
 declare const __turbopack_context__: import('../../experimental/testing/runner/imports').TurbopackImportContext
 
 // INJECT_RAW:__next_test_client_mocks__
+// INJECT_RAW:__next_test_client_setup__
 
 void startClientTest(
   () => {
@@ -25,5 +27,6 @@ void startClientTest(
       import.meta as unknown as {
         env: Record<string, string | boolean | undefined>
       }
-    ).env
+    ).env,
+  loadSetupModules
 )

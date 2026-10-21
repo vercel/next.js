@@ -1,0 +1,121 @@
+{
+  "file": "/private/tmp/next-testing-parallel-20261019/coverage-jsx167/.next-test-jsx168-private03-return-development/subject.tsx",
+  "observed": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-jsx167/.next-test-jsx168-private03-return-development/subject.tsx",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 5,
+          "column": 2
+        },
+        "end": {
+          "line": 8,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "MultilineReturn",
+        "decl": {
+          "start": {
+            "line": 4,
+            "column": 16
+          },
+          "end": {
+            "line": 4,
+            "column": 32
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 4,
+            "column": 47
+          },
+          "end": {
+            "line": 10,
+            "column": null
+          }
+        },
+        "line": 4
+      }
+    },
+    "branchMap": {},
+    "s": {
+      "0": 2
+    },
+    "f": {
+      "0": 2
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 1,
+      "lastStatement": 1,
+      "seen": {
+        "f:4:16:4:32": 0,
+        "s:5:2:8:Infinity": 0
+      },
+      "fnNames": {}
+    }
+  },
+  "model": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-jsx167/.next-test-jsx168-private03-return-development/subject.tsx",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 5,
+          "column": 2
+        },
+        "end": {
+          "line": 9,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "MultilineReturn",
+        "decl": {
+          "start": {
+            "line": 4,
+            "column": 16
+          },
+          "end": {
+            "line": 4,
+            "column": 31
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 4,
+            "column": 69
+          },
+          "end": {
+            "line": 10,
+            "column": null
+          }
+        },
+        "line": 4
+      }
+    },
+    "branchMap": {},
+    "s": {
+      "0": 0
+    },
+    "f": {
+      "0": 0
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 1,
+      "lastStatement": 1,
+      "seen": {
+        "f:4:16:4:31": 0,
+        "s:5:2:9:Infinity": 0
+      },
+      "fnNames": {}
+    }
+  }
+}

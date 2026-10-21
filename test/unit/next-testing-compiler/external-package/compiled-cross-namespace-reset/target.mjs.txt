@@ -1,0 +1,1 @@
+import {peek,read as readPeer} from './peer.mjs';globalThis.__ws2NsRoot=(globalThis.__ws2NsRoot??0)+1;export const evaluation=globalThis.__ws2NsRoot;export let value=0;export function bump(){return ++value};export function read(){return value};export function peerRead(){return readPeer()};export function peekRoot(){return peek()};

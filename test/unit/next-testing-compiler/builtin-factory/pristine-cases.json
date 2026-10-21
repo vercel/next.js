@@ -1,0 +1,17 @@
+[
+  {
+    "name": "mocks a real bare Node builtin across graph consumers",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "mocks a prefixed Node builtin with bare and helper consumers",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "loads a real builtin original lazily through an explicit async factory",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

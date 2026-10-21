@@ -1,0 +1,3 @@
+globalThis.__ws2CallableAutomaticCounts??={};globalThis.__ws2CallableAutomaticCounts["class"]=(globalThis.__ws2CallableAutomaticCounts["class"]||0)+1;
+const callable=class Example {own(input){return this.label+':'+input}};
+callable.label='root';callable.method=function member(){return this.label};module.exports=callable;

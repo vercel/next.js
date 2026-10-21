@@ -17,6 +17,7 @@ import { createClientAssetReader } from './assets'
 import { createClientSnapshotAccess } from './snapshot-access'
 import { createClientSourceMapResolver } from './source-maps'
 import { mapClientDiagnosticStack } from './helper-diagnostics'
+import { ClientBrowserActionError } from './action-error'
 
 type Completion = Extract<ClientMessage, { type: 'complete' }>
 function record(value: unknown): value is Record<string, unknown> {
@@ -41,7 +42,10 @@ export async function createClientServer(options: {
     ClientConfiguration,
     'authorization' | 'rpcURL' | 'sourceMaps'
   >
-  onBrowserCommand?(command: ClientBrowserCommand): Promise<unknown>
+  onBrowserCommand?(
+    command: ClientBrowserCommand,
+    admit: () => void
+  ): Promise<unknown>
   onMessage(
     message: Exclude<ClientMessage, { type: 'snapshot' | 'browser-command' }>
   ): unknown | Promise<unknown>
@@ -70,6 +74,7 @@ export async function createClientServer(options: {
   let origin = '',
     closing = false,
     busy = false,
+    nativeAction = false,
     sequence = 0,
     terminal: unknown,
     completed = false
@@ -124,7 +129,17 @@ export async function createClientServer(options: {
         const assetURL = (file: string) =>
           `/_next/${file.split('/').map(encodeURIComponent).join('/')}`
         response.end(
-          `<!doctype html><html><head>${artifact.client.styles.map((file) => `<link rel="stylesheet" href="${assetURL(file)}">`).join('')}</head><body>${artifact.client.scripts.map((file) => `<script defer src="${assetURL(file)}"></script>`).join('')}</body></html>`
+          `<!doctype html><html><head><style>
+html {
+  padding: 0;
+  margin: 0;
+}
+body {
+  padding: 0;
+  margin: 0;
+  min-height: 100vh;
+}
+</style>${artifact.client.styles.map((file) => `<link rel="stylesheet" href="${assetURL(file)}">`).join('')}</head><body>${artifact.client.scripts.map((file) => `<script defer src="${assetURL(file)}"></script>`).join('')}</body></html>`
         )
         return
       }
@@ -191,6 +206,8 @@ export async function createClientServer(options: {
           'Browser Mode RPC arrived concurrently or after completion.'
         )
       busy = true
+      let ownsAdmission = true,
+        ownsNativeAction = false
       try {
         const raw = await body(request)
         if (!record(raw))
@@ -201,6 +218,17 @@ export async function createClientServer(options: {
             'Duplicate or out-of-order Browser Mode transport message.'
           )
         const message = raw as unknown as ClientMessage
+        if (
+          nativeAction &&
+          message.type !== 'output' &&
+          !(
+            configuration.captureTaskResults === true &&
+            message.type === 'task-update'
+          )
+        )
+          throw new Error(
+            'Only Browser console output or captured task updates may pass a pending native action.'
+          )
         let result: unknown = null
         if (message.type === 'snapshot')
           result = await snapshots.request(message.method, message.args)
@@ -234,7 +262,22 @@ export async function createClientServer(options: {
         } else if (message.type === 'browser-command') {
           if (!options.onBrowserCommand)
             throw new Error('Browser Mode commands are unavailable.')
-          result = await options.onBrowserCommand(message.command)
+          try {
+            result = await options.onBrowserCommand(message.command, () => {
+              if (!ownsAdmission || ownsNativeAction || nativeAction)
+                throw new Error('Invalid Browser Mode native action admission.')
+              response.setHeader('Content-Type', 'application/json')
+              response.flushHeaders()
+              ownsNativeAction = nativeAction = true
+              ownsAdmission = busy = false
+            })
+          } catch (error) {
+            if (!(error instanceof ClientBrowserActionError)) throw error
+            if (!response.headersSent)
+              response.setHeader('Content-Type', 'application/json')
+            response.end(JSON.stringify({ actionError: error.actionError }))
+            return
+          }
         } else {
           if (
             ![
@@ -242,6 +285,7 @@ export async function createClientServer(options: {
               'output',
               'case-start',
               'case-end',
+              'task-update',
               'suite-end',
               'failure',
               'complete',
@@ -256,10 +300,12 @@ export async function createClientServer(options: {
             response.once('finish', () => resolveComplete(message))
           }
         }
-        response.setHeader('Content-Type', 'application/json')
+        if (!response.headersSent)
+          response.setHeader('Content-Type', 'application/json')
         response.end(JSON.stringify({ value: result }))
       } finally {
-        busy = false
+        if (ownsAdmission) busy = false
+        if (ownsNativeAction) nativeAction = false
       }
     } catch (error) {
       fail(error)

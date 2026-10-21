@@ -229,6 +229,7 @@ async function browserSelection() {
     takeSnapshotUpdates: () => [],
   }
   runtimeReplace('../runner', {
+    getConsoleTask: () => ({ taskId: 'globals' }),
     initializeTestFile: (options) => {
       initialized = options
       return file
@@ -241,6 +242,7 @@ async function browserSelection() {
     createClientSourceMapResolver: () => ({ mapLocation: (value) => value }),
   })
   runtimeReplace('./browser-context', {
+    cleanupBrowserKeyboard() {},
     initializeBrowserContext: () => ({
       install() {},
       dispose: () => trace.push('context'),

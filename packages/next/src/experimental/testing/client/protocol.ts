@@ -1,3 +1,4 @@
+import type { ReporterTaskSnapshot } from '../reporting/live-tasks'
 import type { RunnerCaseResult, RunnerSuiteResult } from '../runner/lifecycle'
 import type { FakeTimerOptions } from '../assertions/utilities'
 import type { ClientDeclaration } from './collection'
@@ -30,11 +31,13 @@ export interface ClientConfiguration extends ClientIdentity {
   authorization: string
   rpcURL: string
   filePath: string
+  projectName?: string
   sourceHash: string
   projectDir: string
   snapshotUpdateMode: SnapshotUpdateMode
   testNamePattern?: { source: string; flags: string }
   allowOnly?: boolean
+  captureTaskResults?: boolean
   testTimeout: number
   hookTimeout: number
   retry?: number
@@ -53,8 +56,16 @@ export interface ClientConfiguration extends ClientIdentity {
 export interface ClientBrowserCommand {
   element: string
   method:
+    | 'type'
+    | 'keyboard'
+    | 'keyboardCleanup'
+    | 'wheel'
+    | 'tab'
+    | 'dragAndDrop'
     | 'click'
     | 'dblClick'
+    | 'tripleClick'
+    | 'unhover'
     | 'hover'
     | 'fill'
     | 'clear'
@@ -63,7 +74,16 @@ export interface ClientBrowserCommand {
   args: unknown[]
 }
 export type ClientMessage = ClientIdentity & { sequence: number } & (
-    | { type: 'output'; stream: 'stdout' | 'stderr'; text: string }
+    | {
+        type: 'output'
+        stream: 'stdout' | 'stderr'
+        text: string
+        time?: number
+        console?: Extract<
+          import('../reporting/events').ResultEvent,
+          { type: 'output' }
+        >['console']
+      }
     | {
         type: 'snapshot'
         method: ClientSnapshotMethod
@@ -72,6 +92,7 @@ export type ClientMessage = ClientIdentity & { sequence: number } & (
     | {
         type: 'collected'
         declarations: ClientDeclaration[]
+        taskTree?: ReporterTaskSnapshot
       }
     | {
         type: 'case-start'
@@ -92,7 +113,16 @@ export type ClientMessage = ClientIdentity & { sequence: number } & (
         artifact: TestArtifact
       }
     | { type: 'case-end'; result: RunnerCaseResult }
-    | { type: 'suite-end'; result: RunnerSuiteResult }
+    | {
+        type: 'task-update'
+        caseResults: RunnerCaseResult[]
+        taskTree: ReporterTaskSnapshot
+        taskUpdateIds: string[]
+      }
+    | {
+        type: 'suite-end'
+        result: RunnerSuiteResult
+      }
     | { type: 'failure'; error: unknown }
     | {
         type: 'complete'

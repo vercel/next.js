@@ -1,0 +1,15 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_EXTERNAL_NATIVE_OWNERSHIP_NO_RESET",
+    "value": {
+      "calls": [1, 1, 1],
+      "values": [73, 81, 91],
+      "actualIdentity": [true, true, true],
+      "staticIdentity": [true, true, true],
+      "mockIdentity": [true, true, true],
+      "releasedIdentity": [true, true, true],
+      "heldValues": [19, 31, 73, 81, 91]
+    }
+  }
+]

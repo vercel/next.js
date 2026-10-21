@@ -1,0 +1,7 @@
+[
+  {
+    "name": "observe actual dependency-started replacement before and after old completion",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

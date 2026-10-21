@@ -1,0 +1,35 @@
+[
+  {
+    "stream": "stdout",
+    "value": {
+      "name": "object",
+      "cached": true,
+      "namespaceChanged": true,
+      "defaultChanged": true,
+      "held": 1,
+      "fresh": 2,
+      "value": 17,
+      "fluent": true
+    }
+  },
+  {
+    "stream": "stdout",
+    "value": {
+      "name": "callable",
+      "changed": true,
+      "held": 1,
+      "fresh": 2
+    }
+  },
+  {
+    "stream": "stdout",
+    "value": {
+      "name": "promise",
+      "namespaceChanged": true,
+      "defaultChanged": true,
+      "held": "promise-1",
+      "fresh": "promise-2",
+      "evaluations": 2
+    }
+  }
+]

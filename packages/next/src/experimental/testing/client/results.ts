@@ -1,3 +1,4 @@
+import type { ReporterTaskSnapshot } from '../reporting/live-tasks'
 import { basename, dirname, join } from 'node:path'
 import assert from 'node:assert'
 import type {
@@ -96,6 +97,7 @@ export function createClientResultCollector(
   const attemptResults: RunnerCaseResult[] = []
   const startedAttempts = new Set<string>()
   const completedCases = new Set<string>()
+  const logicalResults = new Set<string>()
   let latestCase: string | undefined
   const enterCase = (id: string) => {
     if (latestCase !== undefined && latestCase !== id)
@@ -154,12 +156,132 @@ export function createClientResultCollector(
         )
       )
     })
+  function reporterTaskTree(rootSnapshot: unknown): ReporterTaskSnapshot {
+    const invalid = () => new Error('Invalid Browser Mode reporter task tree.')
+    if (!declarations || !record(rootSnapshot)) throw invalid()
+    const visited = new Set<string>()
+    const filename = basename(artifact.client.sourceFile)
+    function visit(value: unknown, parentId: string | null, index = 0) {
+      if (!record(value) || typeof value.id !== 'string') throw invalid()
+      const suite = declarations!.suites.get(value.id)
+      const test = declarations!.cases.get(value.id)
+      const root = value.id === artifact.entryId
+      const declaredParent = suite?.parentId ?? test?.suiteId ?? null
+      const name = root ? filename : (suite?.name ?? test?.testName)
+      const fullTestName = root
+        ? undefined
+        : suite
+          ? [...suite.ancestors.map((parent) => parent.name), suite.name]
+              .filter(Boolean)
+              .join(' > ')
+          : test?.name
+      if (
+        (!suite && !test) ||
+        visited.has(value.id) ||
+        declaredParent !== parentId ||
+        (!root && value.id !== `${parentId}/${index}`) ||
+        value.type !== (suite ? 'suite' : 'test') ||
+        value.name !== name ||
+        value.fullTestName !== fullTestName ||
+        value.fullName !==
+          [filename, fullTestName].filter(Boolean).join(' > ') ||
+        !['run', 'skip', 'todo', 'only', 'queued'].includes(
+          String(value.mode)
+        ) ||
+        !record(value.meta) ||
+        !Array.isArray(value.tags) ||
+        !value.tags.every((tag) => typeof tag === 'string') ||
+        ['each', 'concurrent', 'shuffle', 'fails'].some(
+          (key) => value[key] !== undefined && typeof value[key] !== 'boolean'
+        ) ||
+        ['repeats', 'timeout'].some(
+          (key) => value[key] !== undefined && !duration(value[key])
+        ) ||
+        (value.retry !== undefined &&
+          !duration(value.retry) &&
+          !record(value.retry)) ||
+        (root
+          ? value.filepath !== artifact.client.sourceFile ||
+            typeof value.projectName !== 'string'
+          : value.filepath !== undefined || value.projectName !== undefined) ||
+        Object.keys(value).some(
+          (key) =>
+            ![
+              'id',
+              'type',
+              'name',
+              'fullName',
+              'fullTestName',
+              'mode',
+              'meta',
+              'tags',
+              'each',
+              'concurrent',
+              'shuffle',
+              'retry',
+              'repeats',
+              'fails',
+              'timeout',
+              'result',
+              'tasks',
+              'annotations',
+              'artifacts',
+              'filepath',
+              'projectName',
+            ].includes(key)
+        )
+      )
+        throw invalid()
+      visited.add(value.id)
+      if (value.result !== undefined) {
+        const result = value.result
+        if (
+          !record(result) ||
+          !['run', 'pass', 'fail', 'skip', 'only', 'todo', 'queued'].includes(
+            String(result.state)
+          ) ||
+          (result.duration !== undefined && !duration(result.duration)) ||
+          (result.errors !== undefined && !Array.isArray(result.errors))
+        )
+          throw invalid()
+      }
+      if (suite) {
+        if (
+          !Array.isArray(value.tasks) ||
+          value.annotations !== undefined ||
+          value.artifacts !== undefined
+        )
+          throw invalid()
+        value.tasks.forEach((task, childIndex) =>
+          visit(task, value.id as string, childIndex)
+        )
+      } else if (
+        value.tasks !== undefined ||
+        (value.annotations !== undefined &&
+          !Array.isArray(value.annotations)) ||
+        (value.artifacts !== undefined && !Array.isArray(value.artifacts))
+      )
+        throw invalid()
+    }
+    visit(rootSnapshot, null)
+    if (visited.size !== declarations.cases.size + declarations.suites.size)
+      throw invalid()
+    return rootSnapshot as unknown as ReporterTaskSnapshot
+  }
   // Unstarted mode changes remain quarantined until the failed ancestor suite
   // that authorized them arrives. They can never become invented start events.
   const visibleEvents = () =>
     events.filter((value) => {
       if (value.type === 'case-end' && blockedCases.has(value.caseId))
         return blocked(caseAncestors(value.caseId))
+      if (value.type === 'task-update')
+        return value.taskUpdateIds.every((id) =>
+          blockedCases.has(id)
+            ? blocked(caseAncestors(id))
+            : blockedSuites.has(id)
+              ? blocked(suiteAncestors(id))
+              : true
+        )
       if (value.type === 'suite-end' && blockedSuites.has(value.suiteId))
         return blocked(suiteAncestors(value.suiteId))
       return true
@@ -180,6 +302,17 @@ export function createClientResultCollector(
         artifact.entryId,
         options
       )
+      if (message.taskTree !== undefined && !options.captureTaskResults)
+        throw new Error('Unsolicited Browser Mode collected task tree.')
+      if (options.captureTaskResults) {
+        const taskTree = reporterTaskTree(message.taskTree)
+        event({
+          type: 'file-collected',
+          entryId: artifact.entryId,
+          revision: artifact.revision,
+          taskTree,
+        })
+      }
     } else if (message.type === 'case-start') {
       const context = message.context
       const declared =
@@ -395,6 +528,65 @@ export function createClientResultCollector(
           )
         ),
       })
+    } else if (message.type === 'task-update') {
+      if (
+        !options.captureTaskResults ||
+        !Array.isArray(message.taskUpdateIds) ||
+        !message.taskUpdateIds.length ||
+        new Set(message.taskUpdateIds).size !== message.taskUpdateIds.length ||
+        !message.taskUpdateIds.every(
+          (id) => declarations?.cases.has(id) || declarations?.suites.has(id)
+        ) ||
+        !Array.isArray(message.caseResults)
+      )
+        throw new Error('Invalid or unsolicited Browser Mode task update.')
+      const taskTree = reporterTaskTree(message.taskTree)
+      const batchIds = new Set<string>()
+      const caseResults = message.caseResults.map((result) => {
+        const declared = record(result)
+          ? declarations?.cases.get(result.caseId as string)
+          : undefined
+        const state = declared ? cases.get(declared.id) : undefined
+        const final = declared
+          ? getFinalCaseResults(
+              attemptResults.filter((attempt) => attempt.caseId === declared.id)
+            ).get(declared.id)
+          : undefined
+        if (
+          !declared ||
+          !state?.ended ||
+          logicalResults.has(declared.id) ||
+          batchIds.has(declared.id) ||
+          !message.taskUpdateIds.includes(declared.id) ||
+          !same(result, final)
+        )
+          throw new Error('Invalid Browser Mode logical case result.')
+        batchIds.add(declared.id)
+        return {
+          ...result,
+          entryId: artifact.entryId,
+          revision: artifact.revision,
+          caseId: declared.id,
+          name: declared.name,
+          testName: declared.testName,
+          ancestors: declared.ancestors,
+          errors: result.errors.map((failure) =>
+            diagnostic(
+              failure.error,
+              failure.phase === 'cleanup' ? 'cleanup' : 'runtime'
+            )
+          ),
+        }
+      })
+      for (const id of batchIds) logicalResults.add(id)
+      event({
+        type: 'task-update',
+        entryId: artifact.entryId,
+        revision: artifact.revision,
+        taskTree,
+        taskUpdateIds: message.taskUpdateIds,
+        caseResults,
+      })
     } else if (message.type === 'suite-end') {
       const result = message.result
       const declared =
@@ -508,6 +700,8 @@ export function createClientResultCollector(
         if (
           cases.size !== declarations.cases.size ||
           suites.size !== declarations.suites.size ||
+          (options.captureTaskResults &&
+            logicalResults.size !== declarations.cases.size) ||
           [...blockedCases].some((id) => !blocked(caseAncestors(id))) ||
           [...blockedSuites].some((id) => !blocked(suiteAncestors(id))) ||
           (requiresInterruption && !message.interrupted)

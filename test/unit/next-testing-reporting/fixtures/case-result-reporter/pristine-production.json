@@ -1,0 +1,209 @@
+[
+  {
+    "event": "init"
+  },
+  {
+    "event": "case-result",
+    "test": {
+      "type": "test",
+      "name": "first",
+      "fullName": "observed completion > first",
+      "mode": "run",
+      "tags": [],
+      "meta": {
+        "authored": "first",
+        "finished": true
+      },
+      "result": {
+        "state": "passed"
+      },
+      "annotations": [],
+      "artifacts": []
+    },
+    "module": {
+      "type": "module",
+      "state": "pending",
+      "ok": true,
+      "errors": [],
+      "cases": [
+        {
+          "type": "test",
+          "name": "first",
+          "fullName": "observed completion > first",
+          "mode": "run",
+          "tags": [],
+          "meta": {
+            "authored": "first",
+            "finished": true
+          },
+          "result": {
+            "state": "passed"
+          },
+          "annotations": [],
+          "artifacts": []
+        },
+        {
+          "type": "test",
+          "name": "held second",
+          "fullName": "observed completion > held second",
+          "mode": "run",
+          "tags": [],
+          "meta": {
+            "authored": "second"
+          },
+          "result": {
+            "state": "pending"
+          },
+          "annotations": [],
+          "artifacts": []
+        }
+      ]
+    }
+  },
+  {
+    "event": "case-result",
+    "test": {
+      "type": "test",
+      "name": "held second",
+      "fullName": "observed completion > held second",
+      "mode": "run",
+      "tags": [],
+      "meta": {
+        "authored": "second"
+      },
+      "result": {
+        "state": "passed"
+      },
+      "annotations": [],
+      "artifacts": []
+    },
+    "module": {
+      "type": "module",
+      "state": "passed",
+      "ok": true,
+      "errors": [],
+      "cases": [
+        {
+          "type": "test",
+          "name": "first",
+          "fullName": "observed completion > first",
+          "mode": "run",
+          "tags": [],
+          "meta": {
+            "authored": "first",
+            "finished": true
+          },
+          "result": {
+            "state": "passed"
+          },
+          "annotations": [],
+          "artifacts": []
+        },
+        {
+          "type": "test",
+          "name": "held second",
+          "fullName": "observed completion > held second",
+          "mode": "run",
+          "tags": [],
+          "meta": {
+            "authored": "second"
+          },
+          "result": {
+            "state": "passed"
+          },
+          "annotations": [],
+          "artifacts": []
+        }
+      ]
+    }
+  },
+  {
+    "event": "module-end",
+    "module": {
+      "type": "module",
+      "state": "passed",
+      "ok": true,
+      "errors": [],
+      "cases": [
+        {
+          "type": "test",
+          "name": "first",
+          "fullName": "observed completion > first",
+          "mode": "run",
+          "tags": [],
+          "meta": {
+            "authored": "first",
+            "finished": true
+          },
+          "result": {
+            "state": "passed"
+          },
+          "annotations": [],
+          "artifacts": []
+        },
+        {
+          "type": "test",
+          "name": "held second",
+          "fullName": "observed completion > held second",
+          "mode": "run",
+          "tags": [],
+          "meta": {
+            "authored": "second"
+          },
+          "result": {
+            "state": "passed"
+          },
+          "annotations": [],
+          "artifacts": []
+        }
+      ]
+    }
+  },
+  {
+    "event": "run-end",
+    "reason": "passed",
+    "errors": [],
+    "modules": [
+      {
+        "type": "module",
+        "state": "passed",
+        "ok": true,
+        "errors": [],
+        "cases": [
+          {
+            "type": "test",
+            "name": "first",
+            "fullName": "observed completion > first",
+            "mode": "run",
+            "tags": [],
+            "meta": {
+              "authored": "first",
+              "finished": true
+            },
+            "result": {
+              "state": "passed"
+            },
+            "annotations": [],
+            "artifacts": []
+          },
+          {
+            "type": "test",
+            "name": "held second",
+            "fullName": "observed completion > held second",
+            "mode": "run",
+            "tags": [],
+            "meta": {
+              "authored": "second"
+            },
+            "result": {
+              "state": "passed"
+            },
+            "annotations": [],
+            "artifacts": []
+          }
+        ]
+      }
+    ],
+    "sameActualCaseObjects": [true, true]
+  }
+]

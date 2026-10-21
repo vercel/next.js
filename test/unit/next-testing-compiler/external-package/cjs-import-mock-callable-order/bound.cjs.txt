@@ -1,0 +1,3 @@
+globalThis.__ws2CallableAutomaticCounts??={};globalThis.__ws2CallableAutomaticCounts["bound"]=(globalThis.__ws2CallableAutomaticCounts["bound"]||0)+1;
+function original(input){return this.label+':'+input};const callable=original.bind({label:'bound'});
+callable.label='root';callable.method=function member(){return this.label};module.exports=callable;
