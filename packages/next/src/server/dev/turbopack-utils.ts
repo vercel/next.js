@@ -1,7 +1,5 @@
-import type {
-  ServerFields,
-  SetupOpts,
-} from '../lib/router-utils/setup-dev-bundler'
+import type { SetupOpts } from '../lib/router-utils/setup-dev-bundler'
+import type { DevServerStateUpdate } from './dev-server-state'
 import type {
   Issue,
   TurbopackResult,
@@ -16,7 +14,6 @@ import {
 } from './hot-reloader-types'
 import * as Log from '../../build/output/log'
 import { warnAboutEdgeRuntime } from '../../build/warn-about-edge-runtime'
-import type { PropagateToWorkersField } from '../lib/router-utils/types'
 import type { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
 import type { AppRoute, Entrypoints, PageRoute } from '../../build/swc/types'
 import {
@@ -601,10 +598,7 @@ export function hasEntrypointForKey(
 // hooks only used by the dev server.
 type HandleEntrypointsHooks = {
   handleWrittenEndpoint: HandleWrittenEndpoint
-  propagateServerField: (
-    field: PropagateToWorkersField,
-    args: any
-  ) => Promise<void>
+  updateDevServerState: (update: DevServerStateUpdate) => Promise<void>
   sendHmr: SendHmr
   startBuilding: StartBuilding
   subscribeToChanges: StartChangeSubscription
@@ -617,7 +611,6 @@ type HandleEntrypointsDevOpts = {
   changeSubscriptions: ChangeSubscriptions
   clients: Array<ws>
   clientStates: ClientStateMap
-  serverFields: ServerFields
 
   hooks: HandleEntrypointsHooks
 }
@@ -747,17 +740,13 @@ export async function handleEntrypoints({
       entrypoints: currentEntrypoints,
     })
 
-    dev.serverFields.actualInstrumentationHookFile = '/instrumentation'
-    await dev.hooks.propagateServerField(
-      'actualInstrumentationHookFile',
-      dev.serverFields.actualInstrumentationHookFile
-    )
+    await dev.hooks.updateDevServerState({
+      actualInstrumentationHookFile: '/instrumentation',
+    })
   } else {
-    dev.serverFields.actualInstrumentationHookFile = undefined
-    await dev.hooks.propagateServerField(
-      'actualInstrumentationHookFile',
-      dev.serverFields.actualInstrumentationHookFile
-    )
+    await dev.hooks.updateDevServerState({
+      actualInstrumentationHookFile: undefined,
+    })
   }
 
   if (middleware) {
@@ -782,11 +771,12 @@ export async function handleEntrypoints({
         manifestLoader.getMiddlewareManifest(key)?.middleware['/']
 
       if (dev && middlewareConfig) {
-        dev.serverFields.middleware = {
-          match: null as any,
-          page: '/',
-          matchers: middlewareConfig.matchers,
-        }
+        await dev.hooks.updateDevServerState({
+          middleware: {
+            page: '/',
+            matchers: middlewareConfig.matchers,
+          },
+        })
       }
       finishBuilding()
     }
@@ -804,14 +794,6 @@ export async function handleEntrypoints({
             true
           )
           await processMiddleware()
-          await dev.hooks.propagateServerField(
-            'actualMiddlewareFile',
-            dev.serverFields.actualMiddlewareFile
-          )
-          await dev.hooks.propagateServerField(
-            'middleware',
-            dev.serverFields.middleware
-          )
           manifestLoader.writeManifests({
             devRewrites,
             productionRewrites: undefined,
@@ -834,18 +816,11 @@ export async function handleEntrypoints({
     manifestLoader.deleteMiddlewareManifest(
       getEntryKey('root', 'server', 'middleware')
     )
-    dev.serverFields.actualMiddlewareFile = undefined
-    dev.serverFields.middleware = undefined
+    await dev.hooks.updateDevServerState({
+      actualMiddlewareFile: undefined,
+      middleware: undefined,
+    })
   }
-
-  await dev.hooks.propagateServerField(
-    'actualMiddlewareFile',
-    dev.serverFields.actualMiddlewareFile
-  )
-  await dev.hooks.propagateServerField(
-    'middleware',
-    dev.serverFields.middleware
-  )
 }
 
 async function handleEntrypointsDevCleanup({
