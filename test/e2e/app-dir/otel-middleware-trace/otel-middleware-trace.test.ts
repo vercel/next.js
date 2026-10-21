@@ -164,9 +164,9 @@ describe.each(VARIANTS)(
              │     │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
              │     ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
              │     └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-             ├─ load instrumentation module (Instrumentation.loadModule)
-             ├─ middleware GET (Middleware.execute) {http.target=/page}
-             └─ register instrumentation (Instrumentation.register)"
+             └─ middleware GET (Middleware.execute) {http.target=/page}
+                ├─ load instrumentation module (Instrumentation.loadModule)
+                └─ register instrumentation (Instrumentation.register)"
             `)
           } else {
             expect(tree).toMatchInlineSnapshot(`
@@ -187,19 +187,19 @@ describe.each(VARIANTS)(
         } else if (isNodeMiddleware) {
           expect(tree).toMatchInlineSnapshot(`
            "[trace A] GET (Next.request) {http.target=/page}
-           ├─ load instrumentation module (Instrumentation.loadModule)
            ├─ middleware GET (Middleware.execute) {http.target=/page}
-           ├─ POST /page/page (BaseServer.handleRequest) {http.target=/page}
            │  ├─ load instrumentation module (Instrumentation.loadModule)
-           │  ├─ prepare route module (RouteModule.prepare)
-           │  ├─ register instrumentation (Instrumentation.register)
-           │  └─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-           │     ├─ build component tree (NextNodeServer.createComponentTree)
-           │     │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-           │     │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-           │     ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-           │     └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-           └─ register instrumentation (Instrumentation.register)"
+           │  └─ register instrumentation (Instrumentation.register)
+           └─ POST /page/page (BaseServer.handleRequest) {http.target=/page}
+              ├─ load instrumentation module (Instrumentation.loadModule)
+              ├─ prepare route module (RouteModule.prepare)
+              ├─ register instrumentation (Instrumentation.register)
+              └─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
+                 ├─ build component tree (NextNodeServer.createComponentTree)
+                 │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                 │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                 ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+                 └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)"
           `)
         } else {
           expect(tree).toMatchInlineSnapshot(`
@@ -950,7 +950,12 @@ describe.each(VARIANTS)(
         // span (a Node.js middleware entrypoint). The function serving this
         // route handler also serves `/route-handler`, which an earlier test
         // requested first.
-        expect(tree).toMatchInlineSnapshot()
+        expect(tree).toMatchInlineSnapshot(`
+         "[trace A] [remote]
+         └─ GET /route-handler (BaseServer.handleRequest) {http.target=/route-handler, http.route=/route-handler, next.route=/route-handler, http.status_code=200}
+            ├─ load instrumentation module (Instrumentation.loadModule)
+            └─ register instrumentation (Instrumentation.register)"
+        `)
       } else {
         // `next start` / `next dev` register instrumentation at startup,
         // outside of any request, so the lifecycle spans are roots.
