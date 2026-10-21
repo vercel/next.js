@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto'
 import { nextTestSetup } from 'e2e-utils'
 import { hasErrorToast, retry, waitFor, waitForNoRedbox } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
@@ -128,6 +129,67 @@ describe('app-custom-cache-handler-errors - set throws', () => {
             '\n    at <unknown> ('
         )
       })
+    }
+  })
+})
+
+// This suite checks the configured handler without development's in-memory
+// front handler. The control route and handler must share a server process.
+// @force-gate start
+describe('app-custom-cache-handler-errors - lookup recovery', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    env: { CACHE_HANDLER_THROW_ON: 'retry-get' },
+  })
+
+  it('retries a shared failed lookup and shares its successful fill while the write is pending', async () => {
+    const id = randomUUID()
+    const outputIndex = next.cliOutput.length
+    const control = (action: string) =>
+      next.fetch(`/lookup-retry?id=${id}`, { method: 'POST', body: action })
+    const readState = () =>
+      next.fetch('/lookup-retry?state').then(
+        (response) =>
+          response.json() as Promise<{
+            lookupCount: number
+            writeStarted: boolean
+            writeCompleted: boolean
+            cacheReadsCompleted: boolean
+          }>
+      )
+    await control('fail-lookup-and-hold-write')
+    const rendering = next.fetch(`/lookup-retry?id=${id}`)
+    try {
+      // The retry must resolve before `set()` completes. A lookup count of two
+      // also checks that the initial calls shared the rejected `get()`.
+      await retry(async () => {
+        expect(await readState()).toEqual({
+          lookupCount: 2,
+          writeStarted: true,
+          writeCompleted: false,
+          cacheReadsCompleted: true,
+        })
+      })
+      await control('release-write')
+      const response = await rendering
+      expect(response.status).toBe(200)
+      const body = await response.json()
+      // Both initial calls must reject even though only one `get()` throws.
+      expect(body.failures).toEqual([
+        'expected cache lookup failure',
+        'expected cache lookup failure',
+      ])
+      expect(body.first).toEqual(expect.any(Number))
+      expect(body.second).toBe(body.first)
+      await retry(async () => {
+        expect((await readState()).writeCompleted).toBe(true)
+      })
+      expect(next.cliOutput.slice(outputIndex)).not.toContain(
+        'unhandledRejection'
+      )
+    } finally {
+      await control('release-write')
+      await rendering
     }
   })
 })
