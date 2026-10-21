@@ -149,27 +149,29 @@ describe.each(VARIANTS)(
       if (isNextDeploy) {
         if (renderMode === 'default') {
           expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET /page/page (BaseServer.handleRequest) {http.target=/page}
-           ├─ prepare route module (RouteModule.prepare)
-           └─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-              ├─ build component tree (NextNodeServer.createComponentTree)
-              │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-              │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-              ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-              └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-           [trace B] middleware GET (Middleware.execute) {http.target=/page}"
+           "[trace A] GET (Next.request) {http.target=/page}
+           ├─ GET /page/page (BaseServer.handleRequest) {http.target=/page}
+           │  ├─ prepare route module (RouteModule.prepare)
+           │  └─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
+           │     ├─ build component tree (NextNodeServer.createComponentTree)
+           │     │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+           │     │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+           │     ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+           │     └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
+           └─ middleware GET (Middleware.execute) {http.target=/page}"
           `)
         } else {
           expect(tree).toMatchInlineSnapshot(`
-           "[trace A] middleware GET (Middleware.execute) {http.target=/page}
-           [trace B] POST /page/page (BaseServer.handleRequest) {http.target=/page}
-           ├─ prepare route module (RouteModule.prepare)
-           └─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-              ├─ build component tree (NextNodeServer.createComponentTree)
-              │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-              │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-              ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-              └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)"
+           "[trace A] GET (Next.request) {http.target=/page}
+           ├─ middleware GET (Middleware.execute) {http.target=/page}
+           └─ POST /page/page (BaseServer.handleRequest) {http.target=/page}
+              ├─ prepare route module (RouteModule.prepare)
+              └─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
+                 ├─ build component tree (NextNodeServer.createComponentTree)
+                 │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                 │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                 ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+                 └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)"
           `)
         }
       } else if (renderMode === 'cache components, dev') {
@@ -229,10 +231,11 @@ describe.each(VARIANTS)(
       const tree = await getSpanTree(res, 'json')
       if (isNextDeploy) {
         expect(tree).toMatchInlineSnapshot(`
-         "[trace A] GET /route-handler/route (BaseServer.handleRequest) {http.target=/route-handler}
-         ├─ executing api route (app) /route-handler (AppRouteRouteHandlers.runHandler) {next.route=/route-handler}
-         └─ prepare route module (RouteModule.prepare)
-         [trace B] middleware GET (Middleware.execute) {http.target=/route-handler}"
+         "[trace A] GET (Next.request) {http.target=/route-handler}
+         ├─ GET /route-handler/route (BaseServer.handleRequest) {http.target=/route-handler}
+         │  ├─ executing api route (app) /route-handler (AppRouteRouteHandlers.runHandler) {next.route=/route-handler}
+         │  └─ prepare route module (RouteModule.prepare)
+         └─ middleware GET (Middleware.execute) {http.target=/route-handler}"
         `)
       } else {
         expect(tree).toMatchInlineSnapshot(`
@@ -255,27 +258,29 @@ describe.each(VARIANTS)(
       if (isNextDeploy) {
         if (renderMode === 'default') {
           expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET /page/page (BaseServer.handleRequest) {http.target=/rewrite}
-           ├─ prepare route module (RouteModule.prepare)
-           └─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-              ├─ build component tree (NextNodeServer.createComponentTree)
-              │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-              │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-              ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-              └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-           [trace B] middleware GET (Middleware.execute) {http.target=/rewrite}"
+           "[trace A] GET (Next.request) {http.target=/rewrite}
+           ├─ GET /page/page (BaseServer.handleRequest) {http.target=/rewrite}
+           │  ├─ prepare route module (RouteModule.prepare)
+           │  └─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
+           │     ├─ build component tree (NextNodeServer.createComponentTree)
+           │     │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+           │     │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+           │     ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+           │     └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
+           └─ middleware GET (Middleware.execute) {http.target=/rewrite}"
           `)
         } else {
           expect(tree).toMatchInlineSnapshot(`
-           "[trace A] middleware GET (Middleware.execute) {http.target=/rewrite}
-           [trace B] POST /page/page (BaseServer.handleRequest) {http.target=/rewrite}
-           ├─ prepare route module (RouteModule.prepare)
-           └─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-              ├─ build component tree (NextNodeServer.createComponentTree)
-              │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-              │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-              ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-              └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)"
+           "[trace A] GET (Next.request) {http.target=/rewrite}
+           ├─ middleware GET (Middleware.execute) {http.target=/rewrite}
+           └─ POST /page/page (BaseServer.handleRequest) {http.target=/rewrite}
+              ├─ prepare route module (RouteModule.prepare)
+              └─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
+                 ├─ build component tree (NextNodeServer.createComponentTree)
+                 │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                 │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                 ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+                 └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)"
           `)
         }
       } else if (renderMode === 'cache components, dev') {
@@ -334,7 +339,10 @@ describe.each(VARIANTS)(
       expectNoInternalHeaders(res)
       const tree = await getSpanTree(res, 'none')
       if (isNextDeploy) {
-        expect(tree).toMatchInlineSnapshot()
+        expect(tree).toMatchInlineSnapshot(`
+         "[trace A] GET (Next.request) {http.target=/redirect}
+         └─ middleware GET (Middleware.execute) {http.target=/redirect}"
+        `)
       } else if (isNodeMiddleware) {
         expect(tree).toMatchInlineSnapshot(`
          "[trace A] GET (BaseServer.handleRequest) {http.target=/redirect}
@@ -355,7 +363,10 @@ describe.each(VARIANTS)(
       expectNoInternalHeaders(res)
       const tree = await getSpanTree(res, 'none')
       if (isNextDeploy) {
-        expect(tree).toMatchInlineSnapshot()
+        expect(tree).toMatchInlineSnapshot(`
+         "[trace A] GET (Next.request) {http.target=/direct}
+         └─ middleware GET (Middleware.execute) {http.target=/direct}"
+        `)
       } else if (isNodeMiddleware) {
         expect(tree).toMatchInlineSnapshot(`
          "[trace A] GET (BaseServer.handleRequest) {http.target=/direct}
@@ -663,27 +674,29 @@ describe.each(VARIANTS)(
       if (isNextDeploy) {
         if (renderMode === 'default') {
           expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET /headers-echo/page (BaseServer.handleRequest) {http.target=/user-overrides}
-           ├─ prepare route module (RouteModule.prepare)
-           └─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
-              ├─ build component tree (NextNodeServer.createComponentTree)
-              │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-              │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-              ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
-              └─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-           [trace B] middleware GET (Middleware.execute) {http.target=/user-overrides}"
+           "[trace A] GET (Next.request) {http.target=/user-overrides}
+           ├─ GET /headers-echo/page (BaseServer.handleRequest) {http.target=/user-overrides}
+           │  ├─ prepare route module (RouteModule.prepare)
+           │  └─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
+           │     ├─ build component tree (NextNodeServer.createComponentTree)
+           │     │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+           │     │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+           │     ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
+           │     └─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+           └─ middleware GET (Middleware.execute) {http.target=/user-overrides}"
           `)
         } else {
           expect(tree).toMatchInlineSnapshot(`
-           "[trace A] middleware GET (Middleware.execute) {http.target=/user-overrides}
-           [trace B] POST /headers-echo/page (BaseServer.handleRequest) {http.target=/user-overrides}
-           ├─ prepare route module (RouteModule.prepare)
-           └─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
-              ├─ build component tree (NextNodeServer.createComponentTree)
-              │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-              │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-              ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
-              └─ generateMetadata /layout (ResolveMetadata.generateMetadata)"
+           "[trace A] GET (Next.request) {http.target=/user-overrides}
+           ├─ middleware GET (Middleware.execute) {http.target=/user-overrides}
+           └─ POST /headers-echo/page (BaseServer.handleRequest) {http.target=/user-overrides}
+              ├─ prepare route module (RouteModule.prepare)
+              └─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
+                 ├─ build component tree (NextNodeServer.createComponentTree)
+                 │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                 │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                 ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
+                 └─ generateMetadata /layout (ResolveMetadata.generateMetadata)"
           `)
         }
       } else if (renderMode === 'cache components, dev') {
@@ -746,7 +759,8 @@ describe.each(VARIANTS)(
       if (isNextDeploy) {
         if (renderMode === 'default') {
           expect(tree).toMatchInlineSnapshot(`
-           "[trace A] middleware GET (Middleware.execute) {http.target=/user-traceparent}
+           "[trace A] GET (Next.request) {http.target=/user-traceparent}
+           └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}
            [trace set by middleware] [set by middleware traceparent]
            └─ GET /headers-echo/page (BaseServer.handleRequest) {http.target=/user-traceparent}
               ├─ prepare route module (RouteModule.prepare)
@@ -759,7 +773,8 @@ describe.each(VARIANTS)(
           `)
         } else {
           expect(tree).toMatchInlineSnapshot(`
-           "[trace A] middleware GET (Middleware.execute) {http.target=/user-traceparent}
+           "[trace A] GET (Next.request) {http.target=/user-traceparent}
+           └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}
            [trace set by middleware] [set by middleware traceparent]
            └─ POST /headers-echo/page (BaseServer.handleRequest) {http.target=/user-traceparent}
               ├─ prepare route module (RouteModule.prepare)
