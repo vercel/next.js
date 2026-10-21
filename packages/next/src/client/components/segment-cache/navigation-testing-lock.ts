@@ -29,6 +29,8 @@ import type { SegmentCacheEntry } from './cache'
 import { createCacheMap, type CacheMap } from './cache-map'
 import { AppStage } from './types'
 
+const basePath = process.env.__NEXT_ROUTER_BASEPATH || ''
+
 type InstantNavCookieState = 'empty' | 'pending' | 'mpa' | 'spa'
 
 function parseCookieValue(raw: string): InstantNavCookieState {
@@ -316,8 +318,8 @@ export function resetNavigationLockToPending(): void {
 /**
  * Returns true if the request targets a dev-server endpoint — one of the
  * hot-reloader middleware routes (error overlay, source maps, launch-editor,
- * devtools). They all share the `/__nextjs_` path prefix and are always
- * requested root-relative on the same origin.
+ * devtools). They all share the `/__nextjs_` path prefix and are requested on
+ * the same origin, either root-relative or prefixed with the configured basePath.
  */
 function isDevServerRequest(input: RequestInfo | URL): boolean {
   let url: URL
@@ -335,7 +337,8 @@ function isDevServerRequest(input: RequestInfo | URL): boolean {
   }
   return (
     url.origin === window.location.origin &&
-    url.pathname.startsWith('/__nextjs_')
+    (url.pathname.startsWith('/__nextjs_') ||
+      (basePath !== '' && url.pathname.startsWith(`${basePath}/__nextjs_`)))
   )
 }
 
