@@ -202,7 +202,7 @@ The keys are always sorted, deterministically and identically in development and
 
 ### Lazy loading (default)
 
-By default, each value in the result object is a thunk — a function that returns a `Promise` for the module. This enables lazy loading:
+By default, each value in the result object is a thunk — a function that returns a `Promise` for the module. Like a dynamic `import()`, each matched module is split into its own chunk, which is only loaded when its thunk is called:
 
 ```js
 const modules = import.meta.glob('./dir/*.js')
