@@ -1049,6 +1049,22 @@ impl<'e> ExecuteContext<'e> {
         self.turbo_tasks.schedule(task.id(), priority);
     }
 
+    /// Returns the priority [`ExecuteContext::schedule_task`] would schedule `task` with, so the
+    /// scheduling can be deferred and batched with [`ExecuteContext::schedule_tasks`].
+    pub fn schedule_task_priority(
+        &self,
+        task: &TaskGuard<'e>,
+        parent_priority: TaskPriority,
+    ) -> TaskPriority {
+        schedule_priority(task, parent_priority)
+    }
+
+    /// Schedules all `tasks` (with priorities from [`ExecuteContext::schedule_task_priority`]) as
+    /// one batch, which is cheaper for the scheduler than scheduling them one by one.
+    pub fn schedule_tasks(&self, tasks: &[(TaskId, TaskPriority)]) {
+        self.turbo_tasks.schedule_many(tasks);
+    }
+
     pub fn get_current_task_priority(&self) -> TaskPriority {
         self.turbo_tasks.get_current_task_priority()
     }

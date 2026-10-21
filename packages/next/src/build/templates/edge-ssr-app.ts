@@ -27,7 +27,7 @@ import type {
 } from '../../server/route-modules/app-page/module.compiled'
 import type { AppPageRenderResultMetadata } from '../../server/render-result'
 import type RenderResult from '../../server/render-result'
-import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta'
+import { getServerActionRequestMetadata } from '../../server/lib/server-action-request-meta'
 import { getBotType } from '../../shared/lib/router/utils/is-bot'
 import { shouldServeStreamingMetadata } from '../../server/lib/streaming-metadata'
 import { interopDefault } from '../../lib/interop-default'
@@ -107,7 +107,7 @@ async function requestHandler(
   cacheHandlers.initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
   // INJECT_RAW:cacheHandlerRegistration
 
-  const isPossibleServerAction = getIsPossibleServerAction(req)
+  const serverActionRequestMetadata = getServerActionRequestMetadata(baseReq)
   const userAgent = req.headers.get('User-Agent') || ''
   const botType = getBotType(userAgent)
   const { isOnDemandRevalidate } = checkIsOnDemandRevalidate(
@@ -117,12 +117,19 @@ async function requestHandler(
 
   const closeController = new CloseController()
 
-  const routeMatch: RouteMatch = { resolvedPathname }
+  const routeMatch: RouteMatch = {
+    resolvedPathname,
+    // The Vary header is currently added after rendering in the Edge adapter.
+    couldBeIntercepted: false,
+  }
   const dev: DevRenderContext | undefined = createDevRenderContext(baseReq)
   const renderContextBase: Omit<
     AppPageRouteHandlerContext,
     'parsedRequestHeaders'
   > = {
+    requestUrl: baseReq.url,
+    requestHeaders: baseReq.headers,
+    serverActionRequestMetadata,
     page: normalizedSrcPage,
     routeMatch,
     query,
@@ -135,6 +142,7 @@ async function requestHandler(
       clientAssetToken,
     },
     fallbackRouteParams: null,
+    stagedFallbackParams: null,
 
     renderOpts: {
       App: () => null,
@@ -163,7 +171,6 @@ async function requestHandler(
       botType,
       isDraftMode: false,
       isOnDemandRevalidate,
-      isPossibleServerAction,
       assetPrefix: nextConfig.assetPrefix,
       nextConfigOutput: nextConfig.output,
       crossOrigin: nextConfig.crossOrigin,

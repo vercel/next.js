@@ -3,6 +3,7 @@ const path = require('path')
 const execa = require('execa')
 const fs = require('fs-extra')
 const childProcess = require('child_process')
+const treeKill = require('tree-kill')
 const { randomBytes } = require('crypto')
 const { linkPackages } = require('./link-packed-packages')
 const lockfile = require('proper-lockfile')
@@ -17,6 +18,79 @@ const {
 const PREFER_OFFLINE = process.env.NEXT_TEST_PREFER_OFFLINE === '1'
 const useRspack = process.env.NEXT_TEST_USE_RSPACK === '1'
 const ROOT_PACKAGE_MANAGER = require('../../package.json').packageManager
+const DEFAULT_INSTALL_TIMEOUT_MS = 5 * 60 * 1000
+const MAX_TIMER_DELAY_MS = 2_147_483_647
+
+function getInstallTimeoutMs() {
+  const value = Number(process.env.NEXT_TEST_INSTALL_TIMEOUT_MS)
+  return Number.isInteger(value) && value > 0 && value <= MAX_TIMER_DELAY_MS
+    ? value
+    : DEFAULT_INSTALL_TIMEOUT_MS
+}
+
+/**
+ * Runs a custom install command without blocking the event loop, so Jest can
+ * still enforce hook and test timeouts. When the install deadline fires, the
+ * whole process tree is killed before the returned promise rejects.
+ *
+ * @param {string} command
+ * @param {string} cwd
+ * @param {number} [timeoutMs]
+ */
+function runCustomInstall(command, cwd, timeoutMs = getInstallTimeoutMs()) {
+  return new Promise((resolve, reject) => {
+    let settled = false
+    /** @type {Error | null} */
+    let timeoutError = null
+    const child = childProcess.spawn(command, {
+      cwd,
+      shell: true,
+      stdio: ['ignore', 'inherit', 'inherit'],
+    })
+
+    const finish = (err) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      if (err) reject(err)
+      else resolve()
+    }
+
+    const timer = setTimeout(() => {
+      timeoutError = new Error(
+        `Custom install command timed out after ${timeoutMs}ms: ${command}`
+      )
+      if (child.pid === undefined) {
+        finish(timeoutError)
+        return
+      }
+      treeKill(child.pid, 'SIGKILL', (killErr) => {
+        if (killErr && timeoutError) {
+          timeoutError.message += ` (failed to kill process tree: ${killErr.message})`
+        }
+        finish(timeoutError)
+      })
+    }, timeoutMs)
+
+    child.once('error', finish)
+    child.once('exit', (code, signal) => {
+      // On timeout, wait for tree-kill to finish before rejecting so no
+      // descendants are left behind.
+      if (timeoutError) return
+      if (code === 0) {
+        finish()
+        return
+      }
+      finish(
+        new Error(
+          `Custom install command failed with ${
+            signal ? `signal ${signal}` : `code ${code}`
+          }: ${command}`
+        )
+      )
+    })
+  })
+}
 
 const PNPM_TEST_DIR_SETTINGS = {
   // fixtures depend on packages with build scripts that they don't declare in `allowBuilds`: this
@@ -430,14 +504,9 @@ async function createNextInstall({
 
       if (installString !== null) {
         console.log('running install command', installString)
-        rootSpan.traceChild('run custom install').traceFn(() => {
-          childProcess.execSync(installString, {
-            cwd: installDir,
-            stdio: ['ignore', 'inherit', 'inherit'],
-            // Synchronous installs block Jest's timeout from firing.
-            timeout: 5 * 60 * 1000,
-          })
-        })
+        await rootSpan
+          .traceChild('run custom install')
+          .traceAsyncFn(() => runCustomInstall(installString, installDir))
       } else {
         await rootSpan
           .traceChild('run generic install command', combinedDependencies)
@@ -491,4 +560,5 @@ module.exports = {
   createNextInstall,
   getPkgPaths: linkPackages,
   packPackages,
+  runCustomInstall,
 }

@@ -18,10 +18,7 @@ import {
   type LinkInstance,
 } from '../components/links'
 import { isLocalURL } from '../../shared/lib/router/utils/is-local-url'
-import {
-  FetchStrategy,
-  type PrefetchTaskFetchStrategy,
-} from '../components/segment-cache/types'
+import { AppStage } from '../components/segment-cache/types'
 import type { RouterTransitionPrefetchIntent } from '../router-transition-types'
 
 type Url = string | UrlObject
@@ -135,10 +132,12 @@ type InternalLinkProps = {
    * Prefetching is only enabled in production.
    *
    * - In the **App Router**:
-   *   - `"auto"`, `null`, `undefined` (default): Prefetch behavior depends on static vs dynamic routes:
+   *   - `"auto"`, `"shell"`, `null`, `undefined` (default): Prefetch behavior depends on static vs dynamic routes:
    *     - Static routes: fully prefetched
    *     - Dynamic routes: partial prefetch to the nearest segment with a `loading.js`
-   *   - `true`: Always prefetch the full route and data.
+   *   - `true` or `"prefetch"`: Always prefetch the full route and data.
+   *   - `"navigation"`: Prefetch up to where `navigation()` resolves. Without
+   *     Partial Prefetching, this is the same as `true`.
    *   - `false`: Disable prefetching on both viewport and hover.
    * - In the **Pages Router**:
    *   - `true` (default): Prefetches the route and data in the background on viewport or hover.
@@ -153,7 +152,7 @@ type InternalLinkProps = {
    * </Link>
    * ```
    */
-  prefetch?: boolean | 'auto' | null
+  prefetch?: boolean | 'auto' | 'shell' | 'prefetch' | 'navigation' | null
 
   /**
    * (unstable) Switch to a full prefetch on hover. Effectively the same as
@@ -379,14 +378,24 @@ export default function LinkComponent(
   const router = React.useContext(AppRouterContext)
 
   const prefetchEnabled = prefetchProp !== false
-  const prefetchIntent: RouterTransitionPrefetchIntent =
-    prefetchProp === false ? 'none' : prefetchProp === true ? 'full' : 'auto'
-
-  const fetchStrategy =
-    prefetchIntent !== 'none'
-      ? getFetchStrategyFromPrefetchIntent(prefetchIntent)
-      : // TODO: it makes no sense to assign a fetchStrategy when prefetching is disabled.
-        FetchStrategy.PPR
+  // TODO: it makes no sense to assign a stage when prefetching is disabled.
+  let prefetchStage: AppStage
+  switch (prefetchProp) {
+    case true:
+    case 'prefetch':
+      prefetchStage = AppStage.Prefetch
+      break
+    case 'navigation':
+      prefetchStage = AppStage.Navigation
+      break
+    case false:
+    case 'auto':
+    case 'shell':
+    case null:
+    default:
+      prefetchStage = AppStage.Shell
+      break
+  }
 
   if (process.env.NODE_ENV !== 'production') {
     function createPropError(args: {
@@ -489,11 +498,15 @@ export default function LinkComponent(
         if (
           props[key] != null &&
           valType !== 'boolean' &&
-          props[key] !== 'auto'
+          props[key] !== 'auto' &&
+          props[key] !== 'shell' &&
+          props[key] !== 'prefetch' &&
+          props[key] !== 'navigation'
         ) {
           throw createPropError({
             key,
-            expected: '`boolean | "auto"`',
+            expected:
+              '`boolean | "auto" | "shell" | "prefetch" | "navigation"`',
             actual: valType,
           })
         }
@@ -610,11 +623,11 @@ export default function LinkComponent(
           // Only capture when a warning might actually need it. Otherwise leave
           // it `undefined` so consumers can detect the opt-out and degrade
           // gracefully.
-          if (fetchStrategy === FetchStrategy.Full) {
+          if (prefetchStage !== AppStage.Shell) {
             return React.captureOwnerStack()
           }
           return undefined
-        }, [fetchStrategy])
+        }, [prefetchStage])
       : undefined
 
   // Use a callback ref to attach an IntersectionObserver to the anchor tag on
@@ -628,7 +641,7 @@ export default function LinkComponent(
           element,
           formattedHref,
           router,
-          fetchStrategy,
+          prefetchStage,
           prefetchEnabled,
           setOptimisticLinkStatus,
           ownerStack
@@ -647,7 +660,7 @@ export default function LinkComponent(
       prefetchEnabled,
       formattedHref,
       router,
-      fetchStrategy,
+      prefetchStage,
       setOptimisticLinkStatus,
       ownerStack,
     ]
@@ -690,6 +703,17 @@ export default function LinkComponent(
       if (e.defaultPrevented) {
         return
       }
+      // This is only reported to `onRouterTransitionStart`, which is public
+      // API, so every value that asks for more than the shell is reported as
+      // `'full'`.
+      const prefetchIntent: RouterTransitionPrefetchIntent =
+        prefetchProp === false
+          ? 'none'
+          : prefetchProp === true ||
+              prefetchProp === 'prefetch' ||
+              prefetchProp === 'navigation'
+            ? 'full'
+            : 'auto'
       linkClicked(
         e,
         formattedHref,
@@ -803,25 +827,4 @@ const LinkStatusContext = createContext<
 
 export const useLinkStatus = () => {
   return useContext(LinkStatusContext)
-}
-
-function getFetchStrategyFromPrefetchIntent(
-  prefetchIntent: Exclude<RouterTransitionPrefetchIntent, 'none'>
-): PrefetchTaskFetchStrategy {
-  if (process.env.__NEXT_CACHE_COMPONENTS) {
-    if (prefetchIntent === 'full') {
-      return FetchStrategy.Full
-    }
-
-    // `"auto"`: the default mode, where we will prefetch partially if the link is in the viewport.
-    prefetchIntent satisfies 'auto'
-    return FetchStrategy.PPR
-  } else {
-    return prefetchIntent === 'auto'
-      ? // We default to PPR, and we'll discover whether or not the route supports it with the initial prefetch.
-        FetchStrategy.PPR
-      : // In the old implementation without runtime prefetches, `prefetch={true}` (`'full'`) forces all dynamic
-        // data to be prefetched, preserving backwards-compatibility.
-        FetchStrategy.Full
-  }
 }

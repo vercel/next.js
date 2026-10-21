@@ -55,7 +55,6 @@ enum NextNodeServerSpan {
   proxyRequest = 'NextNodeServer.proxyRequest',
   runApi = 'NextNodeServer.runApi',
   render = 'NextNodeServer.render',
-  renderHTML = 'NextNodeServer.renderHTML',
   imageOptimizer = 'NextNodeServer.imageOptimizer',
   getPagePath = 'NextNodeServer.getPagePath',
   getRoutesManifest = 'NextNodeServer.getRoutesManifest',

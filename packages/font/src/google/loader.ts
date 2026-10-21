@@ -105,7 +105,7 @@ const nextFontGoogleFontLoader: FontLoader = async ({
 
     // Download the font files extracted from the CSS
     const downloadedFiles = await Promise.all(
-      fontFiles.map(async ({ googleFontFileUrl, preloadFontFile }) => {
+      fontFiles.map(async ({ googleFontFileUrl, preloadFontFile, ext }) => {
         const hasCachedFont = fontCache.has(googleFontFileUrl)
         // Download the font file or get it from cache
         const fontFileBuffer = hasCachedFont
@@ -123,7 +123,6 @@ const nextFontGoogleFontLoader: FontLoader = async ({
           nextFontError(`Failed to fetch \`${fontFamily}\` from Google Fonts.`)
         }
 
-        const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(googleFontFileUrl)![1]
         // Emit font file to .next/static/media
         const selfHostedFileUrl = emitFontFile(
           fontFileBuffer,

@@ -2,8 +2,7 @@ name: build-and-test
 
 on:
   push:
-    branches:
-      ['canary', 'releases/lts/active', 'releases/lts/maintenance', 'next-*-*']
+    branches: ['canary', 'releases/**']
   pull_request:
     types: [opened, synchronize]
 
@@ -333,6 +332,9 @@ jobs:
     needs: ['changes', 'build-next']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       needsRust: 'yes'

@@ -15,6 +15,7 @@ import type {
 } from '../../shared/lib/app-router-types'
 import { PrefetchHint } from '../../shared/lib/app-router-types'
 import type { Readable } from 'node:stream'
+import type { IncomingHttpHeaders } from 'http'
 import {
   workAsyncStorage,
   type WorkStore,
@@ -75,12 +76,11 @@ import {
 import type { AnyStream } from './stream-ops'
 import { createRenderInBrowserAbortSignal } from './render-in-browser'
 import { getInstantTestBootstrapScriptContent } from './instant-test-bootstrap'
+import { createTurbopackBootstrapScriptStream } from './turbopack-bootstrap-script'
 import { stripInternalQueries } from '../internal-utils'
 import { getRenderedSearch } from '../../shared/lib/router/utils/querystring'
-import {
-  NEXT_ROUTER_STALE_TIME_HEADER,
-  NEXT_URL,
-} from '../../client/components/app-router-headers'
+import { NEXT_ROUTER_STALE_TIME_HEADER } from '../../client/components/app-router-headers'
+import { AppStage } from '../../client/components/segment-cache/types'
 import { createMetadataContext } from '../../lib/metadata/metadata-context'
 import {
   createRequestStore as createRequestStoreFromInputs,
@@ -168,7 +168,7 @@ import {
   getPostponedFromState,
 } from './postponed-state'
 import { isDynamicServerError } from '../../client/components/hooks-server-context'
-import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
+import type { ServerActionRequestMetadata } from '../lib/server-action-request-meta'
 import { getFlightStream } from './use-flight-response'
 import {
   StaticGenBailoutError,
@@ -206,7 +206,7 @@ import {
   ClientComponentLoadTracker,
   wrapClientComponentLoader,
 } from '../client-component-renderer-logger'
-import { isNodeNextRequest, isNodeNextResponse } from '../base-http/helpers'
+import { isNodeNextResponse } from '../base-http/helpers'
 import { waitForResponseToFinish } from './wait-for-response'
 import {
   beginDevValidation,
@@ -220,7 +220,6 @@ import {
 } from '../../shared/lib/router/utils/parse-relative-url'
 import AppRouter from '../../client/components/app-router'
 import type { RequestErrorContext } from '../instrumentation/types'
-import { getIsPossibleServerAction } from '../lib/server-action-request-meta'
 import { createInitialRouterState } from '../../client/components/router-reducer/create-initial-router-state'
 import { createMutableActionQueue } from '../../client/components/app-router-instance'
 import { getRevalidateReason } from '../instrumentation/utils'
@@ -295,7 +294,6 @@ import {
 import { isReactLargeShellError } from './react-large-shell-error'
 import type { GlobalErrorComponent } from '../../client/components/builtin/global-error'
 import { normalizeConventionFilePath } from './segment-explorer-path'
-import { getRequestMeta } from '../request-meta'
 import { htmlEscapeJsonString } from '../../shared/lib/htmlescape'
 import {
   getDynamicParam,
@@ -416,6 +414,7 @@ export type AppRenderContext = {
   query: NextParsedUrlQuery
   isPrefetch: boolean
   isPossibleServerAction: boolean
+  couldBeIntercepted: boolean
   requestTimestamp: number
   appUsingSizeAdjustment: boolean
   flightRouterState?: FlightRouterState
@@ -425,7 +424,6 @@ export type AppRenderContext = {
   assetPrefix: string
   isNotFoundPath: boolean
   nonce: string | undefined
-  initialHmrVersion?: string
   res: BaseNextResponse
   /**
    * For now, the implicit tags are common for the whole route. If we ever start
@@ -590,9 +588,7 @@ async function generateDynamicRSCPayload(
     actionResult?: ActionResult
     skipPageRendering?: boolean
     staleTimeIterable?: AsyncIterable<number>
-    staticStageByteLengthPromise?: Promise<number>
-    shellByteLengthPromise?: Promise<number | null>
-    shellUsedSessionDataPromise?: Promise<boolean>
+    stageByteLengthsPromise?: Promise<Array<number>>
     runtimePrefetchStream?: ReadableStream<Uint8Array>
   }
 ): Promise<RSCPayload> {
@@ -702,14 +698,6 @@ async function generateDynamicRSCPayload(
     }
   }
 
-  // In dev, the Vary header may not reliably reflect whether a route can
-  // be intercepted, because interception routes are compiled on demand.
-  // Default to true so the client doesn't cache a stale Fallback entry.
-  const varyHeader = ctx.res.getHeader('vary')
-  const couldBeIntercepted =
-    !!process.env.__NEXT_DEV_SERVER ||
-    (typeof varyHeader === 'string' && varyHeader.includes(NEXT_URL))
-
   // If we have an action result, then this is a server action response.
   // We can rely on this because `ActionResult` will always be a promise, even if
   // the result is falsey.
@@ -717,7 +705,7 @@ async function generateDynamicRSCPayload(
     const actionResponse: ActionFlightResponse = {
       a: options.actionResult,
       q: getRenderedSearch(query),
-      i: !!couldBeIntercepted,
+      i: ctx.couldBeIntercepted,
     }
     if (transportData !== undefined) {
       actionResponse.t = transportData
@@ -729,7 +717,7 @@ async function generateDynamicRSCPayload(
   const baseResponse: DynamicNavigationFlightResponse =
     maybeAppendBuildIdToRSCPayload(ctx, {
       q: getRenderedSearch(query),
-      i: !!couldBeIntercepted,
+      i: ctx.couldBeIntercepted,
       // Tells the client whether this route supports per-segment prefetching.
       // With Cache Components, all routes support it. Without it, only fully
       // static pages do, because their per-segment prefetch responses are
@@ -745,14 +733,8 @@ async function generateDynamicRSCPayload(
     baseResponse.s = options.staleTimeIterable
   }
 
-  if (options?.staticStageByteLengthPromise !== undefined) {
-    baseResponse.l = options.staticStageByteLengthPromise
-  }
-  if (options?.shellByteLengthPromise !== undefined) {
-    baseResponse.a = options.shellByteLengthPromise
-  }
-  if (options?.shellUsedSessionDataPromise !== undefined) {
-    baseResponse.w = options.shellUsedSessionDataPromise
+  if (options?.stageByteLengthsPromise !== undefined) {
+    baseResponse.a = options.stageByteLengthsPromise
   }
 
   if (options?.runtimePrefetchStream !== undefined) {
@@ -978,8 +960,8 @@ async function generateStagedDynamicFlightRenderResultNode(
   const stageController = new StagedRenderingController({
     abortSignal: null,
     abandonController: null,
-    // Synchronous request-time data ends the static stage before its result can
-    // enter the Cached Navigation.
+    // The prefetch mode controls which stages are allowed to read
+    // request-time data synchronously.
     syncIO: getSyncIOMode(prefetchMode),
     finalStage: null,
   })
@@ -987,7 +969,14 @@ async function generateStagedDynamicFlightRenderResultNode(
   // Initialize stale time tracking on the request store.
   requestStore.stale = INFINITE_CACHE
   requestStore.stagedRendering = stageController
-  requestStore.varyParamsAccumulator = createResponseVaryParamsAccumulator()
+
+  // No vary params tracking. This response includes dynamic data, and param
+  // tracking can't cover the dynamic stage, so the report would be incomplete.
+  // Leaving the accumulator unset sends no vary params, which the client
+  // treats as unknown and keys on every param.
+  // TODO: We can start tracking params during navigations once Ledger support
+  // lands in React.
+
   requestStore.asyncApiPromises = createAsyncApiPromises(
     stageController,
     requestStore.cookies,
@@ -1001,8 +990,7 @@ async function generateStagedDynamicFlightRenderResultNode(
     selectStaleTime
   )
 
-  const shellByteLengthDeferred = createPromiseWithResolvers<number | null>()
-  const staticStageByteLengthDeferred = createPromiseWithResolvers<number>()
+  const stageByteLengthsDeferred = createPromiseWithResolvers<Array<number>>()
 
   let runtimePrefetchStream: ReadableStream<Uint8Array> | undefined
   let startRuntimePrefetchRender: (() => Promise<void>) | undefined
@@ -1063,8 +1051,7 @@ async function generateStagedDynamicFlightRenderResultNode(
     ctx,
     {
       staleTimeIterable,
-      staticStageByteLengthPromise: staticStageByteLengthDeferred.promise,
-      shellByteLengthPromise: shellByteLengthDeferred.promise,
+      stageByteLengthsPromise: stageByteLengthsDeferred.promise,
       runtimePrefetchStream,
     }
   )
@@ -1094,13 +1081,10 @@ async function generateStagedDynamicFlightRenderResultNode(
 
       const replayable = new ReplayableNodeStream(sourceStream)
       const dynamicStream = replayable.createReplayStream()
-      const staticStream = replayable.createReplayStream()
+      const shellStream = replayable.createReplayStream()
 
-      void countShellAndStaticStageBytes(staticStream, stageController).then(
-        (byteLengths) => {
-          staticStageByteLengthDeferred.resolve(byteLengths[RenderStage.Static])
-          shellByteLengthDeferred.resolve(byteLengths[RenderStage.ShellStatic])
-        }
+      void countShellBytes(shellStream, stageController).then(
+        (shellByteLength) => stageByteLengthsDeferred.resolve([shellByteLength])
       )
 
       return dynamicStream
@@ -1108,15 +1092,11 @@ async function generateStagedDynamicFlightRenderResultNode(
     // Fold `PrefetchStatic_prefetchApi` into `PrefetchStatic` - no discrimination needed here
     () => stageController.advanceStage(RenderStage.PrefetchStatic),
     () => stageController.advanceStage(RenderStage.NavigationStatic),
-    () => stageController.advanceStage(RenderStage.Static),
     () => {
       // This is a separate task that doesn't advance a stage. It forces
-      // draining the immediate queue so that the stale time iterable and vary
-      // params accumulators are flushed before we advance to the dynamic stage.
+      // draining the immediate queue so that the stale time iterable is
+      // flushed before we advance to the dynamic stage.
       staleTimeIterable.close()
-      if (requestStore.varyParamsAccumulator) {
-        finishAccumulatingVaryParams(requestStore.varyParamsAccumulator)
-      }
     },
     () => stageController.advanceStage(RenderStage.Dynamic)
   )
@@ -1150,8 +1130,7 @@ async function spawnRuntimePrefetchWithFilledCaches(
     // We want to be able to rewind the result to a session shell.
     const mode: RuntimePrerenderMode & { type: 'navigation' } = {
       type: 'navigation',
-      shellUsedSessionDataDeferred: createPromiseWithResolvers(),
-      shellByteLengthDeferred: createPromiseWithResolvers(),
+      stageByteLengthsDeferred: createPromiseWithResolvers(),
     }
 
     const { result } = await finalRuntimeServerPrerender(
@@ -1159,8 +1138,7 @@ async function spawnRuntimePrefetchWithFilledCaches(
       ctx,
       generateDynamicRSCPayload.bind(null, ctx, {
         staleTimeIterable,
-        shellByteLengthPromise: mode.shellByteLengthDeferred.promise,
-        shellUsedSessionDataPromise: mode.shellUsedSessionDataDeferred.promise,
+        stageByteLengthsPromise: mode.stageByteLengthsDeferred.promise,
       }),
       prerenderResumeDataCache,
       rootParams,
@@ -1249,7 +1227,6 @@ async function stagedRenderWithoutCachesInDevNode(
     () => stageController.advanceStage(RenderStage.PrefetchStatic_prefetchApi),
     () => stageController.advanceStage(RenderStage.PrefetchStatic),
     () => stageController.advanceStage(RenderStage.NavigationStatic),
-    () => stageController.advanceStage(RenderStage.Static),
     () => stageController.advanceStage(RenderStage.Dynamic)
   )
 }
@@ -1261,7 +1238,6 @@ function getEnvironmentNameForStageWithoutCaches(stage: RenderStage) {
     case RenderStage.PrefetchStatic_prefetchApi:
     case RenderStage.PrefetchStatic:
     case RenderStage.NavigationStatic:
-    case RenderStage.Static:
       return 'Prerender'
     case RenderStage.ShellRuntime:
     case RenderStage.PrefetchRuntime_prefetchApi:
@@ -1390,7 +1366,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     // (HMR refreshes act like a full page navigation, which would use the static PPR shell)
     let prefetchStage: StreamRevealStage
     if (initialRequestStore.isHmrRefresh === true) {
-      prefetchStage = RenderStage.Static
+      prefetchStage = RenderStage.NavigationStatic
     } else {
       if (prefetchMode === PrefetchingMode.Partial) {
         // TODO(app-shells): if this navigation came from <Link prefetch={true} />,
@@ -1404,7 +1380,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
           prefetchStage = RenderStage.ShellRuntime
         }
       } else {
-        prefetchStage = RenderStage.Static
+        prefetchStage = RenderStage.NavigationStatic
       }
     }
 
@@ -1489,7 +1465,8 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
 async function generateRuntimePrefetchResult(
   ctx: AppRenderContext,
   requestStore: RequestStore,
-  isShellPrefetch: boolean
+  // The stage the runtime prefetch asks for.
+  stage: AppStage
 ): Promise<RenderResult> {
   const { workStore, renderOpts, htmlRequestId, requestId } = ctx
   const {
@@ -1534,16 +1511,24 @@ async function generateRuntimePrefetchResult(
     requestStore.resumeDataCache ?? undefined
   )
 
-  const mode: RuntimePrerenderMode = isShellPrefetch
-    ? {
-        type: 'session-shell-only',
-        shellUsedSessionDataDeferred: createPromiseWithResolvers(),
-      }
-    : {
+  let mode: RuntimePrerenderMode
+  switch (stage) {
+    case AppStage.Shell:
+      mode = { type: 'session-shell-only' }
+      break
+    case AppStage.Prefetch:
+      mode = {
         type: 'rewindable-session-shell',
-        shellUsedSessionDataDeferred: createPromiseWithResolvers(),
-        shellByteLengthDeferred: createPromiseWithResolvers(),
+        stageByteLengthsDeferred: createPromiseWithResolvers(),
       }
+      break
+    case AppStage.Navigation:
+      mode = {
+        type: 'navigation',
+        stageByteLengthsDeferred: createPromiseWithResolvers(),
+      }
+      break
+  }
 
   await prospectiveRuntimeServerPrerender(
     ctx,
@@ -1568,11 +1553,12 @@ async function generateRuntimePrefetchResult(
     ctx,
     generateDynamicRSCPayload.bind(null, ctx, {
       staleTimeIterable,
-      shellByteLengthPromise:
-        mode.type === 'rewindable-session-shell'
-          ? mode.shellByteLengthDeferred.promise
-          : undefined,
-      shellUsedSessionDataPromise: mode.shellUsedSessionDataDeferred.promise,
+      // A runtime shell render stops at the shell stage, so the shell ends
+      // at the end of the response.
+      stageByteLengthsPromise:
+        mode.type === 'session-shell-only'
+          ? Promise.resolve([])
+          : mode.stageByteLengthsDeferred.promise,
     }),
     prerenderResumeDataCache,
     rootParams,
@@ -1761,19 +1747,14 @@ function prependIsPartialByteToChunks(
 }
 
 type RuntimePrerenderMode =
-  | {
-      type: 'session-shell-only'
-      shellUsedSessionDataDeferred: PromiseWithResolvers<boolean>
-    }
+  | { type: 'session-shell-only' }
   | {
       type: 'rewindable-session-shell'
-      shellUsedSessionDataDeferred: PromiseWithResolvers<boolean>
-      shellByteLengthDeferred: PromiseWithResolvers<number | null>
+      stageByteLengthsDeferred: PromiseWithResolvers<Array<number>>
     }
   | {
       type: 'navigation'
-      shellUsedSessionDataDeferred: PromiseWithResolvers<boolean>
-      shellByteLengthDeferred: PromiseWithResolvers<number | null>
+      stageByteLengthsDeferred: PromiseWithResolvers<Array<number>>
     }
 
 async function finalRuntimeServerPrerender(
@@ -1907,6 +1888,10 @@ async function finalRuntimeServerPrerender(
     }
   }
 
+  // Whether resolving link data unblocked new content. We check this right
+  // after the PrefetchRuntime stage, before anything later is flushed.
+  let didLinkDataUnblockNewContent = false
+
   await runInSequentialTasks(
     async () => {
       stageController.advanceStage(RenderStage.ShellStatic)
@@ -1944,10 +1929,6 @@ async function finalRuntimeServerPrerender(
     },
     () => {
       if (checkUnexpectedAbort()) return
-      stageController.advanceStage(RenderStage.Static)
-    },
-    () => {
-      if (checkUnexpectedAbort()) return
       stageController.advanceStage(RenderStage.ShellRuntime)
     },
 
@@ -1963,25 +1944,9 @@ async function finalRuntimeServerPrerender(
     () => {
       if (checkUnexpectedAbort()) return
 
-      // Check if session data unblocked new content in the shell.
-      const didSessionDataUnblockNewContent =
-        stageByteLengths[RenderStage.ShellRuntime] >
-        stageByteLengths[RenderStage.Static]
-      mode.shellUsedSessionDataDeferred.resolve(didSessionDataUnblockNewContent)
-
-      if ('shellByteLengthDeferred' in mode) {
-        // If advancing to the PrefetchRuntime stage didn't unblock new content,
-        // then the result does not depend on link data and can be used as a shell (indicated via `null`).
-        // Otherwise, send a byte length to indicate where the shell content ends.
-        const didLinkDataUnblockNewContent =
-          stageByteLengths[RenderStage.PrefetchRuntime] >
-          stageByteLengths[RenderStage.ShellRuntime]
-        mode.shellByteLengthDeferred.resolve(
-          didLinkDataUnblockNewContent
-            ? stageByteLengths[RenderStage.ShellRuntime]
-            : null
-        )
-      }
+      didLinkDataUnblockNewContent =
+        stageByteLengths[RenderStage.PrefetchRuntime] >
+        stageByteLengths[RenderStage.ShellRuntime]
     },
     () => {
       if (checkUnexpectedAbort()) return
@@ -1995,6 +1960,28 @@ async function finalRuntimeServerPrerender(
       // Finish the accumulators. We need to wait for Flight to flush the result into the stream,
       // which is scheduled in a (fast) immediate, so we do this in a separate task
       // (fast immediates will be drained at the end of the task, so in the next task we know we're done flushing)
+
+      // An aborted render emits no more chunks, so there's no offset to send.
+      if (
+        'stageByteLengthsDeferred' in mode &&
+        !finalServerController.signal.aborted
+      ) {
+        // If neither link data nor `navigation()` unblocked new content, the
+        // whole response can be used as a shell, so we list nothing.
+        // Otherwise, we send where the shell ends.
+        // NOTE: we must capture this *before* closing the accumulators below,
+        // which emit new rows. If the render stopped before the
+        // NavigationRuntime stage, that stage's count is the same as
+        // PrefetchRuntime's.
+        const didNavigationUnblockNewContent =
+          stageByteLengths[RenderStage.NavigationRuntime] >
+          stageByteLengths[RenderStage.PrefetchRuntime]
+        mode.stageByteLengthsDeferred.resolve(
+          didLinkDataUnblockNewContent || didNavigationUnblockNewContent
+            ? [stageByteLengths[RenderStage.ShellRuntime]]
+            : []
+        )
+      }
 
       staleTimeIterable.close()
       finishAccumulatingVaryParams(varyParamsAccumulator)
@@ -2070,8 +2057,7 @@ async function getRSCPayload(
     is404: boolean
     isPrerendering: boolean
     staleTimeIterable?: AsyncIterable<number>
-    staticStageByteLengthPromise?: Promise<number>
-    shellByteLengthPromise?: Promise<number | null>
+    stageByteLengthsPromise?: Promise<Array<number>>
     runtimePrefetchStream?: ReadableStream<Uint8Array>
   }
 ): Promise<InitialRSCPayload & { P: ReactNode }> {
@@ -2079,8 +2065,7 @@ async function getRSCPayload(
     is404,
     isPrerendering,
     staleTimeIterable,
-    staticStageByteLengthPromise,
-    shellByteLengthPromise,
+    stageByteLengthsPromise,
     runtimePrefetchStream,
   } = options
   const injectedCSS = new Set<string>()
@@ -2139,17 +2124,6 @@ async function getRSCPayload(
     hintTree: hints,
   })
 
-  // When the `vary` response header is present with `Next-URL`, that means there's a chance
-  // it could respond differently if there's an interception route. We provide this information
-  // to `AppRouter` so that it can properly seed the prefetch cache with a prefix, if needed.
-  // In dev, the Vary header may not reliably reflect whether a route can
-  // be intercepted, because interception routes are compiled on demand.
-  // Default to true so the client doesn't cache a stale Fallback entry.
-  const varyHeader = ctx.res.getHeader('vary')
-  const couldBeIntercepted =
-    !!process.env.__NEXT_DEV_SERVER ||
-    (typeof varyHeader === 'string' && varyHeader.includes(NEXT_URL))
-
   const initialHead = createElement(
     Fragment,
     {
@@ -2191,7 +2165,9 @@ async function getRSCPayload(
     }),
     c: prepareInitialCanonicalUrl(url),
     q: getRenderedSearch(query),
-    i: !!couldBeIntercepted,
+    // Tell AppRouter whether the response can differ for an interception route,
+    // so it can seed the prefetch cache with a prefix if needed.
+    i: ctx.couldBeIntercepted,
     t: {
       t: initialTree,
       h: {
@@ -2209,8 +2185,7 @@ async function getRSCPayload(
     S: ctx.renderCapabilities.supportsPerSegmentPrefetching,
     r: getRootParamsVaryParamsAccumulator() ?? undefined,
     s: staleTimeIterable,
-    a: shellByteLengthPromise,
-    l: staticStageByteLengthPromise,
+    a: stageByteLengthsPromise,
     p: runtimePrefetchStream,
     // Include the per-page dynamic stale time from unstable_dynamicStaleTime, but
     // only for dynamic renders. The client treats its presence as
@@ -2400,6 +2375,8 @@ function App<T>({
     // real timestamp.
     navigatedAt: -1,
     initialRSCPayload: response,
+    // The SSR render doesn't write into the segment cache.
+    initialRSCPayloadChunks: null,
     // location is not initialized in the SSR render
     // it's set to window.location during hydration
     location: null,
@@ -2461,6 +2438,8 @@ function ErrorApp<T>({
     // real timestamp.
     navigatedAt: -1,
     initialRSCPayload: response,
+    // The SSR render doesn't write into the segment cache.
+    initialRSCPayloadChunks: null,
     // location is not initialized in the SSR render
     // it's set to window.location during hydration
     location: null,
@@ -2558,13 +2537,13 @@ function installGlobalModuleLoadingHandlers(
 }
 
 type PreparedAppPageRender = {
-  req: BaseNextRequest
+  serverActionRequestMetadata: ServerActionRequestMetadata
   ctx: AppRenderContext
   metadata: AppPageRenderResultMetadata
   loaderTree: LoaderTree
 }
 
-type GenerateRequestId = (req: BaseNextRequest) => string | Promise<string>
+type GenerateRequestId = (requestUrl: string) => string | Promise<string>
 
 const generateRenderRequestId: GenerateRequestId = () => {
   if (process.env.NEXT_RUNTIME === 'edge') {
@@ -2576,9 +2555,9 @@ const generateRenderRequestId: GenerateRequestId = () => {
   }
 }
 
-const generatePrerenderRequestId: GenerateRequestId = async (req) => {
+const generatePrerenderRequestId: GenerateRequestId = async (requestUrl) => {
   return Buffer.from(
-    await crypto.subtle.digest('SHA-1', Buffer.from(req.url))
+    await crypto.subtle.digest('SHA-1', Buffer.from(requestUrl))
   ).toString('hex')
 }
 
@@ -2622,14 +2601,15 @@ function initializeClientComponentLoadTracking(
 }
 
 async function prepareAppPageRender(
-  req: BaseNextRequest,
   res: BaseNextResponse,
+  requestUrl: string,
   url: ReturnType<typeof parseRelativeUrl>,
   pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
   workStore: WorkStore,
   parsedRequestHeaders: ParsedRequestHeaders,
+  serverActionRequestMetadata: ServerActionRequestMetadata,
   sharedContext: AppSharedContext,
   interpolatedParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
@@ -2637,7 +2617,7 @@ async function prepareAppPageRender(
   generateRequestId: GenerateRequestId,
   missingPrefetchHintPolicy: MissingPrefetchHintPolicy,
   renderCapabilities: AppRenderCapabilities
-) {
+): Promise<PreparedAppPageRender> {
   const isNotFoundPath = pagePath === '/404'
   if (isNotFoundPath) {
     res.statusCode = 404
@@ -2657,12 +2637,12 @@ async function prepareAppPageRender(
   } = renderOpts
 
   if (
-    // The type check here ensures that `req` is correctly typed, and the
-    // environment variable check provides dead code elimination.
-    process.env.NEXT_RUNTIME !== 'edge' &&
-    isNodeNextRequest(req)
+    // Build-time prerenders collect fetch metrics after running after() callbacks,
+    // so they must keep tracking when their render lifecycle closes.
+    !renderOpts.isBuildTimePrerendering &&
+    process.env.NEXT_RUNTIME !== 'edge'
   ) {
-    res.onClose(() => {
+    renderOpts.onClose(() => {
       // We stop tracking fetch metrics when the response closes, since we
       // report them at that time.
       workStore.shouldTrackFetchMetrics = false
@@ -2716,7 +2696,7 @@ async function prepareAppPageRender(
     requestId = requestInsightsIdentity.requestId
   } else {
     // Otherwise we generate a new request ID.
-    requestId = await generateRequestId(req)
+    requestId = await generateRequestId(requestUrl)
   }
 
   // If the client has provided an HTML request ID, we use it to associate the
@@ -2737,8 +2717,6 @@ async function prepareAppPageRender(
     renderOpts.experimental.optimisticRouting
   )
 
-  const isPossibleActionRequest = getIsPossibleServerAction(req)
-
   const implicitTags = await getImplicitTags(
     workStore.page,
     routeMatch.resolvedPathname,
@@ -2746,7 +2724,6 @@ async function prepareAppPageRender(
   )
 
   const ctx: AppRenderContext = {
-    initialHmrVersion: getRequestMeta(req, 'initialHmrVersion'),
     componentMod: ComponentMod,
     url,
     renderOpts,
@@ -2759,7 +2736,12 @@ async function prepareAppPageRender(
     fallbackRouteParams,
     query,
     isPrefetch: isPrefetchRequest,
-    isPossibleServerAction: isPossibleActionRequest,
+    isPossibleServerAction: serverActionRequestMetadata.isPossibleServerAction,
+    // In dev, interception routes are compiled on demand, so route matching may
+    // not reliably reflect whether a route can be intercepted yet.
+    // Default to true so the client doesn't cache a stale Fallback entry.
+    couldBeIntercepted:
+      !!process.env.__NEXT_DEV_SERVER || routeMatch.couldBeIntercepted,
     requestTimestamp,
     appUsingSizeAdjustment,
     flightRouterState,
@@ -2777,7 +2759,7 @@ async function prepareAppPageRender(
   getTracer().setRootSpanAttribute('next.route', pagePath)
 
   return {
-    req,
+    serverActionRequestMetadata,
     ctx,
     metadata,
     loaderTree,
@@ -2931,9 +2913,17 @@ async function prerenderAppPage({
 }
 
 async function renderAppPage(
-  { req, ctx, metadata, loaderTree }: PreparedAppPageRender,
+  req: BaseNextRequest,
+  requestHeaders: IncomingHttpHeaders,
+  {
+    ctx,
+    metadata,
+    loaderTree,
+    serverActionRequestMetadata,
+  }: PreparedAppPageRender,
   postponedState: PostponedState | null,
-  dev: DevRenderContext | undefined
+  dev: DevRenderContext | undefined,
+  stagedFallbackParams: OpaqueFallbackRouteParams | null
 ) {
   const {
     res,
@@ -2950,8 +2940,7 @@ async function renderAppPage(
     isHmrRefresh,
     isPrefetchRequest,
     isRSCRequest,
-    isRuntimePrefetchRequest,
-    isAppShellPrefetchRequest,
+    runtimePrefetchStage,
     isRouteTreePrefetchRequest,
   } = parsedRequestHeaders
   const isPossibleActionRequest = ctx.isPossibleServerAction
@@ -2965,8 +2954,6 @@ async function renderAppPage(
   const rootParams = getRootParams(loaderTree, ctx.getDynamicParamFromSegment)
   // Keep the placeholder map for dev's separate prerender validation. The
   // request store only needs names to defer params during a staged render.
-  const stagedFallbackParams =
-    getRequestMeta(req, 'stagedFallbackParams') ?? null
   const stagedFallbackParamNames =
     postponedState?.stagedFallbackParams !== undefined
       ? postponedState.stagedFallbackParams
@@ -2975,7 +2962,7 @@ async function renderAppPage(
         : null
   const createRequestStore = createRequestStoreForRender.bind(
     null,
-    req,
+    requestHeaders,
     res,
     url,
     rootParams,
@@ -2996,8 +2983,7 @@ async function renderAppPage(
     !cacheComponents &&
     !isPossibleActionRequest &&
     !isPrefetchRequest &&
-    !isRuntimePrefetchRequest &&
-    !isAppShellPrefetchRequest &&
+    runtimePrefetchStage === null &&
     !isRouteTreePrefetchRequest
       ? setIsrStatus
       : undefined
@@ -3014,12 +3000,12 @@ async function renderAppPage(
 
   // MARK: RSC request
   if (isRSCRequest) {
-    if (isRuntimePrefetchRequest) {
+    if (runtimePrefetchStage !== null) {
       // MARK: RSC runtimePrefetch
       return generateRuntimePrefetchResult(
         ctx,
         requestStore,
-        isAppShellPrefetchRequest
+        runtimePrefetchStage
       )
     } else {
       if (
@@ -3068,6 +3054,7 @@ async function renderAppPage(
     // For action requests, we handle them differently with a special render result.
     const actionRequestResult = await handleAction({
       req,
+      serverActionRequestMetadata,
       res,
       ComponentMod,
       generateFlight: generateDynamicFlightRenderResult,
@@ -3093,6 +3080,7 @@ async function renderAppPage(
             requestStore,
             res,
             ctx,
+            dev,
             notFoundLoaderTree,
             formState,
             postponedState,
@@ -3138,6 +3126,7 @@ async function renderAppPage(
       requestStore,
       res,
       ctx,
+      dev,
       loaderTree,
       formState,
       postponedState,
@@ -3216,18 +3205,22 @@ async function renderAppPage(
 async function renderToHTMLOrFlightImpl(
   req: BaseNextRequest,
   res: BaseNextResponse,
+  requestUrl: string,
+  requestHeaders: IncomingHttpHeaders,
   url: ReturnType<typeof parseRelativeUrl>,
   pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
   workStore: WorkStore,
   parsedRequestHeaders: ParsedRequestHeaders,
+  serverActionRequestMetadata: ServerActionRequestMetadata,
   postponedState: PostponedState | null,
   dev: DevRenderContext | undefined,
   sharedContext: AppSharedContext,
   interpolatedParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
-  routeMatch: RouteMatch
+  routeMatch: RouteMatch,
+  stagedFallbackParams: OpaqueFallbackRouteParams | null
 ) {
   if (renderOpts.ComponentMod.__next_app__) {
     installGlobalModuleLoadingHandlers(
@@ -3236,14 +3229,15 @@ async function renderToHTMLOrFlightImpl(
     )
   }
   const prepared = await prepareAppPageRender(
-    req,
     res,
+    requestUrl,
     url,
     pagePath,
     query,
     renderOpts,
     workStore,
     parsedRequestHeaders,
+    serverActionRequestMetadata,
     sharedContext,
     interpolatedParams,
     fallbackRouteParams,
@@ -3259,18 +3253,26 @@ async function renderToHTMLOrFlightImpl(
       supportsPerSegmentPrefetching: renderOpts.cacheComponents,
     }
   )
-  return renderAppPage(prepared, postponedState, dev)
+  return renderAppPage(
+    req,
+    requestHeaders,
+    prepared,
+    postponedState,
+    dev,
+    stagedFallbackParams
+  )
 }
 
 async function prerenderToHTMLOrFlightImpl(
-  req: BaseNextRequest,
   res: BaseNextResponse,
+  requestUrl: string,
   url: ReturnType<typeof parseRelativeUrl>,
   pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
   workStore: WorkStore,
   parsedRequestHeaders: ParsedRequestHeaders,
+  serverActionRequestMetadata: ServerActionRequestMetadata,
   sharedContext: AppSharedContext,
   interpolatedParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
@@ -3284,14 +3286,15 @@ async function prerenderToHTMLOrFlightImpl(
   }
   const isRoutePPREnabled = renderOpts.experimental.isRoutePPREnabled === true
   const prepared = await prepareAppPageRender(
-    req,
     res,
+    requestUrl,
     url,
     pagePath,
     query,
     renderOpts,
     workStore,
     parsedRequestHeaders,
+    serverActionRequestMetadata,
     sharedContext,
     interpolatedParams,
     fallbackRouteParams,
@@ -3313,6 +3316,8 @@ async function prerenderToHTMLOrFlightImpl(
 export type AppPageRender = (
   req: BaseNextRequest,
   res: BaseNextResponse,
+  requestUrl: string,
+  requestHeaders: IncomingHttpHeaders,
   pagePath: string,
   query: NextParsedUrlQuery,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
@@ -3320,11 +3325,22 @@ export type AppPageRender = (
   dev: DevRenderContext | undefined,
   sharedContext: AppSharedContext,
   routeMatch: RouteMatch,
-  parsedRequestHeaders: ParsedRequestHeaders
+  parsedRequestHeaders: ParsedRequestHeaders,
+  serverActionRequestMetadata: ServerActionRequestMetadata,
+  stagedFallbackParams: OpaqueFallbackRouteParams | null
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export type AppPagePrerender = (
-  ...args: Parameters<AppPageRender>
+  res: BaseNextResponse,
+  requestUrl: string,
+  pagePath: string,
+  query: NextParsedUrlQuery,
+  fallbackRouteParams: OpaqueFallbackRouteParams | null,
+  renderOpts: RenderOpts,
+  sharedContext: AppSharedContext,
+  routeMatch: RouteMatch,
+  parsedRequestHeaders: ParsedRequestHeaders,
+  serverActionRequestMetadata: ServerActionRequestMetadata
 ) => Promise<PrerenderResult>
 
 type AppPagePreparation = {
@@ -3334,16 +3350,17 @@ type AppPagePreparation = {
 }
 
 function prepareAppPage(
-  req: BaseNextRequest,
+  serverActionRequestMetadata: ServerActionRequestMetadata,
+  requestUrl: string,
   pagePath: string,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   renderOpts: RenderOpts
 ): AppPagePreparation {
-  if (!req.url) {
+  if (!requestUrl) {
     throw new Error('Invalid URL')
   }
 
-  const url = parseRelativeUrl(req.url, undefined, false)
+  const url = parseRelativeUrl(requestUrl, undefined, false)
 
   const interpolatedParams = interpolateParallelRouteParams(
     renderOpts.ComponentMod.routeModule.userland.loaderTree,
@@ -3357,7 +3374,7 @@ function prepareAppPage(
   let postponedState: PostponedState | null = null
   if (typeof renderOpts.postponed === 'string') {
     if (fallbackRouteParams) {
-      if (!getServerActionRequestMetadata(req).isFetchAction) {
+      if (!serverActionRequestMetadata.isFetchAction) {
         throw new InvariantError(
           'postponed state should not be provided when fallback params are provided'
         )
@@ -3402,6 +3419,8 @@ function prepareAppPage(
 export const renderToHTMLOrFlight: AppPageRender = (
   req,
   res,
+  requestUrl,
+  requestHeaders,
   pagePath,
   query,
   fallbackRouteParams,
@@ -3409,10 +3428,13 @@ export const renderToHTMLOrFlight: AppPageRender = (
   dev,
   sharedContext,
   routeMatch,
-  parsedRequestHeaders
+  parsedRequestHeaders,
+  serverActionRequestMetadata,
+  stagedFallbackParams
 ) => {
   const { url, interpolatedParams, postponedState } = prepareAppPage(
-    req,
+    serverActionRequestMetadata,
+    requestUrl,
     pagePath,
     fallbackRouteParams,
     renderOpts
@@ -3435,35 +3457,40 @@ export const renderToHTMLOrFlight: AppPageRender = (
     renderToHTMLOrFlightImpl,
     req,
     res,
+    requestUrl,
+    requestHeaders,
     url,
     pagePath,
     query,
     renderOpts,
     workStore,
     parsedRequestHeaders,
+    serverActionRequestMetadata,
     postponedState,
     dev,
     sharedContext,
     interpolatedParams,
     fallbackRouteParams,
-    routeMatch
+    routeMatch,
+    stagedFallbackParams
   )
 }
 
 export const prerenderToHTMLOrFlight: AppPagePrerender = (
-  req,
   res,
+  requestUrl,
   pagePath,
   query,
   fallbackRouteParams,
   renderOpts,
-  _dev,
   sharedContext,
   routeMatch,
-  parsedRequestHeaders
+  parsedRequestHeaders,
+  serverActionRequestMetadata
 ) => {
   const { url, interpolatedParams } = prepareAppPage(
-    req,
+    serverActionRequestMetadata,
+    requestUrl,
     pagePath,
     fallbackRouteParams,
     renderOpts
@@ -3484,14 +3511,15 @@ export const prerenderToHTMLOrFlight: AppPagePrerender = (
   return workAsyncStorage.run(
     workStore,
     prerenderToHTMLOrFlightImpl,
-    req,
     res,
+    requestUrl,
     url,
     pagePath,
     query,
     renderOpts,
     workStore,
     parsedRequestHeaders,
+    serverActionRequestMetadata,
     sharedContext,
     interpolatedParams,
     fallbackRouteParams,
@@ -3560,6 +3588,7 @@ async function renderToStream(
   requestStore: RequestStore,
   res: BaseNextResponse,
   ctx: AppRenderContext,
+  devContext: DevRenderContext | undefined,
   tree: LoaderTree,
   formState: any,
   postponedState: PostponedState | null,
@@ -3642,11 +3671,15 @@ async function renderToStream(
   // For MPA navigations (page reload, direct URL entry), the request ID
   // header is not present, so we generate a random one.
   let bootstrapScriptContent: string | undefined
+  // The Turbopack chunk-group bootstrap is only set when the shared runtime is
+  // used. A Cache Components static shell doesn't include it (see
+  // `prerenderToStream`), so resuming one emits it with the request's nonce.
+  let turbopackBootstrapScriptContent: string | undefined
   if (process.env.__NEXT_DEV_SERVER) {
     bootstrapScriptContent = `self.__next_r=${JSON.stringify(
       requestId ?? crypto.randomUUID()
     )}`
-    const initialHmrVersion = ctx.initialHmrVersion
+    const initialHmrVersion = devContext?.initialHmrVersion
     if (initialHmrVersion !== undefined) {
       // Only the dev server with Turbopack HMR supplies this captured baseline.
       bootstrapScriptContent += `;var __nextHmrInitialVersion=${htmlEscapeJsonString(
@@ -3657,11 +3690,12 @@ async function renderToStream(
     buildManifest.pagesChunkGroupBootstrapParams &&
     buildManifest.chunkLoadingGlobal
   ) {
-    bootstrapScriptContent = getTurbopackChunkGroupBootstrap(
+    turbopackBootstrapScriptContent = getTurbopackChunkGroupBootstrap(
       buildManifest.pagesChunkGroupBootstrapParams,
       buildManifest.chunkLoadingGlobal,
       [page]
     )
+    bootstrapScriptContent = turbopackBootstrapScriptContent
   }
 
   // Instant Navigation Testing API: embed the cookie-guarded bootstrap so it
@@ -3883,9 +3917,9 @@ async function renderToStream(
         }
       } else if (cacheComponents && cachedNavigations) {
         // Production Cache Components + Cached Navigations: use staged
-        // rendering so the RSC payload includes the static stage byte length
-        // (`l` field), enabling the client to cache the static subset during
-        // hydration.
+        // rendering so the RSC payload includes the shell byte length (`a`)
+        // and, with Partial Prefetching, an embedded runtime prefetch that the
+        // client caches during hydration.
 
         const selectStaleTime = createSelectStaleTime(experimental)
         const staleTimeIterable = new StaleTimeIterable()
@@ -3894,8 +3928,8 @@ async function renderToStream(
         const stageController = new StagedRenderingController({
           abortSignal: null,
           abandonController: null,
-          // Synchronous request-time data ends the static stage before its
-          // result can enter the Cached Navigation.
+          // The prefetch mode controls which stages are allowed to read
+          // request-time data synchronously.
           syncIO: getSyncIOMode(prefetchMode),
           finalStage: null,
         })
@@ -3908,8 +3942,10 @@ async function renderToStream(
           requestStore.mutableCookies,
           requestStore.headers
         )
-        requestStore.varyParamsAccumulator =
-          createResponseVaryParamsAccumulator()
+        // No vary params tracking. This response includes dynamic data, and
+        // param tracking can't cover the dynamic stage, so the report would be
+        // incomplete. Leaving the accumulator unset sends no vary params,
+        // which the client treats as unknown and keys on every param.
 
         trackStaleTime(
           requestStore as { stale: number },
@@ -3917,11 +3953,8 @@ async function renderToStream(
           selectStaleTime
         )
 
-        const shellByteLengthDeferred = createPromiseWithResolvers<
-          number | null
-        >()
-        const staticStageByteLengthDeferred =
-          createPromiseWithResolvers<number>()
+        const stageByteLengthsDeferred =
+          createPromiseWithResolvers<Array<number>>()
 
         let runtimePrefetchStream: ReadableStream<Uint8Array> | undefined
         let startRuntimePrefetchRender: (() => Promise<void>) | undefined
@@ -3981,8 +4014,7 @@ async function renderToStream(
             is404: res.statusCode === 404,
             isPrerendering: false,
             staleTimeIterable,
-            shellByteLengthPromise: shellByteLengthDeferred.promise,
-            staticStageByteLengthPromise: staticStageByteLengthDeferred.promise,
+            stageByteLengthsPromise: stageByteLengthsDeferred.promise,
             runtimePrefetchStream,
           }
         )
@@ -4013,34 +4045,23 @@ async function renderToStream(
 
             const replayable = new ReplayableNodeStream(stream)
             const dynamicStream = replayable.createReplayStream()
-            const staticStream = replayable.createReplayStream()
+            const shellStream = replayable.createReplayStream()
 
-            void countShellAndStaticStageBytes(
-              staticStream,
-              stageController
-            ).then((byteLengths) => {
-              staticStageByteLengthDeferred.resolve(
-                byteLengths[RenderStage.Static]
-              )
-              shellByteLengthDeferred.resolve(
-                byteLengths[RenderStage.ShellStatic]
-              )
-            })
+            void countShellBytes(shellStream, stageController).then(
+              (shellByteLength) =>
+                stageByteLengthsDeferred.resolve([shellByteLength])
+            )
 
             return dynamicStream
           },
           // Fold `PrefetchStatic_prefetchApi` into `PrefetchStatic` - no discrimination needed here
           () => stageController.advanceStage(RenderStage.PrefetchStatic),
           () => stageController.advanceStage(RenderStage.NavigationStatic),
-          () => stageController.advanceStage(RenderStage.Static),
           () => {
             // This is a separate task that doesn't advance a stage. It forces
-            // draining the immediate queue so that the stale time iterable and vary
-            // params accumulators are flushed before we advance to the dynamic stage.
+            // draining the immediate queue so that the stale time iterable is
+            // flushed before we advance to the dynamic stage.
             staleTimeIterable.close()
-            if (requestStore.varyParamsAccumulator) {
-              finishAccumulatingVaryParams(requestStore.varyParamsAccumulator)
-            }
           },
           () => stageController.advanceStage(RenderStage.Dynamic)
         )
@@ -4150,10 +4171,14 @@ async function renderToStream(
             // We have a complete HTML Document in the prerender but we need to
             // still include the new server component render because it was not included
             // in the static prelude.
-            const inlinedDataStream = createNodeInlinedDataStream(
-              reactServerResult.tee(),
-              nonce,
-              formState
+            const inlinedDataStream = withTurbopackBootstrapScript(
+              createNodeInlinedDataStream(
+                reactServerResult.tee(),
+                nonce,
+                formState
+              ),
+              turbopackBootstrapScriptContent,
+              nonce
             )
 
             // There's no async HTML rendering in this path.
@@ -4202,10 +4227,14 @@ async function renderToStream(
             return await continueDynamicHTMLResumeNode(htmlStream, {
               delayDataUntilFirstHtmlChunk:
                 preludeState === DynamicHTMLPreludeState.Empty,
-              inlinedDataStream: createNodeInlinedDataStream(
-                reactServerResult.consume(),
-                nonce,
-                formState
+              inlinedDataStream: withTurbopackBootstrapScript(
+                createNodeInlinedDataStream(
+                  reactServerResult.consume(),
+                  nonce,
+                  formState
+                ),
+                turbopackBootstrapScriptContent,
+                nonce
               ),
               getServerInsertedHTML,
               getServerInsertedMetadata,
@@ -4285,10 +4314,14 @@ async function renderToStream(
             // We have a complete HTML Document in the prerender but we need to
             // still include the new server component render because it was not included
             // in the static prelude.
-            const inlinedDataStream = createWebInlinedDataStream(
-              reactServerResult.tee(),
-              nonce,
-              formState
+            const inlinedDataStream = withTurbopackBootstrapScript(
+              createWebInlinedDataStream(
+                reactServerResult.tee(),
+                nonce,
+                formState
+              ),
+              turbopackBootstrapScriptContent,
+              nonce
             )
 
             // There's no async HTML rendering in this path.
@@ -4337,10 +4370,14 @@ async function renderToStream(
             return await continueDynamicHTMLResumeWeb(htmlStream, {
               delayDataUntilFirstHtmlChunk:
                 preludeState === DynamicHTMLPreludeState.Empty,
-              inlinedDataStream: createWebInlinedDataStream(
-                reactServerResult.consume(),
-                nonce,
-                formState
+              inlinedDataStream: withTurbopackBootstrapScript(
+                createWebInlinedDataStream(
+                  reactServerResult.consume(),
+                  nonce,
+                  formState
+                ),
+                turbopackBootstrapScriptContent,
+                nonce
               ),
               getServerInsertedHTML,
               getServerInsertedMetadata,
@@ -5506,7 +5543,6 @@ function getEnvironmentNameForStage(stage: RenderStage) {
     case RenderStage.PrefetchStatic_prefetchApi:
     case RenderStage.PrefetchStatic:
     case RenderStage.NavigationStatic:
-    case RenderStage.Static:
       return 'Prerender'
     case RenderStage.ShellRuntime:
     case RenderStage.PrefetchRuntime_prefetchApi:
@@ -5543,7 +5579,7 @@ type DevNavigationKind =
 
 type StreamRevealStage =
   | RenderStage.ShellStatic
-  | RenderStage.Static
+  | RenderStage.NavigationStatic
   | RenderStage.ShellRuntime
   | RenderStage.PrefetchRuntime
 
@@ -5555,7 +5591,7 @@ function navigationHasRuntimeShell(navigationKind: DevNavigationKind): boolean {
     case 'prefetched-client': {
       switch (navigationKind.prefetchStage) {
         case RenderStage.ShellStatic:
-        case RenderStage.Static: {
+        case RenderStage.NavigationStatic: {
           return false
         }
         case RenderStage.ShellRuntime:
@@ -5611,7 +5647,7 @@ async function streamStagedRenderInDev({
       // Hold the stream until the shell content has flushed so the
       // streamed HTML reflects the prerendered HTML shell
       holdStreamUntilRevealed = true
-      revealAfterStage = RenderStage.Static
+      revealAfterStage = RenderStage.NavigationStatic
       break
     }
     case 'prefetched-client': {
@@ -5779,8 +5815,7 @@ async function streamStagedRenderInDev({
     () => checkCacheMissAndAdvance(RenderStage.PrefetchStatic_prefetchApi),
     () => checkCacheMissAndAdvance(RenderStage.PrefetchStatic),
     () => checkCacheMissAndAdvance(RenderStage.NavigationStatic),
-    () => checkCacheMissAndAdvance(RenderStage.Static),
-    () => checkReveal(RenderStage.Static),
+    () => checkReveal(RenderStage.NavigationStatic),
 
     () => checkCacheMissAndAdvance(RenderStage.ShellRuntime),
     () => checkReveal(RenderStage.ShellRuntime),
@@ -5942,7 +5977,6 @@ async function renderWithWarmCachesForValidationInDev(
     () => stageController.advanceStage(RenderStage.PrefetchStatic_prefetchApi),
     () => stageController.advanceStage(RenderStage.PrefetchStatic),
     () => stageController.advanceStage(RenderStage.NavigationStatic),
-    () => stageController.advanceStage(RenderStage.Static),
     () => stageController.advanceStage(RenderStage.ShellRuntime),
     () => stageController.advanceStage(RenderStage.PrefetchRuntime_prefetchApi),
     () => stageController.advanceStage(RenderStage.PrefetchRuntime),
@@ -6078,7 +6112,6 @@ async function prerenderWithWarmCachesForStaticValidationInDev(
     () => stageController.advanceStage(RenderStage.PrefetchStatic_prefetchApi),
     () => stageController.advanceStage(RenderStage.PrefetchStatic),
     () => stageController.advanceStage(RenderStage.NavigationStatic),
-    () => stageController.advanceStage(RenderStage.Static),
     () => stageController.advanceStage(RenderStage.ShellRuntime),
     () => stageController.advanceStage(RenderStage.PrefetchRuntime_prefetchApi),
     () => stageController.advanceStage(RenderStage.PrefetchRuntime),
@@ -6287,6 +6320,14 @@ function createStageChunksAccumulator(): AccumulatedStreamChunks {
   return result as AccumulatedStreamChunks
 }
 
+function getTotalByteLength(chunks: Array<Uint8Array>): number {
+  let byteLength = 0
+  for (const chunk of chunks) {
+    byteLength += chunk.byteLength
+  }
+  return byteLength
+}
+
 async function accumulateStreamChunks(
   stream: AnyStream,
   stageController: StagedRenderingController,
@@ -6382,17 +6423,15 @@ function collectStageChunk(
   }
 }
 
-async function countShellAndStaticStageBytes(
+async function countShellBytes(
   stream: Readable,
   stageController: StagedRenderingController
-): Promise<
-  Pick<StageByteLengths, RenderStage.ShellStatic | RenderStage.Static>
-> {
+): Promise<number> {
   const byteLengths = createStageByteLengths()
 
-  // Abort the signal whenever we advance to the stage after static.
+  // Abort the signal whenever we advance to the stage after the shell.
   const abortController = new AbortController()
-  const endStage = getNextStage(RenderStage.Static)
+  const endStage = getNextStage(RenderStage.ShellStatic)
   stageController.onStage(endStage, abortController.abort.bind(abortController))
 
   await countStageBytesUntilAbortNode(
@@ -6401,7 +6440,7 @@ async function countShellAndStaticStageBytes(
     stageController,
     abortController.signal
   )
-  return byteLengths
+  return byteLengths[RenderStage.ShellStatic]
 }
 
 type StageByteLengths = Record<AdvanceableRenderStage, number>
@@ -7132,7 +7171,7 @@ async function validateStaticShell(
   }
 
   const staticResult = await validateStaticShellAtStage(
-    RenderStage.Static,
+    RenderStage.NavigationStatic,
     accumulatedChunks,
     debugChunks,
     stageEndTimes,
@@ -7334,7 +7373,7 @@ async function warmupClientModulesForStagedValidation(
 }
 
 async function validateStaticShellAtStage(
-  stage: RenderStage.Static | RenderStage.PrefetchRuntime,
+  stage: RenderStage.NavigationStatic | RenderStage.PrefetchRuntime,
   accumulatedChunks: AccumulatedStreamChunks,
   debugChunks: null | Array<Uint8Array>,
   stageEndTimes: StageEndTimes,
@@ -7352,7 +7391,7 @@ async function validateStaticShellAtStage(
   const { implicitTags, nonce, workStore } = ctx
 
   const dynamicHoleKind =
-    stage === RenderStage.Static
+    stage === RenderStage.NavigationStatic
       ? DynamicHoleKind.Runtime
       : DynamicHoleKind.Dynamic
 
@@ -7706,12 +7745,12 @@ async function validateInstantConfigs(
     }),
     [ValidationPrefetchKind.LegacySpeculative]: defineValidationSequence({
       stageOrder: [
-        RenderStage.Static,
+        RenderStage.NavigationStatic,
         RenderStage.PrefetchRuntime,
         RenderStage.Dynamic,
       ],
       holeResolution: {
-        [RenderStage.Static]: null, // initial stage
+        [RenderStage.NavigationStatic]: null, // initial stage
         [RenderStage.PrefetchRuntime]: DynamicHoleKind.Runtime,
         [RenderStage.Dynamic]: DynamicHoleKind.Dynamic,
       },
@@ -8251,7 +8290,6 @@ async function renderWithRestartOnCacheMissInValidation(
     () => advanceStageIfNoCacheMiss(RenderStage.PrefetchStatic_prefetchApi),
     () => advanceStageIfNoCacheMiss(RenderStage.PrefetchStatic),
     () => advanceStageIfNoCacheMiss(RenderStage.NavigationStatic),
-    () => advanceStageIfNoCacheMiss(RenderStage.Static),
     () => advanceStageIfNoCacheMiss(RenderStage.ShellRuntime),
     () => advanceStageIfNoCacheMiss(RenderStage.PrefetchRuntime_prefetchApi),
     () => advanceStageIfNoCacheMiss(RenderStage.PrefetchRuntime),
@@ -8357,7 +8395,6 @@ async function renderWithRestartOnCacheMissInValidation(
       finalStageController.advanceStage(RenderStage.PrefetchStatic_prefetchApi),
     () => finalStageController.advanceStage(RenderStage.PrefetchStatic),
     () => finalStageController.advanceStage(RenderStage.NavigationStatic),
-    () => finalStageController.advanceStage(RenderStage.Static),
     () => finalStageController.advanceStage(RenderStage.ShellRuntime),
     () =>
       finalStageController.advanceStage(
@@ -8635,6 +8672,7 @@ async function validateInstantConfigInBuildWithSample(
       query: sampleQuery,
       isPrefetch: false,
       isPossibleServerAction: false,
+      couldBeIntercepted: outerCtx.couldBeIntercepted,
       requestTimestamp: outerCtx.requestTimestamp,
       appUsingSizeAdjustment: outerCtx.appUsingSizeAdjustment,
       flightRouterState: undefined,
@@ -8831,7 +8869,8 @@ async function continueStaticPrerenderWithInlinedData(
   renderFlightStream: typeof renderToWebFlightStream,
   clientModules: Parameters<typeof renderToWebFlightStream>[2],
   filterStackFrameForError: typeof filterStackFrame,
-  serverComponentsErrorHandler: (err: unknown) => string | undefined
+  serverComponentsErrorHandler: (err: unknown) => string | undefined,
+  turbopackBootstrapScriptContent: string | undefined
 ): Promise<AnyStream> {
   const hasFallbackRouteParams =
     fallbackRouteParams && fallbackRouteParams.size > 0
@@ -8859,10 +8898,14 @@ async function continueStaticPrerenderWithInlinedData(
           onError: serverComponentsErrorHandler,
         })
       )
-    const inlinedDataStream = createInlinedDataStream(
-      emptyReactServerResult.consumeAsStream(),
-      nonce,
-      formState
+    const inlinedDataStream = withTurbopackBootstrapScript(
+      createInlinedDataStream(
+        emptyReactServerResult.consumeAsStream(),
+        nonce,
+        formState
+      ),
+      turbopackBootstrapScriptContent,
+      nonce
     )
     return continueStaticFallbackPrerender(htmlStream, {
       inlinedDataStream,
@@ -8872,10 +8915,14 @@ async function continueStaticPrerenderWithInlinedData(
     })
   }
 
-  const inlinedDataStream = createInlinedDataStream(
-    reactServerResult.consumeAsStream(),
-    nonce,
-    formState
+  const inlinedDataStream = withTurbopackBootstrapScript(
+    createInlinedDataStream(
+      reactServerResult.consumeAsStream(),
+      nonce,
+      formState
+    ),
+    turbopackBootstrapScriptContent,
+    nonce
   )
   return continueStaticPrerender(htmlStream, {
     inlinedDataStream,
@@ -8883,6 +8930,31 @@ async function continueStaticPrerenderWithInlinedData(
     getServerInsertedMetadata,
     deploymentId,
   })
+}
+
+/**
+ * Emits the Turbopack chunk-group bootstrap as an inline script ahead of the
+ * inlined Flight data. Cache Components prerenders leave it out of the static
+ * shell, which is prerendered without a request and so can't carry a CSP
+ * nonce. The shell then gets it from here: as part of the response when the
+ * shell is complete, or from the per-request resume (with the request's nonce)
+ * when the shell has postponed parts.
+ */
+function withTurbopackBootstrapScript(
+  inlinedDataStream: AnyStream,
+  turbopackBootstrapScriptContent: string | undefined,
+  nonce: string | undefined
+): AnyStream {
+  if (!turbopackBootstrapScriptContent) {
+    return inlinedDataStream
+  }
+  return chainStreams(
+    createTurbopackBootstrapScriptStream(
+      turbopackBootstrapScriptContent,
+      nonce
+    ),
+    inlinedDataStream
+  )
 }
 
 async function prerenderToStream(
@@ -8978,7 +9050,15 @@ async function prerenderToStream(
     page
   )
 
-  let bootstrapScriptContent =
+  // The Turbopack chunk-group bootstrap (only set with the shared runtime). The
+  // Cache Components prerenders below keep it out of the static shell: the
+  // shell is prerendered without a request, so an inline script in it can't
+  // carry the request's CSP nonce, and on Vercel the shell is served before any
+  // Next.js code runs, so it can't be added later either. Instead it's emitted
+  // after the shell: in the stored response when the shell is complete, or by
+  // the per-request resume (with the nonce) when the shell has postponed parts.
+  // See `withTurbopackBootstrapScript`.
+  const turbopackBootstrapScriptContent =
     buildManifest.pagesChunkGroupBootstrapParams &&
     buildManifest.chunkLoadingGlobal
       ? getTurbopackChunkGroupBootstrap(
@@ -8988,14 +9068,14 @@ async function prerenderToStream(
         )
       : undefined
 
+  let bootstrapScriptContent: string | undefined
+
   // Instant Navigation Testing API: when exposed, embed the cookie-guarded
   // bootstrap into the prerendered prelude so the cached static shell carries
   // it and it runs before the client bootstrap module reads
   // self.__next_instant_test.
   if (renderOpts.experimental.exposeTestingApi) {
-    bootstrapScriptContent =
-      (bootstrapScriptContent ? `${bootstrapScriptContent};` : '') +
-      (await getInstantTestBootstrapScriptContent())
+    bootstrapScriptContent = await getInstantTestBootstrapScriptContent()
   }
 
   // In development the static shell is served without a dynamic resume, so it
@@ -9535,7 +9615,7 @@ async function prerenderToStream(
         abortSignal: finalServerRenderController.signal,
         abandonController: null,
         syncIO: SyncIOMode.AllowedInDynamic,
-        finalStage: RenderStage.Static,
+        finalStage: RenderStage.NavigationStatic,
       })
 
       const prerenderDataTracking = createPrerenderDataTracking()
@@ -9571,9 +9651,8 @@ async function prerenderToStream(
         isFallbackUpgradeable: renderOpts.isFallbackUpgradeable === true,
       }
 
-      const shellByteLengthDeferred = createPromiseWithResolvers<
-        number | null
-      >()
+      const stageByteLengthsDeferred =
+        createPromiseWithResolvers<Array<number>>()
 
       const finalServerPayload = await workUnitAsyncStorage.run(
         finalServerPayloadPrerenderStore,
@@ -9583,7 +9662,7 @@ async function prerenderToStream(
         {
           is404: res.statusCode === 404,
           isPrerendering: true,
-          shellByteLengthPromise: shellByteLengthDeferred.promise,
+          stageByteLengthsPromise: stageByteLengthsDeferred.promise,
         }
       )
 
@@ -9754,21 +9833,37 @@ async function prerenderToStream(
         },
         () => {
           if (checkUnexpectedAbort()) return
-          finalStageController.advanceStage(RenderStage.Static)
-        },
-        () => {
-          if (checkUnexpectedAbort()) return
 
           // Finish the accumulators. We need to wait for Flight to flush the result into the stream,
           // which is scheduled in a (fast) immediate, so we do this in a separate task
           // (fast immediates will be drained at the end of the task, so in the next task we know we're done flushing)
 
-          // Check if new chunks were emitted after unblocking link data or navigation().
+          // If anything was emitted after the shell, list where the shell
+          // ends. Then, if anything was emitted after `navigation()` resolved,
+          // list where the prefetch stage ends.
           // NOTE: we must capture this *before* resolving staleTime/varyParams,
           // which always emit new static chunks.
-          const hasMoreContentThanShell =
-            collectedChunksByStage[RenderStage.Static].length >
+          const stageByteLengths: Array<number> = []
+          if (
+            collectedChunksByStage[RenderStage.NavigationStatic].length >
             collectedChunksByStage[RenderStage.ShellStatic].length
+          ) {
+            stageByteLengths.push(
+              getTotalByteLength(
+                collectedChunksByStage[RenderStage.ShellStatic]
+              )
+            )
+            if (
+              collectedChunksByStage[RenderStage.NavigationStatic].length >
+              collectedChunksByStage[RenderStage.PrefetchStatic].length
+            ) {
+              stageByteLengths.push(
+                getTotalByteLength(
+                  collectedChunksByStage[RenderStage.PrefetchStatic]
+                )
+              )
+            }
+          }
 
           // Now that the prerendering is complete, we know the final stale
           // time and vary params. Close the stale time iterable and resolve
@@ -9782,14 +9877,7 @@ async function prerenderToStream(
           finishPrerenderDataTracking(prerenderDataTracking)
           finishAccumulatingVaryParams(varyParamsAccumulator)
 
-          shellByteLengthDeferred.resolve(
-            hasMoreContentThanShell
-              ? collectedChunksByStage[RenderStage.ShellStatic].reduce(
-                  (acc, chunk) => acc + chunk.byteLength,
-                  0
-                )
-              : null
-          )
+          stageByteLengthsDeferred.resolve(stageByteLengths)
         },
         () => {
           if (checkUnexpectedAbort()) return
@@ -9839,10 +9927,11 @@ async function prerenderToStream(
         const {
           shouldAttemptStaticShell: shellIsStatic,
           shouldAttemptStaticPrefetch: prefetchIsStatic,
+          shouldAttemptStaticNavigation: navigationIsStatic,
         } = prerenderDataTracking
         const label = (isStatic: boolean) => (isStatic ? 'static' : 'runtime')
         console.log(
-          `Route ${workStore.route} :: hints: shell=${label(shellIsStatic)}, prefetch=${label(prefetchIsStatic)}`
+          `Route ${workStore.route} :: hints: shell=${label(shellIsStatic)}, prefetch=${label(prefetchIsStatic)}, navigation=${label(navigationIsStatic)}`
         )
       }
       await collectSegmentData(
@@ -10155,7 +10244,8 @@ async function prerenderToStream(
         renderFlightStream,
         clientModules,
         filterStackFrame,
-        serverComponentsErrorHandler
+        serverComponentsErrorHandler,
+        turbopackBootstrapScriptContent
       )
 
       return {
@@ -10226,7 +10316,13 @@ async function prerenderToStream(
         {
           onError: htmlRendererErrorHandler,
           nonce,
-          bootstrapScriptContent,
+          // Without Cache Components the prerender is a complete document
+          // that's never resumed, so the Turbopack bootstrap stays inline.
+          bootstrapScriptContent: turbopackBootstrapScriptContent
+            ? bootstrapScriptContent
+              ? `${turbopackBootstrapScriptContent};${bootstrapScriptContent}`
+              : turbopackBootstrapScriptContent
+            : bootstrapScriptContent,
           bootstrapScripts: [bootstrapScript],
         },
         { waitForAllReady: true }
@@ -10552,7 +10648,8 @@ async function prerenderToStream(
               />,
               {
                 nonce,
-                bootstrapScriptContent: errorBootstrapScriptContent,
+                // Like the regular prerender, the Turbopack bootstrap is left
+                // out of the shell; see `withTurbopackBootstrapScript`.
                 bootstrapScripts: [errorBootstrapScript],
                 formState,
                 signal: errorClientReactController.signal,
@@ -10710,7 +10807,8 @@ async function prerenderToStream(
           renderFlightStream,
           clientModules,
           filterStackFrame,
-          serverComponentsErrorHandler
+          serverComponentsErrorHandler,
+          errorBootstrapScriptContent
         )
 
         errorServerResult.consume()
@@ -11117,12 +11215,14 @@ async function collectSegmentData(
     const {
       shouldAttemptStaticShell = false,
       shouldAttemptStaticPrefetch = false,
+      shouldAttemptStaticNavigation = false,
     } = prerenderDataTracking ?? {}
 
     if (
       prefetchInlining ||
       shouldAttemptStaticShell ||
-      shouldAttemptStaticPrefetch
+      shouldAttemptStaticPrefetch ||
+      shouldAttemptStaticNavigation
     ) {
       // Build time: compute fresh hints and store in metadata for the
       // manifest. When prefetch inlining is disabled there are no sizes to
@@ -11136,7 +11236,8 @@ async function collectSegmentData(
         serverConsumerManifest,
         prefetchInlining,
         shouldAttemptStaticShell,
-        shouldAttemptStaticPrefetch
+        shouldAttemptStaticPrefetch,
+        shouldAttemptStaticNavigation
       )
       metadata.prefetchHints = hints
     } else {

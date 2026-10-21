@@ -6201,6 +6201,7 @@
                 var iteratorFn = getIteratorFn(children$jscomp$0);
                 if (iteratorFn) {
                   var iterator = iteratorFn.call(children$jscomp$0);
+                  if (request.aborted) throw null;
                   if (iterator) {
                     validateIterable(
                       task,
@@ -6210,10 +6211,12 @@
                       iteratorFn
                     );
                     var step = iterator.next();
+                    if (request.aborted) throw null;
                     if (!step.done) {
                       var rows = [];
                       do rows.push(step.value), (step = iterator.next());
                       while (!step.done);
+                      if (request.aborted) throw null;
                       renderSuspenseListRows(
                         request,
                         task,
@@ -6227,6 +6230,7 @@
                 }
                 if ("function" === typeof children$jscomp$0[ASYNC_ITERATOR]) {
                   var _iterator = children$jscomp$0[ASYNC_ITERATOR]();
+                  if (request.aborted) throw null;
                   if (_iterator) {
                     validateAsyncIterable(
                       task,
@@ -6261,6 +6265,7 @@
                       )
                         _rows.push(_step2.value),
                           (_step2 = unwrapThenable(_iterator.next()));
+                    if (request.aborted) throw null;
                     renderSuspenseListRows(
                       request,
                       task,
@@ -6587,6 +6592,7 @@
                 propsWithoutRef,
                 ref
               );
+              if (request.aborted) throw null;
               finishFunctionComponent(
                 request,
                 task,
@@ -6660,8 +6666,9 @@
                 console.error(
                   "A context consumer was rendered with multiple children, or a child that isn't a function. A context consumer expects a single child that is a function. If you did pass a function, make sure there is no trailing or leading whitespace around it."
                 );
-              var newChildren = render(context$jscomp$0._currentValue2),
-                prevKeyPath$jscomp$7 = task.keyPath;
+              var newChildren = render(context$jscomp$0._currentValue2);
+              if (request.aborted) throw null;
+              var prevKeyPath$jscomp$7 = task.keyPath;
               task.keyPath = keyPath;
               renderNodeDestructive(request, task, newChildren, -1);
               task.keyPath = prevKeyPath$jscomp$7;
@@ -6773,18 +6780,18 @@
                 );
               task.replay.pendingTasks--;
               keyPath = getThrownInfo(task.componentStack);
-              props = request;
-              currentNode = task.blockedBoundary;
+              currentNode = request;
+              props = task.blockedBoundary;
               request = request.aborted ? request.fatalError : x;
               type = logRecoverableError(
-                props,
+                currentNode,
                 request,
                 keyPath,
                 task.debugTask
               );
               abortRemainingReplayNodes(
-                props,
                 currentNode,
+                props,
                 childNodes,
                 childSlots,
                 request,
@@ -6804,14 +6811,14 @@
             a: {
               replay = request;
               request = keyPath;
-              keyPath = node[5];
-              type = node[2];
-              ref = node[3];
-              name = null === node[4] ? [] : node[4][2];
+              var id = node[5];
+              keyPath = node[2];
+              type = node[3];
+              ref = null === node[4] ? [] : node[4][2];
               node = null === node[4] ? null : node[4][3];
-              keyOrIndex = task.keyPath;
-              var prevContext = task.formatContext,
-                prevRow = task.row,
+              name = task.keyPath;
+              keyOrIndex = task.formatContext;
+              var prevRow = task.row,
                 previousReplaySet = task.replay,
                 parentBoundary = task.blockedBoundary,
                 parentHoistableState = task.hoistableState,
@@ -6827,16 +6834,26 @@
                 defer
               );
               defer.parentFlushed = !0;
-              defer.rootSegmentID = keyPath;
+              defer.rootSegmentID = id;
+              id = [request[0], "Suspense Fallback", request[2]];
+              var trackedPostpones = replay.trackedPostpones;
+              if (null !== trackedPostpones) {
+                var fallbackReplayNode = [id[1], id[2], [], null];
+                trackedPostpones.workingMap.set(id, fallbackReplayNode);
+                defer.tracked = {
+                  contentKeyPath: request,
+                  fallbackNode: fallbackReplayNode
+                };
+              }
               task.blockedBoundary = defer;
               task.hoistableState = defer.contentState;
               task.keyPath = request;
               task.formatContext = getSuspenseContentFormatContext(
                 replay.resumableState,
-                prevContext
+                keyOrIndex
               );
               task.row = null;
-              task.replay = { nodes: type, slots: ref, pendingTasks: 1 };
+              task.replay = { nodes: keyPath, slots: type, pendingTasks: 1 };
               try {
                 renderNode(replay, task, content, -1);
                 if (
@@ -6877,20 +6894,20 @@
                 (task.blockedBoundary = parentBoundary),
                   (task.hoistableState = parentHoistableState),
                   (task.replay = previousReplaySet),
-                  (task.keyPath = keyOrIndex),
-                  (task.formatContext = prevContext),
+                  (task.keyPath = name),
+                  (task.formatContext = keyOrIndex),
                   (task.row = prevRow);
               }
-              props = createReplayTask(
+              childNodes = createReplayTask(
                 replay,
                 null,
-                { nodes: name, slots: node, pendingTasks: 0 },
+                { nodes: ref, slots: node, pendingTasks: 0 },
                 fallback,
                 -1,
                 parentBoundary,
                 defer.fallbackState,
                 props,
-                [request[0], "Suspense Fallback", request[2]],
+                id,
                 getSuspenseFallbackFormatContext(
                   replay.resumableState,
                   task.formatContext
@@ -6904,8 +6921,8 @@
                 emptyContextObject,
                 task.debugTask
               );
-              pushComponentStack(props);
-              replay.pingedTasks.push(props);
+              pushComponentStack(childNodes);
+              replay.pingedTasks.push(childNodes);
             }
           }
           childIndex.splice(i, 1);
@@ -7047,54 +7064,73 @@
             renderChildrenArray(request, task, node, childIndex);
             return;
           }
-          if ((key = getIteratorFn(node)))
-            if ((type = key.call(node))) {
+          if ((key = getIteratorFn(node))) {
+            type = key.call(node);
+            if (request.aborted) throw null;
+            if (type) {
               validateIterable(task, node, childIndex, type, key);
               node = type.next();
+              if (request.aborted) throw null;
               if (!node.done) {
                 key = [];
-                do key.push(node.value), (node = type.next());
+                do
+                  if (
+                    (key.push(node.value),
+                    (node = type.next()),
+                    request.aborted)
+                  )
+                    throw null;
                 while (!node.done);
                 renderChildrenArray(request, task, key, childIndex);
               }
               return;
             }
-          if (
-            "function" === typeof node[ASYNC_ITERATOR] &&
-            (type = node[ASYNC_ITERATOR]())
-          ) {
-            validateAsyncIterable(task, node, childIndex, type);
-            key = task.thenableState;
-            task.thenableState = null;
-            thenableIndexCounter = 0;
-            thenableState = key;
-            key = [];
-            refProp = !1;
-            if (type === node)
-              for (node = readPreviousThenableFromState(); void 0 !== node; ) {
-                if (node.done) {
-                  refProp = !0;
-                  break;
-                }
-                key.push(node.value);
-                node = readPreviousThenableFromState();
-              }
-            if (!refProp)
-              for (node = unwrapThenable(type.next()); !node.done; )
-                key.push(node.value), (node = unwrapThenable(type.next()));
-            renderChildrenArray(request, task, key, childIndex);
-            return;
           }
-          if ("function" === typeof node.then)
-            return (
-              (task.thenableState = null),
-              renderNodeDestructive(
-                request,
-                task,
-                unwrapThenable(node),
-                childIndex
-              )
-            );
+          if ("function" === typeof node[ASYNC_ITERATOR]) {
+            type = node[ASYNC_ITERATOR]();
+            if (request.aborted) throw null;
+            if (type) {
+              validateAsyncIterable(task, node, childIndex, type);
+              key = task.thenableState;
+              task.thenableState = null;
+              thenableIndexCounter = 0;
+              thenableState = key;
+              key = [];
+              refProp = !1;
+              if (type === node)
+                for (
+                  node = readPreviousThenableFromState();
+                  void 0 !== node;
+
+                ) {
+                  if (node.done) {
+                    refProp = !0;
+                    break;
+                  }
+                  key.push(node.value);
+                  node = readPreviousThenableFromState();
+                }
+              if (!refProp) {
+                node = unwrapThenable(type.next());
+                if (request.aborted) throw null;
+                for (; !node.done; )
+                  if (
+                    (key.push(node.value),
+                    (node = unwrapThenable(type.next())),
+                    request.aborted)
+                  )
+                    throw null;
+              }
+              renderChildrenArray(request, task, key, childIndex);
+              return;
+            }
+          }
+          if ("function" === typeof node.then) {
+            task.thenableState = null;
+            node = unwrapThenable(node);
+            if (request.aborted) throw null;
+            return renderNodeDestructive(request, task, node, childIndex);
+          }
           if (node.$$typeof === REACT_CONTEXT_TYPE)
             return renderNodeDestructive(
               request,
@@ -7311,7 +7347,8 @@
     }
     function trackPostponedBoundary(request, trackedPostpones, boundary) {
       boundary.status = POSTPONED;
-      boundary.rootSegmentID = request.nextSegmentId++;
+      -1 === boundary.rootSegmentID &&
+        (boundary.rootSegmentID = request.nextSegmentId++);
       var tracked = boundary.tracked;
       if (null === tracked)
         throw Error(
@@ -7552,8 +7589,30 @@
               thrownValue$3 === SuspenseException
                 ? getSuspendedThenable()
                 : thrownValue$3),
-            !request.aborted && "object" === typeof node && null !== node)
+            request.aborted)
           ) {
+            if (
+              null !== request.trackedPostpones &&
+              null !== task.blockedBoundary
+            ) {
+              segment =
+                thrownValue$3 === SuspenseException
+                  ? getThenableStateAfterSuspending()
+                  : null;
+              segment = spawnNewSuspendedRenderTask(request, task, segment);
+              abortTaskDEV(segment, request);
+              segment.abortSet.delete(segment);
+              finishAbortedTaskDEV(segment, request, request.fatalError);
+              task.formatContext = previousFormatContext;
+              task.context = previousContext;
+              task.keyPath = previousKeyPath;
+              task.treeContext = previousTreeContext;
+              task.componentStack = previousComponentStack;
+              task.debugTask = previousDebugTask;
+              switchContext(previousContext);
+              return;
+            }
+          } else if ("object" === typeof node && null !== node) {
             if ("function" === typeof node.then) {
               segment = node;
               node =
@@ -7982,7 +8041,9 @@
               (segment.status === COMPLETED || segment.status === ABORTED) &&
               queueCompletedSegment(boundary, segment),
             boundary.parentFlushed &&
-              request.completedBoundaries.push(boundary),
+              (boundary.status === POSTPONED
+                ? request.partialBoundaries.push(boundary)
+                : request.completedBoundaries.push(boundary)),
             boundary.status === COMPLETED)
           )
             (row = boundary.row),
@@ -8191,9 +8252,7 @@
                 currentTaskInDEV = task$jscomp$0;
                 var childrenLength = request$jscomp$0.children.length,
                   chunkLength = request$jscomp$0.chunks.length,
-                  startNode$jscomp$0 = task$jscomp$0.node,
-                  startKeyPath = task$jscomp$0.keyPath,
-                  startChildIndex = task$jscomp$0.childIndex;
+                  startNode$jscomp$0 = task$jscomp$0.node;
                 try {
                   retryNode(request, task$jscomp$0),
                     pushSegmentFinale(
@@ -8223,8 +8282,6 @@
                       (task$jscomp$0.thenableState =
                         getThenableStateAfterSuspending()),
                       (request.currentTask = prevTask$jscomp$0),
-                      (task$jscomp$0.keyPath = startKeyPath),
-                      (task$jscomp$0.childIndex = startChildIndex),
                       (request$jscomp$0 = request),
                       abortTaskDEV(task$jscomp$0, request$jscomp$0),
                       task$jscomp$0.abortSet.delete(task$jscomp$0),
@@ -9160,6 +9217,7 @@
           0 === request.allPendingTasks &&
             0 === request.clientRenderedBoundaries.length &&
             0 === request.completedBoundaries.length &&
+            0 === request.partialBoundaries.length &&
             ((request.flushScheduled = !1),
             (i = request.resumableState),
             i.hasBody &&
@@ -10829,5 +10887,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.3.0-experimental-07dde64d-20261013";
+    exports.version = "19.3.0-experimental-a6792708-20261019";
   })();
