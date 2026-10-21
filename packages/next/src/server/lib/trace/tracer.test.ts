@@ -7,6 +7,7 @@ import type {
   ContextManager,
   TextMapGetter,
   TextMapPropagator,
+  TextMapSetter,
 } from '@opentelemetry/api'
 import type { WorkStore } from '../../app-render/work-async-storage.external'
 import type { WorkUnitStore } from '../../app-render/work-unit-async-storage.external'
@@ -134,7 +135,20 @@ class TraceparentPropagator implements TextMapPropagator {
     return ['traceparent']
   }
 
-  inject(): void {}
+  inject(
+    injectedContext: Context,
+    carrier: unknown,
+    setter: TextMapSetter<unknown>
+  ): void {
+    const spanContext = trace.getSpanContext(injectedContext)
+    if (!spanContext) return
+    const flags = spanContext.traceFlags.toString(16).padStart(2, '0')
+    setter.set(
+      carrier,
+      'traceparent',
+      `00-${spanContext.traceId}-${spanContext.spanId}-${flags}`
+    )
+  }
 
   extract(
     extractedContext: Context,
@@ -243,6 +257,28 @@ describe('trace context with the W3C propagator', () => {
     )
 
     expect(result).toMatchObject({ traceId: TRACE_ID, spanId: SPAN_ID })
+  })
+
+  it('always includes the tracestate key in the trace context headers', () => {
+    const spanContext = {
+      traceId: TRACE_ID,
+      spanId: SPAN_ID,
+      traceFlags: 1,
+      isRemote: false,
+    }
+    // A recording span, so OpenTelemetry counts as enabled.
+    const span = Object.assign(trace.wrapSpanContext(spanContext), {
+      isRecording: () => true,
+    })
+
+    const result = context.with(trace.setSpan(ROOT_CONTEXT, span), () =>
+      getTracer().getTraceContextHeaders()
+    )
+
+    expect(result).toStrictEqual({
+      traceparent: `00-${TRACE_ID}-${SPAN_ID}-01`,
+      tracestate: undefined,
+    })
   })
 })
 

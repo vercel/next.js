@@ -309,7 +309,7 @@ class NextTracerImpl implements NextTracer {
     if (!traceparent) {
       return undefined
     }
-    return tracestate ? { traceparent, tracestate } : { traceparent }
+    return { traceparent, tracestate }
   }
 
   public hasActiveSpanContext(): boolean {

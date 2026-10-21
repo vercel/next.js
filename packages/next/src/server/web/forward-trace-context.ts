@@ -40,7 +40,7 @@ export function getSharedParentTraceContext(
     const receivedTracestate = requestHeaders.get('tracestate')
     return receivedTracestate
       ? { traceparent: receivedTraceparent, tracestate: receivedTracestate }
-      : { traceparent: receivedTraceparent }
+      : { traceparent: receivedTraceparent, tracestate: undefined }
   }
   return activeTraceContext
 }

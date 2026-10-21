@@ -35,6 +35,19 @@ describe('getSharedParentTraceContext', () => {
     ).toEqual({ traceparent: RECEIVED_TRACEPARENT, tracestate: 'a=1 ,b=2' })
   })
 
+  it('keeps the tracestate key when the received trace headers have none', () => {
+    const received = new Headers({ traceparent: RECEIVED_TRACEPARENT })
+    expect(
+      getSharedParentTraceContext(received, {
+        traceparent: RECEIVED_TRACEPARENT,
+        tracestate: undefined,
+      })
+    ).toStrictEqual({
+      traceparent: RECEIVED_TRACEPARENT,
+      tracestate: undefined,
+    })
+  })
+
   it('uses the active context when the request carries none', () => {
     expect(
       getSharedParentTraceContext(new Headers(), {
