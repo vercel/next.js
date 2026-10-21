@@ -30,6 +30,8 @@ describe('webpack-loader-file-dependencies', () => {
       TURBO_ENGINE_IGNORE_DIRTY: '1',
       TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS: '0',
       TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS: '0',
+      // Wait for turbo-tasks to persist the cache before the dev process exits.
+      __NEXT_DEV_WAIT_FOR_TURBOPACK_SHUTDOWN: '1',
     },
     dependencies: {
       'build-dependency-esm-package': 'file:./build-dependency-esm-package',
@@ -48,6 +50,10 @@ describe('webpack-loader-file-dependencies', () => {
     rmSync(externalDependencyDirectory, { recursive: true, force: true })
   })
 
+  // The harness stops with SIGKILL by default, which can exit before the persistent cache is
+  // written, so a restart would recompile instead of restoring cached results.
+  const stop = () => next.stop('SIGTERM')
+
   it('should update when the dependency file changes', async () => {
     const $ = await next.render$('/')
     const initialText = await $('p').text()
@@ -63,39 +69,6 @@ describe('webpack-loader-file-dependencies', () => {
       const newText = $2('p').text()
       expect(newText).not.toBe(initialText)
     })
-  })
-
-  it('warns for a loaded native dependency outside the configured roots', async () => {
-    const outputIndex = next.cliOutput.length
-    const $ = await next.render$('/native')
-    expect($('p').text()).toBe('native-one')
-    if (await gate('turbopack')) {
-      await retry(() => {
-        const output = next.cliOutput.slice(outputIndex)
-        expect(output).toContain(
-          'Unable to resolve webpack loader build dependency'
-        )
-        expect(output).toContain('addon.node')
-        expect(output).toContain('outside configured roots')
-        expect(output).toContain('restarting the build process')
-      })
-    }
-  })
-
-  it('warns for a loaded JavaScript dependency outside the configured roots', async () => {
-    const outputIndex = next.cliOutput.length
-    const $ = await next.render$('/external')
-    expect($('p').text()).toBe('external-one')
-    if (await gate('turbopack')) {
-      await retry(() => {
-        const output = next.cliOutput.slice(outputIndex)
-        expect(output).toContain(
-          'Unable to resolve webpack loader build dependency'
-        )
-        expect(output).toContain('dependency.js')
-        expect(output).toContain('outside configured roots')
-      })
-    }
   })
 
   for (const [route, filename, initial, updated] of [
@@ -114,7 +87,7 @@ describe('webpack-loader-file-dependencies', () => {
           expect(files.some((file) => String(file).endsWith('.sst'))).toBe(true)
         })
       }
-      await next.stop()
+      await stop()
       const contents =
         route === '/native' ? updated : `module.exports = '${updated}'`
       writeFileSync(filename, contents)
@@ -123,7 +96,7 @@ describe('webpack-loader-file-dependencies', () => {
         const $ = await next.render$(route)
         expect($('p').text()).toBe(updated)
       } finally {
-        await next.stop()
+        await stop()
         const contents =
           route === '/native' ? initial : `module.exports = '${initial}'`
         writeFileSync(filename, contents)
@@ -195,23 +168,26 @@ describe('webpack-loader-file-dependencies', () => {
     const $ = await next.render$('/')
     expect($('#stylus-output').text()).toContain('stylus-value')
     // Stylus uses import(), whose Node module cache requires a fresh process.
-    await next.stop()
-    await next.patchFile(
-      'stylus-build-dependency-plugin.js',
-      (content) => content.replace('stylus-value', 'stylus-two'),
-      async () => {
-        await next.start()
-        try {
-          await retry(async () => {
-            const $ = await next.render$('/')
-            expect($('#stylus-output').text()).toContain('stylus-two')
-          })
-        } finally {
-          await next.stop()
+    await stop()
+    try {
+      await next.patchFile(
+        'stylus-build-dependency-plugin.js',
+        (content) => content.replace('stylus-value', 'stylus-two'),
+        async () => {
+          await next.start()
+          try {
+            await retry(async () => {
+              const $ = await next.render$('/')
+              expect($('#stylus-output').text()).toContain('stylus-two')
+            })
+          } finally {
+            await stop()
+          }
         }
-      }
-    )
-    await next.start()
+      )
+    } finally {
+      await next.start()
+    }
     await retry(async () => {
       const $ = await next.render$('/')
       expect($('#stylus-output').text()).toContain('stylus-value')
@@ -354,17 +330,20 @@ describe('webpack-loader-file-dependencies', () => {
     async (_name, fileName, content, initial, expected) => {
       const $ = await next.render$('/tracking')
       expect($('p').text()).toContain(initial)
-      await next.stop()
-      await next.patchFile(fileName, content, async () => {
+      await stop()
+      try {
+        await next.patchFile(fileName, content, async () => {
+          await next.start()
+          try {
+            const $ = await next.render$('/tracking')
+            expect($('p').text()).toContain(expected)
+          } finally {
+            await stop()
+          }
+        })
+      } finally {
         await next.start()
-        try {
-          const $ = await next.render$('/tracking')
-          expect($('p').text()).toContain(expected)
-        } finally {
-          await next.stop()
-        }
-      })
-      await next.start()
+      }
     }
   )
 
@@ -388,23 +367,26 @@ describe('webpack-loader-file-dependencies', () => {
     const $ = await next.render$('/dynamic')
     expect($('p').text()).toContain('dynamic: dynamic-one')
     // CommonJS modules stay cached in the shared worker pool until the server restarts.
-    await next.stop()
-    await next.patchFile(
-      'tracking/dynamic-value.js',
-      "module.exports = 'dynamic-two'",
-      async () => {
-        await next.start()
-        try {
-          await retry(async () => {
-            const $ = await next.render$('/dynamic')
-            expect($('p').text()).toContain('dynamic: dynamic-two')
-          })
-        } finally {
-          await next.stop()
+    await stop()
+    try {
+      await next.patchFile(
+        'tracking/dynamic-value.js',
+        "module.exports = 'dynamic-two'",
+        async () => {
+          await next.start()
+          try {
+            await retry(async () => {
+              const $ = await next.render$('/dynamic')
+              expect($('p').text()).toContain('dynamic: dynamic-two')
+            })
+          } finally {
+            await stop()
+          }
         }
-      }
-    )
-    await next.start()
+      )
+    } finally {
+      await next.start()
+    }
     await retry(async () => {
       const $ = await next.render$('/dynamic')
       expect($('p').text()).toContain('dynamic: dynamic-one')

@@ -256,42 +256,21 @@ async fn loader_path(cwd: &FileSystemPath, path: &str) -> Result<FileSystemPath>
 async fn build_dependency_path(
     cwd: &FileSystemPath,
     path: &RcStr,
-    source: ResolvedVc<Box<dyn Source>>,
 ) -> Result<Option<FileSystemPath>> {
-    match try_loader_path(cwd, path).await {
-        Ok(Some(path)) => Ok(Some(path)),
-        result => {
-            // Without a tracked dependency, cached results cannot be validated across sessions.
-            Completion::session_dependent().await?;
-            let error = match result {
-                Ok(None) => format!(
-                    "webpack loader path {path:?} is outside configured roots. Changes to this \
-                     dependency require restarting the build process. Include the dependency in \
-                     the configured filesystem roots to enable change tracking."
-                ),
-                Err(error) => format!("{error:#}"),
-                Ok(Some(_)) => unreachable!(),
-            };
-            UnresolvedBuildDependencyIssue {
-                source: IssueSource::from_source_only(source),
-                request: path.clone(),
-                error: Some(error.into()),
-            }
-            .resolved_cell()
-            .emit();
-            Ok(None)
-        }
+    let path = try_loader_path(cwd, path).await?;
+    if path.is_none() {
+        Completion::session_dependent().await?;
     }
+    Ok(path)
 }
 
 async fn build_dependency_paths(
     cwd: &FileSystemPath,
     paths: &[RcStr],
-    source: ResolvedVc<Box<dyn Source>>,
 ) -> Result<Vec<FileSystemPath>> {
     Ok(paths
         .iter()
-        .map(|path| build_dependency_path(cwd, path, source))
+        .map(|path| build_dependency_path(cwd, path))
         .try_join()
         .await?
         .into_iter()
@@ -563,12 +542,11 @@ struct ResolvedBuildModuleRequest {
 async fn resolve_build_module_request(
     cwd: &FileSystemPath,
     request: BuildModuleRequest,
-    source: ResolvedVc<Box<dyn Source>>,
 ) -> Result<Option<ResolvedBuildModuleRequest>> {
-    match build_dependency_path(cwd, &request.expected_path, source).await? {
+    match build_dependency_path(cwd, &request.expected_path).await? {
         None => Ok(None),
         Some(expected_path) => {
-            let lookup_path = build_dependency_path(cwd, &request.lookup_path, source).await?;
+            let lookup_path = build_dependency_path(cwd, &request.lookup_path).await?;
 
             Ok(lookup_path.map(|lookup_path| ResolvedBuildModuleRequest {
                 lookup_path,
@@ -583,7 +561,6 @@ async fn resolve_build_module_request(
 #[turbo_tasks::function]
 async fn build_module_requests_changed(
     requests: Vec<ResolvedBuildModuleRequest>,
-    source: ResolvedVc<Box<dyn Source>>,
 ) -> Result<Vc<Completion>> {
     requests
         .into_iter()
@@ -606,32 +583,19 @@ async fn build_module_requests_changed(
                 let result = resolve(
                     lookup_path,
                     ReferenceType::Undefined,
-                    Request::parse(Pattern::Constant(request.clone())),
+                    Request::parse(Pattern::Constant(request)),
                     options.cell(),
                 )
-                .await;
-                let error = match result {
-                    Ok(result) => {
-                        assert!(result.primary_sources().count() <= 1);
-                        match result.first_source() {
-                            Some(resolved) if resolved.ident().await?.path == expected_path => None,
-                            Some(_) => Some(rcstr!(
-                                "The reconstructed request does not resolve to the module loaded \
-                                 by Node"
-                            )),
-                            None => Some(rcstr!("The reconstructed request could not be resolved")),
-                        }
-                    }
-                    Err(error) => Some(format!("{error:#}").into()),
+                .await?;
+                assert!(result.primary_sources().count() <= 1);
+                let tracked = match result.first_source() {
+                    Some(resolved) => resolved.ident().await?.path == expected_path,
+                    None => false,
                 };
-                if let Some(error) = error {
-                    UnresolvedBuildDependencyIssue {
-                        source: IssueSource::from_source_only(source),
-                        request,
-                        error: Some(error),
-                    }
-                    .resolved_cell()
-                    .emit();
+                // The request does not reproduce the module Node loaded, so a change to which
+                // module it resolves to cannot be detected.
+                if !tracked {
+                    Completion::session_dependent().await?;
                 }
                 Ok::<_, anyhow::Error>(())
             },
@@ -1093,24 +1057,14 @@ impl EvaluateContext for WebpackLoaderContext {
                         .map(async |p| loader_path(&self.cwd, p).await?.read().await)
                         .try_join();
                     let build_file_subscriptions = async {
-                        let paths = build_dependency_paths(
-                            &self.cwd,
-                            &build_file_paths,
-                            self.context_source_for_issue,
-                        )
-                        .await?;
+                        let paths = build_dependency_paths(&self.cwd, &build_file_paths).await?;
                         build_files_changed(paths).await?;
                         Ok::<_, anyhow::Error>(())
                     };
                     let build_module_subscriptions = async {
                         build_modules_changed(
                             *self.build_dependency_context,
-                            build_dependency_paths(
-                                &self.cwd,
-                                &build_module_paths,
-                                self.context_source_for_issue,
-                            )
-                            .await?,
+                            build_dependency_paths(&self.cwd, &build_module_paths).await?,
                         )
                         .await?;
                         Ok::<_, anyhow::Error>(())
@@ -1119,20 +1073,13 @@ impl EvaluateContext for WebpackLoaderContext {
                         // Convert system paths before they enter persistent task inputs.
                         let requests = build_module_requests
                             .into_iter()
-                            .map(|request| {
-                                resolve_build_module_request(
-                                    &self.cwd,
-                                    request,
-                                    self.context_source_for_issue,
-                                )
-                            })
+                            .map(|request| resolve_build_module_request(&self.cwd, request))
                             .try_join()
                             .await?
                             .into_iter()
                             .flatten()
                             .collect();
-                        build_module_requests_changed(requests, *self.context_source_for_issue)
-                            .await?;
+                        build_module_requests_changed(requests).await?;
                         Ok::<_, anyhow::Error>(())
                     };
                     let build_dependency_request_subscriptions = async {
@@ -1141,12 +1088,7 @@ impl EvaluateContext for WebpackLoaderContext {
                             build_dependency_requests,
                             *self.context_source_for_issue,
                             *self.build_dependency_context,
-                            build_dependency_paths(
-                                &self.cwd,
-                                &build_file_paths,
-                                self.context_source_for_issue,
-                            )
-                            .await?,
+                            build_dependency_paths(&self.cwd, &build_file_paths).await?,
                         )
                         .await?;
                         Ok::<_, anyhow::Error>(())

@@ -18,9 +18,54 @@ import {
 } from './webpack-loaders-runtime'
 import fs from 'fs'
 import path from 'path'
-import { createRequire } from 'module'
+import Module, { createRequire } from 'module'
 
 export type { IpcInfoMessage, IpcRequestMessage } from './transforms'
+
+// CommonJS requests Node resolved, keyed by lookup directory and then resolved filename. Cached
+// modules only expose their children's filenames, and a request reconstructed from a symlinked
+// package's real path loses the package name, so a nearer package would not invalidate it. Node
+// skips resolution for repeated requests from the same directory, so requests are keyed by it.
+const resolvedRequests = new Map<string, Map<string, Set<string>>>()
+const moduleWithResolveFilename = Module as typeof Module & {
+  _resolveFilename(
+    request: string,
+    parent: NodeJS.Module | undefined,
+    isMain: boolean,
+    options?: { paths?: string[] }
+  ): string
+}
+const originalResolveFilename = moduleWithResolveFilename._resolveFilename
+moduleWithResolveFilename._resolveFilename = function (
+  request,
+  parent,
+  isMain,
+  options
+) {
+  const resolved = originalResolveFilename.call(
+    this,
+    request,
+    parent,
+    isMain,
+    options
+  )
+  // Requests resolved with custom lookup paths cannot be reproduced from the parent's directory.
+  if (parent?.filename && !options?.paths && path.isAbsolute(resolved)) {
+    const lookupPath = path.dirname(parent.filename)
+    let requestsByFilename = resolvedRequests.get(lookupPath)
+    if (!requestsByFilename) {
+      requestsByFilename = new Map()
+      resolvedRequests.set(lookupPath, requestsByFilename)
+    }
+    let requests = requestsByFilename.get(resolved)
+    if (!requests) {
+      requests = new Set()
+      requestsByFilename.set(resolved, requests)
+    }
+    requests.add(request)
+  }
+  return resolved
+}
 
 type LoaderConfig =
   | string
@@ -567,7 +612,17 @@ const transform = async (
               pendingBuildDependencies.push(child.filename)
             }
             const lookupPath = path.dirname(dependency)
-            // Match webpack's cached-child reconstruction, bypassing exports for package
+            const requests = resolvedRequests
+              .get(lookupPath)
+              ?.get(child.filename)
+            if (requests) {
+              for (const request of requests) {
+                addBuildModuleRequest(request, lookupPath, child.filename)
+              }
+              continue
+            }
+            // Modules resolved before the hook was installed, or with custom lookup paths, fall
+            // back to webpack's cached-child reconstruction, which bypasses exports for package
             // subpaths that Node has already loaded.
             // https://github.com/webpack/webpack/blob/f1bdec5cc70236083e45b665831d5d79d6485db7/lib/FileSystemInfo.js#L1835-L1895
             const modulePath = loadedModule.paths.find((modulePath) =>
