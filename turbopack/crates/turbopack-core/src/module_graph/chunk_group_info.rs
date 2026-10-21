@@ -496,9 +496,9 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         let entries = graph.all_chunk_group_entries().collect::<Vec<_>>();
 
         // First, rank every module in reverse postorder (so that a module is visited after the
-        // modules importing it), and initialize `module_chunk_groups` with empty bitmaps.
-        let module_rank =
-            graph.reverse_postorder_ranks(entries.iter().flat_map(|e| e.entries()))?;
+        // modules importing it), and initialize `module_chunk_groups` with empty bitmaps. The ranks
+        // from all chunk group entries are shared with other analyses of this graph.
+        let module_rank = graph.chunk_group_entry_ranks()?;
         module_chunk_groups.reserve(module_rank.len());
         for module in module_rank.keys() {
             module_chunk_groups.insert(*module, RoaringBitmapWrapper::default());

@@ -842,6 +842,7 @@ impl ModuleGraph {
                 } else {
                     None
                 },
+                chunk_group_entry_ranks: OnceLock::new(),
             },
         }
         .cell())
@@ -982,6 +983,7 @@ impl ModuleGraphLayer {
                 } else {
                     None
                 },
+                chunk_group_entry_ranks: OnceLock::new(),
             },
         }
         .cell())
@@ -1022,6 +1024,11 @@ pub struct ModuleGraphSnapshot {
     /// The edges of unused references (from [`BindingUsageInfo::unused_references_edges`]), which
     /// are skipped during traversals.
     unused_references_edges: Option<ReadRef<UnusedReferenceEdges>>,
+
+    /// Lazily computed [`Self::chunk_group_entry_ranks`]. Derived from the immutable graphs, so
+    /// it never needs to be invalidated.
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
+    chunk_group_entry_ranks: OnceLock<FxHashMap<ResolvedVc<Box<dyn Module>>, usize>>,
 }
 
 impl ModuleGraphSnapshot {
@@ -1524,6 +1531,9 @@ impl ModuleGraphSnapshot {
     ///
     /// Must be called on the whole graph, not on an individual graph layer (where `VisitedModule`
     /// nodes can't be resolved).
+    ///
+    /// See [`Self::chunk_group_entry_ranks`] for the ranks from all chunk group entries, which
+    /// are computed once per snapshot.
     pub fn reverse_postorder_ranks(
         &self,
         entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
@@ -1594,6 +1604,24 @@ impl ModuleGraphSnapshot {
             ranks.insert(self.get_node(node)?.module(), count - 1 - i);
         }
         Ok(ranks)
+    }
+
+    /// The [`Self::reverse_postorder_ranks`] of all chunk group entries of all graphs
+    /// ([`Self::all_chunk_group_entry_modules`]).
+    ///
+    /// They are computed on the first call and cached in this snapshot, so that all analyses of
+    /// the same graph that need exactly these ranks share one computation. As the snapshot is
+    /// immutable, the cached ranks always match the graph. Errors are not cached.
+    pub fn chunk_group_entry_ranks(
+        &self,
+    ) -> Result<&FxHashMap<ResolvedVc<Box<dyn Module>>, usize>> {
+        if let Some(ranks) = self.chunk_group_entry_ranks.get() {
+            return Ok(ranks);
+        }
+        // Concurrent callers might compute the ranks multiple times, but the result is always the
+        // same and only the first one is stored.
+        let ranks = self.reverse_postorder_ranks(self.all_chunk_group_entry_modules())?;
+        Ok(self.chunk_group_entry_ranks.get_or_init(|| ranks))
     }
 
     /// Traverses all reachable nodes and also continue revisiting them as long the visitor returns
@@ -3447,6 +3475,125 @@ pub mod tests {
             assert_eq!(results.ranks_from_child_entry, expected);
             assert_eq!(results.ranks_from_all_entries, expected);
 
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_chunk_group_entry_ranks_cached() {
+        run_graph_test(
+            vec![rcstr!("a.js"), rcstr!("e.js")],
+            {
+                // A diamond (a -> b, c -> d) and a cycle (d -> a)
+                let mut deps = FxHashMap::default();
+                deps.insert(rcstr!("a.js"), vec![rcstr!("b.js"), rcstr!("c.js")]);
+                deps.insert(rcstr!("b.js"), vec![rcstr!("d.js")]);
+                deps.insert(rcstr!("c.js"), vec![rcstr!("d.js")]);
+                deps.insert(rcstr!("d.js"), vec![rcstr!("a.js")]);
+                deps.insert(rcstr!("e.js"), vec![rcstr!("c.js")]);
+                deps
+            },
+            |graph, _, _| {
+                let shared = graph.chunk_group_entry_ranks()?;
+                let expected =
+                    graph.reverse_postorder_ranks(graph.all_chunk_group_entry_modules())?;
+                assert_eq!(shared, &expected);
+                assert_eq!(shared.len(), 5);
+                // The second call returns the cached map
+                assert!(std::ptr::eq(shared, graph.chunk_group_entry_ranks()?));
+                Ok(())
+            },
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_chunk_group_entry_ranks_new_snapshot() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            #[turbo_tasks::value]
+            struct Results {
+                old_len_before: usize,
+                old_len_after: usize,
+                old_unchanged: bool,
+                new_len: usize,
+                new_matches_fresh: bool,
+                new_contains_c: bool,
+                old_contains_c: bool,
+            }
+
+            #[turbo_tasks::function(operation, root)]
+            async fn new_snapshot_operation() -> Result<Vc<Results>> {
+                let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
+                let root = fs.root().await?;
+
+                async fn graph_for(
+                    root: &FileSystemPath,
+                    deps: Vec<(&'static str, Vec<&'static str>)>,
+                ) -> Result<(ReadRef<ModuleGraph>, ResolvedVc<Box<dyn Module>>)> {
+                    let repo = TestRepo::new(root, deps);
+                    let module = |name| {
+                        Vc::upcast::<Box<dyn Module>>(MockModule::new(
+                            root.join(name).unwrap(),
+                            repo,
+                        ))
+                        .to_resolved()
+                    };
+                    let a = module("a.js").await?;
+                    let c = module("c.js").await?;
+                    let graph = SingleModuleGraph::new_with_entries(
+                        GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                            modules: vec![a],
+                            heuristics: EntryHeuristics::default(),
+                        }])
+                        .resolved_cell(),
+                        false,
+                        false,
+                    );
+                    let graph = ModuleGraph::from_graphs(vec![graph], None)
+                        .connect()
+                        .await?;
+                    Ok((graph, c))
+                }
+
+                // The first graph: a -> b
+                let (old_graph, old_c_module) =
+                    graph_for(&root, vec![("a.js", vec!["b.js"])]).await?;
+                let old_ranks = old_graph.chunk_group_entry_ranks()?;
+                let old_len_before = old_ranks.len();
+
+                // The edited graph: a -> b -> c
+                let (new_graph, c_module) =
+                    graph_for(&root, vec![("a.js", vec!["b.js"]), ("b.js", vec!["c.js"])]).await?;
+                let new_ranks = new_graph.chunk_group_entry_ranks()?;
+                let fresh =
+                    new_graph.reverse_postorder_ranks(new_graph.all_chunk_group_entry_modules())?;
+
+                Ok(Results {
+                    old_len_before,
+                    old_len_after: old_graph.chunk_group_entry_ranks()?.len(),
+                    old_unchanged: std::ptr::eq(old_ranks, old_graph.chunk_group_entry_ranks()?),
+                    new_len: new_ranks.len(),
+                    new_matches_fresh: new_ranks == &fresh,
+                    new_contains_c: new_ranks.contains_key(&c_module),
+                    old_contains_c: old_ranks.contains_key(&old_c_module),
+                }
+                .cell())
+            }
+
+            let results = new_snapshot_operation().read_strongly_consistent().await?;
+            assert_eq!(results.old_len_before, 2);
+            assert_eq!(results.old_len_after, 2);
+            assert!(results.old_unchanged);
+            assert!(!results.old_contains_c);
+            assert_eq!(results.new_len, 3);
+            assert!(results.new_matches_fresh);
+            assert!(results.new_contains_c);
             Ok(())
         })
         .await
