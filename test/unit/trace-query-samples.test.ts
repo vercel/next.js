@@ -1,12 +1,12 @@
-import type { TraceSpanInfo } from '../../packages/next/src/build/swc/generated-native'
+import type { TraceSpanInfo } from 'next/dist/build/swc/generated-native'
 import {
   parseTraceSampleCount,
   queryTraceCli,
-} from '../../packages/next/src/cli/internal/query-trace'
+} from 'next/dist/cli/internal/query-trace'
 import {
   renderSampleSeriesMarkdown,
   serializeTraceSpan,
-} from '../../packages/next/src/cli/internal/trace-query-result'
+} from 'next/dist/cli/internal/trace-query-result'
 
 const series = {
   memorySamples: [1024, 2048],
