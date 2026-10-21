@@ -1,0 +1,23 @@
+error: cell = "mutable" requires a non-transparent persistable value
+ --> tests/value/fail_mutable_modes.rs:5:1
+  |
+5 | #[turbo_tasks::value(cell = "mutable", serialization = "skip")]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the attribute macro `turbo_tasks::value` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: cell = "mutable" requires a non-transparent persistable value
+ --> tests/value/fail_mutable_modes.rs:8:1
+  |
+8 | #[turbo_tasks::value(cell = "mutable", serialization = "hash")]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the attribute macro `turbo_tasks::value` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: cell = "mutable" requires a non-transparent persistable value
+  --> tests/value/fail_mutable_modes.rs:11:1
+   |
+11 | #[turbo_tasks::value(cell = "mutable", transparent)]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the attribute macro `turbo_tasks::value` (in Nightly builds, run with -Z macro-backtrace for more info)
