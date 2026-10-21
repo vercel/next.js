@@ -55,10 +55,100 @@ describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
   it('runs in dynamic route handlers', async () => {
     const res = await next.fetch(pathPrefix + '/route')
     expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ data: { message: 'Hello, world!' } })
     await retry(() => {
       expect(getLogs()).toContainEqual({ source: '[route handler] /route' })
     })
   })
+
+  it('runs in streaming route handlers with backpressure and isolated requests', async () => {
+    const ids = ['stream-a', 'stream-b']
+    const responses = await Promise.all(
+      ids.map((id) =>
+        next.fetch(pathPrefix + '/streaming', {
+          headers: { 'x-stream-id': id, cookie: `stream-id=${id}` },
+        })
+      )
+    )
+    const streamingLogs = () =>
+      getLogs().filter((log) => log.source === '[route handler] /streaming')
+    const release = (id: string) =>
+      next.fetch(pathPrefix + '/streaming?release=' + id)
+
+    try {
+      for (const [index, response] of responses.entries()) {
+        expect(response.status).toBe(201)
+        expect(response.statusText).toBe('Streamed')
+        expect(response.headers.get('content-type')).toBe('text/plain')
+        expect(response.headers.get('x-stream-id')).toBe(ids[index])
+        expect(response.headers.get('set-cookie')).toContain(
+          'from-response=explicit'
+        )
+        expect(response.headers.get('set-cookie')).toContain(
+          `from-handler=${ids[index]}`
+        )
+      }
+      // Both responses are still open, so none of their after tasks may run.
+      expect(streamingLogs()).toEqual([])
+
+      // Finish B while A is still open, then finish A. Each callback must use
+      // its own request's stores, rather than those of the downstream reader.
+      for (const index of [1, 0]) {
+        const id = ids[index]
+        await release(id)
+        expect(await responses[index].text()).toBe('first\nsecond\nthird\n')
+        await retry(() => {
+          expect(streamingLogs().filter((log) => log.header === id)).toEqual(
+            ['first', 'second', 'third', 'flush'].map((chunk) => ({
+              source: '[route handler] /streaming',
+              chunk,
+              header: id,
+              cookie: id,
+            }))
+          )
+        })
+        if (index === 1) {
+          expect(streamingLogs().some((log) => log.header === ids[0])).toBe(
+            false
+          )
+        }
+      }
+      expect(streamingLogs()).toHaveLength(8)
+    } finally {
+      await Promise.all(ids.map(release))
+      await Promise.allSettled(responses.map((response) => response.text()))
+    }
+  })
+
+  it.each([
+    { method: 'GET', status: 200 },
+    { method: 'GET', status: 204 },
+    { method: 'GET', status: 304 },
+    { method: 'HEAD', status: 200 },
+  ])(
+    'preserves bodyless route handler responses ($method $status)',
+    async ({ method, status }) => {
+      const response = await next.fetch(
+        pathPrefix + '/streaming?status=' + status,
+        { method }
+      )
+      expect(response.status).toBe(status)
+      expect(await response.text()).toBe('')
+      expect(response.headers.get('set-cookie')).toContain(
+        'from-response=explicit'
+      )
+      expect(response.headers.get('set-cookie')).toContain(
+        'from-handler=bodyless'
+      )
+      await retry(() => {
+        expect(getLogs()).toContainEqual({
+          source: '[route handler] /streaming-bodyless',
+          status,
+          method,
+        })
+      })
+    }
+  )
 
   it('runs in server actions', async () => {
     const browser = await next.browser(pathPrefix + '/123/with-action')

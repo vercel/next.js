@@ -90,6 +90,7 @@ import { executeRevalidates } from '../../revalidation-utils'
 import { trackPendingModules } from '../../app-render/module-loading/track-module-loading.external'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import { LazyModule } from '../../lib/lazy-module'
+import { bindReadableStream } from '../../stream-utils/bind-readable-stream'
 import { createPrerenderResumeDataCache } from '../../resume-data-cache/resume-data-cache'
 import {
   createRouteHandlerRequestInUseCacheError,
@@ -838,7 +839,7 @@ export class AppRouteRouteModule extends RouteModule<
       )
     }
 
-    return this.finalizeResponse(
+    const response = this.finalizeResponse(
       res,
       request,
       workStore,
@@ -846,6 +847,17 @@ export class AppRouteRouteModule extends RouteModule<
       null,
       context
     )
+
+    if (!response.body) return response
+
+    // The response is consumed outside the request scope. In particular, Web
+    // Streams can resume a backpressured upstream transform in the reader's
+    // context, so bind consumption here while the request stores are active.
+    return new Response(bindReadableStream(response.body), {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    })
   }
 
   private async prepareExecution(
