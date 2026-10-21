@@ -171,6 +171,10 @@ import {
 import { isDynamicServerError } from '../../client/components/hooks-server-context'
 import type { ServerActionRequestMetadata } from '../lib/server-action-request-meta'
 import { getFlightStream, type ResultModel } from './use-flight-response'
+
+// Closes the Result's HTML consumer once Fizz is done. A shared reason avoids
+// allocating a DOMException per request.
+const HTML_RENDER_FINISHED = new Error('The HTML render has finished.')
 import {
   StaticGenBailoutError,
   isStaticGenBailoutError,
@@ -3726,7 +3730,7 @@ async function renderToStream(
 
   let resultHTMLController: AbortController | undefined
   const finishHtmlRender = () => {
-    resultHTMLController?.abort()
+    resultHTMLController?.abort(HTML_RENDER_FINISHED)
     if (renderSpan.isRecording()) renderSpan.end()
     tracker?.finish()
   }
@@ -3793,7 +3797,10 @@ async function renderToStream(
 
     let reactServerResult: null | ReactServerResult = null
     let resultSSRModel: ResultModel | undefined
-    let resultHydrationStream: AnyStream | undefined
+    // Set once the Result exists. Called after the shell is ready so that
+    // Fizz renders the shell before any row is encoded; the Result still
+    // runs every Server Component as soon as Fizz reaches it.
+    let startResultHydrationStream: (() => AnyStream) | undefined
     let reactDebugStream: AnyStream | undefined
 
     const setHeader = res.setHeader.bind(res)
@@ -4139,18 +4146,19 @@ async function renderToStream(
             }
             // Fizz consumes the Result directly. Only hydration needs the
             // encoded stream, so it has a single owner and needs no replay.
-            resultHydrationStream = workUnitAsyncStorage.run(
-              requestStore,
-              renderResultToNodeStream,
-              ctx.componentMod,
-              result,
-              clientModules,
-              {
-                filterStackFrame,
-                onError: serverComponentsErrorHandler,
-                signal,
-              }
-            )
+            startResultHydrationStream = () =>
+              workUnitAsyncStorage.run(
+                requestStore,
+                renderResultToNodeStream,
+                ctx.componentMod,
+                result,
+                clientModules,
+                {
+                  filterStackFrame,
+                  onError: serverComponentsErrorHandler,
+                  signal,
+                }
+              )
           } else {
             reactServerResult = new ReactServerResult(
               workUnitAsyncStorage.run(
@@ -4350,9 +4358,10 @@ async function renderToStream(
             )
         )
 
-        const hydrationStream =
-          resultHydrationStream ?? reactServerResult!.consume()
-        resultHydrationStream = undefined
+        const hydrationStream = startResultHydrationStream
+          ? startResultHydrationStream()
+          : reactServerResult!.consume()
+        startResultHydrationStream = undefined
 
         return await continueFizzStream(htmlStream, {
           inlinedDataStream: createNodeInlinedDataStream(
@@ -4512,7 +4521,7 @@ async function renderToStream(
       }
       // MARK: renderToStream errorRecovery
     } catch (err) {
-      resultHTMLController?.abort()
+      resultHTMLController?.abort(HTML_RENDER_FINISHED)
       if (
         isStaticGenBailoutError(err) ||
         (typeof err === 'object' &&
@@ -4626,7 +4635,7 @@ async function renderToStream(
 
           if (
             reactServerResult === null &&
-            resultHydrationStream === undefined
+            startResultHydrationStream === undefined
           ) {
             endSpanWithError(err)
             throw err
@@ -4659,9 +4668,10 @@ async function renderToStream(
 
           // Transfer the original hydration stream once, including when the
           // main Fizz shell failed before it could start consuming that stream.
-          const hydrationStream =
-            resultHydrationStream ?? reactServerResult!.consume()
-          resultHydrationStream = undefined
+          const hydrationStream = startResultHydrationStream
+            ? startResultHydrationStream()
+            : reactServerResult!.consume()
+          startResultHydrationStream = undefined
 
           return await continueFizzStream(errorHtmlStream, {
             inlinedDataStream: createNodeInlinedDataStream(
