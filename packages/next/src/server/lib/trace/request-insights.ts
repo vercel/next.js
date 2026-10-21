@@ -40,6 +40,8 @@ const SAFE_SPAN_ATTRIBUTE_KEYS = new Set([
   'next.route',
   'next.rsc',
   'next.segment',
+  'next.server_action.file',
+  'next.server_action.name',
   'next.span_category',
   'next.span_name',
   'next.span_type',

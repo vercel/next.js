@@ -193,6 +193,8 @@ type NextAttributeNames =
   | 'next.span_category'
   | 'next.span_name'
   | 'next.span_type'
+  | 'next.server_action.name'
+  | 'next.server_action.file'
   | 'next.clientComponentLoadCount'
 type OTELAttributeNames = `http.${string}` | `net.${string}`
 type AttributeNames = NextAttributeNames | OTELAttributeNames

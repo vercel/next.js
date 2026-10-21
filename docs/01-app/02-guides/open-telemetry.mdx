@@ -314,6 +314,20 @@ Attributes:
 
 This span can be turned off by setting `NEXT_OTEL_FETCH_DISABLED=1` in your environment. This is useful when you want to use a custom fetch instrumentation library.
 
+### `run Server Action [next.server_action.name]`
+
+- `next.span_type`: `AppRender.executeServerAction`
+
+This span represents the execution of a Server Action. It covers only the user function call; decoding the request, loading the action module, revalidation, and rendering the response remain outside the span. Server Functions marked with [`use cache`](/docs/app/api-reference/directives/use-cache) are excluded from this span.
+
+Attributes:
+
+- `next.span_name`
+- `next.span_type`
+- `next.span_category`: `application`
+- `next.server_action.name`: the exported action name, `<inline action>` for an inline action, or `<action>` when the name is unavailable
+- `next.server_action.file`: the project-relative source file in development; omitted in production
+
 ### `executing api route (app) [next.route]`
 
 - `next.span_type`: `AppRouteRouteHandlers.runHandler`.
