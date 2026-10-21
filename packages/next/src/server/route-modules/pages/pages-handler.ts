@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { ParsedUrlQuery } from 'node:querystring'
 import { RouteKind } from '../../route-kind'
 import { BaseServerSpan } from '../../lib/trace/constants'
-import { getTracer, SpanKind, type Span } from '../../lib/trace/tracer'
+import { getTracer, type Span } from '../../lib/trace/tracer'
 import { formatUrl } from '../../../shared/lib/router/utils/format-url'
 import {
   addRequestMeta,
@@ -100,6 +100,42 @@ export const getHandler = ({
     const multiZoneDraftMode = process.env
       .__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
 
+    // Registering `instrumentation.ts` usually installs the tracer provider, so
+    // do it before starting the request span. The span is started before
+    // `prepare`, so route module preparation is part of the request's trace.
+    await routeModule.ensureInstrumentation(req)
+    return routeModule.traceRequest(
+      req,
+      {
+        tracer: getTracer(),
+        spanName: `${req.method || 'GET'} ${srcPage}`,
+        httpTarget: req.url,
+      },
+      (requestSpan, requestRootSpan) =>
+        handleRequest(
+          req,
+          res,
+          ctx,
+          srcPage,
+          multiZoneDraftMode,
+          requestSpan,
+          requestRootSpan
+        )
+    )
+  }
+
+  async function handleRequest(
+    req: IncomingMessage,
+    res: ServerResponse,
+    ctx: {
+      waitUntil?: (prom: Promise<void>) => void
+      requestMeta?: RequestMeta
+    },
+    srcPage: string,
+    multiZoneDraftMode: boolean,
+    requestSpan: Span | undefined,
+    requestRootSpan: Span | undefined
+  ) {
     const prepareResult = await routeModule.prepare(req, res, {
       srcPage,
       multiZoneDraftMode,
@@ -250,7 +286,6 @@ export const getHandler = ({
     }
 
     const tracer = getTracer()
-    const activeSpan = tracer.getActiveScopeSpan()
     const isWrappedByNextServer = Boolean(
       routerServerContext?.isWrappedByNextServer
     )
@@ -265,7 +300,6 @@ export const getHandler = ({
       query: hasStaticProps ? {} : originalQuery,
     })
 
-    let parentSpan: Span | undefined
     const handleResponse = async (span?: Span) => {
       const responseGenerator: ResponseGenerator = async ({
         previousCacheEntry,
@@ -822,41 +856,23 @@ export const getHandler = ({
           })
           span.updateName(name)
 
-          // Propagate http.route to the parent span if one exists
-          // (e.g. a platform-created HTTP span in adapter
+          // Propagate http.route to the request's root span if it isn't
+          // the request span (e.g. a platform-created HTTP span in adapter
           // deployments).
-          if (parentSpan && parentSpan !== span) {
-            parentSpan.setAttribute('http.route', route)
-            parentSpan.updateName(name)
+          if (requestRootSpan && requestRootSpan !== span) {
+            requestRootSpan.setAttribute('http.route', route)
+            requestRootSpan.updateName(name)
           }
         })()
       }
     }
 
-    // TODO: activeSpan code path is for when wrapped by
-    // next-server can be removed when this is no longer used
-    if (isWrappedByNextServer && activeSpan) {
-      await handleResponse(activeSpan)
-    } else {
-      parentSpan = tracer.getActiveScopeSpan()
-      await tracer.withPropagatedContext(
-        req.headers,
-        () =>
-          tracer.trace(
-            BaseServerSpan.handleRequest,
-            {
-              spanName: `${method} ${srcPage}`,
-              kind: SpanKind.SERVER,
-              attributes: {
-                'http.method': method,
-                'http.target': req.url,
-              },
-            },
-            handleResponse
-          ),
-        undefined,
-        !isWrappedByNextServer
-      )
+    // When invoked directly, the request span was started before `prepare`;
+    // record the request target as normalized by it. next-server's request
+    // span already has it.
+    if (!isWrappedByNextServer && req.url !== undefined) {
+      requestSpan?.setAttribute('http.target', req.url)
     }
+    await handleResponse(requestSpan)
   }
 }
