@@ -147,25 +147,68 @@ describe.each(VARIANTS)(
       expectNoInternalHeaders(res)
       const tree = await getSpanTree(res, 'html', { includeOneTimeSpans: true })
       if (isNextDeploy) {
+        // Deployed, the render and Node.js middleware functions each register
+        // instrumentation in their first request: under the render's request
+        // span and under the middleware span.
         if (renderMode === 'default') {
+          if (isNodeMiddleware) {
+            expect(tree).toMatchInlineSnapshot(`
+             "[trace A] GET (Next.request) {http.target=/page}
+             ├─ GET /page/page (BaseServer.handleRequest) {http.target=/page}
+             │  ├─ load instrumentation module (Instrumentation.loadModule)
+             │  ├─ prepare route module (RouteModule.prepare)
+             │  ├─ register instrumentation (Instrumentation.register)
+             │  └─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
+             │     ├─ build component tree (NextNodeServer.createComponentTree)
+             │     │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+             │     │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+             │     ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+             │     └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
+             └─ middleware GET (Middleware.execute) {http.target=/page}
+                ├─ load instrumentation module (Instrumentation.loadModule)
+                └─ register instrumentation (Instrumentation.register)"
+            `)
+          } else {
+            expect(tree).toMatchInlineSnapshot(`
+             "[trace A] GET (Next.request) {http.target=/page}
+             ├─ GET /page/page (BaseServer.handleRequest) {http.target=/page}
+             │  ├─ load instrumentation module (Instrumentation.loadModule)
+             │  ├─ prepare route module (RouteModule.prepare)
+             │  ├─ register instrumentation (Instrumentation.register)
+             │  └─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
+             │     ├─ build component tree (NextNodeServer.createComponentTree)
+             │     │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+             │     │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+             │     ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+             │     └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
+             └─ middleware GET (Middleware.execute) {http.target=/page}"
+            `)
+          }
+        } else if (isNodeMiddleware) {
           expect(tree).toMatchInlineSnapshot(`
            "[trace A] GET (Next.request) {http.target=/page}
-           ├─ GET /page/page (BaseServer.handleRequest) {http.target=/page}
-           │  ├─ prepare route module (RouteModule.prepare)
-           │  └─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-           │     ├─ build component tree (NextNodeServer.createComponentTree)
-           │     │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-           │     │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-           │     ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-           │     └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-           └─ middleware GET (Middleware.execute) {http.target=/page}"
+           ├─ middleware GET (Middleware.execute) {http.target=/page}
+           │  ├─ load instrumentation module (Instrumentation.loadModule)
+           │  └─ register instrumentation (Instrumentation.register)
+           └─ POST /page/page (BaseServer.handleRequest) {http.target=/page}
+              ├─ load instrumentation module (Instrumentation.loadModule)
+              ├─ prepare route module (RouteModule.prepare)
+              ├─ register instrumentation (Instrumentation.register)
+              └─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
+                 ├─ build component tree (NextNodeServer.createComponentTree)
+                 │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                 │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                 ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+                 └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)"
           `)
         } else {
           expect(tree).toMatchInlineSnapshot(`
            "[trace A] GET (Next.request) {http.target=/page}
            ├─ middleware GET (Middleware.execute) {http.target=/page}
            └─ POST /page/page (BaseServer.handleRequest) {http.target=/page}
+              ├─ load instrumentation module (Instrumentation.loadModule)
               ├─ prepare route module (RouteModule.prepare)
+              ├─ register instrumentation (Instrumentation.register)
               └─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
                  ├─ build component tree (NextNodeServer.createComponentTree)
                  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
@@ -887,6 +930,38 @@ describe.each(VARIANTS)(
             │  └─ generateMetadata /layout (ResolveMetadata.generateMetadata)
             └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/headers-echo}
                └─ load route module (LoadComponents.loadRouteModule)"
+        `)
+      }
+    })
+
+    // The `instrumentation.ts` lifecycle spans (`load instrumentation module`,
+    // `register instrumentation`) of the instance serving the request, with
+    // their ancestors.
+    it('traces instrumentation registration in the triggering request', async () => {
+      const res = await next.fetch('/instrumentation-spans')
+      expect(res.status).toBe(200)
+      const tree = printSpanTree((await res.json()).spans, {
+        known: [INCOMING, SET_BY_MIDDLEWARE],
+      })
+      if (isNextDeploy) {
+        // Deployed functions register instrumentation lazily, in the first
+        // request they handle: the lifecycle spans are children of that
+        // request's span (a route or page entrypoint) or of the middleware
+        // span (a Node.js middleware entrypoint). The function serving this
+        // route handler also serves `/route-handler`, which an earlier test
+        // requested first.
+        expect(tree).toMatchInlineSnapshot(`
+         "[trace A] [remote]
+         └─ GET /route-handler (BaseServer.handleRequest) {http.target=/route-handler, http.route=/route-handler, next.route=/route-handler, http.status_code=200}
+            ├─ load instrumentation module (Instrumentation.loadModule)
+            └─ register instrumentation (Instrumentation.register)"
+        `)
+      } else {
+        // `next start` / `next dev` register instrumentation at startup,
+        // outside of any request, so the lifecycle spans are roots.
+        expect(tree).toMatchInlineSnapshot(`
+         "[trace A] load instrumentation module (Instrumentation.loadModule)
+         [trace B] register instrumentation (Instrumentation.register)"
         `)
       }
     })

@@ -129,6 +129,24 @@ export function getMiddlewareSpans() {
 }
 
 /**
+ * The `instrumentation.ts` lifecycle spans (`Instrumentation.*`) started in
+ * this process, with their ancestors as far as they were started here.
+ */
+export function getInstrumentationLifecycleSpans() {
+  const spans = new Map<string, RecordedSpan>()
+  for (const [id, { span }] of getRecordedSpans()) {
+    if (
+      String(span.attributes['next.span_type']).startsWith('Instrumentation.')
+    ) {
+      for (const recorded of getChain(id)) {
+        spans.set(recorded.id, recorded)
+      }
+    }
+  }
+  return [...spans.values()]
+}
+
+/**
  * The render's spans: its request span (the nearest `BaseServer.handleRequest`
  * ancestor of the active span), that span's ancestors, and the request span's
  * descendants started so far.
