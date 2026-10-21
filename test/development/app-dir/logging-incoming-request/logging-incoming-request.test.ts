@@ -6,6 +6,35 @@ describe('logging-incoming-request', () => {
     files: __dirname,
   })
 
+  it.each([
+    ['/temporary-redirect?query=value', 307],
+    ['/permanent-redirect', 308],
+    ['/external-redirect', 307],
+    ['/proxy-redirect', 307],
+  ])('should log a redirect from %s exactly once', async (pathname, status) => {
+    const cliOutput = next.getCliOutputFromHere()
+    const response = await next.fetch(pathname, { redirect: 'manual' })
+    expect(response.status).toBe(status)
+
+    await retry(() => {
+      expect(cliOutput().split(`GET ${pathname} ${status} in `)).toHaveLength(2)
+    })
+    expect(cliOutput()).not.toContain('GET /foo')
+  })
+
+  it('should not log redirects matching an ignore pattern', async () => {
+    const cliOutput = next.getCliOutputFromHere()
+    const response = await next.fetch('/hello-redirect', { redirect: 'manual' })
+    expect(response.status).toBe(307)
+
+    // A subsequent logged request confirms that the redirect has finished.
+    await next.fetch('/foo')
+    await retry(() => {
+      expect(cliOutput().split('GET /foo 200 in ')).toHaveLength(2)
+    })
+    expect(cliOutput()).not.toContain('GET /hello-redirect')
+  })
+
   it('should not log requests matching ignore pattern', async () => {
     // Make requests that should be ignored based on config
 
