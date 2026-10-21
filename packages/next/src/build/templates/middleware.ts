@@ -96,7 +96,7 @@ const internalHandler: EdgeHandler = async (opts) => {
       : '.next'
 
     // When this request registers `instrumentation.ts`, the adapter emits its
-    // lifecycle spans in the request's trace.
+    // lifecycle spans inside the middleware span.
     emitInstrumentationSpans = await ensureInstrumentationRegisteredForRequest(
       absoluteProjectDir,
       distDir

@@ -149,7 +149,7 @@ describe.each(VARIANTS)(
       if (isNextDeploy) {
         // Deployed, the render and Node.js middleware functions each register
         // instrumentation in their first request: under the render's request
-        // span and under the root inserted by the middleware adapter.
+        // span and under the middleware span.
         if (renderMode === 'default') {
           if (isNodeMiddleware) {
             expect(tree).toMatchInlineSnapshot(`
@@ -946,16 +946,11 @@ describe.each(VARIANTS)(
       if (isNextDeploy) {
         // Deployed functions register instrumentation lazily, in the first
         // request they handle: the lifecycle spans are children of that
-        // request's span (a route or page entrypoint) or of the root inserted
-        // by the middleware adapter (a Node.js middleware entrypoint). The
-        // function serving this route handler also serves `/route-handler`,
-        // which an earlier test requested first.
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace A] [remote]
-         └─ GET /route-handler (BaseServer.handleRequest) {http.target=/route-handler, http.route=/route-handler, next.route=/route-handler, http.status_code=200}
-            ├─ load instrumentation module (Instrumentation.loadModule)
-            └─ register instrumentation (Instrumentation.register)"
-        `)
+        // request's span (a route or page entrypoint) or of the middleware
+        // span (a Node.js middleware entrypoint). The function serving this
+        // route handler also serves `/route-handler`, which an earlier test
+        // requested first.
+        expect(tree).toMatchInlineSnapshot()
       } else {
         // `next start` / `next dev` register instrumentation at startup,
         // outside of any request, so the lifecycle spans are roots.
