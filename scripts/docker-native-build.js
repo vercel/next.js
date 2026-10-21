@@ -191,7 +191,8 @@ if (test) {
       continue
     }
 
-    const testImage = abi === 'musl' ? 'node:20-alpine' : 'node:20-slim'
+    const testImage =
+      abi === 'musl' ? 'node:22.23.4-alpine' : 'node:22.23.4-slim'
     const nodeFile = `./packages/next-swc/native/next-swc.${napiPlatform}.node`
 
     console.log(`Testing ${target} in ${testImage}...`)

@@ -108,7 +108,7 @@ on:
 env:
   # Also applies to Rust builds in jobs that skip the shared Rust setup.
   CARGO_BUILD_WARNINGS: deny
-  # Newest @napi-rs/cli that runs on Node.js 20.9.0 (NODE_LTS_VERSION below):
+  # Keep @napi-rs/cli compatible with callers selecting Node.js 20.9.0:
   # 3.5.0+ depends on @inquirer/prompts 8, whose @inquirer/core 11 requires
   # `util.styleText` (Node >= 20.12) and crashes at CLI startup. The CLI here
   # only orchestrates cargo and names artifacts (types are committed), so
@@ -116,7 +116,7 @@ env:
   NAPI_CLI_VERSION: 3.4.1
   TURBO_VERSION: 2.11.7
   TURBO_ARGS: '-v --env-mode loose --remote-cache-timeout 300 --log-order stream'
-  NODE_LTS_VERSION: 20.9.0
+  NODE_LTS_VERSION: 22.23.4
   # run-tests.js reads `TEST_CONCURRENCY` if no explicit `--concurrency` or `-c`
   # argument is provided
   TEST_CONCURRENCY: 8

@@ -7,7 +7,7 @@
 # Run with the repository mounted at /workspace:
 #   docker run --rm -it -v "$PWD:/workspace" -w /workspace next-wasi-builder
 
-FROM node:20-trixie
+FROM node:22.23.4-trixie
 
 ENV DEBIAN_FRONTEND=noninteractive
 

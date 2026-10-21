@@ -251,7 +251,7 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.generate-native-matrix.outputs.matrix) }}
 
-    name: stable - ${{ matrix.target }} - node@20
+    name: stable - ${{ matrix.target }} - node@22
     runs-on: ${{ fromJSON(matrix.host) }}
     timeout-minutes: 45
     env:

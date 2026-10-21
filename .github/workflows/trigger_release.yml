@@ -39,7 +39,7 @@ name: Trigger Release
 env:
   NAPI_CLI_VERSION: 3.7.2
   TURBO_VERSION: 2.11.7
-  NODE_LTS_VERSION: 20
+  NODE_LTS_VERSION: 22.23.4
 
 permissions: {}
 
