@@ -1,3 +1,4 @@
+// esbuild's `keepNames` helpers.
 var __defProp = Object.defineProperty
 
 export var __name = (target, value) =>

@@ -1,3 +1,0 @@
-(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/1ece_tests_snapshot_minification_pure-annotated-member_input_index_1k5u1-yl8rq5n.js",{otherChunks:["output/1jsg_tests_snapshot_minification_pure-annotated-member_input_index_06zc3vqhxqozy.js"],runtimeModuleIds:["[project]/turbopack/crates/turbopack-tests/tests/snapshot/minification/pure-annotated-member/input/index.js [test] (ecmascript)"]}]);
-
-//# sourceMappingURL=1jsg_tests_snapshot_minification_pure-annotated-member_input_index_1k5u1-yl8rq5n.js.map

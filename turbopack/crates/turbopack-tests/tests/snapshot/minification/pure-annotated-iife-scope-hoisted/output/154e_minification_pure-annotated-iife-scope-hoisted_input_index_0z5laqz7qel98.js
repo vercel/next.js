@@ -1,3 +1,0 @@
-(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/154e_minification_pure-annotated-iife-scope-hoisted_input_index_0z5laqz7qel98.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/minification/pure-annotated-iife-scope-hoisted/input/index.js [test] (ecmascript)",t=>{"use strict";t.s(["value",()=>e],"[project]/turbopack/crates/turbopack-tests/tests/snapshot/minification/pure-annotated-iife-scope-hoisted/input/index.js [test] (ecmascript)"),(0,Object.defineProperty)(function(){console.log("annotated IIFE ran")},"name",{value:"annotated",configurable:!0})();let e=1}]);
-
-//# sourceMappingURL=154e_minification_pure-annotated-iife-scope-hoisted_input_index_0z5laqz7qel98.js.map

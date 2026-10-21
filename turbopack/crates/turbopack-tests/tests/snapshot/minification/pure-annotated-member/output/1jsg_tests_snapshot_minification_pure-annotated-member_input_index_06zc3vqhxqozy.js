@@ -1,3 +1,0 @@
-(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/1jsg_tests_snapshot_minification_pure-annotated-member_input_index_06zc3vqhxqozy.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/minification/pure-annotated-member/input/index.js [test] (ecmascript)",(t,e,s)=>{({run(){console.log("member call ran")}}).run()}]);
-
-//# sourceMappingURL=1jsg_tests_snapshot_minification_pure-annotated-member_input_index_06zc3vqhxqozy.js.map
