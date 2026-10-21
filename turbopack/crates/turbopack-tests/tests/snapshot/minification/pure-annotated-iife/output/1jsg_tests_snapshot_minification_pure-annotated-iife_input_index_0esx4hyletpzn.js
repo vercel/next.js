@@ -1,0 +1,3 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/1jsg_tests_snapshot_minification_pure-annotated-iife_input_index_0esx4hyletpzn.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/minification/pure-annotated-iife/input/index.js [test] (ecmascript)",(t,e,n)=>{(0,Object.defineProperty)(function(){console.log("annotated IIFE ran")},"name",{value:"annotated",configurable:!0})()}]);
+
+//# sourceMappingURL=1jsg_tests_snapshot_minification_pure-annotated-iife_input_index_0esx4hyletpzn.js.map

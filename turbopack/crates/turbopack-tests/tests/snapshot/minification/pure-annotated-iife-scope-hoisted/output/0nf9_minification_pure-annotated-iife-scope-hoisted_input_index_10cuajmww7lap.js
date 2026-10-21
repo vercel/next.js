@@ -1,0 +1,3 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/0nf9_minification_pure-annotated-iife-scope-hoisted_input_index_10cuajmww7lap.js",{otherChunks:["output/154e_minification_pure-annotated-iife-scope-hoisted_input_index_0z5laqz7qel98.js"],runtimeModuleIds:["[project]/turbopack/crates/turbopack-tests/tests/snapshot/minification/pure-annotated-iife-scope-hoisted/input/index.js [test] (ecmascript)"]}]);
+
+//# sourceMappingURL=154e_minification_pure-annotated-iife-scope-hoisted_input_index_10cuajmww7lap.js.map

@@ -1,0 +1,8 @@
+{
+  "minifyType": {
+    "Minify": {
+      "mangle": "optimal-size"
+    }
+  },
+  "scopeHoisting": true
+}

@@ -266,6 +266,78 @@ impl Comments for ImmutableComments {
     }
 }
 
+/// A read-only [Comments] view over several comment stores.
+///
+/// Some SWC transforms (e.g. the fixer) need to *read* comments to make correct decisions -- the
+/// fixer keeps the parentheses around a `/* @__PURE__ */`-annotated callee, which would otherwise
+/// move the annotation onto the outer call -- but they also try to move comments around as they
+/// rewrite the AST. The comment stores at that point are either immutable ([ImmutableComments]
+/// panics on mutation) or must not be changed, so this adapter:
+///
+/// - answers `has_*` / `get_*` by looking at every store and concatenating the results,
+/// - implements `take_*` as a non-destructive copy (like `get_*`), because SWC's default
+///   [Comments::has_flag] uses `take_leading` followed by `add_leading_comments`,
+/// - ignores every mutation (`add_*`, `move_*`, `add_pure_comment`).
+pub struct ReadOnlyComments<'a> {
+    stores: &'a [&'a dyn Comments],
+}
+
+impl<'a> ReadOnlyComments<'a> {
+    pub fn new(stores: &'a [&'a dyn Comments]) -> Self {
+        Self { stores }
+    }
+
+    fn collect(&self, f: impl Fn(&dyn Comments) -> Option<Vec<Comment>>) -> Option<Vec<Comment>> {
+        let mut result: Option<Vec<Comment>> = None;
+        for store in self.stores {
+            if let Some(c) = f(*store) {
+                result.get_or_insert_with(Vec::new).extend(c);
+            }
+        }
+        result
+    }
+}
+
+impl Comments for ReadOnlyComments<'_> {
+    fn add_leading(&self, _pos: BytePos, _cmt: Comment) {}
+
+    fn add_leading_comments(&self, _pos: BytePos, _comments: Vec<Comment>) {}
+
+    fn has_leading(&self, pos: BytePos) -> bool {
+        self.stores.iter().any(|s| s.has_leading(pos))
+    }
+
+    fn move_leading(&self, _from: BytePos, _to: BytePos) {}
+
+    fn take_leading(&self, pos: BytePos) -> Option<Vec<Comment>> {
+        self.get_leading(pos)
+    }
+
+    fn get_leading(&self, pos: BytePos) -> Option<Vec<Comment>> {
+        self.collect(|s| s.get_leading(pos))
+    }
+
+    fn add_trailing(&self, _pos: BytePos, _cmt: Comment) {}
+
+    fn add_trailing_comments(&self, _pos: BytePos, _comments: Vec<Comment>) {}
+
+    fn has_trailing(&self, pos: BytePos) -> bool {
+        self.stores.iter().any(|s| s.has_trailing(pos))
+    }
+
+    fn move_trailing(&self, _from: BytePos, _to: BytePos) {}
+
+    fn take_trailing(&self, pos: BytePos) -> Option<Vec<Comment>> {
+        self.get_trailing(pos)
+    }
+
+    fn get_trailing(&self, pos: BytePos) -> Option<Vec<Comment>> {
+        self.collect(|s| s.get_trailing(pos))
+    }
+
+    fn add_pure_comment(&self, _pos: BytePos) {}
+}
+
 pub struct CowComments<'a> {
     leading: RefCell<FxHashMap<BytePos, Cow<'a, [Comment]>>>,
     trailing: RefCell<FxHashMap<BytePos, Cow<'a, [Comment]>>>,
@@ -423,6 +495,138 @@ impl Comments for CowComments<'_> {
             f(cmts)
         } else {
             f(&[])
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use swc_core::{
+        base::SwcComments,
+        common::{
+            BytePos, DUMMY_SP,
+            comments::{Comment, CommentKind, Comments},
+        },
+    };
+
+    use super::{ImmutableComments, ReadOnlyComments};
+
+    fn block(text: &str) -> Comment {
+        Comment {
+            kind: CommentKind::Block,
+            span: DUMMY_SP,
+            text: text.into(),
+        }
+    }
+
+    fn texts(comments: Option<Vec<Comment>>) -> Option<Vec<String>> {
+        comments.map(|c| c.into_iter().map(|c| c.text.to_string()).collect())
+    }
+
+    /// An [ImmutableComments] store with `a` leading and `b` trailing at position 1, plus a
+    /// [SwcComments] store with `@__PURE__` leading at position 1 and `c` leading at position 2.
+    fn stores() -> (ImmutableComments, SwcComments) {
+        let mut immutable = ImmutableComments::default();
+        immutable.leading.insert(BytePos(1), vec![block("a")]);
+        immutable.trailing.insert(BytePos(1), vec![block("b")]);
+
+        let extra = SwcComments::default();
+        extra.add_leading(BytePos(1), block(" @__PURE__ "));
+        extra.add_leading(BytePos(2), block("c"));
+
+        (immutable, extra)
+    }
+
+    #[test]
+    fn reads_and_concatenates_all_stores() {
+        let (immutable, extra) = stores();
+        let stores: [&dyn Comments; 2] = [&immutable, &extra];
+        let comments = ReadOnlyComments::new(&stores);
+
+        assert_eq!(
+            texts(comments.get_leading(BytePos(1))),
+            Some(vec!["a".to_string(), " @__PURE__ ".to_string()])
+        );
+        assert_eq!(
+            texts(comments.get_leading(BytePos(2))),
+            Some(vec!["c".to_string()])
+        );
+        assert_eq!(
+            texts(comments.get_trailing(BytePos(1))),
+            Some(vec!["b".to_string()])
+        );
+        assert_eq!(comments.get_leading(BytePos(3)), None);
+        assert_eq!(comments.get_trailing(BytePos(2)), None);
+
+        assert!(comments.has_leading(BytePos(1)));
+        assert!(comments.has_leading(BytePos(2)));
+        assert!(!comments.has_leading(BytePos(3)));
+        assert!(comments.has_trailing(BytePos(1)));
+        assert!(!comments.has_trailing(BytePos(2)));
+    }
+
+    #[test]
+    fn take_does_not_consume() {
+        let (immutable, extra) = stores();
+        let stores: [&dyn Comments; 2] = [&immutable, &extra];
+        let comments = ReadOnlyComments::new(&stores);
+
+        let first = texts(comments.take_leading(BytePos(1)));
+        assert_eq!(first, texts(comments.take_leading(BytePos(1))));
+        assert_eq!(first, texts(comments.get_leading(BytePos(1))));
+        assert_eq!(
+            texts(comments.take_trailing(BytePos(1))),
+            texts(comments.take_trailing(BytePos(1)))
+        );
+        assert!(comments.has_trailing(BytePos(1)));
+
+        // The underlying stores are untouched.
+        assert!(extra.has_leading(BytePos(1)));
+        assert_eq!(immutable.leading[&BytePos(1)].len(), 1);
+    }
+
+    #[test]
+    fn mutations_are_ignored() {
+        let (immutable, extra) = stores();
+        let stores: [&dyn Comments; 2] = [&immutable, &extra];
+        let comments = ReadOnlyComments::new(&stores);
+
+        // None of these may panic, even though `ImmutableComments` panics on mutation.
+        comments.add_leading(BytePos(5), block("x"));
+        comments.add_leading_comments(BytePos(5), vec![block("x")]);
+        comments.add_trailing(BytePos(5), block("x"));
+        comments.add_trailing_comments(BytePos(5), vec![block("x")]);
+        comments.add_pure_comment(BytePos(5));
+        comments.move_leading(BytePos(1), BytePos(6));
+        comments.move_trailing(BytePos(1), BytePos(6));
+
+        assert!(!comments.has_leading(BytePos(5)));
+        assert!(!comments.has_trailing(BytePos(5)));
+        assert!(!comments.has_leading(BytePos(6)));
+        assert!(!comments.has_trailing(BytePos(6)));
+        assert!(comments.has_leading(BytePos(1)));
+        assert!(comments.has_trailing(BytePos(1)));
+        assert_eq!(extra.get_leading(BytePos(1)).map(|c| c.len()), Some(1));
+    }
+
+    #[test]
+    fn has_flag_sees_every_store() {
+        let mut immutable = ImmutableComments::default();
+        immutable
+            .leading
+            .insert(BytePos(1), vec![block(" #__NO_SIDE_EFFECTS__ ")]);
+        let extra = SwcComments::default();
+        extra.add_leading(BytePos(2), block(" @__PURE__ "));
+        let stores: [&dyn Comments; 2] = [&immutable, &extra];
+        let comments = ReadOnlyComments::new(&stores);
+
+        // `has_flag` uses the default implementation (`take_leading` + `add_leading_comments`),
+        // so calling it repeatedly must keep returning the same answer.
+        for _ in 0..2 {
+            assert!(comments.has_flag(BytePos(1), "NO_SIDE_EFFECTS"));
+            assert!(!comments.has_flag(BytePos(1), "PURE"));
+            assert!(comments.has_flag(BytePos(2), "PURE"));
+            assert!(!comments.has_flag(BytePos(3), "PURE"));
         }
     }
 }
