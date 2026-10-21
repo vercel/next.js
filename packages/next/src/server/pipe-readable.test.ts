@@ -203,6 +203,8 @@ it('cancels the producer and releases listeners when a response write fails', as
     cancel,
   })
   const response = Object.assign(new EventEmitter(), {
+    req: { method: 'GET' },
+    statusCode: 200,
     write() {
       throw failure
     },
@@ -222,9 +224,10 @@ it('cancels the producer and releases listeners when a response write fails', as
 describe('streamToNodeResponse lifecycle', () => {
   let server: http.Server
 
-  function serve(readable: ReadableStream<Uint8Array>) {
+  function serve(readable: ReadableStream<Uint8Array>, statusCode = 200) {
     return new Promise<unknown>((resolve) => {
       server = http.createServer((_req, res) => {
+        res.statusCode = statusCode
         void streamToNodeResponse(readable, res).then(
           () => resolve(undefined),
           resolve
@@ -253,6 +256,46 @@ describe('streamToNodeResponse lifecycle', () => {
     expect(await completed).toBeUndefined()
     expect(readable.locked).toBe(false)
   })
+
+  it.each([
+    { method: 'HEAD', statusCode: 200 },
+    { method: 'GET', statusCode: 204 },
+    { method: 'GET', statusCode: 304 },
+  ])(
+    'sends $method $statusCode headers before the producer closes',
+    async ({ method, statusCode }) => {
+      let closeProducer: () => void
+      const readable = new ReadableStream<Uint8Array>({
+        start(controller) {
+          closeProducer = () => controller.close()
+          controller.enqueue(new TextEncoder().encode('first'))
+        },
+      })
+      const completed = serve(readable, statusCode)
+      const url = await listen(server)
+      const receivedStatus = await new Promise<number | undefined>(
+        (resolve, reject) => {
+          const request = http.request(
+            url,
+            { method, signal: AbortSignal.timeout(5000) },
+            (response) => {
+              // Completing the producer requires receiving headers first.
+              closeProducer()
+              response.resume()
+              response.on('end', () => resolve(response.statusCode))
+              response.on('error', reject)
+            }
+          )
+          request.on('error', reject)
+          request.end()
+        }
+      )
+
+      expect(receivedStatus).toBe(statusCode)
+      expect(await completed).toBeUndefined()
+      expect(readable.locked).toBe(false)
+    }
+  )
 
   it('delivers chunks before the producer finishes', async () => {
     let controller: ReadableStreamDefaultController<Uint8Array>

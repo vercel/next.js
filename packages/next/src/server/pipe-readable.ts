@@ -154,6 +154,15 @@ export async function streamToNodeResponse(
   try {
     let chunk = await reader.read()
     if (!chunk.done && !closed) {
+      // Node ignores body writes for these responses, so flush headers explicitly.
+      if (
+        res.req.method === 'HEAD' ||
+        res.statusCode < 200 ||
+        res.statusCode === 204 ||
+        res.statusCode === 304
+      ) {
+        res.flushHeaders()
+      }
       getTracer().trace(
         NextNodeServerSpan.startResponse,
         { spanName: 'start response' },
