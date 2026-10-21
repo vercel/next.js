@@ -147,19 +147,17 @@ describe.each(VARIANTS)(
       expectNoInternalHeaders(res)
       const tree = await getSpanTree(res, 'html', { includeOneTimeSpans: true })
       if (isNextDeploy) {
+        // Deployed, the render and Node.js middleware functions each register
+        // instrumentation in their first request: under the render's request
+        // span and under the root inserted by the middleware adapter.
         if (renderMode === 'default') {
-          expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET (Next.request) {http.target=/page}
-           ├─ GET /page/page (BaseServer.handleRequest) {http.target=/page}
-           │  ├─ prepare route module (RouteModule.prepare)
-           │  └─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-           │     ├─ build component tree (NextNodeServer.createComponentTree)
-           │     │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-           │     │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-           │     ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-           │     └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-           └─ middleware GET (Middleware.execute) {http.target=/page}"
-          `)
+          if (isNodeMiddleware) {
+            expect(tree).toMatchInlineSnapshot()
+          } else {
+            expect(tree).toMatchInlineSnapshot()
+          }
+        } else if (isNodeMiddleware) {
+          expect(tree).toMatchInlineSnapshot()
         } else {
           expect(tree).toMatchInlineSnapshot(`
            "[trace A] GET (Next.request) {http.target=/page}
@@ -904,12 +902,17 @@ describe.each(VARIANTS)(
         // Deployed functions register instrumentation lazily, in the first
         // request they handle: the lifecycle spans are children of that
         // request's span (a route or page entrypoint) or of the root inserted
-        // by the middleware adapter (a Node.js middleware entrypoint).
+        // by the middleware adapter (a Node.js middleware entrypoint). The
+        // function serving this route handler also serves `/route-handler`,
+        // which an earlier test requested first.
         expect(tree).toMatchInlineSnapshot()
       } else {
         // `next start` / `next dev` register instrumentation at startup,
         // outside of any request, so the lifecycle spans are roots.
-        expect(tree).toMatchInlineSnapshot()
+        expect(tree).toMatchInlineSnapshot(`
+         "[trace A] load instrumentation module (Instrumentation.loadModule)
+         [trace B] register instrumentation (Instrumentation.register)"
+        `)
       }
     })
   }
