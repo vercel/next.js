@@ -2527,6 +2527,7 @@ where
                     origin,
                     options.patterns,
                     options.eager,
+                    state.lazy_compilation,
                     options.import,
                     options.query,
                     options.base,

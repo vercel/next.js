@@ -491,6 +491,7 @@ impl ImportMetaGlobMap {
         key_base: Option<FileSystemPath>,
         query: Option<RcStr>,
         eager: bool,
+        lazy_compilation: bool,
         issue_source: Option<IssueSource>,
         error_mode: ResolveErrorMode,
     ) -> Result<Vc<Self>> {
@@ -514,6 +515,10 @@ impl ImportMetaGlobMap {
 
         let reference_sub_type = if eager {
             EcmaScriptModulesReferenceSubType::Import
+        } else if lazy_compilation {
+            // Resolves to a proxy that compiles the matched module only once its
+            // thunk is first called.
+            EcmaScriptModulesReferenceSubType::LazyDynamicImport
         } else {
             EcmaScriptModulesReferenceSubType::DynamicImport
         };
@@ -679,6 +684,7 @@ impl ModuleReference for ImportMetaGlobModuleReference {
 fn modifier(
     patterns: &[RcStr],
     eager: bool,
+    lazy_compilation: bool,
     import: &Option<RcStr>,
     query: &Option<RcStr>,
     base: &Option<RcStr>,
@@ -687,6 +693,9 @@ fn modifier(
     let mut s = format!("import.meta.glob {}", patterns.join(", "));
     if eager {
         s.push_str(" eager");
+    }
+    if lazy_compilation {
+        s.push_str(" lazy-compilation");
     }
     if let Some(named) = import {
         s.push_str(" import=");
@@ -711,6 +720,9 @@ pub struct ImportMetaGlobAsset {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub patterns: Vec<RcStr>,
     pub eager: bool,
+    /// Whether the matched modules are compiled only once their thunk is first
+    /// called. Never set in eager mode, where the matches are evaluated up front.
+    pub lazy_compilation: bool,
     pub import: Option<RcStr>,
     pub query: Option<RcStr>,
     pub base: Option<RcStr>,
@@ -885,6 +897,7 @@ impl ImportMetaGlobAsset {
             self.base.is_some().then_some(base_dir),
             self.query.clone(),
             self.eager,
+            self.lazy_compilation,
             self.issue_source,
             self.error_mode,
         ))
@@ -973,6 +986,7 @@ impl Module for ImportMetaGlobAsset {
             .with_modifier(modifier(
                 &self.patterns,
                 self.eager,
+                self.lazy_compilation,
                 &self.import,
                 &self.query,
                 &self.base,
@@ -1238,6 +1252,7 @@ impl ImportMetaGlobAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         patterns: Vec<RcStr>,
         eager: bool,
+        lazy_compilation: bool,
         import: Option<RcStr>,
         query: Option<RcStr>,
         base: Option<RcStr>,
@@ -1249,6 +1264,7 @@ impl ImportMetaGlobAssetReference {
             origin,
             patterns: patterns.clone(),
             eager,
+            lazy_compilation: lazy_compilation && !eager,
             import,
             query,
             base,

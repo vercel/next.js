@@ -406,6 +406,22 @@ export const invalid = ;`
       ).toHaveLength(1)
     })
 
+    it('compiles an import.meta.glob match only when its thunk is called', async () => {
+      const browser = await next.browser('/glob')
+      expect(await browser.elementByCss('#load-glob').text()).toBe('idle')
+      expect(await assetsContaining('glob-marker-a-5e1d')).toHaveLength(0)
+      expect(await assetsContaining('glob-marker-b-8f3c')).toHaveLength(0)
+
+      await browser.elementByCss('#load-glob').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#load-glob').text()).toBe(
+          'glob-marker-a-5e1d'
+        )
+      })
+      expect(await assetsContaining('glob-marker-a-5e1d')).not.toHaveLength(0)
+      expect(await assetsContaining('glob-marker-b-8f3c')).toHaveLength(0)
+    })
+
     it('shares a proxy for repeated imports', async () => {
       const browser = await next.browser('/duplicate')
       const getActivationKeys = async (): Promise<string[]> =>
