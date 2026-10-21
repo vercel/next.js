@@ -354,7 +354,7 @@ describe('use-cache-swr', () => {
     }
   })
 
-  it('currently gives nested callers stale data after background revalidation completes', async () => {
+  it('reuses a completed background revalidation when outer caches need fresh data from the same stale lookup', async () => {
     const id = `caller-context-${randomUUID()}`
     const initial = await warmData(id)
     // Pause the page after its direct `readData()` call returns stale data. The
@@ -367,12 +367,12 @@ describe('use-cache-swr', () => {
         expect(dataRequestCountsByKey.get(`outer:${id}`)).toBeGreaterThan(0)
         expectOneWrite(id)
       })
-      // Both nested calls currently reuse the direct call's stale value,
-      // although the handler already contains the revalidated entry.
+      // The nested calls must use the revalidated entry after its handler write
+      // completes. Neither call should execute the cached function again.
       releaseDataResponses(`outer:${id}`)
       const $ = await rendering
       expect($('#direct').text()).toBe(initial.value)
-      expect($('#first').text()).toBe(initial.value)
+      expect($('#first').text()).not.toBe(initial.value)
       expect($('#first').text()).not.toBe('')
       expect($('#second').text()).toBe($('#first').text())
       expect(dataRequestCountsByKey.get(`fill:${id}`)).toBe(2)
@@ -383,7 +383,7 @@ describe('use-cache-swr', () => {
     }
   })
 
-  it('currently delays a direct stale read behind a nested foreground fill', async () => {
+  it('serves stale data to a direct caller while an outer cache waits for the shared foreground fill', async () => {
     const id = `caller-context-${randomUUID()}`
     const initial = await warmData(id)
     // Pause the nested `readData()` call at `fill:<id>`, then start the direct
@@ -400,10 +400,20 @@ describe('use-cache-swr', () => {
         ).toBeGreaterThan(0)
       })
       releaseDataResponses(`direct-ready:${id}`)
+      // The `direct-served:<id>` request confirms that the direct call resolved
+      // while the nested call's generation remains pending.
+      await retry(
+        () => {
+          expect(
+            dataRequestCountsByKey.get(`direct-served:${id}`)
+          ).toBeGreaterThan(0)
+        },
+        5000,
+        100
+      )
       releaseDataResponses(`fill:${id}`)
       const $ = await rendering
-      expect($('#direct').text()).not.toBe(initial.value)
-      expect($('#direct').text()).toBe($('#outer').text())
+      expect($('#direct').text()).toBe(initial.value)
       expect($('#outer').text()).not.toBe(initial.value)
       expect($('#outer').text()).not.toBe('')
       expect(dataRequestCountsByKey.get(`fill:${id}`)).toBe(2)

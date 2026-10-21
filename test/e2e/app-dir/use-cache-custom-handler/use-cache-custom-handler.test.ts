@@ -226,7 +226,7 @@ describe('use-cache-custom-handler', () => {
   // Development serves front-cache hits before reconciling the backing cache.
   // Its serialized backing reads cannot reach both held lookups concurrently.
   // @force-gate start
-  it('currently shares a handler lookup across routes and serves old data after revalidatePath()', async () => {
+  it('regenerates data for a revalidated route while another route reads the same cache entry', async () => {
     const control = (action: string) =>
       next.fetch('/path-revalidation', { method: 'POST', body: action })
     const readLookupState = () =>
@@ -271,13 +271,15 @@ describe('use-cache-custom-handler', () => {
         routeARendering,
         routeBRendering,
       ])
-      // B currently reuses A's handler result despite `revalidatePath()`. Only
-      // A's implicit tags reach `get()`.
+      // A must return the existing value. B must generate a new value because
+      // its implicit tags were revalidated. Each `get()` must receive its own
+      // route's implicit tags.
       expect(routeAPage('#data').text()).toBe(initial)
-      expect(routeBPage('#data').text()).toBe(initial)
+      expect(routeBPage('#data').text()).not.toBe(initial)
       expect(routeBPage('#data').text()).not.toBe('')
       expect((await readLookupState()).softTags).toEqual([
         expect.arrayContaining(['_N_T_/path-revalidation/a/page']),
+        expect.arrayContaining(['_N_T_/path-revalidation/b/page']),
       ])
     } finally {
       await control('release-entry-lookup')
@@ -285,10 +287,7 @@ describe('use-cache-custom-handler', () => {
     }
   })
 
-  // This test controls when the custom handler's `get()` returns. Development
-  // can serve an entry from its in-memory handler before that call completes.
-  // @force-gate start
-  it('currently shares a pending fill without checking route-specific cache invalidation', async () => {
+  async function readAfterObservedFillCompletes(revalidateRouteB: boolean) {
     const id = `observed-miss-${randomUUID()}`
     const pathname = `/path-revalidation?id=${id}`
     const control = (action: string) =>
@@ -299,8 +298,7 @@ describe('use-cache-custom-handler', () => {
           response.json() as Promise<{
             fills: string[]
             writes: string[]
-            pausedLookupKeys: string[]
-            startedRoutes: string[]
+            routeBLookupKeys: string[]
           }>
       )
     const initial = (await next.render$(`/path-revalidation/a?id=${id}`))(
@@ -310,9 +308,8 @@ describe('use-cache-custom-handler', () => {
       expect((await readState()).writes).toHaveLength(1)
     })
 
-    // Start generation for A, then revalidate B before that generation
-    // completes. Configure B's `get()` to wait until A's handler write
-    // completes.
+    // Route B's lookup selects its result while A's replacement fill is
+    // pending. The handler holds that result until A's write completes.
     await control('hold-fill')
     await control('invalidate-entry')
     const routeARendering = next.render$(`/path-revalidation/a?id=${id}`)
@@ -321,11 +318,15 @@ describe('use-cache-custom-handler', () => {
       await retry(async () => {
         expect((await readState()).fills).toHaveLength(2)
       })
-      await control('revalidate-route-b')
+      if (revalidateRouteB) {
+        // A's entry predates B's invalidation, so the handler must reject it
+        // for B.
+        await control('revalidate-route-b')
+      }
       await control('hold-route-lookup-result')
       routeBRendering = next.render$(`/path-revalidation/b?id=${id}`)
       await retry(async () => {
-        expect((await readState()).startedRoutes).toContain(`b:${id}`)
+        expect((await readState()).routeBLookupKeys).toHaveLength(1)
       })
 
       await control('release-fill')
@@ -336,23 +337,49 @@ describe('use-cache-custom-handler', () => {
       await retry(async () => {
         expect((await readState()).writes).toHaveLength(2)
       })
-      // B currently joins A's generated result without calling `get()`. The
-      // empty `pausedLookupKeys` array confirms that B skipped its own lookup.
       await control('release-route-lookup-result')
       const routeBPage = await routeBRendering
-      expect(routeBPage('#data').text()).toBe(refreshed)
-      expect(routeBPage('#data').text()).not.toBe('')
-      await retry(async () => {
+      const state = await retry(async () => {
         const state = await readState()
-        expect(state.pausedLookupKeys).toHaveLength(0)
-        expect(state.fills).toHaveLength(2)
-        expect(state.writes).toHaveLength(2)
+        expect(state.writes).toHaveLength(state.fills.length)
+        return state
       })
+
+      return {
+        producerValue: refreshed,
+        consumerValue: routeBPage('#data').text(),
+        state,
+      }
     } finally {
       await control('release-fill')
       await control('release-route-lookup-result')
       await Promise.allSettled([routeARendering, routeBRendering])
     }
+  }
+
+  // These tests control when the custom handler's `get()` returns. Development
+  // can serve an entry from its in-memory handler before that call completes.
+  // @force-gate start
+  it('reuses a handler entry written while its initial lookup was pending', async () => {
+    const { producerValue, consumerValue, state } =
+      await readAfterObservedFillCompletes(false)
+
+    expect(consumerValue).toBe(producerValue)
+    expect(state.fills).toHaveLength(2)
+    expect(state.writes).toHaveLength(2)
+    expect(state.routeBLookupKeys).toHaveLength(2)
+  })
+
+  // @force-gate start
+  it('respects a route-specific handler miss after an observed fill finishes during lookup', async () => {
+    const { producerValue, consumerValue, state } =
+      await readAfterObservedFillCompletes(true)
+
+    expect(consumerValue).not.toBe(producerValue)
+    expect(consumerValue).not.toBe('')
+    expect(state.fills).toHaveLength(3)
+    expect(state.writes).toHaveLength(3)
+    expect(state.routeBLookupKeys).toHaveLength(2)
   })
 
   if (isNextStart) {

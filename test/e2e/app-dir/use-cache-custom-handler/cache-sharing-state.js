@@ -16,8 +16,8 @@
  * IDs whose cached functions have started execution.
  * @property {string[]} writes
  * Tags from completed handler writes.
- * @property {string[]} pausedLookupKeys
- * Keys whose `get()` calls wait on `pendingRouteLookupResult`.
+ * @property {string[]} routeBLookupKeys
+ * Keys read by route B during the concurrent fill tests.
  * @property {Promise<void> | null} pendingFill
  * Pauses execution of the cached function.
  * @property {(() => void) | null} releaseFill
@@ -38,7 +38,7 @@ module.exports = reference.cacheSharingState ??= {
   releaseEntryLookup: null,
   fills: [],
   writes: [],
-  pausedLookupKeys: [],
+  routeBLookupKeys: [],
   pendingFill: null,
   releaseFill: null,
   pendingRouteLookupResult: null,
