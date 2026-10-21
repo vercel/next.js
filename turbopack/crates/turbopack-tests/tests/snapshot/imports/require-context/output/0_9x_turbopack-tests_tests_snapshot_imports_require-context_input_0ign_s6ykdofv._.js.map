@@ -1,0 +1,9 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/require-context/input/deps/a.js"],"sourcesContent":["module.exports = 'a'\n"],"names":["module","exports"],"mappings":"AAAAA,OAAOC,OAAO,GAAG"}},
+    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/require-context/input/deps/b.js"],"sourcesContent":["module.exports = 'b'\n"],"names":["module","exports"],"mappings":"AAAAA,OAAOC,OAAO,GAAG"}},
+    {"offset": {"line": 11, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/require-context/input/index.js"],"sourcesContent":["const ctx = require.context('./deps', false, /\\.js$/)\n\nconsole.log(ctx.keys().map((key) => ctx(key)))\n"],"names":["ctx","console","log","keys","map","key"],"mappings":"AAAA,MAAMA;AAENC,QAAQC,GAAG,CAACF,IAAIG,IAAI,GAAGC,GAAG,CAAC,CAACC,MAAQL,IAAIK"}},
+    {"offset": {"line": 16, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/require-context/input/index.js"],"sourcesContent":["const ctx = require.context('./deps', false, /\\.js$/)\n\nconsole.log(ctx.keys().map((key) => ctx(key)))\n"],"names":[],"mappings":"AAAY,OAAA,OAAA,GAAA;IAAA,UAAA;QAAA,IAAA;QAAA,QAAA;IAAA;IAAA,UAAA;QAAA,IAAA;QAAA,QAAA;IAAA;AAAA"}}]
+}
