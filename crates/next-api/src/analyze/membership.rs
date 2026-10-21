@@ -33,8 +33,7 @@ pub(super) struct ChunkLoadTarget {
     pub trigger_module_index: u32,
 }
 
-#[turbo_tasks::value(shared)]
-#[derive(Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub(super) struct OutputChunkModules {
     pub module_indices: Vec<u32>,
     pub coverage: AnalyzeOutputFileCoverage,
@@ -125,21 +124,19 @@ async fn chunk_item_load_candidates(
 }
 
 /// Enumerate known browser/Node.js JS and CSS chunk items; unknown wrappers remain unsupported.
-#[turbo_tasks::function]
 pub(super) async fn output_chunk_modules(
     asset: ResolvedVc<Box<dyn OutputAsset>>,
-    filename: RcStr,
-    module_index: Vc<AnalyzeModuleIndex>,
-) -> Result<Vc<OutputChunkModules>> {
+    filename: &RcStr,
+    module_index: &AnalyzeModuleIndex,
+) -> Result<OutputChunkModules> {
     if ResolvedVc::try_downcast_type::<EcmascriptBrowserRuntimeChunk>(asset).is_some()
         || ResolvedVc::try_downcast_type::<EcmascriptBuildNodeRuntimeChunk>(asset).is_some()
         || ResolvedVc::try_downcast_type::<SingleFileEcmascriptOutput>(asset).is_some()
         || ResolvedVc::try_downcast_type::<EcmascriptBrowserSingleEntryChunk>(asset).is_some()
         || ResolvedVc::try_downcast_type::<EcmascriptBrowserWorkerEntrypoint>(asset).is_some()
     {
-        return Ok(OutputChunkModules::default().cell());
+        return Ok(OutputChunkModules::default());
     }
-    let module_index = &*module_index.await?;
     let mut indices = FxIndexSet::default();
     let mut async_loaders = FxIndexSet::default();
     let mut candidates = Vec::new();
@@ -204,7 +201,7 @@ pub(super) async fn output_chunk_modules(
         // Other emitted JS/CSS wrappers cannot enumerate their module members.
         enumerated = false;
     } else {
-        return Ok(OutputChunkModules::default().cell());
+        return Ok(OutputChunkModules::default());
     }
     let coverage = if enumerated {
         AnalyzeOutputFileCoverage::Exact
@@ -216,8 +213,7 @@ pub(super) async fn output_chunk_modules(
         coverage,
         load_targets: candidates,
         async_loader_indices: async_loaders.into_iter().collect(),
-    }
-    .cell())
+    })
 }
 
 #[cfg(test)]

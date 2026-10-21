@@ -1,30 +1,27 @@
 mod groups;
 mod membership;
+mod output_file;
 
-use std::{borrow::Cow, io::Write};
+use std::io::Write;
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use byteorder::{BE, WriteBytesExt};
-use either::Either;
-use membership::output_chunk_modules;
 use next_core::app_structure::FileSystemPathVec;
+use output_file::{AnalyzedChunkPart, analyze_output_file, analyze_traced_file};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Serialize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, JoinIterExt, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, ValueToString,
-    ValueToStringRef, Vc,
+    FxIndexSet, JoinIterExt, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
+    ValueToString, ValueToStringRef, Vc,
 };
 use turbo_tasks_fs::{
     File, FileContent, FileSystemPath,
     rope::{Rope, RopeBuilder},
 };
 use turbo_tasks_hash::hash_xxh3_hash64;
-use turbopack_analyze::split_chunk::{split_output_asset_into_parts, split_traced_file_into_parts};
-use turbopack_browser::ecmascript::EcmascriptBrowserChunk;
 use turbopack_core::{
-    SOURCE_URL_PROTOCOL,
     asset::{Asset, AssetContent},
     chunk::{ChunkingType, TracedMode},
     module::Module,
@@ -698,49 +695,35 @@ pub async fn analyze_output_assets(
     let mut candidates = Vec::new();
     let mut browser_chunks = FxHashSet::default();
 
-    let prefix = format!("{SOURCE_URL_PROTOCOL}///");
-
-    // Process the output assets and extract chunk parts.
-    // Also creates sources for the chunk parts.
-    for asset in output_assets
-        .await?
+    let output_assets = output_assets.await?;
+    let traced_files = traced_files.await?;
+    // One call per file: per-route fan-out over shared assets dominates analysis
+    // through task-graph bookkeeping, not the work behind each call.
+    let files = output_assets
         .iter()
-        .copied()
-        .map(Either::Left)
-        .chain(traced_files.await?.iter().cloned().map(Either::Right))
-    {
-        let file_system_path = match &asset {
-            Either::Left(asset) => Either::Left(asset.path().await?),
-            Either::Right(path) => Either::Right(path),
-        };
-        let path = match &file_system_path {
-            Either::Left(path) => &path.path,
-            Either::Right(path) => &path.path,
-        };
-        if path.ends_with(".map") || path.ends_with(".nft.json") {
-            // Skip source maps.
-            continue;
-        }
+        .map(|&asset| analyze_output_file(*asset, module_index_vc))
+        .chain(
+            traced_files
+                .iter()
+                .map(|path| analyze_traced_file(path.clone())),
+        )
+        .try_join()
+        .await?;
 
-        let filename = match &file_system_path {
-            Either::Left(path) => path.to_string_ref().await?,
-            Either::Right(path) => path.to_string_ref().await?,
-        };
-
-        let is_client = filename.starts_with("[client-fs]/");
+    for file in files.iter().filter_map(|file| (**file).as_ref()) {
+        let is_client = file.filename.starts_with("[client-fs]/");
         let output_file_index = builder.add_output_file(AnalyzeOutputFile {
-            filename: filename.clone(),
+            filename: file.filename.clone(),
         });
-        if let Either::Left(asset) = &asset {
+        if let Some(emitted) = &file.emitted {
+            let membership = &emitted.membership;
             asset_indices
-                .entry(*asset)
+                .entry(emitted.asset)
                 .or_default()
                 .push(output_file_index);
-            if ResolvedVc::try_downcast_type::<EcmascriptBrowserChunk>(*asset).is_some() {
+            if emitted.is_browser_chunk {
                 browser_chunks.insert(output_file_index);
             }
-            let membership =
-                output_chunk_modules(**asset, filename.clone(), module_index_vc).await?;
             candidates.extend(
                 membership
                     .load_targets
@@ -751,37 +734,24 @@ pub async fn analyze_output_assets(
                         trigger_module_index: load.trigger_module_index,
                     }),
             );
-            let file = &mut builder.output_files[output_file_index as usize];
-            file.module_indices.extend(&membership.module_indices);
-            file.module_indices.sort_unstable();
-            file.module_indices.dedup();
-            file.async_loader_indices
+            let output = &mut builder.output_files[output_file_index as usize];
+            output.module_indices.extend(&membership.module_indices);
+            output.module_indices.sort_unstable();
+            output.module_indices.dedup();
+            output
+                .async_loader_indices
                 .extend(&membership.async_loader_indices);
-            file.async_loader_indices.sort_unstable();
-            file.async_loader_indices.dedup();
-            file.module_coverage = membership.coverage;
+            output.async_loader_indices.sort_unstable();
+            output.async_loader_indices.dedup();
+            output.module_coverage = membership.coverage;
         }
-        let chunk_parts = match asset {
-            Either::Left(asset) => split_output_asset_into_parts(*asset),
-            Either::Right(path) => split_traced_file_into_parts(path),
-        };
-        let compressed_sizes = chunk_parts.compressed_sizes().await?;
-        for (chunk_part, compressed_size) in chunk_parts.await?.iter().zip(compressed_sizes.iter())
+        for &AnalyzedChunkPart {
+            ref source,
+            size,
+            compressed_size,
+        } in &file.chunk_parts
         {
-            let decoded_source = urlencoding::decode(&chunk_part.source)?;
-            let source = if let Some(stripped) = decoded_source.strip_prefix(&prefix) {
-                Cow::Borrowed(stripped)
-            } else if decoded_source.starts_with('[') && decoded_source.contains("]/") {
-                decoded_source
-            } else {
-                Cow::Owned(format!(
-                    "[project]/{}",
-                    decoded_source.trim_start_matches("../")
-                ))
-            };
-            let source_index = builder.ensure_source(&source).1;
-            let size = chunk_part.real_size + chunk_part.unaccounted_size;
-            let compressed_size = compressed_size.unwrap_or(size);
+            let source_index = builder.ensure_source(source).1;
             summary.size += u64::from(size);
             summary.compressed_size += u64::from(compressed_size);
             if is_client {
