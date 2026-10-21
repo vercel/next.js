@@ -39,8 +39,7 @@ export function renderSampleSeriesMarkdown(
     return ''
   }
 
-  let md =
-    '\n**Sample values:** Memory/pressure/workers use recorded sample groups; concurrency uses equal-time segments. Indices are not shared timestamps.\n'
+  let md = '\nSample indices are not shared timestamps.\n'
   const metrics: [string, number[], (value: number) => string][] = [
     ['Memory (TurboMalloc live bytes)', series.memorySamples, formatBytes],
     ['Memory pressure', series.memoryPressureSamples, (value) => `${value}%`],
@@ -48,15 +47,7 @@ export function renderSampleSeriesMarkdown(
     ['Concurrency', series.concurrencySamples, (value) => value.toFixed(2)],
   ]
   for (const [name, values, format] of metrics) {
-    md += `\n**${name}:**\n\n`
-    if (values.length === 0) {
-      md += '_No samples._\n'
-      continue
-    }
-    md += '| Sample | Value |\n| ---: | ---: |\n'
-    for (const [index, value] of values.entries()) {
-      md += `| ${index + 1} | ${format(value)} |\n`
-    }
+    md += `${name} samples: ${values.length ? values.map(format).join(' ') : 'none'}\n`
   }
   return md
 }

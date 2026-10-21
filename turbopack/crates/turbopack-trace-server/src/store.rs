@@ -524,7 +524,7 @@ impl Store {
         })
     }
 
-    fn memory_samples_slice(&self, start: Timestamp, end: Timestamp) -> &[MemorySample] {
+    pub(crate) fn memory_samples_slice(&self, start: Timestamp, end: Timestamp) -> &[MemorySample] {
         // Binary search for the first sample >= start
         let lo = self.memory_samples.partition_point(|(ts, ..)| *ts < start);
         // Binary search for the first sample > end

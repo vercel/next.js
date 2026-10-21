@@ -48,9 +48,6 @@ mod viewer;
 )]
 type FxIndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasherDefault<FxHasher>>;
 
-/// Maximum number of process sample rows used for independent query summaries.
-const MAX_MEMORY_SUMMARY_SAMPLES: usize = 200;
-
 /// Starts the trace server on a background thread and returns the store
 /// immediately. The WebSocket server runs non-blocking.
 pub fn start_turbopack_trace_server(path: PathBuf, port: Option<u16>) -> Arc<StoreContainer> {
@@ -241,10 +238,8 @@ pub struct SpanInfo {
     /// matter what each allocated. Rank concurrent work by allocation fields;
     /// use this summary for absolute memory over a span dominating its window.
     ///
-    /// The query caller summarizes at most `MAX_MEMORY_SUMMARY_SAMPLES`
-    /// temporary rows, selecting each group's peak-memory row and independent
-    /// pressure, footprint and worker maxima. This is independent of whether
-    /// or how many sample values are requested.
+    /// Computed directly from every captured reading in the span's range,
+    /// independently of whether or how many sample values are requested.
     pub memory_summary: Option<MemorySummary>,
     /// Opt-in process/global value series for this span's elapsed range
     /// (the example span's range for aggregated groups).
@@ -260,7 +255,7 @@ pub struct SpanInfo {
 /// `peak` is the figure to quote for memory actually in use.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MemorySummary {
-    /// Number of samples in the span's range (after the store's downsampling).
+    /// Number of captured readings in the span's range, without downsampling.
     pub count: usize,
     /// Live bytes at the first sample in the range.
     pub start: u64,
@@ -278,19 +273,24 @@ pub struct MemorySummary {
 }
 
 impl MemorySummary {
-    /// Summarize a sample series, or `None` if it is empty.
-    fn from_samples(samples: &[(Timestamp, u64, u8, u64, u64)]) -> Option<Self> {
-        let (_, first_bytes, first_pressure, first_footprint, _) = *samples.first()?;
-        let mut summary = MemorySummary {
-            count: samples.len(),
+    /// Summarize every raw captured reading in the inclusive span range,
+    /// without downsampling or allocating a temporary sample vector.
+    fn for_range(store: &store::Store, start: Timestamp, end: Timestamp) -> Option<Self> {
+        if start > end {
+            return None;
+        }
+        let readings = store.memory_samples_slice(start, end);
+        let &(_, first_bytes, first_pressure, first_footprint, _) = readings.first()?;
+        let mut summary = Self {
+            count: readings.len(),
             start: first_bytes,
-            end: samples.last().expect("non-empty").1,
+            end: readings.last().expect("non-empty range").1,
             min: first_bytes,
             peak: first_bytes,
             max_pressure: first_pressure,
             max_footprint: first_footprint,
         };
-        for &(_, bytes, pressure, footprint, _) in &samples[1..] {
+        for &(_, bytes, pressure, footprint, _) in &readings[1..] {
             summary.min = summary.min.min(bytes);
             summary.peak = summary.peak.max(bytes);
             summary.max_pressure = summary.max_pressure.max(pressure);
@@ -514,15 +514,6 @@ fn sort_spans(items: &mut [Located<SpanRef<'_>>], sort: SortMode) {
     }
 }
 
-/// Summarize temporary process rows independently of requested sample values.
-fn memory_summary_for(store: &store::Store, span: &SpanRef<'_>) -> Option<MemorySummary> {
-    MemorySummary::from_samples(&store.memory_samples_for_range_with_ts(
-        span.start(),
-        span.end(),
-        MAX_MEMORY_SUMMARY_SAMPLES,
-    ))
-}
-
 fn sample_series_for(store: &store::Store, span: &SpanRef<'_>, limit: usize) -> SpanSampleSeries {
     let start = span.start();
     let end = span.end();
@@ -557,7 +548,7 @@ fn build_graph_span_info(
         .max_by_key(|span| span.total_persistent_allocations())
         .map(|span| span.index.to_string());
 
-    let memory_summary = memory_summary_for(store, &first);
+    let memory_summary = MemorySummary::for_range(store, first.start(), first.end());
 
     let children = if depth > 1 {
         let mut located_children: Vec<_> = graph_children(&graph)
@@ -626,7 +617,7 @@ fn build_raw_span_info(
     let Located { item: span, id } = located;
     let (cat, title) = span.nice_name();
 
-    let memory_summary = memory_summary_for(store, &span);
+    let memory_summary = MemorySummary::for_range(store, span.start(), span.end());
 
     let children = if depth > 1 {
         let mut located_children: Vec<_> = span
@@ -1037,7 +1028,12 @@ mod tests {
                 &mut outdated,
             );
             for i in 0..600 {
-                store.add_memory_sample(Timestamp::from_value(i), i, (i % 100) as u8, i % 8);
+                store.add_memory_sample(
+                    Timestamp::from_value(i),
+                    i,
+                    if i == 1 { 100 } else { (i % 100) as u8 },
+                    i % 8,
+                );
             }
             for span in [first, second, child] {
                 store.complete_span(span);
@@ -1045,7 +1041,7 @@ mod tests {
             store.invalidate_outdated_spans(&outdated);
         }
         for aggregated in [false, true] {
-            for limit in [None, Some(0), Some(1), Some(300)] {
+            for limit in [None, Some(0), Some(1), Some(300), Some(1000)] {
                 let result = query(
                     &container,
                     QueryOptions {
@@ -1056,8 +1052,17 @@ mod tests {
                     },
                 );
                 let first = &result.spans[0];
-                assert_eq!(first.memory_summary.as_ref().unwrap().count, 200);
+                let expected_summary = MemorySummary {
+                    count: 600,
+                    start: 0,
+                    end: 599,
+                    min: 0,
+                    peak: 599,
+                    max_pressure: 100,
+                };
+                assert_eq!(first.memory_summary, Some(expected_summary));
                 let child = &first.children[0];
+                assert_eq!(child.memory_summary, Some(expected_summary));
                 if let Some(limit) = limit {
                     for span in [first, child] {
                         let series = span.sample_series.as_ref().unwrap();
@@ -1069,8 +1074,10 @@ mod tests {
                         ] {
                             assert!(length <= limit);
                         }
-                        assert_eq!(series.memory_samples.len(), limit);
-                        assert_eq!(series.concurrency_samples.len(), limit);
+                        assert_eq!(series.memory_samples.len(), limit.min(600));
+                        let elapsed =
+                            (span.end_relative_to_parent - span.start_relative_to_parent) as usize;
+                        assert_eq!(series.concurrency_samples.len(), limit.min(elapsed));
                         if limit > 0 {
                             assert_eq!(series.memory_samples.last(), Some(&599));
                             assert_eq!(
@@ -1094,7 +1101,7 @@ mod tests {
                                 .as_ref()
                                 .unwrap()
                                 .memory_pressure_samples,
-                            vec![99]
+                            vec![100]
                         );
                     }
                 } else {
@@ -1108,6 +1115,7 @@ mod tests {
                     assert_eq!(result.spans.len(), 1);
                 } else {
                     assert_eq!(result.spans.len(), 2);
+                    assert!(result.spans[1].memory_summary.is_none());
                     if limit.is_some() {
                         assert!(
                             result.spans[1]
@@ -1444,7 +1452,12 @@ mod tests {
             (Timestamp::from_micros(1), 900, 3, 4000, 1),
             (Timestamp::from_micros(2), 200, 1, 7000, 3),
         ];
-        let summary = MemorySummary::from_samples(&samples).expect("samples present");
+        let mut store = store::Store::new();
+        for (ts, bytes, pressure, footprint, workers) in samples {
+            store.add_memory_sample(ts, bytes, pressure, footprint, workers);
+        }
+        let summary = MemorySummary::for_range(&store, Timestamp::ZERO, Timestamp::from_micros(2))
+            .expect("readings present");
         assert_eq!(summary.count, 3);
         assert_eq!(summary.start, 100);
         assert_eq!(summary.end, 200);
@@ -1452,8 +1465,79 @@ mod tests {
         assert_eq!(summary.peak, 900);
         assert_eq!(summary.max_pressure, 3);
         // Footprint is maxed independently of the memory peak.
-        assert_eq!(summary.max_footprint, 7000);
-        assert!(MemorySummary::from_samples(&[]).is_none());
+        assert_eq!(summary.max_footprint, 7000);        assert!(
+            MemorySummary::for_range(&store, Timestamp::from_micros(3), Timestamp::from_micros(4))
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn memory_summary_uses_raw_readings_at_inclusive_boundaries() {
+        let mut store = store::Store::new();
+        // Insert out of order, preserving the two readings at the same timestamp.
+        for (ts, bytes, pressure) in [
+            (4, 500, 100),
+            (2, 10, 99),
+            (2, 80, 1),
+            (1, 0, 100),
+            (3, 30, 2),
+        ] {
+            store.add_memory_sample(Timestamp::from_micros(ts), bytes, pressure, 0, 0);
+        }
+        assert_eq!(
+            MemorySummary::for_range(&store, Timestamp::from_micros(2), Timestamp::from_micros(3)),
+            Some(MemorySummary {
+                count: 3,
+                start: 10,
+                end: 30,
+                min: 10,
+                peak: 80,
+                max_pressure: 99,
+                max_footprint: 0,
+            })
+        );
+        // A point range includes both equal-time readings in insertion order.
+        assert_eq!(
+            MemorySummary::for_range(&store, Timestamp::from_micros(2), Timestamp::from_micros(2)),
+            Some(MemorySummary {
+                count: 2,
+                start: 10,
+                end: 80,
+                min: 10,
+                peak: 80,
+                max_pressure: 99,
+                max_footprint: 0,
+            })
+        );
+        assert_eq!(
+            MemorySummary::for_range(&store, Timestamp::from_micros(3), Timestamp::from_micros(3)),
+            Some(MemorySummary {
+                count: 1,
+                start: 30,
+                end: 30,
+                min: 30,
+                peak: 30,
+                max_pressure: 2,
+                max_footprint: 0,
+            })
+        );
+    }
+
+    #[test]
+    fn memory_summary_is_absent_for_empty_and_reversed_ranges() {
+        let mut store = store::Store::new();
+        assert!(MemorySummary::for_range(&store, Timestamp::ZERO, Timestamp::MAX).is_none());
+        store.add_memory_sample(Timestamp::from_micros(2), 100, 50, 0, 0);
+        for (start, end) in [(0, 1), (3, 4), (3, 1)] {
+            assert!(
+                MemorySummary::for_range(
+                    &store,
+                    Timestamp::from_micros(start),
+                    Timestamp::from_micros(end)
+                )
+                .is_none()
+            );
+        }
     }
 
     #[test]
