@@ -1,15 +1,23 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'fs'
+import { gate, retry } from 'next-test-utils'
+import {
+  mkdtempSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 
-describe('turbopack-loader-file-dependencies', () => {
-  const nativeDependencyDirectory = mkdtempSync(
+describe('webpack-loader-file-dependencies', () => {
+  const externalDependencyDirectory = mkdtempSync(
     join(realpathSync(tmpdir()), 'loader-build-dependency-')
   )
-  const nativeDependency = join(nativeDependencyDirectory, 'addon.node')
+  const nativeDependency = join(externalDependencyDirectory, 'addon.node')
+  const externalDependency = join(externalDependencyDirectory, 'dependency.js')
   writeFileSync(nativeDependency, 'native-one')
+  writeFileSync(externalDependency, "module.exports = 'external-one'")
 
   const { next } = nextTestSetup({
     files: __dirname,
@@ -18,12 +26,17 @@ describe('turbopack-loader-file-dependencies', () => {
       NODE_PATH: '',
       DYNAMIC_BUILD_DEPENDENCY: './tracking/dynamic.js',
       NATIVE_BUILD_DEPENDENCY: nativeDependency,
+      EXTERNAL_BUILD_DEPENDENCY: externalDependency,
+      TURBO_ENGINE_IGNORE_DIRTY: '1',
+      TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS: '0',
+      TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS: '0',
     },
     dependencies: {
       'build-dependency-esm-package': 'file:./build-dependency-esm-package',
       'build-dependency-package': 'file:./build-dependency-package',
       'directory-only-package': 'file:./directory-only-package',
       'tracking-package': 'file:./tracking-package',
+      'test-resolution-loader': 'file:./resolution-loader',
       postcss: '8.5.28',
       'postcss-loader': '8.2.1',
       stylus: '0.64.0',
@@ -32,7 +45,7 @@ describe('turbopack-loader-file-dependencies', () => {
   })
 
   afterAll(() => {
-    rmSync(nativeDependencyDirectory, { recursive: true, force: true })
+    rmSync(externalDependencyDirectory, { recursive: true, force: true })
   })
 
   it('should update when the dependency file changes', async () => {
@@ -52,14 +65,72 @@ describe('turbopack-loader-file-dependencies', () => {
     })
   })
 
-  it('does not warn for a loaded native dependency outside the configured roots', async () => {
+  it('warns for a loaded native dependency outside the configured roots', async () => {
     const outputIndex = next.cliOutput.length
     const $ = await next.render$('/native')
     expect($('p').text()).toBe('native-one')
-    expect(next.cliOutput.slice(outputIndex)).not.toMatch(
-      /Unable to resolve webpack loader build dependency|Resolver error/
-    )
+    if (await gate('turbopack')) {
+      await retry(() => {
+        const output = next.cliOutput.slice(outputIndex)
+        expect(output).toContain(
+          'Unable to resolve webpack loader build dependency'
+        )
+        expect(output).toContain('addon.node')
+        expect(output).toContain('outside configured roots')
+        expect(output).toContain('restarting the build process')
+      })
+    }
   })
+
+  it('warns for a loaded JavaScript dependency outside the configured roots', async () => {
+    const outputIndex = next.cliOutput.length
+    const $ = await next.render$('/external')
+    expect($('p').text()).toBe('external-one')
+    if (await gate('turbopack')) {
+      await retry(() => {
+        const output = next.cliOutput.slice(outputIndex)
+        expect(output).toContain(
+          'Unable to resolve webpack loader build dependency'
+        )
+        expect(output).toContain('dependency.js')
+        expect(output).toContain('outside configured roots')
+      })
+    }
+  })
+
+  for (const [route, filename, initial, updated] of [
+    ['/native', nativeDependency, 'native-one', 'native-two'],
+    ['/external', externalDependency, 'external-one', 'external-two'],
+  ]) {
+    it(`does not reuse stale ${route} results across restarts`, async () => {
+      const $ = await next.render$(route)
+      expect($('p').text()).toBe(initial)
+      if (await gate('turbopack')) {
+        await retry(() => {
+          const files = readdirSync(
+            join(next.testDir, next.distDir, 'cache', 'turbopack'),
+            { recursive: true }
+          )
+          expect(files.some((file) => String(file).endsWith('.sst'))).toBe(true)
+        })
+      }
+      await next.stop()
+      const contents =
+        route === '/native' ? updated : `module.exports = '${updated}'`
+      writeFileSync(filename, contents)
+      try {
+        await next.start()
+        const $ = await next.render$(route)
+        expect($('p').text()).toBe(updated)
+      } finally {
+        await next.stop()
+        const contents =
+          route === '/native' ? initial : `module.exports = '${initial}'`
+        writeFileSync(filename, contents)
+        await next.start()
+      }
+    })
+  }
 
   it('should update when a missing dependency is created', async () => {
     const $ = await next.render$('/')
