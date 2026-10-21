@@ -608,6 +608,7 @@ pub trait Backend: Sized + Sync + Send {
 
     fn invalidate_task(&self, task: TaskId, turbo_tasks: &TurboTasks<Self>);
 
+    /// Invalidates all `tasks`. `tasks` must not contain duplicates.
     fn invalidate_tasks(&self, tasks: &[TaskId], turbo_tasks: &TurboTasks<Self>);
     fn invalidate_tasks_set(&self, tasks: &TaskIdSet, turbo_tasks: &TurboTasks<Self>);
 
