@@ -1,58 +1,35 @@
-use std::{borrow::Cow, sync::Arc};
+use std::fmt::Write;
 
 use anyhow::{Context as _, Result, bail};
-use bincode::{Decode, Encode};
-use swc_core::{
-    common::{
-        DUMMY_SP, Span,
-        errors::{DiagnosticId, Handler},
-    },
-    ecma::{
-        ast::{
-            Expr, ExprStmt, KeyValueProp, Lit, ModuleItem, ObjectLit, Prop, PropName, PropOrSpread,
-            Stmt, {self},
-        },
-        codegen::{Emitter, text_writer::JsWriter},
-    },
-    quote, quote_expr,
+use swc_core::common::{
+    Span,
+    errors::{DiagnosticId, Handler},
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    debug::ValueDebugFormat,
-};
+use turbo_tasks::{ReadRef, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{
-    DirectoryEntry, FileSystemPath, ReadGlobResult,
+    DirectoryEntry, File, FileContent, FileSystemPath, ReadGlobResult,
     glob::{Glob, GlobOptions, relativize_glob},
 };
 use turbopack_core::{
-    chunk::{
-        AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingType, MinifyType,
-        ModuleChunkItemIdExt,
-    },
+    asset::{Asset, AssetContent},
+    context::AssetContext,
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, code_gen::CodeGenerationIssue},
-    module::{Module, ModuleSideEffects},
-    module_graph::ModuleGraph,
-    reference::{ModuleReference, ModuleReferences},
-    reference_type::EcmaScriptModulesReferenceSubType,
-    resolve::{
-        BindingUsage, ExportUsage, ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin,
-        parse::Request,
-    },
+    reference_type::{InnerAssets, ReferenceType},
+    resolve::{ImportUsage, ModulePart, origin::ResolveOrigin},
+    source::Source,
+    source_map::GenerateSourceMap,
 };
-use turbopack_resolve::ecmascript::esm_resolve;
 
 use crate::{
-    EcmascriptChunkPlaceable,
+    EcmascriptModuleAsset,
     analyzer::JsValue,
-    ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
-    chunk::{EcmascriptChunkItemContent, EcmascriptExports, ecmascript_chunk_item},
-    code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
-    create_visitor,
-    references::pattern_mapping::{PatternMapping, ResolveType},
-    runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_REQUIRE},
-    utils::module_id_to_lit,
+    references::{
+        esm::{EsmAssetReference, EsmAssetReferenceOptions},
+        synthetic_source::call_site_source_map,
+    },
+    utils::StringifyJs,
 };
 
 // ---------------------------------------------------------------------------
@@ -74,6 +51,21 @@ pub struct ImportMetaGlobOptions {
     pub base: Option<RcStr>,
     /// Whether glob matching is case-sensitive.
     pub case_sensitive: bool,
+}
+
+impl ImportMetaGlobOptions {
+    /// Identifies the synthetic module of the call. Calls with the same key share
+    /// one synthetic module, and one import of it.
+    pub fn key(&self) -> RcStr {
+        modifier(
+            &self.patterns,
+            self.eager,
+            &self.import,
+            &self.query,
+            &self.base,
+            self.case_sensitive,
+        )
+    }
 }
 
 /// Parse the arguments of an `import.meta.glob(patterns, options?)` call.
@@ -392,80 +384,53 @@ struct SplitPattern<'a> {
 // Helpers for collecting files from ReadGlobResult
 // ---------------------------------------------------------------------------
 
-/// Flatten a nested `ReadGlobResult` into a sorted list of
-/// `(base_relative_path, FileSystemPath)` pairs.
+/// Flatten a nested `ReadGlobResult` into a list of the paths of its files, in no
+/// particular order.
 ///
 /// `ReadGlobResult` stores results in a tree of `HashMap`s keyed by path
 /// segment. This function walks the tree and collects all file entries with
 /// their full relative paths (relative to the directory `read_glob` was called
 /// on).
-async fn flatten_read_glob(result: &ReadGlobResult) -> Result<Vec<(RcStr, FileSystemPath)>> {
+async fn flatten_read_glob(result: ReadRef<ReadGlobResult>) -> Result<Vec<RcStr>> {
+    fn join(prefix: &str, segment: &str) -> String {
+        if prefix.is_empty() {
+            segment.to_string()
+        } else {
+            format!("{prefix}/{segment}")
+        }
+    }
+
     let mut files = Vec::new();
 
-    // Collect file entries from the current node.
-    fn collect_files(
-        node: &ReadGlobResult,
-        prefix: &str,
-        files: &mut Vec<(RcStr, FileSystemPath)>,
-    ) {
+    // Walk the tree, resolving Vc references as we go.
+    let mut pending = vec![(String::new(), result)];
+    while let Some((prefix, node)) = pending.pop() {
         for (segment, entry) in &node.results {
-            let full_path = if prefix.is_empty() {
-                segment.to_string()
-            } else {
-                format!("{prefix}/{segment}")
-            };
-            if let DirectoryEntry::File(path) = entry {
-                files.push((full_path.into(), path.clone()));
+            if let DirectoryEntry::File(_) = entry {
+                files.push(join(&prefix, segment).into());
             }
         }
-    }
-
-    // Walk the tree level by level, resolving Vc references as we go.
-    let mut pending: Vec<(String, turbo_tasks::ReadRef<ReadGlobResult>)> = Vec::new();
-    collect_files(result, "", &mut files);
-
-    // Resolve child directories (skip dot-directories like .git, .next, etc.)
-    for (segment, inner_vc) in &result.inner {
-        let child_prefix = segment.to_string();
-        let inner = inner_vc.await?;
-        pending.push((child_prefix, inner));
-    }
-
-    while let Some((prefix, node)) = pending.pop() {
-        collect_files(&node, &prefix, &mut files);
         for (segment, inner_vc) in &node.inner {
-            let child_prefix = format!("{prefix}/{segment}");
-            let inner = inner_vc.await?;
-            pending.push((child_prefix, inner));
+            pending.push((join(&prefix, segment), inner_vc.await?));
         }
     }
 
-    files.sort_by(|a: &(RcStr, _), b: &(RcStr, _)| a.0.cmp(&b.0));
     Ok(files)
 }
 
 // ---------------------------------------------------------------------------
-// ImportMetaGlobMap — the resolved file map
+// ImportMetaGlobMap — the matched file map
 // ---------------------------------------------------------------------------
 
-#[turbo_tasks::value]
-#[derive(Debug)]
-pub struct ImportMetaGlobMapEntry {
-    /// Path relative to origin (the calling file's directory), used for import
-    /// resolution.
-    pub origin_relative: RcStr,
-    pub request: ResolvedVc<Request>,
-    pub result: ResolvedVc<ModuleResolveResult>,
-}
-
+/// The files matched by an `import.meta.glob()` call, sorted by the user-visible key
+/// of each in the generated object, with the request that imports it from the
+/// calling module.
 #[turbo_tasks::value(transparent)]
-pub struct ImportMetaGlobMap(
-    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, ImportMetaGlobMapEntry>,
-);
+pub struct ImportMetaGlobMap(Vec<(RcStr, RcStr)>);
 
 #[turbo_tasks::value_impl]
 impl ImportMetaGlobMap {
-    /// Discover files matching glob patterns and resolve them as ESM imports.
+    /// Discover files matching glob patterns.
     ///
     /// `scan_dir` is the directory to scan. `positive_glob` is a `Glob` matching
     /// the wanted files (relative to `scan_dir`). `negative_glob` optionally
@@ -478,11 +443,14 @@ impl ImportMetaGlobMap {
     ///   project-root-absolute pattern (`root_absolute_glob`),
     /// - relative to the importing file otherwise.
     ///
+    /// The values are requests relative to `origin_dir`, the directory of the
+    /// importing file, with `query` appended.
+    ///
     /// `root` is the directory a `/`-rooted pattern resolves from, and that its keys are relative
     /// to. It is always set when `root_absolute_glob` is.
     #[turbo_tasks::function]
     pub(crate) async fn generate(
-        origin: Vc<Box<dyn ResolveOrigin>>,
+        origin_dir: FileSystemPath,
         scan_dir: FileSystemPath,
         positive_glob: Vc<Glob>,
         negative_glob: Option<Vc<Glob>>,
@@ -490,16 +458,9 @@ impl ImportMetaGlobMap {
         root: Option<FileSystemPath>,
         key_base: Option<FileSystemPath>,
         query: Option<RcStr>,
-        eager: bool,
-        lazy_compilation: bool,
-        issue_source: Option<IssueSource>,
-        error_mode: ResolveErrorMode,
     ) -> Result<Vc<Self>> {
-        let origin_path = origin.into_trait_ref().await?.origin_path().parent();
-
         // Use read_glob for efficient directory-pruning file discovery.
-        let glob_result = scan_dir.read_glob(positive_glob).await?;
-        let files = flatten_read_glob(&glob_result).await?;
+        let files = flatten_read_glob(scan_dir.read_glob(positive_glob).await?).await?;
 
         // Pre-resolve the globs that are matched per file (if any) once, outside the loop.
         let negative = if let Some(neg) = negative_glob {
@@ -513,167 +474,77 @@ impl ImportMetaGlobMap {
             None
         };
 
-        let reference_sub_type = if eager {
-            EcmaScriptModulesReferenceSubType::Import
-        } else if lazy_compilation {
-            // Resolves to a proxy that compiles the matched module only once its
-            // thunk is first called.
-            EcmaScriptModulesReferenceSubType::LazyDynamicImport
-        } else {
-            EcmaScriptModulesReferenceSubType::DynamicImport
-        };
+        let mut map = Vec::with_capacity(files.len());
+        for scan_relative in &files {
+            // Apply negative pattern filtering on the scan-dir-relative path.
+            if negative
+                .as_ref()
+                .is_some_and(|neg| neg.matches(scan_relative))
+            {
+                continue;
+            }
 
-        // Resolve all matched files in parallel.
-        let entries: Vec<_> = files
-            .iter()
-            .filter(|(scan_relative, _)| {
-                // Apply negative pattern filtering on the scan-dir-relative path.
-                if let Some(ref neg) = negative {
-                    !neg.matches(scan_relative)
-                } else {
-                    true
-                }
-            })
-            .map(|(scan_relative, _logical_path)| {
-                let origin_path = &origin_path;
-                let scan_dir = &scan_dir;
-                let query = &query;
-                let reference_sub_type = &reference_sub_type;
-                let key_base = &key_base;
-                let root_absolute = &root_absolute;
-                let root = &root;
-                async move {
-                    // ReadGlobResult paths are logical too, but reconstruct from its keys here so
-                    // matching and user-visible specifiers have one explicit source of truth. The
-                    // module resolver resolves this logical request and tracks its symlink chain.
-                    let logical_path = scan_dir.join(scan_relative)?;
-                    let Some(origin_relative) = origin_path.get_relative_request_to(&logical_path)
-                    else {
-                        bail!(
-                            "import.meta.glob: failed to compute relative path from origin to \
-                             matched file"
-                        );
-                    };
+            // ReadGlobResult paths are logical too, but reconstruct from its keys here so
+            // matching and user-visible specifiers have one explicit source of truth. The
+            // module resolver resolves this logical request and tracks its symlink chain.
+            let logical_path = scan_dir.join(scan_relative)?;
+            let Some(origin_relative) = origin_dir.get_relative_request_to(&logical_path) else {
+                bail!(
+                    "import.meta.glob: failed to compute relative path from origin to matched file"
+                );
+            };
 
-                    // Compute the user-visible key of this entry.
-                    let key: RcStr = if let Some(key_base) = key_base {
-                        // Vite keys the result relative to `base` when it is provided, and its
-                        // keys are `./`-prefixed like the origin-relative ones below.
-                        // https://vite.dev/guide/features.html#base-path
-                        let Some(key) = key_base.get_relative_request_to(&logical_path) else {
-                            bail!(
-                                "import.meta.glob: failed to compute relative path from base to \
-                                 matched file"
-                            );
-                        };
-                        key
-                    } else if root_absolute
-                        .as_ref()
-                        .is_some_and(|glob| glob.matches(scan_relative))
-                    {
-                        // Matched by a pattern that is absolute from the root of the project, so
-                        // the key is absolute from that same root.
-                        let root = root
-                            .as_ref()
-                            .context("a project-root-absolute pattern requires a root")?;
-                        let Some(relative) = root.get_relative_path_to(&logical_path) else {
-                            bail!(
-                                "import.meta.glob: failed to compute relative path from the root \
-                                 of the project to matched file"
-                            );
-                        };
-                        format!("/{relative}").into()
-                    } else {
-                        origin_relative.clone()
-                    };
+            // Compute the user-visible key of this entry.
+            let key: RcStr = if let Some(key_base) = &key_base {
+                // Vite keys the result relative to `base` when it is provided, and its
+                // keys are `./`-prefixed like the origin-relative ones below.
+                // https://vite.dev/guide/features.html#base-path
+                let Some(key) = key_base.get_relative_request_to(&logical_path) else {
+                    bail!(
+                        "import.meta.glob: failed to compute relative path from base to matched \
+                         file"
+                    );
+                };
+                key
+            } else if root_absolute
+                .as_ref()
+                .is_some_and(|glob| glob.matches(scan_relative))
+            {
+                // Matched by a pattern that is absolute from the root of the project, so
+                // the key is absolute from that same root.
+                let root = root
+                    .as_ref()
+                    .context("a project-root-absolute pattern requires a root")?;
+                let Some(relative) = root.get_relative_path_to(&logical_path) else {
+                    bail!(
+                        "import.meta.glob: failed to compute relative path from the root of the \
+                         project to matched file"
+                    );
+                };
+                format!("/{relative}").into()
+            } else {
+                origin_relative.clone()
+            };
 
-                    // Append query string if specified (e.g., `?raw`).
-                    let request_str: RcStr = if let Some(q) = query {
-                        format!("{origin_relative}{q}").into()
-                    } else {
-                        origin_relative.clone()
-                    };
+            // Append query string if specified (e.g., `?raw`).
+            let request: RcStr = if let Some(q) = &query {
+                format!("{origin_relative}{q}").into()
+            } else {
+                origin_relative
+            };
 
-                    let request = Request::parse_string(request_str).to_resolved().await?;
+            map.push((key, request));
+        }
 
-                    let result = esm_resolve(
-                        origin,
-                        *request,
-                        reference_sub_type.clone(),
-                        error_mode,
-                        issue_source,
-                    )
-                    .await?
-                    .to_resolved()
-                    .await?;
-
-                    Ok((
-                        key,
-                        ImportMetaGlobMapEntry {
-                            origin_relative,
-                            request,
-                            result,
-                        },
-                    ))
-                }
-            })
-            .try_join()
-            .await?;
-
-        let mut map: FxIndexMap<RcStr, ImportMetaGlobMapEntry> = entries.into_iter().collect();
-
-        map.sort_keys();
+        // Every file is matched once, and gets a key of its own.
+        map.sort_unstable_by(|(a, _), (b, _)| a.cmp(b));
 
         Ok(Vc::cell(map))
     }
 }
 
 // ---------------------------------------------------------------------------
-// ImportMetaGlobModuleReference — per-file reference from the virtual module
-// ---------------------------------------------------------------------------
-
-/// A reference from the `ImportMetaGlobAsset` virtual module to one of the
-/// glob-matched modules. Carries `ExportUsage` so that tree shaking can
-/// narrow the used exports when the `import` option is set (e.g. `{ import:
-/// 'default' }` means only the `default` export is needed).
-#[turbo_tasks::value]
-#[derive(ValueToString)]
-#[value_to_string("import.meta.glob resolved reference")]
-pub struct ImportMetaGlobModuleReference {
-    result: ResolvedVc<ModuleResolveResult>,
-    export: ExportUsage,
-    eager: bool,
-}
-
-#[turbo_tasks::value_impl]
-impl ModuleReference for ImportMetaGlobModuleReference {
-    #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        *self.result
-    }
-
-    fn chunking_type(&self) -> Option<ChunkingType> {
-        // Lazy matches are loaded on demand, like the target of a dynamic `import()`.
-        Some(if self.eager {
-            ChunkingType::Parallel {
-                inherit_async: false,
-                hoisted: false,
-            }
-        } else {
-            ChunkingType::Async
-        })
-    }
-
-    fn binding_usage(&self) -> BindingUsage {
-        BindingUsage {
-            import: Default::default(),
-            export: self.export.clone(),
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// ImportMetaGlobAsset — the virtual module
+// ImportMetaGlobSource — the virtual module
 // ---------------------------------------------------------------------------
 
 /// Build the unique modifier string for an `ImportMetaGlobAsset` ident.
@@ -684,7 +555,6 @@ impl ModuleReference for ImportMetaGlobModuleReference {
 fn modifier(
     patterns: &[RcStr],
     eager: bool,
-    lazy_compilation: bool,
     import: &Option<RcStr>,
     query: &Option<RcStr>,
     base: &Option<RcStr>,
@@ -693,9 +563,6 @@ fn modifier(
     let mut s = format!("import.meta.glob {}", patterns.join(", "));
     if eager {
         s.push_str(" eager");
-    }
-    if lazy_compilation {
-        s.push_str(" lazy-compilation");
     }
     if let Some(named) = import {
         s.push_str(" import=");
@@ -715,34 +582,35 @@ fn modifier(
     s.into()
 }
 
+/// The source of the synthetic module that an `import.meta.glob()` call is
+/// replaced with. It imports every matched file and default-exports the object
+/// of them, so that normal module handling applies to the matches: lazy matches
+/// are dynamic `import()`s and eager matches are static imports.
 #[turbo_tasks::value]
-pub struct ImportMetaGlobAsset {
+pub struct ImportMetaGlobSource {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub patterns: Vec<RcStr>,
     pub eager: bool,
-    /// Whether the matched modules are compiled only once their thunk is first
-    /// called. Never set in eager mode, where the matches are evaluated up front.
-    pub lazy_compilation: bool,
     pub import: Option<RcStr>,
     pub query: Option<RcStr>,
     pub base: Option<RcStr>,
     pub case_sensitive: bool,
-    pub issue_source: Option<IssueSource>,
-    pub error_mode: ResolveErrorMode,
+    /// The `import.meta.glob()` call. The source map of the synthetic module maps
+    /// all of it to the call, so issues in it are reported there.
+    pub issue_source: IssueSource,
 }
 
 #[turbo_tasks::value_impl]
-impl ImportMetaGlobAsset {
-    /// Compute and cache the resolved file map for this glob.
+impl ImportMetaGlobSource {
+    /// Compute and cache the matched file map for this glob.
     ///
-    /// Builds the positive and negative `Glob` matchers from `self.patterns`,
-    /// scans the filesystem via `read_glob`, and resolves each matched file as
-    /// an ESM import.  Being a `#[turbo_tasks::function]`, the result is
-    /// memoised — repeated calls with the same inputs return the cached map.
+    /// Builds the positive and negative `Glob` matchers from `self.patterns`
+    /// and scans the filesystem via `read_glob`.  Being a
+    /// `#[turbo_tasks::function]`, the result is memoised — repeated calls with
+    /// the same inputs return the cached map.
     #[turbo_tasks::function]
     pub async fn map(&self) -> Result<Vc<ImportMetaGlobMap>> {
-        let origin = *self.origin;
-        let origin_dir = origin.into_trait_ref().await?.origin_path().parent();
+        let origin_dir = self.origin.into_trait_ref().await?.origin_path().parent();
 
         // Compute the base directory patterns are resolved against.
         // With `base`, patterns are resolved relative to origin + base.
@@ -887,7 +755,7 @@ impl ImportMetaGlobAsset {
         };
 
         Ok(ImportMetaGlobMap::generate(
-            origin,
+            origin_dir,
             scan_dir,
             positive_glob,
             negative_glob,
@@ -896,16 +764,12 @@ impl ImportMetaGlobAsset {
             // Vite keys the result relative to `base` when it is provided.
             self.base.is_some().then_some(base_dir),
             self.query.clone(),
-            self.eager,
-            self.lazy_compilation,
-            self.issue_source,
-            self.error_mode,
         ))
     }
 }
 
 /// A `/`-rooted pattern needs a directory to resolve from, and there is none.
-async fn emit_absolute_unsupported_issue(asset: &ImportMetaGlobAsset, what: &str) -> Result<()> {
+async fn emit_absolute_unsupported_issue(asset: &ImportMetaGlobSource, what: &str) -> Result<()> {
     CodeGenerationIssue {
         severity: IssueSeverity::Error,
         title: StyledString::Text(rcstr!(
@@ -928,7 +792,7 @@ async fn emit_absolute_unsupported_issue(asset: &ImportMetaGlobAsset, what: &str
         )
         .resolved_cell(),
         path: asset.origin.into_trait_ref().await?.origin_path(),
-        source: asset.issue_source,
+        source: Some(asset.issue_source),
     }
     .resolved_cell()
     .emit();
@@ -938,7 +802,7 @@ async fn emit_absolute_unsupported_issue(asset: &ImportMetaGlobAsset, what: &str
 /// Report a `base` or pattern of an `import.meta.glob()` call that walks above
 /// the project root.
 async fn emit_escapes_root_issue(
-    asset: &ImportMetaGlobAsset,
+    asset: &ImportMetaGlobSource,
     origin_dir: &FileSystemPath,
     what: &str,
 ) -> Result<()> {
@@ -965,7 +829,7 @@ async fn emit_escapes_root_issue(
         )
         .resolved_cell(),
         path: asset.origin.into_trait_ref().await?.origin_path(),
-        source: asset.issue_source,
+        source: Some(asset.issue_source),
     }
     .resolved_cell()
     .emit();
@@ -973,346 +837,144 @@ async fn emit_escapes_root_issue(
 }
 
 #[turbo_tasks::value_impl]
-impl Module for ImportMetaGlobAsset {
+impl Source for ImportMetaGlobSource {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let origin = self.origin.into_trait_ref().await?;
-        let origin_path = origin.origin_path();
-        // The layer is part of the ident so that this virtual module is distinct
-        // per layer (the same file can be processed in multiple layers), and so
-        // that import traces can collapse it into the importing module.
-        Ok(AssetIdent::from_path(origin_path)
-            .with_layer(origin.asset_context().into_trait_ref().await?.layer())
-            .with_modifier(modifier(
-                &self.patterns,
-                self.eager,
-                self.lazy_compilation,
-                &self.import,
-                &self.query,
-                &self.base,
-                self.case_sensitive,
-            ))
-            .into_vc())
-    }
-
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
-        Vc::cell(None)
-    }
-
-    #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        let this = self.await?;
-        let map = &*self.map().await?;
-
-        let export = match &this.import {
-            Some(name) => ExportUsage::Named(name.clone()),
-            None => ExportUsage::All,
-        };
-
-        Ok(Vc::cell(
-            map.iter()
-                .map(|(_, entry)| {
-                    ResolvedVc::upcast(
-                        ImportMetaGlobModuleReference {
-                            result: entry.result,
-                            export: export.clone(),
-                            eager: this.eager,
-                        }
-                        .resolved_cell(),
-                    )
-                })
-                .collect(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    fn side_effects(&self) -> Vc<ModuleSideEffects> {
-        if self.eager {
-            // In eager mode the module's imports are evaluated synchronously, so
-            // the module evaluation itself is side-effect-free but its imports
-            // are not necessarily.
-            ModuleSideEffects::ModuleEvaluationIsSideEffectFree.cell()
-        } else {
-            // In lazy mode the virtual module only exports thunks; no imports
-            // are evaluated, so it is fully side-effect-free.
-            ModuleSideEffects::SideEffectFree.cell()
-        }
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableModule for ImportMetaGlobAsset {
-    #[turbo_tasks::function]
-    fn as_chunk_item(
-        self: ResolvedVc<Self>,
-        module_graph: ResolvedVc<ModuleGraph>,
-        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkPlaceable for ImportMetaGlobAsset {
-    #[turbo_tasks::function]
-    fn get_exports(&self) -> Vc<EcmascriptExports> {
-        EcmascriptExports::Value.cell()
-    }
-
-    #[turbo_tasks::function]
-    async fn chunk_item_content(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        _module_graph: Vc<ModuleGraph>,
-        _async_module_info: Option<Vc<AsyncModuleInfo>>,
-        _estimated: bool,
-    ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let this = self.await?;
-        let map = &*self.map().await?;
-        let minify = chunking_context.minify_type().await?;
-
-        // In lazy mode each matched module is in its own async chunk group (see
-        // `ImportMetaGlobModuleReference::chunking_type`), so it has to be loaded
-        // through its async loader, like the target of a dynamic `import()`.
-        let resolve_type =
-            if !this.eager && chunking_context.chunk_loading().await?.can_split_async() {
-                ResolveType::AsyncChunkLoader
-            } else {
-                ResolveType::ChunkItem
-            };
-
-        let mut glob_map = ObjectLit {
-            span: DUMMY_SP,
-            props: vec![],
-        };
-
-        for (key, entry) in map {
-            let pm = PatternMapping::resolve_request(
-                *entry.request,
-                *this.origin,
-                chunking_context,
-                *entry.result,
-                resolve_type,
-                None,
-            )
-            .await?;
-
-            let PatternMapping::Single(pm) = &*pm else {
-                continue;
-            };
-
-            let key_expr = Expr::Lit(Lit::Str(entry.origin_relative.as_str().into()));
-
-            // Generate the value expression based on eager/lazy and import options
-            let value_expr = if this.eager {
-                // Eager: synchronously evaluate the module and use its ESM namespace,
-                // matching what a static `import * as ns from "..."` would produce.
-                let module_expr = pm.create_esm_require(Cow::Borrowed(&key_expr));
-                // If `import` option is set, access the named export
-                if let Some(named) = &this.import {
-                    quote!(
-                        "$module[$named]" as Expr,
-                        module: Expr = module_expr,
-                        named: Expr = Expr::Lit(Lit::Str(named.as_str().into()))
-                    )
-                } else {
-                    module_expr
-                }
-            } else {
-                // Lazy: thunk returning a Promise
-                let import_expr = pm.create_import(Cow::Borrowed(&key_expr));
-                if let Some(named) = &this.import {
-                    // Wrap the promise with .then(m => m[named])
-                    quote!(
-                        "() => $promise.then((m) => m[$named])" as Expr,
-                        promise: Expr = import_expr,
-                        named: Expr = Expr::Lit(Lit::Str(named.as_str().into()))
-                    )
-                } else {
-                    quote!(
-                        "() => $promise" as Expr,
-                        promise: Expr = import_expr
-                    )
-                }
-            };
-
-            // Use the origin-relative path as the key — this is what Vite does
-            // and what the user sees in `Object.keys(modules)`.
-            let prop = KeyValueProp {
-                key: PropName::Str(key.as_str().into()),
-                value: Box::new(value_expr),
-            };
-
-            glob_map
-                .props
-                .push(PropOrSpread::Prop(Box::new(Prop::KeyValue(prop))));
-        }
-
-        let expr = quote_expr!(
-            "$turbopack_export_value($obj);",
-            turbopack_export_value: Expr = TURBOPACK_EXPORT_VALUE.into(),
-            obj: Expr = Expr::Object(glob_map),
-        );
-
-        let module = ast::Module {
-            span: DUMMY_SP,
-            body: vec![ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                span: DUMMY_SP,
-                expr,
-            }))],
-            shebang: None,
-        };
-
-        let source_map: Arc<swc_core::common::SourceMap> = Default::default();
-
-        let mut bytes: Vec<u8> = vec![];
-        let mut wr: JsWriter<'_, &mut Vec<u8>> =
-            JsWriter::new(source_map.clone(), "\n", &mut bytes, None);
-        if matches!(*minify, MinifyType::Minify { .. }) {
-            wr.set_indent_str("");
-        }
-
-        let mut emitter = Emitter {
-            cfg: swc_core::ecma::codegen::Config::default(),
-            cm: source_map.clone(),
-            comments: None,
-            wr,
-        };
-
-        emitter.emit_module(&module)?;
-
-        Ok(EcmascriptChunkItemContent {
-            inner_code: bytes.into(),
-            ..Default::default()
-        }
-        .cell())
-    }
-}
-
-// ---------------------------------------------------------------------------
-// ImportMetaGlobAssetReference — the call-site reference
-// ---------------------------------------------------------------------------
-
-#[turbo_tasks::value]
-#[derive(Hash, Debug, ValueToString)]
-pub struct ImportMetaGlobAssetReference {
-    pub inner: ResolvedVc<ImportMetaGlobAsset>,
-    pub patterns: Vec<RcStr>,
-}
-
-impl std::fmt::Display for ImportMetaGlobAssetReference {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "import.meta.glob {}", self.patterns.join(", "))
-    }
-}
-
-impl ImportMetaGlobAssetReference {
-    pub fn new(
-        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-        patterns: Vec<RcStr>,
-        eager: bool,
-        lazy_compilation: bool,
-        import: Option<RcStr>,
-        query: Option<RcStr>,
-        base: Option<RcStr>,
-        case_sensitive: bool,
-        issue_source: Option<IssueSource>,
-        error_mode: ResolveErrorMode,
-    ) -> Self {
-        let inner = ImportMetaGlobAsset {
-            origin,
-            patterns: patterns.clone(),
-            eager,
-            lazy_compilation: lazy_compilation && !eager,
-            import,
-            query,
-            base,
-            case_sensitive,
-            issue_source,
-            error_mode,
-        }
-        .resolved_cell();
-
-        ImportMetaGlobAssetReference { inner, patterns }
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ModuleReference for ImportMetaGlobAssetReference {
-    #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        *ModuleResolveResult::module(ResolvedVc::upcast(self.inner))
-    }
-
-    fn chunking_type(&self) -> Option<ChunkingType> {
-        Some(ChunkingType::Parallel {
-            inherit_async: false,
-            hoisted: false,
-        })
-    }
-}
-
-impl IntoCodeGenReference for ImportMetaGlobAssetReference {
-    fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>> {
-        ResolvedVc::upcast(self.resolved_cell())
-    }
-
-    fn into_code_gen_reference(
-        self,
-        _trie: &AstPathTrieBuilder,
-        path: AstPathId,
-    ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
-        let reference = self.resolved_cell();
-        (
-            ResolvedVc::upcast(reference),
-            CodeGen::ImportMetaGlobAssetReferenceCodeGen(ImportMetaGlobAssetReferenceCodeGen {
-                reference,
-                path,
-            }),
+        let origin_path = self.origin.into_trait_ref().await?.origin_path();
+        // A sibling of the importing file, so that the requests resolve exactly as they
+        // would from the importing file itself. It also shows up in import traces, which
+        // tells which glob pulled a matched file in.
+        Ok(
+            AssetIdent::from_path(origin_path.append(".import-meta-glob.mjs")?)
+                .with_modifier(modifier(
+                    &self.patterns,
+                    self.eager,
+                    &self.import,
+                    &self.query,
+                    &self.base,
+                    self.case_sensitive,
+                ))
+                .into_vc(),
         )
     }
-}
 
-// ---------------------------------------------------------------------------
-// ImportMetaGlobAssetReferenceCodeGen — AST rewriting
-// ---------------------------------------------------------------------------
-
-#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
-pub struct ImportMetaGlobAssetReferenceCodeGen {
-    path: AstPathId,
-    reference: ResolvedVc<ImportMetaGlobAssetReference>,
-}
-
-impl ImportMetaGlobAssetReferenceCodeGen {
-    pub async fn code_generation(
-        &self,
-        trie: &AstPathTrie,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<CodeGeneration> {
-        let module_id = self
-            .reference
-            .await?
-            .inner
-            .chunk_item_id(chunking_context)
-            .await?;
-
-        let mut visitors = Vec::new();
-        visitors.push(create_visitor!(
-            trie,
-            self.path,
-            visit_mut_expr,
-            |expr: &mut Expr| {
-                if let Expr::Call(_) = expr {
-                    // Replace import.meta.glob(...) with __turbopack_require__(<virtual_module_id>)
-                    *expr = quote!(
-                        "$turbopack_require($id)" as Expr,
-                        turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
-                        id: Expr = module_id_to_lit(&module_id)
-                    );
-                }
-            }
-        ));
-        Ok(CodeGeneration::visitors(visitors))
+    #[turbo_tasks::function]
+    async fn description(self: Vc<Self>) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(
+            format!("synthetic module for {}", self.ident().to_string().await?).into(),
+        ))
     }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for ImportMetaGlobSource {
+    #[turbo_tasks::function]
+    async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
+        Ok(AssetContent::file(
+            FileContent::Content(File::from(code(self).await?)).cell(),
+        ))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl GenerateSourceMap for ImportMetaGlobSource {
+    #[turbo_tasks::function]
+    async fn generate_source_map(self: Vc<Self>) -> Result<Vc<FileContent>> {
+        let issue_source = self.await?.issue_source;
+        call_site_source_map(issue_source, &code(self).await?).await
+    }
+}
+
+/// The code of the synthetic module. Not a turbo task, since it only formats the map.
+async fn code(source: Vc<ImportMetaGlobSource>) -> Result<String> {
+    let this = source.await?;
+    let map = &*source.map().await?;
+
+    // Eager matches are static imports, so that they are evaluated before the
+    // importing module, and lazy matches are dynamic `import()`s. With the `import`
+    // option only that export is used, which a named import or a `turbopackExports`
+    // comment tells tree shaking about.
+    let mut imports = String::new();
+    let mut entries = String::new();
+    for (index, (key, request)) in map.iter().enumerate() {
+        let key = StringifyJs(key);
+        let request = StringifyJs(request);
+        let import = this.import.as_ref().map(StringifyJs);
+        let value = match (this.eager, import) {
+            (true, None) => {
+                writeln!(imports, "import * as m{index} from {request};")?;
+                format!("m{index}")
+            }
+            (true, Some(import)) => {
+                writeln!(imports, "import {{ {import} as m{index} }} from {request};")?;
+                format!("m{index}")
+            }
+            (false, None) => format!("() => import({request})"),
+            (false, Some(import)) => format!(
+                "() => import(/* turbopackExports: {import} */ {request}).then((m) => m[{import}])"
+            ),
+        };
+        writeln!(entries, "  {key}: {value},")?;
+    }
+
+    Ok(format!("{imports}export default {{\n{entries}}};\n"))
+}
+
+/// Creates the reference that an `import.meta.glob()` call is replaced with: an
+/// import of the default export of its synthetic module. Like a static import it
+/// is hoisted, so the importing module becomes async when an eager match is,
+/// and scope hoisting can merge the synthetic module into it.
+pub async fn import_meta_glob_reference(
+    module: ResolvedVc<EcmascriptModuleAsset>,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    options: ImportMetaGlobOptions,
+    issue_source: IssueSource,
+    import_externals: bool,
+    module_fragments_enabled: bool,
+) -> Result<EsmAssetReference> {
+    let key = options.key();
+    let ImportMetaGlobOptions {
+        patterns,
+        eager,
+        import,
+        query,
+        base,
+        case_sensitive,
+    } = options;
+    let source = ImportMetaGlobSource {
+        origin,
+        patterns,
+        eager,
+        import,
+        query,
+        base,
+        case_sensitive,
+        issue_source,
+    }
+    .resolved_cell();
+    let asset_context = *origin.into_trait_ref().await?.asset_context();
+    let synthetic_module = asset_context
+        .process(
+            Vc::upcast(*source),
+            ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
+        )
+        .module()
+        .to_resolved()
+        .await?;
+    EsmAssetReference::new(
+        module,
+        origin,
+        key,
+        EsmAssetReferenceOptions {
+            issue_source,
+            annotations: None,
+            export_name: Some(ModulePart::export(rcstr!("default"))),
+            import_usage: ImportUsage::TopLevel,
+            import_externals,
+            module_fragments_enabled,
+            export_usage_passthrough: None,
+            resolve_override: Some(synthetic_module),
+        },
+    )
+    .await
 }
