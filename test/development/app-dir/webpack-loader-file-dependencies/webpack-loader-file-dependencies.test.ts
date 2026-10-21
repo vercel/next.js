@@ -326,21 +326,47 @@ describe('webpack-loader-file-dependencies', () => {
     )
   })
 
-  // @force-gate turbopack
-  it('updates when a cached transitive loader dependency changes', async () => {
-    const $ = await next.render$('/tracking')
-    expect($('p').text()).toContain('cached: transitive-one')
-    await next.patchFile(
+  // Shared workers keep required CommonJS modules cached until the server restarts.
+  it.each([
+    [
+      'an edited cached transitive loader dependency',
       'tracking-value.js',
       "module.exports = 'transitive-two'",
-      async () => {
-        await retry(async () => {
+      'cached: transitive-one',
+      'cached: transitive-two',
+    ],
+    [
+      'a higher-priority CommonJS candidate',
+      'tracking/candidate',
+      "module.exports = 'extensionless-two'",
+      'candidate: js-one',
+      'candidate: extensionless-two',
+    ],
+    [
+      'a nearer CommonJS package',
+      'tracking/node_modules/tracking-package/value.js',
+      "module.exports = 'nearer-two'",
+      'package: package-one',
+      'package: nearer-two',
+    ],
+  ])(
+    'loads %s after restarting the dev server',
+    async (_name, fileName, content, initial, expected) => {
+      const $ = await next.render$('/tracking')
+      expect($('p').text()).toContain(initial)
+      await next.stop()
+      await next.patchFile(fileName, content, async () => {
+        await next.start()
+        try {
           const $ = await next.render$('/tracking')
-          expect($('p').text()).toContain('cached: transitive-two')
-        })
-      }
-    )
-  })
+          expect($('p').text()).toContain(expected)
+        } finally {
+          await next.stop()
+        }
+      })
+      await next.start()
+    }
+  )
 
   // @force-gate turbopack
   it('updates when an uncached build dependency import changes', async () => {
@@ -361,7 +387,7 @@ describe('webpack-loader-file-dependencies', () => {
   it('loads an edited dynamic CommonJS build dependency after restarting the dev server', async () => {
     const $ = await next.render$('/dynamic')
     expect($('p').text()).toContain('dynamic: dynamic-one')
-    // Runtime-selected modules are not part of the loader's static pool-invalidation graph.
+    // CommonJS modules stay cached in the shared worker pool until the server restarts.
     await next.stop()
     await next.patchFile(
       'tracking/dynamic-value.js',
@@ -383,38 +409,6 @@ describe('webpack-loader-file-dependencies', () => {
       const $ = await next.render$('/dynamic')
       expect($('p').text()).toContain('dynamic: dynamic-one')
     })
-  })
-
-  // @force-gate turbopack
-  it('updates when a higher-priority CommonJS candidate is created', async () => {
-    const $ = await next.render$('/tracking')
-    expect($('p').text()).toContain('candidate: js-one')
-    await next.patchFile(
-      'tracking/candidate',
-      "module.exports = 'extensionless-two'",
-      async () => {
-        await retry(async () => {
-          const $ = await next.render$('/tracking')
-          expect($('p').text()).toContain('candidate: extensionless-two')
-        })
-      }
-    )
-  })
-
-  // @force-gate turbopack
-  it('updates when a nearer CommonJS package is created', async () => {
-    const $ = await next.render$('/tracking')
-    expect($('p').text()).toContain('package: package-one')
-    await next.patchFile(
-      'tracking/node_modules/tracking-package/value.js',
-      "module.exports = 'nearer-two'",
-      async () => {
-        await retry(async () => {
-          const $ = await next.render$('/tracking')
-          expect($('p').text()).toContain('package: nearer-two')
-        })
-      }
-    )
   })
 
   // @force-gate turbopack
