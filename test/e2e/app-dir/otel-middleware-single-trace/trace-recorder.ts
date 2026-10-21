@@ -76,9 +76,32 @@ function getChain(spanId: string | undefined) {
   return chain
 }
 
-/** The middleware's span chain: its active span and that span's ancestors. */
+/** The spans started here so far below the given span (not the span itself). */
+function getDescendants(spanId: string) {
+  return [...getRecordedSpans().values()]
+    .filter(({ parentId }) =>
+      getChain(parentId).some((span) => span.id === spanId)
+    )
+    .map(toRecordedSpan)
+}
+
+/**
+ * The middleware's spans: its active span, that span's ancestors, and the
+ * descendants started so far of the topmost of them (e.g. spans started next
+ * to the middleware span in the root inserted by the middleware adapter).
+ */
 export function getMiddlewareSpans() {
-  return getChain(trace.getActiveSpan()?.spanContext().spanId)
+  const chain = getChain(trace.getActiveSpan()?.spanContext().spanId)
+  if (chain.length === 0) {
+    return chain
+  }
+  const ids = new Set(chain.map((span) => span.id))
+  return [
+    ...chain,
+    ...getDescendants(chain[chain.length - 1].id).filter(
+      (span) => !ids.has(span.id)
+    ),
+  ]
 }
 
 /**
@@ -95,10 +118,5 @@ export function getRenderSpans() {
     return chain
   }
   const requestSpanId = chain[index].id
-  const descendants = [...getRecordedSpans().values()]
-    .filter(({ parentId }) =>
-      getChain(parentId).some((span) => span.id === requestSpanId)
-    )
-    .map(toRecordedSpan)
-  return [...chain.slice(index), ...descendants]
+  return [...chain.slice(index), ...getDescendants(requestSpanId)]
 }
