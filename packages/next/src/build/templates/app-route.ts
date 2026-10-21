@@ -141,7 +141,7 @@ export async function handler(
       spanName: `${req.method || 'GET'} ${srcPage}`,
       httpTarget: req.url,
     },
-    (requestSpan, requestParentSpan) =>
+    (requestSpan, requestRootSpan) =>
       handleRequest(
         req,
         res,
@@ -149,7 +149,7 @@ export async function handler(
         srcPage,
         multiZoneDraftMode,
         requestSpan,
-        requestParentSpan
+        requestRootSpan
       )
   )
 }
@@ -164,7 +164,7 @@ async function handleRequest(
   srcPage: string,
   multiZoneDraftMode: boolean,
   requestSpan: Span | undefined,
-  requestParentSpan: Span | undefined
+  requestRootSpan: Span | undefined
 ) {
   const prepareResult = await routeModule.prepare(req, res, {
     srcPage,
@@ -255,7 +255,6 @@ async function handleRequest(
 
   const method = req.method || 'GET'
   const tracer = getTracer()
-  const activeSpan = tracer.getActiveScopeSpan()
   const isWrappedByNextServer = Boolean(
     routerServerContext?.isWrappedByNextServer
   )
@@ -426,10 +425,7 @@ async function handleRequest(
     }
   }
 
-  const handleResponse = async (
-    currentSpan: Span | undefined,
-    parentSpan: Span | undefined
-  ) => {
+  const handleResponse = async (currentSpan: Span | undefined) => {
     try {
       const cacheEntry = await routeModule.handleResponse({
         req,
@@ -614,26 +610,22 @@ async function handleRequest(
         })
         currentSpan.updateName(name)
 
-        // Propagate http.route to the parent span if one exists (e.g.
-        // a platform-created HTTP span in adapter deployments).
-        if (parentSpan && parentSpan !== currentSpan) {
-          parentSpan.setAttribute('http.route', route)
-          parentSpan.updateName(name)
+        // Propagate http.route to the request's root span if it isn't the
+        // request span (e.g. a platform-created HTTP span in adapter
+        // deployments).
+        if (requestRootSpan && requestRootSpan !== currentSpan) {
+          requestRootSpan.setAttribute('http.route', route)
+          requestRootSpan.updateName(name)
         }
       })()
     }
   }
 
-  // TODO: activeSpan code path is for when wrapped by
-  // next-server can be removed when this is no longer used
-  if (isWrappedByNextServer && activeSpan) {
-    await handleResponse(activeSpan, undefined)
-  } else {
-    // The request span was started before `prepare`; record the request
-    // target as normalized by it.
-    if (req.url !== undefined) {
-      requestSpan?.setAttribute('http.target', req.url)
-    }
-    await handleResponse(requestSpan, requestParentSpan)
+  // When invoked directly, the request span was started before `prepare`;
+  // record the request target as normalized by it. next-server's request span
+  // already has it.
+  if (!isWrappedByNextServer && req.url !== undefined) {
+    requestSpan?.setAttribute('http.target', req.url)
   }
+  await handleResponse(requestSpan)
 }

@@ -78,8 +78,8 @@ export async function handler(
       spanName: `${req.method || 'GET'} ${srcPage}`,
       httpTarget: req.url,
     },
-    (requestSpan, requestParentSpan) =>
-      handleRequest(req, res, ctx, srcPage, requestSpan, requestParentSpan)
+    (requestSpan, requestRootSpan) =>
+      handleRequest(req, res, ctx, srcPage, requestSpan, requestRootSpan)
   )
 }
 
@@ -92,7 +92,7 @@ async function handleRequest(
   },
   srcPage: string,
   requestSpan: Span | undefined,
-  requestParentSpan: Span | undefined
+  requestRootSpan: Span | undefined
 ) {
   const prepareResult = await routeModule.prepare(req, res, { srcPage })
 
@@ -109,14 +109,12 @@ async function handleRequest(
     const method = req.method || 'GET'
     const tracer = getTracer()
 
-    const activeSpan = tracer.getActiveScopeSpan()
     const isWrappedByNextServer = Boolean(
       routerServerContext?.isWrappedByNextServer
     )
     const onRequestError =
       routeModule.instrumentationOnRequestError.bind(routeModule)
 
-    let parentSpan: Span | undefined
     const invokeRouteModule = async (span?: Span) =>
       routeModule
         .render(req, res, {
@@ -188,35 +186,31 @@ async function handleRequest(
           })
           span.updateName(name)
 
-          // Propagate http.route to the parent span if one exists (e.g.
-          // a platform-created HTTP span in adapter deployments).
-          if (parentSpan && parentSpan !== span) {
-            parentSpan.setAttribute('http.route', route)
-            parentSpan.updateName(name)
+          // Propagate http.route to the request's root span if it isn't the
+          // request span (e.g. a platform-created HTTP span in adapter
+          // deployments).
+          if (requestRootSpan && requestRootSpan !== span) {
+            requestRootSpan.setAttribute('http.route', route)
+            requestRootSpan.updateName(name)
           }
         })
 
-    // TODO: activeSpan code path is for when wrapped by
-    // next-server can be removed when this is no longer used
-    if (isWrappedByNextServer && activeSpan) {
-      await invokeRouteModule(activeSpan)
-    } else {
-      // The request span was started before `prepare`; record the request
-      // target as normalized by it.
-      if (req.url !== undefined) {
-        requestSpan?.setAttribute('http.target', req.url)
+    // When invoked directly, the request span was started before `prepare`;
+    // record the request target as normalized by it. next-server's request
+    // span already has it.
+    if (!isWrappedByNextServer && req.url !== undefined) {
+      requestSpan?.setAttribute('http.target', req.url)
+    }
+    try {
+      await invokeRouteModule(requestSpan)
+    } catch (err) {
+      // A request span started for a direct invocation outlives the error
+      // handling below, which only rethrows in dev: record the error on the
+      // span here otherwise.
+      if (!isWrappedByNextServer && requestSpan && !routeModule.isDev) {
+        recordSpanError(requestSpan, err as Error)
       }
-      parentSpan = requestParentSpan
-      try {
-        await invokeRouteModule(requestSpan)
-      } catch (err) {
-        // The request span outlives the error handling below, which only
-        // rethrows in dev: record the error on the span here otherwise.
-        if (requestSpan && !routeModule.isDev) {
-          recordSpanError(requestSpan, err as Error)
-        }
-        throw err
-      }
+      throw err
     }
   } catch (err) {
     // we re-throw in dev to show the error overlay

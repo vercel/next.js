@@ -646,8 +646,10 @@ export abstract class RouteModule<
    * first request, registering `instrumentation.ts` usually installs the
    * tracer provider, and a span started earlier would not be recorded.
    *
-   * `fn` receives the request span, and the span that was active when the
-   * handler was invoked (e.g. a platform-created HTTP span), if any.
+   * `fn` receives the request span and the request's root span: the span that
+   * was active when the handler was invoked (next-server's request span, or a
+   * platform-created HTTP span), or the request span itself when there is no
+   * such span.
    *
    * `tracer` must be the caller's tracer: route modules are bundled with their
    * own copy of the tracer, whose root span bookkeeping (e.g.
@@ -667,7 +669,7 @@ export abstract class RouteModule<
       spanName: string
       httpTarget: string | undefined
     },
-    fn: (span: Span | undefined, parentSpan: Span | undefined) => Promise<T>
+    fn: (span: Span | undefined, rootSpan: Span | undefined) => Promise<T>
   ): Promise<T> {
     const activeSpan = tracer.getActiveScopeSpan()
     const isWrappedByNextServer = Boolean(
@@ -677,10 +679,9 @@ export abstract class RouteModule<
     // TODO: activeSpan code path is for when wrapped by
     // next-server can be removed when this is no longer used
     if (isWrappedByNextServer && activeSpan) {
-      return fn(activeSpan, undefined)
+      return fn(activeSpan, activeSpan)
     }
 
-    const parentSpan = tracer.getActiveScopeSpan()
     return tracer.withPropagatedContext(
       req.headers,
       () =>
@@ -694,7 +695,7 @@ export abstract class RouteModule<
               'http.target': httpTarget,
             },
           },
-          (span) => fn(span, parentSpan)
+          (span) => fn(span, activeSpan ?? span)
         ),
       undefined,
       !isWrappedByNextServer
