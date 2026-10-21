@@ -16,6 +16,7 @@ import {
 } from './webpack-loaders-runtime'
 import fs from 'fs'
 import path from 'path'
+import { fileURLToPath } from 'url'
 
 export type IpcInfoMessage =
   | {
@@ -203,11 +204,42 @@ const transform = (
             buildDependencies.add(dependency)
           },
           fs: {
+            stat(
+              p: fs.PathLike,
+              optionsOrCallback:
+                | fs.StatOptions
+                | undefined
+                | ((
+                    err: NodeJS.ErrnoException | null,
+                    stats: fs.Stats | fs.BigIntStats
+                  ) => void),
+              callback?: (
+                err: NodeJS.ErrnoException | null,
+                stats: fs.Stats | fs.BigIntStats
+              ) => void
+            ) {
+              const file = p instanceof URL ? fileURLToPath(p) : p.toString()
+              ipc
+                .sendRequest({
+                  type: 'trackFileStat',
+                  file,
+                })
+                .then(
+                  () => {
+                    if (typeof optionsOrCallback === 'function') {
+                      fs.stat(p, optionsOrCallback)
+                    } else {
+                      fs.stat(p, optionsOrCallback, callback!)
+                    }
+                  },
+                  (err) => ipc.sendError(err)
+                )
+            },
             readFile(p: string, optionsOrCb: any, maybeCb: any) {
               ipc
                 .sendRequest({
                   type: 'trackFileRead',
-                  file: pathResolve(p),
+                  file: p,
                 })
                 .then(
                   () => {
