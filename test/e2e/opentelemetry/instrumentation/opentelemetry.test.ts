@@ -2395,10 +2395,9 @@ describe.each(
       const contexts = [
         { name: 'root context', traceparent: false },
         // The parent-span harness starts its own root span without extracting
-        // incoming headers, so incoming propagation is not applicable there.
-        ...(withParentSpan
-          ? []
-          : [{ name: 'incoming context propagation', traceparent: true }]),
+        // incoming headers. The incoming context then still wins over that
+        // active host span, for the middleware and the render alike.
+        { name: 'incoming context propagation', traceparent: true },
       ]
 
       for (const ctx of contexts) {
@@ -2433,7 +2432,7 @@ describe.each(
                   shape: withParentSpan
                     ? 'host-root'
                     : useDirectEntrypointHandler
-                      ? 'middleware-root'
+                      ? 'separately-invoked'
                       : 'handle-request-root',
                 })
               }
@@ -2479,14 +2478,15 @@ async function expectSingleTrace(
     middlewareRuntime: string | undefined
     render: boolean
     traceparent: boolean
-    // Where the middleware span sits. In every shape, the render is a direct
-    // child of the middleware span.
-    // handle-request-root: next-server's middleware-invoke `handleRequest` is
-    //   the root and the middleware span's parent (self-hosted router server).
-    // middleware-root: the middleware span is the root (separately invoked
-    //   middleware without a host span, e.g. direct entrypoints).
-    // host-root: a span started by the host wraps everything.
-    shape: 'handle-request-root' | 'middleware-root' | 'host-root'
+    // The parent shared by the middleware span and the render's request span.
+    // In every shape, they are siblings (direct children of that parent).
+    // handle-request-root: next-server's middleware-invoke `handleRequest`
+    //   (self-hosted router server), the root or a child of the incoming span.
+    // separately-invoked: middleware invoked separately from the render
+    //   without a host span (e.g. direct entrypoints): the incoming span, or
+    //   the `Middleware.request` root inserted by the middleware adapter.
+    // host-root: a span started by the host around middleware and render.
+    shape: 'handle-request-root' | 'separately-invoked' | 'host-root'
   }
 ) {
   await retry(async () => {
@@ -2494,14 +2494,6 @@ async function expectSingleTrace(
     // `handleRequest` span is one of them and is the root of the trace.
     const spans = collector.getAllSpans()
     const byId = new Map(spans.map((span) => [span.id, span]))
-    const isAncestor = (ancestor: SavedSpan, span: SavedSpan) => {
-      let parentId = span.parentId
-      while (parentId) {
-        if (parentId === ancestor.id) return true
-        parentId = byId.get(parentId)?.parentId
-      }
-      return false
-    }
 
     const requestSpans = spans.filter((span) =>
       String(span.attributes?.['http.target'] ?? '').includes(`id=${id}`)
@@ -2525,8 +2517,8 @@ async function expectSingleTrace(
     )
     if (render) {
       expect(renderSpan).toBeDefined()
-      // The render is always nested inside the middleware span.
-      expect(renderSpan!.parentId).toBe(middlewareSpan.id)
+      // The render is always a sibling of the middleware span.
+      expect(renderSpan!.parentId).toBe(middlewareSpan.parentId)
     } else {
       expect(renderSpan).toBeUndefined()
     }
@@ -2551,6 +2543,14 @@ async function expectSingleTrace(
         (span.timestamp ?? 0) >= startedAt &&
         !STARTUP_SPAN_TYPES.has(
           String(rootOf(span).attributes?.['next.span_type'])
+        ) &&
+        // The parent-span harness's own span doesn't extract the incoming
+        // context, so it is in another trace than the request.
+        !(
+          shape === 'host-root' &&
+          traceparent &&
+          !span.parentId &&
+          !span.attributes?.['next.span_type']
         )
     )
     expect(
@@ -2569,6 +2569,9 @@ async function expectSingleTrace(
         (traceparent && span.parentId === EXTERNAL.spanId) ||
         !byId.has(span.parentId)
     )
+    const insertedRoots = traceSpans.filter(
+      (span) => span.attributes?.['next.span_type'] === 'Middleware.request'
+    )
 
     if (shape === 'handle-request-root') {
       expect(roots).toHaveLength(1)
@@ -2581,17 +2584,38 @@ async function expectSingleTrace(
       expect(root.attributes?.['next.bubble']).toBe(true)
       expect(root.parentId).toBe(traceparent ? EXTERNAL.spanId : undefined)
       expect(middlewareSpan.parentId).toBe(root.id)
-    } else if (shape === 'middleware-root') {
+      expect(insertedRoots).toEqual([])
+    } else if (shape === 'separately-invoked') {
       if (traceparent) {
+        // The incoming trace context is respected as is.
         expect(middlewareSpan.parentId).toBe(EXTERNAL.spanId)
+        expect(insertedRoots).toEqual([])
       } else {
-        expect(roots).toEqual([middlewareSpan])
+        // The middleware adapter inserts a root span for the request.
+        expect(roots).toHaveLength(1)
+        const [root] = roots
+        expect(root).toMatchObject({
+          name: `GET ${pathname}`,
+          kind: 1, // SERVER
+          attributes: {
+            'next.span_type': 'Middleware.request',
+            'http.method': 'GET',
+            'http.target': pathname,
+          },
+        })
+        expect(root.parentId).toBeUndefined()
+        expect(middlewareSpan.parentId).toBe(root.id)
       }
+    } else if (traceparent) {
+      // The incoming context wins over the active host span.
+      expect(middlewareSpan.parentId).toBe(EXTERNAL.spanId)
+      expect(insertedRoots).toEqual([])
     } else {
       expect(roots).toHaveLength(1)
       const [root] = roots
       expect(root.attributes?.['next.span_type']).toBeUndefined()
-      expect(isAncestor(root, middlewareSpan)).toBe(true)
+      expect(middlewareSpan.parentId).toBe(root.id)
+      expect(insertedRoots).toEqual([])
     }
   })
 }
@@ -2994,6 +3018,86 @@ describe('opentelemetry with custom server', () => {
         ],
       },
     ])
+  })
+
+  // With an active host span (e.g. a custom server or APM HTTP
+  // instrumentation), the middleware and the render are siblings under
+  // next-server's middleware-invoke `handleRequest` span, which is a child of
+  // the host span.
+  it('should keep a request through middleware in the host span trace', async () => {
+    const id = Math.random().toString(36).slice(2)
+    const res = await next.fetch(`/behind-middleware?id=${id}`)
+    expect(res.status).toBe(200)
+
+    await retry(async () => {
+      const spans = getCollector().getAllSpans()
+      const middlewareSpans = spans.filter(
+        (span) =>
+          span.attributes?.['next.span_type'] === 'Middleware.execute' &&
+          span.attributes?.['http.target'] === '/behind-middleware'
+      )
+      expect(middlewareSpans).toHaveLength(1)
+      const [middlewareSpan] = middlewareSpans
+      const handleRequestSpans = spans.filter(
+        (span) =>
+          span.attributes?.['next.span_type'] === 'BaseServer.handleRequest' &&
+          String(span.attributes?.['http.target']).includes(`id=${id}`)
+      )
+      const bubbleSpan = handleRequestSpans.find(
+        (span) => span.attributes?.['next.bubble']
+      )
+      const renderSpan = handleRequestSpans.find(
+        (span) => span.attributes?.['next.route']
+      )
+      expect(bubbleSpan).toBeDefined()
+      expect(renderSpan).toBeDefined()
+      const hostSpan = spans.find((span) => span.id === bubbleSpan!.parentId)
+      expect(hostSpan?.name).toBe('custom-server-request')
+      expect(hostSpan?.parentId).toBeUndefined()
+      expect({
+        middlewareParent: middlewareSpan.parentId,
+        renderParent: renderSpan!.parentId,
+        traceIds: [
+          ...new Set(
+            [hostSpan!, bubbleSpan!, middlewareSpan, renderSpan!].map(
+              (span) => span.traceId
+            )
+          ),
+        ],
+      }).toEqual({
+        middlewareParent: bubbleSpan!.id,
+        renderParent: bubbleSpan!.id,
+        traceIds: [hostSpan!.traceId],
+      })
+    })
+  })
+
+  // A traceparent the middleware explicitly sets as a request-header override
+  // is respected, also over the active host span.
+  it('should respect a traceparent set by middleware with a host span', async () => {
+    const id = Math.random().toString(36).slice(2)
+    const res = await next.fetch(`/behind-middleware/user-traceparent?id=${id}`)
+    expect(res.status).toBe(200)
+
+    await retry(async () => {
+      const renderSpan = getCollector()
+        .getAllSpans()
+        .find(
+          (span) =>
+            span.attributes?.['next.span_type'] ===
+              'BaseServer.handleRequest' &&
+            span.attributes?.['next.route'] &&
+            String(span.attributes?.['http.target']).includes(`id=${id}`)
+        )
+      expect(renderSpan).toBeDefined()
+      expect({
+        traceId: renderSpan!.traceId,
+        parentId: renderSpan!.parentId,
+      }).toEqual({
+        traceId: '0af7651916cd43dd8448eb211c80319c',
+        parentId: 'b7ad6b7169203331',
+      })
+    })
   })
 })
 

@@ -2,8 +2,10 @@ import { isNextDeploy, nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
 
 const USER_TRACE_ID = '0af7651916cd43dd8448eb211c80319c'
+const USER_SPAN_ID = 'b7ad6b7169203331'
 const INCOMING_TRACE_ID = '4bf92f3577b34da6a3ce929d0e0e4736'
-const INCOMING_TRACEPARENT = `00-${INCOMING_TRACE_ID}-00f067aa0ba902b7-01`
+const INCOMING_SPAN_ID = '00f067aa0ba902b7'
+const INCOMING_TRACEPARENT = `00-${INCOMING_TRACE_ID}-${INCOMING_SPAN_ID}-01`
 const TRACE_ID = /^(?!0{32}$)[0-9a-f]{32}$/
 const SPAN_ID = /^(?!0{16}$)[0-9a-f]{16}$/
 
@@ -34,12 +36,21 @@ function middlewareEntry(exportName: 'proxy' | 'middleware') {
   ].join('\n')
 }
 
-// The app reports its active trace IDs itself (no local collector), so these
-// assertions also hold when deployed. Every request that passes through
-// middleware must stay in a single trace: the trace ID seen by the middleware
-// has to be the one seen by the page / route handler that renders afterwards.
-// The render must also be nested inside the middleware span: the trace context
-// it was started from (the `traceparent` it received) is the middleware span.
+interface RenderTrace {
+  traceId: string
+  // The parent of the render's request span (`BaseServer.handleRequest`).
+  requestParentSpanId: string
+  // The `traceparent` request header the render received.
+  traceparent: string
+}
+
+// The app reports its trace and parent span IDs itself (no local collector;
+// see `trace-recorder.ts`), so these assertions also hold when deployed. Every
+// request that passes through middleware must stay in a single trace, and the
+// middleware span and the render's request span must be siblings: children of
+// the same parent span. That parent is next-server's middleware-invoke
+// `handleRequest` span when self-hosted, and the incoming / platform trace
+// context or the root span inserted by the middleware adapter when deployed.
 describe.each([
   // `proxy.ts` always runs in the Node.js runtime.
   { name: 'proxy (nodejs runtime)', file: 'proxy.ts', exportName: 'proxy' },
@@ -50,6 +61,11 @@ describe.each([
     exportName: 'middleware',
   },
 ] as const)('otel-middleware-single-trace - $name', ({ file, exportName }) => {
+  // When self-hosted, Node.js middleware runs in the server process, so its
+  // parent (next-server's middleware-invoke `handleRequest` span) was started
+  // in the same process. The Edge sandbox only sees that span's context via
+  // the request's `traceparent`.
+  const isInProcessMiddleware = exportName === 'proxy'
   const { next } = nextTestSetup({
     files: __dirname,
     overrideFiles: {
@@ -67,33 +83,60 @@ describe.each([
     },
   })
 
-  function getMiddlewareTraceId(res: Response) {
+  // Asserts the middleware span's trace and parent, and returns them.
+  function getMiddlewareTrace(res: Response) {
     const traceId = res.headers.get('x-mw-trace-id')
     expect(traceId).toMatch(TRACE_ID)
-    return traceId
+    const parentSpanId = res.headers.get('x-mw-parent-span-id')
+    expect(parentSpanId).toMatch(SPAN_ID)
+    const parentType = res.headers.get('x-mw-parent-type')
+    const receivedTraceparent = res.headers.get('x-mw-received-traceparent')
+    if (isNextDeploy) {
+      // The platform's trace context, or the root span inserted by the
+      // middleware adapter when the request carries none.
+      expect(['remote', 'Middleware.request']).toContain(parentType)
+    } else {
+      // next-server's middleware-invoke `handleRequest` span, whose context
+      // that pass wrote onto the request.
+      expect(parentType).toBe(
+        isInProcessMiddleware ? 'BaseServer.handleRequest' : 'remote'
+      )
+      expect(receivedTraceparent?.split('-')[2]).toBe(parentSpanId)
+    }
+    return {
+      traceId,
+      parentSpanId,
+      grandparentSpanId: res.headers.get('x-mw-grandparent-span-id'),
+      receivedTraceparent,
+    }
   }
 
-  // Asserts the render is in the middleware's trace and a direct child of the
-  // middleware span.
-  function expectNestedInMiddleware(
-    res: Response,
-    render: { traceId: string; traceparent: string }
-  ) {
-    const traceId = getMiddlewareTraceId(res)
-    const spanId = res.headers.get('x-mw-span-id')
-    expect(spanId).toMatch(SPAN_ID)
-    expect(render.traceId).toBe(traceId)
-    const [, parentTraceId, parentSpanId] = render.traceparent.split('-')
-    expect({ parentTraceId, parentSpanId }).toEqual({
-      parentTraceId: traceId,
-      parentSpanId: spanId,
+  // Asserts the render is in the middleware's trace and a sibling of the
+  // middleware span (same parent span).
+  function expectSiblingOfMiddleware(res: Response, render: RenderTrace) {
+    const middleware = getMiddlewareTrace(res)
+    expect({
+      traceId: render.traceId,
+      requestParentSpanId: render.requestParentSpanId,
+    }).toEqual({
+      traceId: middleware.traceId,
+      requestParentSpanId: middleware.parentSpanId,
     })
+    // The middleware never changes a traceparent the request carries
+    // (incoming, from the platform, or written by next-server), so the render
+    // receives it unchanged. Without one, the middleware inserts a root span
+    // and passes on its context instead.
+    if (middleware.receivedTraceparent !== 'none') {
+      expect(render.traceparent).toBe(middleware.receivedTraceparent)
+    }
+    return middleware
   }
 
-  async function getPageTrace(res: Response) {
+  async function getPageTrace(res: Response): Promise<RenderTrace> {
     const $ = cheerio.load(await res.text())
     return {
       traceId: $('#trace-id').text(),
+      requestParentSpanId: $('#request-parent-span-id').text(),
       traceparent: $('#traceparent').text(),
     }
   }
@@ -104,31 +147,31 @@ describe.each([
     }
   }
 
-  it('nests a page rendered after NextResponse.next() in the middleware span', async () => {
+  it('keeps a page rendered after NextResponse.next() a sibling of the middleware span', async () => {
     const res = await next.fetch('/page')
     expect(res.status).toBe(200)
-    expectNestedInMiddleware(res, await getPageTrace(res))
+    expectSiblingOfMiddleware(res, await getPageTrace(res))
     expectNoInternalHeaders(res)
   })
 
-  it('nests a route handler executed after NextResponse.next() in the middleware span', async () => {
+  it('keeps a route handler executed after NextResponse.next() a sibling of the middleware span', async () => {
     const res = await next.fetch('/route-handler')
     expect(res.status).toBe(200)
-    expectNestedInMiddleware(res, await res.json())
+    expectSiblingOfMiddleware(res, await res.json())
     expectNoInternalHeaders(res)
   })
 
-  it('nests a rewritten page in the middleware span', async () => {
+  it('keeps a rewritten page a sibling of the middleware span', async () => {
     const res = await next.fetch('/rewrite')
     expect(res.status).toBe(200)
-    expectNestedInMiddleware(res, await getPageTrace(res))
+    expectSiblingOfMiddleware(res, await getPageTrace(res))
     expectNoInternalHeaders(res)
   })
 
   it('traces a middleware redirect', async () => {
     const res = await next.fetch('/redirect', { redirect: 'manual' })
     expect(res.status).toBe(307)
-    getMiddlewareTraceId(res)
+    getMiddlewareTrace(res)
     expectNoInternalHeaders(res)
   })
 
@@ -136,7 +179,7 @@ describe.each([
     const res = await next.fetch('/direct')
     expect(res.status).toBe(200)
     expect(await res.text()).toBe('direct response from middleware')
-    getMiddlewareTraceId(res)
+    getMiddlewareTrace(res)
     expectNoInternalHeaders(res)
   })
 
@@ -150,22 +193,31 @@ describe.each([
   })
 
   it.each(['/page', '/route-handler', '/rewrite'])(
-    'nests %s in the middleware span with an incoming traceparent',
+    'keeps %s a sibling of the middleware span with an incoming traceparent',
     async (pathname) => {
       const res = await next.fetch(pathname, {
         headers: { traceparent: INCOMING_TRACEPARENT },
       })
       expect(res.status).toBe(200)
-      const render =
+      const render: RenderTrace =
         pathname === '/route-handler'
           ? await res.json()
           : await getPageTrace(res)
-      expectNestedInMiddleware(res, render)
-      // Self-hosted Next.js continues the caller's trace. When deployed, the
-      // platform decides whether a client-supplied traceparent is trusted, so
-      // only the single-trace and nesting guarantees are asserted there.
-      if (!isNextDeploy) {
+      const middleware = expectSiblingOfMiddleware(res, render)
+      if (isNextDeploy) {
+        // The platform decides whether a client-supplied traceparent is
+        // trusted; whatever the middleware received is passed on unchanged
+        // (asserted above).
+        if (middleware.receivedTraceparent === INCOMING_TRACEPARENT) {
+          expect(render.traceId).toBe(INCOMING_TRACE_ID)
+        }
+      } else {
+        // Self-hosted Next.js continues the caller's trace: the incoming span
+        // is the parent of next-server's middleware-invoke `handleRequest`.
         expect(render.traceId).toBe(INCOMING_TRACE_ID)
+        if (isInProcessMiddleware) {
+          expect(middleware.grandparentSpanId).toBe(INCOMING_SPAN_ID)
+        }
       }
       expectNoInternalHeaders(res)
     }
@@ -181,18 +233,27 @@ describe.each([
     expect(headers['x-user-added']).toBe('added-by-middleware')
     expect(headers['x-keep-me']).toBe('kept')
     expect(headers['x-delete-me']).toBeUndefined()
-    expectNestedInMiddleware(res, {
+    expectSiblingOfMiddleware(res, {
       traceId: $('#trace-id').text(),
+      requestParentSpanId: $('#request-parent-span-id').text(),
       traceparent: headers['traceparent'],
     })
     expectNoInternalHeaders(res)
   })
 
+  // The one intentional exception to the sibling invariant: a traceparent the
+  // middleware explicitly sets is respected, so the render continues it.
   it('respects a traceparent explicitly set by middleware', async () => {
     const res = await next.fetch('/user-traceparent')
     expect(res.status).toBe(200)
     const $ = cheerio.load(await res.text())
-    expect($('#trace-id').text()).toBe(USER_TRACE_ID)
+    expect({
+      traceId: $('#trace-id').text(),
+      requestParentSpanId: $('#request-parent-span-id').text(),
+    }).toEqual({
+      traceId: USER_TRACE_ID,
+      requestParentSpanId: USER_SPAN_ID,
+    })
     expectNoInternalHeaders(res)
   })
 })
