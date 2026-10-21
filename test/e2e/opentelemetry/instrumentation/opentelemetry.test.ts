@@ -2454,10 +2454,24 @@ describe.each(
                   false,
                   { includeBubbleSpans: true }
                 )
+              } else if (withParentSpan) {
+                // The middleware and the render are invoked separately: the
+                // active host span around the invocations is their shared
+                // parent, also over an incoming traceparent.
+                await expectTrace(getCollector(), [
+                  {
+                    traceId: '[trace-id]',
+                    parentId: undefined,
+                    name: 'GET /behind-middleware',
+                    spans: siblings.map((span) => ({
+                      ...span,
+                      traceId: '[trace-id]',
+                    })),
+                  },
+                ])
               } else if (env.span.rootParentId) {
-                // The middleware and the render are invoked separately: an
-                // incoming traceparent is their shared parent, also over the
-                // active host span.
+                // Without a host span, an incoming traceparent is the shared
+                // parent.
                 await expectTrace(
                   getCollector(),
                   siblings.map((span) => ({
@@ -2465,16 +2479,6 @@ describe.each(
                     parentId: env.span.rootParentId,
                   }))
                 )
-              } else if (withParentSpan) {
-                // The host span around the invocations is the shared parent.
-                await expectTrace(getCollector(), [
-                  {
-                    traceId: env.span.traceId,
-                    parentId: undefined,
-                    name: 'GET /behind-middleware',
-                    spans: siblings,
-                  },
-                ])
               } else {
                 // Without any trace context, the middleware adapter inserts a
                 // root span for the request, the shared parent.
@@ -2483,11 +2487,11 @@ describe.each(
                     runtime: 'nodejs',
                     traceId: env.span.traceId,
                     parentId: undefined,
-                    name: 'GET /behind-middleware',
+                    name: 'GET',
                     attributes: {
                       'http.method': 'GET',
                       'http.target': '/behind-middleware',
-                      'next.span_name': 'GET /behind-middleware',
+                      'next.span_name': 'GET',
                       'next.span_type': 'Next.request',
                     },
                     status: { code: 0 },

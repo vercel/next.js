@@ -929,6 +929,12 @@ export default abstract class Server<
                 const traceContext = tracer.getTraceContextHeaders()
                 if (traceContext) {
                   Object.assign(req.headers, traceContext)
+                  if (!traceContext.tracestate) {
+                    // Don't pair this span's `traceparent` with a
+                    // `tracestate` of another trace context (e.g. an incoming
+                    // one, when a host span is this span's parent).
+                    delete req.headers.tracestate
+                  }
                   addRequestMeta(
                     req,
                     'middlewareInvokeTraceparent',

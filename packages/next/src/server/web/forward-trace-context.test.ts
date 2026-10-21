@@ -93,7 +93,57 @@ describe('forwardTraceContextToRequest', () => {
     })
   })
 
-  it('keeps a traceparent explicitly set by the user', () => {
+  it('drops a received tracestate when the trace context has none', () => {
+    const received = requestHeaders()
+    received.set('tracestate', 'received=1')
+    const response = NextResponse.next()
+    forwardTraceContextToRequest(response.headers, received, {
+      traceparent: TRACEPARENT,
+    })
+
+    expect(requestOverrides(response.headers)).toEqual({
+      accept: 'text/html',
+      cookie: 'a=b',
+      'x-custom': 'custom',
+      traceparent: TRACEPARENT,
+    })
+  })
+
+  it('drops a tracestate copied into user overrides when the trace context has none', () => {
+    const received = requestHeaders()
+    received.set('traceparent', RECEIVED_TRACEPARENT)
+    received.set('tracestate', 'received=1')
+    const response = NextResponse.next({
+      request: { headers: new Headers(received) },
+    })
+    forwardTraceContextToRequest(response.headers, received, {
+      traceparent: TRACEPARENT,
+    })
+
+    expect(requestOverrides(response.headers)).toEqual({
+      accept: 'text/html',
+      cookie: 'a=b',
+      'x-custom': 'custom',
+      traceparent: TRACEPARENT,
+    })
+  })
+
+  it('replaces a tracestate set by the user when the traceparent is forwarded', () => {
+    const response = NextResponse.next({
+      request: { headers: new Headers({ tracestate: 'user=1' }) },
+    })
+    forwardTraceContextToRequest(response.headers, requestHeaders(), {
+      traceparent: TRACEPARENT,
+      tracestate: TRACESTATE,
+    })
+
+    expect(requestOverrides(response.headers)).toEqual({
+      traceparent: TRACEPARENT,
+      tracestate: TRACESTATE,
+    })
+  })
+
+  it('keeps a traceparent explicitly set by the user without a forwarded tracestate', () => {
     const userTraceparent =
       '00-33333333333333333333333333333333-4444444444444444-01'
     const response = NextResponse.next({
@@ -106,7 +156,30 @@ describe('forwardTraceContextToRequest', () => {
 
     expect(requestOverrides(response.headers)).toEqual({
       traceparent: userTraceparent,
+    })
+  })
+
+  it('keeps the trace headers explicitly set by the user', () => {
+    const userTraceparent =
+      '00-33333333333333333333333333333333-4444444444444444-01'
+    const received = requestHeaders()
+    received.set('tracestate', 'received=1')
+    const response = NextResponse.next({
+      request: {
+        headers: new Headers({
+          traceparent: userTraceparent,
+          tracestate: 'user=1',
+        }),
+      },
+    })
+    forwardTraceContextToRequest(response.headers, received, {
+      traceparent: TRACEPARENT,
       tracestate: TRACESTATE,
+    })
+
+    expect(requestOverrides(response.headers)).toEqual({
+      traceparent: userTraceparent,
+      tracestate: 'user=1',
     })
   })
 })

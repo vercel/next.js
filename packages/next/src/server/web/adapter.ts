@@ -122,17 +122,11 @@ let propagator: <T>(request: NextRequestHint, fn: () => T) => T = (
   request,
   fn
 ) => {
-  const tracer = getTracer()
-  // For middleware, a `traceparent` the request carries wins over an active
-  // (host) span (`force`), so the middleware shares its parent with the
-  // downstream request (the render), which continues that `traceparent` as
-  // well.
-  return tracer.withPropagatedContext(
-    request.headers,
-    fn,
-    headersGetter,
-    isMiddlewarePage(request.sourcePage)
-  )
+  // An active (host) span wins over a `traceparent` the request carries: the
+  // header can't be trusted to override, e.g., an APM's or the platform's
+  // server span. The middleware forwards the context it continues to the
+  // downstream request (the render), so both stay in one trace.
+  return getTracer().withPropagatedContext(request.headers, fn, headersGetter)
 }
 
 let testApisIntercepted = false
@@ -315,9 +309,9 @@ export async function adapter(
       const executeMiddleware = () => {
         // The middleware span and the downstream request (the render) are
         // siblings: they share the currently active context as their parent.
-        // That is the request's `traceparent` (incoming, or written by
-        // next-server's middleware-invoke pass), an active host span, or the
-        // root span inserted below.
+        // That is an active host span, otherwise the request's `traceparent`
+        // (incoming, or written by next-server's middleware-invoke pass), or
+        // the root span inserted below.
         const receivedHeaders = new Headers(request.headers)
         forwardedTraceContext = getSharedParentTraceContext(
           receivedHeaders,
@@ -425,11 +419,13 @@ export async function adapter(
         // context (no incoming `traceparent`, no host span): insert a root
         // span for the request. Its context is forwarded to the render, so the
         // middleware and the render are siblings in one trace instead of two
-        // independent root spans.
+        // independent root spans. It's named after the method only (like
+        // next-server's request span before its route is known): the path
+        // would make the span name high-cardinality.
         return tracer.trace(
           NextSpan.request,
           {
-            spanName: `${request.method} ${request.nextUrl.pathname}`,
+            spanName: request.method,
             kind: SpanKind.SERVER,
             attributes: {
               'http.target': request.nextUrl.pathname,

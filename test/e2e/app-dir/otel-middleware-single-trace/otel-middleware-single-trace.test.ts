@@ -149,7 +149,7 @@ describe.each(VARIANTS)(
       if (isNextDeploy) {
         if (renderMode === 'default') {
           expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET /page (Next.request)
+           "[trace A] GET (Next.request)
            ├─ GET /page/page (BaseServer.handleRequest)
            │  ├─ prepare route module (RouteModule.prepare)
            │  └─ render route (app) /page (AppRender.getBodyResult)
@@ -162,7 +162,7 @@ describe.each(VARIANTS)(
           `)
         } else {
           expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET /page (Next.request)
+           "[trace A] GET (Next.request)
            ├─ middleware GET (Middleware.execute)
            └─ POST /page/page (BaseServer.handleRequest)
               ├─ prepare route module (RouteModule.prepare)
@@ -231,7 +231,7 @@ describe.each(VARIANTS)(
       const tree = await getSpanTree(res, 'json')
       if (isNextDeploy) {
         expect(tree).toMatchInlineSnapshot(`
-                "[trace A] GET /route-handler (Next.request)
+                "[trace A] GET (Next.request)
                 ├─ GET /route-handler/route (BaseServer.handleRequest)
                 │  ├─ executing api route (app) /route-handler (AppRouteRouteHandlers.runHandler)
                 │  └─ prepare route module (RouteModule.prepare)
@@ -258,7 +258,7 @@ describe.each(VARIANTS)(
       if (isNextDeploy) {
         if (renderMode === 'default') {
           expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET /rewrite (Next.request)
+           "[trace A] GET (Next.request)
            ├─ GET /page/page (BaseServer.handleRequest)
            │  ├─ prepare route module (RouteModule.prepare)
            │  └─ render route (app) /page (AppRender.getBodyResult)
@@ -271,7 +271,7 @@ describe.each(VARIANTS)(
           `)
         } else {
           expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET /rewrite (Next.request)
+           "[trace A] GET (Next.request)
            ├─ middleware GET (Middleware.execute)
            └─ POST /page/page (BaseServer.handleRequest)
               ├─ prepare route module (RouteModule.prepare)
@@ -340,7 +340,7 @@ describe.each(VARIANTS)(
       const tree = await getSpanTree(res, 'none')
       if (isNextDeploy) {
         expect(tree).toMatchInlineSnapshot(`
-                "[trace A] GET /redirect (Next.request)
+                "[trace A] GET (Next.request)
                 └─ middleware GET (Middleware.execute)"
               `)
       } else if (isNodeMiddleware) {
@@ -364,7 +364,7 @@ describe.each(VARIANTS)(
       const tree = await getSpanTree(res, 'none')
       if (isNextDeploy) {
         expect(tree).toMatchInlineSnapshot(`
-                "[trace A] GET /direct (Next.request)
+                "[trace A] GET (Next.request)
                 └─ middleware GET (Middleware.execute)"
               `)
       } else if (isNodeMiddleware) {
@@ -674,7 +674,7 @@ describe.each(VARIANTS)(
       if (isNextDeploy) {
         if (renderMode === 'default') {
           expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET /user-overrides (Next.request)
+           "[trace A] GET (Next.request)
            ├─ GET /headers-echo/page (BaseServer.handleRequest)
            │  ├─ prepare route module (RouteModule.prepare)
            │  └─ render route (app) /headers-echo (AppRender.getBodyResult)
@@ -687,7 +687,7 @@ describe.each(VARIANTS)(
           `)
         } else {
           expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET /user-overrides (Next.request)
+           "[trace A] GET (Next.request)
            ├─ middleware GET (Middleware.execute)
            └─ POST /headers-echo/page (BaseServer.handleRequest)
               ├─ prepare route module (RouteModule.prepare)
@@ -759,7 +759,7 @@ describe.each(VARIANTS)(
       if (isNextDeploy) {
         if (renderMode === 'default') {
           expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET /user-traceparent (Next.request)
+           "[trace A] GET (Next.request)
            └─ middleware GET (Middleware.execute)
            [trace set by middleware] [set by middleware traceparent]
            └─ GET /headers-echo/page (BaseServer.handleRequest)
@@ -773,7 +773,7 @@ describe.each(VARIANTS)(
           `)
         } else {
           expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET /user-traceparent (Next.request)
+           "[trace A] GET (Next.request)
            └─ middleware GET (Middleware.execute)
            [trace set by middleware] [set by middleware traceparent]
            └─ POST /headers-echo/page (BaseServer.handleRequest)
@@ -973,6 +973,27 @@ describe.each(VARIANTS)(
              └─ middleware GET (Middleware.execute)"
         `)
       }
+    })
+
+    it('does not forward an incoming tracestate with the host span trace', async () => {
+      const res = await next.fetch('/user-overrides', {
+        headers: {
+          traceparent: INCOMING_TRACEPARENT,
+          tracestate: 'incoming=1',
+        },
+      })
+      expect(res.status).toBe(200)
+      const echoed = JSON.parse(
+        cheerio
+          .load(await res.text())('#headers')
+          .text()
+      )
+      // The active host span wins over the incoming `traceparent`, so the
+      // render continues the host span's trace, whose context has no
+      // `tracestate`: the incoming one must not be paired with it.
+      expect(echoed.traceparent).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-0[01]$/)
+      expect(echoed.traceparent).not.toContain(INCOMING.traceId)
+      expect(echoed.tracestate).toBeUndefined()
     })
 
     it('respects a traceparent explicitly set by middleware over the host span', async () => {

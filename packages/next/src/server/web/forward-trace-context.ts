@@ -55,17 +55,21 @@ export function getSharedParentTraceContext(
  * (deployments, adapters, direct entrypoints) as well as next-server's router
  * server.
  *
- * Request-header overrides replace the whole downstream request header set,
- * so:
+ * `traceparent` and `tracestate` are forwarded as a pair: the downstream
+ * request never carries one trace context's `traceparent` with another's
+ * `tracestate`. Request-header overrides replace the whole downstream request
+ * header set, so:
  * - Without user overrides (or with an empty list, which hosts ignore):
  *   nothing is added when the request already carries that trace context.
  *   Otherwise every request header the middleware received is listed
- *   (unchanged) alongside the trace context.
- * - With user overrides, they are kept and only the trace context headers are
- *   added. A trace context header the user explicitly set (to a value other
- *   than the one the middleware received) wins. One copied unchanged from the
- *   request (e.g. via `new Headers(request.headers)`) or omitted is set to the
- *   trace context.
+ *   (unchanged) alongside the trace context, except a received `tracestate`
+ *   when the trace context has none.
+ * - With user overrides, they are kept and the trace context headers are
+ *   added. A `traceparent` the user explicitly set (to a value other than the
+ *   one the middleware received) wins, together with whatever `tracestate`
+ *   the user set (if any). Otherwise (`traceparent` copied unchanged from the
+ *   request, e.g. via `new Headers(request.headers)`, or omitted) both are set
+ *   to the trace context, dropping a user `tracestate` when it has none.
  */
 export function forwardTraceContextToRequest(
   responseHeaders: Headers,
@@ -84,13 +88,6 @@ export function forwardTraceContextToRequest(
     return
   }
 
-  const traceHeaders: Array<[string, string]> = [
-    ['traceparent', traceContext.traceparent],
-  ]
-  if (traceContext.tracestate) {
-    traceHeaders.push(['tracestate', traceContext.tracestate])
-  }
-
   const userOverrides = responseHeaders.get(OVERRIDE_HEADERS)
   // An empty override list is ignored by hosts (no headers are replaced), so
   // treat it like no overrides rather than turning it into "only the trace
@@ -106,16 +103,12 @@ export function forwardTraceContextToRequest(
 
     const keys: string[] = []
     for (const [key, value] of requestHeaders) {
-      responseHeaders.set(REQUEST_HEADER_PREFIX + key, value)
-      keys.push(key)
-    }
-    for (const [key, value] of traceHeaders) {
-      responseHeaders.set(REQUEST_HEADER_PREFIX + key, value)
-      if (!keys.includes(key)) {
+      if (!isTraceHeader(key)) {
+        responseHeaders.set(REQUEST_HEADER_PREFIX + key, value)
         keys.push(key)
       }
     }
-    responseHeaders.set(OVERRIDE_HEADERS, keys.join(','))
+    setTraceContextOverrides(responseHeaders, keys, traceContext)
     return
   }
 
@@ -123,18 +116,47 @@ export function forwardTraceContextToRequest(
     .split(',')
     .map((key) => key.trim())
     .filter(Boolean)
-  for (const [key, value] of traceHeaders) {
-    if (keys.includes(key)) {
-      if (
-        responseHeaders.get(REQUEST_HEADER_PREFIX + key) !==
-        requestHeaders.get(key)
-      ) {
-        continue
-      }
-    } else {
-      keys.push(key)
-    }
-    responseHeaders.set(REQUEST_HEADER_PREFIX + key, value)
+  if (
+    keys.includes('traceparent') &&
+    responseHeaders.get(REQUEST_HEADER_PREFIX + 'traceparent') !==
+      requestHeaders.get('traceparent')
+  ) {
+    // The user explicitly set the `traceparent`: keep both trace headers as
+    // the user set them.
+    return
+  }
+  setTraceContextOverrides(
+    responseHeaders,
+    keys.filter((key) => !isTraceHeader(key)),
+    traceContext
+  )
+}
+
+function isTraceHeader(key: string) {
+  return key === 'traceparent' || key === 'tracestate'
+}
+
+// Lists the trace context's `traceparent` and `tracestate` (or no
+// `tracestate`, if it has none) as request-header overrides, after `keys`
+// (the other overridden headers).
+function setTraceContextOverrides(
+  responseHeaders: Headers,
+  keys: string[],
+  traceContext: TraceContextHeaders
+) {
+  responseHeaders.set(
+    REQUEST_HEADER_PREFIX + 'traceparent',
+    traceContext.traceparent
+  )
+  keys.push('traceparent')
+  if (traceContext.tracestate) {
+    responseHeaders.set(
+      REQUEST_HEADER_PREFIX + 'tracestate',
+      traceContext.tracestate
+    )
+    keys.push('tracestate')
+  } else {
+    responseHeaders.delete(REQUEST_HEADER_PREFIX + 'tracestate')
   }
   responseHeaders.set(OVERRIDE_HEADERS, keys.join(','))
 }
