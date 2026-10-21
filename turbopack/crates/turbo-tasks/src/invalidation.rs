@@ -49,11 +49,7 @@ impl Invalidator {
     }
 
     /// Invalidates all `invalidators` together, as one batch. Duplicates are fine, every task is
-    /// invalidated once. Large batches are split into chunks that are invalidated in parallel.
-    ///
-    /// Don't call this inside [`with_turbo_tasks`][crate::with_turbo_tasks]: the parallel chunks
-    /// enter the turbo-tasks scope, which panics while it's borrowed. Use
-    /// [`turbo_tasks()`][crate::turbo_tasks] instead.
+    /// invalidated once. Large batches may be split into chunks that are invalidated in parallel.
     pub fn invalidate_all(
         invalidators: impl IntoIterator<Item = Invalidator>,
         turbo_tasks: &dyn TurboTasksApi,

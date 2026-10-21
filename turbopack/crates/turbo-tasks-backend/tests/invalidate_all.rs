@@ -11,8 +11,8 @@ use std::{
 use anyhow::Result;
 use rustc_hash::FxHashMap;
 use turbo_tasks::{
-    InvalidationReason, InvalidationReasonKind, Invalidator, ResolvedVc, State, TryJoinIterExt,
-    TurboTasks, Vc, util::StaticOrArc,
+    InvalidationReason, InvalidationReasonKind, Invalidator, ResolvedVc, State, TaskId,
+    TaskPriority, TryJoinIterExt, TurboTasks, Vc, util::StaticOrArc,
 };
 use turbo_tasks_backend::TurboTasksBackend;
 
@@ -246,4 +246,148 @@ async fn state_set_invalidates_large_fan_out() {
     .await;
     tt.stop_and_wait().await;
     result.unwrap();
+}
+
+/// Parallel work inside `with_turbo_tasks` (which borrows the turbo-tasks instance) doesn't try to
+/// re-enter the turbo-tasks scope on the calling thread, and every job sees the instance.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn parallel_inside_with_turbo_tasks() {
+    let (tt, _persistence_dir) = create_tt("parallel_inside_with_turbo_tasks");
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        let items = (0..10_000u32).collect::<Vec<_>>();
+        let seen = std::sync::atomic::AtomicUsize::new(0);
+        turbo_tasks::with_turbo_tasks(|outer| {
+            turbo_tasks::parallel::for_each(&items, |_| {
+                let inner = turbo_tasks::turbo_tasks();
+                assert!(std::ptr::addr_eq(Arc::as_ptr(outer), Arc::as_ptr(&inner)));
+                seen.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            });
+        });
+        assert_eq!(seen.into_inner(), items.len());
+        anyhow::Ok(())
+    })
+    .await;
+    tt.stop_and_wait().await;
+    result.unwrap();
+}
+
+static PRIORITY_INVALIDATORS: Mutex<Option<FxHashMap<u32, Invalidator>>> = Mutex::new(None);
+static PRIORITY_EXECUTIONS: Mutex<Option<FxHashMap<u32, u32>>> = Mutex::new(None);
+/// Re-executions of `priority_dependent` wait for a permit, so that they stay dirty until the test
+/// has checked their dirty priority.
+static PRIORITY_REEXECUTE: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(0);
+const PRIORITY_WIDTH: u32 = 2_000;
+
+#[turbo_tasks::function]
+async fn priority_dependent(index: u32) -> Result<Vc<u32>> {
+    let invalidator = turbo_tasks::get_invalidator().unwrap();
+    PRIORITY_INVALIDATORS
+        .lock()
+        .unwrap()
+        .get_or_insert_default()
+        .insert(index, invalidator);
+    let count = {
+        let mut executions = PRIORITY_EXECUTIONS.lock().unwrap();
+        let count = executions.get_or_insert_default().entry(index).or_default();
+        *count += 1;
+        *count
+    };
+    if count > 1 {
+        PRIORITY_REEXECUTE.acquire().await?.forget();
+    }
+    Ok(Vc::cell(count))
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn priority_root() -> Result<Vc<u32>> {
+    let counts = (0..PRIORITY_WIDTH)
+        .map(priority_dependent)
+        .try_join()
+        .await?;
+    Ok(Vc::cell(counts.iter().map(|count| **count).sum()))
+}
+
+static INVALIDATOR_TASK_EXECUTIONS: Mutex<u32> = Mutex::new(0);
+static INVALIDATOR_TASK_INVALIDATOR: Mutex<Option<Invalidator>> = Mutex::new(None);
+
+/// When re-executed (i.e. with an invalidation priority), invalidates the `priority_dependent`s
+/// (except the last one) as one batch, and the last one on its own.
+#[turbo_tasks::function(operation, root)]
+fn invalidator_task() -> Vc<u32> {
+    *INVALIDATOR_TASK_INVALIDATOR.lock().unwrap() = Some(turbo_tasks::get_invalidator().unwrap());
+    let mut executions = INVALIDATOR_TASK_EXECUTIONS.lock().unwrap();
+    *executions += 1;
+    if *executions > 1 {
+        let tt = turbo_tasks::turbo_tasks();
+        let invalidators = PRIORITY_INVALIDATORS.lock().unwrap();
+        let invalidators = invalidators.as_ref().unwrap();
+        Invalidator::invalidate_all(
+            (0..PRIORITY_WIDTH - 1).map(|index| invalidators[&index]),
+            &*tt,
+        );
+        invalidators[&(PRIORITY_WIDTH - 1)].invalidate(&*tt);
+    }
+    Vc::cell(*executions)
+}
+
+/// A batch large enough to be invalidated in parallel chunks, from inside a task, makes every task
+/// dirty with the same parent priority (the invalidating task's) as an unbatched invalidation.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn invalidate_all_from_task_keeps_priority() {
+    let (tt, _persistence_dir) = create_tt("invalidate_all_from_task_keeps_priority");
+    let tt2 = tt.clone();
+    let ids = turbo_tasks::run_once(tt.clone(), async move {
+        assert_eq!(
+            *priority_root().read_strongly_consistent().await?,
+            PRIORITY_WIDTH
+        );
+        assert_eq!(*invalidator_task().read_strongly_consistent().await?, 1);
+        // Re-execute `invalidator_task` because of an invalidation, so it runs with an
+        // invalidation priority and invalidates the dependents.
+        INVALIDATOR_TASK_INVALIDATOR
+            .lock()
+            .unwrap()
+            .unwrap()
+            .invalidate(&*tt2);
+        assert_eq!(*invalidator_task().read_strongly_consistent().await?, 2);
+        Ok((0..PRIORITY_WIDTH)
+            .map(|index| {
+                Vc::into_raw(priority_dependent(index))
+                    .try_get_task_id()
+                    .unwrap()
+            })
+            .collect::<Vec<TaskId>>())
+    })
+    .await
+    .unwrap();
+
+    // The dependents can't finish re-executing yet, so they are still dirty.
+    let backend = tt.backend();
+    let control = backend
+        .dirty_parent_priority_for_testing(ids[(PRIORITY_WIDTH - 1) as usize], &tt)
+        .expect("the unbatched dependent is dirty");
+    assert_ne!(
+        control,
+        TaskPriority::initial(),
+        "the parent priority is the invalidating task's"
+    );
+    for (index, &id) in ids[..(PRIORITY_WIDTH - 1) as usize].iter().enumerate() {
+        assert_eq!(
+            backend.dirty_parent_priority_for_testing(id, &tt),
+            Some(control),
+            "dependent {index}"
+        );
+    }
+
+    PRIORITY_REEXECUTE.add_permits(PRIORITY_WIDTH as usize);
+    turbo_tasks::run_once(tt.clone(), async move {
+        assert_eq!(
+            *priority_root().read_strongly_consistent().await?,
+            2 * PRIORITY_WIDTH
+        );
+        Ok(())
+    })
+    .await
+    .unwrap();
+    tt.stop_and_wait().await;
 }

@@ -47,6 +47,7 @@ use turbo_tasks::{
     event::{Event, EventDescription, EventListener},
     macro_helpers::NativeFunction,
     message_queue::{DiagnosticEvent, Severity, TimingEvent, TraceEvent},
+    parallel,
     registry::get_value_type,
     scope_bounded::scope_bounded,
     task_statistics::TaskStatisticsApi,
@@ -390,6 +391,17 @@ impl TurboTasksBackend {
         ExecuteContext::new(self, turbo_tasks)
     }
 
+    /// Like [`TurboTasksBackend::execute_context`], but with an explicit current task priority
+    /// instead of the one from the task-local task state. For work that runs on another thread
+    /// than the calling task.
+    fn execute_context_with_priority<'a>(
+        &'a self,
+        turbo_tasks: &'a TurboTasks<TurboTasksBackend>,
+        current_task_priority: TaskPriority,
+    ) -> ExecuteContext<'a> {
+        ExecuteContext::new(self, turbo_tasks).with_current_task_priority(current_task_priority)
+    }
+
     /// Like [`TurboTasksBackend::execute_context`], but refuses to hand out a context once
     /// shutdown has begun, and blocks shutdown for as long as the returned context is alive.
     ///
@@ -463,6 +475,24 @@ impl TurboTasksBackend {
     #[doc(hidden)]
     pub fn resident_task_count_for_testing(&self) -> usize {
         self.storage.resident_task_count_for_testing()
+    }
+
+    /// The parent priority a dirty task was made dirty with, or `None` if it doesn't exist or is
+    /// not dirty. Test-only hook for verifying invalidation priorities.
+    #[doc(hidden)]
+    pub fn dirty_parent_priority_for_testing(
+        &self,
+        task: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> Option<TaskPriority> {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let task = ctx.try_task(task, TaskDataCategory::All)?;
+        match task.get_dirty() {
+            Some(Dirtyness::Dirty {
+                parent_priority, ..
+            }) => Some(*parent_priority),
+            _ => None,
+        }
     }
 
     /// The persistent `parent_count` of a resident task (0 if absent or not resident). Test-only
@@ -1857,13 +1887,19 @@ impl TurboTasksBackend {
         if !self.should_track_dependencies() {
             panic!("Dependency tracking is disabled so invalidation is not allowed");
         }
-        invalidate(
-            tasks.iter().copied().collect(),
-            // Called by `TurboTasksApi::invalidate_many*`, i.e. batched `Invalidator`s.
-            #[cfg(feature = "task_dirty_cause")]
-            TaskDirtyCause::Invalidator,
-            self.execute_context(turbo_tasks),
-        );
+        // Large batches are invalidated in parallel chunks. The chunks may run on other threads,
+        // which don't have the calling task's state, so its priority (the parent priority of the
+        // dirty tasks) is read once here and passed to every chunk.
+        let current_task_priority = turbo_tasks.get_current_task_priority();
+        parallel::for_each_chunk(tasks, |chunk| {
+            invalidate(
+                chunk.iter().copied().collect(),
+                // Called by `TurboTasksApi::invalidate_many*`, i.e. batched `Invalidator`s.
+                #[cfg(feature = "task_dirty_cause")]
+                TaskDirtyCause::Invalidator,
+                self.execute_context_with_priority(turbo_tasks, current_task_priority),
+            );
+        });
     }
 
     fn invalidate_tasks_set(

@@ -11,7 +11,7 @@ use tracing::trace_span;
 
 use crate::{
     Invalidator, OperationValue, SerializationInvalidator, get_invalidator,
-    get_serialization_invalidator, manager::turbo_tasks,
+    get_serialization_invalidator, manager::with_turbo_tasks,
 };
 
 #[derive(Encode, Decode)]
@@ -73,10 +73,8 @@ impl<T: PartialEq> StateInner<T> {
 /// called *outside* the [`StateInner`] mutex guard; see
 /// [`StateInner::set_unconditionally`] for why.
 ///
-/// Both notifications resolve `TURBO_TASKS` from a task-local, so we do them with a single
-/// [`turbo_tasks`] lookup. It's cloned rather than borrowed via `with_turbo_tasks`, because a large
-/// batch is invalidated in parallel chunks that enter the `TURBO_TASKS` scope themselves, which
-/// isn't possible while it's borrowed.
+/// Both notifications resolve `TURBO_TASKS` from a task-local, so we do them
+/// inside a single [`with_turbo_tasks`] call to amortize that lookup.
 fn notify_mutated(
     invalidators: AutoSet<Invalidator>,
     serialization_invalidator: Option<&SerializationInvalidator>,
@@ -85,11 +83,12 @@ fn notify_mutated(
         return;
     }
     let _span = trace_span!("state value changed").entered();
-    let tt = turbo_tasks();
-    Invalidator::invalidate_all(invalidators, &*tt);
-    if let Some(serialization_invalidator) = serialization_invalidator {
-        tt.invalidate_serialization(serialization_invalidator.task());
-    }
+    with_turbo_tasks(|tt| {
+        Invalidator::invalidate_all(invalidators, &**tt);
+        if let Some(serialization_invalidator) = serialization_invalidator {
+            tt.invalidate_serialization(serialization_invalidator.task());
+        }
+    });
 }
 
 pub struct StateRef<'a, T> {

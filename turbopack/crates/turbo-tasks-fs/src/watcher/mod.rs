@@ -756,17 +756,15 @@ impl DiskWatcher {
             let _lock = fs.invalidation_lock().blocking_write();
             // All invalidators of the batch are invalidated together, with one reason per path.
             let mut invalidators = Vec::new();
-            let mut reason_paths: Vec<PathBuf> = Vec::new();
+            // The changed paths, for the span and (when enabled) the invalidation reasons.
+            let mut changed_paths: Vec<PathBuf> = Vec::new();
             batch.execute(
                 fs.invalidator_map(),
                 fs.dir_invalidator_map(),
                 |invalidation_reason_path, invalidator| {
                     invalidators.push(invalidator);
-                    if report_invalidation_reason
-                        && reason_paths.last().map(|p| p.as_path())
-                            != Some(invalidation_reason_path)
-                    {
-                        reason_paths.push(invalidation_reason_path.to_path_buf());
+                    if changed_paths.last().map(|p| p.as_path()) != Some(invalidation_reason_path) {
+                        changed_paths.push(invalidation_reason_path.to_path_buf());
                     }
                 },
             );
@@ -774,7 +772,7 @@ impl DiskWatcher {
                 &*fs,
                 &*turbo_tasks,
                 report_invalidation_reason,
-                &reason_paths,
+                &changed_paths,
                 invalidators,
             );
         }
@@ -1142,12 +1140,33 @@ impl BatchedInvalidations {
     }
 }
 
+/// The maximum number of paths listed in the `file change` span.
+const MAX_SPAN_PATHS: usize = 20;
+
+/// Formats `paths` for the `file change` span: comma separated, at most [`MAX_SPAN_PATHS`], with
+/// `, ... (N more paths)` appended when there are more.
+fn format_span_paths(paths: &[PathBuf]) -> String {
+    let mut formatted = paths
+        .iter()
+        .take(MAX_SPAN_PATHS)
+        .map(|path| path.display().to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
+    if paths.len() > MAX_SPAN_PATHS {
+        formatted += &format!(", ... ({} more paths)", paths.len() - MAX_SPAN_PATHS);
+    }
+    formatted
+}
+
 #[instrument(
     parent = None,
     level = "info",
     name = "file change",
     skip_all,
-    fields(paths = invalidation_reason_paths.len(), invalidators = invalidators.len())
+    fields(
+        paths = %format_span_paths(invalidation_reason_paths),
+        invalidators = invalidators.len(),
+    )
 )]
 fn invalidate(
     inner: &impl DiskFileSystemWatcherApi,
@@ -1234,6 +1253,30 @@ mod tests {
 
     use super::*;
     use crate::watcher::mock_fs_api::MockFileSystem;
+
+    #[test]
+    fn span_paths_are_truncated() {
+        let paths = |n: usize| {
+            (0..n)
+                .map(|i| PathBuf::from(format!("p{i}")))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(format_span_paths(&paths(0)), "");
+        assert_eq!(format_span_paths(&paths(2)), "p0, p1");
+        let twenty = (0..20)
+            .map(|i| format!("p{i}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        assert_eq!(format_span_paths(&paths(20)), twenty);
+        assert_eq!(
+            format_span_paths(&paths(21)),
+            format!("{twenty}, ... (1 more paths)")
+        );
+        assert_eq!(
+            format_span_paths(&paths(25)),
+            format!("{twenty}, ... (5 more paths)")
+        );
+    }
 
     #[cfg(not(miri))]
     #[tokio::test]
