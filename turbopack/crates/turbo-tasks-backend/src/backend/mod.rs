@@ -29,7 +29,7 @@ pub use gc::{GcPassResult, GcStats, TtlCounter};
 use hashbrown::hash_table::Entry;
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
-use smallvec::{SmallVec, smallvec};
+use smallvec::SmallVec;
 use tokio::time::{Duration, Instant};
 use tracing::{Span, field::display, trace_span};
 use turbo_bincode::TurboBincodeBuffer;
@@ -1876,7 +1876,7 @@ impl TurboTasksBackend {
             panic!("Dependency tracking is disabled so invalidation is not allowed");
         }
         invalidate(
-            smallvec![task_id],
+            [task_id],
             #[cfg(feature = "task_dirty_cause")]
             TaskDirtyCause::Invalidator,
             self.execute_context(turbo_tasks),
@@ -1887,13 +1887,19 @@ impl TurboTasksBackend {
         if !self.should_track_dependencies() {
             panic!("Dependency tracking is disabled so invalidation is not allowed");
         }
+        // `invalidate` checks each chunk for duplicates, but a duplicate split across two chunks
+        // would only be seen here.
+        debug_assert!(
+            tasks.len() <= 1 || tasks.iter().collect::<FxHashSet<_>>().len() == tasks.len(),
+            "invalidate_tasks() must not be called with duplicate task ids: {tasks:?}"
+        );
         // Large batches are invalidated in parallel chunks. The chunks may run on other threads,
         // which don't have the calling task's state, so its priority (the parent priority of the
         // dirty tasks) is read once here and passed to every chunk.
         let current_task_priority = turbo_tasks.get_current_task_priority();
         parallel::for_each_chunk(tasks, |chunk| {
             invalidate(
-                chunk.iter().copied().collect(),
+                chunk.iter().copied(),
                 // Called by `TurboTasksApi::invalidate_many*`, i.e. batched `Invalidator`s.
                 #[cfg(feature = "task_dirty_cause")]
                 TaskDirtyCause::Invalidator,
@@ -1911,7 +1917,7 @@ impl TurboTasksBackend {
             panic!("Dependency tracking is disabled so invalidation is not allowed");
         }
         invalidate(
-            tasks.iter().copied().collect(),
+            tasks.iter().copied(),
             #[cfg(feature = "task_dirty_cause")]
             TaskDirtyCause::Unknown,
             self.execute_context(turbo_tasks),

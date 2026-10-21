@@ -89,12 +89,16 @@ impl Invalidator {
 
     /// The backend requires unique task ids in a batch.
     fn unique_tasks(invalidators: impl IntoIterator<Item = Invalidator>) -> Vec<TaskId> {
-        let mut seen = FxHashSet::default();
-        invalidators
-            .into_iter()
-            .map(|invalidator| invalidator.task)
-            .filter(|task| seen.insert(*task))
-            .collect()
+        let invalidators = invalidators.into_iter();
+        let capacity = invalidators.size_hint().0;
+        let mut seen = FxHashSet::with_capacity_and_hasher(capacity, Default::default());
+        let mut tasks = Vec::with_capacity(capacity);
+        for invalidator in invalidators {
+            if seen.insert(invalidator.task) {
+                tasks.push(invalidator.task);
+            }
+        }
+        tasks
     }
 }
 

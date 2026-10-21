@@ -362,8 +362,15 @@ impl DiskFileSystemInner {
 
         let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
         let dir_invalidator_map = take(&mut *self.dir_invalidator_map.lock().unwrap());
-        let mut invalidators = Vec::new();
-        let mut reasons = Vec::new();
+        let path_invalidator_counts = || {
+            invalidator_map
+                .values()
+                .chain(dir_invalidator_map.values())
+                .map(|path_invalidators| path_invalidators.len())
+                .filter(|&count| count > 0)
+        };
+        let mut invalidators = Vec::with_capacity(path_invalidator_counts().sum());
+        let mut reasons = Vec::with_capacity(path_invalidator_counts().count());
         for (path, path_invalidators) in invalidator_map.into_iter().chain(dir_invalidator_map) {
             if path_invalidators.is_empty() {
                 continue;
@@ -389,10 +396,12 @@ impl DiskFileSystemInner {
         };
         let _guard = self.tokio_handle.enter();
 
+        let paths = paths.into_iter();
+        let path_count = paths.size_hint().0;
         let mut invalidator_map = self.invalidator_map.lock().unwrap();
         let mut dir_invalidator_map = self.dir_invalidator_map.lock().unwrap();
-        let mut invalidators = Vec::new();
-        let mut reasons = Vec::new();
+        let mut invalidators = Vec::with_capacity(path_count);
+        let mut reasons = Vec::with_capacity(path_count);
         let mut add = |path: &Path, path_invalidators: FxHashSet<Invalidator>| {
             if !path_invalidators.is_empty() {
                 reasons.push(reason(path));

@@ -1143,19 +1143,23 @@ impl BatchedInvalidations {
 /// The maximum number of paths listed in the `file change` span.
 const MAX_SPAN_PATHS: usize = 20;
 
-/// Formats `paths` for the `file change` span: comma separated, at most [`MAX_SPAN_PATHS`], with
+/// Formats paths for the `file change` span: comma separated, at most [`MAX_SPAN_PATHS`], with
 /// `, ... (N more paths)` appended when there are more.
-fn format_span_paths(paths: &[PathBuf]) -> String {
-    let mut formatted = paths
-        .iter()
-        .take(MAX_SPAN_PATHS)
-        .map(|path| path.display().to_string())
-        .collect::<Vec<_>>()
-        .join(", ");
-    if paths.len() > MAX_SPAN_PATHS {
-        formatted += &format!(", ... ({} more paths)", paths.len() - MAX_SPAN_PATHS);
+struct SpanPaths<'a>(&'a [PathBuf]);
+
+impl std::fmt::Display for SpanPaths<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (index, path) in self.0.iter().take(MAX_SPAN_PATHS).enumerate() {
+            if index > 0 {
+                f.write_str(", ")?;
+            }
+            write!(f, "{}", path.display())?;
+        }
+        if self.0.len() > MAX_SPAN_PATHS {
+            write!(f, ", ... ({} more paths)", self.0.len() - MAX_SPAN_PATHS)?;
+        }
+        Ok(())
     }
-    formatted
 }
 
 #[instrument(
@@ -1164,7 +1168,7 @@ fn format_span_paths(paths: &[PathBuf]) -> String {
     name = "file change",
     skip_all,
     fields(
-        paths = %format_span_paths(invalidation_reason_paths),
+        paths = %SpanPaths(invalidation_reason_paths),
         invalidators = invalidators.len(),
     )
 )]
@@ -1261,19 +1265,19 @@ mod tests {
                 .map(|i| PathBuf::from(format!("p{i}")))
                 .collect::<Vec<_>>()
         };
-        assert_eq!(format_span_paths(&paths(0)), "");
-        assert_eq!(format_span_paths(&paths(2)), "p0, p1");
+        assert_eq!(SpanPaths(&paths(0)).to_string(), "");
+        assert_eq!(SpanPaths(&paths(2)).to_string(), "p0, p1");
         let twenty = (0..20)
             .map(|i| format!("p{i}"))
             .collect::<Vec<_>>()
             .join(", ");
-        assert_eq!(format_span_paths(&paths(20)), twenty);
+        assert_eq!(SpanPaths(&paths(20)).to_string(), twenty);
         assert_eq!(
-            format_span_paths(&paths(21)),
+            SpanPaths(&paths(21)).to_string(),
             format!("{twenty}, ... (1 more paths)")
         );
         assert_eq!(
-            format_span_paths(&paths(25)),
+            SpanPaths(&paths(25)).to_string(),
             format!("{twenty}, ... (5 more paths)")
         );
     }

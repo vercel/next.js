@@ -19,19 +19,26 @@ use crate::{
 /// Invalidates `task_ids`. Callers must not pass duplicate ids (the bulk task access expects
 /// unique ids, and deduplicating here would cost every invalidation).
 pub fn invalidate(
-    task_ids: SmallVec<[TaskId; 4]>,
+    task_ids: impl IntoIterator<Item = TaskId>,
     #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
     mut ctx: ExecuteContext<'_>,
 ) {
-    debug_assert!(
-        task_ids.len() <= 1
-            || task_ids.iter().collect::<rustc_hash::FxHashSet<_>>().len() == task_ids.len(),
-        "invalidate() must not be called with duplicate task ids: {task_ids:?}"
-    );
+    // Debug builds collect the ids to check they are unique. Release builds stream them.
+    #[cfg(debug_assertions)]
+    let task_ids = {
+        let task_ids: Vec<TaskId> = task_ids.into_iter().collect();
+        debug_assert!(
+            task_ids.len() <= 1
+                || task_ids.iter().collect::<rustc_hash::FxHashSet<_>>().len() == task_ids.len(),
+            "invalidate() must not be called with duplicate task ids: {task_ids:?}"
+        );
+        task_ids
+    };
+    let task_ids = task_ids.into_iter();
     let mut queue = AggregationUpdateQueue::new();
     // The tasks to schedule are collected and handed to the scheduler as one batch, which takes
     // the scheduler's queue lock once instead of once per task.
-    let mut to_schedule: SmallVec<[_; 4]> = SmallVec::with_capacity(task_ids.len());
+    let mut to_schedule: SmallVec<[_; 4]> = SmallVec::with_capacity(task_ids.size_hint().0);
     // Tasks that no longer exist are skipped, there is nothing to invalidate. Tasks that are not
     // resident are restored from persistent storage in batches.
     ctx.for_each_try_task_all(task_ids, "invalidate", |mut task, ctx| {
