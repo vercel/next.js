@@ -110,9 +110,11 @@ export async function handler(
     waitUntil?: (prom: Promise<void>) => void
     signal?: AbortSignal
     requestMeta?: RequestMeta
+    previewProps?: AdapterOptions['previewProps']
   }
 ): Promise<Response> {
   const result = await internalHandler({
+    previewProps: ctx.previewProps,
     request: {
       url: request.url,
       method: request.method,
