@@ -1,9 +1,10 @@
+import { execFile } from 'child_process'
+import { createServer } from 'http'
+import { promisify } from 'util'
 import type { TraceSpanInfo } from 'next/dist/build/swc/generated-native'
+import { queryTraceCli } from 'next/dist/cli/internal/query-trace'
 import {
-  parseTraceSampleCount,
-  queryTraceCli,
-} from 'next/dist/cli/internal/query-trace'
-import {
+  renderMemorySummary,
   renderSampleSeriesMarkdown,
   serializeTraceSpan,
 } from 'next/dist/cli/internal/trace-query-result'
@@ -33,7 +34,6 @@ function span(overrides: Partial<TraceSpanInfo> = {}): TraceSpanInfo {
     selfDeallocations: 0,
     selfPersistentAllocations: 0,
     selfAllocationCount: 0,
-    memorySamples: [[0, 1024, 7, 2]],
     memorySummary: {
       count: 1,
       start: 1024,
@@ -69,6 +69,53 @@ const options = {
 
 describe('query-trace samples', () => {
   const originalFetch = global.fetch
+  const execFileAsync = promisify(execFile)
+  const server = createServer(async (request, response) => {
+    const chunks: Buffer[] = []
+    for await (const chunk of request) chunks.push(Buffer.from(chunk))
+    const rpc = JSON.parse(Buffer.concat(chunks).toString())
+    response.writeHead(200, { 'Content-Type': 'text/event-stream' })
+    response.end(
+      `data: ${JSON.stringify({
+        result: {
+          content: [
+            { type: 'text', text: JSON.stringify(rpc.params.arguments) },
+          ],
+        },
+      })}\n`
+    )
+  })
+  let port: number
+  beforeAll(async () => {
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject)
+      server.listen(0, '127.0.0.1', resolve)
+    })
+    const address = server.address()
+    if (!address || typeof address === 'string') throw new Error('No TCP port')
+    port = address.port
+  })
+  afterAll(async () => {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()))
+    })
+  })
+  function runCommand(value: string) {
+    return execFileAsync(
+      process.execPath,
+      [
+        require.resolve('next/dist/bin/next'),
+        'internal',
+        'query-trace',
+        '--port',
+        String(port),
+        '--json',
+        '--samples',
+        value,
+      ],
+      { timeout: 15000 }
+    )
+  }
   afterEach(() => {
     jest.restoreAllMocks()
     global.fetch = originalFetch
@@ -76,8 +123,12 @@ describe('query-trace samples', () => {
 
   it.each(['0', '1', '300', String(Number.MAX_SAFE_INTEGER)])(
     'accepts count %s',
-    (value) => {
-      expect(parseTraceSampleCount(value)).toBe(Number(value))
+    async (value) => {
+      const { stdout } = await runCommand(value)
+      expect(JSON.parse(stdout)).toMatchObject({
+        outputType: 'json',
+        samples: Number(value),
+      })
     }
   )
 
@@ -91,10 +142,11 @@ describe('query-trace samples', () => {
     '1e2',
     ' 2 ',
     '9007199254740992',
-  ])('rejects count %s', (value) => {
-    expect(() => parseTraceSampleCount(value)).toThrow(
-      'nonnegative safe integer'
-    )
+  ])('rejects count %s', async (value) => {
+    await expect(runCommand(value)).rejects.toMatchObject({
+      code: 1,
+      stderr: expect.stringContaining('nonnegative safe integer'),
+    })
   })
 
   it.each([undefined, 0, 1, 300])(
@@ -130,7 +182,7 @@ describe('query-trace samples', () => {
     }
   })
 
-  it('flattens requested value arrays recursively rather than exposing legacy tuples', () => {
+  it('flattens the only native sample-series fields recursively', () => {
     const result = serializeTraceSpan(
       span({
         sampleSeries: series,
@@ -157,6 +209,21 @@ describe('query-trace samples', () => {
       ...emptySeries,
       memorySummary: { peak: 1024 },
     })
+  })
+
+  it('prints independent memory and pressure summaries without worker bounds', () => {
+    const summary = renderMemorySummary(
+      span().memorySummary,
+      (value) => `${value / 1024} KB`
+    )
+    expect(summary).toBe(
+      'samples=1, peak=1 KB, min=1 KB, start=1 KB, end=1 KB, Δ=+0 KB, maxPressure=7'
+    )
+    expect(summary).not.toContain('activeWorkerThreads')
+  })
+
+  it('omits the memory summary when no readings are available', () => {
+    expect(renderMemorySummary(undefined, String)).toBeNull()
   })
 
   it('prints readable units and explains independent sample grids', () => {
