@@ -2396,9 +2396,13 @@ describe.each(
             // under their shared parent.
             it('should trace middleware', async () => {
               await next.fetch('/behind-middleware', env.fetchInit)
+              // Behind the host span, the direct entrypoints' spans are
+              // exported without a runtime.
+              const runtimeOf = (name: string) =>
+                withParentSpan ? {} : { runtime: name }
               const siblings = [
                 {
-                  runtime: 'nodejs',
+                  ...runtimeOf('nodejs'),
                   traceId: env.span.traceId,
                   name: 'GET /behind-middleware',
                   attributes: {
@@ -2412,7 +2416,7 @@ describe.each(
                   },
                 },
                 {
-                  runtime: runtime,
+                  ...runtimeOf(runtime),
                   traceId: env.span.traceId,
                   name: 'middleware GET',
                   attributes: {
@@ -2465,7 +2469,6 @@ describe.each(
                 // The host span around the invocations is the shared parent.
                 await expectTrace(getCollector(), [
                   {
-                    runtime: 'nodejs',
                     traceId: env.span.traceId,
                     parentId: undefined,
                     name: 'GET /behind-middleware',
