@@ -142,6 +142,17 @@ describe.each(
     await expectAppRouteTrace('/api/app/param/data')
   })
 
+  it('ignores spans from before the reset that are exported late', async () => {
+    const currentSpan = { name: 'current span', timestamp: Date.now() * 1000 }
+    const response = await fetch(`http://localhost:${COLLECTOR_PORT}`, {
+      method: 'POST',
+      body: JSON.stringify([{ name: 'late span', timestamp: 0 }, currentSpan]),
+    })
+
+    expect(response.status).toBe(202)
+    expect(getCollector().getSpans()).toEqual([currentSpan])
+  })
+
   it('closes collector connections after each export', async () => {
     const response = await fetch(`http://localhost:${COLLECTOR_PORT}`, {
       method: 'POST',
@@ -503,7 +514,7 @@ describe.each(
       name: 'root context',
       fetchInit: undefined,
       span: {
-        traceId: '[trace-id]',
+        traceId: expect.any(String),
         rootParentId: undefined,
       },
     },
@@ -791,7 +802,7 @@ describe.each(
                   ],
                 },
               ],
-              true
+              { edgeOnly: true }
             )
           })
 
@@ -1184,7 +1195,7 @@ describe.each(
                     status: { code: 0 },
                   },
                 ],
-                true
+                { edgeOnly: true }
               )
             }
           )
@@ -1210,7 +1221,7 @@ describe.each(
                   status: { code: 2 },
                 },
               ],
-              true
+              { edgeOnly: true }
             )
           })
 
@@ -1539,61 +1550,69 @@ describe.each(
             const v = env.span.rootParentId ? '2' : ''
             await next.fetch(`/pages/param/getStaticProps${v}`, env.fetchInit)
 
-            await expectTrace(getCollector(), [
-              {
-                name: `GET /pages/[param]/getStaticProps${v}`,
-                attributes: {
-                  'http.method': 'GET',
-                  'http.route': `/pages/[param]/getStaticProps${v}`,
-                  'http.status_code': 200,
-                  'http.target': `/pages/param/getStaticProps${v}`,
-                  'next.route': `/pages/[param]/getStaticProps${v}`,
-                  'next.span_name': `GET /pages/[param]/getStaticProps${v}`,
-                  'next.span_type': 'BaseServer.handleRequest',
-                },
-                kind: 1,
-                status: { code: 0 },
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                spans: [
-                  {
-                    name: `getStaticProps /pages/[param]/getStaticProps${v}`,
-                    attributes: {
-                      'next.route': `/pages/[param]/getStaticProps${v}`,
-                      'next.span_name': `getStaticProps /pages/[param]/getStaticProps${v}`,
-                      'next.span_type': 'Render.getStaticProps',
-                    },
-                    kind: 0,
-                    status: { code: 0 },
+            await expectTrace(
+              getCollector(),
+              [
+                {
+                  name: `GET /pages/[param]/getStaticProps${v}`,
+                  attributes: {
+                    'http.method': 'GET',
+                    'http.route': `/pages/[param]/getStaticProps${v}`,
+                    'http.status_code': 200,
+                    'http.target': `/pages/param/getStaticProps${v}`,
+                    'next.route': `/pages/[param]/getStaticProps${v}`,
+                    'next.span_name': `GET /pages/[param]/getStaticProps${v}`,
+                    'next.span_type': 'BaseServer.handleRequest',
                   },
-                  {
-                    name: `render route (pages) /pages/[param]/getStaticProps${v}`,
-                    attributes: {
-                      'next.route': `/pages/[param]/getStaticProps${v}`,
-                      'next.span_name': `render route (pages) /pages/[param]/getStaticProps${v}`,
-                      'next.span_type': 'Render.renderDocument',
+                  kind: 1,
+                  status: { code: 0 },
+                  traceId: env.span.traceId,
+                  parentId: env.span.rootParentId,
+                  spans: [
+                    {
+                      name: `getStaticProps /pages/[param]/getStaticProps${v}`,
+                      attributes: {
+                        'next.route': `/pages/[param]/getStaticProps${v}`,
+                        'next.span_name': `getStaticProps /pages/[param]/getStaticProps${v}`,
+                        'next.span_type': 'Render.getStaticProps',
+                      },
+                      kind: 0,
+                      status: { code: 0 },
                     },
-                    kind: 0,
-                    status: { code: 0 },
-                  },
-                  ...(useDirectEntrypointHandler
-                    ? []
-                    : [
-                        {
-                          name: 'resolve page components',
-                          attributes: {
-                            'next.route': `/pages/[param]/getStaticProps${v}`,
-                            'next.span_name': 'resolve page components',
-                            'next.span_type':
-                              'NextNodeServer.findPageComponents',
+                    {
+                      name: `render route (pages) /pages/[param]/getStaticProps${v}`,
+                      attributes: {
+                        'next.route': `/pages/[param]/getStaticProps${v}`,
+                        'next.span_name': `render route (pages) /pages/[param]/getStaticProps${v}`,
+                        'next.span_type': 'Render.renderDocument',
+                      },
+                      kind: 0,
+                      status: { code: 0 },
+                    },
+                    ...(useDirectEntrypointHandler
+                      ? []
+                      : [
+                          {
+                            name: 'resolve page components',
+                            attributes: {
+                              'next.route': `/pages/[param]/getStaticProps${v}`,
+                              'next.span_name': 'resolve page components',
+                              'next.span_type':
+                                'NextNodeServer.findPageComponents',
+                            },
+                            kind: 0,
+                            status: { code: 0 },
                           },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-                      ]),
-                ],
-              },
-            ])
+                        ]),
+                  ],
+                },
+              ],
+              {
+                // TODO: Fix the mismatched traceId on 'resolve page components'
+                // for blocking fallback, in both contexts.
+                skipTraceIdCheck: isNextDev,
+              }
+            )
           })
 
           itEdge('should handle getServerSideProps on edge', async () => {
@@ -1649,7 +1668,7 @@ describe.each(
                   ],
                 },
               ],
-              true
+              { edgeOnly: true }
             )
           })
 
@@ -1659,130 +1678,138 @@ describe.each(
               env.fetchInit
             )
 
-            await expectTrace(getCollector(), [
-              {
-                name: 'GET /pages/[param]/getServerSidePropsError',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.route': '/pages/[param]/getServerSidePropsError',
-                  'http.target': '/pages/param/getServerSidePropsError',
-                  'next.route': '/pages/[param]/getServerSidePropsError',
-                  'next.span_name':
-                    'GET /pages/[param]/getServerSidePropsError',
-                  'next.span_type': 'BaseServer.handleRequest',
-                  ...(useDirectEntrypointHandler
-                    ? {
-                        // With direct entrypoints, this 500 error has to be handled by whatever is
-                        // invoking the handler. And that same invoker is then also responsible for
-                        // setting OTEL correctly.
-                        'error.type': 'Error',
-                        'http.status_code': 200,
-                      }
-                    : {
-                        'error.type': '500',
-                        'http.status_code': 500,
-                      }),
-                },
-                kind: 1,
-                status: { code: 2 },
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                spans: [
-                  {
-                    name: 'getServerSideProps /pages/[param]/getServerSidePropsError',
-                    attributes: {
-                      'next.route': '/pages/[param]/getServerSidePropsError',
-                      'next.span_name':
-                        'getServerSideProps /pages/[param]/getServerSidePropsError',
-                      'next.span_type': 'Render.getServerSideProps',
-                      'error.type': 'Error',
-                    },
-                    kind: 0,
-                    status: {
-                      code: 2,
-                      message: 'ServerSideProps error',
-                    },
-                    events: [
-                      {
-                        name: 'exception',
-                        attributes: {
-                          'exception.type': 'Error',
-                          'exception.message': 'ServerSideProps error',
-                        },
-                      },
-                    ],
+            await expectTrace(
+              getCollector(),
+              [
+                {
+                  name: 'GET /pages/[param]/getServerSidePropsError',
+                  attributes: {
+                    'http.method': 'GET',
+                    'http.route': '/pages/[param]/getServerSidePropsError',
+                    'http.target': '/pages/param/getServerSidePropsError',
+                    'next.route': '/pages/[param]/getServerSidePropsError',
+                    'next.span_name':
+                      'GET /pages/[param]/getServerSidePropsError',
+                    'next.span_type': 'BaseServer.handleRequest',
+                    ...(useDirectEntrypointHandler
+                      ? {
+                          // With direct entrypoints, this 500 error has to be handled by whatever is
+                          // invoking the handler. And that same invoker is then also responsible for
+                          // setting OTEL correctly.
+                          'error.type': 'Error',
+                          'http.status_code': 200,
+                        }
+                      : {
+                          'error.type': '500',
+                          'http.status_code': 500,
+                        }),
                   },
-                  ...(useDirectEntrypointHandler
-                    ? []
-                    : [
+                  kind: 1,
+                  status: { code: 2 },
+                  traceId: env.span.traceId,
+                  parentId: env.span.rootParentId,
+                  spans: [
+                    {
+                      name: 'getServerSideProps /pages/[param]/getServerSidePropsError',
+                      attributes: {
+                        'next.route': '/pages/[param]/getServerSidePropsError',
+                        'next.span_name':
+                          'getServerSideProps /pages/[param]/getServerSidePropsError',
+                        'next.span_type': 'Render.getServerSideProps',
+                        'error.type': 'Error',
+                      },
+                      kind: 0,
+                      status: {
+                        code: 2,
+                        message: 'ServerSideProps error',
+                      },
+                      events: [
                         {
-                          name: 'render route (pages) /_error',
+                          name: 'exception',
                           attributes: {
-                            'next.route': '/_error',
-                            'next.span_name': 'render route (pages) /_error',
-                            'next.span_type': 'Render.renderDocument',
+                            'exception.type': 'Error',
+                            'exception.message': 'ServerSideProps error',
                           },
-                          kind: 0,
-                          status: { code: 0 },
                         },
+                      ],
+                    },
+                    ...(useDirectEntrypointHandler
+                      ? []
+                      : [
+                          {
+                            name: 'render route (pages) /_error',
+                            attributes: {
+                              'next.route': '/_error',
+                              'next.span_name': 'render route (pages) /_error',
+                              'next.span_type': 'Render.renderDocument',
+                            },
+                            kind: 0,
+                            status: { code: 0 },
+                          },
 
-                        {
-                          name: 'resolve page components',
-                          attributes: {
-                            'next.route': '/_error',
-                            'next.span_name': 'resolve page components',
-                            'next.span_type':
-                              'NextNodeServer.findPageComponents',
+                          {
+                            name: 'resolve page components',
+                            attributes: {
+                              'next.route': '/_error',
+                              'next.span_name': 'resolve page components',
+                              'next.span_type':
+                                'NextNodeServer.findPageComponents',
+                            },
+                            kind: 0,
+                            status: { code: 0 },
                           },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-                      ]),
-                  ...(isNextDev || useDirectEntrypointHandler
-                    ? []
-                    : [
-                        {
-                          name: 'resolve page components',
-                          attributes: {
-                            'next.route': '/500',
-                            'next.span_name': 'resolve page components',
-                            'next.span_type':
-                              'NextNodeServer.findPageComponents',
+                        ]),
+                    ...(isNextDev || useDirectEntrypointHandler
+                      ? []
+                      : [
+                          {
+                            name: 'resolve page components',
+                            attributes: {
+                              'next.route': '/500',
+                              'next.span_name': 'resolve page components',
+                              'next.span_type':
+                                'NextNodeServer.findPageComponents',
+                            },
+                            kind: 0,
+                            status: { code: 0 },
                           },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-                        {
-                          name: 'resolve page components',
-                          attributes: {
-                            'next.route': '/500',
-                            'next.span_name': 'resolve page components',
-                            'next.span_type':
-                              'NextNodeServer.findPageComponents',
+                          {
+                            name: 'resolve page components',
+                            attributes: {
+                              'next.route': '/500',
+                              'next.span_name': 'resolve page components',
+                              'next.span_type':
+                                'NextNodeServer.findPageComponents',
+                            },
+                            kind: 0,
+                            status: { code: 0 },
                           },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-                      ]),
-                  ...(useDirectEntrypointHandler
-                    ? []
-                    : [
-                        {
-                          name: 'resolve page components',
-                          attributes: {
-                            'next.route':
-                              '/pages/[param]/getServerSidePropsError',
-                            'next.span_name': 'resolve page components',
-                            'next.span_type':
-                              'NextNodeServer.findPageComponents',
+                        ]),
+                    ...(useDirectEntrypointHandler
+                      ? []
+                      : [
+                          {
+                            name: 'resolve page components',
+                            attributes: {
+                              'next.route':
+                                '/pages/[param]/getServerSidePropsError',
+                              'next.span_name': 'resolve page components',
+                              'next.span_type':
+                                'NextNodeServer.findPageComponents',
+                            },
+                            kind: 0,
+                            status: { code: 0 },
                           },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-                      ]),
-                ],
-              },
-            ])
+                        ]),
+                  ],
+                },
+              ],
+              {
+                // TODO: Fix the mismatched traceId on 'resolve page components'
+                // when rendering a getServerSideProps error.
+                skipTraceIdCheck: isNextDev && env.name === 'root context',
+              }
+            )
           })
 
           it('should handle getServerSideProps returning notFound', async () => {
@@ -1791,91 +1818,102 @@ describe.each(
               env.fetchInit
             )
 
-            await expectTrace(getCollector(), [
-              {
-                name: 'GET /pages/[param]/getServerSidePropsNotFound',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.route': '/pages/[param]/getServerSidePropsNotFound',
-                  'http.status_code': 404,
-                  'http.target': '/pages/param/getServerSidePropsNotFound',
-                  'next.route': '/pages/[param]/getServerSidePropsNotFound',
-                  'next.span_name':
-                    'GET /pages/[param]/getServerSidePropsNotFound',
-                  'next.span_type': 'BaseServer.handleRequest',
-                },
-                kind: 1,
-                status: { code: 0 },
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                spans: [
-                  {
-                    name: 'getServerSideProps /pages/[param]/getServerSidePropsNotFound',
-                    attributes: {
-                      'next.route': '/pages/[param]/getServerSidePropsNotFound',
-                      'next.span_name':
-                        'getServerSideProps /pages/[param]/getServerSidePropsNotFound',
-                      'next.span_type': 'Render.getServerSideProps',
-                    },
-                    kind: 0,
-                    status: {
-                      code: 0,
-                    },
+            await expectTrace(
+              getCollector(),
+              [
+                {
+                  name: 'GET /pages/[param]/getServerSidePropsNotFound',
+                  attributes: {
+                    'http.method': 'GET',
+                    'http.route': '/pages/[param]/getServerSidePropsNotFound',
+                    'http.status_code': 404,
+                    'http.target': '/pages/param/getServerSidePropsNotFound',
+                    'next.route': '/pages/[param]/getServerSidePropsNotFound',
+                    'next.span_name':
+                      'GET /pages/[param]/getServerSidePropsNotFound',
+                    'next.span_type': 'BaseServer.handleRequest',
                   },
-                  ...(isNextDev
-                    ? [
-                        {
-                          name: 'NextNodeServer.clientComponentLoading',
-                          attributes: {
-                            'next.clientComponentLoadCount': expect.any(Number),
-                            'next.span_type':
-                              'NextNodeServer.clientComponentLoading',
+                  kind: 1,
+                  status: { code: 0 },
+                  traceId: env.span.traceId,
+                  parentId: env.span.rootParentId,
+                  spans: [
+                    {
+                      name: 'getServerSideProps /pages/[param]/getServerSidePropsNotFound',
+                      attributes: {
+                        'next.route':
+                          '/pages/[param]/getServerSidePropsNotFound',
+                        'next.span_name':
+                          'getServerSideProps /pages/[param]/getServerSidePropsNotFound',
+                        'next.span_type': 'Render.getServerSideProps',
+                      },
+                      kind: 0,
+                      status: {
+                        code: 0,
+                      },
+                    },
+                    ...(isNextDev
+                      ? [
+                          {
+                            name: 'NextNodeServer.clientComponentLoading',
+                            attributes: {
+                              'next.clientComponentLoadCount':
+                                expect.any(Number),
+                              'next.span_type':
+                                'NextNodeServer.clientComponentLoading',
+                            },
+                            kind: 0,
+                            status: { code: 0 },
                           },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-                        {
-                          name: 'render route (app) /_not-found',
-                          attributes: {
-                            'next.route': '/_not-found',
-                            'next.span_name': 'render route (app) /_not-found',
-                            'next.span_type': 'AppRender.getBodyResult',
+                          {
+                            name: 'render route (app) /_not-found',
+                            attributes: {
+                              'next.route': '/_not-found',
+                              'next.span_name':
+                                'render route (app) /_not-found',
+                              'next.span_type': 'AppRender.getBodyResult',
+                            },
+                            kind: 0,
+                            status: { code: 0 },
                           },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-                      ]
-                    : []),
-                  ...(useDirectEntrypointHandler
-                    ? []
-                    : [
-                        {
-                          name: 'resolve page components',
-                          attributes: {
-                            'next.route': '/_not-found',
-                            'next.span_name': 'resolve page components',
-                            'next.span_type':
-                              'NextNodeServer.findPageComponents',
+                        ]
+                      : []),
+                    ...(useDirectEntrypointHandler
+                      ? []
+                      : [
+                          {
+                            name: 'resolve page components',
+                            attributes: {
+                              'next.route': '/_not-found',
+                              'next.span_name': 'resolve page components',
+                              'next.span_type':
+                                'NextNodeServer.findPageComponents',
+                            },
+                            kind: 0,
+                            status: { code: 0 },
                           },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-                        {
-                          name: 'resolve page components',
-                          attributes: {
-                            'next.route':
-                              '/pages/[param]/getServerSidePropsNotFound',
-                            'next.span_name': 'resolve page components',
-                            'next.span_type':
-                              'NextNodeServer.findPageComponents',
+                          {
+                            name: 'resolve page components',
+                            attributes: {
+                              'next.route':
+                                '/pages/[param]/getServerSidePropsNotFound',
+                              'next.span_name': 'resolve page components',
+                              'next.span_type':
+                                'NextNodeServer.findPageComponents',
+                            },
+                            kind: 0,
+                            status: { code: 0 },
                           },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-                      ]),
-                ],
-              },
-            ])
+                        ]),
+                  ],
+                },
+              ],
+              {
+                // TODO: Fix the mismatched traceId on 'resolve page components'
+                // when getServerSideProps returns notFound.
+                skipTraceIdCheck: isNextDev && env.name === 'root context',
+              }
+            )
           })
 
           it('should handle api routes in pages', async () => {
@@ -1933,7 +1971,7 @@ describe.each(
                   status: { code: 0 },
                 },
               ],
-              true
+              { edgeOnly: true }
             )
           })
 
@@ -2021,7 +2059,7 @@ describe.each(
                     status: { code: 2 },
                   },
                 ],
-                true
+                { edgeOnly: true }
               )
             }
           )
@@ -2261,7 +2299,7 @@ describe.each(
         name: 'root context',
         fetchInit: undefined,
         span: {
-          traceId: '[trace-id]',
+          traceId: expect.any(String),
           rootParentId: undefined,
         },
       },
@@ -2318,7 +2356,12 @@ describe.each(
               // TODO unclear why this is reversed for Node.js runtime
               expected.reverse()
             }
-            await expectTrace(getCollector(), expected)
+            await expectTrace(getCollector(), expected, {
+              // TODO: Fix the mismatched traceId on 'resolve page components' for
+              // default edge/nodejs middleware and 'resolve segment modules' for
+              // direct-entrypoint nodejs middleware.
+              skipTraceIdCheck: env.name === 'root context',
+            })
           })
         }
       )
@@ -2522,7 +2565,7 @@ describe('opentelemetry with disabled fetch tracing', () => {
           await expectTrace(getCollector(), [
             {
               name: 'GET /app/[param]/rsc-fetch',
-              traceId: '[trace-id]',
+              traceId: expect.any(String),
               parentId: undefined,
               spans: [
                 {
@@ -2595,7 +2638,7 @@ describe('opentelemetry with custom server', () => {
     await expectTrace(getCollector(), [
       {
         name: 'custom-server-request',
-        traceId: '[trace-id]',
+        traceId: expect.any(String),
         parentId: undefined,
         spans: [
           {
@@ -2824,19 +2867,28 @@ if (isNextStart) {
           })
           expect(response.status).toBe(200)
 
-          await expectTrace(getCollector(), [
-            {
-              name: `GET ${route}`,
-              traceId: EXTERNAL.traceId,
-              parentId: EXTERNAL.spanId,
-              attributes: {
-                'http.target': pathname,
-                'next.span_type': 'BaseServer.handleRequest',
-                'http.route': route,
-                'next.route': route,
+          await expectTrace(
+            getCollector(),
+            [
+              {
+                name: `GET ${route}`,
+                traceId: EXTERNAL.traceId,
+                parentId: EXTERNAL.spanId,
+                attributes: {
+                  'http.target': pathname,
+                  'next.span_type': 'BaseServer.handleRequest',
+                  'http.route': route,
+                  'next.route': route,
+                },
               },
-            },
-          ])
+            ],
+            {
+              // TODO: Fix the mismatched traceIds on 'GET /app/[param]/rsc-fetch',
+              // 'GET /api/app/[param]/data', 'GET /pages/[param]/getServerSideProps',
+              // and 'GET /api/pages/[param]/basic'.
+              skipTraceIdCheck: true,
+            }
+          )
         })
       }
     )
@@ -2849,7 +2901,10 @@ type SpanMatch = Omit<Partial<HierSavedSpan>, 'spans'> & { spans?: SpanMatch[] }
 async function expectTrace(
   collector: Collector,
   match: SpanMatch[],
-  edgeOnly?: boolean
+  {
+    edgeOnly = false,
+    skipTraceIdCheck = false,
+  }: { edgeOnly?: boolean; skipTraceIdCheck?: boolean } = {}
 ) {
   // Extract expected http.target values from the match to filter out extra spans
   // that may be generated in production mode (e.g., RSC prefetch requests)
@@ -2873,6 +2928,7 @@ async function expectTrace(
           ].includes(span.attributes?.['next.span_type'] as string)
       )
 
+    let traceId = undefined
     const tree: HierSavedSpan[] = []
     const spansForTree: HierSavedSpan[] = traces.map((span) => ({
       ...span,
@@ -2887,6 +2943,18 @@ async function expectTrace(
         continue
       }
 
+      if (!skipTraceIdCheck) {
+        if (!traceId) {
+          traceId = span.traceId
+        } else {
+          if (span.traceId !== traceId) {
+            throw new Error(
+              `Mismatched traceId on span '${span.name}': expected ${traceId}, got ${span.traceId}`
+            )
+          }
+        }
+      }
+
       const parent =
         !span.parentId || span.parentId === EXTERNAL.spanId
           ? null
@@ -2897,12 +2965,11 @@ async function expectTrace(
         tree.push(span)
       }
     }
+
     for (const span of spansForTree) {
       delete span.duration
       delete span.timestamp
 
-      span.traceId =
-        span.traceId === EXTERNAL.traceId ? span.traceId : '[trace-id]'
       span.parentId = span.parentId || undefined
 
       span.spans.sort((a, b) => {

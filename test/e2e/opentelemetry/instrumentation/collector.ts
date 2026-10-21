@@ -13,6 +13,7 @@ export async function connectCollector({
   port: number
 }): Promise<Collector> {
   const spans: SavedSpan[] = []
+  let resetTimestamp = 0
 
   const server = new HttpServer(async (req, res) => {
     if (req.method !== 'POST') {
@@ -34,6 +35,11 @@ export async function connectCollector({
 
     const newSpans = JSON.parse(body.toString('utf-8')) as SavedSpan[]
     const filteredSpans = newSpans.filter((span) => {
+      // Exports are asynchronous, so spans from the previous test can arrive
+      // after reset. Their timestamps are start times in epoch microseconds.
+      if (span.timestamp !== undefined && span.timestamp < resetTimestamp) {
+        return false
+      }
       if (span.attributes?.['next.bubble'] === true) {
         return false
       }
@@ -62,6 +68,7 @@ export async function connectCollector({
       return spans
     },
     reset() {
+      resetTimestamp = Date.now() * 1000
       spans.length = 0
     },
     shutdown() {

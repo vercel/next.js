@@ -100,7 +100,6 @@ async function main() {
     for (const [pattern, handler] of handlers) {
       if (pattern.test(pathname)) return loadEntrypointHandler<T>(handler)
     }
-    console.error("Couldn't find resolve handler for path:", pathname)
     return undefined
   }
 
@@ -130,6 +129,9 @@ async function main() {
     )
 
     if (!handler) {
+      console.error(
+        `[custom-entrypoint-server] No route handler found for ${method} ${pathname}`
+      )
       res.statusCode = 404
       res.end('Not Found')
       return
