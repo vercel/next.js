@@ -1250,7 +1250,12 @@ describe.each(
                 spans: [
                   {
                     attributes: {
-                      'next.clientComponentLoadCount': isNextDev ? 12 : 10,
+                      // Rendering from a Result, Fizz learns of the page's
+                      // error from the component's promise rather than from
+                      // a parsed row, and gets to one more sibling Client
+                      // Component before the subtree is discarded: another
+                      // require() of a module that is already loaded.
+                      'next.clientComponentLoadCount': isNextDev ? 12 : 11,
                       'next.span_type': 'NextNodeServer.clientComponentLoading',
                     },
                     kind: 0,

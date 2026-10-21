@@ -1,4 +1,5 @@
 import type { BinaryStreamOf } from './app-render'
+import type { FlightResult } from './entry-base'
 import type { Readable } from 'node:stream'
 
 import {
@@ -16,8 +17,14 @@ const INLINE_FLIGHT_PAYLOAD_DATA = 1
 const INLINE_FLIGHT_PAYLOAD_FORM_STATE = 2
 const INLINE_FLIGHT_PAYLOAD_BINARY = 3
 
+export type ResultModel = {
+  result: FlightResult
+  signal: AbortSignal
+  onError: (error: unknown) => string | null | undefined
+}
+
 const flightResponses = new WeakMap<
-  Readable | BinaryStreamOf<any>,
+  Readable | BinaryStreamOf<any> | ResultModel,
   Promise<any>
 >()
 const encoder = new TextEncoder()
@@ -33,7 +40,7 @@ const findSourceMapURL =
  * This is only used for renderToHTML, the Flight response does not need additional wrappers.
  */
 export function getFlightStream<T>(
-  flightStream: Readable | BinaryStreamOf<T>,
+  flightStream: Readable | BinaryStreamOf<T> | ResultModel,
   debugStream: Readable | ReadableStream<Uint8Array> | undefined,
   debugEndTime: number | undefined,
   nonce: string | undefined
@@ -44,11 +51,35 @@ export function getFlightStream<T>(
     return response
   }
 
-  const { moduleLoading, edgeSSRModuleMapping, ssrModuleMapping } =
-    getClientReferenceManifest()
+  const {
+    clientModules,
+    moduleLoading,
+    edgeSSRModuleMapping,
+    ssrModuleMapping,
+  } = getClientReferenceManifest()
 
   let newResponse: Promise<T>
-  if (flightStream instanceof ReadableStream) {
+  if ('result' in flightStream) {
+    if (process.env.NEXT_RUNTIME === 'edge') {
+      throw new InvariantError('Result projection is Node.js only')
+    } else {
+      const { createFromResult } =
+        // eslint-disable-next-line import/no-extraneous-dependencies
+        require('react-server-dom-webpack/client') as typeof import('react-server-dom-webpack/client')
+      newResponse = createFromResult<T>(flightStream.result, {
+        findSourceMapURL,
+        clientManifest: clientModules,
+        serverConsumerManifest: {
+          moduleLoading,
+          moduleMap: ssrModuleMapping,
+          serverModuleMap: null,
+        },
+        nonce,
+        signal: flightStream.signal,
+        onError: flightStream.onError,
+      })
+    }
+  } else if (flightStream instanceof ReadableStream) {
     // The types of flightStream and debugStream should match.
     if (debugStream && !(debugStream instanceof ReadableStream)) {
       throw new InvariantError('Expected debug stream to be a ReadableStream')

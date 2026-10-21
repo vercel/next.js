@@ -75,6 +75,15 @@ declare module 'react-server-dom-webpack/client' {
     }
   ): Promise<T>
 
+  export function createFromResult<T>(
+    result: import('react-server-dom-webpack/server.node').Result,
+    options: Options & {
+      clientManifest: import('react-server-dom-webpack/server.edge').ClientManifest
+      signal?: AbortSignal
+      onError?: (error: unknown) => string | null | undefined
+    }
+  ): Promise<T>
+
   export function createServerReference(
     id: string,
     callServer: CallServerCallback,
@@ -217,6 +226,15 @@ declare module 'react-server-dom-webpack/server' {
 
 declare module 'react-server-dom-webpack/server.node' {
   import type { Busboy } from 'busboy'
+
+  export type Result = Readonly<{ abort(reason?: unknown): void }>
+
+  export function renderToResult(
+    model: any,
+    options?: Parameters<typeof renderToPipeableStream>[2] & {
+      signal?: AbortSignal
+    }
+  ): Result
 
   export {
     createClientModuleProxy,

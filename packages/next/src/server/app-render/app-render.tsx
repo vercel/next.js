@@ -70,6 +70,7 @@ import {
   teeStream,
   renderToWebFizzStream,
   renderToNodeFlightStream,
+  renderResultToNodeStream,
   renderToNodeFizzStream,
   createNodeInlinedDataStream,
 } from './stream-ops'
@@ -169,7 +170,11 @@ import {
 } from './postponed-state'
 import { isDynamicServerError } from '../../client/components/hooks-server-context'
 import type { ServerActionRequestMetadata } from '../lib/server-action-request-meta'
-import { getFlightStream } from './use-flight-response'
+import { getFlightStream, type ResultModel } from './use-flight-response'
+
+// Closes the Result's HTML consumer once Fizz is done. A shared reason avoids
+// allocating a DOMException per request.
+const HTML_RENDER_FINISHED = new Error('The HTML render has finished.')
 import {
   StaticGenBailoutError,
   isStaticGenBailoutError,
@@ -2344,7 +2349,7 @@ function App<T>({
   images,
 }: {
   /* eslint-disable @next/internal/no-ambiguous-jsx -- React Client */
-  reactServerStream: Readable | BinaryStreamOf<T>
+  reactServerStream: Readable | BinaryStreamOf<T> | ResultModel
   reactDebugStream: AnyStream | undefined
   debugEndTime: number | undefined
   preinitScripts: () => void
@@ -3645,7 +3650,9 @@ async function renderToStream(
     }
   )
 
+  let resultHTMLController: AbortController | undefined
   const finishHtmlRender = () => {
+    resultHTMLController?.abort(HTML_RENDER_FINISHED)
     if (renderSpan.isRecording()) renderSpan.end()
     tracker?.finish()
   }
@@ -3711,6 +3718,11 @@ async function renderToStream(
     )
 
     let reactServerResult: null | ReactServerResult = null
+    let resultSSRModel: ResultModel | undefined
+    // Set once the Result exists. Called after the shell is ready so that
+    // Fizz renders the shell before any row is encoded; the Result still
+    // runs every Server Component as soon as Fizz reaches it.
+    let startResultHydrationStream: (() => AnyStream) | undefined
     let reactDebugStream: AnyStream | undefined
 
     const setHeader = res.setHeader.bind(res)
@@ -4020,20 +4032,71 @@ async function renderToStream(
             )
           }
 
-          reactServerResult = new ReactServerResult(
-            workUnitAsyncStorage.run(
+          if (
+            process.env.NODE_ENV === 'production' &&
+            !isBuildTimePrerendering &&
+            renderOpts.postponed === undefined &&
+            formState == null &&
+            !debugChannel &&
+            isNodeNextResponse(ctx.res)
+          ) {
+            const signal = signalFromNodeResponse(ctx.res.originalResponse)
+            const controller = (resultHTMLController = new AbortController())
+            if (signal.aborted) {
+              controller.abort(signal.reason)
+            } else {
+              signal.addEventListener(
+                'abort',
+                () => controller.abort(signal.reason),
+                { once: true, signal: controller.signal }
+              )
+            }
+            const result = workUnitAsyncStorage.run(
               requestStore,
-              renderToNodeFlightStream,
-              ctx.componentMod,
+              ctx.componentMod.renderToResult!,
               RSCPayload,
-              clientModules,
               {
                 filterStackFrame,
                 onError: serverComponentsErrorHandler,
-                debugChannel: debugChannel?.serverSide,
+                signal,
               }
             )
-          )
+            resultSSRModel = {
+              result,
+              signal: controller.signal,
+              onError: serverComponentsErrorHandler,
+            }
+            // Fizz consumes the Result directly. Only hydration needs the
+            // encoded stream, so it has a single owner and needs no replay.
+            startResultHydrationStream = () =>
+              workUnitAsyncStorage.run(
+                requestStore,
+                renderResultToNodeStream,
+                ctx.componentMod,
+                result,
+                clientModules,
+                {
+                  filterStackFrame,
+                  onError: serverComponentsErrorHandler,
+                  signal,
+                }
+              )
+          } else {
+            reactServerResult = new ReactServerResult(
+              workUnitAsyncStorage.run(
+                requestStore,
+                renderToNodeFlightStream,
+                ctx.componentMod,
+                RSCPayload,
+                clientModules,
+                {
+                  filterStackFrame,
+                  onError: serverComponentsErrorHandler,
+                  debugChannel: debugChannel?.serverSide,
+                }
+              )
+            )
+          }
         } else {
           // MARK: webStreams RSC
           // This is a dynamic render. We don't do dynamic tracking because we're not prerendering
@@ -4089,6 +4152,9 @@ async function renderToStream(
         // If provided, the postpone state should be parsed as JSON so it can be
         // provided to React.
         if (typeof renderOpts.postponed === 'string') {
+          if (reactServerResult === null) {
+            throw new InvariantError('Expected a Flight stream for HTML resume')
+          }
           if (postponedState?.type === DynamicState.DATA) {
             // We have a complete HTML Document in the prerender but we need to
             // still include the new server component render because it was not included
@@ -4176,7 +4242,7 @@ async function renderToStream(
 
         const appElement = (
           <App
-            reactServerStream={reactServerResult.tee()}
+            reactServerStream={resultSSRModel ?? reactServerResult!.tee()}
             // TODO: Pass Node.js debugStream
             reactDebugStream={reactDebugStream}
             debugEndTime={undefined}
@@ -4214,9 +4280,14 @@ async function renderToStream(
             )
         )
 
+        const hydrationStream = startResultHydrationStream
+          ? startResultHydrationStream()
+          : reactServerResult!.consume()
+        startResultHydrationStream = undefined
+
         return await continueFizzStream(htmlStream, {
           inlinedDataStream: createNodeInlinedDataStream(
-            reactServerResult.consume(),
+            hydrationStream,
             nonce,
             formState
           ),
@@ -4229,6 +4300,9 @@ async function renderToStream(
         })
       } else {
         // MARK: webStreams HTML
+        if (reactServerResult === null) {
+          throw new InvariantError('Expected a Flight stream for web HTML')
+        }
         // If provided, the postpone state should be parsed as JSON so it can be
         // provided to React.
         if (typeof renderOpts.postponed === 'string') {
@@ -4369,6 +4443,7 @@ async function renderToStream(
       }
       // MARK: renderToStream errorRecovery
     } catch (err) {
+      resultHTMLController?.abort(HTML_RENDER_FINISHED)
       if (
         isStaticGenBailoutError(err) ||
         (typeof err === 'object' &&
@@ -4480,7 +4555,10 @@ async function renderToStream(
             }
           )
 
-          if (reactServerResult === null) {
+          if (
+            reactServerResult === null &&
+            startResultHydrationStream === undefined
+          ) {
             endSpanWithError(err)
             throw err
           }
@@ -4510,12 +4588,19 @@ async function renderToStream(
             { waitForAllReady }
           )
 
+          // Transfer the original hydration stream once, including when the
+          // main Fizz shell failed before it could start consuming that stream.
+          const hydrationStream = startResultHydrationStream
+            ? startResultHydrationStream()
+            : reactServerResult!.consume()
+          startResultHydrationStream = undefined
+
           return await continueFizzStream(errorHtmlStream, {
             inlinedDataStream: createNodeInlinedDataStream(
               // This is intentionally using the readable datastream from the
               // main render rather than the flight data from the error page
               // render
-              reactServerResult.consume(),
+              hydrationStream,
               nonce,
               formState
             ),
