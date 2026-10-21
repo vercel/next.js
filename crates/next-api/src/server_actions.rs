@@ -1322,7 +1322,6 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
     async fn worker_loader_chunk_item(
         self: Vc<Self>,
         _module: Vc<Box<dyn ChunkableModule>>,
-        _asset_context: Vc<Box<dyn AssetContext>>,
         _worker_type: WorkerType,
         _module_graph: Vc<ModuleGraph>,
         _availability_info: AvailabilityInfo,
