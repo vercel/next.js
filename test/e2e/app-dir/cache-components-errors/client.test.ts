@@ -2,7 +2,9 @@ import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { getPrerenderOutput } from './utils'
 
 // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// Each test runs its own `next build` with per-route `--debug-build-paths`
+// args, which a deployment can't do. Enabling it needs one `nextTestSetup`
+// per route and mode with `buildArgs`, plus deploy snapshots.
 // @force-gate !deploy
 describe('Cache Components Errors - Client Components', () => {
   const { next, isTurbopack, isNextStart } = nextTestSetup({

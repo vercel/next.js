@@ -44,6 +44,8 @@ describe('Build Error Tests', () => {
   )
 })
 
+// Preserve the sibling suite's deploy exclusion previously imposed by skipDeployment's it.only.
+// @force-gate !deploy
 describe('Static Image Component Tests', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
