@@ -22,7 +22,7 @@ When external data is cached, Next.js can prerender with it, which ensures that 
 
 Before:
 
-```jsx filename="app/.../layout.tsx"
+```jsx filename="app/.../layout.js"
 import { db } from './db'
 
 export async function generateViewport() {
@@ -40,7 +40,7 @@ export default async function Layout({ children }) {
 
 After:
 
-```jsx filename="app/.../layout.tsx"
+```jsx filename="app/.../layout.js"
 import { db } from './db'
 
 export async function generateViewport() {
@@ -63,7 +63,7 @@ The only way to use Request data or uncacheable external data within `generateVi
 
 Before:
 
-```jsx filename="app/layout.tsx"
+```jsx filename="app/layout.js"
 import { cookies } from 'next/headers'
 
 export async function generateViewport() {
@@ -84,7 +84,7 @@ export default function RootLayout({ children }) {
 
 After:
 
-```jsx filename="app/layout.tsx"
+```jsx filename="app/layout.js"
 import { Suspense } from 'react'
 import { cookies } from 'next/headers'
 
