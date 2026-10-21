@@ -193,6 +193,10 @@ pub struct EdgeChunkingContextOptions {
     pub hash_salt: ResolvedVc<RcStr>,
     pub cross_origin: Vc<CrossOrigin>,
     pub style_groups_algorithm: StyleGroupsAlgorithm,
+    /// Override for the production JS `min_chunk_size` (default `20_000`).
+    pub chunking_min_chunk_size: Option<usize>,
+    /// Override for the production JS `max_merge_chunk_size` (default `0`, i.e. no limit).
+    pub chunking_max_merge_chunk_size: Option<usize>,
 }
 
 /// Like `get_edge_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -221,6 +225,8 @@ pub async fn get_edge_chunking_context_with_client_assets(
         hash_salt,
         cross_origin,
         style_groups_algorithm,
+        chunking_min_chunk_size,
+        chunking_max_merge_chunk_size,
     } = options;
     let cross_origin_loading = *cross_origin.await?;
     let output_root = node_root.join("server/edge")?;
@@ -273,7 +279,8 @@ pub async fn get_edge_chunking_context_with_client_assets(
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
-                    min_chunk_size: 20_000,
+                    min_chunk_size: chunking_min_chunk_size.unwrap_or(20_000),
+                    max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(0),
                     ..Default::default()
                 },
             )
@@ -317,6 +324,8 @@ pub async fn get_edge_chunking_context(
         hash_salt,
         cross_origin,
         style_groups_algorithm,
+        chunking_min_chunk_size,
+        chunking_max_merge_chunk_size,
     } = options;
     let cross_origin = *cross_origin.await?;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
@@ -386,7 +395,8 @@ pub async fn get_edge_chunking_context(
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
-                    min_chunk_size: 20_000,
+                    min_chunk_size: chunking_min_chunk_size.unwrap_or(20_000),
+                    max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(0),
                     ..Default::default()
                 },
             )

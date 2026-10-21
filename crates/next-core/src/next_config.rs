@@ -965,6 +965,12 @@ pub struct TurbopackChunkingConfig {
     /// Minimum size, in bytes (default `20000`), for a component chunk to be emitted on its
     /// own when `generate_component_chunks` is enabled.
     min_component_chunk_size: Option<usize>,
+    /// Avoid creating more than one server (Node.js and edge) chunk smaller than this size, in
+    /// bytes (default `4000` for Node.js, `20000` for edge).
+    min_server_chunk_size: Option<usize>,
+    /// Don't merge server (Node.js and edge) chunks bigger than this size, in bytes, with other
+    /// chunks (default `100000` for Node.js, `0` (no limit) for edge).
+    max_merge_server_chunk_size: Option<usize>,
 }
 
 #[turbo_tasks::value]
@@ -988,6 +994,10 @@ pub struct TurbopackChunking {
     pub max_merge_chunk_size: Option<usize>,
     /// Override for the client JS `min_component_chunk_size`, or `None` to use the default.
     pub min_component_chunk_size: Option<usize>,
+    /// Override for the server and edge JS `min_chunk_size`, or `None` to use the default.
+    pub min_server_chunk_size: Option<usize>,
+    /// Override for the server and edge JS `max_merge_chunk_size`, or `None` to use the default.
+    pub max_merge_server_chunk_size: Option<usize>,
     /// Whether to emit component chunks alongside merged chunks (default `false`).
     pub generate_component_chunks: bool,
 }
@@ -1974,6 +1984,8 @@ impl NextConfig {
             max_chunk_count_per_group: config.and_then(|c| c.max_chunk_count_per_group),
             max_merge_chunk_size: config.and_then(|c| c.max_merge_chunk_size),
             min_component_chunk_size: config.and_then(|c| c.min_component_chunk_size),
+            min_server_chunk_size: config.and_then(|c| c.min_server_chunk_size),
+            max_merge_server_chunk_size: config.and_then(|c| c.max_merge_server_chunk_size),
             generate_component_chunks: config
                 .and_then(|c| c.generate_component_chunks)
                 .unwrap_or(false),
