@@ -83,6 +83,17 @@ async function getCodeHashes(
         expect(cacheWorkers).toBeGreaterThan(0)
       })
 
+      it('hashes and renders a cached function that uses a bundled Node.js worker', async () => {
+        const hashes = await getCodeHashes(next, [
+          'app/use-cache-node-worker/page',
+        ])
+        expect(hashes).toHaveLength(1)
+        expect(hashes[0].codeHash).toEqual(expect.any(String))
+
+        const $ = await next.render$('/use-cache-node-worker')
+        expect($('p').text()).toBe('node-worker-v1')
+      })
+
       it('lists non-inlined runtime env vars', async () => {
         const data = await getCodeHashes(next)
         expect(
@@ -151,6 +162,15 @@ async function getCodeHashes(
              "NEXT_OTEL_PERFORMANCE_PREFIX",
              "NEXT_OTEL_VERBOSE",
              "NEXT_RUNTIME",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+             "exist __NEXT_DEV_SERVER",
+           ],
+           "app/use-cache-node-worker/page": [
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_OTEL_VERBOSE",
              "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
              "exist NEXT_PRIVATE_DEBUG_CACHE",
              "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
@@ -333,6 +353,12 @@ export async function logic() {
             route: 'use-cache-worker',
             file: 'worker.ts',
             content: "console.log('worker-v2')\n",
+          },
+          {
+            route: 'use-cache-node-worker',
+            file: 'worker.ts',
+            content:
+              "import { parentPort } from 'node:worker_threads'\nparentPort.postMessage('node-worker-v2')\n",
           },
         ]
         const pages = dependencies.map(({ route }) => `app/${route}/page`)
