@@ -6,7 +6,7 @@ describe('Cache Components Errors', () => {
   const { next, isTurbopack, isNextStart } = nextTestSetup({
     files: __dirname + '/fixtures/console-patch',
     skipStart: !isNextDev,
-    // On Vercel, `env` also reaches the deployment's own CLI processes and
+    // In deploy mode, `env` also reaches the deploy tooling and the deployed
     // functions, where `./patch-console.js` can't be resolved, so only the
     // build gets the patched console there.
     ...(isNextDeploy
