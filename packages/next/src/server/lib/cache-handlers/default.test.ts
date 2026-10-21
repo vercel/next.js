@@ -22,7 +22,7 @@ describe('default use cache handler', () => {
    * - Node 24 and later use `AsyncContextFrame`, and these tests pass with or
    *   without the retention.
    *
-   * CI runs Node 20.9, so the guard holds there. A regression is invisible to a
+   * CI runs Node 22, so the guard holds there. A regression is invisible to a
    * developer who runs the suite on Node 24 or later.
    */
 

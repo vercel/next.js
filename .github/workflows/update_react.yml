@@ -62,7 +62,7 @@ jobs:
 
       - name: Setup corepack
         run: |
-          npm i -g corepack@0.34.7
+          npm i -g corepack@0.36.0
           corepack enable
 
       - name: Install dependencies

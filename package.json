@@ -301,7 +301,7 @@
     "yargs": "16.2.0"
   },
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=22.23.4"
   },
   "packageManager": "pnpm@12.9.1"
 }
