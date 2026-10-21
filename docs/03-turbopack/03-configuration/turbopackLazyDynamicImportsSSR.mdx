@@ -4,7 +4,7 @@ description: Compile dynamic imports when server rendering first reaches them du
 version: experimental
 related:
   links:
-    - app/api-reference/config/next-config-js/turbopackLazyDynamicImports
+    - turbopack/configuration/turbopackLazyDynamicImports
 ---
 
 The `experimental.turbopackLazyDynamicImportsSSR` option defers compiling dynamic imports until server rendering first reaches them during `next dev`.
@@ -65,7 +65,7 @@ export function MaybePreview({ showPreview }) {
 > **Good to know:**
 >
 > - The option defaults to `false` and only affects the Node.js runtime with Turbopack during `next dev`. It does not change production builds.
-> - To defer client-side dynamic imports until the browser requests them, use [`turbopackLazyDynamicImports`](/docs/app/api-reference/config/next-config-js/turbopackLazyDynamicImports).
+> - To defer client-side dynamic imports until the browser requests them, use [`turbopackLazyDynamicImports`](/docs/turbopack/configuration/turbopackLazyDynamicImports).
 
 ## Version History
 
