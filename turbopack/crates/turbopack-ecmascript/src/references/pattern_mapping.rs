@@ -383,8 +383,8 @@ async fn to_single_pattern_mapping(
             return Ok(SinglePatternMapping::External(s.clone(), *ty));
         }
         ModuleResolveResultItem::Ignore => return Ok(SinglePatternMapping::Ignored),
-        ModuleResolveResultItem::Unknown(source) => {
-            emit_unknown_module_type_error(**source).await?;
+        ModuleResolveResultItem::Unknown { source, import } => {
+            emit_unknown_module_type_error(**source, *import).await?;
             return Ok(SinglePatternMapping::Unresolvable(
                 "unknown module type".to_string(),
             ));
