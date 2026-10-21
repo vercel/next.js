@@ -11,7 +11,13 @@ const stylusPlugin = path.resolve(
   __dirname,
   './stylus-build-dependency-plugin.js'
 )
-const testLoader = path.resolve(__dirname, './loader.js')
+const testLoader = './loader.js'
+// Check require conditions and application aliases independently in the existing loader chain.
+const testLoaders = [
+  'test-resolution-loader',
+  'test-resolution-loader/aliased',
+  testLoader,
+]
 const postcssLoaders = [
   cssToJsLoader,
   {
@@ -43,13 +49,17 @@ const stylusLoaders = [
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+  experimental: {
+    turbopackFileSystemCacheForDev: true,
+  },
   turbopack: {
     resolveAlias: {
       'build-dependency-package': './aliased-build-dependency.js',
+      'test-resolution-loader/aliased': './resolution-loader/wrong.js',
     },
     rules: {
       '*.ts': {
-        loaders: [testLoader],
+        loaders: testLoaders,
       },
       '*.postcss-test': {
         loaders: postcssLoaders,
@@ -66,9 +76,13 @@ const nextConfig = {
       __dirname,
       './aliased-build-dependency.js'
     )
+    config.resolve.alias['test-resolution-loader/aliased'] = path.resolve(
+      __dirname,
+      './resolution-loader/wrong.js'
+    )
     config.module.rules.push({
       test: /\.ts$/,
-      use: [testLoader],
+      use: testLoaders,
     })
     config.module.rules.push({
       test: /\.postcss-test$/,

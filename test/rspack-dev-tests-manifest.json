@@ -1357,15 +1357,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/app-dir/turbopack-loader-file-dependencies/turbopack-loader-file-dependencies.test.ts": {
-    "passed": [
-      "turbopack-loader-file-dependencies should update when the dependency file changes"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/development/app-dir/typed-env/typed-env-prod.test.ts": {
     "passed": ["typed-env should have env types from next config"],
     "failed": [],
@@ -1422,6 +1413,15 @@
       "webpack-loader-errors error overlay should show error overlay with loader path when a loader throws a plain string",
       "webpack-loader-errors error overlay should show error overlay with loader path when a loader throws an Error",
       "webpack-loader-errors error overlay should show error overlay with loader path when a loader throws an Error without stack"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/webpack-loader-file-dependencies/webpack-loader-file-dependencies.test.ts": {
+    "passed": [
+      "webpack-loader-file-dependencies should update when the dependency file changes"
     ],
     "failed": [],
     "pending": [],

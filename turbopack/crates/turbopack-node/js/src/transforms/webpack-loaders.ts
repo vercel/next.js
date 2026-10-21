@@ -1,7 +1,3 @@
-declare const __turbopack_external_require__: {
-  resolve: (name: string, opt?: { paths: string[] }) => string
-} & ((id: string, thunk: () => any, esm?: boolean) => any)
-
 import type { Channel as Ipc } from '../types'
 import { dirname, resolve as pathResolve } from 'path'
 import {
@@ -124,7 +120,7 @@ type ResolveOptions = {
   importFields?: string[]
 }
 
-const transform = (
+const transform = async (
   ipc: TransformIpc,
   content: string | { binary: string },
   name: string,
@@ -134,19 +130,21 @@ const transform = (
   mode: 'development' | 'production',
   sourceMap: boolean
 ) => {
+  const resource = pathResolve(contextDir, name)
+  const resourceDir = dirname(resource)
+  const resolvedLoaders = await Promise.all(
+    loaders.map(async (config) => {
+      const { loader, options } =
+        typeof config === 'string' ? { loader: config, options: {} } : config
+      const result = (await ipc.sendRequest({
+        type: 'resolveLoader',
+        lookupPaths: [contextDir, resourceDir],
+        request: loader,
+      })) as { path: string }
+      return { loader: result.path, options }
+    })
+  )
   return new Promise((resolve, reject) => {
-    const resource = pathResolve(contextDir, name)
-    const resourceDir = dirname(resource)
-
-    const loadersWithOptions = loaders.map((loader) =>
-      typeof loader === 'string' ? { loader, options: {} } : loader
-    )
-    const resolvedLoaders = loadersWithOptions.map((loader) => ({
-      loader: __turbopack_external_require__.resolve(loader.loader, {
-        paths: [contextDir, resourceDir],
-      }),
-      options: loader.options,
-    }))
     const nodeRequire = createRequire(path.join(contextDir, 'package.json'))
     const buildDependencies = new Set(
       resolvedLoaders.map((loader) => loader.loader)
@@ -173,13 +171,6 @@ const transform = (
         expectedPath,
         bypassExports,
       })
-    }
-    for (let i = 0; i < loadersWithOptions.length; i++) {
-      addBuildModuleRequest(
-        loadersWithOptions[i].loader,
-        contextDir,
-        resolvedLoaders[i].loader
-      )
     }
     const addBuildDependency = (dependency: string) => {
       buildDependencyRequests.add(dependency)
@@ -221,9 +212,7 @@ const transform = (
               ? entry.options
               : {}
           },
-          addBuildDependency(dependency: string) {
-            addBuildDependency(dependency)
-          },
+          addBuildDependency,
           fs: {
             readFile(p: string, optionsOrCb: any, maybeCb: any) {
               ipc
@@ -615,8 +604,8 @@ const transform = (
             ...result.missingDependencies,
           ],
           directories: result.contextDependencies.map((dep) => [dep, '**']),
-          buildFilePaths: [...buildDependencies].sort(),
-          buildModulePaths: buildModuleDependencies.sort(),
+          buildFilePaths: [...buildDependencies],
+          buildModulePaths: buildModuleDependencies,
           buildDependencyRequests: [...buildDependencyRequests]
             .map((dependency) => {
               // Webpack identifies directory build dependencies by a trailing slash or backslash.
@@ -637,24 +626,12 @@ const transform = (
               return [request, isDirectory] as [string, boolean]
             })
             .sort(([a], [b]) => a.localeCompare(b)),
-          buildModuleRequests: [...buildModuleRequests.values()].sort(
-            (a, b) =>
-              a.lookupPath.localeCompare(b.lookupPath) ||
-              a.request.localeCompare(b.request)
-          ),
+          buildModuleRequests: [...buildModuleRequests.values()],
         })
         if (err) {
-          // Resolve loader paths to include in the error message using
+          // Include resolved loader paths in the error message using
           // the same "(from ...)" style as webpack's format-webpack-messages.
-          const loaderPathList = loadersWithOptions.map((l) => {
-            try {
-              return __turbopack_external_require__.resolve(l.loader, {
-                paths: [contextDir, resourceDir],
-              })
-            } catch {
-              return l.loader
-            }
-          })
+          const loaderPathList = resolvedLoaders.map((loader) => loader.loader)
           const loaderPaths = loaderPathList.join(', ')
 
           if (!(err instanceof Error)) {

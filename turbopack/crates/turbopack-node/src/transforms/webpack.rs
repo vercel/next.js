@@ -23,6 +23,7 @@ use turbo_tasks_fs::{
     rope::Rope,
     to_sys_path,
 };
+use turbo_unix_path::sys_to_unix;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     changed::any_source_content_changed_of_module,
@@ -259,16 +260,15 @@ async fn build_dependency_path(
 ) -> Result<Option<FileSystemPath>> {
     match try_loader_path(cwd, path).await {
         Ok(Some(path)) => Ok(Some(path)),
-        Ok(None) if path.ends_with(".node") => {
-            // Native addons may be loaded from outside the watched roots. Node keeps them
-            // loaded for the lifetime of the worker, but their contents can change between
-            // sessions, so do not reuse the loader result from persistent cache.
-            Completion::session_dependent().await?;
-            Ok(None)
-        }
         result => {
+            // Without a tracked dependency, cached results cannot be validated across sessions.
+            Completion::session_dependent().await?;
             let error = match result {
-                Ok(None) => format!("webpack loader path {path:?} is outside configured roots"),
+                Ok(None) => format!(
+                    "webpack loader path {path:?} is outside configured roots. Changes to this \
+                     dependency require restarting the build process. Include the dependency in \
+                     the configured filesystem roots to enable change tracking."
+                ),
                 Err(error) => format!("{error:#}"),
                 Ok(Some(_)) => unreachable!(),
             };
@@ -894,6 +894,11 @@ pub struct WebpackResolveOptions {
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum RequestMessage {
     #[serde(rename_all = "camelCase")]
+    ResolveLoader {
+        lookup_paths: Vec<RcStr>,
+        request: RcStr,
+    },
+    #[serde(rename_all = "camelCase")]
     Resolve {
         options: WebpackResolveOptions,
         lookup_path: RcStr,
@@ -1050,6 +1055,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 // We only process these dependencies to help with tracking, so if it is disabled
                 // dont bother.
                 if turbo_tasks::turbo_tasks().is_tracking_dependencies() {
+                    // Canonicalize dependency sets so their ordering does not create new task keys.
                     let normalize = |mut paths: Vec<RcStr>| {
                         paths.sort_unstable();
                         paths.dedup();
@@ -1181,6 +1187,52 @@ impl EvaluateContext for WebpackLoaderContext {
         _pool: &EvaluatePool,
     ) -> Result<Self::ResponseMessage> {
         match data {
+            RequestMessage::ResolveLoader {
+                lookup_paths,
+                request,
+            } => {
+                let (paths, parsed_request) = if Path::new(&*request).has_root() {
+                    let path = loader_path(&self.cwd, &request).await?;
+                    let parent = path.parent();
+                    let relative = parent.get_relative_request_to(&path).unwrap();
+                    (
+                        vec![parent],
+                        Request::relative(
+                            Pattern::Constant(relative),
+                            RcStr::default(),
+                            RcStr::default(),
+                            false,
+                        ),
+                    )
+                } else {
+                    (
+                        lookup_paths
+                            .iter()
+                            .map(|path| loader_path(&self.cwd, path))
+                            .try_join()
+                            .await?,
+                        Request::parse(Pattern::Constant(RcStr::from(sys_to_unix(&request)))),
+                    )
+                };
+                for path in paths {
+                    let resolved = resolve(
+                        path,
+                        ReferenceType::Undefined,
+                        parsed_request,
+                        node_cjs_resolve_options(),
+                    );
+                    if let Some(source) = resolved.await?.first_source() {
+                        let path = to_sys_path(source.ident().await?.path.clone())
+                            .await?
+                            .context("resolved loader path is not on a disk filesystem")?;
+                        let path = path
+                            .to_str()
+                            .context("resolved loader path is not valid UTF-8")?;
+                        return Ok(ResponseMessage::Resolve { path: path.into() });
+                    }
+                }
+                bail!("Unable to resolve loader {request:?} in {lookup_paths:?}");
+            }
             RequestMessage::Resolve {
                 options: webpack_options,
                 lookup_path,

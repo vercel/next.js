@@ -16,6 +16,13 @@ const loader = async function (content) {
   }
 
   const resourceName = path.basename(this.resourcePath)
+  if (resourceName === 'external-build-dependency.ts') {
+    const value = require(process.env.EXTERNAL_BUILD_DEPENDENCY)
+    return this.callback(
+      null,
+      `export const utilFn = () => ${JSON.stringify(value)};`
+    )
+  }
   if (resourceName === 'native-build-dependency.ts') {
     // Model a native addon already loaded by Node outside the project's watched roots.
     const { Module } = require('node:module')

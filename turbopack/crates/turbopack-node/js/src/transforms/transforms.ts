@@ -41,6 +41,11 @@ export type IpcInfoMessage =
 
 export type IpcRequestMessage =
   | {
+      type: 'resolveLoader'
+      lookupPaths: string[]
+      request: string
+    }
+  | {
       type: 'resolve'
       options: any
       lookupPath: string
