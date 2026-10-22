@@ -4245,7 +4245,7 @@ async fn value_visitor_inner<'a>(
             ) =>
         {
             let (_, args) = call.into_parts();
-            require_context_visitor(arena, origin_path, args).await?
+            require_context_visitor(arena, origin, origin_path, args).await?
         }
         JsValue::Call(_, ref call)
             if matches!(
@@ -4482,6 +4482,7 @@ async fn require_resolve_visitor<'a>(
 
 async fn require_context_visitor<'a>(
     arena: &'a ThreadLocal<Bump>,
+    origin: Vc<Box<dyn ResolveOrigin>>,
     origin_path: &FileSystemPath,
     args: BumpVec<'a, JsValue<'a>>,
 ) -> Result<JsValue<'a>> {
@@ -4507,6 +4508,7 @@ async fn require_context_visitor<'a>(
         dir,
         options.include_subdirs,
         options.filter.cell(),
+        origin.into_trait_ref().await?.resolve_options(),
     );
 
     Ok(JsValue::WellKnownFunction(
