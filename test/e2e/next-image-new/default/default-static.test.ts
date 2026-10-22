@@ -40,7 +40,7 @@ describe('Build Error Tests', () => {
 
 // Deploy mode exclusion: Vercel serves static images with its own
 // `public,max-age=31536000,immutable` Cache-Control instead of Next.js's value.
-// @force-gate !vercel
+// @force-gate !deploy
 describe('Static Image Component Tests', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,

@@ -23,7 +23,7 @@ const withCacheComponents = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 // Deploy mode exclusion: The default "use cache" handler is in-memory per
 // instance, so cached values aren't shared across requests served by
 // different Vercel instances.
-// @force-gate !vercel
+// @force-gate !deploy
 describe('use-cache', () => {
   const { next, isNextDev, isNextDeploy, isNextStart } = nextTestSetup({
     files: __dirname,
