@@ -5,8 +5,8 @@ import cheerio from 'cheerio'
 // without a Suspense boundary so that the priority image preload is committed
 // into <head>. That pattern is incompatible with cache components mode, which
 // errors on uncached runtime data outside of a Suspense boundary.
-// Deploy mode exclusion: This suite patches a source file and runs a local
-// `next build` to assert the build error.
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
 // @force-gate !deploy
 // @force-gate !cacheComponents
 describe('Build Error Tests', () => {
@@ -45,8 +45,8 @@ describe('Build Error Tests', () => {
     )
   })
 })
-// Deploy mode exclusion: Vercel serves static images with its own
-// `public,max-age=31536000,immutable` Cache-Control instead of Next.js's value.
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
 // @force-gate !deploy
 // @force-gate !cacheComponents
 describe('Static Image Component Tests', () => {

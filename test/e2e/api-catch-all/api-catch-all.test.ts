@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
-// Deploy mode exclusion: Vercel serves this trailing-slash redirect from its routing layer
-// with a "Redirecting..." body instead of the destination path.
+// TODO(deploy-test-completion): Assertions may differ from a local Next.js
+// server when deployed.
 // @force-gate !deploy
 describe('API routes', () => {
   const { next } = nextTestSetup({

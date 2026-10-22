@@ -7,8 +7,8 @@ import {
 } from 'e2e-utils'
 import cheerio from 'cheerio'
 
-// Deploy mode exclusion: This suite patches a source file and runs a local
-// `next build` to assert the build error.
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
 // @force-gate !deploy
 describe('Build Error Tests', () => {
   const { next, isTurbopack, isRspack } = nextTestSetup({

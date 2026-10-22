@@ -1,9 +1,8 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { getPrerenderOutput } from './utils'
 
-// Deploy mode exclusion: Each test runs its own `next build` with
-// per-route `--debug-build-paths` and `--debug-prerender` args, which a
-// deployment can't do; covering it would take one deployment per test.
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
 // @force-gate !deploy
 describe('Cache Components Errors - Client Hook Abort Reasons', () => {
   const { next, isTurbopack, isNextStart } = nextTestSetup({
