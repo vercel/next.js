@@ -226,11 +226,6 @@ export function createAppPageEntrypoint({
       setRequestMeta(req, ctx.requestMeta)
     }
 
-    // Dev passes the selected shell's staged params from base-server. Each
-    // render selects its own map without changing this adapter input.
-    const incomingStagedFallbackParams =
-      getRequestMeta(req, 'stagedFallbackParams') ?? null
-
     if (routeModule.isDev) {
       addRequestMeta(
         req,
@@ -290,6 +285,11 @@ export function createAppPageEntrypoint({
     requestSpan: Span | undefined,
     requestRootSpan: Span | undefined
   ) {
+    // Dev passes the selected shell's staged params from base-server. Each
+    // render selects its own map without changing this adapter input.
+    const incomingStagedFallbackParams =
+      getRequestMeta(req, 'stagedFallbackParams') ?? null
+
     const prepareResult = await routeModule.prepare(req, res, {
       srcPage,
       multiZoneDraftMode,
