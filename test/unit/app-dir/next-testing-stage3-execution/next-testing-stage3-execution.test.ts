@@ -288,3 +288,187 @@ describe('runner interrupted execution evidence', () => {
     expect(clean.cases[0].status).toBe('passed')
   })
 })
+
+describe('private scheduling cancellation', () => {
+  function deferred<T>() {
+    let resolve!: (value: T) => void
+    const promise = new Promise<T>((done) => {
+      resolve = done
+    })
+    return { promise, resolve }
+  }
+
+  it('skips the unresolved body and collected queue while actual cleanup sees skip', async () => {
+    const collector = createCollector('user-cancelled')
+    const entered = deferred<void>()
+    const lifetime = new AbortController()
+    const user = new AbortController()
+    const trace: string[] = []
+    collector.api.beforeEach((context) => {
+      trace.push(`beforeEach:${context.task.result?.state}`)
+    })
+    collector.api.afterEach((context) => {
+      trace.push(`afterEach:${context.task.result?.state}`)
+    })
+    collector.api.test('active', async (context) => {
+      context.onTestFinished((finished) => {
+        trace.push(`finished:${finished.task.result?.state}`)
+      })
+      trace.push('body')
+      entered.resolve()
+      await new Promise(() => {})
+      trace.push('body-finished')
+    })
+    collector.api.test('queued', () => {
+      trace.push('queued-body')
+    })
+    const completion = runCollected(
+      collector.close(),
+      {
+        runId: 'user-cancel',
+        signal: lifetime.signal,
+        userCancelSignal: user.signal,
+      },
+      () => {}
+    )
+    await entered.promise
+    user.abort()
+    const result = await completion
+    expect(trace).toEqual([
+      'beforeEach:run',
+      'body',
+      'afterEach:skip',
+      'finished:skip',
+    ])
+    expect(
+      result.cases.map(({ status, errors }) => ({ status, errors }))
+    ).toEqual([
+      { status: 'skipped', errors: [] },
+      { status: 'skipped', errors: [] },
+    ])
+    expect(result.errors).toEqual([])
+    expect(result.interrupted).toBe(false)
+    expect(lifetime.signal.aborted).toBe(false)
+  })
+
+  it('does not enter a body or its hooks after a scheduling cancellation', async () => {
+    const collector = createCollector('already-user-cancelled')
+    const entered = jest.fn()
+    collector.api.beforeEach(entered)
+    collector.api.afterEach(entered)
+    collector.api.test('never started', entered)
+    const result = await runCollected(
+      collector.close(),
+      {
+        runId: 'user-cancel-before-body',
+        signal: new AbortController().signal,
+        userCancelSignal: AbortSignal.abort(),
+      },
+      () => {}
+    )
+    expect(entered).not.toHaveBeenCalled()
+    expect(result.cases[0].status).toBe('skipped')
+    expect(result.interrupted).toBe(false)
+  })
+
+  it('observes the abandoned body rejection from its genuine aborted context while cleanup settles', async () => {
+    const collector = createCollector('user-cancel-late-rejection')
+    const entered = deferred<void>()
+    const cleanupEntered = deferred<void>()
+    const cleanupRelease = deferred<void>()
+    const lateFailure = jest.fn()
+    const user = new AbortController()
+    const reason: unknown[] = []
+    collector.api.afterEach(async (context) => {
+      reason.push({
+        aborted: context.signal.aborted,
+        name: context.signal.reason?.name,
+        message: context.signal.reason?.message,
+        reason: context.signal.reason?.reason,
+      })
+      cleanupEntered.resolve()
+      await cleanupRelease.promise
+    })
+    collector.api.test('active', async (context) => {
+      await new Promise((_, reject) => {
+        context.signal.addEventListener(
+          'abort',
+          () => {
+            reject(new Error('body rejected from its actual signal'))
+          },
+          { once: true }
+        )
+        entered.resolve()
+      })
+    })
+    const completion = runCollected(
+      collector.close(),
+      {
+        runId: 'user-cancel-late-rejection',
+        signal: new AbortController().signal,
+        userCancelSignal: user.signal,
+        onLateFailure: lateFailure,
+      },
+      () => {}
+    )
+    await entered.promise
+    user.abort()
+    await cleanupEntered.promise
+    expect(reason).toEqual([
+      {
+        aborted: true,
+        name: 'TestRunAbortError',
+        message: 'The test run was aborted by the user.',
+        reason: 'keyboard-input',
+      },
+    ])
+    cleanupRelease.resolve()
+    const result = await completion
+    expect(result.cases[0].status).toBe('skipped')
+    expect(result.cases[0].errors).toEqual([])
+    expect(result.interrupted).toBe(false)
+    expect(lateFailure).not.toHaveBeenCalled()
+  })
+
+  it('retains a body rejection which wins before cancellation during cleanup', async () => {
+    const collector = createCollector('body-rejected-before-user-cancel')
+    const user = new AbortController()
+    const failure = new Error('actual body failure before cancellation')
+    collector.api.test('failed body', async () => {
+      throw failure
+    })
+    collector.api.afterEach(() => {
+      user.abort()
+    })
+    const result = await runCollected(
+      collector.close(),
+      {
+        runId: 'body-rejected-before-user-cancel',
+        signal: new AbortController().signal,
+        userCancelSignal: user.signal,
+      },
+      () => {}
+    )
+    expect(result.cases[0].status).toBe('failed')
+    expect(result.cases[0].errors).toEqual([{ phase: 'test', error: failure }])
+    expect(result.interrupted).toBe(false)
+  })
+
+  it('retains hard interruption when both lifetime and scheduling are cancelled', async () => {
+    const collector = createCollector('hard-and-user-cancelled')
+    collector.api.test('never started', () => {
+      throw new Error('must not run')
+    })
+    const result = await runCollected(
+      collector.close(),
+      {
+        runId: 'hard-and-user-cancelled',
+        signal: AbortSignal.abort(),
+        userCancelSignal: AbortSignal.abort(),
+      },
+      () => {}
+    )
+    expect(result.cases[0].status).toBe('cancelled')
+    expect(result.interrupted).toBe(true)
+  })
+})

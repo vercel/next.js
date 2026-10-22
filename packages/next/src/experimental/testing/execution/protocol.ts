@@ -13,12 +13,15 @@ export interface WorkerInput {
   options: Omit<
     ExecuteTestOptions,
     | 'signal'
+    | 'userCancelSignal'
     | 'onEvent'
     | 'onCoverage'
     | 'onCustomCoverage'
     | 'onCustomCoverageSuite'
   >
   customCoverageSuite?: true
+  /** Issued only by the parent which owns the separate scheduling signal. */
+  userCancellation?: true
   cacheScope: { type: 'file'; directory: string }
 }
 

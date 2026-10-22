@@ -50,6 +50,19 @@ export async function executeWithEnvironment(
   )
     throw new Error('Collection cannot request coverage or snapshot updates.')
   const snapshotUpdateMode = resolveSnapshotUpdateMode(options)
+  if (
+    options.userCancelSignal &&
+    (!options.coverage ||
+      options.customCoverage ||
+      options.collectOnly ||
+      snapshotUpdateMode !== 'none' ||
+      artifact.kind !== 'node' ||
+      artifact.profile.environment !== 'node' ||
+      artifact.cohort)
+  )
+    throw new Error(
+      'Scheduling cancellation requires isolated ordinary Node coverage without snapshot writes.'
+    )
   options = {
     ...options,
     snapshotUpdateMode,
@@ -69,6 +82,7 @@ export async function executeWithEnvironment(
     onCustomCoverage,
     onCustomCoverageSuite,
     onSnapshotUpdates,
+    userCancelSignal,
     signal,
     ...workerOptions
   } = options
@@ -124,9 +138,18 @@ export async function executeWithEnvironment(
       options: workerOptions,
       cacheScope: { type: 'file', directory },
       ...(onCustomCoverageSuite ? { customCoverageSuite: true as const } : {}),
+      ...(userCancelSignal ? { userCancellation: true as const } : {}),
     }
     let send!: (message: unknown) => Promise<void>
-    return runTestProcess(require.resolve('./worker'), {
+    let userCancellationSend: Promise<void> | undefined
+    const cancelByUser = () => {
+      // onReady precedes the launch send. Queue this distinct request after it.
+      userCancellationSend ??= Promise.resolve().then(() =>
+        send({ type: 'user-cancel' })
+      )
+      void userCancellationSend.catch(() => {})
+    }
+    const processExit = await runTestProcess(require.resolve('./worker'), {
       cwd: options.projectDir,
       env: {
         ...environment,
@@ -141,6 +164,10 @@ export async function executeWithEnvironment(
       timeoutMs: options.fileTimeout,
       onReady(value) {
         send = value
+        userCancelSignal?.addEventListener('abort', cancelByUser, {
+          once: true,
+        })
+        if (userCancelSignal?.aborted) cancelByUser()
       },
       onMessage(value) {
         if (!value || typeof value !== 'object')
@@ -259,7 +286,11 @@ export async function executeWithEnvironment(
           text: chunk.toString('utf8'),
         })
       },
-    })
+    }).finally(() =>
+      userCancelSignal?.removeEventListener('abort', cancelByUser)
+    )
+    await userCancellationSend
+    return processExit
   }).catch(async (error) => {
     try {
       await customSuite
@@ -311,6 +342,7 @@ export async function executeWithEnvironment(
         artifact.profile.environment === 'node')) &&
     exit.reason === 'exit' &&
     exit.code === 0 &&
+    !userCancelSignal?.aborted &&
     !signal.aborted
   ) {
     try {

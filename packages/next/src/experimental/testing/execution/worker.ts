@@ -42,6 +42,7 @@ type EventPayload<T = ResultEvent> = T extends ResultEvent
 
 const realDateNow = Date.now.bind(Date)
 const controller = new AbortController()
+const userCancellation = new AbortController()
 let running = false
 let releaseNativeAssertionRecords: (() => void) | undefined
 let reportUnhandledRejection:
@@ -105,6 +106,7 @@ async function run({
   options,
   cacheScope,
   customCoverageSuite,
+  userCancellation: allowUserCancellation,
 }: WorkerInput) {
   const started = performance.now()
   const event = (payload: EventPayload, timestamp = realDateNow()) =>
@@ -774,6 +776,9 @@ async function run({
       const result = await file.run({
         runId: options.runId,
         signal: controller.signal,
+        ...(allowUserCancellation
+          ? { userCancelSignal: userCancellation.signal }
+          : {}),
         projectName: options.entry.projectName ?? options.entry.profile.id,
         projectDir: options.projectDir,
         attachmentsDir: options.attachmentsDir,
@@ -1235,6 +1240,7 @@ async function run({
   // decision and commits after this realm has exited successfully.
   const snapshotUpdates =
     options.updateSnapshots &&
+    !(allowUserCancellation && userCancellation.signal.aborted) &&
     !controller.signal.aborted &&
     (status === 'passed' ||
       (status === 'failed' &&
@@ -1275,6 +1281,8 @@ process.on(
   }) => {
     if (message.type === 'cancel')
       controller.abort(new Error('Test file cancelled'))
+    else if (message.type === 'user-cancel')
+      userCancellation.abort(new Error('Test run cancelled by the user.'))
     else if (message.type === 'custom-coverage-suite-received') {
       const pending = pendingCustomSuite
       if (

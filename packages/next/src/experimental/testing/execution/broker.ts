@@ -32,6 +32,7 @@ import { join } from 'node:path'
 type SerializableOptions = Omit<
   ExecuteTestOptions,
   | 'signal'
+  | 'userCancelSignal'
   | 'onEvent'
   | 'onCoverage'
   | 'onCustomCoverage'
@@ -122,6 +123,8 @@ export interface BrowserApplicationOwnership {
 /** The watch parent owns every detached file worker, including after child crash. */
 export function createExecutionBrokerHost(options: {
   signal: AbortSignal
+  /** Parent-owned scheduling request, independent of the generation lifetime. */
+  userCancelSignal?: AbortSignal
   send(message: ExecutionBrokerResponse): Promise<void>
   /** One-shot supervisors only. Watch still rejects coverage. */
   allowCoverage?: boolean
@@ -389,6 +392,7 @@ export function createExecutionBrokerHost(options: {
             {
               ...message.options,
               signal: request.controller.signal,
+              userCancelSignal: options.userCancelSignal,
               onEvent(event) {
                 void publish({
                   type: 'execution-broker-response',
@@ -592,6 +596,7 @@ export function createExecutionBrokerClient(options: {
     const id = randomUUID()
     const {
       signal,
+      userCancelSignal: _userCancelSignal,
       onEvent,
       onCoverage: _onCoverage,
       onCustomCoverage: _onCustomCoverage,
@@ -710,6 +715,7 @@ export function createExecutionBrokerClient(options: {
       executionOptions.some(
         (value) =>
           value.signal !== first.signal ||
+          value.userCancelSignal !== undefined ||
           value.runId !== first.runId ||
           value.projectDir !== first.projectDir ||
           value.coverage ||
@@ -728,6 +734,7 @@ export function createExecutionBrokerClient(options: {
     const serializable = executionOptions.map(
       ({
         signal: _signal,
+        userCancelSignal: _userCancelSignal,
         onEvent: _onEvent,
         onCoverage: _onCoverage,
         onCustomCoverage: _onCustomCoverage,

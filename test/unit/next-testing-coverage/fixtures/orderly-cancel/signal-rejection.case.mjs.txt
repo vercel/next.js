@@ -1,0 +1,30 @@
+import { test, expect, beforeEach, afterEach, onTestFinished } from 'vitest'
+import { watch, existsSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs'
+import { threadId } from 'node:worker_threads'
+import { choose } from './subject.mjs'
+mkdirSync('cancel-settlement', { recursive: true })
+const record = (event, data = {}) => appendFileSync('cancel-settlement/trace.jsonl', JSON.stringify({event, pid: process.pid, threadId, ...data})+'\n')
+process.on('exit', code => record('worker-exit', {code}))
+beforeEach(context => record('beforeEach', {name: context.task.name}))
+afterEach(context => record('afterEach', {name: context.task.name, state: context.task.result?.state}))
+test('controlled cancellation body', async (context) => {
+  onTestFinished(context => record('onTestFinished', {state: context.task.result?.state}))
+  expect(choose(true)).toBe(1)
+  record('body-start')
+  await new Promise((resolve, reject) => {
+    context.signal.addEventListener('abort', () => {
+      record('signal-aborted', {aborted: context.signal.aborted, reason: context.signal.reason?.message})
+      choose(false)
+      reject(new Error('body rejected from its actual signal'))
+    }, { once: true })
+    const watcher = watch('.', () => {
+      if (existsSync('gate-release')) { watcher.close(); resolve() }
+    })
+    writeFileSync('gate-started', 'ready')
+  })
+  record('body-finished')
+}, 10000)
+test('queued after controlled cancellation', () => {
+  record('queued-body')
+  expect(true).toBe(true)
+})

@@ -109,6 +109,7 @@ async function runCohort(
   for (const value of options) {
     if (
       value.signal !== first.signal ||
+      value.userCancelSignal !== undefined ||
       value.runId !== first.runId ||
       value.projectDir !== first.projectDir ||
       value.collectOnly ||
@@ -200,6 +201,7 @@ async function runCohort(
       const value = options[index]
       const {
         signal,
+        userCancelSignal: _userCancelSignal,
         onEvent: _onEvent,
         onCoverage: _onCoverage,
         onSnapshotUpdates: _onSnapshotUpdates,

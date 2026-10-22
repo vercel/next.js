@@ -184,6 +184,8 @@ export interface RunnerOptions {
   ): Promise<TestArtifact>
   runId: string
   signal: AbortSignal
+  /** Scheduling only: skip active/queued bodies while actual cleanup still runs. */
+  userCancelSignal?: AbortSignal
   testTimeout?: number
   hookTimeout?: number
   testNamePattern?: string | RegExp
@@ -852,6 +854,7 @@ export async function runCollected(
         let sealed = false
         let integration: AttemptIntegration | undefined
         let pending = false
+        let cancelledByUser = false
         let skipNote: string | undefined
         let skipSignals = 0
         let currentlyFailed = errors.length > 0
@@ -859,10 +862,13 @@ export async function runCollected(
         const bodyDeadlineOperations = new Set<TimedOperation>()
         const historicalBodyAbort =
           caseState.recoveredBodyDeadline && controller.signal.aborted
+        let userCancellationReason: Error | undefined
         const isAttemptAborted = () =>
           options.signal.aborted ||
           attemptTimedOut ||
-          (controller.signal.aborted && !historicalBodyAbort)
+          (controller.signal.aborted &&
+            !historicalBodyAbort &&
+            controller.signal.reason !== userCancellationReason)
         const forwardedSoftErrors = new Set<unknown>()
         const publishedFailures = new Set<RunnerFailure>()
         const annotationOperations: {
@@ -937,16 +943,57 @@ export async function runCollected(
             if (publicTask.result.hooks[hook] !== 'fail')
               publicTask.result.hooks[hook] = 'run'
           }
-          const operation =
+          let operation =
             phase === 'test' || !options.runWithCasePhase
               ? fn
               : () => options.runWithCasePhase!(phase, fn)
+          const userCancelSignal = options.userCancelSignal
+          const userCancellation = {}
+          if (phase === 'test' && userCancelSignal) {
+            const body = operation
+            operation = async () => {
+              if (userCancelSignal.aborted) throw userCancellation
+              let cancel!: () => void
+              const cancelled = new Promise<never>((_, reject) => {
+                cancel = () => {
+                  reject(userCancellation)
+                  userCancellationReason = Object.assign(
+                    new Error('The test run was aborted by the user.'),
+                    { name: 'TestRunAbortError', reason: 'keyboard-input' }
+                  )
+                  controller.abort(userCancellationReason)
+                }
+                userCancelSignal.addEventListener('abort', cancel, {
+                  once: true,
+                })
+                if (userCancelSignal.aborted) cancel()
+              })
+              try {
+                return await Promise.race([
+                  Promise.resolve().then(() => {
+                    if (userCancelSignal.aborted) throw userCancellation
+                    return body()
+                  }),
+                  cancelled,
+                ])
+              } finally {
+                userCancelSignal.removeEventListener('abort', cancel)
+              }
+            }
+          }
           const value = await capture(
             phase,
             operation,
             failures,
             timeout,
             (error) => {
+              if (error === userCancellation) {
+                cancelledByUser = true
+                for (const assertionError of integration?.markSkipped?.() ?? [])
+                  failures.push({ phase: 'assertion', error: assertionError })
+                if (publicTask.result) publicTask.result.state = 'skip'
+                return true
+              }
               if (error && typeof error === 'object' && ownedSkips.has(error)) {
                 skipSignals++
                 handledSkip = true
@@ -1248,6 +1295,8 @@ export async function runCollected(
                 caseResult.bail = true
               } else if (poisoned || options.signal.aborted)
                 caseResult.status = 'cancelled'
+              else if (options.userCancelSignal?.aborted)
+                caseResult.status = 'skipped'
               else {
                 setActive(context)
                 await options.onCaseStart?.(context)
@@ -1426,7 +1475,9 @@ export async function runCollected(
                       }
                     }
                     if (publicTask.result && !currentlyFailed)
-                      publicTask.result.state = 'pass'
+                      publicTask.result.state = cancelledByUser
+                        ? 'skip'
+                        : 'pass'
                     let skippedTeardown = false
                     let failedTeardown = false
                     teardownHooks: for (const parent of [
@@ -1615,7 +1666,9 @@ export async function runCollected(
                   ? 'failed'
                   : isAttemptAborted()
                     ? 'cancelled'
-                    : 'passed'
+                    : cancelledByUser
+                      ? 'skipped'
+                      : 'passed'
               }
             } finally {
               sealed = true

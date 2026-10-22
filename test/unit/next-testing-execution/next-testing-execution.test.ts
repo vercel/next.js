@@ -2739,6 +2739,21 @@ describe('parent API with the actual shared child host', () => {
     }
   })
 
+  it('refuses a private scheduling signal before launching an actual shared worker', async () => {
+    const fixture = parentFixture()
+    try {
+      fixture.options[0].userCancelSignal = new AbortController().signal
+      await expect(fixture.run()).rejects.toThrow(
+        'Shared workers require one serial development Node execution'
+      )
+      expect(fixture.cacheDirectories()).toEqual([])
+      expect(existsSync(path.join(fixture.project, 'worker-pid'))).toBe(false)
+      expect(fixture.events).toEqual([[], []])
+    } finally {
+      fixture.cleanup()
+    }
+  })
+
   it('publishes actual snapshot bytes only after worker fixture disposal, process exit and cache removal', async () => {
     const fixture = parentFixture('snapshots')
     try {

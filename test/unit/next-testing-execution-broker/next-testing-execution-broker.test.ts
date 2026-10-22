@@ -1244,3 +1244,82 @@ it('refuses a runtime config artifact before launching a worker without parent a
     spy.mockRestore()
   }
 })
+
+it('omits the scheduling signal from compiler IPC and preserves the lifetime channel', async () => {
+  const channel = transport(true)
+  const lifetime = new AbortController()
+  const user = new AbortController()
+  const completion = channel.client.execute(artifact, {
+    ...options,
+    signal: lifetime.signal,
+    userCancelSignal: user.signal,
+    coverage: { version: 1, kind: 'node-line' },
+    async onCoverage() {},
+  })
+  const request = await channel.launched
+  expect(request.action).toBe('execute')
+  if (request.action !== 'execute') throw new Error('Expected execution')
+  expect(request.options).not.toHaveProperty('userCancelSignal')
+  expect(request.options).not.toHaveProperty('signal')
+  user.abort()
+  expect(channel.sent.map(({ action }) => action)).toEqual(['execute'])
+  expect(lifetime.signal.aborted).toBe(false)
+  channel.client.handle({
+    type: 'execution-broker-response',
+    action: 'result',
+    id: request.id,
+    result,
+  })
+  expect(await completion).toEqual(result)
+})
+
+it('uses only the host scheduling signal and retains the worker until actual completion', async () => {
+  const execution = await import(
+    'next/dist/experimental/testing/execution/execute'
+  )
+  const entered = deferred<void>()
+  const closed = deferred<void>()
+  const received = deferred<void>()
+  const user = new AbortController()
+  let fileLifetime: AbortSignal | undefined
+  const spy = jest
+    .spyOn(execution, 'executeWithEnvironment')
+    .mockImplementation(async (_artifact, input) => {
+      expect(input.userCancelSignal).toBe(user.signal)
+      fileLifetime = input.signal
+      entered.resolve()
+      await closed.promise
+      return result
+    })
+  const sent: ExecutionBrokerResponse[] = []
+  const host = createExecutionBrokerHost({
+    signal: new AbortController().signal,
+    userCancelSignal: user.signal,
+    allowCoverage: true,
+    async send(message) {
+      sent.push(message)
+      if (message.action === 'result') received.resolve()
+    },
+  })
+  try {
+    host.handle({
+      type: 'execution-broker-request',
+      action: 'execute',
+      id: 'user-cancel-authority',
+      artifact,
+      options: { ...options, coverage: { version: 1, kind: 'node-line' } },
+      env: { ...process.env },
+    })
+    await entered.promise
+    user.abort()
+    expect(fileLifetime?.aborted).toBe(false)
+    expect(sent).toEqual([])
+    closed.resolve()
+    await received.promise
+    expect(sent.at(-1)).toMatchObject({ action: 'result', result })
+  } finally {
+    closed.resolve()
+    await host.close()
+    spy.mockRestore()
+  }
+})

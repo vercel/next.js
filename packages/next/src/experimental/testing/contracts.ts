@@ -441,6 +441,8 @@ export interface ExecuteTestOptions {
   hookTimeout: number
   /** Outer process deadline, independent of the case/hook timeout. */
   fileTimeout: number
+  /** Parent-only scheduling cancellation; never aborts the file's lifetime. */
+  userCancelSignal?: AbortSignal
   signal: AbortSignal
   onEvent(event: ResultEvent): void
   browser?: {

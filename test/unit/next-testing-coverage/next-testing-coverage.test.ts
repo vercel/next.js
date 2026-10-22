@@ -10288,3 +10288,18 @@ describe('project-configured V8 coverage watch', () => {
     310000
   )
 })
+
+it('captures fresh orderly-cancel coverage only after actual dev/prod worker closure', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'orderly-cancel-producer.cjs')],
+    { encoding: 'utf8', timeout: 190000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 4,
+    cases: 8,
+    completeReports: 4,
+    closedWorkers: 4,
+  })
+}, 200000)
