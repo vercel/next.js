@@ -20,6 +20,7 @@ import { printBuildErrors } from '../print-build-errors'
 import { normalizePath } from '../../lib/normalize-path'
 import type { ProjectOptions, RawEntrypoints } from '../swc/types'
 import { Bundler } from '../../lib/bundler'
+import { BUILTIN_INSTRUMENTATION_SOURCE } from '../builtin-instrumentation'
 import { getStrictRouteMatchingDefaultWarning } from '../../server/lib/router-utils/strict-route-matching-config'
 
 export async function turbopackBuild(telemetry: Telemetry): Promise<{
@@ -103,6 +104,7 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
     isPersistentCachingEnabled: persistentCaching,
     deferredEntries: config.experimental.deferredEntries,
     nextVersion: process.env.__NEXT_VERSION as string,
+    builtinInstrumentationSource: BUILTIN_INSTRUMENTATION_SOURCE,
   }
 
   if (config.experimental.turbopackSeedCacheFromWorktree) {

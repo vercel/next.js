@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 import { createDefineEnv, loadBindings } from 'next/dist/build/swc'
+import { BUILTIN_INSTRUMENTATION_SOURCE } from 'next/dist/build/builtin-instrumentation'
 import type {
   Issue,
   MemoryEvictionMode,
@@ -154,6 +155,7 @@ const { PHASE_DEVELOPMENT_SERVER } = require('next/constants');
 const loadConfig = require('next/dist/server/config');
 const { loadBindings } = require('next/dist/build/swc');
 const { createDefineEnv } = require('next/dist/build/swc');
+const { BUILTIN_INSTRUMENTATION_SOURCE } = require('next/dist/build/builtin-instrumentation');
 async function main() {
   const nextConfig = await loadConfig.default(
     PHASE_DEVELOPMENT_SERVER,
@@ -201,6 +203,7 @@ async function main() {
     currentNodeJsVersion: '18.0.0',
     isPersistentCachingEnabled: false,
     nextVersion: '0.0.0',
+    builtinInstrumentationSource: BUILTIN_INSTRUMENTATION_SOURCE,
   }, {
     turbopackMemoryEviction: 'off',
   });
@@ -362,6 +365,7 @@ describe('next.rs api', () => {
         currentNodeJsVersion: '18.0.0',
         isPersistentCachingEnabled: false,
         nextVersion: '0.0.0',
+        builtinInstrumentationSource: BUILTIN_INSTRUMENTATION_SOURCE,
       },
       {
         turbopackMemoryEviction: 'off' as MemoryEvictionMode,

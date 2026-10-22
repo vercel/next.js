@@ -446,6 +446,11 @@ export interface NapiProjectOptions {
   nextVersion: RcStr
   /** Whether server-side HMR is enabled (disabled with --no-server-fast-refresh). */
   serverHmr?: boolean
+  /**
+   * The instrumentation module compiled when `tracing: true` and the project has no
+   * instrumentation file.
+   */
+  builtinInstrumentationSource: RcStr
 }
 
 /** Keep in sync with [`next_core::next_config::Rewrite`] */

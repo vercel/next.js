@@ -50,8 +50,8 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
-    DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, FileContent, FileSystem, FileSystemPath,
-    VirtualFileSystem, invalidation,
+    DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, File, FileContent, FileSystem,
+    FileSystemPath, VirtualFileSystem, invalidation,
 };
 use turbo_unix_path::join_path;
 use turbopack::{
@@ -60,6 +60,7 @@ use turbopack::{
 };
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME,
+    asset::AssetContent,
     changed::content_changed,
     chunk::{
         ChunkingContext, EvaluatableAssets, UnusedReferences,
@@ -89,9 +90,11 @@ use turbopack_core::{
     reference::all_assets_from_entries,
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{FindContextFileResult, find_context_file},
+    source::{OptionSource, Source},
     version::{
         NotFoundVersion, OptionVersionedContent, Update, Version, VersionState, VersionedContent,
     },
+    virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::async_chunk::proxy::{
     activation_key_from_chunk_path, lazy_compilation_state,
@@ -364,6 +367,10 @@ pub struct ProjectOptions {
 
     /// Whether server-side HMR is enabled (disabled with `--no-server-fast-refresh`).
     pub server_hmr: bool,
+
+    /// The instrumentation module compiled when `tracing: true` and the project has no
+    /// instrumentation file. Owned by packages/next/src/build/builtin-instrumentation.ts.
+    pub builtin_instrumentation_source: RcStr,
 }
 
 /// The subset of [`ProjectOptions`] that may change without restarting the process. Used by
@@ -916,6 +923,7 @@ impl ProjectContainer {
         let deferred_entries;
         let is_persistent_caching_enabled;
         let server_hmr;
+        let builtin_instrumentation_source;
         let project_file_system;
         let output_file_system;
         let additional_roots;
@@ -951,6 +959,7 @@ impl ProjectContainer {
             deferred_entries = options.deferred_entries.clone().unwrap_or_default();
             is_persistent_caching_enabled = options.is_persistent_caching_enabled;
             server_hmr = options.server_hmr;
+            builtin_instrumentation_source = options.builtin_instrumentation_source.clone();
             project_file_system = file_systems.project_file_system;
             output_file_system = file_systems.output_file_system;
             additional_roots = self.additional_roots_state.get().iter().cloned().collect();
@@ -985,6 +994,7 @@ impl ProjectContainer {
             deferred_entries,
             is_persistent_caching_enabled,
             server_hmr,
+            builtin_instrumentation_source,
             project_file_system,
             output_file_system,
             additional_roots,
@@ -1091,6 +1101,9 @@ pub struct Project {
 
     /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     server_hmr: bool,
+
+    /// See [`ProjectOptions::builtin_instrumentation_source`].
+    builtin_instrumentation_source: RcStr,
 
     project_file_system: OperationVc<DiskFileSystem>,
     output_file_system: OperationVc<DiskFileSystem>,
@@ -2193,8 +2206,7 @@ impl Project {
             None
         };
 
-        let instrumentation = self.find_instrumentation();
-        let instrumentation = if let FindContextFileResult::Found(..) = *instrumentation.await? {
+        let instrumentation = if self.instrumentation_source().await?.is_some() {
             Some(Instrumentation {
                 node_js: self.instrumentation_endpoint(false).to_resolved().await?,
                 edge: self.instrumentation_endpoint(true).to_resolved().await?,
@@ -2533,16 +2545,40 @@ impl Project {
         ))
     }
 
+    /// The source compiled into the instrumentation slot: the project file `find_instrumentation`
+    /// finds (including one in a parent directory), else the built-in when `tracing: true`, else
+    /// none. `entrypoints` and `instrumentation_endpoint` both read this, so they cannot disagree.
+    #[turbo_tasks::function]
+    async fn instrumentation_source(self: Vc<Self>) -> Result<Vc<OptionSource>> {
+        if let FindContextFileResult::Found(fs_path, _) = &*self.find_instrumentation().await? {
+            let source = Vc::upcast::<Box<dyn Source>>(FileSource::new(fs_path.clone()));
+            return Ok(Vc::cell(Some(source.to_resolved().await?)));
+        }
+        if !*self.next_config().builtin_instrumentation_enabled().await? {
+            return Ok(Vc::cell(None));
+        }
+        // Not a convention file name, so discovery never treats it as a project file.
+        let path = self
+            .project_path()
+            .await?
+            .join("instrumentation.builtin.js")?;
+        let content = File::from(self.await?.builtin_instrumentation_source.clone());
+        let source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(
+            path,
+            AssetContent::file(FileContent::Content(content).cell()),
+        ));
+        Ok(Vc::cell(Some(source.to_resolved().await?)))
+    }
+
     #[turbo_tasks::function]
     async fn instrumentation_endpoint(
         self: Vc<Self>,
         is_edge: bool,
     ) -> Result<Vc<Box<dyn Endpoint>>> {
-        let instrumentation = self.find_instrumentation();
-        let FindContextFileResult::Found(fs_path, _) = &*instrumentation.await? else {
+        let Some(source) = *self.instrumentation_source().await? else {
             return Ok(Vc::upcast(EmptyEndpoint::new(self)));
         };
-        let source = Vc::upcast(FileSource::new(fs_path.clone()));
+        let source = *source;
         let app_dir = find_app_dir(self.project_path().owned().await?)
             .owned()
             .await?;
