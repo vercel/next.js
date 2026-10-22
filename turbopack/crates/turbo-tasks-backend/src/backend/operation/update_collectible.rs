@@ -7,11 +7,13 @@ use crate::{
     backend::{
         TaskDataCategory,
         operation::{
-            AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue, ExecuteContext,
+            AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue,
+            CollectiblesUpdateVec, ExecuteContext,
         },
         storage_schema::TaskStorageAccessors,
     },
     data::CollectibleRef,
+    utils::swap_retain,
 };
 
 pub struct UpdateCollectibleOperation;
@@ -26,7 +28,7 @@ impl UpdateCollectibleOperation {
     /// graph.
     pub fn run_batch(
         task_id: TaskId,
-        mut collectibles: SmallVec<[(CollectibleRef, i32); 1]>,
+        mut collectibles: CollectiblesUpdateVec,
         mut ctx: ExecuteContext<'_>,
     ) {
         if collectibles.is_empty() {
@@ -48,7 +50,7 @@ impl UpdateCollectibleOperation {
         }
         let mut queue = AggregationUpdateQueue::new();
         let mut invalidated_types: SmallVec<[TraitTypeId; 1]> = SmallVec::new();
-        collectibles.retain(|(collectible, count)| {
+        swap_retain(&mut collectibles, |(collectible, count)| {
             let collectible = *collectible;
             let outdated = task.get_outdated_collectibles(&collectible).copied();
             if let Some(outdated) = outdated {
@@ -92,7 +94,7 @@ impl UpdateCollectibleOperation {
         if !collectibles.is_empty() {
             queue.extend(AggregationUpdateJob::data_update(
                 &mut task,
-                AggregatedDataUpdate::new().collectibles_update(collectibles.into_vec()),
+                AggregatedDataUpdate::new().collectibles_update(collectibles),
             ));
         }
 

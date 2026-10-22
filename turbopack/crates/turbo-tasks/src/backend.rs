@@ -704,21 +704,15 @@ pub trait Backend: Sized + Sync + Send {
     );
 
     /// Unemits every collectible with a positive count in `collectibles` from `task`, as if
-    /// [`Backend::unemit_collectible`] was called for each of them. Backends should override this
-    /// to apply all of them in a single operation.
+    /// [`Backend::unemit_collectible`] was called for each of them, but applied as a single
+    /// operation.
     fn unemit_collectibles(
         &self,
         trait_type: TraitTypeId,
         collectibles: &TaskCollectiblesMap,
         task: TaskId,
         turbo_tasks: &TurboTasks<Self>,
-    ) {
-        for (&collectible, &count) in collectibles {
-            if count > 0 {
-                self.unemit_collectible(trait_type, collectible, count as u32, task, turbo_tasks);
-            }
-        }
-    }
+    );
 
     fn update_task_cell(
         &self,
