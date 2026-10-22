@@ -28,6 +28,8 @@ export type {
   TestBody,
   TestOptions,
   SuiteOptions,
+  SuiteCollector,
+  TaskCustomOptions,
   OnTestFinishedHandler,
   OnTestFailedHandler,
 } from './runner/collector'
@@ -94,6 +96,10 @@ import {
 // Resolve on use: setup helpers and the spec must share the emitted runner instance.
 function declaration(name: 'test' | 'describe'): any {
   const members = new Map<PropertyKey, unknown>()
+  const declarationMembers =
+    name === 'test'
+      ? testDeclarationMembers
+      : ['each', 'for', 'skipIf', 'runIf']
   let initialized = false
   const raw = function (
     this: unknown,
@@ -101,13 +107,15 @@ function declaration(name: 'test' | 'describe'): any {
     _optionsOrFn?: unknown,
     _optionsOrTest?: unknown
   ) {
-    return Reflect.apply(getTestApi().test.fn, this, Array.from(arguments))
+    return Reflect.apply(getTestApi()[name].fn, this, Array.from(arguments))
   }
-  Object.defineProperty(raw, 'name', { value: '' })
+  Object.defineProperty(raw, 'name', {
+    value: name === 'test' ? '' : 'suiteFn',
+  })
   const target = function (...args: unknown[]) {
     return Reflect.apply(getTestApi()[name], undefined, args)
   }
-  if (name === 'test') Object.defineProperty(target, 'fn', { value: raw })
+  Object.defineProperty(target, 'fn', { value: raw })
   function member(key: PropertyKey) {
     const value = Reflect.get(getTestApi()[name], key)
     if (!members.has(key)) {
@@ -130,7 +138,7 @@ function declaration(name: 'test' | 'describe'): any {
   }
   function initialize() {
     if (initialized) return
-    for (const key of testDeclarationMembers)
+    for (const key of declarationMembers)
       Object.defineProperty(raw, key, {
         value: member(key),
         enumerable: true,
@@ -141,22 +149,18 @@ function declaration(name: 'test' | 'describe'): any {
   }
   return new Proxy(target, {
     get(declarationTarget, key, receiver) {
-      if (name === 'test' && key === 'fn') {
+      if (key === 'fn') {
         initialize()
         // Read the current declaration too, retaining its originating scope guard.
-        Reflect.get(getTestApi().test, key)
+        Reflect.get(getTestApi()[name], key)
         return Reflect.get(declarationTarget, key, receiver)
       }
-      if (
-        name === 'test' &&
-        typeof key === 'string' &&
-        testDeclarationMembers.includes(key)
-      )
+      if (typeof key === 'string' && declarationMembers.includes(key))
         return member(key)
       return Reflect.get(getTestApi()[name], key)
     },
     getOwnPropertyDescriptor(declarationTarget, key) {
-      if (name === 'test' && key === 'fn') initialize()
+      if (key === 'fn') initialize()
       return Reflect.getOwnPropertyDescriptor(declarationTarget, key)
     },
   })

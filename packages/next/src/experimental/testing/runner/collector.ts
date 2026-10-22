@@ -6,7 +6,9 @@ import type {
   TestTag,
   TestTagDefinition,
   Suite,
+  File,
 } from './tasks'
+import { getCollectionTaskView } from './tasks'
 import type { TestExpect } from '../assertions'
 import type { ProvidedContext } from '../vitest'
 import type { TestError } from '../../../compiled/next-test-primitives'
@@ -450,6 +452,12 @@ export interface TestDeclaration<
 }
 
 export interface SuiteDeclaration<Context extends object = TestContext> {
+  readonly fn: (
+    this: Record<'concurrent' | 'only' | 'skip' | 'todo' | 'shuffle', any>,
+    name: Name,
+    options: SuiteOptions,
+    fn?: (test: TestDeclaration<{}, Context>) => void | PromiseLike<void>
+  ) => SuiteCollector<Omit<Context, keyof TestContext>>
   <ExtraContext extends object = object>(
     name: Name,
     fn: (test: TestDeclaration<ExtraContext, Context>) => unknown,
@@ -481,6 +489,51 @@ export interface SuiteDeclaration<Context extends object = TestContext> {
   ): EachDeclaration<any[], SuiteOptions>
   skipIf(condition: unknown): SuiteDeclaration<Context>
   runIf(condition: unknown): SuiteDeclaration<Context>
+}
+
+export interface TaskCustomOptions extends TestOptions {
+  each?: boolean
+  handler?: (context: TestContext) => void | PromiseLike<void>
+}
+
+export interface SuiteHooks<ExtraContext extends object = object> {
+  beforeAll: ((suite: Readonly<Suite | File>) => unknown)[]
+  afterAll: ((suite: Readonly<Suite | File>) => unknown)[]
+  beforeEach: ((
+    context: TestContext & ExtraContext,
+    suite: Readonly<Suite>
+  ) => unknown)[]
+  afterEach: ((
+    context: TestContext & ExtraContext,
+    suite: Readonly<Suite>
+  ) => unknown)[]
+  aroundEach: ((
+    runTest: () => Promise<void>,
+    context: TestContext & ExtraContext,
+    suite: Readonly<Suite>
+  ) => unknown)[]
+  aroundAll: ((
+    runSuite: () => Promise<void>,
+    suite: Readonly<Suite | File>
+  ) => unknown)[]
+}
+
+export interface SuiteCollector<ExtraContext extends object = object> {
+  type: 'collector'
+  readonly name: string
+  readonly mode: TestMode
+  suite?: Suite
+  options?: SuiteOptions
+  test: TestDeclaration<ExtraContext>
+  file: File
+  tasks: (Suite | Test<ExtraContext> | SuiteCollector<ExtraContext>)[]
+  collect(file: File): Promise<Suite>
+  task(name: string, options?: TaskCustomOptions): Test<ExtraContext>
+  clear(): void
+  on<HookKey extends keyof SuiteHooks<ExtraContext>>(
+    name: HookKey,
+    ...listeners: SuiteHooks<ExtraContext>[HookKey]
+  ): void
 }
 
 export function validateOptions(
@@ -688,6 +741,7 @@ export interface CollectorDispatch {
 export function createCollector(
   fileId: string,
   config: {
+    filePath?: string
     tags?: readonly TestTagDefinition[]
     strictTags?: boolean
     sequence?: TestSequenceOptions
@@ -706,6 +760,12 @@ export function createCollector(
   const suiteStorage = createDeclarationStorage<TestSuite>()
   const pending: Promise<PromiseSettledResult<unknown>>[] = []
   const pendingDeclarations: (() => void)[] = []
+  const rawSuites: {
+    collected: boolean
+    collect(file: File, automatic?: boolean): Promise<Suite>
+    api?: SuiteCollector
+  }[] = []
+  const rawSuiteNodes = new WeakMap<TestSuite, (typeof rawSuites)[number]>()
   let initializing = true
   let closed = false
 
@@ -718,6 +778,150 @@ export function createCollector(
       throw new Error(
         'Test declarations require their active file collection scope.'
       )
+  }
+
+  const publicTask = (node: TestSuite | TestCase) =>
+    getCollectionTaskView(root, node, {
+      filePath: config.filePath,
+      testTimeout: config.getRuntimeConfig?.().testTimeout ?? 5000,
+    })
+
+  function publishSuite(node: TestSuite): Suite {
+    const view = publicTask(node) as Suite
+    view.tasks = node.children.map((child) =>
+      child.type === 'suite' ? publishSuite(child) : publicTask(child)
+    )
+    return view
+  }
+
+  function rawSuite(
+    name: Name,
+    factory: Function | undefined,
+    mode: TestMode,
+    options: SuiteOptions
+  ): SuiteCollector {
+    assertCollecting()
+    const parent = currentSuite()
+    const id = `${parent.id}/${parent.children.length}`
+    let node = suite(id, formatName(name), mode, parent, options)
+    parent.children.push(node)
+    const tasks: SuiteCollector['tasks'] = []
+    const ownedTest = declaration('test', 'run')
+    Object.defineProperties(ownedTest, {
+      name: { value: 'chain' },
+      length: { value: 0 },
+    })
+    const test = new Proxy(ownedTest, {
+      apply(target, receiver, args) {
+        assertCollecting()
+        suiteStorage.run(node, () => Reflect.apply(target, receiver, args))
+        refreshTasks()
+      },
+    })
+    function refreshTasks() {
+      tasks.length = 0
+      for (const child of node.children)
+        tasks.push(
+          child.type === 'suite' && rawSuiteNodes.has(child)
+            ? rawSuiteNodes.get(child)!.api!
+            : publicTask(child)
+        )
+    }
+    const state = {
+      collected: false,
+      async collect(file: File, automatic = false): Promise<Suite> {
+        assertCollecting()
+        if (!file) throw new TypeError('File is required to collect tasks.')
+        if (automatic) state.collected = true
+        if (factory) await suiteStorage.run(node, () => factory(test))
+        async function descendants(container: TestSuite) {
+          for (const child of container.children) {
+            if (child.type !== 'suite') continue
+            const nested = rawSuiteNodes.get(child)
+            if (nested) await nested.collect(file, automatic)
+            else await descendants(child)
+          }
+        }
+        await descendants(node)
+        refreshTasks()
+        return publishSuite(node)
+      },
+    }
+    async function collect(file: File) {
+      return state.collect(file)
+    }
+    function task(taskName = '', taskOptions: TaskCustomOptions = {}) {
+      assertCollecting()
+      if (currentSuite() !== node)
+        return unsupported('SuiteCollector.task outside its live factory')
+      const { handler, each, ...testOptions } = taskOptions
+      const previous = node.children.length
+      test(taskName, testOptions, handler)
+      const registered = node.children[previous]
+      const view = publicTask(registered) as Test & { each?: boolean }
+      if (each !== undefined) view.each = each
+      refreshTasks()
+      return view
+    }
+    function clear() {
+      assertCollecting()
+      const previous = node
+      node = suite(id, previous.name, previous.mode, parent, options)
+      const index = parent.children.indexOf(previous)
+      parent.children[index] = node
+      rawSuiteNodes.delete(previous)
+      rawSuiteNodes.set(node, state)
+      tasks.length = 0
+    }
+    function addHook(hookName: keyof SuiteHooks, ...listeners: Function[]) {
+      assertCollecting()
+      suiteStorage.run(node, () => {
+        for (const listener of listeners) {
+          if (hookName === 'aroundAll')
+            around(hookName)(
+              (
+                runSuite: () => Promise<void>,
+                _context: unknown,
+                publicSuite: Readonly<Suite | File>
+              ) => listener(runSuite, publicSuite)
+            )
+          else if (hookName === 'aroundEach')
+            around(hookName)(listener as AroundEachBody)
+          else if (hookName === 'beforeAll' || hookName === 'afterAll')
+            hook(hookName)(
+              (
+                _context: InternalTestContext,
+                publicSuite?: Readonly<Suite | File>
+              ) => listener(publicSuite)
+            )
+          else if (hookName === 'beforeEach' || hookName === 'afterEach')
+            hook(hookName)((context) =>
+              listener(context, context.task.suite ?? context.task.file)
+            )
+          else unsupported(`SuiteCollector.on(${String(hookName)})`)
+        }
+      })
+    }
+    Object.defineProperties(collect, { name: { value: 'collect' } })
+    Object.defineProperties(addHook, { name: { value: 'addHook' } })
+    const api: SuiteCollector = {
+      type: 'collector',
+      name: node.name,
+      mode,
+      suite: publicTask(node) as Suite,
+      options,
+      test,
+      file: publicTask(root) as File,
+      tasks,
+      collect,
+      task,
+      clear,
+      on: addHook,
+    }
+    Object.assign(state, { api })
+    rawSuites.push(state)
+    rawSuiteNodes.set(node, state)
+    return api
   }
 
   function declaration(
@@ -807,6 +1011,15 @@ export function createCollector(
             : options.todo
               ? 'todo'
               : mode
+        if (rawSuiteNodes.has(current)) {
+          rawSuite(
+            name,
+            fn,
+            !fn && optionMode === 'run' ? 'todo' : optionMode,
+            inheritedOptions
+          )
+          return
+        }
         const child = suite(
           id,
           name,
@@ -1005,7 +1218,7 @@ export function createCollector(
         Reflect.apply(target, receiver, args)
       },
       get(target, key, receiver) {
-        if (key === 'fn' && kind === 'test') {
+        if (key === 'fn') {
           assertScopeActive()
           updateSuiteAlias()
           return Reflect.get(target, key, receiver)
@@ -1295,6 +1508,87 @@ export function createCollector(
       else initialize()
       Object.defineProperty(declare, 'fn', { value: raw })
     }
+    if (kind === 'suite' && rootChain) {
+      function suiteFn(
+        this: any,
+        name: Name,
+        optionsOrFn?: SuiteOptions | Function,
+        optionsOrFactory?: Function | number
+      ) {
+        assertScopeActive()
+        if (getOriginatingAttempt())
+          throw new Error(
+            'Calling the suite function inside test function is not allowed. It can be only called at the top level or inside another suite function.'
+          )
+        const active = redirected()
+        if (active)
+          return Reflect.apply(active.fn, this, [
+            name,
+            optionsOrFn,
+            optionsOrFactory,
+          ])
+        assertCollecting()
+        if (optionsOrFactory != null && typeof optionsOrFactory === 'object')
+          throw new TypeError(
+            'Signature "test(name, fn, { ... })" was deprecated in Vitest 3 and removed in Vitest 4. Please, provide options as a second argument instead.'
+          )
+        let own: SuiteOptions = {}
+        let factory: Function | undefined
+        if (typeof optionsOrFactory === 'number')
+          own = { timeout: optionsOrFactory }
+        else if (typeof optionsOrFn === 'object') own = optionsOrFn!
+        if (typeof optionsOrFn === 'function') {
+          if (typeof optionsOrFactory === 'function')
+            throw new TypeError(
+              'Cannot use two functions as arguments. Please use the second argument for options.'
+            )
+          factory = optionsOrFn
+        } else if (typeof optionsOrFactory === 'function')
+          factory = optionsOrFactory
+        const current = currentSuite()
+        const { meta: parentMeta, ...parentOptions } = current.options
+        const options = { ...parentOptions, ...own }
+        const shuffle = this.shuffle ?? options.shuffle
+        if (shuffle != null) options.shuffle = shuffle
+        let suiteMode: TestMode =
+          (this.only ?? options.only)
+            ? 'only'
+            : (this.skip ?? options.skip)
+              ? 'skip'
+              : (this.todo ?? options.todo)
+                ? 'todo'
+                : 'run'
+        if (suiteMode === 'run' && !factory) suiteMode = 'todo'
+        const concurrent = this.concurrent ?? options.concurrent
+        if (concurrent != null) options.concurrent = concurrent
+        if (parentMeta)
+          options.meta = Object.assign(
+            Object.create(null),
+            parentMeta,
+            options.meta
+          )
+        // Read the raw parameterization marker at the same point as the target.
+        // Only plain raw receivers are qualified by this collector increment.
+        const each = this.each
+        validateOptions(options, true)
+        const result = rawSuite(name, factory, suiteMode, options)
+        if (each !== undefined)
+          (result.suite as Suite & { each?: boolean }).each = each
+        return result
+      }
+      const initialize = () => {
+        for (const key of ['each', 'for', 'skipIf', 'runIf'])
+          Object.defineProperty(suiteFn, key, {
+            value: Reflect.get(chain, key),
+            enumerable: true,
+            configurable: true,
+            writable: true,
+          })
+      }
+      if (initializing) pendingDeclarations.push(initialize)
+      else initialize()
+      Object.defineProperty(declare, 'fn', { value: suiteFn })
+    }
     return chain
   }
 
@@ -1372,9 +1666,21 @@ export function createCollector(
       const errors: unknown[] = []
       // Awaiting a suite can register more async suites. Read the live queue
       // length until all collection work, including rejected siblings, finishes.
-      for (let index = 0; index < pending.length; index++) {
-        const result = await pending[index]
-        if (result.status === 'rejected') errors.push(result.reason)
+      let index = 0
+      let rawIndex = 0
+      while (index < pending.length || rawIndex < rawSuites.length) {
+        while (index < pending.length) {
+          const result = await pending[index++]
+          if (result.status === 'rejected') errors.push(result.reason)
+        }
+        const raw = rawSuites[rawIndex++]
+        if (raw && !raw.collected) {
+          try {
+            await raw.collect(publicTask(root) as File, true)
+          } catch (error) {
+            errors.push(error)
+          }
+        }
       }
       if (errors.length === 1) throw errors[0]
       if (errors.length > 1)

@@ -22,7 +22,13 @@ async function main() {
   let success = false
   try {
     for (const mode of ['development', 'production']) {
-      for (const group of ['contract', 'focus', 'retention']) {
+      for (const group of [
+        'contract',
+        'focus',
+        'retention',
+        'suite-collector',
+        'suite-queue',
+      ]) {
         const fixture = await fs.mkdtemp(
           path.join(repo, '.next-test-declaration-fn-')
         )

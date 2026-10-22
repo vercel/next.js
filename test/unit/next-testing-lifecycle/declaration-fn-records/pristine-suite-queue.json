@@ -1,0 +1,286 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "suite-queue",
+        "trace": [
+          {
+            "kind": "factory",
+            "name": "outer",
+            "stage": "start"
+          },
+          {
+            "kind": "factory",
+            "name": "outer",
+            "stage": "end"
+          },
+          {
+            "kind": "factory",
+            "name": "ordinary",
+            "stage": "start"
+          },
+          {
+            "kind": "factory",
+            "name": "ordinary",
+            "stage": "end"
+          },
+          {
+            "kind": "factory",
+            "name": "raw child",
+            "stage": "start"
+          },
+          {
+            "kind": "factory",
+            "name": "raw child",
+            "stage": "end"
+          },
+          {
+            "kind": "manual-complete",
+            "tasks": [
+              {
+                "type": "collector",
+                "name": "ordinary child"
+              },
+              {
+                "type": "collector",
+                "name": "raw child"
+              },
+              {
+                "type": "test",
+                "name": "outer leaf"
+              }
+            ],
+            "published": [
+              {
+                "type": "suite",
+                "name": "ordinary child"
+              },
+              {
+                "type": "suite",
+                "name": "raw child"
+              },
+              {
+                "type": "test",
+                "name": "outer leaf"
+              }
+            ]
+          },
+          {
+            "kind": "factory",
+            "name": "outer",
+            "stage": "start"
+          },
+          {
+            "kind": "factory",
+            "name": "outer",
+            "stage": "end"
+          },
+          {
+            "kind": "factory",
+            "name": "ordinary",
+            "stage": "start"
+          },
+          {
+            "kind": "factory",
+            "name": "ordinary",
+            "stage": "end"
+          },
+          {
+            "kind": "factory",
+            "name": "raw child",
+            "stage": "start"
+          },
+          {
+            "kind": "factory",
+            "name": "raw child",
+            "stage": "end"
+          },
+          {
+            "kind": "factory",
+            "name": "ordinary",
+            "stage": "start"
+          },
+          {
+            "kind": "factory",
+            "name": "ordinary",
+            "stage": "end"
+          },
+          {
+            "kind": "factory",
+            "name": "raw child",
+            "stage": "start"
+          },
+          {
+            "kind": "factory",
+            "name": "raw child",
+            "stage": "end"
+          },
+          {
+            "kind": "factory",
+            "name": "sibling"
+          },
+          {
+            "kind": "body",
+            "name": "ordinary leaf",
+            "parent": "ordinary child"
+          },
+          {
+            "kind": "body",
+            "name": "ordinary leaf",
+            "parent": "ordinary child"
+          },
+          {
+            "kind": "body",
+            "name": "raw leaf",
+            "parent": "raw child"
+          },
+          {
+            "kind": "body",
+            "name": "raw leaf",
+            "parent": "raw child"
+          },
+          {
+            "kind": "body",
+            "name": "outer leaf",
+            "parent": "outer"
+          },
+          {
+            "kind": "body",
+            "name": "ordinary leaf",
+            "parent": "ordinary child"
+          },
+          {
+            "kind": "body",
+            "name": "raw leaf",
+            "parent": "raw child"
+          },
+          {
+            "kind": "body",
+            "name": "outer leaf",
+            "parent": "outer"
+          },
+          {
+            "kind": "body",
+            "name": "sibling leaf",
+            "parent": "sibling"
+          }
+        ],
+        "tasks": [
+          {
+            "type": "collector",
+            "name": "ordinary child"
+          },
+          {
+            "type": "collector",
+            "name": "raw child"
+          },
+          {
+            "type": "test",
+            "name": "outer leaf"
+          },
+          {
+            "type": "collector",
+            "name": "ordinary child"
+          },
+          {
+            "type": "collector",
+            "name": "raw child"
+          },
+          {
+            "type": "test",
+            "name": "outer leaf"
+          }
+        ],
+        "published": [
+          {
+            "type": "suite",
+            "name": "ordinary child"
+          },
+          {
+            "type": "suite",
+            "name": "raw child"
+          },
+          {
+            "type": "test",
+            "name": "outer leaf"
+          },
+          {
+            "type": "suite",
+            "name": "ordinary child"
+          },
+          {
+            "type": "suite",
+            "name": "raw child"
+          },
+          {
+            "type": "test",
+            "name": "outer leaf"
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "outer ordinary child ordinary leaf",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "outer ordinary child ordinary leaf",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "outer raw child raw leaf",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "outer raw child raw leaf",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "outer outer leaf",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "outer ordinary child ordinary leaf",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "outer raw child raw leaf",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "outer outer leaf",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "sibling sibling leaf",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "control",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 10,
+    "numPassedTests": 10,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

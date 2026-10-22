@@ -1,0 +1,281 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "suite-surface",
+        "raw": {
+          "name": "suiteFn",
+          "length": 3,
+          "keys": [
+            "length",
+            "name",
+            "prototype",
+            "each",
+            "for",
+            "skipIf",
+            "runIf"
+          ],
+          "sameAlias": true,
+          "descriptor": {
+            "enumerable": false,
+            "configurable": false,
+            "writable": false
+          },
+          "modifiers": [
+            {
+              "key": "only",
+              "type": "undefined",
+              "own": false
+            },
+            {
+              "key": "skip",
+              "type": "undefined",
+              "own": false
+            },
+            {
+              "key": "todo",
+              "type": "undefined",
+              "own": false
+            },
+            {
+              "key": "concurrent",
+              "type": "undefined",
+              "own": false
+            },
+            {
+              "key": "shuffle",
+              "type": "undefined",
+              "own": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "suite-trace",
+        "trace": [
+          {
+            "kind": "immediate",
+            "reads": [
+              "options:shuffle",
+              "receiver:shuffle",
+              "receiver:only",
+              "receiver:skip",
+              "receiver:todo",
+              "receiver:concurrent",
+              "receiver:each"
+            ],
+            "optionsSame": false,
+            "metaSame": true,
+            "authoredShuffle": true,
+            "shape": {
+              "type": "collector",
+              "name": "raw suite",
+              "mode": "run",
+              "keys": [
+                "type",
+                "name",
+                "mode",
+                "suite",
+                "options",
+                "test",
+                "file",
+                "tasks",
+                "collect",
+                "task",
+                "clear",
+                "on"
+              ],
+              "tasks": [],
+              "suite": {
+                "name": "raw suite",
+                "mode": "run",
+                "tasks": 0
+              },
+              "fileType": "object",
+              "methods": {
+                "collect": {
+                  "name": "collect",
+                  "length": 1
+                },
+                "task": {
+                  "name": "task",
+                  "length": 0
+                },
+                "clear": {
+                  "name": "clear",
+                  "length": 0
+                },
+                "on": {
+                  "name": "addHook",
+                  "length": 1
+                },
+                "test": {
+                  "name": "chain",
+                  "length": 0
+                }
+              }
+            }
+          },
+          {
+            "kind": "collect-error",
+            "name": "TypeError",
+            "message": "File is required to collect tasks."
+          },
+          {
+            "kind": "receiver-error",
+            "receiver": "undefined",
+            "name": "TypeError",
+            "message": "Cannot read properties of undefined (reading 'shuffle')"
+          },
+          {
+            "kind": "receiver-error",
+            "receiver": "null",
+            "name": "TypeError",
+            "message": "Cannot read properties of null (reading 'shuffle')"
+          },
+          {
+            "kind": "factory",
+            "providedSame": true,
+            "fnType": "function"
+          },
+          {
+            "kind": "task-return",
+            "type": "test",
+            "name": "manual child",
+            "mode": "run",
+            "parent": "raw suite",
+            "same": true,
+            "contextEnumerable": false
+          },
+          {
+            "kind": "beforeAll"
+          },
+          {
+            "kind": "beforeEach",
+            "name": "manual child",
+            "suite": "raw suite"
+          },
+          {
+            "kind": "manual-body",
+            "name": "manual child",
+            "parent": "raw suite"
+          },
+          {
+            "kind": "afterEach",
+            "name": "manual child",
+            "suite": "raw suite"
+          },
+          {
+            "kind": "beforeEach",
+            "name": "provided child",
+            "suite": "raw suite"
+          },
+          {
+            "kind": "provided-body",
+            "name": "provided child",
+            "parent": "raw suite"
+          },
+          {
+            "kind": "afterEach",
+            "name": "provided child",
+            "suite": "raw suite"
+          },
+          {
+            "kind": "afterAll"
+          }
+        ],
+        "collector": {
+          "type": "collector",
+          "name": "raw suite",
+          "mode": "run",
+          "keys": [
+            "type",
+            "name",
+            "mode",
+            "suite",
+            "options",
+            "test",
+            "file",
+            "tasks",
+            "collect",
+            "task",
+            "clear",
+            "on"
+          ],
+          "tasks": [
+            {
+              "type": "test",
+              "name": "manual child",
+              "mode": "run"
+            },
+            {
+              "type": "test",
+              "name": "provided child",
+              "mode": "run"
+            }
+          ],
+          "suite": {
+            "name": "raw suite",
+            "mode": "run",
+            "tasks": 2
+          },
+          "fileType": "object",
+          "methods": {
+            "collect": {
+              "name": "collect",
+              "length": 1
+            },
+            "task": {
+              "name": "task",
+              "length": 0
+            },
+            "clear": {
+              "name": "clear",
+              "length": 0
+            },
+            "on": {
+              "name": "addHook",
+              "length": 1
+            },
+            "test": {
+              "name": "chain",
+              "length": 0
+            }
+          }
+        }
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "raw suite manual child",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "raw suite provided child",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "root control",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 3,
+    "numPassedTests": 3,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

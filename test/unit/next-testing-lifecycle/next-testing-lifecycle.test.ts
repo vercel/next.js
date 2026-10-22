@@ -8306,9 +8306,13 @@ it('matches complete compiled raw fn declaration rows in both Node modes', async
     { mode: 'development', group: 'contract', cases: 14, rows: 2 },
     { mode: 'development', group: 'focus', cases: 3, rows: 1 },
     { mode: 'development', group: 'retention', cases: 9, rows: 2 },
+    { mode: 'development', group: 'suite-collector', cases: 3, rows: 2 },
+    { mode: 'development', group: 'suite-queue', cases: 10, rows: 1 },
     { mode: 'production', group: 'contract', cases: 14, rows: 2 },
     { mode: 'production', group: 'focus', cases: 3, rows: 1 },
     { mode: 'production', group: 'retention', cases: 9, rows: 2 },
+    { mode: 'production', group: 'suite-collector', cases: 3, rows: 2 },
+    { mode: 'production', group: 'suite-queue', cases: 10, rows: 1 },
   ])
 }, 130000)
 
@@ -8323,5 +8327,132 @@ it('retains the pinned public fn receiver and fixture type contract', async () =
   expect(actual.results[0]).toEqual({ kind: 'positive', diagnostics: [] })
   expect(actual.results[1].diagnostics.map(({ code }) => code)).toEqual([
     2345, 2559, 2339, 2339, 2322,
+  ])
+}, 35000)
+
+describe('raw suite declaration collectors', () => {
+  const flags = () => ({
+    concurrent: false,
+    only: false,
+    skip: false,
+    todo: false,
+    shuffle: false,
+  })
+
+  it('defers its real factory and retains the public collector surface', async () => {
+    const c = createCollector('raw-suite')
+    const events: unknown[] = []
+    const api = c.api.describe.fn.call(flags(), 'suite', {}, (provided) => {
+      events.push(['factory', provided === api.test])
+      provided('child', () => {
+        events.push(['body'])
+      })
+    })
+    expect(Object.keys(api)).toEqual([
+      'type',
+      'name',
+      'mode',
+      'suite',
+      'options',
+      'test',
+      'file',
+      'tasks',
+      'collect',
+      'task',
+      'clear',
+      'on',
+    ])
+    expect([c.api.describe.fn.name, c.api.describe.fn.length]).toEqual([
+      'suiteFn',
+      3,
+    ])
+    expect(c.api.describe.fn).toBe(c.api.suite.fn)
+    expect(events).toEqual([])
+    expect(api.tasks).toHaveLength(0)
+    await c.settle()
+    expect(events).toEqual([['factory', true]])
+    expect(api.tasks.map((task) => task.name)).toEqual(['child'])
+    const result = await run(c)
+    expect(result.cases.map((test) => test.status)).toEqual(['passed'])
+    expect(events).toEqual([['factory', true], ['body']])
+  })
+
+  it('reuses the actual task returned by a live factory and registers real hooks', async () => {
+    const c = createCollector('raw-task')
+    const events: unknown[] = []
+    let handle: unknown
+    const api = c.api.describe.fn.call(flags(), 'suite', {}, () => {
+      handle = api.task('child', {
+        handler(context) {
+          expect(context.task).toBe(handle)
+          expect((handle as any).context).toBe(context)
+          events.push('body')
+        },
+      })
+      expect(
+        Object.getOwnPropertyDescriptor(handle, 'context')!.enumerable
+      ).toBe(false)
+      expect(api.tasks[0]).toBe(handle)
+    })
+    api.on('beforeAll', (suite) => {
+      events.push(['beforeAll', suite.name])
+    })
+    api.on('beforeEach', (context, suite) => {
+      events.push(['beforeEach', context.task.name, suite.name])
+    })
+    api.on('afterEach', (context, suite) => {
+      events.push(['afterEach', context.task.name, suite.name])
+    })
+    api.on('afterAll', (suite) => {
+      events.push(['afterAll', suite.name])
+    })
+    await c.settle()
+    const result = await run(c)
+    expect(result.cases.map((test) => test.status)).toEqual(['passed'])
+    expect(events).toEqual([
+      ['beforeAll', 'suite'],
+      ['beforeEach', 'child', 'suite'],
+      'body',
+      ['afterEach', 'child', 'suite'],
+      ['afterAll', 'suite'],
+    ])
+  })
+
+  it('requires a file before collecting and does not let disposed methods borrow a new owner', async () => {
+    const c = createCollector('raw-owner')
+    let invoked = 0
+    const api = c.api.describe.fn.call(flags(), 'suite', {}, (provided) => {
+      invoked++
+      provided('child', () => {})
+    })
+    await expect(api.collect(undefined as any)).rejects.toThrow(
+      'File is required to collect tasks.'
+    )
+    expect(invoked).toBe(0)
+    await c.settle()
+    expect(invoked).toBe(1)
+    c.close()
+    expect(() => api.clear()).toThrow('Test collection has already closed.')
+    expect(() => api.on('beforeEach', () => {})).toThrow(
+      'Test collection has already closed.'
+    )
+    await expect(api.collect(api.file)).rejects.toThrow(
+      'Test collection has already closed.'
+    )
+    expect(invoked).toBe(1)
+  })
+})
+
+it('retains the pinned public suite collector receiver, method and context types', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'declaration-suite-types.cjs')],
+    { encoding: 'utf8', timeout: 30000 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(actual.rootConfigAndGlobalAugmentations).toBe(true)
+  expect(actual.results[0]).toEqual({ kind: 'positive', diagnostics: [] })
+  expect(actual.results[1].diagnostics.map(({ code }) => code)).toEqual([
+    2345, 2345, 2322, 2339, 2345, 2339, 2339, 2345,
   ])
 }, 35000)

@@ -299,6 +299,7 @@ function initializeFile(
     printConsoleTrace: undefined,
   }
   const collector = createCollector(fileId, {
+    filePath,
     tags,
     strictTags,
     sequence: collectionSequence,

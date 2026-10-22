@@ -1,0 +1,17 @@
+import {test,describe,suite,expect,afterAll} from 'vitest';
+const flags=()=>({concurrent:false,only:false,skip:false,todo:false,shuffle:false});
+const trace=[],reads=[],raw=describe.fn;
+const shape=value=>({type:value.type,name:value.name,mode:value.mode,keys:Reflect.ownKeys(value).map(String),tasks:value.tasks.map(t=>({type:t.type,name:t.name,mode:t.mode})),suite:{name:value.suite?.name,mode:value.suite?.mode,tasks:value.suite?.tasks.length},fileType:typeof value.file,methods:Object.fromEntries(['collect','task','clear','on','test'].map(key=>[key,{name:value[key].name,length:value[key].length}]))});
+const options={meta:{origin:'options'}};Object.defineProperty(options,'shuffle',{enumerable:true,get(){reads.push('options:shuffle');return true}});
+const receiver={};for(const key of ['shuffle','only','skip','todo','concurrent','each','ignored'])Object.defineProperty(receiver,key,{enumerable:true,get(){reads.push('receiver:'+key);return key==='each'?undefined:false}});
+const collector=raw.call(receiver,'raw suite',options,provided=>{trace.push({kind:'factory',providedSame:provided===collector.test,fnType:typeof provided.fn});const returned=collector.task('manual child',{handler:context=>{trace.push({kind:'manual-body',name:context.task.name,parent:context.task.suite?.name});expect(context.task.name).toBe('manual child')},meta:{origin:'manual'}});trace.push({kind:'task-return',type:returned.type,name:returned.name,mode:returned.mode,parent:returned.suite?.name,same:collector.tasks[0]===returned,contextEnumerable:Object.getOwnPropertyDescriptor(returned,'context').enumerable});provided('provided child',context=>{trace.push({kind:'provided-body',name:context.task.name,parent:context.task.suite?.name});expect(context.task.name).toBe('provided child')})});
+trace.push({kind:'immediate',reads:[...reads],optionsSame:collector.options===options,metaSame:collector.options.meta===options.meta,authoredShuffle:options.shuffle,shape:shape(collector)});
+collector.on('beforeAll',()=>trace.push({kind:'beforeAll'}));
+collector.on('beforeEach',(context,suite)=>trace.push({kind:'beforeEach',name:context.task.name,suite:suite.name}));
+collector.on('afterEach',(context,suite)=>trace.push({kind:'afterEach',name:context.task.name,suite:suite.name}));
+collector.on('afterAll',()=>trace.push({kind:'afterAll'}));
+await collector.collect().catch(error=>trace.push({kind:'collect-error',name:error.name,message:error.message}));
+for(const [name,receiver]of [['undefined',undefined],['null',null]]){try{Reflect.apply(raw,receiver,['invalid '+name,{},()=>{}])}catch(error){trace.push({kind:'receiver-error',receiver:name,name:error.name,message:error.message})}}
+const desc=Object.getOwnPropertyDescriptor(describe,'fn');console.log('DECLARATION_FN:'+JSON.stringify({kind:'suite-surface',raw:{name:raw.name,length:raw.length,keys:Reflect.ownKeys(raw).map(String),sameAlias:raw===suite.fn,descriptor:{enumerable:desc.enumerable,configurable:desc.configurable,writable:desc.writable},modifiers:['only','skip','todo','concurrent','shuffle'].map(key=>({key,type:typeof describe[key].fn,own:Object.hasOwn(describe[key],'fn')}))}}));
+test('root control',()=>expect(true).toBe(true));
+afterAll(()=>console.log('DECLARATION_FN:'+JSON.stringify({kind:'suite-trace',trace,collector:shape(collector)})));

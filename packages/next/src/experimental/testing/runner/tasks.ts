@@ -130,13 +130,89 @@ export type Task = Test | Suite
 export type TaskPopulated = Task
 export type ExpectStatic = TestExpect
 
+// Only declarations that expose collection-time handles enter this registry.
+// The runner reuses those real handles without putting private callbacks into
+// the task graph sent to the parent process.
+const collectionTaskViews = new WeakMap<TestCase | TestSuite, Task>()
+
+export function getCollectionTaskView(
+  root: TestSuite,
+  node: TestCase | TestSuite,
+  options: { filePath?: string; projectName?: string; testTimeout: number }
+): Task {
+  const held = collectionTaskViews.get(node)
+  if (held) return held
+  if (node === root) {
+    const filePath = options.filePath ?? root.id
+    const file = {
+      id: root.id,
+      name: basename(filePath),
+      fullName: basename(filePath),
+      type: 'suite',
+      mode: root.mode,
+      meta: root.meta,
+      tags: root.tags,
+      shuffle: root.options.shuffle,
+      filepath: filePath,
+      projectName: options.projectName ?? '',
+      tasks: [],
+    } as unknown as File
+    file.file = file
+    collectionTaskViews.set(root, file)
+    return file
+  }
+  const file = getCollectionTaskView(root, root, options) as File
+  const parent = getCollectionTaskView(root, node.suite!, options) as Suite
+  const fullTestName = [parent.fullTestName, node.name]
+    .filter(Boolean)
+    .join(' > ')
+  const common = {
+    id: node.id,
+    name: node.name,
+    fullName: [file.fullName, fullTestName].filter(Boolean).join(' > '),
+    fullTestName,
+    mode: node.mode,
+    meta: node.meta,
+    tags: node.tags,
+    ...(node.type === 'suite' || node.options.concurrent
+      ? { concurrent: node.options.concurrent }
+      : {}),
+    shuffle:
+      node.type === 'test' ? node.suite.options.shuffle : node.options.shuffle,
+    file,
+    suite: parent === file ? undefined : parent,
+  }
+  const view =
+    node.type === 'suite'
+      ? ({ ...common, type: 'suite', tasks: [] } as Suite)
+      : ({
+          ...common,
+          type: 'test',
+          timeout: node.options.timeout ?? options.testTimeout,
+          retry: node.options.retry,
+          repeats: node.options.repeats,
+          fails: node.options.fails,
+          annotations: [],
+          artifacts: [],
+          benchmarks: [],
+        } as unknown as Test)
+  if (node.type === 'test')
+    Object.defineProperty(view, 'context', {
+      value: undefined,
+      writable: true,
+      configurable: true,
+    })
+  collectionTaskViews.set(node, view)
+  return view
+}
+
 /** Public task identity is stable while private attempts retain scope ownership. */
 export function createTaskTree(
   root: TestSuite,
   options: { filePath?: string; projectName?: string; testTimeout: number }
 ) {
   const filePath = options.filePath ?? root.id
-  const file = {
+  const fields = {
     id: root.id,
     name: basename(filePath),
     fullName: basename(filePath),
@@ -149,6 +225,11 @@ export function createTaskTree(
     projectName: options.projectName ?? '',
     tasks: [],
   } as unknown as File
+  const file = (collectionTaskViews.get(root) as File | undefined) ?? fields
+  if (file !== fields) {
+    Object.assign(file, { ...fields, tasks: file.tasks })
+    file.tasks.length = 0
+  }
   file.file = file
   const tasks = new Map<TestCase | TestSuite, Task>([[root, file]])
   function visit(node: TestCase | TestSuite, parent: Suite) {
@@ -174,12 +255,17 @@ export function createTaskTree(
       suite: parent === file ? undefined : parent,
     }
     let task: Task
+    const held = collectionTaskViews.get(node)
     if (node.type === 'suite') {
-      task = { ...common, type: 'suite', tasks: [] }
+      task = held ?? { ...common, type: 'suite', tasks: [] }
+      if (held) {
+        Object.assign(task, common)
+        ;(task as Suite).tasks.length = 0
+      }
       tasks.set(node, task)
-      for (const child of node.children) visit(child, task)
+      for (const child of node.children) visit(child, task as Suite)
     } else {
-      task = {
+      const test: Test = {
         ...common,
         type: 'test',
         context: undefined as unknown as TestContext,
@@ -191,6 +277,7 @@ export function createTaskTree(
         artifacts: [],
         benchmarks: [],
       }
+      task = held ? Object.assign(held, test) : test
       tasks.set(node, task)
     }
     parent.tasks.push(task)
