@@ -471,4 +471,217 @@ describe('private scheduling cancellation', () => {
     expect(result.cases[0].status).toBe('cancelled')
     expect(result.interrupted).toBe(true)
   })
+
+  it('aborts an active hook context but runs its later body after real hook settlement', async () => {
+    const collector = createCollector('cancel-during-beforeEach')
+    const entered = deferred<void>()
+    const release = deferred<void>()
+    const user = new AbortController()
+    const trace: string[] = []
+    let context: { signal: AbortSignal } | undefined
+    collector.api.beforeEach(async (active) => {
+      context = active
+      trace.push('hook-entered')
+      entered.resolve()
+      await release.promise
+      trace.push(
+        `hook-finished:${active.signal.aborted}:${active.task.result?.state}`
+      )
+    })
+    collector.api.afterEach((active) => {
+      trace.push(
+        `afterEach:${active.task.result?.state}:${active.signal.aborted}`
+      )
+    })
+    collector.api.test('active', (active) => {
+      trace.push(`body:${active.signal.aborted}`)
+      active.onTestFinished((finished) => {
+        trace.push(`finished:${finished.task.result?.state}`)
+      })
+    })
+    collector.api.test('queued', () => trace.push('queued'))
+    const completion = runCollected(
+      collector.close(),
+      {
+        runId: 'cancel-during-beforeEach',
+        signal: new AbortController().signal,
+        userCancelSignal: user.signal,
+      },
+      () => {}
+    )
+    await entered.promise
+    user.abort()
+    expect(context!.signal.aborted).toBe(true)
+    expect(context!.signal.reason).toMatchObject({
+      name: 'TestRunAbortError',
+      message: 'The test run was aborted by the user.',
+      reason: 'keyboard-input',
+    })
+    expect(trace).toEqual(['hook-entered'])
+    release.resolve()
+    const result = await completion
+    expect(trace).toEqual([
+      'hook-entered',
+      'hook-finished:true:skip',
+      'body:true',
+      'afterEach:pass:true',
+      'finished:pass',
+    ])
+    expect(result.cases.map(({ status }) => status)).toEqual([
+      'passed',
+      'skipped',
+    ])
+    expect(result.interrupted).toBe(false)
+    expect(result.errors).toEqual([])
+  })
+
+  it('aborts a cleanup context while preserving its settled passed body', async () => {
+    const collector = createCollector('cancel-during-cleanup')
+    const entered = deferred<void>()
+    const release = deferred<void>()
+    const user = new AbortController()
+    const trace: string[] = []
+    let context: { signal: AbortSignal } | undefined
+    collector.api.afterEach(async (active) => {
+      context = active
+      trace.push(`cleanup-start:${active.task.result?.state}`)
+      entered.resolve()
+      await release.promise
+      trace.push(
+        `cleanup-end:${active.task.result?.state}:${active.signal.aborted}`
+      )
+    })
+    collector.api.test('active', (active) => {
+      trace.push('body')
+      active.onTestFinished((finished) => {
+        trace.push(
+          `finished:${finished.task.result?.state}:${finished.signal.aborted}`
+        )
+      })
+    })
+    collector.api.test('queued', () => trace.push('queued'))
+    const completion = runCollected(
+      collector.close(),
+      {
+        runId: 'cancel-during-cleanup',
+        signal: new AbortController().signal,
+        userCancelSignal: user.signal,
+      },
+      () => {}
+    )
+    await entered.promise
+    user.abort()
+    expect(context!.signal.aborted).toBe(true)
+    expect(trace).toEqual(['body', 'cleanup-start:pass'])
+    release.resolve()
+    const result = await completion
+    expect(trace).toEqual([
+      'body',
+      'cleanup-start:pass',
+      'cleanup-end:pass:true',
+      'finished:pass:true',
+    ])
+    expect(result.cases.map(({ status }) => status)).toEqual([
+      'passed',
+      'skipped',
+    ])
+    expect(result.interrupted).toBe(false)
+  })
+
+  it('removes the user listener from a completed case before another case is cancelled', async () => {
+    const collector = createCollector('cancel-listener-removal')
+    const entered = deferred<void>()
+    const user = new AbortController()
+    let previous: { signal: AbortSignal } | undefined
+    collector.api.test('already finished', (context) => {
+      previous = context
+    })
+    collector.api.test('active', async () => {
+      entered.resolve()
+      await new Promise(() => {})
+    })
+    const completion = runCollected(
+      collector.close(),
+      {
+        runId: 'cancel-listener-removal',
+        signal: new AbortController().signal,
+        userCancelSignal: user.signal,
+      },
+      () => {}
+    )
+    await entered.promise
+    user.abort()
+    const result = await completion
+    expect(previous!.signal.aborted).toBe(false)
+    expect(result.cases.map(({ status }) => status)).toEqual([
+      'passed',
+      'skipped',
+    ])
+    expect(result.interrupted).toBe(false)
+  })
+
+  it('retains a real body deadline after cancellation during its preceding hook', async () => {
+    const collector = createCollector('cancel-before-body-deadline')
+    const user = new AbortController()
+    let enteredBody = false
+    collector.api.beforeEach(() => user.abort())
+    collector.api.test('body times out', async () => {
+      enteredBody = true
+      await new Promise(() => {})
+    })
+    const result = await runCollected(
+      collector.close(),
+      {
+        runId: 'cancel-before-body-deadline',
+        signal: new AbortController().signal,
+        userCancelSignal: user.signal,
+        testTimeout: 20,
+      },
+      () => {}
+    )
+    expect(enteredBody).toBe(true)
+    expect(result.cases[0].status).toBe('failed')
+    expect(result.cases[0].errors).toEqual([
+      expect.objectContaining({
+        phase: 'test',
+        error: expect.objectContaining({
+          message: expect.stringContaining('timed out'),
+        }),
+      }),
+    ])
+  })
+
+  it.each([true, false])(
+    'classifies only the exact owned context abort reason as a body skip: %s',
+    async (ownedReason) => {
+      const collector = createCollector(`owned-user-reason-${ownedReason}`)
+      const user = new AbortController()
+      const ordinary = Object.assign(
+        new Error('The test run was aborted by the user.'),
+        { name: 'TestRunAbortError', reason: 'keyboard-input' }
+      )
+      let enteredBody = false
+      collector.api.beforeEach(() => user.abort())
+      collector.api.test('active', (context) => {
+        enteredBody = true
+        if (ownedReason) context.signal.throwIfAborted()
+        throw ordinary
+      })
+      const result = await runCollected(
+        collector.close(),
+        {
+          runId: `owned-user-reason-${ownedReason}`,
+          signal: new AbortController().signal,
+          userCancelSignal: user.signal,
+        },
+        () => {}
+      )
+      expect(enteredBody).toBe(true)
+      expect(result.cases[0].status).toBe(ownedReason ? 'skipped' : 'failed')
+      expect(result.cases[0].errors).toEqual(
+        ownedReason ? [] : [{ phase: 'test', error: ordinary }]
+      )
+      expect(result.interrupted).toBe(false)
+    }
+  )
 })

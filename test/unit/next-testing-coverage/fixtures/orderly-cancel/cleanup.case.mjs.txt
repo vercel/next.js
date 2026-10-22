@@ -1,0 +1,15 @@
+import { test, beforeEach, afterEach, onTestFinished } from 'vitest'
+import { watch, existsSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs'
+import { choose } from './subject.mjs'
+mkdirSync('cleanup-context-cancel',{recursive:true})
+const record=(event,data={})=>appendFileSync('cleanup-context-cancel/trace.jsonl',JSON.stringify({event,pid:process.pid,...data})+'\n')
+process.on('exit',code=>record('worker-exit',{code}))
+beforeEach(context=>record('beforeEach',{name:context.task.name}))
+afterEach(async context=>{
+  record('afterEach-start',{name:context.task.name,state:context.task.result?.state,aborted:context.signal.aborted})
+  context.signal.addEventListener('abort',()=>record('hook-signal-aborted',{reason:context.signal.reason?.message,reasonName:context.signal.reason?.name,cancelReason:context.signal.reason?.reason}),{once:true})
+  await new Promise(resolve=>{const watcher=watch('.',()=>{if(existsSync('cleanup-release')){watcher.close();resolve()}});writeFileSync('cleanup-started','ready')})
+  record('afterEach-finished',{state:context.task.result?.state,aborted:context.signal.aborted,reason:context.signal.reason?.message})
+})
+test('body before waiting cleanup',()=>{onTestFinished(context=>record('onTestFinished',{state:context.task.result?.state,aborted:context.signal.aborted}));choose(true);record('body-finished')})
+test('queued second body',()=>record('queued-body'))

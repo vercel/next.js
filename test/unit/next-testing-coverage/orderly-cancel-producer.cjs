@@ -17,7 +17,13 @@ async function main() {
   if (!mode) {
     let profiles = 0
     for (const selected of ['development', 'production'])
-      for (const variant of ['pending', 'signal-rejection']) {
+      for (const variant of [
+        'pending',
+        'signal-rejection',
+        'beforeEach',
+        'cleanup',
+        'beforeEach-throw',
+      ]) {
         const child = spawnSync(
           process.execPath,
           [__filename, `--mode=${selected}`, `--scenario=${variant}`],
@@ -45,9 +51,9 @@ async function main() {
     process.stdout.write(
       JSON.stringify({
         profiles,
-        cases: 8,
-        completeReports: 4,
-        closedWorkers: 4,
+        cases: 20,
+        completeReports: 10,
+        closedWorkers: 10,
       }) + '\n'
     )
     return
@@ -67,9 +73,13 @@ async function main() {
   const authored = fs.readFileSync(
     path.join(
       sources,
-      scenario === 'pending'
-        ? 'contract.case.mjs.txt'
-        : 'signal-rejection.case.mjs.txt'
+      {
+        pending: 'contract.case.mjs.txt',
+        'signal-rejection': 'signal-rejection.case.mjs.txt',
+        beforeEach: 'before-each.case.mjs.txt',
+        cleanup: 'cleanup.case.mjs.txt',
+        'beforeEach-throw': 'before-each-throw.case.mjs.txt',
+      }[scenario]
     )
   )
   fs.writeFileSync(path.join(root, 'contract.case.mjs'), authored)
@@ -104,9 +114,26 @@ async function main() {
   const events = []
   let session
   let watcher
-  let observedBody = false
+  let traceWatcher
+  let observedExecution = false
   let published = false
   let captureAttempts = 0
+  const traceDirectory = scenario.startsWith('beforeEach')
+    ? 'beforeeach-cancel'
+    : scenario === 'cleanup'
+      ? 'cleanup-context-cancel'
+      : 'cancel-settlement'
+  const hook = scenario.startsWith('beforeEach') || scenario === 'cleanup'
+  const gate = scenario.startsWith('beforeEach')
+    ? 'hook'
+    : scenario === 'cleanup'
+      ? 'cleanup'
+      : 'gate'
+  const observedEvent = scenario.startsWith('beforeEach')
+    ? 'beforeEach-start'
+    : scenario === 'cleanup'
+      ? 'afterEach-start'
+      : 'body-start'
   const cacheDirectories = []
   const createDirectory = fs.promises.mkdtemp
   fs.promises.mkdtemp = async (...args) => {
@@ -117,7 +144,7 @@ async function main() {
   }
   const trace = () =>
     fs
-      .readFileSync(path.join(root, 'cancel-settlement/trace.jsonl'), 'utf8')
+      .readFileSync(path.join(root, traceDirectory, 'trace.jsonl'), 'utf8')
       .trim()
       .split('\n')
       .map((line) => JSON.parse(line))
@@ -140,17 +167,39 @@ async function main() {
       artifact.diagnostics.filter((item) => item.severity === 'error'),
       []
     )
+    const releaseHook = () => {
+      if (
+        !hook ||
+        !user.signal.aborted ||
+        fs.existsSync(path.join(root, gate + '-release')) ||
+        !trace().some(({ event }) => event === 'hook-signal-aborted')
+      )
+        return
+      assert.equal(
+        trace().some(
+          ({ event }) =>
+            event ===
+            (scenario.startsWith('beforeEach')
+              ? 'first-body'
+              : 'afterEach-finished')
+        ),
+        false
+      )
+      fs.writeFileSync(path.join(root, gate + '-release'), 'release')
+    }
     watcher = fs.watch(root, () => {
       if (
-        !fs.existsSync(path.join(root, 'gate-started')) ||
+        !fs.existsSync(path.join(root, gate + '-started')) ||
         user.signal.aborted
       )
         return
       assert.equal(
-        trace().some(({ event }) => event === 'body-start'),
+        trace().some(({ event }) => event === observedEvent),
         true
       )
-      observedBody = true
+      observedExecution = true
+      if (hook)
+        traceWatcher = fs.watch(path.join(root, traceDirectory), releaseHook)
       user.abort()
     })
     const completion = await executeWithEnvironment(
@@ -172,10 +221,12 @@ async function main() {
         async onCoverage(capture) {
           captureAttempts++
           assert.equal(control, undefined, 'An invalid finalization published.')
-          assert.equal(observedBody, true)
+          assert.equal(observedExecution, true)
           assert.equal(capture.complete, true)
           assert.equal(lifetime.signal.aborted, false)
-          const worker = trace().find(({ event }) => event === 'body-start').pid
+          const worker = trace().find(
+            ({ event }) => event === observedEvent
+          ).pid
           assert.equal(alive(worker), false)
           assert.equal(alive(-worker), false)
           assert.notEqual(cacheDirectories.length, 0)
@@ -226,11 +277,11 @@ async function main() {
     })
     if (control) {
       assert.equal(completion.status, 'failed')
-      assert.equal(observedBody, true)
+      assert.equal(observedExecution, true)
       assert.equal(captureAttempts, 0)
       assert.equal(published, false)
       assert.equal(lifetime.signal.aborted, false)
-      const worker = trace().find(({ event }) => event === 'body-start').pid
+      const worker = trace().find(({ event }) => event === observedEvent).pid
       assert.equal(alive(worker), false)
       assert.equal(alive(-worker), false)
       assert.notEqual(cacheDirectories.length, 0)
@@ -284,6 +335,7 @@ async function main() {
     )
   } finally {
     watcher?.close()
+    traceWatcher?.close()
     await session?.dispose()
     fs.promises.mkdtemp = createDirectory
     fs.rmSync(root, { recursive: true, force: true })

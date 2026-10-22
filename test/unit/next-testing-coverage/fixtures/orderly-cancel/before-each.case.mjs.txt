@@ -1,0 +1,15 @@
+import { test, expect, beforeEach, afterEach, onTestFinished } from 'vitest'
+import { watch, existsSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs'
+import { choose } from './subject.mjs'
+mkdirSync('beforeeach-cancel',{recursive:true})
+const record=(event,data={})=>appendFileSync('beforeeach-cancel/trace.jsonl',JSON.stringify({event,pid:process.pid,...data})+'\n')
+process.on('exit',code=>record('worker-exit',{code}))
+beforeEach(async context=>{
+  record('beforeEach-start',{name:context.task.name})
+  context.signal.addEventListener('abort',()=>record('hook-signal-aborted',{reason:context.signal.reason?.message,state:context.task.result?.state}),{once:true})
+  await new Promise(resolve=>{const watcher=watch('.',()=>{if(existsSync('hook-release')){watcher.close();resolve()}});writeFileSync('hook-started','ready')})
+  record('beforeEach-finished',{aborted:context.signal.aborted,state:context.task.result?.state})
+})
+afterEach(context=>record('afterEach',{name:context.task.name,state:context.task.result?.state,aborted:context.signal.aborted,reason:context.signal.reason?.message}))
+test('first body after waiting hook',()=>{onTestFinished(context=>record('onTestFinished',{state:context.task.result?.state}));expect(choose(true)).toBe(1);record('first-body')})
+test('queued second body',()=>record('queued-body'))

@@ -10297,10 +10297,10 @@ it('captures fresh orderly-cancel coverage only after actual dev/prod worker clo
     { encoding: 'utf8', timeout: 190000 }
   )
   expect(JSON.parse(result)).toEqual({
-    profiles: 4,
-    cases: 8,
-    completeReports: 4,
-    closedWorkers: 4,
+    profiles: 10,
+    cases: 20,
+    completeReports: 10,
+    closedWorkers: 10,
   })
 }, 200000)
 

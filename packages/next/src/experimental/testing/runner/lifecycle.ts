@@ -873,6 +873,18 @@ export async function runCollected(
         const historicalBodyAbort =
           caseState.recoveredBodyDeadline && controller.signal.aborted
         let userCancellationReason: Error | undefined
+        let cancelBodyByUser: (() => void) | undefined
+        const cancelByUser = () => {
+          // Win an active body's race before authored signal listeners run.
+          cancelBodyByUser?.()
+          userCancellationReason ??= Object.assign(
+            new Error('The test run was aborted by the user.'),
+            { name: 'TestRunAbortError', reason: 'keyboard-input' }
+          )
+          controller.abort(userCancellationReason)
+          if (publicTask.result?.state === 'run')
+            publicTask.result.state = 'skip'
+        }
         const isAttemptAborted = () =>
           options.signal.aborted ||
           attemptTimedOut ||
@@ -962,32 +974,18 @@ export async function runCollected(
           if (phase === 'test' && userCancelSignal) {
             const body = operation
             operation = async () => {
-              if (userCancelSignal.aborted) throw userCancellation
               let cancel!: () => void
               const cancelled = new Promise<never>((_, reject) => {
-                cancel = () => {
-                  reject(userCancellation)
-                  userCancellationReason = Object.assign(
-                    new Error('The test run was aborted by the user.'),
-                    { name: 'TestRunAbortError', reason: 'keyboard-input' }
-                  )
-                  controller.abort(userCancellationReason)
-                }
-                userCancelSignal.addEventListener('abort', cancel, {
-                  once: true,
-                })
-                if (userCancelSignal.aborted) cancel()
+                cancel = () => reject(userCancellation)
+                cancelBodyByUser = cancel
               })
               try {
                 return await Promise.race([
-                  Promise.resolve().then(() => {
-                    if (userCancelSignal.aborted) throw userCancellation
-                    return body()
-                  }),
+                  Promise.resolve().then(body),
                   cancelled,
                 ])
               } finally {
-                userCancelSignal.removeEventListener('abort', cancel)
+                if (cancelBodyByUser === cancel) cancelBodyByUser = undefined
               }
             }
           }
@@ -997,7 +995,12 @@ export async function runCollected(
             failures,
             timeout,
             (error) => {
-              if (error === userCancellation) {
+              if (
+                error === userCancellation ||
+                (phase === 'test' &&
+                  userCancellationReason !== undefined &&
+                  error === userCancellationReason)
+              ) {
                 cancelledByUser = true
                 for (const assertionError of integration?.markSkipped?.() ?? [])
                   failures.push({ phase: 'assertion', error: assertionError })
@@ -1309,6 +1312,12 @@ export async function runCollected(
                 caseResult.status = 'skipped'
               else {
                 setActive(context)
+                options.userCancelSignal?.addEventListener(
+                  'abort',
+                  cancelByUser,
+                  { once: true }
+                )
+                if (options.userCancelSignal?.aborted) cancelByUser()
                 await options.onCaseStart?.(context)
                 const hookCleanups: Cleanup[] = []
                 const definitions = resolveFixtureDefinitions(
@@ -1684,6 +1693,10 @@ export async function runCollected(
               sealed = true
               currentContext = undefined
               options.signal.removeEventListener('abort', abort)
+              options.userCancelSignal?.removeEventListener(
+                'abort',
+                cancelByUser
+              )
               setActive(undefined)
             }
           })
