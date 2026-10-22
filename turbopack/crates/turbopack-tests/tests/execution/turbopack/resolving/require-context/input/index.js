@@ -1,13 +1,14 @@
 // PACK-3895: ensure that negative lookaround works.
 it('ensure require.context respects filters with look-around assertions', () => {
   let ctx = require.context('./deps', true, /foo(?!_test)/)
-  // import all the matches, should just get foo.js
+  // all the matches are keys of foo.js, with and without its extension
+  expect(ctx.keys()).toEqual(['./foo', './foo.js'])
   expect(
     ctx
       .keys()
       .map((k) => Object.values(ctx(k)))
       .flat()
-  ).toEqual(['You found me'])
+  ).toEqual(['You found me', 'You found me'])
 })
 
 it('keeps contexts over the same directory with different filters apart', () => {
