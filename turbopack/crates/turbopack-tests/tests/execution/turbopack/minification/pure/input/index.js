@@ -7,6 +7,8 @@ import annotatedDefault, {
 } from './library'
 import { reexported } from './reexport'
 import { annotated as starReexported } from './star'
+import * as directNamespace from './library'
+import { namespace } from './namespace-reexport'
 
 let state = 0
 
@@ -20,20 +22,28 @@ annotatedDefault()
 exportedLater()
 reexported()
 starReexported()
+directNamespace.annotated()
+namespace.annotated()
+annotated`tagged`
 
 const alias = annotated
 alias()
 
+const parenthesizedAlias = annotated
+parenthesizedAlias()
+
 let argumentState = 0
 annotated(argumentState++)
+annotated`tagged${argumentState++}`
 
 unannotated()
+unannotated`tagged`
 
 it('should remove unused PURE statements', () => {
   expect(state).toBe(0)
 })
 
 it('should propagate NO_SIDE_EFFECTS across imports and reexports', () => {
-  expect(getState()).toBe(1)
-  expect(argumentState).toBe(1)
+  expect(getState()).toBe(2)
+  expect(argumentState).toBe(2)
 })
