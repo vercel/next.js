@@ -713,6 +713,17 @@ jobs:
           npm i -g "corepack@${COREPACK_VERSION}"
           corepack enable
 
+      - id: get-store-path
+        run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
+
+      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        timeout-minutes: 5
+        id: cache-pnpm-store
+        with:
+          path: ${{ steps.get-store-path.outputs.STORE_PATH }}
+          key: pnpm-store-root-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
+          # Do not use restore-keys since it leads to indefinite growth of the cache.
+
       - name: Install dependencies
         # Just need scripts/ but those dependencies are listed in the workspace root.
         run: pnpm install --filter .
