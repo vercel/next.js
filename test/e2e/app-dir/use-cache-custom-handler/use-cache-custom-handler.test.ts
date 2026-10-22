@@ -156,6 +156,19 @@ describe('use-cache-custom-handler', () => {
   })
 
   if (isNextStart) {
+    it('should not warn when prerendering with a short-lived cache handler hit', async () => {
+      // Both prerendered routes share the same short-lived cache entry.
+      const first = await next.render$('/short-lived/first')
+      const data = first('#short-lived').text()
+      expect(data).toMatch(isoDateRegExp)
+
+      const second = await next.render$('/short-lived/second')
+      expect(second('#short-lived').text()).toBe(data)
+      expect(next.cliOutput).not.toContain(
+        'Unexpected cache miss after cache warming phase during prerendering'
+      )
+    })
+
     it('should save a short-lived cache during prerendering at buildtime', async () => {
       expect(next.cliOutput).toMatch(
         /ModernCustomCacheHandler::set \["([0-9a-f]{2})+",\[{"id":"dynamic-cache"}\],\["[A-Za-z0-9_-]+"(,"[^"]+")*\]\]/
