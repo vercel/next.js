@@ -1,5 +1,8 @@
 import type { ComponentType, ErrorInfo, JSX, ReactNode } from 'react'
-import type { PartialTransportData } from '../../shared/lib/rsc-transport'
+import type {
+  PartialTransportData,
+  FullTransportNode,
+} from '../../shared/lib/rsc-transport'
 import type { RenderOpts, PreloadCallbacks } from './types'
 import type {
   ActionResult,
@@ -491,31 +494,81 @@ async function getDynamicStaleTime(tree: LoaderTree): Promise<number | null> {
   return result
 }
 
-function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
-  const components = loaderTree[2]
-  const hasGlobalNotFound = !!components['global-not-found']
-  const notFoundTreeComponents: LoaderTree[2] = hasGlobalNotFound
-    ? {
-        layout: components['global-not-found']!,
-        page: [() => null, 'next/dist/client/components/builtin/empty-stub'],
-      }
-    : {
-        page: components['not-found'],
-      }
+function buildNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
+  const chain: LoaderTree[] = []
+  let curr: LoaderTree | undefined = loaderTree
+  while (curr) {
+    chain.push(curr)
+    curr = curr[1]?.children
+  }
 
-  return [
-    '',
-    {
-      children: [PAGE_SEGMENT_KEY, {}, notFoundTreeComponents, null],
-    },
-    // Always include global-error so that getGlobalErrorStyles can access it.
-    // When global-not-found is present, use full components.
-    // Otherwise, only include global-error module.
-    hasGlobalNotFound
-      ? components
-      : { 'global-error': components['global-error'] },
-    null, // staticSiblings
+  let targetDepth = -1
+  for (let i = chain.length - 1; i >= 0; i--) {
+    if (chain[i][2]?.['not-found']) {
+      targetDepth = i
+      break
+    }
+  }
+
+  if (targetDepth === -1) {
+    targetDepth = 0
+  }
+
+  const targetNode = chain[targetDepth]
+  const notFoundModule = targetNode[2]?.['not-found'] ?? [
+    () =>
+      require('../../client/components/builtin/not-found') as typeof import('../../client/components/builtin/not-found'),
+    'next/dist/client/components/builtin/not-found',
   ]
+
+  const hasGlobalNotFound = !!targetNode[2]?.['global-not-found']
+  const notFoundChild: LoaderTree = hasGlobalNotFound
+    ? [
+        PAGE_SEGMENT_KEY,
+        {},
+        {
+          layout: targetNode[2]['global-not-found']!,
+          page: [() => null, 'next/dist/client/components/builtin/empty-stub'],
+        },
+        null,
+      ]
+    : [
+        PAGE_SEGMENT_KEY,
+        {},
+        {
+          page: notFoundModule,
+        },
+        null,
+      ]
+
+  let currentSubtree: LoaderTree = [
+    targetNode[0],
+    {
+      ...targetNode[1],
+      children: notFoundChild,
+    },
+    targetNode[2],
+    targetNode[3],
+  ]
+
+  for (let i = targetDepth - 1; i >= 0; i--) {
+    const node = chain[i]
+    currentSubtree = [
+      node[0],
+      {
+        ...node[1],
+        children: currentSubtree,
+      },
+      node[2],
+      node[3],
+    ]
+  }
+
+  return currentSubtree
+}
+
+function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
+  return buildNotFoundLoaderTree(loaderTree)
 }
 
 /**
@@ -2218,6 +2271,7 @@ async function getErrorRSCPayload(
 
   let Viewport: ComponentType | null = null
   let Metadata: ComponentType | null = null
+  let MetadataOutlet: ComponentType<{ tree: LoaderTree }> | null = null
   if (shouldRenderMetadataAndViewport) {
     const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
     const metadataComponents = createMetadataComponents({
@@ -2231,6 +2285,7 @@ async function getErrorRSCPayload(
     })
     Viewport = metadataComponents.Viewport
     Metadata = metadataComponents.Metadata
+    MetadataOutlet = metadataComponents.MetadataOutlet
   }
 
   const initialHead = createElement(
@@ -2288,18 +2343,52 @@ async function getErrorRSCPayload(
     Boolean(ctx.renderOpts.partialPrefetching) ||
     (await anySegmentHasPartialPrefetchingEnabled(tree))
 
-  const initialTree = await createFullTransportTreeFromLoaderTree(
-    tree,
-    errorHints,
-    errorPrefetchInliningEnabled,
-    ctx.missingPrefetchHintPolicy,
-    partialPrefetching,
-    getDynamicParamFromSegment,
-    ctx.renderOpts.notFoundParams
-  )
-  // Attach the error shell as the root's render output. Vary params are not
-  // tracked for error pages.
-  initialTree.d = { r: errorShell, p: false, v: null }
+  let initialTree: FullTransportNode
+
+  if (errorType === 'not-found') {
+    try {
+      const notFoundLoaderTree = buildNotFoundLoaderTree(tree)
+      initialTree = await createFullComponentTree({
+        ctx,
+        loaderTree: notFoundLoaderTree,
+        parentParams: {},
+        parentOptionalCatchAllParamName: null,
+        parentRuntimePrefetchable: false,
+        injectedCSS: new Set(),
+        injectedJS: new Set(),
+        injectedFontPreloadTags: new Set(),
+        rootLayoutIncluded: false,
+        missingSlots: new Set(),
+        preloadCallbacks: [],
+        authInterrupts: ctx.renderOpts.experimental.authInterrupts,
+        MetadataOutlet: MetadataOutlet ?? (() => null),
+        isPrerendering: false,
+        hintTree: errorHints,
+      })
+    } catch {
+      initialTree = await createFullTransportTreeFromLoaderTree(
+        tree,
+        errorHints,
+        errorPrefetchInliningEnabled,
+        ctx.missingPrefetchHintPolicy,
+        partialPrefetching,
+        getDynamicParamFromSegment,
+        ctx.renderOpts.notFoundParams
+      )
+      initialTree.d = { r: errorShell, p: false, v: null }
+    }
+  } else {
+    initialTree = await createFullTransportTreeFromLoaderTree(
+      tree,
+      errorHints,
+      errorPrefetchInliningEnabled,
+      ctx.missingPrefetchHintPolicy,
+      partialPrefetching,
+      getDynamicParamFromSegment,
+      ctx.renderOpts.notFoundParams
+    )
+    initialTree.d = { r: errorShell, p: false, v: null }
+  }
 
   const { GlobalError, styles: globalErrorStyles } = await getGlobalErrorStyles(
     tree,
