@@ -302,6 +302,10 @@ function processMessage(message: HmrMessageSentToBrowser) {
       dispatcher.onVulnerabilityInsight(message.hasVulnerabilityInsight)
       break
     }
+    case HMR_MESSAGE_SENT_TO_BROWSER.VERSION_INFO: {
+      dispatcher.onVersionInfo(message.versionInfo)
+      break
+    }
     case HMR_MESSAGE_SENT_TO_BROWSER.BUILT:
     case HMR_MESSAGE_SENT_TO_BROWSER.SYNC: {
       dispatcher.buildingIndicatorHide()
