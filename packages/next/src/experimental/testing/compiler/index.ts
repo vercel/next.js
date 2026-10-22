@@ -870,8 +870,21 @@ export async function createTestCompilerSession(
           configuredTestingDefaultConfiguration
         )
   const { dir } = loaded
+  // Assertion and inline-snapshot locations need maps in the isolated test
+  // artifact even when the application's production build omits them.
+  const testConfig =
+    profile.browserClient && profile.mode === 'production'
+      ? {
+          ...loaded.config,
+          productionBrowserSourceMaps: true,
+          experimental: {
+            ...loaded.config.experimental,
+            turbopackSourceMaps: true,
+          },
+        }
+      : loaded.config
   const config = withCompilerTransforms(
-    withCompilerAliases(loaded.config, dir, profile, configuredCompilerAliases),
+    withCompilerAliases(testConfig, dir, profile, configuredCompilerAliases),
     dir,
     profile,
     configuredCompilerTransforms

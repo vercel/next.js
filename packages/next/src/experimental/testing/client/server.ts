@@ -104,9 +104,11 @@ export async function createClientServer(options: {
   async function handle(request: IncomingMessage, response: ServerResponse) {
     response.setHeader('X-Content-Type-Options', 'nosniff')
     response.setHeader('Cache-Control', 'no-store')
+    // The test realm executes authored JavaScript and the pinned snapshot
+    // loader evaluates the JavaScript assignments in saved external snapshots.
     response.setHeader(
       'Content-Security-Policy',
-      "default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; frame-ancestors 'none'"
+      "default-src 'none'; script-src 'self' 'unsafe-eval'; connect-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; frame-ancestors 'none'"
     )
     try {
       if (closing || request.headers.host !== new URL(origin).host) {

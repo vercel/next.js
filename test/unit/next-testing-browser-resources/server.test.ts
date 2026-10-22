@@ -1266,6 +1266,110 @@ body {
       }).then((res) => res.text())
     ).toBe('globalThis.infrastructure = true')
   })
+  it.each([
+    ['adjacent', 'static/entry.js.map', undefined],
+    ['hashed', 'static/independent-hash.js.map', 'independent-hash.js.map'],
+    [
+      'parent',
+      'maps/independent-hash.js.map',
+      '../maps/independent-hash.js.map',
+    ],
+    [
+      'absolute',
+      'static/independent-hash.js.map',
+      '/_next/static/independent-hash.js.map',
+    ],
+    ['encoded', 'static/space name.js.map', 'space%20name.js.map'],
+    ['crlf', 'static/independent-hash.js.map', 'independent-hash.js.map'],
+  ] as const)(
+    'maps the actual %s JavaScript output to its emitted source map',
+    async (kind, mapPath, reference) => {
+      const { SourceMapGenerator } = require('next/dist/compiled/source-map')
+      const source = 'turbopack:///[project]/contract.case.mjs'
+      const original = await readFile(configuration.filePath, 'utf8')
+      const map = new SourceMapGenerator()
+      map.addMapping({
+        generated: { line: 1, column: 0 },
+        original: { line: 1, column: 0 },
+        source,
+      })
+      map.setSourceContent(source, original)
+      const mapText = map.toString()
+      const javascript =
+        'globalThis.infrastructure = true' +
+        (reference
+          ? kind === 'crlf'
+            ? `\r\n//# sourceMappingURL=${reference}\r\n//# debugId=actual-debug-id\r\n`
+            : `\n//# sourceMappingURL=${reference}\n`
+          : '')
+      await mkdir(join(artifact.rootDir, mapPath, '..'), { recursive: true })
+      await writeFile(join(artifact.rootDir, mapPath), mapText)
+      await writeFile(join(artifact.rootDir, 'static/entry.js'), javascript)
+      artifact.files.push(mapPath)
+      artifact.client.outputs = [
+        { path: 'static/entry.js', sha256: hash(javascript) },
+        { path: mapPath, sha256: hash(mapText) },
+      ]
+      const reader = await createClientAssetReader(artifact)
+      const maps = await reader.sourceMaps('http://actual-map.test')
+      expect(maps).toEqual([
+        {
+          url: 'http://actual-map.test/_next/static/entry.js',
+          map: JSON.parse(mapText),
+          originalSources: [source],
+        },
+      ])
+      const {
+        createClientSourceMapResolver,
+      } = require('next/dist/experimental/testing/client/source-maps')
+      const resolver = createClientSourceMapResolver({
+        filePath: configuration.filePath,
+        sourceMaps: maps,
+      })
+      for (const file of [maps[0].url, '/_next/static/entry.js']) {
+        const frame = { file, line: 1, column: 1 }
+        expect(resolver.mapLocation(frame)).toMatchObject({
+          file: configuration.filePath,
+          line: 1,
+          column: 1,
+        })
+        expect(resolver.getSourceContent(frame)).toBe(original)
+      }
+      await reader.verify()
+    }
+  )
+  it.each(['missing-map', 'foreign-source'])(
+    'does not attribute %s to the selected JavaScript output',
+    async (mode) => {
+      const { SourceMapGenerator } = require('next/dist/compiled/source-map')
+      const map = new SourceMapGenerator()
+      map.addMapping({
+        generated: { line: 1, column: 0 },
+        original: { line: 1, column: 0 },
+        source: 'original',
+      })
+      map.setSourceContent(
+        'original',
+        mode === 'foreign-source'
+          ? 'different authored bytes'
+          : await readFile(configuration.filePath, 'utf8')
+      )
+      const mapText = map.toString()
+      const javascript = `globalThis.infrastructure = true\n//# sourceMappingURL=${mode === 'missing-map' ? 'missing.js.map' : 'entry.js.map'}\n`
+      await writeFile(join(artifact.rootDir, 'static/entry.js'), javascript)
+      await writeFile(join(artifact.rootDir, 'static/entry.js.map'), mapText)
+      artifact.files.push('static/entry.js.map')
+      artifact.client.outputs = [
+        { path: 'static/entry.js', sha256: hash(javascript) },
+        { path: 'static/entry.js.map', sha256: hash(mapText) },
+      ]
+      const reader = await createClientAssetReader(artifact)
+      await expect(
+        reader.sourceMaps('http://actual-map.test')
+      ).resolves.toEqual([])
+      await reader.verify()
+    }
+  )
   it.each(['authorization', 'owner', 'sequence', 'method', 'source'])(
     'rejects mismatched %s before accepting owner facts',
     async (mode) => {

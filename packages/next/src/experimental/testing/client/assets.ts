@@ -68,11 +68,45 @@ export async function createClientAssetReader(
       const maps: { url: string; map: unknown; originalSources: string[] }[] =
         []
       const originals = new Set<string>()
+      const countedMaps = new Set<string>()
       let total = 0
-      for (const file of files) {
-        if (!file.endsWith('.js.map') || !files.has(file.slice(0, -4))) continue
+      const assetURL = (file: string) =>
+        new URL(
+          `/_next/${file.split('/').map(encodeURIComponent).join('/')}`,
+          origin
+        )
+      for (const script of files) {
+        if (!script.endsWith('.js')) continue
+        const url = assetURL(script)
+        const scriptText = (await read(script)).toString('utf8')
+        const footer = scriptText.match(
+          /(?:^|\n)(?:[\t ]*\/\/[^\r\n]*(?:\r?\n|$))+\s*$/
+        )?.[0]
+        const reference = footer
+          ? [
+              ...footer.matchAll(
+                /^[\t ]*\/\/[#@]\s*sourceMappingURL=(\S+)[\t ]*\r?$/gm
+              ),
+            ].at(-1)?.[1]
+          : undefined
+        let file = `${script}.map`
+        if (reference) {
+          const target = new URL(reference, url)
+          if (
+            target.origin !== url.origin ||
+            !target.pathname.startsWith('/_next/') ||
+            target.search ||
+            target.hash
+          )
+            continue
+          file = decodeURIComponent(target.pathname.slice('/_next/'.length))
+        }
+        if (!file.endsWith('.js.map') || !files.has(file)) continue
         const raw = await read(file)
-        total += raw.length
+        if (!countedMaps.has(file)) {
+          countedMaps.add(file)
+          total += raw.length
+        }
         if (total > 64 * 1024 * 1024)
           throw new Error(
             'Browser source-map closure exceeded the bounded client profile.'
@@ -94,10 +128,7 @@ export async function createClientAssetReader(
         for (const source of selected) originals.add(source)
         if (selected.length)
           maps.push({
-            url: new URL(
-              `/_next/${file.slice(0, -4).split('/').map(encodeURIComponent).join('/')}`,
-              origin
-            ).href,
+            url: url.href,
             map,
             originalSources: selected,
           })
