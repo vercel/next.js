@@ -356,7 +356,7 @@ export function evalClientReferenceManifestSource(content: string): {
       }
     case 'deployment-id':
       return evalDeploymentIdManifest(content)
-    default: {
+    case 'unknown': {
       const contextObject = {
         process: {
           env: { NEXT_DEPLOYMENT_ID: process.env.NEXT_DEPLOYMENT_ID },
