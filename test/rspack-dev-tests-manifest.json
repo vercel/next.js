@@ -397,18 +397,19 @@
   "test/development/acceptance/ReactRefreshLogBox.test.ts": {
     "passed": [
       "ReactRefreshLogBox Call stack count is correct for pages error",
-      "ReactRefreshLogBox boundaries",
-      "ReactRefreshLogBox conversion to class component (1)",
       "ReactRefreshLogBox css syntax errors",
       "ReactRefreshLogBox logbox: anchors links in error messages",
-      "ReactRefreshLogBox module init error not shown",
       "ReactRefreshLogBox non-Error errors are handled properly",
       "ReactRefreshLogBox should collapse nodejs internal stack frames from stack trace by default",
       "ReactRefreshLogBox should show anonymous frames from stack trace",
       "ReactRefreshLogBox should strip whitespace correctly with newline",
       "ReactRefreshLogBox unterminated JSX"
     ],
-    "failed": [],
+    "failed": [
+      "ReactRefreshLogBox boundaries",
+      "ReactRefreshLogBox conversion to class component (1)",
+      "ReactRefreshLogBox module init error not shown"
+    ],
     "pending": ["ReactRefreshLogBox internal package errors"],
     "flakey": [],
     "runtimeError": false
@@ -460,14 +461,14 @@
   },
   "test/development/acceptance/error-recovery.test.ts": {
     "passed": [
-      "pages/ error recovery logbox: can recover from a component error",
       "pages/ error recovery logbox: can recover from a event handler error",
-      "pages/ error recovery stuck error",
       "pages/ error recovery syntax > runtime error"
     ],
     "failed": [
+      "pages/ error recovery logbox: can recover from a component error",
       "pages/ error recovery logbox: can recover from a syntax error without losing state",
-      "pages/ error recovery render error not shown right after syntax error"
+      "pages/ error recovery render error not shown right after syntax error",
+      "pages/ error recovery stuck error"
     ],
     "pending": [],
     "flakey": [],
@@ -1180,6 +1181,36 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/runtime-error-events/runtime-error-events.test.ts": {
+    "passed": [
+      "runtime-error-events disabled by default preserves overlay deduplication and MCP output without reporting runtime events",
+      "runtime-error-events distinguishes custom global fallback from the default global fallback",
+      "runtime-error-events private env enables reporting when the experimental config is false",
+      "runtime-error-events pushes an initial render failure and resends it after reconnecting",
+      "runtime-error-events reports a custom boundary at /catch",
+      "runtime-error-events reports a custom boundary at /class",
+      "runtime-error-events reports a custom boundary at /segment",
+      "runtime-error-events reports event errors without a catching boundary",
+      "runtime-error-events reports rejection errors without a catching boundary",
+      "runtime-error-events reports the default boundary when the custom global fallback itself throws"
+    ],
+    "failed": [
+      "runtime-error-events clears reported errors after an edit",
+      "runtime-error-events clears server-only errors without reloading the document",
+      "runtime-error-events deduplicates Strict Mode render errors in the reported snapshot",
+      "runtime-error-events identifies two previews at the same pathname and replays state to late observers",
+      "runtime-error-events keeps hydration recovery distinct from an uncaught error",
+      "runtime-error-events promotes a logged error to fatal while preserving its boundary",
+      "runtime-error-events reports Next root callback failures as fatal without a catching boundary",
+      "runtime-error-events reports a non-Error App Router render failure",
+      "runtime-error-events republishes an unchanged empty snapshot on navigation",
+      "runtime-error-events republishes current state after client navigation",
+      "runtime-error-events retains boundary metadata when a previously logged Error is thrown"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/segment-explorer-globals/segment-explorer-globals.test.ts": {
     "passed": [
       "segment-explorer - globals should display parallel routes default page when present",
@@ -1278,12 +1309,13 @@
   },
   "test/development/app-dir/server-navigation-error/server-navigation-error.test.ts": {
     "passed": [
-      "server-navigation-error middleware should error on navigation API not-found",
-      "server-navigation-error middleware should error on navigation API redirect ",
       "server-navigation-error pages router should error on navigation API notFound",
       "server-navigation-error pages router should error on navigation API redirect"
     ],
-    "failed": [],
+    "failed": [
+      "server-navigation-error middleware should error on navigation API not-found",
+      "server-navigation-error middleware should error on navigation API redirect "
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1296,6 +1328,20 @@
       "source-mapping should work with server actions imported from client components",
       "source-mapping should work with server actions passed to client components"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/special-project-paths/special-project-paths.test.ts": {
+    "passed": [
+      "special project paths in \"bracket [dir]\" symbolicates thrown SSR errors",
+      "special project paths in \"hash#dir\" symbolicates thrown SSR errors",
+      "special project paths in \"space dir\" symbolicates thrown SSR errors",
+      "special project paths in \"ünïcode-dir\" symbolicates thrown SSR errors"
+    ],
+    "failed": [
+      "special project paths in \"percent%20dir\" symbolicates thrown SSR errors"
+    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -2400,6 +2446,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/middleware-overrides-node.js-api/middleware-overrides-node.js-api.test.ts": {
+    "passed": [],
+    "failed": [
+      "Middleware overriding a Node.js API does not show a warning and allows overriding"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/middleware-warnings/index.test.ts": {
     "passed": [
       "middlewares does not warn when populating response with a function call",
@@ -2820,13 +2875,12 @@
     "runtimeError": false
   },
   "test/development/typescript-auto-install/index.test.ts": {
-    "passed": [
-      "typescript-auto-install should detect TypeScript being added and auto setup",
-      "typescript-auto-install should work"
-    ],
+    "passed": ["typescript-auto-install should work"],
     "failed": [],
     "pending": [],
-    "flakey": [],
+    "flakey": [
+      "typescript-auto-install should detect TypeScript being added and auto setup"
+    ],
     "runtimeError": false
   },
   "test/development/typescript-native-preview/index.test.ts": {
@@ -6562,7 +6616,6 @@
       "app-dir - logging with fetches default logging should log requests for after revalidation via server action",
       "app-dir - logging with fetches default logging should log requests for client-side navigations",
       "app-dir - logging with fetches default logging should log requests with correct indentation",
-      "app-dir - logging with fetches default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches default logging should not contain trailing word page for app router routes",
       "app-dir - logging with fetches default logging should not limit the number of requests that are logged",
       "app-dir - logging with fetches default logging should not log _rsc query for client navigation RSC request",
@@ -6578,7 +6631,6 @@
       "app-dir - logging with fetches verbose logging should log requests for after revalidation via server action",
       "app-dir - logging with fetches verbose logging should log requests for client-side navigations",
       "app-dir - logging with fetches verbose logging should log requests with correct indentation",
-      "app-dir - logging with fetches verbose logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches verbose logging should not contain trailing word page for app router routes",
       "app-dir - logging with fetches verbose logging should not limit the number of requests that are logged",
       "app-dir - logging with fetches verbose logging should not log _rsc query for client navigation RSC request",
@@ -6591,6 +6643,8 @@
     ],
     "failed": [
       "app-dir - logging with default logging should not contain trailing word page for app router routes",
+      "app-dir - logging with fetches default logging should not contain metadata internal segments for dynamic metadata routes",
+      "app-dir - logging with fetches verbose logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with verbose logging for edge runtime should exclude Middleware invoked and _rsc requests",
       "app-dir - logging with verbose logging for edge runtime should log 'skip' cache status with a reason when cache: 'no-cache' is used",
       "app-dir - logging with verbose logging for edge runtime should log 'skip' cache status with a reason when revalidate: 0 is used",
@@ -8332,7 +8386,16 @@
   },
   "test/e2e/app-dir/pages-to-app-routing/pages-to-app-routing.test.ts": {
     "passed": [],
-    "failed": ["pages-to-app-routing should work using browser"],
+    "failed": [
+      "pages-to-app-routing should client-navigate from a pages route to an app route",
+      "pages-to-app-routing should work using browser",
+      "pages-to-app-routing with cross-router shadowing should client-navigate to the app route, not the shadowing pages dynamic route",
+      "pages-to-app-routing with cross-router shadowing under basePath should client-navigate to the app route, not the shadowing pages dynamic route",
+      "pages-to-app-routing with cross-router shadowing via a catch-all should client-navigate to a multi-segment app route shadowed by the pages catch-all",
+      "pages-to-app-routing with cross-router shadowing via a catch-all should client-navigate to a single-segment app route shadowed by the pages catch-all",
+      "pages-to-app-routing with cross-router shadowing via a optional catch-all should client-navigate to a multi-segment app route shadowed by the pages catch-all",
+      "pages-to-app-routing with cross-router shadowing via a optional catch-all should client-navigate to a single-segment app route shadowed by the pages catch-all"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10256,7 +10319,6 @@
   },
   "test/e2e/app-dir/server-source-maps/server-source-maps.test.ts": {
     "passed": [
-      "app-dir - server source maps handles invalid sourcemaps gracefully",
       "app-dir - server source maps ignore-lists anonymous rsc stack frame sandwiches",
       "app-dir - server source maps ignore-lists anonymous ssr stack frame sandwiches",
       "app-dir - server source maps logged errors collapse deeply nested causes at depth 2",
@@ -10269,6 +10331,7 @@
       "app-dir - server source maps thrown SSR errors"
     ],
     "failed": [
+      "app-dir - server source maps handles invalid sourcemaps gracefully",
       "app-dir - server source maps sourcemaps errors during module evaluation",
       "app-dir - server source maps stack frames are ignore-listed in rsc"
     ],
@@ -11645,6 +11708,55 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/edge-runtime-configurable-guards/edge-runtime-configurable-guards.test.ts": {
+    "passed": [
+      "Edge runtime configurable guards development mode Edge API with use of Function as a type does not warn in dev at runtime",
+      "Edge runtime configurable guards development mode Middleware with use of Function as a type does not warn in dev at runtime"
+    ],
+    "failed": [
+      "Edge runtime configurable guards development mode Edge API using lib with allowed, used dynamic code still warns in dev at runtime",
+      "Edge runtime configurable guards development mode Edge API using lib with unallowed, used dynamic code warns in dev at runtime",
+      "Edge runtime configurable guards development mode Edge API with allowed, used dynamic code still warns in dev at runtime",
+      "Edge runtime configurable guards development mode Middleware using lib with allowed, used dynamic code still warns in dev at runtime",
+      "Edge runtime configurable guards development mode Middleware using lib with unallowed, used dynamic code warns in dev at runtime",
+      "Edge runtime configurable guards development mode Middleware with allowed, used dynamic code still warns in dev at runtime",
+      "Edge runtime configurable guards development mode Multiple functions with different configurations warns in dev for allowed code",
+      "Edge runtime configurable guards development mode Multiple functions with different configurations warns in dev for unallowed code"
+    ],
+    "pending": [
+      "Edge runtime configurable guards production mode Edge API using lib with allowed, unused dynamic code build and does not warn at runtime",
+      "Edge runtime configurable guards production mode Edge API using lib with unallowed, used dynamic code fails to build because of dynamic code evaluation",
+      "Edge runtime configurable guards production mode Edge API with allowed, unused dynamic code build and does not warn at runtime",
+      "Edge runtime configurable guards production mode Edge API with use of Function as a type build and does not warn at runtime",
+      "Edge runtime configurable guards production mode Middleware using lib with allowed, unused dynamic code build and does not warn at runtime",
+      "Edge runtime configurable guards production mode Middleware using lib with unallowed, used dynamic code fails to build because of dynamic code evaluation",
+      "Edge runtime configurable guards production mode Middleware with allowed, unused dynamic code build and does not warn at runtime",
+      "Edge runtime configurable guards production mode Middleware with use of Function as a type build and does not warn at runtime",
+      "Edge runtime configurable guards production mode Multiple functions with different configurations fails to build because of unallowed code"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/edge-runtime-dynamic-code/edge-runtime-dynamic-code.test.ts": {
+    "passed": [
+      "Edge route usage of dynamic code evaluation does not show a warning when running WebAssembly.instantiate with a module parameter",
+      "Edge route usage of dynamic code evaluation does not show warning when no code uses eval",
+      "Middleware usage of dynamic code evaluation does not show a warning when running WebAssembly.instantiate with a module parameter",
+      "Middleware usage of dynamic code evaluation does not show warning when no code uses eval",
+      "Page using eval in development mode does not issue dynamic code evaluation warnings"
+    ],
+    "failed": [
+      "Edge route usage of dynamic code evaluation shows a warning when running WebAssembly.compile",
+      "Edge route usage of dynamic code evaluation shows a warning when running WebAssembly.instantiate with a buffer parameter",
+      "Edge route usage of dynamic code evaluation shows a warning when running code with eval",
+      "Middleware usage of dynamic code evaluation shows a warning when running WebAssembly.compile",
+      "Middleware usage of dynamic code evaluation shows a warning when running WebAssembly.instantiate with a buffer parameter",
+      "Middleware usage of dynamic code evaluation shows a warning when running code with eval"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/edge-runtime-pages-api-route/edge-runtime-pages-api-route.test.ts": {
     "passed": [
       "Edge runtime pages-api route should work edge runtime",
@@ -11662,6 +11774,24 @@
     ],
     "failed": [
       "edge-runtime uses edge-light import specifier for packages app-dir imports the correct module"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/env-config/env-config.test.ts": {
+    "passed": [
+      "env-config should have process environment override .env",
+      "env-config should inline global values during build",
+      "env-config should load env from .env",
+      "env-config should provide env correctly for API routes",
+      "env-config should provide env correctly for SSR",
+      "env-config should provide env for SSG",
+      "env-config should provide global env to next.config.js",
+      "env-config with hot reload should have updated runtime values after change"
+    ],
+    "failed": [
+      "env-config with hot reload should trigger HMR correctly when NEXT_PUBLIC_ env is changed"
     ],
     "pending": [],
     "flakey": [],
@@ -12918,6 +13048,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/middleware-src/middleware-src.test.ts": {
+    "passed": [
+      "middleware-src Middleware in src/ folder loads and runs src middleware"
+    ],
+    "failed": [
+      "middleware-src Middleware in src/ and / folders loads and runs only root middleware"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/middleware-static-files/index.test.ts": {
     "passed": [
       "Middleware Runtime should match middleware correctly for /another%2ffile.svg",
@@ -13239,6 +13380,78 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/next-image-new/app-dir/app-dir.test.ts": {
+    "passed": [
+      "Image Component App Dir Tests Fill-mode tests should add 100% width and height to fill images",
+      "Image Component App Dir Tests Fill-mode tests should add position styles to fill images",
+      "Image Component App Dir Tests Fill-mode tests should add position:absolute to fill images",
+      "Image Component App Dir Tests Fill-mode tests should include a data-attribute on fill images",
+      "Image Component App Dir Tests Fill-mode tests should log warnings when using fill mode incorrectly",
+      "Image Component App Dir Tests Fill-mode tests should not log incorrect warnings",
+      "Image Component App Dir Tests Fill-mode tests should not log warnings when image unmounts",
+      "Image Component App Dir Tests should apply filter style after image loads",
+      "Image Component App Dir Tests should apply style inheritance for img elements but not wrapper elements",
+      "Image Component App Dir Tests should be valid HTML",
+      "Image Component App Dir Tests should call callback ref cleanups when unmounting",
+      "Image Component App Dir Tests should callback native onError even when error before hydration",
+      "Image Component App Dir Tests should callback native onError when error occurred while loading image",
+      "Image Component App Dir Tests should callback native onLoad with sythetic event",
+      "Image Component App Dir Tests should correctly ignore prose styles",
+      "Image Component App Dir Tests should emit image for next/dynamic with non ssr case",
+      "Image Component App Dir Tests should handle the styles prop appropriately",
+      "Image Component App Dir Tests should have blurry placeholder when enabled",
+      "Image Component App Dir Tests should have data url placeholder when enabled",
+      "Image Component App Dir Tests should lazy load with placeholder=blur",
+      "Image Component App Dir Tests should load the images",
+      "Image Component App Dir Tests should not pass through user-provided srcset (causing a flash)",
+      "Image Component App Dir Tests should not warn when Image is child of p",
+      "Image Component App Dir Tests should not warn when data url image with fill and sizes props",
+      "Image Component App Dir Tests should not warn when svg, even if with loader prop or without",
+      "Image Component App Dir Tests should preload priority images",
+      "Image Component App Dir Tests should remove blurry placeholder after image loads",
+      "Image Component App Dir Tests should remove data url placeholder after image loads",
+      "Image Component App Dir Tests should render correct objectFit when blurDataURL and fill",
+      "Image Component App Dir Tests should render correct objectFit when data url placeholder and fill",
+      "Image Component App Dir Tests should render no wrappers or sizers",
+      "Image Component App Dir Tests should render picture via getImageProps",
+      "Image Component App Dir Tests should show empty string src error",
+      "Image Component App Dir Tests should show error when CSS position changed on fill image",
+      "Image Component App Dir Tests should show error when invalid Infinity width prop",
+      "Image Component App Dir Tests should show error when invalid height prop",
+      "Image Component App Dir Tests should show error when invalid width prop",
+      "Image Component App Dir Tests should show error when missing height prop",
+      "Image Component App Dir Tests should show error when missing width prop",
+      "Image Component App Dir Tests should show error when static import and placeholder=blur and blurDataUrl is missing",
+      "Image Component App Dir Tests should show error when string src and placeholder=blur and blurDataURL is missing",
+      "Image Component App Dir Tests should show error when width prop on fill image",
+      "Image Component App Dir Tests should show invalid src error",
+      "Image Component App Dir Tests should show invalid src error when protocol-relative",
+      "Image Component App Dir Tests should show invalid src with leading space",
+      "Image Component App Dir Tests should show invalid src with trailing space",
+      "Image Component App Dir Tests should show missing alt error",
+      "Image Component App Dir Tests should show missing src error",
+      "Image Component App Dir Tests should show null src error",
+      "Image Component App Dir Tests should update the image on src change",
+      "Image Component App Dir Tests should warn at most once even after state change",
+      "Image Component App Dir Tests should warn when legacy prop layout=fill",
+      "Image Component App Dir Tests should warn when legacy prop layout=responsive",
+      "Image Component App Dir Tests should warn when loader is missing width",
+      "Image Component App Dir Tests should warn when preload prop is missing on LCP image",
+      "Image Component App Dir Tests should warn when quality is 50",
+      "Image Component App Dir Tests should warn when using a very small image with placeholder=blur",
+      "Image Component App Dir Tests should work when using flexbox",
+      "Image Component App Dir Tests should work when using overrideSrc prop",
+      "Image Component App Dir Tests should work with image with blob src",
+      "Image Component App Dir Tests should work with preload prop",
+      "Image Component App Dir Tests should work with sizes and automatically use responsive srcset"
+    ],
+    "failed": [
+      "Image Component App Dir Tests should callback onLoadingComplete when image is fully loaded"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/next-image-src-with-query-without-local-patterns/next-image-src-with-query-without-local-patterns.test.ts": {
     "passed": [
       "next-image-src-with-query-without-local-patterns should throw error for relative image with query without localPatterns"
@@ -13308,10 +13521,10 @@
     "runtimeError": false
   },
   "test/e2e/node-cli-args/node-cli-args.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "node-cli-args should start server with --experimental-network-inspection"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -13485,7 +13698,6 @@
       "opentelemetry root context pages should handle getServerSideProps on edge",
       "opentelemetry root context pages should handle getServerSideProps returning notFound",
       "opentelemetry root context pages should handle getStaticProps when fallback: 'blocking'",
-      "opentelemetry with custom server should set attributes correctly on handleRequest span",
       "opentelemetry with disabled fetch tracing root context app router with disabled fetch should handle RSC with disabled fetch"
     ],
     "failed": [
@@ -13499,7 +13711,8 @@
       "opentelemetry incoming context propagation pages should handle getStaticProps when fallback: 'blocking'",
       "opentelemetry root context app router should handle RSC with fetch in RSC mode",
       "opentelemetry root context app router should handle RSC with fetch on edge",
-      "opentelemetry root context app router should handle route handlers in app router"
+      "opentelemetry root context app router should handle route handlers in app router",
+      "opentelemetry with custom server should set attributes correctly on handleRequest span"
     ],
     "pending": [],
     "flakey": [],
