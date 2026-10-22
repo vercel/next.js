@@ -4,6 +4,7 @@ import {
   STRICT_ROUTE_MATCHING_DEFAULT_WARNING,
 } from './lib/router-utils/strict-route-matching-config'
 import { configSchema } from './config-schema'
+import { getNextConfigRuntime, type NextConfigComplete } from './config-shared'
 
 describe('loadConfig', () => {
   let loadConfig: typeof import('./config').default
@@ -383,6 +384,54 @@ describe('loadConfig', () => {
       })
 
       expect(result.experimental.durableUseCacheEntries).toBe(true)
+    })
+  })
+
+  describe('tracing', () => {
+    it('stays optional on NextConfigComplete', () => {
+      // Fails the type check if either `Omit`/`Pick` list in
+      // NextConfigComplete loses 'tracing'.
+      const omitted: NextConfigComplete['tracing'] = undefined
+      expect(omitted).toBeUndefined()
+    })
+
+    // loadConfig caches by phase and dir, not by customConfig, so each test
+    // loads once.
+    it('stays undefined when omitted', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: { experimental: { runtimeServerDeploymentId: true } },
+      })
+
+      expect(result.tracing).toBeUndefined()
+      expect(getNextConfigRuntime(result).tracing).toBeUndefined()
+    })
+
+    it('keeps false as false', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          tracing: false,
+          experimental: { runtimeServerDeploymentId: true },
+        },
+      })
+
+      expect(result.tracing).toBe(false)
+      expect(getNextConfigRuntime(result).tracing).toBe(false)
+    })
+
+    it('copies true into the runtime config', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          tracing: true,
+          experimental: { runtimeServerDeploymentId: true },
+        },
+      })
+
+      expect(getNextConfigRuntime(result).tracing).toBe(true)
+    })
+
+    it('is accepted by the config schema', () => {
+      expect(configSchema.safeParse({ tracing: true }).success).toBe(true)
+      expect(configSchema.safeParse({ tracing: 'yes' }).success).toBe(false)
     })
   })
 })

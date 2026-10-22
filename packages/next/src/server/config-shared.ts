@@ -47,6 +47,7 @@ export type NextConfigComplete = Required<
     | 'modularizeImports'
     | 'allowedDevOrigins'
     | 'adapterPath'
+    | 'tracing'
   >
 > &
   // Don't apply `Required<>` for these properties. They really can be undefined in the finalized config.
@@ -59,6 +60,7 @@ export type NextConfigComplete = Required<
     | 'modularizeImports'
     | 'allowedDevOrigins'
     | 'adapterPath'
+    | 'tracing'
   > & {
     images: Required<ImageConfigComplete>
     typescript: TypeScriptConfig
@@ -1922,6 +1924,17 @@ export interface NextConfig {
    */
   instrumentationClientInject?: string[]
 
+  /**
+   * Register OpenTelemetry with `@vercel/otel` when the project has no
+   * `instrumentation` file. A project `instrumentation` file always replaces it.
+   *
+   * Omitted and `false` both leave it off, but stay distinct so a later upgrade
+   * can tell "never chose" from "chose off". Do not add this key to `defaultConfig`.
+   *
+   * Requires `@vercel/otel`, `@opentelemetry/api`, and `@opentelemetry/api-logs`.
+   */
+  tracing?: boolean
+
   /** @see [Compression documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/compress) */
   compress?: boolean
 
@@ -2551,6 +2564,7 @@ export interface NextConfigRuntime {
   useFileSystemPublicRoutes: NextConfigComplete['useFileSystemPublicRoutes']
   logging?: NextConfigComplete['logging']
   adapterPath?: NextConfigComplete['adapterPath']
+  tracing?: NextConfigComplete['tracing']
   staticPageGenerationTimeout: NextConfigComplete['staticPageGenerationTimeout']
 
   experimental: Pick<
@@ -2711,6 +2725,7 @@ export function getNextConfigRuntime(
     // The full adapterPath might be non-deterministic across builds and doesn't
     // actually matter at runtime, so replace it with a placeholder if it's set.
     adapterPath: config.adapterPath ? '<omitted but set>' : undefined,
+    tracing: config.tracing,
     cacheMaxMemorySize: config.cacheMaxMemorySize,
     compress: config.compress,
     i18n: config.i18n,

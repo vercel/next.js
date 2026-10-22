@@ -108,6 +108,8 @@ pub struct NextConfig {
     images: ImageConfig,
     page_extensions: Vec<RcStr>,
     instrumentation_client_inject: Option<Vec<RcStr>>,
+    /// `None` (omitted) and `Some(false)` both leave the built-in instrumentation off.
+    tracing: Option<bool>,
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
     react_production_profiling: Option<bool>,
     react_strict_mode: Option<bool>,
@@ -1687,6 +1689,14 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn enable_react_production_profiling(&self) -> Vc<bool> {
         Vc::cell(self.react_production_profiling.unwrap_or_default())
+    }
+
+    /// Whether the built-in instrumentation fills the slot when the project has no
+    /// instrumentation file. Same gate as `decideInstrumentation` in
+    /// packages/next/src/build/builtin-instrumentation.ts.
+    #[turbo_tasks::function]
+    pub fn builtin_instrumentation_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.tracing == Some(true))
     }
 
     #[turbo_tasks::function]

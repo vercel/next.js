@@ -911,6 +911,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     staticPageGenerationTimeout: z.number().optional(),
     expireTime: z.number().optional(),
     target: z.string().optional(),
+    tracing: z.boolean().optional(),
     trailingSlash: z.boolean().optional(),
     transpilePackages: z.array(z.string()).optional(),
     turbopack: zTurbopackConfig.optional(),
