@@ -7,7 +7,6 @@ import { getRedboxSource, retry, waitForRedbox } from 'next-test-utils'
   () => {
     const { next } = nextTestSetup({
       files: __dirname,
-      patchFileDelay: 500,
     })
 
     async function assetsContaining(
@@ -36,6 +35,146 @@ import { getRedboxSource, retry, waitForRedbox } from 'next-test-utils'
       await walk(root)
       return matches
     }
+
+    it('loads instrumentation dynamic imports during startup', async () => {
+      expect(
+        await next.fetch('/api/lazy-import').then((res) => res.status)
+      ).toBe(200)
+      await retry(async () => {
+        expect(next.cliOutput).toContain(
+          'instrumentation-startup-target-marker'
+        )
+      })
+    })
+
+    it.each([
+      {
+        name: 'route handler',
+        entryPath: 'app/api/lazy-import/route.ts',
+        targetPath: 'app/api/lazy-import/target.ts',
+        route: '/api/lazy-import',
+        marker: 'route-lazy-target-marker',
+      },
+      {
+        name: 'Pages API',
+        entryPath: 'pages/api/lazy-import-pages.ts',
+        targetPath: 'lib/lazy-pages-api-target.ts',
+        route: '/api/lazy-import-pages',
+        marker: 'pages-api-lazy-target-marker',
+      },
+    ])(
+      'compiles $name imports when reached',
+      async ({ entryPath, targetPath, route, marker }) => {
+        await next.patchFile(
+          targetPath,
+          (content) => `${content}\nexport const invalid = ;`,
+          async () => {
+            expect(await next.fetch(route).then((res) => res.json())).toEqual({
+              value: 'idle',
+            })
+            expect(await assetsContaining(marker, 'server')).toHaveLength(0)
+          }
+        )
+
+        // Rebuild the owning entry after restoration without activating the import.
+        await next.patchFile(
+          entryPath,
+          (content) => content.replace("'idle'", "'ready'"),
+          async () => {
+            await retry(async () => {
+              expect(await next.fetch(route).then((res) => res.json())).toEqual(
+                {
+                  value: 'ready',
+                }
+              )
+            })
+            expect(await assetsContaining(marker, 'server')).toHaveLength(0)
+
+            const responses = await Promise.all([
+              next.fetch(`${route}?load=1`).then((res) => res.json()),
+              next.fetch(`${route}?load=1`).then((res) => res.json()),
+            ])
+            expect(responses).toEqual([{ value: marker }, { value: marker }])
+          }
+        )
+
+        await next.patchFile(
+          targetPath,
+          (content) => content.replace(marker, `updated-${marker}`),
+          async () => {
+            await retry(async () => {
+              expect(
+                await next.fetch(`${route}?load=1`).then((res) => res.json())
+              ).toEqual({ value: `updated-${marker}` })
+            }, 10000)
+          }
+        )
+      }
+    )
+
+    it('compiles Pages SSR imports when reached', async () => {
+      const targetPath = path.join('lib', 'lazy-pages-ssr-target.ts')
+      await next.patchFile(
+        targetPath,
+        (content) => `${content}\nexport const invalid = ;`,
+        async () => {
+          expect(await next.render('/lazy-ssr')).toContain('idle')
+          expect(
+            await assetsContaining('pages-ssr-lazy-target-marker', 'server')
+          ).toHaveLength(0)
+        }
+      )
+
+      await next.patchFile(
+        'pages/lazy-ssr.tsx',
+        (content) => content.replace("'idle'", "'ready'"),
+        async () => {
+          await retry(async () => {
+            const $ = await next.render$('/lazy-ssr')
+            expect($('#pages-ssr-lazy-value').text()).toBe('ready')
+          })
+          expect(
+            await assetsContaining('pages-ssr-lazy-target-marker', 'server')
+          ).toHaveLength(0)
+
+          const renders = await Promise.all([
+            next.render('/lazy-ssr?load=1'),
+            next.render('/lazy-ssr?load=1'),
+          ])
+          for (const html of renders) {
+            expect(html).toContain('pages-ssr-lazy-target-marker')
+          }
+        }
+      )
+
+      await next.patchFile(
+        targetPath,
+        (content) =>
+          content.replace(
+            'pages-ssr-lazy-target-marker',
+            'updated-pages-ssr-lazy-target-marker'
+          ),
+        async () => {
+          await retry(async () => {
+            expect(await next.render('/lazy-ssr?load=1')).toContain(
+              'updated-pages-ssr-lazy-target-marker'
+            )
+          }, 10000)
+        }
+      )
+    })
+
+    it('keeps proxy imports eager', async () => {
+      expect(
+        await next.fetch('/lazy-proxy-probe').then((res) => res.json())
+      ).toEqual({ value: 'idle' })
+      expect(
+        await assetsContaining('proxy-lazy-target-marker', 'server')
+      ).not.toHaveLength(0)
+      expect(
+        await next.fetch('/lazy-proxy-probe?load=1').then((res) => res.json())
+      ).toEqual({ value: 'proxy-lazy-target-marker' })
+    })
 
     it('activates a dynamic import over HTTP and keeps Fast Refresh working', async () => {
       const targetPath = path.join('app', 'target.tsx')
@@ -366,6 +505,59 @@ export const invalid = ;`
       expect(
         await next.fetch(href!).then((response) => response.text())
       ).toContain('next-dynamic-css-marker')
+    })
+
+    it('preloads and applies CSS for a Pages next/dynamic component', async () => {
+      const $ = await next.render$('/pages-next-dynamic-css')
+      expect($('#pages-dynamic-target').text()).toBe(
+        'pages-next-dynamic-marker'
+      )
+
+      const stylesheetHrefs = $('link[rel="stylesheet"]')
+        .map((_, link) => $(link).attr('href'))
+        .get()
+      const stylesheets = await Promise.all(
+        stylesheetHrefs.map((href) =>
+          next.fetch(href).then((response) => response.text())
+        )
+      )
+      const targetStylesheet = stylesheets.findIndex((css) =>
+        css.includes('pages-dynamic-target')
+      )
+      expect(targetStylesheet).not.toBe(-1)
+      const preloadHrefs = $('link[rel="preload"][as="style"]')
+        .map((_, link) => $(link).attr('href'))
+        .get()
+      expect(preloadHrefs).toContain(stylesheetHrefs[targetStylesheet])
+
+      const scriptPreloadHrefs = $('link[rel="preload"][as="script"]')
+        .map((_, link) => $(link).attr('href'))
+        .get()
+      const preloadedScripts = await Promise.all(
+        scriptPreloadHrefs.map((href) =>
+          next.fetch(href).then((response) => response.text())
+        )
+      )
+      const targetScript = preloadedScripts.findIndex((script) =>
+        script.includes('pages-next-dynamic-marker')
+      )
+      expect(targetScript).not.toBe(-1)
+      const scriptSources = $('script[src]')
+        .map((_, script) => $(script).attr('src'))
+        .get()
+      expect(scriptSources).toContain(scriptPreloadHrefs[targetScript])
+
+      const browser = await next.browser('/pages-next-dynamic-css')
+      await retry(async () => {
+        expect(await browser.elementByCss('#pages-dynamic-target').text()).toBe(
+          'pages-next-dynamic-marker'
+        )
+        expect(
+          await browser
+            .elementByCss('#pages-dynamic-target')
+            .getComputedCss('color')
+        ).toBe('rgb(23, 45, 67)')
+      })
     })
 
     it('activates a pattern import without colliding with its target', async () => {
