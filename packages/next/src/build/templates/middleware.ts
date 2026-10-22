@@ -104,15 +104,26 @@ const internalHandler: EdgeHandler = async (opts) => {
       )
   }
 
-  return adapter({
-    ...opts,
-    IncrementalCache,
-    incrementalCacheHandler,
-    page,
-    handler: errorHandledHandler(handlerUserland),
-    emitInstrumentationSpans,
-    requestStartTime,
-  })
+  try {
+    return await adapter({
+      ...opts,
+      IncrementalCache,
+      incrementalCacheHandler,
+      page,
+      handler: errorHandledHandler(handlerUserland),
+      emitInstrumentationSpans,
+      requestStartTime,
+    })
+  } catch (err) {
+    // The adapter can throw before it runs the middleware and emits the
+    // lifecycle spans (e.g. when the configured cache handler throws). Later
+    // requests won't emit them, so emit them here instead (a no-op if they were
+    // emitted). Tracing must not replace the adapter's error.
+    try {
+      emitInstrumentationSpans?.()
+    } catch {}
+    throw err
+  }
 }
 
 export async function handler(
