@@ -521,101 +521,6 @@ async fn build_dependency_requests_changed(
     Ok(Completion::new())
 }
 
-#[derive(Deserialize, Debug, PartialEq, Eq, PartialOrd, Ord)]
-#[serde(rename_all = "camelCase")]
-pub struct BuildModuleRequest {
-    lookup_path: RcStr,
-    request: RcStr,
-    expected_path: RcStr,
-    bypass_exports: bool,
-}
-
-#[turbo_tasks::task_input]
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
-struct ResolvedBuildModuleRequest {
-    lookup_path: FileSystemPath,
-    request: RcStr,
-    expected_path: FileSystemPath,
-    bypass_exports: bool,
-}
-
-async fn resolve_build_module_request(
-    cwd: &FileSystemPath,
-    request: BuildModuleRequest,
-) -> Result<Option<ResolvedBuildModuleRequest>> {
-    match build_dependency_path(cwd, &request.expected_path).await? {
-        None => Ok(None),
-        Some(expected_path) => {
-            let lookup_path = build_dependency_path(cwd, &request.lookup_path).await?;
-
-            Ok(lookup_path.map(|lookup_path| ResolvedBuildModuleRequest {
-                lookup_path,
-                request: request.request,
-                expected_path,
-                bypass_exports: request.bypass_exports,
-            }))
-        }
-    }
-}
-
-#[turbo_tasks::function]
-async fn build_module_requests_changed(
-    requests: Vec<ResolvedBuildModuleRequest>,
-) -> Result<Vc<Completion>> {
-    let prepared_requests = requests
-        .into_iter()
-        .map(async |request| {
-            // Build dependencies use Node's resolver, not application aliases or the tracer's
-            // TypeScript-first extension order. Cached package children bypass exports in
-            // webpack.
-            let mut options = node_cjs_resolve_options().owned().await?;
-            if request.bypass_exports {
-                options
-                    .into_package
-                    .retain(|option| !matches!(option, ResolveIntoPackage::ExportsField { .. }));
-            }
-            Ok::<_, anyhow::Error>((request, options))
-        })
-        .try_join()
-        .await?;
-
-    prepared_requests
-        .into_iter()
-        .map(|(request, options)| {
-            let options = options.cell();
-            async move {
-                let ResolvedBuildModuleRequest {
-                    lookup_path,
-                    request,
-                    expected_path,
-                    ..
-                } = request;
-                let result = resolve(
-                    lookup_path,
-                    ReferenceType::Undefined,
-                    Request::parse(Pattern::Constant(request)),
-                    options,
-                )
-                .await?;
-                assert!(result.primary_sources().count() <= 1);
-                let tracked = match result.first_source() {
-                    Some(resolved) => resolved.ident().await?.path == expected_path,
-                    None => false,
-                };
-                // The request does not reproduce the module Node loaded, so a change to which
-                // module it resolves to cannot be detected.
-                if !tracked {
-                    Completion::session_dependent().await?;
-                }
-                Ok::<_, anyhow::Error>(())
-            }
-        })
-        .try_join()
-        .await?;
-
-    Ok(Completion::new())
-}
-
 #[turbo_tasks::value_impl]
 impl WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
@@ -827,8 +732,7 @@ pub struct LogInfo {
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum InfoMessage {
     // Sent to inform Turbopack about the dependencies of the task.
-    // All fields are `default` since it is ok for the client to
-    // simply omit instead of sending empty arrays.
+    // All fields are `default` so clients can omit unused dependency information.
     #[serde(rename_all = "camelCase")]
     Dependencies {
         #[serde(default)]
@@ -844,7 +748,7 @@ pub enum InfoMessage {
         #[serde(default)]
         build_module_paths: Vec<RcStr>,
         #[serde(default)]
-        build_module_requests: Vec<BuildModuleRequest>,
+        has_cached_build_dependencies: bool,
     },
     EmittedError {
         severity: IssueSeverity,
@@ -1034,11 +938,17 @@ impl EvaluateContext for WebpackLoaderContext {
                 build_file_paths,
                 build_dependency_requests,
                 build_module_paths,
-                build_module_requests,
+                has_cached_build_dependencies,
             } => {
                 // We only process these dependencies to help with tracking, so if it is disabled
                 // dont bother.
                 if turbo_tasks::turbo_tasks().is_tracking_dependencies() {
+                    // Cached children expose filenames, not the requests that resolved to them.
+                    // Re-evaluate after a restart rather than persisting incomplete resolution
+                    // tracking.
+                    if has_cached_build_dependencies {
+                        Completion::session_dependent().await?;
+                    }
                     // Canonicalize dependency sets so their ordering does not create new task keys.
                     let normalize = |mut paths: Vec<RcStr>| {
                         paths.sort_unstable();
@@ -1047,9 +957,6 @@ impl EvaluateContext for WebpackLoaderContext {
                     };
                     let build_file_paths = normalize(build_file_paths);
                     let build_module_paths = normalize(build_module_paths);
-                    let mut build_module_requests = build_module_requests;
-                    build_module_requests.sort_unstable();
-                    build_module_requests.dedup();
 
                     // Track dependencies of the loader task
                     // TODO: Because these are reported _after_ the loader actually read the
@@ -1079,19 +986,6 @@ impl EvaluateContext for WebpackLoaderContext {
                         .await?;
                         Ok::<_, anyhow::Error>(())
                     };
-                    let build_module_request_subscriptions = async {
-                        // Convert system paths before they enter persistent task inputs.
-                        let requests = build_module_requests
-                            .into_iter()
-                            .map(|request| resolve_build_module_request(&self.cwd, request))
-                            .try_join()
-                            .await?
-                            .into_iter()
-                            .flatten()
-                            .collect();
-                        build_module_requests_changed(requests).await?;
-                        Ok::<_, anyhow::Error>(())
-                    };
                     let build_dependency_request_subscriptions = async {
                         build_dependency_requests_changed(
                             self.cwd.clone(),
@@ -1117,7 +1011,6 @@ impl EvaluateContext for WebpackLoaderContext {
                         file_subscriptions,
                         build_file_subscriptions,
                         build_module_subscriptions,
-                        build_module_request_subscriptions,
                         build_dependency_request_subscriptions,
                         directory_subscriptions
                     )?;
