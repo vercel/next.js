@@ -12,6 +12,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2f$no$2d$side$2d$effects$2d$import$2f$input$2f$namespace$2d$reexport$2e$js__$5b$test$5d$__$28$ecmascript$29$__["namespace"].annotated();
 const alias = /*#__NO_SIDE_EFFECTS__*/ __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2f$no$2d$side$2d$effects$2d$import$2f$input$2f$library$2e$js__$5b$test$5d$__$28$ecmascript$29$__["annotated"];
 alias();
+// prettier-ignore
 const parenthesizedAlias = /*#__NO_SIDE_EFFECTS__*/ __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2f$no$2d$side$2d$effects$2d$import$2f$input$2f$library$2e$js__$5b$test$5d$__$28$ecmascript$29$__["annotated"];
 parenthesizedAlias();
 (0, __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2f$no$2d$side$2d$effects$2d$import$2f$input$2f$library$2e$js__$5b$test$5d$__$28$ecmascript$29$__["unannotated"])();
