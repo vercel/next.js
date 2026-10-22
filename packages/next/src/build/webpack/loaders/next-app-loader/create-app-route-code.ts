@@ -11,6 +11,7 @@ import { AppPathnameNormalizer } from '../../../../server/normalizers/built/app/
 import { loadEntrypoint } from '../../../load-entrypoint'
 import type { PageExtensions } from '../../../page-extensions-type'
 import { getFilenameAndExtension } from '../next-metadata-route-loader'
+import { normalizePathSep } from '../../../../shared/lib/page-path/normalize-path-sep'
 
 export async function createAppRouteCode({
   appDir,
@@ -33,7 +34,7 @@ export async function createAppRouteCode({
 }): Promise<string> {
   // routePath is the path to the route handler file,
   // but could be aliased e.g. private-next-app-dir/favicon.ico
-  const routePath = pagePath.replace(/[\\/]/, '/')
+  const routePath = normalizePathSep(pagePath)
 
   // This, when used with the resolver will give us the pathname to the built
   // route handler file.
