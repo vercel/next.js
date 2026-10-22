@@ -39,10 +39,10 @@ use turbo_tasks::{
     TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TaskPersistence, TaskPriority, TraitTypeId,
     TurboTasks, TurboTasksCallApi, TurboTasksPanic, ValueTypeId,
     backend::{
-        Backend, CachedTaskType, CachedTaskTypeArc, CellContent, CellHash, TaskExecutionSpec,
-        TransientTaskType, TurboTaskContextError, TurboTaskLocalContextError, TurboTasksError,
-        TurboTasksExecutionError, TurboTasksExecutionErrorMessage, TypedCellContent,
-        VerificationMode,
+        Backend, CachedTaskType, CachedTaskTypeArc, CellContent, CellHash, TaskCollectiblesMap,
+        TaskExecutionSpec, TransientTaskType, TurboTaskContextError, TurboTaskLocalContextError,
+        TurboTasksError, TurboTasksExecutionError, TurboTasksExecutionErrorMessage,
+        TypedCellContent, VerificationMode,
     },
     event::{Event, EventDescription, EventListener},
     macro_helpers::NativeFunction,
@@ -3425,6 +3425,40 @@ impl TurboTasksBackend {
         );
     }
 
+    fn unemit_collectibles(
+        &self,
+        collectible_type: TraitTypeId,
+        collectibles: &TaskCollectiblesMap,
+        task_id: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) {
+        let updates: SmallVec<[_; 1]> = collectibles
+            .iter()
+            .filter(|&(_, &count)| count > 0)
+            .map(|(&collectible, &count)| {
+                self.assert_valid_collectible(task_id, collectible);
+                let Some((collectible_task, cell)) = collectible.as_task_cell() else {
+                    panic!("Collectibles need to be resolved");
+                };
+                (
+                    CollectibleRef {
+                        collectible_type,
+                        cell: CellRef {
+                            task: collectible_task,
+                            cell,
+                        },
+                    },
+                    -count,
+                )
+            })
+            .collect();
+        operation::UpdateCollectibleOperation::run_batch(
+            task_id,
+            updates,
+            self.execute_context(turbo_tasks),
+        );
+    }
+
     fn update_task_cell(
         &self,
         task_id: TaskId,
@@ -3926,6 +3960,16 @@ impl Backend for TurboTasksBackend {
         turbo_tasks: &TurboTasks<Self>,
     ) {
         self.unemit_collectible(collectible_type, collectible, count, task_id, turbo_tasks)
+    }
+
+    fn unemit_collectibles(
+        &self,
+        collectible_type: TraitTypeId,
+        collectibles: &TaskCollectiblesMap,
+        task_id: TaskId,
+        turbo_tasks: &TurboTasks<Self>,
+    ) {
+        self.unemit_collectibles(collectible_type, collectibles, task_id, turbo_tasks)
     }
 
     fn update_task_cell(
