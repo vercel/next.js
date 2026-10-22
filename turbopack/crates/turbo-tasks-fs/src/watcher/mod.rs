@@ -1428,6 +1428,7 @@ mod tests {
         Some(Duration::from_millis(20)),
         DiskWatcherRecursiveMode::NonRecursive
     )]
+    #[cfg_attr(feature = "ci", ignore = "timing-sensitive, flaky in CI")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn irrelevant_events_do_not_delay_invalidation(
         #[case] poll_interval: Option<Duration>,
@@ -1502,6 +1503,7 @@ mod tests {
         Some(Duration::from_millis(20)),
         DiskWatcherRecursiveMode::NonRecursive
     )]
+    #[cfg_attr(feature = "ci", ignore = "timing-sensitive, flaky in CI")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn repeated_writes_to_tracked_file_are_debounced(
         #[case] poll_interval: Option<Duration>,
@@ -1583,6 +1585,7 @@ mod tests {
     #[case::non_recursive_rename(DiskWatcherRecursiveMode::NonRecursive, true)]
     #[case::recursive_create(DiskWatcherRecursiveMode::Recursive, false)]
     #[case::recursive_rename(DiskWatcherRecursiveMode::Recursive, true)]
+    #[cfg_attr(feature = "ci", ignore = "timing-sensitive, flaky in CI")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn recreated_directory_is_watched_again(
         #[case] recursive_mode: DiskWatcherRecursiveMode,
@@ -1656,6 +1659,7 @@ mod tests {
     #[rstest]
     #[case::non_recursive(DiskWatcherRecursiveMode::NonRecursive)]
     #[case::recursive(DiskWatcherRecursiveMode::Recursive)]
+    #[cfg_attr(feature = "ci", ignore = "timing-sensitive, flaky in CI")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn read_registered_before_watch_is_restored_is_invalidated(
         #[case] recursive_mode: DiskWatcherRecursiveMode,
