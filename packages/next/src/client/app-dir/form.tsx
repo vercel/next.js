@@ -207,7 +207,11 @@ function onFormSubmit(
     }
   }
 
-  const targetUrl = createFormSubmitDestinationUrl(action, formElement)
+  const targetUrl = createFormSubmitDestinationUrl(
+    action,
+    formElement,
+    submitter
+  )
 
   // Finally, no more reasons for bailing out.
   event.preventDefault()
