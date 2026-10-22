@@ -1,7 +1,14 @@
 import { InvariantError } from '../shared/lib/invariant-error'
 
 export function getAssetPrefix() {
-  const currentScript = document.currentScript
+  let currentScript = document.currentScript
+
+  if (!(currentScript instanceof HTMLScriptElement)) {
+    const scripts = document.querySelectorAll<HTMLScriptElement>(
+      'script[src*="/_next/"]'
+    )
+    currentScript = scripts.length > 0 ? scripts[scripts.length - 1] : null
+  }
 
   if (!(currentScript instanceof HTMLScriptElement)) {
     throw new InvariantError(
