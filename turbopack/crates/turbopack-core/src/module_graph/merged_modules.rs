@@ -548,6 +548,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                         r.binding_usage.export,
                         ExportUsage::All
                             | ExportUsage::PartialNamespaceObject(_)
+                            | ExportUsage::NamespaceMembers(_)
+                            | ExportUsage::NamespaceReexport { .. }
                             | ExportUsage::Passthrough { .. }
                     )
                 }) {

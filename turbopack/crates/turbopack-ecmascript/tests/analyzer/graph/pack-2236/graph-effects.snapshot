@@ -238,7 +238,7 @@
                         export: Some(
                             "Redis",
                         ),
-                        member: None,
+                        members: {},
                         ast_path: [
                             Program(
                                 Module,

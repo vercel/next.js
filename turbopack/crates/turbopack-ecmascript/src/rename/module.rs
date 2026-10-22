@@ -93,22 +93,26 @@ impl EcmascriptModuleRenameModule {
                 .to_resolved()
                 .await
             }
-            ModulePart::RenamedPartialNamespace { member, .. } => {
+            ModulePart::RenamedPartialNamespace { members, .. } => {
+                // Only these (possibly nested) members of the namespace object are read.
                 EcmascriptModulePartReference::new_normal(
                     *self.module,
                     self.part.clone(),
-                    ExportUsage::partial_namespace_object(vec![member.clone()]),
+                    ExportUsage::namespace_members(members.clone()),
                 )
                 .to_resolved()
                 .await
             }
             ModulePart::RenamedExport {
-                original_export, ..
+                original_export,
+                export,
             } => {
+                // `original_export` is used exactly like this module's `export`, including any
+                // static member usage of its value.
                 EcmascriptModulePartReference::new_normal(
                     *self.module,
                     self.part.clone(),
-                    ExportUsage::named(original_export.clone()),
+                    ExportUsage::forward_export(export.clone(), original_export.clone()),
                 )
                 .to_resolved()
                 .await

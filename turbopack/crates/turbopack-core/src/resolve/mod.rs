@@ -167,13 +167,101 @@ pub enum ImportUsage {
     Exports(FrozenSet<RcStr>),
 }
 
+/// How a value is read, when it may be a namespace object whose members are read statically.
+///
+/// For example `ns.a.b; ns.c` reads `ns` as
+/// `Members({ a: Members({ b: All }), c: All })`.
+#[turbo_tasks::task_input]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, Encode, Decode)]
+pub enum MemberUsage {
+    /// The value is read as a whole (or in a way that can't be narrowed).
+    All,
+    /// Only these members of the value are read, each with its own (nested) usage.
+    Members(BTreeMap<RcStr, MemberUsage>),
+}
+
+impl MemberUsage {
+    /// The usage of a single static member path, e.g. `[a, b]` for `value.a.b`. An empty path
+    /// reads the whole value.
+    pub fn from_path(path: &[RcStr]) -> Self {
+        path.iter().rev().fold(MemberUsage::All, |inner, member| {
+            MemberUsage::Members(BTreeMap::from([(member.clone(), inner)]))
+        })
+    }
+
+    /// Merge another usage into this one. Returns true if `self` changed.
+    pub fn merge(&mut self, other: &MemberUsage) -> bool {
+        match (&mut *self, other) {
+            (MemberUsage::All, _) => false,
+            (_, MemberUsage::All) => {
+                *self = MemberUsage::All;
+                true
+            }
+            (MemberUsage::Members(left), MemberUsage::Members(right)) => {
+                merge_member_maps(left, right)
+            }
+        }
+    }
+}
+
+/// Merge `right` into `left`. Returns true if `left` changed.
+pub fn merge_member_maps(
+    left: &mut BTreeMap<RcStr, MemberUsage>,
+    right: &BTreeMap<RcStr, MemberUsage>,
+) -> bool {
+    let mut changed = false;
+    for (name, usage) in right {
+        match left.get_mut(name) {
+            Some(existing) => changed |= existing.merge(usage),
+            None => {
+                left.insert(name.clone(), usage.clone());
+                changed = true;
+            }
+        }
+    }
+    changed
+}
+
+/// Writes `.a .b` for a single path and `.{a, b .c}` for a tree.
+fn fmt_member_map(map: &BTreeMap<RcStr, MemberUsage>, f: &mut Formatter<'_>) -> std::fmt::Result {
+    let fmt_entry = |f: &mut Formatter<'_>, name: &RcStr, usage: &MemberUsage| {
+        write!(f, ".{name}")?;
+        if let MemberUsage::Members(members) = usage {
+            f.write_char(' ')?;
+            fmt_member_map(members, f)?;
+        }
+        Ok(())
+    };
+    if let [(name, usage)] = map.iter().collect::<SmallVec<[_; 1]>>()[..] {
+        return fmt_entry(f, name, usage);
+    }
+    f.write_char('{')?;
+    for (i, (name, usage)) in map.iter().enumerate() {
+        if i > 0 {
+            f.write_str(", ")?;
+        }
+        fmt_entry(f, name, usage)?;
+    }
+    f.write_char('}')
+}
+
 /// Defines what parts of a module are used by another module
 #[turbo_tasks::value]
 #[derive(Debug, Clone, Default, Hash, Serialize, Deserialize)]
 pub enum ExportUsage {
     Named(RcStr),
+    /// A named export is used, and its value is only read through these static members. This
+    /// narrows the export's usage further if it is a namespace reexport (see
+    /// [`ExportUsage::NamespaceReexport`]); otherwise it behaves like [`ExportUsage::Named`].
+    NamedMembers {
+        export: RcStr,
+        members: BTreeMap<RcStr, MemberUsage>,
+    },
     /// Multiple named exports are used via a partial namespace object.
     PartialNamespaceObject(SmallVec<[RcStr; 1]>),
+    /// Like [`ExportUsage::PartialNamespaceObject`], but some of the exports are only read
+    /// through static members of their values.
+    NamespaceMembers(BTreeMap<RcStr, MemberUsage>),
     /// This means the whole content of the module is used.
     #[default]
     All,
@@ -189,12 +277,46 @@ pub enum ExportUsage {
         /// the referencing module was only consumed through statically known named exports.
         namespace_object_may_escape: bool,
     },
+    /// The referencing module exposes the target's export `original` as its own export `export`
+    /// (a facade or rename module). The target's `original` is used exactly like the referencing
+    /// module's `export`, including any static member usage.
+    ForwardExport {
+        export: RcStr,
+        original: RcStr,
+    },
+    /// The referencing module exposes the target's namespace object as these exports, e.g.
+    /// `export * as ns from './target'`. The target's exports are used exactly like the members
+    /// of the referencing module's `ns` export.
+    NamespaceReexport {
+        exports: SmallVec<[RcStr; 1]>,
+    },
 }
 
 impl Display for ExportUsage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             ExportUsage::Named(name) => write!(f, "export {name}"),
+            ExportUsage::NamedMembers { export, members } => {
+                write!(f, "export {export} ")?;
+                fmt_member_map(members, f)
+            }
+            ExportUsage::NamespaceMembers(members) => {
+                write!(f, "exports ")?;
+                fmt_member_map(members, f)
+            }
+            ExportUsage::ForwardExport { export, original } => {
+                write!(f, "forward export {original} as {export}")
+            }
+            ExportUsage::NamespaceReexport { exports } => {
+                write!(f, "namespace reexport as ")?;
+                for (i, name) in exports.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{name}")?;
+                }
+                Ok(())
+            }
             ExportUsage::PartialNamespaceObject(names) => {
                 write!(f, "exports ")?;
                 for (i, name) in names.iter().enumerate() {
@@ -251,6 +373,37 @@ impl ExportUsage {
             namespace_object_may_escape,
         }
         .cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn forward_export(export: RcStr, original: RcStr) -> Vc<Self> {
+        Self::ForwardExport { export, original }.cell()
+    }
+
+    /// The usage of a namespace object whose `members` are read. Uses
+    /// [`ExportUsage::PartialNamespaceObject`] when every member is read as a whole.
+    #[turbo_tasks::function]
+    pub fn namespace_members(members: BTreeMap<RcStr, MemberUsage>) -> Vc<Self> {
+        if members.values().all(|m| matches!(m, MemberUsage::All)) {
+            ExportUsage::PartialNamespaceObject(members.into_keys().collect())
+        } else {
+            ExportUsage::NamespaceMembers(members)
+        }
+        .cell()
+    }
+}
+
+impl ExportUsage {
+    /// The usage of the named export `export` whose value is only read through `members`.
+    pub fn named_members(export: RcStr, members: BTreeMap<RcStr, MemberUsage>) -> Self {
+        ExportUsage::NamedMembers { export, members }
+    }
+
+    /// Cells an arbitrary usage, for test graphs whose edges need a variant without a public
+    /// constructor.
+    #[cfg(test)]
+    pub(crate) fn cell_for_test(self) -> Vc<Self> {
+        self.cell()
     }
 }
 
@@ -3456,13 +3609,16 @@ pub enum ModulePart {
     Evaluation,
     /// Represents a named export, such as `foo` in `export const foo = "bar";`.
     Export(RcStr),
-    /// Represents an export for which one member is used.
+    /// Represents an export for which only some (possibly nested) members are used.
     ///
     /// For example, `import { value } from "./module"; value.member` is represented as
-    /// `{ export: "value", member: "member" }`. At this point, `value` has not yet been
+    /// `{ export: "value", members: { member } }`. At this point, `value` has not yet been
     /// resolved and might be either an ordinary value or a namespace object. If it is not a
     /// namespace object, this behaves like [`ModulePart::Export`].
-    PartialExport { export: RcStr, member: RcStr },
+    PartialExport {
+        export: RcStr,
+        members: BTreeMap<RcStr, MemberUsage>,
+    },
     /// Represents an export renamed while following re-exports, such as `foo` exported as `bar`
     /// by `export { foo as bar } from "./module"`.
     RenamedExport {
@@ -3472,12 +3628,16 @@ pub enum ModulePart {
     /// Represents a namespace object exported as a named export, such as `ns` in
     /// `export * as ns from "./module"`.
     RenamedNamespace { export: RcStr },
-    /// Represents a namespace object exported as a named export when only one member is used.
+    /// Represents a namespace object exported as a named export when only some (possibly nested)
+    /// members are used.
     ///
     /// For example, `import { ns } from "./lib"; ns.member`, where `lib` contains
     /// `export * as ns from "./module"`, is represented as
-    /// `{ export: "ns", member: "member" }` after resolving `ns` to the namespace object.
-    RenamedPartialNamespace { export: RcStr, member: RcStr },
+    /// `{ export: "ns", members: { member } }` after resolving `ns` to the namespace object.
+    RenamedPartialNamespace {
+        export: RcStr,
+        members: BTreeMap<RcStr, MemberUsage>,
+    },
     /// Points to a generated module-fragment part by its numeric index, such as the part that
     /// contains one local declaration.
     Internal(u32),
@@ -3499,8 +3659,8 @@ impl ModulePart {
         ModulePart::Export(export)
     }
 
-    pub fn partial_export(export: RcStr, member: RcStr) -> Self {
-        ModulePart::PartialExport { export, member }
+    pub fn partial_export(export: RcStr, members: BTreeMap<RcStr, MemberUsage>) -> Self {
+        ModulePart::PartialExport { export, members }
     }
 
     pub fn renamed_export(original_export: RcStr, export: RcStr) -> Self {
@@ -3514,8 +3674,8 @@ impl ModulePart {
         ModulePart::RenamedNamespace { export }
     }
 
-    pub fn renamed_partial_namespace(export: RcStr, member: RcStr) -> Self {
-        ModulePart::RenamedPartialNamespace { export, member }
+    pub fn renamed_partial_namespace(export: RcStr, members: BTreeMap<RcStr, MemberUsage>) -> Self {
+        ModulePart::RenamedPartialNamespace { export, members }
     }
 
     /// Returns the named export exposed by this part, if it has one.
@@ -3552,16 +3712,18 @@ impl Display for ModulePart {
         match self {
             ModulePart::Evaluation => f.write_str("module evaluation"),
             ModulePart::Export(export) => write!(f, "export {export}"),
-            ModulePart::PartialExport { export, member } => {
-                write!(f, "export {export} .{member}")
+            ModulePart::PartialExport { export, members } => {
+                write!(f, "export {export} ")?;
+                fmt_member_map(members, f)
             }
             ModulePart::RenamedExport {
                 original_export,
                 export,
             } => write!(f, "export {original_export} as {export}"),
             ModulePart::RenamedNamespace { export } => write!(f, "export * as {export}"),
-            ModulePart::RenamedPartialNamespace { export, member } => {
-                write!(f, "export * as {export} .{member}")
+            ModulePart::RenamedPartialNamespace { export, members } => {
+                write!(f, "export * as {export} ")?;
+                fmt_member_map(members, f)
             }
             ModulePart::Internal(id) => write!(f, "internal part {id}"),
             ModulePart::Locals => f.write_str("locals"),
@@ -3592,7 +3754,7 @@ mod tests {
     #[test]
     fn module_part_export_names_and_display() {
         let export = rcstr!("value");
-        let member = rcstr!("member");
+        let member = BTreeMap::from([(rcstr!("member"), MemberUsage::All)]);
         let original = rcstr!("original");
 
         let with_exports = [
@@ -3622,9 +3784,40 @@ mod tests {
             "export value .member"
         );
         assert_eq!(
-            ModulePart::renamed_partial_namespace(export, member).to_string(),
+            ModulePart::renamed_partial_namespace(export.clone(), member).to_string(),
             "export * as value .member"
         );
+        let MemberUsage::Members(path) = MemberUsage::from_path(&[rcstr!("locales"), rcstr!("en")])
+        else {
+            unreachable!()
+        };
+        assert_eq!(
+            ModulePart::partial_export(export.clone(), path).to_string(),
+            "export value .locales .en"
+        );
+        let tree = BTreeMap::from([
+            (rcstr!("a"), MemberUsage::All),
+            (
+                rcstr!("b"),
+                MemberUsage::from_path(&[rcstr!("c"), rcstr!("d")]),
+            ),
+        ]);
+        assert_eq!(
+            ModulePart::renamed_partial_namespace(export, tree).to_string(),
+            "export * as value {.a, .b .c .d}"
+        );
+    }
+
+    #[test]
+    fn member_usage_merge() {
+        let mut usage = MemberUsage::from_path(&[rcstr!("a"), rcstr!("b")]);
+        assert!(!usage.merge(&MemberUsage::from_path(&[rcstr!("a"), rcstr!("b")])));
+        assert!(usage.merge(&MemberUsage::from_path(&[rcstr!("a"), rcstr!("c")])));
+        assert!(usage.merge(&MemberUsage::from_path(&[rcstr!("a")])));
+        assert_eq!(usage, MemberUsage::from_path(&[rcstr!("a")]));
+        assert!(usage.merge(&MemberUsage::All));
+        assert!(!usage.merge(&MemberUsage::from_path(&[rcstr!("z")])));
+        assert_eq!(usage, MemberUsage::All);
     }
 
     #[cfg(unix)]
