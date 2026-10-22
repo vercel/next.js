@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { hasErrorToast, retry, waitFor, waitForNoRedbox } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
+import escapeStringRegexp from 'escape-string-regexp'
 
 // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
 // It likely asserts local CLI or runtime output that deploy tests do not expose.
@@ -103,7 +104,7 @@ describe('app-custom-cache-handler-errors - set throws', () => {
     env: { CACHE_HANDLER_THROW_ON: 'set' },
   })
 
-  it('renders the page successfully', async () => {
+  it('logs the cache write error without failing the render', async () => {
     const outputIndex = next.cliOutput.length
     const browser = await next.browser('/?input=x')
 
@@ -112,22 +113,20 @@ describe('app-custom-cache-handler-errors - set throws', () => {
     )
 
     if (isNextDev) {
-      // A throwing set() is currently completely silent in dev: the cache
-      // handler is called and its rejection is swallowed without being logged
-      // or reported to the dev overlay.
       await waitForNoRedbox(browser)
       expect(await hasErrorToast(browser)).toBe(false)
-      expect(next.cliOutput.slice(outputIndex)).not.toContain(
-        'CustomCacheHandler.set failed'
-      )
-    } else {
-      await retry(async () => {
-        expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(
-          'Error: CustomCacheHandler.set failed' +
-            '\n    at Object.set (throwing-cache-handler.js:50:13)' +
-            '\n    at <unknown> ('
-        )
-      })
     }
+
+    const errorBlock =
+      'Error: CustomCacheHandler.set failed' +
+      '\n    at Object.set (throwing-cache-handler.js:50:13)'
+
+    await retry(async () => {
+      expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(errorBlock)
+    })
+
+    const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
+    expect(cliOutput).not.toContain('unhandledRejection')
+    expect(cliOutput).toIncludeRepeated(escapeStringRegexp(errorBlock), 1)
   })
 })

@@ -73,7 +73,6 @@ import { synchronizeMutableCookies } from '../async-storage/request-store'
 import type { TemporaryReferenceSet } from 'react-server-dom-webpack/server'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { executeRevalidates } from '../revalidation-utils'
 import { addRequestMeta, getRequestMeta } from '../request-meta'
 import { setCacheBustingSearchParamWithHash } from '../../client/components/router-reducer/set-cache-busting-search-param'
 import {
@@ -609,7 +608,8 @@ function getRevalidationWaitUntil(
     return undefined
   }
 
-  const revalidatesPromise = executeRevalidates(workStore)
+  const revalidatesPromise =
+    workStore.afterContext.executeRevalidations(workStore)
   return revalidatesPromise === false ? undefined : revalidatesPromise
 }
 
@@ -1511,7 +1511,7 @@ async function executeActionAndPrepareForRender<
       // If the action called revalidateTag/revalidatePath, then that might
       // affect data used by the subsequent render, so we need to make sure all
       // revalidations are applied before that.
-      await executeRevalidates(workStore)
+      await workStore.afterContext.executeRevalidations(workStore)
     }
   }
 }
