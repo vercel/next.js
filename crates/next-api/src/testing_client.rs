@@ -921,8 +921,13 @@ impl ClientTestEndpoint {
         if this.project.next_mode().await?.is_production() {
             let plan = crate::testing::static_mock_plan(&this.path).await?;
             if !plan.is_empty() {
-                if !this.setup_paths.is_empty() || !crate::testing::production_factory_plan(&plan) {
-                    bail!("Production Browser mocks require isolated static relative factories");
+                if !this.setup_paths.is_empty()
+                    || !crate::testing::production_browser_mock_plan(&plan)
+                {
+                    bail!(
+                        "Production Browser mocks require isolated static relative factories or \
+                         spies"
+                    );
                 }
                 assets.push(ResolvedVc::upcast(
                     VirtualOutputAsset::new(

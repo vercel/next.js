@@ -465,11 +465,15 @@ pub(crate) async fn test_endpoint(
             || !setup_paths.is_empty()
             || !snapshot_serializers.is_empty()
             || !cohort_files.is_empty()
-            || !production_factory_plan(&production_plan))
+            || !(if *browser_client {
+                production_browser_mock_plan(&production_plan)
+            } else {
+                production_factory_plan(&production_plan)
+            }))
     {
         return Err(test_input_error(
             path.clone(),
-            "Production module mocks require isolated Node or Browser static relative factory \
+            "Production module mocks require isolated static relative factory or Browser spy \
              declarations without setup, serializers, in-source entries or other mock features",
         ));
     }
@@ -479,7 +483,7 @@ pub(crate) async fn test_endpoint(
             && project.next_mode().await?.is_development()
             || *browser_client
                 && project.next_mode().await?.is_production()
-                && production_factory_plan(&plan))
+                && production_browser_mock_plan(&plan))
             && route.is_none()
             && setup_paths.is_empty()
             && snapshot_serializers.is_empty()
@@ -570,6 +574,14 @@ async fn virtual_test_source(
 }
 
 pub(crate) fn production_factory_plan(plan: &StaticMockPlan) -> bool {
+    production_static_mock_plan(plan, false)
+}
+
+pub(crate) fn production_browser_mock_plan(plan: &StaticMockPlan) -> bool {
+    production_static_mock_plan(plan, true)
+}
+
+fn production_static_mock_plan(plan: &StaticMockPlan, browser_spies: bool) -> bool {
     !plan.declarations.is_empty()
         && plan.hoisted.is_empty()
         && plan.actual_imports.is_empty()
@@ -578,11 +590,12 @@ pub(crate) fn production_factory_plan(plan: &StaticMockPlan) -> bool {
         && !plan.reset_modules
         && plan.runtime_requests.is_empty()
         && plan.declarations.iter().all(|declaration| {
-            !declaration.automatic
-                && !declaration.spy
-                && declaration.has_object_return
-                && !declaration.has_spread
-                && (declaration.request.starts_with("./") || declaration.request.starts_with("../"))
+            (declaration.request.starts_with("./") || declaration.request.starts_with("../"))
+                && ((!declaration.automatic
+                    && !declaration.spy
+                    && declaration.has_object_return
+                    && !declaration.has_spread)
+                    || (browser_spies && declaration.automatic && declaration.spy))
         })
 }
 
@@ -4255,7 +4268,44 @@ pub async fn snapshot_endpoint_operation(
 
 #[cfg(test)]
 mod production_factory_tests {
-    use crate::testing::{extract_test_mocks, production_factory_plan};
+    use crate::testing::{
+        extract_test_mocks, production_browser_mock_plan, production_factory_plan,
+    };
+
+    #[test]
+    fn admits_relative_browser_spies_and_factory_composition() {
+        for body in [
+            "vi.mock('./dep', { spy: true })",
+            "vi.mock('../dep', { spy: true })",
+            "vi.mock('./dep', { spy: true }); vi.mock('./other', () => ({ value: 42 }))",
+        ] {
+            let source = format!("import {{ vi }} from 'vitest'; {body}");
+            let plan = extract_test_mocks(&source, "entry.js").unwrap();
+            assert!(production_browser_mock_plan(&plan), "{body}");
+            assert!(!production_factory_plan(&plan), "{body}");
+        }
+    }
+
+    #[test]
+    fn rejects_other_browser_mock_features_in_production() {
+        for body in [
+            "vi.mock('./dep')",
+            "vi.mock('dependency', { spy: true })",
+            "const state = vi.hoisted(() => ({})); vi.mock('./dep', { spy: true })",
+            "vi.resetModules(); vi.mock('./dep', { spy: true })",
+            "vi.doMock('./other', () => ({ value: 42 })); vi.mock('./dep', { spy: true })",
+            "const actual = await vi.importActual('./dep'); vi.mock('./dep', { spy: true })",
+            "const mocked = await vi.importMock('./dep'); vi.mock('./dep', { spy: true })",
+            "vi.unmock('./other'); vi.mock('./dep', { spy: true })",
+        ] {
+            let source = format!("import {{ vi }} from 'vitest'; {body}");
+            // Some combinations are already rejected by the syntax planner.
+            // A parsed plan must still be refused by production admission.
+            if let Ok(plan) = extract_test_mocks(&source, "entry.js") {
+                assert!(!production_browser_mock_plan(&plan), "{body}");
+            }
+        }
+    }
 
     #[test]
     fn admits_only_relative_static_factory_plans_for_production() {

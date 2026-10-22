@@ -308,8 +308,7 @@ impl CreatorPass {
                 ClassMember::StaticBlock(_)
                     | ClassMember::ClassProp(_)
                     | ClassMember::PrivateProp(_)
-                    | ClassMember::Constructor(_)
-            )
+            ) || (class.super_class.is_some() && matches!(member, ClassMember::Constructor(_)))
         }) {
             self.error.get_or_insert(
                 "class constructor/field/static evaluation requires separate placement proof",
@@ -317,6 +316,7 @@ impl CreatorPass {
         }
         class.visit_mut_children_with(self);
         let supported = class.body.iter().any(|member| match member {
+            ClassMember::Constructor(constructor) => constructor.body.is_some(),
             ClassMember::Method(method) => {
                 !method.function.is_async && !method.function.is_generator
             }
@@ -331,6 +331,18 @@ impl CreatorPass {
         let cell = self.cell();
         for member in &mut class.body {
             match member {
+                ClassMember::Constructor(constructor) => {
+                    if constructor.params.iter().any(|param| {
+                        !matches!(param, ParamOrTsParamProp::Param(param) if param.decorators.is_empty() && simple_pattern(&param.pat))
+                    }) {
+                        self.error.get_or_insert(
+                            "constructor parameter initialization/destructuring before entry",
+                        );
+                    }
+                    if let Some(body) = &mut constructor.body {
+                        self.body(body, &cell);
+                    }
+                }
                 ClassMember::Method(method)
                     if !method.function.is_async && !method.function.is_generator =>
                 {
@@ -419,6 +431,28 @@ impl VisitMut for CreatorPass {
         self.repeated = false;
         self.function_depth += 1;
         function.body.visit_mut_with(self);
+        self.function_depth -= 1;
+        self.in_parameters = parameters;
+        self.in_inline_body = inline;
+        self.repeated = repeated;
+        self.suspended = suspended;
+        self.labeled_loop = labeled;
+    }
+    fn visit_mut_constructor(&mut self, constructor: &mut Constructor) {
+        let parameters = self.in_parameters;
+        let inline = self.in_inline_body;
+        let repeated = self.repeated;
+        let suspended = self.suspended;
+        let labeled = self.labeled_loop;
+        self.suspended = false;
+        self.labeled_loop = false;
+        self.in_parameters = true;
+        constructor.params.visit_mut_with(self);
+        self.in_parameters = false;
+        self.in_inline_body = false;
+        self.repeated = false;
+        self.function_depth += 1;
+        constructor.body.visit_mut_with(self);
         self.function_depth -= 1;
         self.in_parameters = parameters;
         self.in_inline_body = inline;
@@ -802,6 +836,121 @@ mod tests {
             assert!(output.contains("super.method(a, ...rest)"));
             assert!(!output.contains("new Proxy"));
             assert!(!output.contains(".bind("));
+        });
+    }
+    #[test]
+    fn base_constructors_preserve_javascript_and_restore_their_real_creator() {
+        GLOBALS.set(&Default::default(), || {
+            let source = r#"
+globalThis.creatorOwner = 'declaration';
+globalThis.creatorDepth = 0;
+const owners = [];
+const failure = new Error('original');
+const replacement = { value: 'replacement' };
+class Counter {
+  constructor(value, ...rest) {
+    'constructor directive';
+    owners.push(['constructor', globalThis.creatorOwner, globalThis.creatorDepth]);
+    this.value = value;
+    this.target = new.target.name;
+    this.arguments = [...arguments];
+    this.rest = rest;
+    this.callback = function callback(value) {
+      owners.push(['callback', globalThis.creatorOwner, globalThis.creatorDepth]);
+      return this.value + value;
+    };
+    if (value === 'throw') throw failure;
+    if (value === 'return') return replacement;
+    if (value === 'primitive') return 7;
+  }
+  read() {
+    owners.push(['read', globalThis.creatorOwner, globalThis.creatorDepth]);
+    return this.value;
+  }
+}
+class Derived extends Counter {}
+globalThis.creatorOwner = 'caller';
+const first = new Counter(3, 4, 5);
+const derived = Reflect.construct(Counter, [9], Derived);
+let caught;
+try { new Counter('throw'); } catch (error) { caught = error === failure; }
+const returned = new Counter('return');
+const primitive = new Counter('primitive');
+console.log(JSON.stringify({
+  values: [first.value, first.target, first.arguments, first.rest,
+    first.read(), first.callback.call({ value: 7 }, 8),
+    derived instanceof Derived, derived.target, derived.value,
+    caught, returned === replacement, primitive instanceof Counter,
+    primitive.value, Counter.name, Counter.length, Counter.prototype.read.name,
+    Object.getOwnPropertyNames(Counter.prototype),
+    Object.getOwnPropertyDescriptor(Counter, 'prototype').writable],
+  owners, finalOwner: globalThis.creatorOwner, finalDepth: globalThis.creatorDepth
+}));
+"#;
+            let run = |source: &str| -> serde_json::Value {
+                let output = std::process::Command::new("node")
+                    .args(["--input-type=module", "--eval", source])
+                    .output()
+                    .expect("repository Node runtime");
+                assert!(
+                    output.status.success(),
+                    "{}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                serde_json::from_slice(&output.stdout).unwrap()
+            };
+            let baseline = run(source);
+            let (mut program, count) = transformed(source).unwrap();
+            assert_eq!(count, 3);
+            assert!(validate_creator_import(&program).unwrap());
+            // Run the actual emitted constructor and nested callback. The bridge
+            // models creator entry only; it does not replace either function.
+            let bridge = "data:text/javascript,export function captureCreatorScope(){return \
+                          globalThis.creatorOwner} export function enterCreatorScope(owner){const \
+                          previous=globalThis.creatorOwner;globalThis.creatorOwner=owner;\
+                          globalThis.creatorDepth++;return()=>{globalThis.creatorOwner=previous;\
+                          globalThis.creatorDepth--}}";
+            let Program::Module(module) = &mut program else {
+                unreachable!()
+            };
+            let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = &mut module.body[0] else {
+                unreachable!()
+            };
+            import.src.value = bridge.into();
+            import.src.raw = None;
+            let actual = run(&to_code(&program));
+            assert_eq!(actual["values"], baseline["values"]);
+            assert_eq!(actual["finalOwner"], "caller");
+            assert_eq!(actual["finalDepth"], 0);
+            let owners = actual["owners"].as_array().unwrap();
+            assert_eq!(owners.len(), 7);
+            for owner in owners {
+                assert_eq!(owner[1], "declaration");
+                assert_eq!(owner[2], 1);
+            }
+        });
+    }
+    #[test]
+    fn constructor_initialization_and_derived_super_keep_their_existing_holds() {
+        GLOBALS.set(&Default::default(), || {
+            for source in [
+                "class C extends Base { constructor(value){ super(value) } }",
+                "class C { constructor(value=read()){ this.value=value } }",
+                "class C { constructor({ value }){ this.value=value } }",
+                "class C { constructor(){ function nested(){}; this.value=nested } }",
+                "class C { field=read(); constructor(value){ this.value=value } }",
+                "class C { static { read() } constructor(value){ this.value=value } }",
+                "const C = () => class { constructor(value){ this.value=value } }",
+            ] {
+                assert!(transformed(source).is_err(), "must HOLD {source}");
+            }
+            let (program, count) = transformed(
+                "export const C = class Named { constructor(value,...rest){ \
+                 this.value=[value,rest,new.target] } }",
+            )
+            .unwrap();
+            assert_eq!(count, 1);
+            assert!(validate_creator_import(&program).unwrap());
         });
     }
     #[test]
