@@ -6,7 +6,6 @@ const execa = require('execa')
 const semver = require('semver')
 const { Sema } = require('async-sema')
 const fs = require('fs/promises')
-const { readReleaseVersion } = require('./release-version')
 
 const cwd = process.cwd()
 const dryRun = process.argv.includes('--dry-run')
