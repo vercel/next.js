@@ -5,7 +5,6 @@
 //! records their filesystem dependencies and validates inputs across each external command.
 mod inputs;
 mod paths;
-mod process;
 
 use std::{
     collections::BTreeMap,
@@ -26,6 +25,9 @@ use turbo_tasks::{
     Invalidator, NonLocalValue, ResolvedVc, TransientInstance, Vc, get_invalidator, turbo_tasks,
 };
 use turbo_tasks_fs::{DiskFileSystem, File, FileContent, FileSystemPath, Permissions, to_sys_path};
+use turbopack_go_toolchain::{
+    PrepareOptions, PreparedToolchain, ToolchainSource, prepare, process,
+};
 
 use crate::inputs::{FileInput, Inputs, Tracker, directory};
 pub use crate::paths::{paths_refer_to_same_file, validate_source_path};
@@ -39,6 +41,7 @@ pub struct Cancellation {
     builds: AtomicUsize,
 
     module_configs: AtomicUsize,
+    toolchain: PreparedToolchain,
 }
 // Session cancellation and counters contain no task values or references.
 unsafe impl NonLocalValue for Cancellation {}
@@ -52,6 +55,7 @@ pub struct GoBuildContext {
     pub go: RcStr,
     pub goroot: RcStr,
     pub version: RcStr,
+    pub toolchain_identity: RcStr,
     pub goos: RcStr,
     pub goarch: RcStr,
     pub exe_suffix: RcStr,
@@ -74,49 +78,37 @@ impl<C> Decode<C> for GoBuildContext {
     }
 }
 
+/// Check the managed cache namespace before provisioning writes any files.
+pub fn validate_toolchain_cache(directory: &Path, protected: &[&Path]) -> Result<()> {
+    for path in protected {
+        ensure!(
+            !paths::directories_overlap(directory, path)?,
+            "Go toolchain cache must be outside source, output, build-cache and module-cache trees"
+        );
+    }
+    Ok(())
+}
+
 impl GoBuildContext {
     pub async fn host(go: &Path, cache: Option<&Path>, tags: &str) -> Result<Self> {
-        let go = if go.components().count() == 1 && !go.is_absolute() {
-            let name = if go.extension().is_none() {
-                PathBuf::from(format!("{}{}", go.display(), std::env::consts::EXE_SUFFIX))
-            } else {
-                go.to_owned()
-            };
-            std::env::var_os("PATH")
-                .into_iter()
-                .flat_map(|path| std::env::split_paths(&path).collect::<Vec<_>>())
-                .map(|directory| directory.join(&name))
-                .find(|candidate| candidate.is_file())
-                .context("Go not found on PATH; install Go 1.24 or newer or use --go")?
-        } else {
-            go.to_owned()
-        };
-        let go = std::fs::canonicalize(go).context("resolving the Go executable")?;
+        let toolchain = prepare(
+            ToolchainSource::Executable(go.to_owned()),
+            PrepareOptions::default(),
+            CancellationToken::new(),
+        )
+        .await?;
+        Self::from_toolchain(toolchain, cache, tags)
+    }
+
+    pub fn from_toolchain(
+        toolchain: PreparedToolchain,
+        cache: Option<&Path>,
+        tags: &str,
+    ) -> Result<Self> {
+        let go = toolchain.executable.clone();
+        let goroot = toolchain.goroot.clone();
+        let env = &toolchain.environment;
         let token = CancellationToken::new();
-        let mut command = Command::new(&go);
-        command
-            .env("GOENV", "off")
-            .env("GOTOOLCHAIN", "local")
-            .env("GOWORK", "off")
-            .args([
-                "env",
-                "-json",
-                "GOROOT",
-                "GOVERSION",
-                "GOHOSTOS",
-                "GOHOSTARCH",
-                "GOEXE",
-                "GOCACHE",
-                "GOMODCACHE",
-                "GOPATH",
-            ]);
-        let report = process::output(command, &token).await?;
-        ensure!(
-            report.status.success(),
-            "unable to query Go: {}",
-            String::from_utf8_lossy(&report.stderr)
-        );
-        let env: BTreeMap<String, String> = serde_json::from_slice(&report.stdout)?;
         let version = env
             .get("GOVERSION")
             .context("Go did not report its version")?;
@@ -128,7 +120,6 @@ impl GoBuildContext {
             minor.is_some_and(|v| v >= 24),
             "Go 1.24 or newer is required (found {version})"
         );
-        let goroot = std::fs::canonicalize(env.get("GOROOT").context("Go did not report GOROOT")?)?;
         let custom_cache = cache.is_some();
         let cache = cache
             .map(Path::to_owned)
@@ -141,6 +132,16 @@ impl GoBuildContext {
             "Go build cache symlinks are unsupported: {}",
             cache.display()
         );
+        if toolchain.is_managed() {
+            let installation = goroot
+                .parent()
+                .context("GOROOT has no installation parent")?;
+            ensure!(
+                !paths::directories_overlap(installation, &cache)?
+                    && !paths::directories_overlap(installation, &module_cache)?,
+                "managed Go toolchain must be outside the build cache and module cache"
+            );
+        }
         std::fs::create_dir_all(&module_cache)?;
         let mut path = vec![goroot.join("bin")];
         path.extend(
@@ -152,6 +153,7 @@ impl GoBuildContext {
             go: go.to_str().context("non-UTF8 Go executable")?.into(),
             goroot: goroot.to_str().context("non-UTF8 GOROOT")?.into(),
             version: version.as_str().into(),
+            toolchain_identity: toolchain.identity.as_str().into(),
             goos: env["GOHOSTOS"].as_str().into(),
             goarch: env["GOHOSTARCH"].as_str().into(),
             exe_suffix: if env["GOHOSTOS"] == "windows" {
@@ -178,8 +180,23 @@ impl GoBuildContext {
                 lists: AtomicUsize::new(0),
                 builds: AtomicUsize::new(0),
                 module_configs: AtomicUsize::new(0),
+                toolchain,
             }),
         })
+    }
+
+    /// Reject output publication inside a leased, managed toolchain installation.
+    pub fn validate_output(&self, output: &Path) -> Result<()> {
+        if self.cancellation.toolchain.is_managed() {
+            let root = Path::new(self.goroot.as_str())
+                .parent()
+                .context("GOROOT has no installation parent")?;
+            ensure!(
+                !paths::directories_overlap(root, output)?,
+                "output must be outside the managed Go toolchain"
+            );
+        }
+        Ok(())
     }
 
     pub fn cancel(&self) {
@@ -212,6 +229,7 @@ impl GoBuildContext {
             .env("GOMODCACHE", self.module_cache.as_str())
             .env("GOPATH", self.gopath.as_str())
             .env("GOTELEMETRY", "off");
+        self.cancellation.toolchain.apply(&mut command);
         #[cfg(windows)]
         for name in ["SystemRoot", "TEMP", "TMP"] {
             if let Some(value) = std::env::var_os(name) {
@@ -585,6 +603,21 @@ async fn discover(
             "Go build cache must be outside the source project and module cache; choose another \
              --go-cache path"
         );
+        if go_context.cancellation.toolchain.is_managed() {
+            let goroot = Path::new(go_context.goroot.as_str())
+                .parent()
+                .context("GOROOT has no installation parent")?;
+            ensure!(
+                !paths::directories_overlap(goroot, &project)?
+                    && !paths::directories_overlap(goroot, build_cache)?
+                    && !paths::directories_overlap(
+                        goroot,
+                        Path::new(go_context.module_cache.as_str())
+                    )?,
+                "managed Go toolchain must be outside the source project, build cache and module \
+                 cache"
+            );
+        }
         std::fs::create_dir_all(build_cache)?;
         let directory = entry_directory(&project, &files)?;
         tracker.parents(&directory).await?;

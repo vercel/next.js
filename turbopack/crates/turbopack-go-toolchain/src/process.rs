@@ -44,10 +44,7 @@ struct PendingOutput<F> {
     output: Pin<Box<F>>,
 }
 
-pub(crate) async fn output(
-    command: Command,
-    cancel: &CancellationToken,
-) -> Result<std::process::Output> {
+pub async fn output(command: Command, cancel: &CancellationToken) -> Result<std::process::Output> {
     output_with_timeout(command, cancel, TIMEOUT).await
 }
 
@@ -68,7 +65,7 @@ async fn output_with_timeout(
     }
     let child = command
         .spawn()
-        .context("starting Go; install Go 1.24 or newer or use --go")?;
+        .context("starting the selected Go executable")?;
     let mut pending = PendingOutput {
         group: ProcessGroup(child.id()),
         output: Box::pin(child.wait_with_output()),

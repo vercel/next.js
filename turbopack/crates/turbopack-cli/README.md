@@ -7,6 +7,7 @@ the input filenames.
 Build the CLI from the repository root:
 
 ```sh
+cargo xtask prepare-go-toolchain --target "$(rustc -vV | sed -n 's/^host: //p')"
 cargo build -p turbopack-cli
 ./target/debug/turbopack-cli build --help
 ```
@@ -28,8 +29,10 @@ dependencies change. See `dev --help` for its options.
 
 ## Go quickstart
 
-Install Go 1.24 or newer and put `go` on `PATH`, or select an installation with
-`--go`. Save this as `main.go` in `path/to/go-project`:
+The CLI embeds the complete official Go 1.27.2 toolchain. Go does not need to be
+installed or downloaded at runtime. The first Go command extracts and verifies
+the toolchain in a private user cache. Save this as `main.go` in
+`path/to/go-project`:
 
 ```go
 package main
@@ -70,7 +73,7 @@ have no special application conventions.
 | `--dir`      | Directory used to resolve input filenames; defaults to the current directory.                             |
 | `--root`     | Optional containment check for the module or standalone source directory.                                 |
 | `--output`   | Executable path, relative to the current directory; defaults to `<dir>/dist/<first-input-stem>[.exe]`.    |
-| `--go`       | Go executable, resolved from `PATH` or a path relative to the current directory; defaults to `go`.        |
+| `--go`       | Go executable, resolved from `PATH` or a path relative to the current directory; defaults to the embedded toolchain.        |
 | `--go-cache` | Build-cache directory, relative to the current directory; defaults to the selected toolchain's `GOCACHE`. |
 | `--tags`     | Build tags passed to discovery and compilation; defaults to no additional tags.                           |
 | `--watch`    | Rebuild after input changes; defaults to a single build.                                                  |
@@ -107,21 +110,56 @@ toolchain's defaults. To use a custom module cache, export `GOMODCACHE` before b
 preparing dependencies and running the CLI. `GOCACHE` selects the build cache;
 `--go-cache` overrides it.
 
-Prepare dependencies with the same Go installation you select with `--go` (or
-`go` from `PATH`). These POSIX commands use `go` from `PATH` and disable Go
-configuration that the CLI does not use:
+Prepare dependencies with the same selected toolchain. `toolchain path` extracts
+and verifies the embedded toolchain and prints its absolute Go executable path.
+These POSIX commands use that driver and disable Go configuration the CLI does
+not use:
 
 ```sh
+GO_BIN="$(/path/to/turbopack-cli toolchain path)"
 cd path/to/go-project
 export GOENV=off GOTOOLCHAIN=local GOWORK=off CGO_ENABLED=0 GOFLAGS=
-go mod tidy
-go mod download
+"$GO_BIN" mod tidy
+"$GO_BIN" mod download
 /path/to/turbopack-cli build main.go helper.go
 ```
 
 Preparation can download dependencies and update module metadata. The CLI only
 reads the resulting module configuration and cache. Its Go installation and
 resolved environment must stay unchanged during a build or watch session.
+
+### Toolchain selection and cache
+
+The CLI keeps its macOS 11 deployment target for JavaScript/TypeScript commands.
+Go is bundled as data and prepared only by Go commands. On macOS 11/12, embedded
+Go preparation reports that Go 1.27 requires macOS 13+, includes the detected OS
+version, and leaves the toolchain cache untouched. A compatible external `--go`
+toolchain is still usable on these systems.
+
+The embedded toolchain supports macOS 13+ on amd64/arm64, Windows on amd64/arm64,
+and GNU/musl Linux on amd64/arm64. Cross-built CLI binaries embed their Rust
+TARGET's Go distribution. Application builds support only the host platform with CGO disabled.
+
+`--go /path/to/go` selects an immutable external installation (Go 1.24+). Explicit
+`--go go` searches PATH. The default does not search PATH or fall back to another
+compiler. The CLI controls GOROOT, sets GOTOOLCHAIN=local, and ignores inherited
+Go compiler/target flags. A module requiring a newer compiler receives an error;
+no replacement toolchain is downloaded.
+
+The toolchain cache defaults to `~/Library/Caches/turbopack/go-toolchains` on
+macOS, `$LOCALAPPDATA/Turbopack/go-toolchains` on Windows, and
+`$XDG_CACHE_HOME/turbopack/go-toolchains` or `~/.cache/turbopack/go-toolchains` on
+Linux. Set `TURBOPACK_GO_TOOLCHAIN_CACHE` to override it. Keep it outside source,
+output, Go build-cache and module-cache trees. It requires a private local
+filesystem supporting locks and atomic renames; an executable filesystem is
+required for the extracted tools.
+
+Each Go session verifies cached file contents and holds an installation lease.
+Corrupt/missing caches are rebuilt from the binary. If a damaged installation is
+still leased, stop other Go sessions and retry. Older versions stay cached;
+remove unused installations when no sessions use them. Complete archives add
+approximately 64–76 MiB to the CLI and require hundreds of MB of cache storage,
+plus Go's separate build cache. JavaScript builds do not prepare the toolchain.
 
 ### Watching
 
@@ -162,13 +200,18 @@ for the integration design.
 
 ## Contributor verification
 
-With Go on `PATH`, run from the repository root:
+Prepare the archive for the Rust host target, then run from the repository root:
 
 ```sh
-cargo test -p turbopack-go -p turbopack-cli
+cargo xtask prepare-go-toolchain --target "$(rustc -vV | sed -n 's/^host: //p')"
+cargo test -p turbopack-go-toolchain -p turbopack-go -p turbopack-cli
 ```
 
-Set `TURBOPACK_GO=/path/to/go/bin/go` to select a test toolchain. The watch timeout
+Set `TURBOPACK_GO=/path/to/go/bin/go` to select an external test toolchain.
+Without it, tests use the embedded installation. For a development binary without
+a payload, use `cargo build -p turbopack-cli --no-default-features`; supply `--go`
+for Go builds. Cargo never downloads toolchains; `--offline` preparation reuses a
+verified archive. `TURBOPACK_GO_ARCHIVE_DIR` selects the build-time archive cache. The watch timeout
 regression uses the real 180-second deadline, adding roughly three minutes.
 
 See the [CLI tests](tests/go.rs), [library tests](../turbopack-go/tests/live.rs),

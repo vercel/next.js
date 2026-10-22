@@ -323,6 +323,9 @@ jobs:
           go-version: '1.24.x'
           cache: false
 
+      - uses: ./.github/actions/setup-go-toolchain
+        if: ${{ inputs.needsRust == 'yes' }}
+
       - name: Install nextest
         if: ${{ inputs.needsNextest == 'yes' }}
         run: cargo binstall --no-confirm --locked cargo-nextest@0.9.133

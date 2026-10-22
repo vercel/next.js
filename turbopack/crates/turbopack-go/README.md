@@ -14,8 +14,10 @@ The public API is in [src/lib.rs](src/lib.rs). The
 [CLI consumer](../turbopack-cli/src/go.rs) demonstrates session setup, watching,
 publication and shutdown.
 
-1. Create a `GoBuildContext` with `GoBuildContext::host`, supplying the Go executable,
-   optional build-cache path and build tags. Reuse that context throughout the session.
+1. Prepare an embedded or external installation with `turbopack-go-toolchain`,
+   then call `GoBuildContext::from_toolchain` with the prepared descriptor, optional
+   build-cache path and tags. The context retains its lease for the session.
+   `GoBuildContext::host` remains a convenience for an external executable.
 2. Use `filesystem` to create a disk filesystem rooted at a canonical project path:
    the module directory, or the source directory for standalone inputs. Pass its
    root `FileSystemPath` to `go_bundle` together with project-relative `.go` filenames.
@@ -80,15 +82,16 @@ writers: it does not lock sources or provide a transactional snapshot.
 
 ## Contributor verification
 
-Run from the repository root with Go on `PATH`:
+Prepare the embedded archive, then run from the repository root:
 
 ```sh
-cargo test -p turbopack-go -p turbopack-cli
+cargo xtask prepare-go-toolchain --target "$(rustc -vV | sed -n 's/^host: //p')"
+cargo test -p turbopack-go-toolchain -p turbopack-go -p turbopack-cli
 ```
 
 Use `TURBOPACK_GO=/path/to/go/bin/go` to select another installed toolchain. The CLI
 watch timeout regression adds roughly three minutes to the combined suite.
 
-See the [live integration tests](tests/live.rs), [process tests](src/process.rs),
+See the [live integration tests](tests/live.rs), [process tests](../turbopack-go-toolchain/src/process.rs),
 [CLI tests](../turbopack-cli/tests/go.rs), and
 [CI workflow](../../../.github/workflows/turbopack_go.yml) for verification coverage.
