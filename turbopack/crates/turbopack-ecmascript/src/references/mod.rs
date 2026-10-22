@@ -2581,7 +2581,10 @@ where
         {
             let args = linked_args().await?;
             if !args.is_empty() {
-                let pat = js_value_to_pattern(&args[0]);
+                let pat = without_ignored_dynamic_alternatives(
+                    js_value_to_pattern(&args[0]),
+                    ignore_dynamic_requests,
+                );
                 if !pat.has_constant_parts() {
                     let (args, hints) = explain_args(args);
                     handler.span_warn_with_code(
@@ -2621,7 +2624,10 @@ where
         WellKnownFunctionKind::FsReadDir if analysis.analyze_mode.trace_file_references => {
             let args = linked_args().await?;
             if !args.is_empty() {
-                let pat = js_value_to_pattern(&args[0]);
+                let pat = without_ignored_dynamic_alternatives(
+                    js_value_to_pattern(&args[0]),
+                    ignore_dynamic_requests,
+                );
                 if !pat.has_constant_parts() {
                     let (args, hints) = explain_args(args);
                     handler.span_warn_with_code(
@@ -2681,7 +2687,10 @@ where
                 )
                 .await?;
 
-            let pat = js_value_to_pattern(&linked_func_call);
+            let pat = without_ignored_dynamic_alternatives(
+                js_value_to_pattern(&linked_func_call),
+                ignore_dynamic_requests,
+            );
             if !pat.has_constant_parts() {
                 let (args, hints) = explain_args(args);
                 handler.span_warn_with_code(
@@ -2736,7 +2745,10 @@ where
                     ImportAttributes::empty_ref(),
                 )
                 .await?;
-            let pat = js_value_to_pattern(&linked_func_call);
+            let pat = without_ignored_dynamic_alternatives(
+                js_value_to_pattern(&linked_func_call),
+                ignore_dynamic_requests,
+            );
             if !pat.has_constant_parts() {
                 let (args, hints) = explain_args(args);
                 handler.span_warn_with_code(
@@ -2810,6 +2822,7 @@ where
                         );
                     }
                 }
+                let pat = without_ignored_dynamic_alternatives(pat, ignore_dynamic_requests);
                 let dynamic = !pat.has_constant_parts();
                 if dynamic {
                     show_dynamic_warning = true;
@@ -2859,7 +2872,10 @@ where
             let args = linked_args().await?;
             if !args.is_empty() {
                 let first_arg = &args[0];
-                let pat = js_value_to_pattern(first_arg);
+                let pat = without_ignored_dynamic_alternatives(
+                    js_value_to_pattern(first_arg),
+                    ignore_dynamic_requests,
+                );
                 if !pat.has_constant_parts() {
                     let (args, hints) = explain_args(args);
                     handler.span_warn_with_code(
@@ -3933,6 +3949,37 @@ async fn handle_free_var_reference(
 
 fn issue_source(source: ResolvedVc<Box<dyn Source>>, span: Span) -> IssueSource {
     IssueSource::from_swc_offsets(source, span.lo.to_u32(), span.hi.to_u32())
+}
+
+/// Applies the "ignore dynamic requests" policy to each alternative of a file tracing pattern.
+///
+/// A pattern without any constant parts is skipped entirely when dynamic requests are ignored. An
+/// alternative of a pattern (e.g. from `unknown ?? "./file.json"`, or a function parameter with a
+/// default value) is handled the same way: alternatives without constant parts are dropped, so the
+/// remaining ones are traced without tracing everything the dynamic alternative could match.
+///
+/// The pattern is returned unchanged when dynamic requests aren't ignored, or when no alternative
+/// has constant parts, which leaves the decision to the caller's `has_constant_parts` check.
+///
+/// The pattern is expected to be normalized, so that alternatives are at the top level.
+fn without_ignored_dynamic_alternatives(pat: Pattern, ignore_dynamic_requests: bool) -> Pattern {
+    if !ignore_dynamic_requests {
+        return pat;
+    }
+    match pat {
+        Pattern::Alternatives(list) if list.iter().any(|alt| alt.has_constant_parts()) => {
+            let mut list: Vec<_> = list
+                .into_iter()
+                .filter(|alt| alt.has_constant_parts())
+                .collect();
+            if list.len() == 1 {
+                list.pop().unwrap()
+            } else {
+                Pattern::Alternatives(list)
+            }
+        }
+        pat => pat,
+    }
 }
 
 async fn analyze_amd_define(
