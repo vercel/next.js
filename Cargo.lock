@@ -9967,6 +9967,7 @@ dependencies = [
  "turbo-tasks-fs",
  "turbo-tasks-hash",
  "turbo-tasks-testing",
+ "turbo-unix-path",
  "turbopack-cli-utils",
  "turbopack-core",
  "turbopack-ecmascript",
