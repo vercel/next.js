@@ -4217,10 +4217,9 @@
       var length = 32 - clz32(totalChildren) + baseLength;
       if (30 < length) {
         var numberOfOverflowBits = baseLength - (baseLength % 5);
-        length = (
-          baseIdWithLeadingBit &
-          ((1 << numberOfOverflowBits) - 1)
-        ).toString(32);
+        length = (baseIdWithLeadingBit & ((1 << numberOfOverflowBits) - 1))
+          .toString(32)
+          .padStart(numberOfOverflowBits / 5, "0");
         baseIdWithLeadingBit >>= numberOfOverflowBits;
         baseLength -= numberOfOverflowBits;
         return {
@@ -9927,11 +9926,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-a6792708-20261019" !== isomorphicReactPackageVersion)
+      if ("19.3.0-experimental-ab0d927f-20261020" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-a6792708-20261019\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-experimental-ab0d927f-20261020\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react-experimental"),
@@ -11733,5 +11732,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.3.0-experimental-a6792708-20261019";
+    exports.version = "19.3.0-experimental-ab0d927f-20261020";
   })();

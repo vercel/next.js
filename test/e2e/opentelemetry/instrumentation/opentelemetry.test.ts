@@ -1,5 +1,5 @@
 import { FileRef, isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { findPort, retry } from 'next-test-utils'
 import { createTestDataServer } from 'test-data-service/writer'
 import { createTestLog } from 'test-log'
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
@@ -13,21 +13,16 @@ const EXTERNAL = {
   spanId: '0f6a325411bdc432',
 } as const
 
-const COLLECTOR_PORT = 9001
-const ROUTE_PREPARATION_COLLECTOR_PORT = 9002
-const INSTRUMENTATION_STARTUP_COLLECTOR_PORT = 9003
-const APP_ROUTE_MODULE_LOADING_COLLECTOR_PORT = 9004
-const CLIENT_COMPONENT_GATE_PORT = 9005
-
 type NextInstance = ReturnType<typeof nextTestSetup>['next']
 
-function setupCollector(next: NextInstance, port: number) {
+function setupCollector(next: NextInstance) {
   let collector: Collector | undefined
 
   // The app's span exporter remains active for the entire suite. Keep its
   // endpoint available for the same lifetime and only reset collected state.
   beforeAll(async () => {
-    collector = await connectCollector({ port })
+    collector = await connectCollector()
+    next.env.TEST_OTEL_COLLECTOR_PORT = String(collector.port)
     await next.start()
   })
 
@@ -64,8 +59,6 @@ function setup({
     ...(!useDirectEntrypointHandler
       ? {
           env: {
-            TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
-            TEST_CLIENT_COMPONENT_GATE_PORT: String(CLIENT_COMPONENT_GATE_PORT),
             NEXT_OTEL_PERFORMANCE_PREFIX: 'client-component-loading-test',
             NEXT_TELEMETRY_DISABLED: '1',
           },
@@ -81,7 +74,6 @@ function setup({
           },
           serverReadyPattern: /- Local:/,
           env: {
-            TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
             NEXT_TELEMETRY_DISABLED: '1',
             NODE_ENV: 'production',
           },
@@ -94,13 +86,21 @@ function setup({
         }
       : undefined,
   })
+  if (!testSetup.skipped && !useDirectEntrypointHandler) {
+    beforeAll(async () => {
+      testSetup.next.env.TEST_CLIENT_COMPONENT_GATE_PORT = String(
+        await findPort()
+      )
+    })
+  }
+
   return {
     next: testSetup,
     getCollector: testSetup.skipped
       ? () => {
           throw new Error('OpenTelemetry test setup was skipped')
         }
-      : setupCollector(testSetup.next, COLLECTOR_PORT),
+      : setupCollector(testSetup.next),
   }
 }
 
@@ -152,7 +152,7 @@ describe.each(
   })
 
   it('closes collector connections after each export', async () => {
-    const response = await fetch(`http://localhost:${COLLECTOR_PORT}`, {
+    const response = await fetch(`http://localhost:${getCollector().port}`, {
       method: 'POST',
       body: '[]',
     })
@@ -181,7 +181,9 @@ describe.each(
         return `00-${traceId}-${'1'.repeat(16)}-01`
       }
 
-      beforeAll(() => gateServer.listen(CLIENT_COMPONENT_GATE_PORT))
+      beforeAll(() => {
+        gateServer.listen(Number(next.env.TEST_CLIENT_COMPONENT_GATE_PORT))
+      })
       beforeEach(() => {
         gateArrivals = createTestLog()
       })
@@ -207,13 +209,14 @@ describe.each(
         traceId: string
         extra?: boolean
       }) {
-        const responsePromise = next.fetch(
+        // The gate timeout starts after response headers arrive so it excludes
+        // dev compilation.
+        const response = await next.fetch(
           `/app/test/client-component-loading?id=${id}${extra ? '&variant=extra' : ''}`,
           { headers: { traceparent: traceparent(traceId) } }
         )
-        await gateArrivals.waitFor([id])
-        const response = await responsePromise
         expect(response.status).toBe(200)
+        await gateArrivals.waitFor([id])
         return response
       }
 
@@ -2071,7 +2074,6 @@ if (isNextStart) {
         },
         serverReadyPattern: /- Local:/,
         env: {
-          TEST_OTEL_COLLECTOR_PORT: String(ROUTE_PREPARATION_COLLECTOR_PORT),
           NEXT_TELEMETRY_DISABLED: '1',
           NODE_ENV: 'production',
         },
@@ -2093,10 +2095,9 @@ if (isNextStart) {
       ]
 
       it('should trace route module preparation inside the request span', async () => {
-        const connectedCollector = await connectCollector({
-          port: ROUTE_PREPARATION_COLLECTOR_PORT,
-        })
+        const connectedCollector = await connectCollector()
         collector = connectedCollector
+        next.env.TEST_OTEL_COLLECTOR_PORT = String(connectedCollector.port)
         await next.start()
 
         // The first request starts the process (cold: instrumentation is
@@ -2264,9 +2265,6 @@ describe.each(
       ...(!useDirectEntrypointHandler
         ? {
             env: {
-              TEST_OTEL_COLLECTOR_PORT: String(
-                APP_ROUTE_MODULE_LOADING_COLLECTOR_PORT
-              ),
               NEXT_TELEMETRY_DISABLED: '1',
             },
           }
@@ -2280,9 +2278,6 @@ describe.each(
             },
             serverReadyPattern: /- Local:/,
             env: {
-              TEST_OTEL_COLLECTOR_PORT: String(
-                APP_ROUTE_MODULE_LOADING_COLLECTOR_PORT
-              ),
               NEXT_TELEMETRY_DISABLED: '1',
               NODE_ENV: 'production',
             },
@@ -2298,9 +2293,8 @@ describe.each(
     })
 
     it('should trace cold App Route module loading once', async () => {
-      collector = await connectCollector({
-        port: APP_ROUTE_MODULE_LOADING_COLLECTOR_PORT,
-      })
+      collector = await connectCollector()
+      next.env.TEST_OTEL_COLLECTOR_PORT = String(collector.port)
       await next.start()
 
       const pathname = '/api/app/param/data'
@@ -2737,9 +2731,6 @@ describe.each(
       ...(!useDirectEntrypointHandler
         ? {
             env: {
-              TEST_OTEL_COLLECTOR_PORT: String(
-                INSTRUMENTATION_STARTUP_COLLECTOR_PORT
-              ),
               NEXT_TELEMETRY_DISABLED: '1',
             },
           }
@@ -2753,9 +2744,6 @@ describe.each(
             },
             serverReadyPattern: /- Local:/,
             env: {
-              TEST_OTEL_COLLECTOR_PORT: String(
-                INSTRUMENTATION_STARTUP_COLLECTOR_PORT
-              ),
               NEXT_TELEMETRY_DISABLED: '1',
               NODE_ENV: 'production',
             },
@@ -2771,9 +2759,8 @@ describe.each(
     })
 
     it('should trace instrumentation startup', async () => {
-      collector = await connectCollector({
-        port: INSTRUMENTATION_STARTUP_COLLECTOR_PORT,
-      })
+      collector = await connectCollector()
+      next.env.TEST_OTEL_COLLECTOR_PORT = String(collector.port)
       await next.start()
       await next.fetch('/app/param/rsc-fetch')
 
@@ -2850,7 +2837,6 @@ describe.each(
       skipStart: true,
       dependencies: require('./package.json').dependencies,
       env: {
-        TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
         NEXT_TELEMETRY_DISABLED: '1',
         NEXT_OTEL_VERBOSE: '1',
       },
@@ -2860,7 +2846,7 @@ describe.each(
       return
     }
 
-    const getCollector = setupCollector(next, COLLECTOR_PORT)
+    const getCollector = setupCollector(next)
 
     // Regression for https://github.com/vercel/otel/issues/107.
     it('all spans (including verbose) inherit traceId from incoming traceparent header', async () => {
@@ -2910,7 +2896,6 @@ describe('opentelemetry with disabled fetch tracing', () => {
     dependencies: require('./package.json').dependencies,
     env: {
       NEXT_OTEL_FETCH_DISABLED: '1',
-      TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
     },
   })
 
@@ -2918,7 +2903,7 @@ describe('opentelemetry with disabled fetch tracing', () => {
     return
   }
 
-  const getCollector = setupCollector(next, COLLECTOR_PORT)
+  const getCollector = setupCollector(next)
   ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
     'root context',
     () => {
@@ -2988,13 +2973,12 @@ describe('opentelemetry with custom server', () => {
     },
     serverReadyPattern: /- Local:/,
     env: {
-      TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
       NEXT_TELEMETRY_DISABLED: '1',
       NODE_ENV: isNextDev ? 'development' : 'production',
     },
   })
 
-  const getCollector = setupCollector(next, COLLECTOR_PORT)
+  const getCollector = setupCollector(next)
 
   it('should set attributes correctly on handleRequest span', async () => {
     await next.fetch('/app/param/rsc-fetch')
@@ -3148,7 +3132,6 @@ if (isNextStart) {
       },
       serverReadyPattern: /- Local:/,
       env: {
-        TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
         NEXT_TELEMETRY_DISABLED: '1',
         NODE_ENV: 'production',
       },
@@ -3158,7 +3141,7 @@ if (isNextStart) {
       return
     }
 
-    const getCollector = setupCollector(next, COLLECTOR_PORT)
+    const getCollector = setupCollector(next)
 
     const directEntrypointCases = [
       { pathname: '/app/param/rsc-fetch', route: '/app/[param]/rsc-fetch' },
