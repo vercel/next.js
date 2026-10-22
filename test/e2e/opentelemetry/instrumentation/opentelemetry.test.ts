@@ -2644,6 +2644,79 @@ describe.each(
   }
 )
 
+// The first request, in a fresh process, reaches the Node.js middleware
+// entrypoint, which registers `instrumentation.ts`, but the adapter fails while
+// setting up the request, before running the middleware.
+;(isNextStart ? describe : describe.skip)(
+  'opentelemetry - middleware direct entrypoint rejecting the first request',
+  () => {
+    const {
+      next: { next, skipped },
+      getCollector,
+    } = setup({ useDirectEntrypointHandler: true, useNodeMiddleware: true })
+
+    if (skipped) {
+      return
+    }
+
+    function getLifecycleSpans() {
+      return getCollector()
+        .getAllSpans()
+        .filter((span) =>
+          ['Instrumentation.loadModule', 'Instrumentation.register'].includes(
+            span.attributes?.['next.span_type'] as string
+          )
+        )
+        .map((span) => ({
+          type: span.attributes?.['next.span_type'] as string,
+          status: span.status,
+        }))
+        .sort((a, b) => a.type.localeCompare(b.type))
+    }
+
+    it('should still trace instrumentation registration, once', async () => {
+      // The cache handler throws while the adapter sets up the request.
+      const res = await next.fetch('/behind-middleware', {
+        headers: { 'x-test-fail-cache-handler': '1' },
+      })
+      expect(res.status).toBe(500)
+      // The original error propagates.
+      expect(next.cliOutput).toContain('cache handler failed for this request')
+
+      const expected = [
+        { type: 'Instrumentation.loadModule', status: { code: 0 } },
+        { type: 'Instrumentation.register', status: { code: 0 } },
+      ]
+      await retry(async () => {
+        expect(getLifecycleSpans()).toEqual(expected)
+      })
+      // The adapter rejected the request before running the middleware.
+      expect(
+        getCollector()
+          .getAllSpans()
+          .some(
+            (span) =>
+              span.attributes?.['next.span_type'] === 'Middleware.execute'
+          )
+      ).toBe(false)
+
+      // Later requests don't emit them again.
+      expect((await next.fetch('/behind-middleware')).status).toBe(200)
+      await retry(async () => {
+        expect(
+          getCollector()
+            .getAllSpans()
+            .some(
+              (span) =>
+                span.attributes?.['next.span_type'] === 'Middleware.execute'
+            )
+        ).toBe(true)
+      })
+      expect(getLifecycleSpans()).toEqual(expected)
+    })
+  }
+)
+
 describe.each(
   [
     { name: 'default' },
