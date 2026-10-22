@@ -3,6 +3,12 @@ import { WebNextResponse } from './web'
 describe('WebNextResponse onClose', () => {
   it('stream body', async () => {
     const cb = jest.fn()
+    // `onClose` is driven by the `pipeTo()` promise in `trackStreamConsumed`,
+    // which settles independently of the consumer observing the end of the
+    // body, so wait for the callback itself rather than assuming an ordering.
+    const closed = new Promise<void>((resolve) => {
+      cb.mockImplementation(() => resolve())
+    })
     const ts = new TransformStream({
       transform(chunk, controller) {
         controller.enqueue(chunk)
@@ -24,6 +30,7 @@ describe('WebNextResponse onClose', () => {
     await writer.close()
 
     const text = await t
+    await closed
     expect(cb).toHaveBeenCalledTimes(1)
     expect(text).toBe('abcdef')
   })
