@@ -116,9 +116,9 @@ const internalHandler: EdgeHandler = async (opts) => {
     })
   } catch (err) {
     // The adapter can throw before it runs the middleware and emits the
-    // lifecycle spans (e.g. for a malformed request URL). Later requests won't
-    // emit them, so emit them here instead (a no-op if they were emitted).
-    // Tracing must not replace the adapter's error.
+    // lifecycle spans (e.g. when the configured cache handler throws). Later
+    // requests won't emit them, so emit them here instead (a no-op if they were
+    // emitted). Tracing must not replace the adapter's error.
     try {
       emitInstrumentationSpans?.()
     } catch {}

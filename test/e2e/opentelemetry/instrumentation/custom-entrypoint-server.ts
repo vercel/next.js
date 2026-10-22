@@ -27,17 +27,6 @@ type MiddlewareHandler = (
   }
 ) => Promise<Response>
 
-// The middleware entrypoint's default export, which takes the adapter's
-// request data instead of a `Request`.
-type MiddlewareDefaultHandler = (opts: {
-  request: {
-    url: string
-    method: string
-    headers: Record<string, string>
-    signal: AbortSignal
-  }
-}) => Promise<unknown>
-
 function loadEntrypointHandler<T>(handler: string): T {
   const entrypointPath = path.join(__dirname, '.next', 'server', handler)
   const mod = require(entrypointPath) as { handler?: T }
@@ -134,38 +123,6 @@ async function main() {
       return
     }
 
-    // Invokes the middleware entrypoint with a malformed URL, which the
-    // adapter rejects before running the middleware, and reports the error.
-    if (pathname === '/behind-middleware/malformed') {
-      const entrypointPath = path.join(
-        __dirname,
-        '.next',
-        'server',
-        'middleware.js'
-      )
-      const mod = require(entrypointPath) as {
-        default?: MiddlewareDefaultHandler
-      }
-      ;(async () => {
-        try {
-          await mod.default!({
-            request: {
-              url: 'not a url',
-              method,
-              headers: {},
-              signal: new AbortController().signal,
-            },
-          })
-          res.statusCode = 200
-          res.end('Unexpected success')
-        } catch (err) {
-          res.statusCode = 500
-          res.end(`${(err as Error).name}: ${(err as Error).message}`)
-        }
-      })()
-      return
-    }
-
     const handler = resolveHandler<EntrypointHandler>(handlers, pathname)
     const middlewareHandler = resolveHandler<MiddlewareHandler>(
       middlewareHandlers,
@@ -232,6 +189,7 @@ async function main() {
         try {
           await handle()
         } catch (err) {
+          console.error('Failed to handle request:', err)
           res.statusCode = 500
           res.end('Internal Server Error')
         }

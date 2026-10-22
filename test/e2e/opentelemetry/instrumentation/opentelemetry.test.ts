@@ -2645,8 +2645,8 @@ describe.each(
 )
 
 // The first request, in a fresh process, reaches the Node.js middleware
-// entrypoint, which registers `instrumentation.ts`, but the adapter rejects its
-// input before running the middleware.
+// entrypoint, which registers `instrumentation.ts`, but the adapter fails while
+// setting up the request, before running the middleware.
 ;(isNextStart ? describe : describe.skip)(
   'opentelemetry - middleware direct entrypoint rejecting the first request',
   () => {
@@ -2675,10 +2675,13 @@ describe.each(
     }
 
     it('should still trace instrumentation registration, once', async () => {
-      const res = await next.fetch('/behind-middleware/malformed')
-      // The original error propagates.
+      // The cache handler throws while the adapter sets up the request.
+      const res = await next.fetch('/behind-middleware', {
+        headers: { 'x-test-fail-cache-handler': '1' },
+      })
       expect(res.status).toBe(500)
-      expect(await res.text()).toMatch(/^TypeError: Invalid URL/)
+      // The original error propagates.
+      expect(next.cliOutput).toContain('cache handler failed for this request')
 
       const expected = [
         { type: 'Instrumentation.loadModule', status: { code: 0 } },
