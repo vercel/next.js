@@ -268,6 +268,9 @@ body {
                 throw new Error('Invalid Browser Mode native action admission.')
               response.setHeader('Content-Type', 'application/json')
               response.flushHeaders()
+              // Gecko exposes a fetch Response after its first body bytes. JSON
+              // whitespace admits observations without completing the reply.
+              response.write(' ')
               ownsNativeAction = nativeAction = true
               ownsAdmission = busy = false
             })

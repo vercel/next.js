@@ -600,6 +600,45 @@ describe('Browser Mode immutable parent transport', () => {
       })
     return { cookie, config, post }
   }
+  it('opens an admitted native reply body before completion without changing its JSON value', async () => {
+    let release!: () => void
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const { post } = await open(
+      () => {},
+      async (_command, ...callbacks: (() => void)[]) => {
+        callbacks[0]()
+        await held
+        return { exact: true, values: [1, null, 'é'] }
+      }
+    )
+    const response = await post({
+      type: 'browser-command',
+      command: { method: 'click', element: 'button', args: [] },
+    })
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let content = ''
+    try {
+      const admitted = await reader.read()
+      expect(admitted.done).toBe(false)
+      content = decoder.decode(admitted.value, { stream: true })
+      expect(content).toMatch(/^\s+$/)
+      expect(() => JSON.parse(content)).toThrow()
+    } finally {
+      release()
+    }
+    for (;;) {
+      const chunk = await reader.read()
+      if (chunk.done) break
+      content += decoder.decode(chunk.value, { stream: true })
+    }
+    content += decoder.decode()
+    expect(JSON.parse(content)).toEqual({
+      value: { exact: true, values: [1, null, 'é'] },
+    })
+  })
   it('admits actual console output before its native action reply while preserving both replies', async () => {
     let release!: () => void,
       entered!: () => void,
