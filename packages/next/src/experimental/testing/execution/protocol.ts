@@ -27,6 +27,13 @@ export interface WorkerInput {
 
 export type WorkerMessage =
   | { type: 'event'; event: ResultEvent }
+  | {
+      type: 'user-cancellation-finalized'
+      version: 1
+      runId: string
+      entryId: string
+      revision: string
+    }
   | { type: 'custom-coverage-suite'; completion: CustomCoverageCompletion }
   | {
       type: 'complete'

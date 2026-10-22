@@ -141,6 +141,8 @@ export async function executeWithEnvironment(
       ...(userCancelSignal ? { userCancellation: true as const } : {}),
     }
     let send!: (message: unknown) => Promise<void>
+    let terminateAfterCompletion!: () => void
+    let userCancellationFinalized = false
     let userCancellationSend: Promise<void> | undefined
     const cancelByUser = () => {
       // onReady precedes the launch send. Queue this distinct request after it.
@@ -162,8 +164,9 @@ export async function executeWithEnvironment(
       inspectBrk: options.inspectBrk,
       signal,
       timeoutMs: options.fileTimeout,
-      onReady(value) {
+      onReady(value, terminate) {
         send = value
+        terminateAfterCompletion = terminate
         userCancelSignal?.addEventListener('abort', cancelByUser, {
           once: true,
         })
@@ -173,6 +176,8 @@ export async function executeWithEnvironment(
         if (!value || typeof value !== 'object')
           throw new Error('Invalid test worker message')
         const message = value as WorkerMessage
+        if (userCancellationFinalized)
+          throw new Error('Test worker returned facts after finalization.')
         if (message.type === 'event') {
           if (
             message.event.version !== 1 ||
@@ -192,6 +197,23 @@ export async function executeWithEnvironment(
           if (options.coverage || options.customCoverage)
             attempts.observe(message.event)
           onEvent(message.event)
+        } else if (message.type === 'user-cancellation-finalized') {
+          if (
+            !userCancelSignal?.aborted ||
+            signal.aborted ||
+            message.version !== 1 ||
+            message.runId !== options.runId ||
+            message.entryId !== artifact.entryId ||
+            message.revision !== artifact.revision ||
+            !result ||
+            result.status === 'cancelled' ||
+            !coverage?.complete ||
+            !attempts.complete ||
+            snapshotUpdates !== undefined
+          )
+            throw new Error('Invalid user cancellation finalization.')
+          terminateAfterCompletion()
+          userCancellationFinalized = true
         } else if (message.type === 'custom-coverage-suite') {
           if (!options.customCoverage || !onCustomCoverageSuite || customSuite)
             throw new Error('Unrequested or duplicate custom coverage suite')
@@ -290,7 +312,7 @@ export async function executeWithEnvironment(
       userCancelSignal?.removeEventListener('abort', cancelByUser)
     )
     await userCancellationSend
-    return processExit
+    return { ...processExit, userCancellationFinalized }
   }).catch(async (error) => {
     try {
       await customSuite
@@ -303,6 +325,13 @@ export async function executeWithEnvironment(
     throw error
   })
   await customSuite
+  const orderlyUserCancellation =
+    exit.userCancellationFinalized &&
+    userCancelSignal?.aborted &&
+    !signal.aborted &&
+    exit.reason === 'exit' &&
+    exit.code === null &&
+    exit.signal === 'SIGTERM'
   if (
     exit.reason === 'cancelled' ||
     (signal.aborted && exit.reason === 'exit' && exit.code === 0)
@@ -312,7 +341,11 @@ export async function executeWithEnvironment(
       status: result?.status === 'failed' ? 'failed' : 'cancelled',
       durationMs: 0,
     }
-  } else if (exit.reason === 'timeout' || exit.code !== 0 || !result) {
+  } else if (
+    exit.reason === 'timeout' ||
+    (exit.code !== 0 && !orderlyUserCancellation) ||
+    !result
+  ) {
     onEvent({
       ...envelope(),
       type: 'diagnostic',
@@ -379,7 +412,11 @@ export async function executeWithEnvironment(
     !signal.aborted
   ) {
     try {
-      if (exit.reason !== 'exit' || exit.code !== 0 || signal.aborted) {
+      if (
+        exit.reason !== 'exit' ||
+        (exit.code !== 0 && !orderlyUserCancellation) ||
+        signal.aborted
+      ) {
         throw new Error('Test coverage is incomplete after worker interruption')
       }
       if (!attempts.complete)

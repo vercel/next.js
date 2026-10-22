@@ -43,6 +43,11 @@ process.on('message', ({ type, input }) => {
     while (true) {}
   }
   if (input === 'crash') throw new Error('worker fixture crash')
+  if (input === 'ignore-termination') {
+    process.on('SIGTERM', () => {})
+    process.send({ ready: true })
+    return
+  }
   if (input === 'wait') {
     process.send({ ready: true })
     return

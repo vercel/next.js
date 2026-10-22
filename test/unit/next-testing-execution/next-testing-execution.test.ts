@@ -917,6 +917,41 @@ describe('Next test process ownership', () => {
     expect(cleaned).toBe(true)
   })
 
+  it('allows only the parent to terminate a completed worker without aborting its lifetime', async () => {
+    const controller = new AbortController()
+    let terminate!: () => void
+    const result = await runTestProcess(worker, {
+      ...options,
+      input: 'wait',
+      signal: controller.signal,
+      onReady(_send, stopAfterCompletion) {
+        terminate = stopAfterCompletion
+      },
+      onMessage(value) {
+        if ((value as { ready?: boolean }).ready) terminate()
+      },
+    })
+    expect(result).toEqual({ code: null, signal: 'SIGTERM', reason: 'exit' })
+    expect(controller.signal.aborted).toBe(false)
+    // The callback can no longer act on a process/group identity after closure.
+    expect(() => terminate()).toThrow('after interruption')
+  })
+
+  it('does not mistake a forced completion kill for expected SIGTERM', async () => {
+    let terminate!: () => void
+    const result = await runTestProcess(worker, {
+      ...options,
+      input: 'ignore-termination',
+      onReady(_send, stopAfterCompletion) {
+        terminate = stopAfterCompletion
+      },
+      onMessage(value) {
+        if ((value as { ready?: boolean }).ready) terminate()
+      },
+    })
+    expect(result).toEqual({ code: null, signal: 'SIGKILL', reason: 'exit' })
+  })
+
   it('kills synchronous work which cannot receive cancellation', async () => {
     const controller = new AbortController()
     const result = await runTestProcess(worker, {

@@ -10303,3 +10303,42 @@ it('captures fresh orderly-cancel coverage only after actual dev/prod worker clo
     closedWorkers: 4,
   })
 }, 200000)
+
+it.each([
+  'early-seal',
+  'foreign-seal',
+  'duplicate-seal',
+  'spontaneous-signal',
+  'late-rejection',
+  'before-seal-rejection',
+  'nonzero-exit',
+])(
+  'does not publish actual cancellation capture after %s',
+  (control) => {
+    const { execFileSync } = require('node:child_process')
+    const result = execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'orderly-cancel-producer.cjs'),
+        '--mode=development',
+        `--control=${control}`,
+      ],
+      {
+        encoding: 'utf8',
+        timeout: 90000,
+        env: { ...process.env, NODE_ENV: 'development' },
+      }
+    )
+    const summaries = result
+      .split('\n')
+      .filter((line) => line.startsWith('{"mode":'))
+    expect(summaries).toHaveLength(1)
+    expect(JSON.parse(summaries[0])).toEqual({
+      mode: 'development',
+      control,
+      captures: 0,
+      closedWorkers: 1,
+    })
+  },
+  100000
+)

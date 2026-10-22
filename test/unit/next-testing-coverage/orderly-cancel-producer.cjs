@@ -6,6 +6,9 @@ const repo = path.resolve(__dirname, '../../..')
 const runtime = path.join(repo, 'packages/next/dist/experimental/testing')
 const sources = path.join(__dirname, 'fixtures/orderly-cancel')
 const mode = process.argv.find((value) => value.startsWith('--mode='))?.slice(7)
+const control = process.argv
+  .find((value) => value.startsWith('--control='))
+  ?.slice(10)
 const scenario =
   process.argv.find((value) => value.startsWith('--scenario='))?.slice(11) ??
   'pending'
@@ -79,6 +82,11 @@ async function main() {
   )
   fs.writeFileSync(path.join(root, 'next.config.mjs'), 'export default {}\n')
   fs.writeFileSync(path.join(root, 'package.json'), '{"private":true}\n')
+  if (control)
+    fs.copyFileSync(
+      path.join(sources, 'finalization-control.cjs'),
+      path.join(root, 'finalization-control.cjs')
+    )
   const profile = {
     id: 'orderly-node',
     mode,
@@ -98,6 +106,7 @@ async function main() {
   let watcher
   let observedBody = false
   let published = false
+  let captureAttempts = 0
   const cacheDirectories = []
   const createDirectory = fs.promises.mkdtemp
   fs.promises.mkdtemp = async (...args) => {
@@ -161,6 +170,8 @@ async function main() {
           events.push(event)
         },
         async onCoverage(capture) {
+          captureAttempts++
+          assert.equal(control, undefined, 'An invalid finalization published.')
           assert.equal(observedBody, true)
           assert.equal(capture.complete, true)
           assert.equal(lifetime.signal.aborted, false)
@@ -197,8 +208,41 @@ async function main() {
           published = true
         },
       },
-      { ...process.env, NODE_ENV: mode }
-    )
+      {
+        ...process.env,
+        NODE_ENV: mode,
+        ...(control
+          ? {
+              NODE_OPTIONS:
+                '--require ' + path.join(root, 'finalization-control.cjs'),
+              NEXT_TEST_FINALIZATION_CONTROL: control,
+            }
+          : {}),
+      }
+    ).catch((error) => {
+      if (!control) throw error
+      assert(error instanceof Error)
+      return { status: 'failed' }
+    })
+    if (control) {
+      assert.equal(completion.status, 'failed')
+      assert.equal(observedBody, true)
+      assert.equal(captureAttempts, 0)
+      assert.equal(published, false)
+      assert.equal(lifetime.signal.aborted, false)
+      const worker = trace().find(({ event }) => event === 'body-start').pid
+      assert.equal(alive(worker), false)
+      assert.equal(alive(-worker), false)
+      assert.notEqual(cacheDirectories.length, 0)
+      assert.equal(
+        cacheDirectories.every((directory) => !fs.existsSync(directory)),
+        true
+      )
+      process.stdout.write(
+        JSON.stringify({ mode, control, captures: 0, closedWorkers: 1 }) + '\n'
+      )
+      return
+    }
     assert.equal(completion.status, 'passed')
     assert.equal(published, true)
     assert.equal(
@@ -218,9 +262,8 @@ async function main() {
     assert.deepEqual(
       trace().map(({ pid, threadId, ...event }) => event),
       // Genuine user cancellation kills its fork without an exit listener.
-      // This private producer retains normal code-zero termination; public
-      // watch composition must account for that observable difference.
-      [...expected.trace, { event: 'worker-exit', code: 0 }]
+      // The parent stops this worker only after its final cleanup/capture seal.
+      expected.trace
     )
     const report = JSON.parse(
       fs.readFileSync(path.join(root, 'reports/coverage-final.json'))

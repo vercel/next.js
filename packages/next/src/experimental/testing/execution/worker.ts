@@ -1267,6 +1267,32 @@ async function run({
       : {}),
   })
   await lateFailures.flush()
+  if (allowUserCancellation && userCancellation.signal.aborted) {
+    return async () => {
+      // Native rejection records have been released by the caller. Keep actual
+      // late failures observable through a final turn before the parent stops us.
+      await new Promise<void>((resolveTurn) => setImmediate(resolveTurn))
+      await lateFailures.flush()
+      if (
+        controller.signal.aborted ||
+        process.exitCode ||
+        !coverageComplete ||
+        !coverage?.complete ||
+        unfinishedAttempts.size
+      )
+        throw new Error('User cancellation could not finalize cleanly.')
+      await send({
+        type: 'user-cancellation-finalized',
+        version: 1,
+        runId: options.runId,
+        entryId: artifact.entryId,
+        revision: artifact.revision,
+      })
+      // IPC retains the process. No further cleanup or authored exit callback
+      // runs before the parent validates the seal and requests actual SIGTERM.
+      return true
+    }
+  }
 }
 
 process.on(
@@ -1306,13 +1332,14 @@ process.on(
           releaseNativeAssertionRecords?.()
           releaseNativeAssertionRecords = undefined
         })
-        .then(
-          () => process.exit(process.exitCode ?? 0),
-          (error) => {
-            console.error(error)
-            process.exit(1)
-          }
-        )
+        .then(async (finalizeCancellation) => {
+          if (await finalizeCancellation?.()) return
+          process.exit(process.exitCode ?? 0)
+        })
+        .catch((error) => {
+          console.error(error)
+          process.exit(1)
+        })
     }
   }
 )

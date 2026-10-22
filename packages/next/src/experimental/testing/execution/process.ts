@@ -15,7 +15,11 @@ export interface TestProcessOptions {
   timeoutMs?: number
   shutdownGraceMs?: number
   /** Parent-owned sessions may send further requests through the same lease. */
-  onReady?: (send: (message: unknown) => Promise<void>) => void
+  onReady?: (
+    send: (message: unknown) => Promise<void>,
+    /** Only a parent which has validated final worker facts may request this. */
+    terminateAfterCompletion: () => void
+  ) => void
   onMessage: (message: unknown) => void
   onOutput?: (stream: 'stdout' | 'stderr', chunk: Buffer) => void
 }
@@ -188,7 +192,19 @@ export function runTestProcess(
             child.send(message as any, (error) =>
               error ? failed(error) : sent()
             )
-          })
+          }),
+        () => {
+          if (closed || reason !== 'exit' || killTimer)
+            throw new Error('Test process cannot terminate after interruption.')
+          if (!child.kill('SIGTERM'))
+            throw new Error(
+              'Test process could not terminate after completion.'
+            )
+          killTimer = setTimeout(() => {
+            killGroup()
+            disposeOutput()
+          }, grace)
+        }
       )
       child.send({ type: 'run', input: options.input }, (error) => {
         // A failed spawn also closes IPC; that consequence must not obscure the
