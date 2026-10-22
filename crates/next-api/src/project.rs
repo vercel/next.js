@@ -103,7 +103,7 @@ use turbopack_node::execution_context::ExecutionContext;
 use turbopack_node::worker_threads_backend;
 use turbopack_nodejs::{NodeJsChunkingContext, fs::NodeModulesPathMatcher};
 
-pub use crate::additional_roots::AdditionalRootConfig;
+pub use crate::additional_roots::{AdditionalRootConfig, AdditionalRootName, BuiltinRootKind};
 use crate::{
     additional_roots::{
         AdditionalDiskFileSystem, BuiltinRootsConfig, create_additional_root_file_systems,

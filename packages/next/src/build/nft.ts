@@ -57,10 +57,6 @@ export interface NftAdditionalRoot extends NftFileList {
    * Stable unique identifier. This can be used to generate the output path
    * where these files are copied, such as `next_additional_roots/${name}`.
    *
-   * Roots configured in `next.config.js` use the configured key with an `@`
-   * prefix (e.g. `@linkedPackages`). Roots that Next.js detects automatically
-   * use a bare name (e.g. `gvs` for pnpm's global virtual store).
-   *
    * This uses a character set that is valid on most filesystems, and identifiers
    * are guaranteed not to overlap on case-insensitive filesystems.
    */

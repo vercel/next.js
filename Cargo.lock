@@ -9988,6 +9988,7 @@ dependencies = [
  "serde_qs",
  "smallvec",
  "tempfile",
+ "thiserror 1.0.69",
  "tracing",
  "turbo-bincode",
  "turbo-rcstr",

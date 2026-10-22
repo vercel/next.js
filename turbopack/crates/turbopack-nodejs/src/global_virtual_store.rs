@@ -1,9 +1,10 @@
 use std::{
-    io::{BufReader, Read},
+    io::{self, ErrorKind},
     path::{Path, PathBuf},
 };
 
 use serde::Deserialize;
+use thiserror::Error;
 
 /// pnpm records its modules state in this file. Despite the extension, pnpm 11 and later write it
 /// as JSON. Older versions write YAML, which is not supported.
@@ -24,35 +25,66 @@ const PNPM_MODULES_MANIFEST: &str = ".modules.yaml";
 pub fn find_global_virtual_store_untracked(
     project_root: &Path,
     project_path: &Path,
-) -> Option<PathBuf> {
+) -> Result<Option<PathBuf>, GlobalVirtualStoreError> {
     let mut dir = project_root.join(project_path);
     while dir.starts_with(project_root) {
         let modules_dir = dir.join("node_modules");
-        if let Ok(manifest) = fs_err::File::open(modules_dir.join(PNPM_MODULES_MANIFEST)) {
-            return virtual_store_dir_from_manifest(&modules_dir, BufReader::new(manifest));
+        let manifest_path = modules_dir.join(PNPM_MODULES_MANIFEST);
+        match fs_err::read(&manifest_path) {
+            Ok(manifest) => {
+                return virtual_store_dir_from_manifest(&modules_dir, &manifest).map_err(
+                    |source| GlobalVirtualStoreError::InvalidManifest {
+                        path: manifest_path,
+                        source,
+                    },
+                );
+            }
+            Err(error) if error.kind() == ErrorKind::NotFound => {}
+            Err(error) => return Err(GlobalVirtualStoreError::Io(error)),
         }
         if !dir.pop() {
             break;
         }
     }
-    None
+    Ok(None)
 }
 
-fn virtual_store_dir_from_manifest(modules_dir: &Path, manifest: impl Read) -> Option<PathBuf> {
+#[derive(Debug, Error)]
+pub enum GlobalVirtualStoreError {
+    /// The manifest exists, but could not be read. The error from `fs_err` includes the path.
+    #[error(transparent)]
+    Io(io::Error),
+    /// The manifest looks like JSON, but failed to parse.
+    #[error("failed to parse {}: {source}", path.display())]
+    InvalidManifest {
+        path: PathBuf,
+        source: serde_json::Error,
+    },
+}
+
+fn virtual_store_dir_from_manifest(
+    modules_dir: &Path,
+    manifest: &[u8],
+) -> Result<Option<PathBuf>, serde_json::Error> {
     #[derive(Deserialize)]
     #[serde(rename_all = "camelCase")]
     struct PnpmModulesManifest {
         virtual_store_dir: Option<String>,
     }
 
-    // This is a `*.yml` file, but pnpm >=11.0.0 stores this as JSON (YAML is a superset of JSON).
-    // We don't want to pull in a yaml parser dependency, so just try parsing this as JSON, and if
-    // it fails to parse (i.e. pnpm 10 or below), just ignore it.
-    let manifest: PnpmModulesManifest = serde_json::from_reader(manifest).ok()?;
-    let virtual_store_dir = manifest.virtual_store_dir.filter(|dir| !dir.is_empty())?;
+    // This is a `*.yaml` file, but pnpm >=11.0.0 stores this as JSON (YAML is a superset of JSON).
+    // We don't want to pull in a YAML parser dependency, so older versions are ignored. They write
+    // block-style YAML, which never starts with `{`, so anything else must be valid JSON.
+    if manifest.trim_ascii_start().first() != Some(&b'{') {
+        return Ok(None);
+    }
+    let manifest: PnpmModulesManifest = serde_json::from_slice(manifest)?;
+    let Some(virtual_store_dir) = manifest.virtual_store_dir.filter(|dir| !dir.is_empty()) else {
+        return Ok(None);
+    };
     // Relative paths are relative to the `node_modules` directory. `join` keeps absolute paths
     // as-is.
-    Some(modules_dir.join(virtual_store_dir))
+    Ok(Some(modules_dir.join(virtual_store_dir)))
 }
 
 #[cfg(test)]
@@ -65,8 +97,9 @@ mod tests {
         assert_eq!(
             virtual_store_dir_from_manifest(
                 modules_dir,
-                br#"{"layoutVersion":5,"virtualStoreDir":"../../../store/v11/links"}"#.as_slice()
-            ),
+                br#"{"layoutVersion":5,"virtualStoreDir":"../../../store/v11/links"}"#
+            )
+            .unwrap(),
             Some(modules_dir.join("../../../store/v11/links"))
         );
 
@@ -81,22 +114,27 @@ mod tests {
                 serde_json::json!({ "virtualStoreDir": absolute })
                     .to_string()
                     .as_bytes()
-            ),
+            )
+            .unwrap(),
             Some(PathBuf::from(absolute))
         );
 
         // missing, empty, or YAML (written by pnpm 10 and older)
         for manifest in [
+            "",
             "{}",
             r#"{"virtualStoreDir":""}"#,
             "virtualStoreDir: ../../store/v10/links\n",
         ] {
             assert_eq!(
-                virtual_store_dir_from_manifest(modules_dir, manifest.as_bytes()),
+                virtual_store_dir_from_manifest(modules_dir, manifest.as_bytes()).unwrap(),
                 None,
                 "{manifest}"
             );
         }
+
+        // malformed JSON
+        assert!(virtual_store_dir_from_manifest(modules_dir, br#" {"virtualStoreDir":"#).is_err());
     }
 
     #[test]
@@ -116,6 +154,7 @@ mod tests {
 
         let find = |project_root: &Path, project_path: &Path| {
             find_global_virtual_store_untracked(project_root, project_path)
+                .unwrap()
                 .map(|path| fs_err::canonicalize(path).unwrap())
         };
 

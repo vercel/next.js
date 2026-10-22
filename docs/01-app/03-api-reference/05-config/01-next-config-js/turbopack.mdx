@@ -161,9 +161,9 @@ Additional roots change Next.js's [`trace format`](/docs/app/api-reference/confi
 
 When using [`output: "standalone"`](/docs/app/api-reference/config/next-config-js/output#automatically-copying-traced-files), unbundled files stored in these additional roots will be copied to a subdirectory of the output directory named after the root. For roots configured in `next.config.js`, this is the configured name with an `@` prefix (e.g. `next_additional_roots/@linkedPackages`).
 
-#### pnpm global virtual store
+#### Global virtual store
 
-When using pnpm 11 or later with the [global virtual store](https://pnpm.io/global-virtual-store) enabled, set `experimental.turbopackDetectGlobalVirtualStore` to `true` to add the store as an additional root named `gvs`:
+Some package managers can install packages into a global virtual store outside of the project. Set `experimental.turbopackDetectGlobalVirtualStore` to `true` to detect the store and add it as an additional root named `gvs`. Currently, only pnpm 11 or later with the [global virtual store](https://pnpm.io/global-virtual-store) enabled is supported.
 
 ```js filename="next.config.js"
 module.exports = {
@@ -174,8 +174,6 @@ module.exports = {
 ```
 
 Next.js reads the `virtualStoreDir` in `node_modules/.modules.yaml`, searching from the project directory up to `turbopack.root`. The root is only added when the store is outside of `turbopack.root`.
-
-If an additional root in `next.config.js` already contains or overlaps the store, Next.js shows a warning and does not add `gvs`. To resolve this, remove the overlapping root or disable detection.
 
 ### Configuring webpack loaders
 
