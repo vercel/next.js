@@ -29,6 +29,7 @@ pub mod worker;
 
 use std::{
     cell::RefCell,
+    collections::BTreeMap,
     future::Future,
     mem::{replace, take},
     sync::{Arc, LazyLock},
@@ -83,7 +84,7 @@ use turbopack_core::{
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CommonJsReferenceSubType, InnerAssets},
     resolve::{
-        ExportUsage, FindContextFileResult, ImportUsage, ModulePart, ResolveErrorMode,
+        ExportUsage, FindContextFileResult, ImportUsage, MemberUsage, ModulePart, ResolveErrorMode,
         find_context_file,
         origin::{PlainResolveOrigin, ResolveOrigin},
         parse::Request,
@@ -227,11 +228,11 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     esm_references_free_var: FxIndexMap<RcStr, ResolvedVc<EsmAssetReference>>,
     // Ad-hoc created import references that are resolved `import * as x from ...; x.foo` accesses
     // This caches repeated access because EsmAssetReference::new is not a turbo task function.
-    /// Rewritten references per original import, keyed by the part they request (the export and
-    /// any static members read on it, which narrow usage when that export resolves to a namespace
+    /// Rewritten references per original import, keyed by what they request (the export and any
+    /// static members read on it, which narrow usage when that export resolves to a namespace
     /// object).
     esm_references_rewritten:
-        FxHashMap<usize, FxIndexMap<ModulePart, ResolvedVc<EsmAssetReference>>>,
+        FxHashMap<usize, FxIndexMap<RewrittenReferenceKey, ResolvedVc<EsmAssetReference>>>,
 
     esm_bindings: EsmBindingsBuilder,
 
@@ -395,14 +396,14 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     pub fn add_esm_reference_namespace_resolved(
         &mut self,
         esm_reference_idx: usize,
-        part: ModulePart,
+        key: RewrittenReferenceKey,
         on_insert: impl FnOnce() -> ResolvedVc<EsmAssetReference>,
     ) -> ResolvedVc<EsmAssetReference> {
         *self
             .esm_references_rewritten
             .entry(esm_reference_idx)
             .or_default()
-            .entry(part)
+            .entry(key)
             .or_insert_with(on_insert)
     }
 
@@ -522,6 +523,16 @@ impl AnalyzeEcmascriptModuleResultBuilder {
 enum Action<'a> {
     Effect(Effect<'a>),
     LeaveScope(u32),
+}
+
+/// What a reference rewritten from an original import requests.
+#[derive(Clone, PartialEq, Eq, Hash)]
+enum RewrittenReferenceKey {
+    /// A single export, possibly with the static members read on it.
+    Part(ModulePart),
+    /// The whole namespace object, of which only these (possibly nested) members are read
+    /// (`const { a, b } = ns`).
+    NamespaceMembers(BTreeMap<RcStr, MemberUsage>),
 }
 
 /// Pushes `effects` onto the processing stack. They are appended in reverse order so that popping
@@ -1491,7 +1502,7 @@ async fn analyze_ecmascript_module_internal(
                                 let named_reference = analysis
                                     .add_esm_reference_namespace_resolved(
                                         esm_reference_index,
-                                        part.clone(),
+                                        RewrittenReferenceKey::Part(part.clone()),
                                         || {
                                             original_reference
                                                 .rewrite_for_export(part)
@@ -1501,6 +1512,30 @@ async fn analyze_ecmascript_module_internal(
                                 analysis.esm_bindings.add_keep_this(
                                     named_reference,
                                     Some(export),
+                                    analysis.intern_path(&ast_path),
+                                );
+                                continue;
+                            }
+
+                            if original_reference.export_name.is_none()
+                                && export.is_none()
+                                && !members.is_empty()
+                            {
+                                // `const { a, b: { c } } = ns` only reads these (possibly nested)
+                                // exports of the namespace object, which stays the same object.
+                                let narrowed_reference = analysis
+                                    .add_esm_reference_namespace_resolved(
+                                        esm_reference_index,
+                                        RewrittenReferenceKey::NamespaceMembers(members.clone()),
+                                        || {
+                                            original_reference
+                                                .rewrite_for_namespace_members(members)
+                                                .resolved_cell()
+                                        },
+                                    );
+                                analysis.esm_bindings.add(
+                                    narrowed_reference,
+                                    None,
                                     analysis.intern_path(&ast_path),
                                 );
                                 continue;
@@ -1516,7 +1551,7 @@ async fn analyze_ecmascript_module_internal(
                                 let narrowed_reference = analysis
                                     .add_esm_reference_namespace_resolved(
                                         esm_reference_index,
-                                        part.clone(),
+                                        RewrittenReferenceKey::Part(part.clone()),
                                         || {
                                             original_reference
                                                 .rewrite_for_export(part)

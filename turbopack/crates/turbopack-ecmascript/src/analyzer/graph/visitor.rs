@@ -37,7 +37,10 @@ use crate::{
         cjs::{CjsExportsDropCodeGen, DroppableCjsExportAssignment},
         esm::EsmModuleItem,
     },
-    utils::{AstPathRange, extract_name_from_member_prop, extract_names_from_object_pat, unparen},
+    utils::{
+        AstPathRange, extract_member_usage_from_object_pat, extract_name_from_member_prop,
+        extract_names_from_object_pat, unparen,
+    },
 };
 
 enum EarlyReturn<'a> {
@@ -630,6 +633,25 @@ mod analyzer_state {
             members
         }
 
+        /// If the ident at the end of `ast_path`, read through its first `chain_len` static
+        /// members, is destructured by a variable declaration (`const { a, b } = ident.x.y`),
+        /// returns the members read by that pattern.
+        pub(super) fn destructured_members(
+            &self,
+            ast_path: &AstNodePath<AstParentNodeRef<'_>>,
+            chain_len: usize,
+        ) -> Option<BTreeMap<RcStr, MemberUsage>> {
+            // Each member level adds a `MemberExpr(_, Obj)` and an `Expr(_, Member)` above the
+            // ident's own `Expr(_, Ident)`, see `member_access_ancestors`.
+            let index = ast_path.len().checked_sub(2 + 2 * chain_len)?;
+            match ast_path.get(index)? {
+                AstParentNodeRef::VarDeclarator(decl, VarDeclaratorField::Init) => {
+                    extract_member_usage_from_object_pat(&decl.name)
+                }
+                _ => None,
+            }
+        }
+
         /// Records a tracked `const x = require(...)` is used.
         pub(super) fn record_require_usage(&mut self, id: &Id, member: Option<RcStr>) {
             let Some(span) = self
@@ -917,10 +939,17 @@ fn member_access_parent<'r>(
     }
 }
 
-/// The member usage of a static member path: `{ a: { b: All } }` for `[a, b]`, and empty (the
-/// value is read as a whole) for an empty path.
-fn member_path_tree(path: &[RcStr]) -> BTreeMap<RcStr, MemberUsage> {
-    match MemberUsage::from_path(path) {
+/// The member usage of a static member path, optionally destructured at its end: `{ a: { b: All }
+/// }` for `[a, b]`, `{ a: { b: { c: All } } }` for `const { c } = value.a.b`, and empty (the value
+/// is read as a whole) for an empty path that isn't destructured.
+fn member_path_tree(
+    path: &[RcStr],
+    destructured: Option<BTreeMap<RcStr, MemberUsage>>,
+) -> BTreeMap<RcStr, MemberUsage> {
+    let leaf = destructured.map_or(MemberUsage::All, MemberUsage::Members);
+    match path.iter().rev().fold(leaf, |inner, member| {
+        MemberUsage::Members(BTreeMap::from([(member.clone(), inner)]))
+    }) {
         MemberUsage::Members(members) => members,
         MemberUsage::All => BTreeMap::new(),
     }
@@ -2566,7 +2595,8 @@ impl VisitAstPath for Analyzer<'_, '_> {
                     // may read any of its members: keep that receiver whole.
                     path.pop();
                 }
-                let members = member_path_tree(&path);
+                let destructured = self.destructured_members(ast_path, 1 + path.len());
+                let members = member_path_tree(&path, destructured);
                 self.add_effect(Effect::ImportedBinding {
                     esm_reference_index,
                     export: Some(prop_str.into()),
@@ -2585,7 +2615,16 @@ impl VisitAstPath for Analyzer<'_, '_> {
                         // `fn`, like a namespace import's `ns.fn()` does.)
                         path.pop();
                     }
-                    member_path_tree(&path)
+                    let destructured = self.destructured_members(ast_path, path.len());
+                    member_path_tree(&path, destructured)
+                } else if !self
+                    .eval_context
+                    .imports
+                    .should_import_all(esm_reference_index)
+                    && let Some(destructured) = self.destructured_members(ast_path, 0)
+                {
+                    // `const { a, b } = ns` only reads these exports of a namespace import.
+                    destructured
                 } else {
                     BTreeMap::new()
                 };
