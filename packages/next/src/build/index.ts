@@ -144,9 +144,11 @@ import {
   collectRoutesUsingEdgeRuntime,
   collectMeta,
   isProxyFile,
+  isInstrumentationHookFile,
   pageToRoute,
 } from './utils'
 import type { DynamicManifestRoute, PageInfo, PageInfos } from './utils'
+import { resolveBuiltinInstrumentation } from './builtin-instrumentation'
 import type {
   FallbackRouteParam,
   PrerenderRouteMatcher,
@@ -1535,7 +1537,17 @@ export default async function build(
         )
       }
 
-      const hasInstrumentationHook = Boolean(instrumentationHookFilePath)
+      const builtinInstrumentation = await resolveBuiltinInstrumentation({
+        dir,
+        appDir,
+        pagesDir,
+        config,
+        bundler,
+        dev: false,
+      })
+      const hasInstrumentationHook =
+        Boolean(instrumentationHookFilePath) ||
+        builtinInstrumentation !== undefined
       const hasMiddlewareFile = Boolean(middlewareFilePath)
       const hasProxyFile = Boolean(proxyFilePath)
 
@@ -1584,6 +1596,18 @@ export default async function build(
             appDirOnly,
           })
         )
+      if (builtinInstrumentation) {
+        const existing = Object.keys(NextBuildContext.mappedRootPaths).find(
+          isInstrumentationHookFile
+        )
+        if (existing) {
+          throw new InvariantError(
+            `Built-in instrumentation was selected while ${existing} is mapped.`
+          )
+        }
+        NextBuildContext.mappedRootPaths[builtinInstrumentation.page] =
+          builtinInstrumentation.file
+      }
 
       const {
         pageRoutes,

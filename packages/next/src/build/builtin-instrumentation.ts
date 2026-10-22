@@ -31,10 +31,12 @@ export function register() {
 /**
  * Always under the project, even with a custom `distDir`, so that
  * `@vercel/otel` resolves from the project and webpack's `codeCondition`
- * includes the file.
+ * includes the file. `.mjs` because `.next/package.json` declares
+ * `"type": "commonjs"`, which would make webpack parse a `.js` file here as a
+ * script.
  */
 export function builtinInstrumentationFile(dir: string): string {
-  return path.join(dir, '.next', 'cache', 'builtin-instrumentation.js')
+  return path.join(dir, '.next', 'cache', 'builtin-instrumentation.mjs')
 }
 
 export type InstrumentationDecision =
