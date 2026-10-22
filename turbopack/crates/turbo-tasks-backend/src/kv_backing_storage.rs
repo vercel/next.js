@@ -467,7 +467,7 @@ impl TurboBackingStorage {
     }
 }
 
-/// The batch size from which [`TurboBackingStorage::batch_lookup_data`] decodes in parallel.
+/// The batch size from which `TurboBackingStorage::batch_lookup_data` decodes in parallel.
 ///
 /// Below this, the overhead of distributing the work across threads outweighs the decoding cost.
 /// On an 8 vCPU machine, the `batch_lookup` benchmark found Meta still slower in parallel at 1024
@@ -714,7 +714,9 @@ mod tests {
 
     /// The production batch lookup preserves request order, duplicates and missing entries on
     /// both sides of the parallel cutoff.
-    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    // Default worker count like the other database tests here: under the WASI test host, file
+    // descriptors are per thread, so committing SST files from extra runtime workers fails.
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_batch_lookup_data_roundtrip_at_parallel_threshold() -> Result<()> {
         let tempdir = test_temp_dir()?;
         let db = TurboKeyValueDatabase::new(tempdir.path().to_path_buf(), TEST_STORAGE_OPTIONS)?;
