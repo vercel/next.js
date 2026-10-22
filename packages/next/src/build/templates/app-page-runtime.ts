@@ -27,6 +27,7 @@ import {
 import { BaseServerSpan } from '../../server/lib/trace/constants' with { 'turbopack-transition': 'next-server-utility' }
 import { stripFlightHeaders } from '../../server/app-render/strip-flight-headers' with { 'turbopack-transition': 'next-server-utility' }
 import {
+  hasInvalidFlightRouterStateHeader,
   parseRequestHeaders,
   type ParsedRequestHeaders,
 } from '../../server/route-modules/app-page/parse-request-headers' with { 'turbopack-transition': 'next-server-utility' }
@@ -775,6 +776,22 @@ export function createAppPageEntrypoint({
       !isDynamicRSCRequest
     ) {
       stripFlightHeaders(req.headers)
+    }
+
+    // A router state header that can't be accepted is invalid client input
+    // (e.g. a tab still running a previous build after a deployment). Reject it
+    // before rendering instead of failing the render with a 500. The client
+    // router falls back to a document navigation for non-OK responses.
+    if (hasInvalidFlightRouterStateHeader(req.headers, { isRoutePPREnabled })) {
+      res.statusCode = 400
+      res.setHeader(
+        'Cache-Control',
+        'private, no-cache, no-store, max-age=0, must-revalidate'
+      )
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+      res.end('Bad Request')
+      ctx.waitUntil?.(Promise.resolve())
+      return null
     }
 
     const ComponentMod = {
