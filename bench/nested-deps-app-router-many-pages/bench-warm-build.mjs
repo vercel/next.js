@@ -4,15 +4,18 @@
 //
 // Run `pnpm prepare-bench` in this directory first to generate the app. Then:
 //
-//   node bench-warm-build.mjs [--files=100] [--iterations=5] [--cold=true]
-//     [--seed=1]
+//   node bench-warm-build.mjs [--files=100] [--iterations=20] [--warmup=5]
+//     [--cold=true] [--seed=1]
 //
 // - `--files`: the number of component files changed before every warm build.
 //   They are picked deterministically (by `--seed`) from `components/`, so
 //   different runs change the same files. `0` measures a rebuild without
 //   changes.
-// - `--iterations`: the number of measured warm builds. Every iteration
-//   changes the files differently, so every build has to recompute them.
+// - `--iterations`: the number of warm builds. Every iteration changes the
+//   files differently, so every build has to recompute them.
+// - `--warmup`: how many of the first warm builds are only warm-up. They are
+//   printed, but excluded from the statistics, which are computed over the
+//   remaining `iterations - warmup` builds.
 // - `--cold`: whether to delete `.next` and do a (measured, but not counted)
 //   cold build first that fills the cache. Use `--cold=false` to reuse the
 //   cache of a previous run.
@@ -21,7 +24,8 @@
 // Builds run with `--experimental-build-mode=compile`, which skips
 // prerendering the 3000 routes, as that doesn't depend on the bundler's work.
 // The reported compile time is the one `next build` prints. The first warm
-// build after a cold one tends to be slower than the following ones.
+// builds after a cold one tend to be slower than the following ones, hence the
+// warm-up builds.
 //
 // The changed files are restored afterwards, also when the run fails or is
 // interrupted.
@@ -51,7 +55,8 @@ function parseInteger(name, value, min = Number.MIN_SAFE_INTEGER) {
 function parseArgs(argv) {
   const options = {
     files: 100,
-    iterations: 5,
+    iterations: 20,
+    warmup: 5,
     cold: true,
     seed: 1,
   }
@@ -68,6 +73,9 @@ function parseArgs(argv) {
       case 'iterations':
         options.iterations = parseInteger(name, value, 1)
         break
+      case 'warmup':
+        options.warmup = parseInteger(name, value, 0)
+        break
       case 'seed':
         options.seed = parseInteger(name, value)
         break
@@ -80,6 +88,11 @@ function parseArgs(argv) {
       default:
         throw new Error(`Unknown argument: ${arg}`)
     }
+  }
+  if (options.warmup >= options.iterations) {
+    throw new Error(
+      `--warmup=${options.warmup} must be smaller than --iterations=${options.iterations}`
+    )
   }
   return options
 }
@@ -116,12 +129,15 @@ function pickFiles(count, seed) {
 }
 
 // Changes the rendered output of every file, not just a comment, so the change
-// propagates beyond parsing. The value differs per run and iteration, so every
-// build differs from what is in the cache, also with `--cold=false`.
+// propagates beyond parsing. The value (digits only) differs per run and
+// iteration, so every build differs from what is in the cache, also with
+// `--cold=false`.
 function changeFiles(originals, value) {
   for (const [file, original] of originals) {
+    // Also matches a file that is still changed, e.g. after the script was
+    // killed without restoring it.
     const changed = original.replace(
-      /<div>/,
+      /<div(?: data-warm-build="\d*")?>/,
       `<div data-warm-build="${value}">`
     )
     if (changed === original) {
@@ -206,7 +222,18 @@ function summarize(label, values) {
   if (values.length === 0) {
     return `${label}: -`
   }
-  return `${label}: median ${formatMs(median(values))}, min ${formatMs(
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length
+  // The sample standard deviation, which needs at least two samples.
+  const stdDev =
+    values.length > 1
+      ? Math.sqrt(
+          values.reduce((sum, value) => sum + (value - mean) ** 2, 0) /
+            (values.length - 1)
+        )
+      : undefined
+  return `${label} (${values.length} builds): median ${formatMs(
+    median(values)
+  )}, mean ${formatMs(mean)}, std dev ${formatMs(stdDev)}, min ${formatMs(
     Math.min(...values)
   )}, max ${formatMs(Math.max(...values))}`
 }
@@ -251,7 +278,7 @@ async function main() {
   process.on('SIGTERM', onSignal)
 
   console.log(
-    `Warm builds after changing ${options.files} files, ${options.iterations} iterations`
+    `Warm builds after changing ${options.files} files, ${options.iterations} iterations (${options.warmup} warm-up)`
   )
   try {
     if (options.cold) {
@@ -265,14 +292,17 @@ async function main() {
     const wall = []
     const compile = []
     for (let iteration = 1; iteration <= options.iterations; iteration++) {
-      changeFiles(originals, `${runId}-${iteration}`)
+      changeFiles(originals, `${runId}${String(iteration).padStart(4, '0')}`)
       const result = await build()
-      wall.push(result.wallMs)
-      if (result.compileMs !== undefined) {
-        compile.push(result.compileMs)
+      const isWarmup = iteration <= options.warmup
+      if (!isWarmup) {
+        wall.push(result.wallMs)
+        if (result.compileMs !== undefined) {
+          compile.push(result.compileMs)
+        }
       }
       console.log(
-        `warm #${iteration}: wall ${formatMs(result.wallMs)}, compile ${formatMs(result.compileMs)}`
+        `warm #${iteration}${isWarmup ? ' (warm-up, excluded)' : ''}: wall ${formatMs(result.wallMs)}, compile ${formatMs(result.compileMs)}`
       )
     }
     console.log(summarize('warm wall', wall))
