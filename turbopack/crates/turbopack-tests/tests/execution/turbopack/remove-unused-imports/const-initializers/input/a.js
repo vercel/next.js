@@ -18,6 +18,14 @@ const { unusedProperty } = {
 const unusedSpreadResult = /*#__PURE__*/ identity(...iterable)
 const unusedCallback = /*#__PURE__*/ identity(() => effect('unused callback'))
 
+// An effectful declarator must not hide pure declarators in the same statement,
+// or pure declarations that follow it.
+const unusedBeforeEffect = unused,
+  mixedEffectResult = effect('mixed declaration'),
+  unusedAfterEffect = () => unused()
+let unusedLet = unused
+var unusedVar = () => unused()
+
 for (const ignored of [1, 2]) {
   effect('iteration')
 }
