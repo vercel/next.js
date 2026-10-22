@@ -1093,8 +1093,12 @@ export function createAppPageEntrypoint({
             },
 
             waitUntil: ctx.waitUntil,
-            onClose: (cb) => {
-              res.on('close', cb)
+            onClose: (callback) => {
+              if (res.closed) {
+                callback()
+              } else {
+                res.once('close', callback)
+              }
             },
             onAfterTaskError: () => {},
 
