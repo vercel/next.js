@@ -76,12 +76,15 @@ impl EsmBindingsBuilder {
         namespace_member: Option<RcStr>,
         ast_path: AstPathId,
     ) {
-        self.bindings.entry(reference).or_default().push(EsmBinding {
-            export,
-            namespace_member,
-            ast_path,
-            keep_this: false,
-        });
+        self.bindings
+            .entry(reference)
+            .or_default()
+            .push(EsmBinding {
+                export,
+                namespace_member,
+                ast_path,
+                keep_this: false,
+            });
     }
 
     /// Where possible, bind the namespace to `this` when the named import is called.
@@ -156,24 +159,25 @@ impl EsmBindings {
                 keep_this,
             } in bindings
             {
-                let no_side_effects =
-                    if let (ReferencedAsset::Some(module), Some(export)) = (&imported_module, export) {
-                        match purity_cache.entry((export.clone(), namespace_member.clone())) {
-                            std::collections::hash_map::Entry::Vacant(entry) => {
-                                let pure = *is_export_no_side_effects(
-                                    **module,
-                                    export.clone(),
-                                    namespace_member.clone(),
-                                )
-                                .await?;
-                                entry.insert(pure);
-                                pure
-                            }
-                            std::collections::hash_map::Entry::Occupied(entry) => *entry.get(),
+                let no_side_effects = if let (ReferencedAsset::Some(module), Some(export)) =
+                    (&imported_module, export)
+                {
+                    match purity_cache.entry((export.clone(), namespace_member.clone())) {
+                        std::collections::hash_map::Entry::Vacant(entry) => {
+                            let pure = *is_export_no_side_effects(
+                                **module,
+                                export.clone(),
+                                namespace_member.clone(),
+                            )
+                            .await?;
+                            entry.insert(pure);
+                            pure
                         }
-                    } else {
-                        false
-                    };
+                        std::collections::hash_map::Entry::Occupied(entry) => *entry.get(),
+                    }
+                } else {
+                    false
+                };
                 has_no_side_effects |= no_side_effects;
                 let imported_ident = match &imported_module {
                     ReferencedAsset::None => ImportedIdent::None,
@@ -252,8 +256,18 @@ impl EsmBindings {
                             let is_invocation_of = |path| {
                                 let kind = trie.get(path);
                                 (
-                                    matches!(kind, Some(swc_core::ecma::visit::AstParentKind::Callee(CalleeField::Expr))),
-                                    matches!(kind, Some(swc_core::ecma::visit::AstParentKind::TaggedTpl(TaggedTplField::Tag))),
+                                    matches!(
+                                        kind,
+                                        Some(swc_core::ecma::visit::AstParentKind::Callee(
+                                            CalleeField::Expr
+                                        ))
+                                    ),
+                                    matches!(
+                                        kind,
+                                        Some(swc_core::ecma::visit::AstParentKind::TaggedTpl(
+                                            TaggedTplField::Tag
+                                        ))
+                                    ),
                                 )
                             };
                             // Only a directly replaced callee/tag may need a `this`-less accessor.
@@ -264,7 +278,9 @@ impl EsmBindings {
                                 usage_path = walk_up_through(
                                     trie,
                                     usage_path,
-                                    swc_core::ecma::visit::AstParentKind::MemberExpr(MemberExprField::Obj),
+                                    swc_core::ecma::visit::AstParentKind::MemberExpr(
+                                        MemberExprField::Obj,
+                                    ),
                                     swc_core::ecma::visit::AstParentKind::Expr(ExprField::Member),
                                 );
                             }
@@ -272,7 +288,9 @@ impl EsmBindings {
                                 let next = walk_up_through(
                                     trie,
                                     usage_path,
-                                    swc_core::ecma::visit::AstParentKind::ParenExpr(ParenExprField::Expr),
+                                    swc_core::ecma::visit::AstParentKind::ParenExpr(
+                                        ParenExprField::Expr,
+                                    ),
                                     swc_core::ecma::visit::AstParentKind::Expr(ExprField::Paren),
                                 );
                                 if next == usage_path {
@@ -283,7 +301,9 @@ impl EsmBindings {
                             let (is_call, is_tag) = is_invocation_of(usage_path);
                             let in_var_initializer = matches!(
                                 trie.get(usage_path),
-                                Some(swc_core::ecma::visit::AstParentKind::VarDeclarator(VarDeclaratorField::Init))
+                                Some(swc_core::ecma::visit::AstParentKind::VarDeclarator(
+                                    VarDeclaratorField::Init
+                                ))
                             );
                             // Namespace members retain their object as the `this` receiver.
                             let preserve_this = *keep_this || namespace_member.is_some();
@@ -296,7 +316,8 @@ impl EsmBindings {
                                 ast_path,
                                 visit_mut_expr,
                                 |expr: &mut Expr| {
-                                    if no_side_effects && (is_call || is_tag || in_var_initializer) {
+                                    if no_side_effects && (is_call || is_tag || in_var_initializer)
+                                    {
                                         generated_comments.add_leading(
                                             expr.span().lo,
                                             Comment {
@@ -312,7 +333,8 @@ impl EsmBindings {
                                     }
                                     match &imported_ident {
                                         ImportedIdent::Module(imported_ident) => {
-                                            *expr = imported_ident.as_expr(expr.span(), in_invocation);
+                                            *expr =
+                                                imported_ident.as_expr(expr.span(), in_invocation);
                                         }
                                         ImportedIdent::None => {
                                             *expr = *Expr::undefined(expr.span());
