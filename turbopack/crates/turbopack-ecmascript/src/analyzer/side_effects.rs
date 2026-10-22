@@ -961,7 +961,7 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                 class_expr.class.visit_with(self);
             }
             Expr::Array(arr) => {
-                // Arrays are pure if their elements are pure
+                // Array elements must be pure, including iteration of spread operands.
                 for elem in arr.elems.iter().flatten() {
                     elem.visit_with(self);
                 }
@@ -1144,6 +1144,22 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                 // [])?.map(...)` but this seems pretty theoretical
                 self.mark_side_effect();
             }
+        }
+    }
+
+    fn visit_expr_or_spread(&mut self, expr: &ExprOrSpread) {
+        check_side_effects!(self);
+
+        if expr.spread.is_some()
+            && !matches!(unparen(&expr.expr), Expr::Array(_) | Expr::Lit(Lit::Str(_)))
+        {
+            // Spreading calls Symbol.iterator and next, which may have side effects even
+            // when evaluating the operand is pure. Only literal arrays and strings have
+            // known iteration behavior (assuming built-ins are not monkey-patched).
+            self.mark_side_effect();
+        } else {
+            // Still check literal array elements, including any nested spreads.
+            expr.expr.visit_with(self);
         }
     }
 
@@ -1733,7 +1749,7 @@ mod tests {
             "const obj = { [foo()]: value };"
         );
 
-        no_side_effects!(test_spread_in_array, "const arr = [...other];");
+        side_effects!(test_spread_in_array, "const arr = [...other];");
 
         no_side_effects!(test_spread_in_object, "const obj = { ...other };");
 
@@ -2505,6 +2521,78 @@ mod tests {
         );
     }
 
+    mod spread_tests {
+        use super::*;
+
+        side_effects!(
+            test_iterator_method_side_effect,
+            r#"
+            const iterable = {
+                [Symbol.iterator]() {
+                    console.log('iterator');
+                    return { next() { return { done: true }; } };
+                }
+            };
+            Math.max(...iterable);
+            "#
+        );
+
+        side_effects!(
+            test_iterator_next_side_effect,
+            r#"
+            const iterable = {
+                [Symbol.iterator]() {
+                    return {
+                        next() {
+                            console.log('next');
+                            return { done: true };
+                        }
+                    };
+                }
+            };
+            Math.max(...iterable);
+            "#
+        );
+
+        side_effects!(test_unknown_iterable_in_call, "Math.max(...iterable);");
+        side_effects!(
+            test_unknown_iterable_in_annotated_call,
+            "/*#__PURE__*/ pure(...iterable);"
+        );
+        side_effects!(
+            test_unknown_iterable_in_constructor,
+            "new Array(...iterable);"
+        );
+        side_effects!(
+            test_unknown_iterable_in_annotated_constructor,
+            "/*#__PURE__*/ new Pure(...iterable);"
+        );
+        side_effects!(test_nested_unknown_spread, "Math.max(...[...iterable]);");
+        side_effects!(
+            test_spread_with_side_effect,
+            "const result = Math.max(...getArray());"
+        );
+        side_effects!(
+            test_spread_array_with_side_effect,
+            "Math.max(...[sideEffect()]);"
+        );
+        side_effects!(
+            test_spread_array_element_side_effect,
+            "const arr = [...[sideEffect()]];"
+        );
+
+        no_side_effects!(
+            test_spread_pure_in_call,
+            "const result = Math.max(...[1, 2, 3]);"
+        );
+        no_side_effects!(test_spread_parenthesized_array, "Math.max(...([1, 2, 3]));");
+        no_side_effects!(test_spread_string, "Math.max(...'123');");
+        no_side_effects!(test_spread_parenthesized_string, "Math.max(...('123'));");
+        no_side_effects!(test_spread_pure_in_constructor, "new Array(...[1, 2, 3]);");
+        no_side_effects!(test_nested_pure_spread, "const arr = [...[...[1, 2, 3]]];");
+        no_side_effects!(test_non_spread_argument, "Math.max(iterable);");
+    }
+
     mod additional_edge_cases_tests {
         use super::*;
 
@@ -2611,18 +2699,6 @@ mod tests {
             }
         }
         "#
-        );
-
-        // Spread in call arguments (with pure expression)
-        no_side_effects!(
-            test_spread_pure_in_call,
-            "const result = Math.max(...[1, 2, 3]);"
-        );
-
-        // Spread in call arguments (with side effect)
-        side_effects!(
-            test_spread_with_side_effect,
-            "const result = Math.max(...getArray());"
         );
 
         // Complex super expression
