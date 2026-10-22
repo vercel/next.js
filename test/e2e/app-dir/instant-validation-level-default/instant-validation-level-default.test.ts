@@ -14,11 +14,11 @@ import { waitForNoErrorToast } from '../../../lib/next-test-utils'
 // For exhaustive coverage of explicit levels and per-segment overrides,
 // see the sibling `instant-validation-level-{warning,manual-warning,error,
 // manual-error}` fixtures.
+// @force-gate !deploy
 describe('instant validation - default level', () => {
   const { next, skipped, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
     env: {
       NEXT_TEST_LOG_VALIDATION: '1',
     },

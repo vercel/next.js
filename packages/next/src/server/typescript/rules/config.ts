@@ -161,7 +161,7 @@ const API_DOCS: Record<
   },
   prefetch: {
     description: `Controls prefetching behavior for this segment. Some options are experimental and may change.`,
-    link: '(docs coming soon)',
+    link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/prefetch',
     type: `"auto" | "partial" | "force-disabled"`,
     options: {
       auto: 'Default. Framework decides based on instant validation and segment configuration. You do not need to set this explicitly.',
@@ -171,9 +171,9 @@ const API_DOCS: Record<
     },
     insertText: `prefetch = 'partial';`,
   },
-  unstable_ensureStatic: {
+  ensureStatic: {
     description: `Controls which rendering phases require static output for this segment. This option is experimental and may change.`,
-    link: '(docs coming soon)',
+    link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic',
     type: `"auto" | "shell" | "prefetch" | "navigation" | false`,
     options: {
       '"auto"':
@@ -184,10 +184,8 @@ const API_DOCS: Record<
       '"navigation"': 'Require the route to be fully static.',
       false:
         'Indicate that this segment must use the default behavior and should not have `ensureStatic = "shell" | "prefetch" | "navigation"` applied to it by another segment. Errors if another segment on the route uses `ensureStatic` with those values.',
-    } satisfies DocsOptionsObject<
-      FullAppSegmentConfig['unstable_ensureStatic']
-    >,
-    insertText: `unstable_ensureStatic = 'shell';`,
+    } satisfies DocsOptionsObject<FullAppSegmentConfig['ensureStatic']>,
+    insertText: `ensureStatic = 'shell';`,
     isValid: (value) => {
       try {
         const parsed: unknown = JSON.parse(value)

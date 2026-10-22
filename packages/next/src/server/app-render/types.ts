@@ -115,7 +115,6 @@ export interface RenderOptsPartial {
   cacheLifeProfiles: import('../config-shared').ResolvedCacheLifeProfiles
   staticPageGenerationTimeout: number
   isOnDemandRevalidate?: boolean
-  isPossibleServerAction?: boolean
   setCacheStatus?: (status: ServerCacheStatus, htmlRequestId: string) => void
   setIsrStatus?: (key: string, value: boolean | undefined) => void
   setReactDebugChannel?: (
@@ -129,7 +128,11 @@ export interface RenderOptsPartial {
   ) => void
   isBuildTimePrerendering?: boolean
   nextConfigOutput?: 'standalone' | 'export'
-  onInstrumentationRequestError?: ServerOnInstrumentationRequestError
+  onInstrumentationRequestError?: (
+    error: unknown,
+    errorContext: Parameters<InstrumentationOnRequestError>[2],
+    silenceLog: boolean
+  ) => void | Promise<void>
   isDraftMode?: boolean
   onUpdateCookies?: (cookies: string[]) => void
   loadConfig?: (

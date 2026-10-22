@@ -147,7 +147,7 @@ const AppSegmentConfigSchema = z.object({
   /**
    * Controls which rendering phases require static output for this segment.
    */
-  unstable_ensureStatic: EnsureStaticSchema.optional(),
+  ensureStatic: EnsureStaticSchema.optional(),
 
   /**
    * The stale time for dynamic responses in seconds.
@@ -204,9 +204,9 @@ export function parseAppSegmentConfig(
               message: `Invalid prefetch value ${JSON.stringify(ctx.data)} on "${route}", must be "auto", "partial", or "force-disabled".`,
             }
           }
-          case 'unstable_ensureStatic': {
+          case 'ensureStatic': {
             return {
-              message: `Invalid unstable_ensureStatic value ${JSON.stringify(ctx.data)} on "${route}", must be "auto", "shell", "prefetch", "navigation", or false.`,
+              message: `Invalid ensureStatic value ${JSON.stringify(ctx.data)} on "${route}", must be "auto", "shell", "prefetch", "navigation", or false.`,
             }
           }
           case 'unstable_dynamicStaleTime': {
@@ -281,7 +281,7 @@ export type AppSegmentConfig = {
   /**
    * Controls which rendering phases require static output for this segment.
    */
-  unstable_ensureStatic?: EnsureStatic
+  ensureStatic?: EnsureStatic
 
   /**
    * The stale time for dynamic responses in seconds.

@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
+import { retry } from 'next-test-utils'
 
 // The App Shell is keyed by root params so that a locale-aware (etc.) shell can
 // still be reused across navigations. But a shell should only vary on the root
@@ -18,7 +19,7 @@ import { createRouterAct } from 'router-act'
 // asserts on App Shell requests (next-router-prefetch: '3') instead of ignoring
 // them.
 describe('App Shell varies only on the root params it reads', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
@@ -39,14 +40,37 @@ describe('App Shell varies only on the root params it reads', () => {
 
     // Prime the shared shell for /en/uk/posts. The shell render reads `lang`
     // ('en') but not `region`.
-    await act(
-      async () => {
-        await browser
-          .elementByCss('input[data-link-accordion="/en/uk/posts/1"]')
-          .click()
-      },
-      { includes: 'App shell for posts' }
-    )
+    const prefetchEnglishShell = () =>
+      act(
+        async () => {
+          await browser
+            .elementByCss('input[data-link-accordion="/en/uk/posts/1"]')
+            .click()
+        },
+        { includes: 'Shell lang: en' }
+      )
+
+    if (isNextDeploy) {
+      // The test refreshes before each prefetch to clear the client's cached
+      // fallback. Deploy can serve generic segments while ISR generates a shell
+      // for unprerendered root params. Next start generates that shell
+      // blockingly.
+      //
+      // TODO: Consolidate on-demand shell generation between next start and
+      // deploy. Decide whether both modes should block on the root-specific
+      // shell or initially serve fallback segments.
+      await retry(
+        async () => {
+          await browser.refresh()
+          await prefetchEnglishShell()
+        },
+        10_000,
+        1_000,
+        'wait for the English root-specific shell'
+      )
+    } else {
+      await prefetchEnglishShell()
+    }
 
     // Reveal /en/gb/posts/1 — SAME lang, DIFFERENT region. The shell does not
     // read `region`, so the shell cached for /en/uk is reusable: this reveal

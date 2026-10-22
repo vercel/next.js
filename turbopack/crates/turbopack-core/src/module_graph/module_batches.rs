@@ -355,6 +355,7 @@ impl PreBatches {
                 Ok(())
             },
             false,
+            false,
         )?;
         Ok(state.items)
     }

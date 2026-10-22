@@ -1,7 +1,7 @@
 import type { Instant } from 'next'
 import { ClientIO } from './client'
 
-export const unstable_ensureStatic = 'navigation'
+export const ensureStatic = 'navigation'
 
 export const instant: Instant = {
   // We don't care about Instant Validation here,

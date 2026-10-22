@@ -1,7 +1,7 @@
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 
-export const unstable_ensureStatic = 'navigation'
+export const ensureStatic = 'navigation'
 
 export default function Page() {
   return (

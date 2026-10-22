@@ -114,9 +114,7 @@ pub async fn get_edge_resolve_options_context(
             .await?;
 
     let after_resolve_plugins = vec![ResolvedVc::upcast(
-        NextSharedRuntimeResolvePlugin::new(project_path.clone())
-            .to_resolved()
-            .await?,
+        NextSharedRuntimeResolvePlugin::new().to_resolved().await?,
     )];
 
     // https://github.com/vercel/next.js/blob/bf52c254973d99fed9d71507a2e818af80b8ade7/packages/next/src/build/webpack-config.ts#L96-L102

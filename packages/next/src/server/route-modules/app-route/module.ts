@@ -68,7 +68,6 @@ import {
   getFirstDynamicReason,
 } from '../../app-render/dynamic-rendering'
 import { ReflectAdapter } from '../../web/spec-extension/adapters/reflect'
-import type { RenderOptsPartial } from '../../app-render/types'
 import { CacheSignal } from '../../app-render/cache-signal'
 import { scheduleImmediate } from '../../../lib/scheduler'
 import { createServerParamsForRoute } from '../../request/params'
@@ -87,7 +86,6 @@ import {
 } from '../../../client/components/http-access-fallback/http-access-fallback'
 import { RedirectStatusCode } from '../../../client/components/redirect-status-code'
 import { INFINITE_CACHE } from '../../../lib/constants'
-import { executeRevalidates } from '../../revalidation-utils'
 import { trackPendingModules } from '../../app-render/module-loading/track-module-loading.external'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import { LazyModule } from '../../lib/lazy-module'
@@ -120,9 +118,7 @@ export type AppRouteSharedContext = {
  * handler for app routes.
  */
 export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
-  renderOpts: WorkStoreContext['renderOpts'] &
-    Pick<RenderOptsPartial, 'onInstrumentationRequestError'> &
-    CollectedCacheInfo
+  renderOpts: WorkStoreContext['renderOpts'] & CollectedCacheInfo
   previewProps: DeepReadonly<__ApiPreviewProps>
   sharedContext: AppRouteSharedContext
 }
@@ -398,7 +394,8 @@ export class AppRouteRouteModule extends RouteModule<
     requestStore: RequestStore,
     context: AppRouteRouteHandlerContext
   ): void {
-    const maybeRevalidatesPromise = executeRevalidates(workStore)
+    const maybeRevalidatesPromise =
+      workStore.afterContext.executeRevalidations(workStore)
 
     if (maybeRevalidatesPromise !== false) {
       context.renderOpts.pendingWaitUntil = maybeRevalidatesPromise.finally(
@@ -633,7 +630,7 @@ export class AppRouteRouteModule extends RouteModule<
         ) {
           // The handler returned a Thenable. We'll listen for rejections to determine
           // if the route is erroring for dynamic reasons.
-          ;(prospectiveResult as any as Promise<unknown>).then(
+          ;(prospectiveResult as Promise<unknown>).then(
             () => {},
             (err) => {
               if (prospectiveController.signal.aborted) {
@@ -861,7 +858,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     // In Turbopack dev mode, fetch the live userland module on every request
     // via the synchronous require() getter so server HMR updates are reflected
-    // immediately. This is cheap — it is just a devModuleCache lookup.
+    // immediately. This is cheap — it is just a module cache lookup.
     // For routes with top-level await, require() may still return a Promise
     // (async module); in that case fall back to the already-resolved
     // userland module resolved by ensureUserland() above.

@@ -41,13 +41,85 @@ export default function Page() {
 
 ## `useRouter()`
 
-- `router.push(href: string, { scroll: boolean, transitionTypes: string[] })`: Perform a client-side navigation to the provided route. Adds a new entry into the [browser's history stack](https://developer.mozilla.org/docs/Web/API/History_API). The optional `transitionTypes` are passed to [`React.addTransitionType`](https://react.dev/reference/react/addTransitionType) inside the navigation Transition.
-- `router.replace(href: string, { scroll: boolean, transitionTypes: string[] })`: Perform a client-side navigation to the provided route without adding a new entry into the browser’s history stack. The optional `transitionTypes` are passed to [`React.addTransitionType`](https://react.dev/reference/react/addTransitionType) inside the navigation Transition.
-- `router.refresh()`: Refresh the current route. Making a new request to the server, re-fetching data requests, and re-rendering Server Components. The client will merge the updated React Server Component payload without losing unaffected client-side React (e.g. `useState`) or browser state (e.g. scroll position). This clears the [Client Cache](/docs/app/glossary#client-cache) for the current route, but does **not** invalidate the server-side cache. Use [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) to invalidate server-side cached data.
-- `router.prefetch(href: string, options?: { onInvalidate?: () => void })`: [Prefetch](/docs/app/getting-started/linking-and-navigating#prefetching) the provided route for faster client-side transitions. The optional `onInvalidate` callback is called when the [prefetched data becomes stale](/docs/app/guides/prefetching#extending-or-ejecting-link).
-- `router.back()`: Navigate back to the previous route in the browser’s history stack.
-- `router.forward()`: Navigate forwards to the next page in the browser’s history stack.
-- `router.bfcacheId`: An opaque string identifier scoped to the current route segment. It changes when the surrounding segment is freshly created by a push or replace navigation, and stays the same for back/forward navigations, `router.refresh()`, and search-param- or hash-only navigations. See [`bfcacheId`](#bfcacheid) below for details.
+### `router.push()`
+
+```ts
+router.push(href: string, {
+  scroll: boolean
+  transitionTypes: string[]
+})
+```
+
+Perform a client-side navigation to the provided route. Adds a new entry into the [browser's history stack](https://developer.mozilla.org/docs/Web/API/History_API). The optional `transitionTypes` are passed to [`React.addTransitionType`](https://react.dev/reference/react/addTransitionType) inside the navigation Transition.
+
+### `router.replace()`
+
+```ts
+router.replace(href: string, {
+  scroll: boolean
+  transitionTypes: string[]
+})
+```
+
+Perform a client-side navigation to the provided route without adding a new entry into the browser’s history stack. The optional `transitionTypes` are passed to [`React.addTransitionType`](https://react.dev/reference/react/addTransitionType) inside the navigation Transition.
+
+### `router.refresh()`
+
+```ts
+router.refresh()
+```
+
+Refresh the current route. Making a new request to the server, re-fetching data requests, and re-rendering Server Components. The client will merge the updated React Server Component payload without losing unaffected client-side React (e.g. `useState`) or browser state (e.g. scroll position). This clears the [Client Cache](/docs/app/glossary#client-cache) for the current route, but does **not** invalidate the server-side cache. Use [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) to invalidate server-side cached data.
+
+### `router.prefetch()`
+
+```ts
+router.prefetch(
+  href: string,
+  options?: {
+    kind?: 'auto' | 'full'
+    onInvalidate?: () => void
+  }
+)
+```
+
+[Prefetch](/docs/app/getting-started/linking-and-navigating#prefetching) the provided route for faster client-side transitions. The optional `kind` controls how much of the route to prefetch. The optional `onInvalidate` callback is called when the [prefetched data becomes stale](/docs/app/guides/prefetching#extending-or-ejecting-link).
+
+With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), each `router.prefetch()` call matches a `<Link>` prefetch option:
+
+<div style={{ overflowX: 'auto', width: '100%' }}>
+
+| `router.prefetch()` call                  | Equivalent `<Link>`                  |
+| ----------------------------------------- | ------------------------------------ |
+| `router.prefetch(href)`                   | `<Link href={href}>`                 |
+| `router.prefetch(href, { kind: 'auto' })` | `<Link href={href}>`                 |
+| `router.prefetch(href, { kind: 'full' })` | `<Link href={href} prefetch={true}>` |
+
+</div>
+
+The default and `'auto'` options prefetch the route's [App Shell](/docs/app/glossary#app-shell). The `'full'` option also prefetches the per-link stage, including content below [`await prefetch()`](/docs/app/api-reference/functions/prefetch).
+
+Neither value includes content deferred with [`await navigation()`](/docs/app/api-reference/functions/navigation). That content renders when navigation begins.
+
+### `router.back()`
+
+```ts
+router.back()
+```
+
+Navigate back to the previous route in the browser’s history stack.
+
+### `router.forward()`
+
+```ts
+router.forward()
+```
+
+Navigate forwards to the next page in the browser’s history stack.
+
+### `router.bfcacheId`
+
+An opaque string identifier scoped to the current route segment. It changes when the surrounding segment is freshly created by a push or replace navigation, and stays the same for back/forward navigations, `router.refresh()`, and search-param- or hash-only navigations. See [`bfcacheId`](#bfcacheid) below for details.
 
 > **Good to know**:
 >
@@ -183,5 +255,6 @@ When `cacheComponents` is enabled, the App Router preserves Client Component sta
 
 | Version   | Changes                                                           |
 | --------- | ----------------------------------------------------------------- |
+| `v16.5.0` | `kind` option for `router.prefetch` introduced.                   |
 | `v15.4.0` | Optional `onInvalidate` callback for `router.prefetch` introduced |
 | `v13.0.0` | `useRouter` from `next/navigation` introduced.                    |

@@ -180,7 +180,7 @@ fn prefill_database(path: &Path, config: &DbConfig) -> Result<Vec<Box<[u8]>>> {
         }
     }
 
-    db.shutdown()?;
+    db.shutdown();
     keys.shuffle(&mut rng);
     Ok(keys)
 }
@@ -333,7 +333,7 @@ fn bench_write(c: &mut Criterion) {
 
                             db.commit_write_batch(batch).unwrap();
                         }
-                        db.shutdown().unwrap();
+                        db.shutdown();
                         tempdir
                     },
                     BatchSize::PerIteration,
@@ -668,7 +668,7 @@ fn prefill_multi_value_database(
         }
     }
 
-    db.shutdown()?;
+    db.shutdown();
     keys.shuffle(&mut rng);
     Ok(keys)
 }
@@ -1067,7 +1067,7 @@ fn bench_write_multi_value(c: &mut Criterion) {
                             batch.put(0, &**key, value.into()).unwrap();
                         }
                         db.commit_write_batch(batch).unwrap();
-                        db.shutdown().unwrap();
+                        db.shutdown();
                         tempdir
                     },
                     BatchSize::PerIteration,

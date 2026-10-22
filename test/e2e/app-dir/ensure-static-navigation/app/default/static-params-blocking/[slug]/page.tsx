@@ -2,7 +2,7 @@ export async function generateStaticParams() {
   return [{ slug: '123' }]
 }
 
-export const unstable_ensureStatic = 'navigation'
+export const ensureStatic = 'navigation'
 
 // The page awaits `params` without Suspense, which blocks the app shell,
 // and would fail Instant Validation in Partial Prefetching.

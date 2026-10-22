@@ -252,6 +252,9 @@ pub struct EcmascriptOptions {
     /// reduce output size. Defaults to false. See
     /// `references::esm::mangle::mangled_export_names`.
     pub mangle_export_names: bool,
+    /// Whether to materialize public namespaces with a facade so local export keys can still be
+    /// mangled when the namespace escapes. Defaults to false and requires `mangle_export_names`.
+    pub mangle_via_materialized_namespace_object: bool,
     /// Whether to scope hoist static CommonJS modules. Defaults to false.
     pub cjs_scope_hoisting: bool,
     /// Whether to enable cross-module constant inlining. Defaults to false.
@@ -995,14 +998,16 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
 impl MergeableModule for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn is_mergeable(self: ResolvedVc<Self>) -> Result<Vc<bool>> {
-        if matches!(
+        if !matches!(
             &*self.get_exports().await?,
             EcmascriptExports::EsmExports(_)
         ) {
-            return Ok(Vc::cell(true));
+            return Ok(Vc::cell(false));
         }
 
-        Ok(Vc::cell(false))
+        // A direct `eval` can access module bindings by name, which breaks when merging
+        // renames them.
+        Ok(Vc::cell(!self.analyze().await?.has_direct_eval))
     }
 
     #[turbo_tasks::function]
@@ -1136,7 +1141,7 @@ impl EcmascriptModuleContentOptions {
                             export_registration_mode
                                 .unwrap_or_else(|| eval_context.imports.export_registration_mode()),
                             export_registration_mode
-                                .map(|_| (&part_references[..], &esm_references_ref[..])),
+                                .map(|_| (part_references.as_ref(), esm_references_ref.as_ref())),
                             async_module_info.is_some(),
                         )
                         .await?;
