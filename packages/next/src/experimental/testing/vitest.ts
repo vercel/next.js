@@ -80,6 +80,7 @@ export type {
 } from './assertions'
 import {
   unsupported,
+  testDeclarationMembers,
   type TestDeclaration,
   type SuiteDeclaration,
   type TestBody,
@@ -92,16 +93,73 @@ import {
 
 // Resolve on use: setup helpers and the spec must share the emitted runner instance.
 function declaration(name: 'test' | 'describe'): any {
-  return new Proxy(
-    function (...args: unknown[]) {
-      return Reflect.apply(getTestApi()[name], undefined, args)
-    },
-    {
-      get(_target, key) {
-        return Reflect.get(getTestApi()[name], key)
-      },
+  const members = new Map<PropertyKey, unknown>()
+  let initialized = false
+  const raw = function (
+    this: unknown,
+    _name: unknown,
+    _optionsOrFn?: unknown,
+    _optionsOrTest?: unknown
+  ) {
+    return Reflect.apply(getTestApi().test.fn, this, Array.from(arguments))
+  }
+  Object.defineProperty(raw, 'name', { value: '' })
+  const target = function (...args: unknown[]) {
+    return Reflect.apply(getTestApi()[name], undefined, args)
+  }
+  if (name === 'test') Object.defineProperty(target, 'fn', { value: raw })
+  function member(key: PropertyKey) {
+    const value = Reflect.get(getTestApi()[name], key)
+    if (!members.has(key)) {
+      members.set(
+        key,
+        key === 'describe' || key === 'suite'
+          ? value
+          : new Proxy(value, {
+              apply(_target, receiver, args) {
+                return Reflect.apply(
+                  Reflect.get(getTestApi()[name], key),
+                  receiver,
+                  args
+                )
+              },
+            })
+      )
     }
-  )
+    return members.get(key)
+  }
+  function initialize() {
+    if (initialized) return
+    for (const key of testDeclarationMembers)
+      Object.defineProperty(raw, key, {
+        value: member(key),
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      })
+    initialized = true
+  }
+  return new Proxy(target, {
+    get(declarationTarget, key, receiver) {
+      if (name === 'test' && key === 'fn') {
+        initialize()
+        // Read the current declaration too, retaining its originating scope guard.
+        Reflect.get(getTestApi().test, key)
+        return Reflect.get(declarationTarget, key, receiver)
+      }
+      if (
+        name === 'test' &&
+        typeof key === 'string' &&
+        testDeclarationMembers.includes(key)
+      )
+        return member(key)
+      return Reflect.get(getTestApi()[name], key)
+    },
+    getOwnPropertyDescriptor(declarationTarget, key) {
+      if (name === 'test' && key === 'fn') initialize()
+      return Reflect.getOwnPropertyDescriptor(declarationTarget, key)
+    },
+  })
 }
 
 export const Snapshots = createSnapshotHelpers((method, state, args) =>

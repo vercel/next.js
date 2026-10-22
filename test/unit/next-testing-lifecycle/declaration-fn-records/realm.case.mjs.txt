@@ -1,0 +1,5 @@
+import {test,describe,expect,afterAll} from 'vitest';
+import {cachedTest,cachedDescribe,cachedRaw} from './realm-cache.mjs';
+const trace=[];
+cachedDescribe('cached suite',()=>cachedTest('second realm aliases',()=>{expect(cachedTest).toBe(test);expect(cachedDescribe).toBe(describe);expect(cachedRaw.describe).toBe(describe);expect(cachedRaw.suite).toBe(describe);expect(test.describe).toBe(describe);trace.push({label:'second realm',test:cachedTest===test,describe:cachedDescribe===describe,rawDescribe:cachedRaw.describe===describe,rawSuite:cachedRaw.suite===describe,testDescribe:test.describe===describe})}));
+afterAll(()=>console.log('DECLARATION_FN:'+JSON.stringify({kind:'realm-retention',trace})));

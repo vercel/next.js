@@ -1,0 +1,44 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "focus",
+        "trace": [
+          {
+            "name": "focused raw",
+            "mode": "run",
+            "fails": false
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "unfocused ordinary",
+      "status": "skipped",
+      "failureMessages": []
+    },
+    {
+      "name": "focused raw",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "unfocused raw",
+      "status": "skipped",
+      "failureMessages": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 3,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 2,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

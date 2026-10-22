@@ -1,0 +1,172 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "ordinary-retention",
+        "trace": [
+          {
+            "label": "extracted each",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading 'withContext')"
+            }
+          },
+          {
+            "label": "invalid receiver each",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading 'withContext')"
+            }
+          },
+          {
+            "label": "extracted for",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading 'withContext')"
+            }
+          },
+          {
+            "label": "invalid receiver for",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading 'withContext')"
+            }
+          },
+          {
+            "label": "extracted skipIf false",
+            "type": "undefined"
+          },
+          {
+            "label": "extracted skipIf true",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading 'skip')"
+            }
+          },
+          {
+            "label": "extracted runIf true",
+            "type": "undefined"
+          },
+          {
+            "label": "extracted runIf false",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading 'skip')"
+            }
+          },
+          {
+            "label": "conditions",
+            "skipFalse": true,
+            "runTrue": true,
+            "boundSkipFalse": true,
+            "boundRunTrue": true
+          },
+          {
+            "label": "bound each",
+            "value": 2
+          },
+          {
+            "label": "called each",
+            "value": 4
+          },
+          {
+            "label": "bound for",
+            "value": 2
+          },
+          {
+            "label": "called for",
+            "value": 4
+          },
+          {
+            "label": "borrowed fixture",
+            "value": 6,
+            "fixture": 3
+          },
+          {
+            "label": "first realm",
+            "test": true,
+            "describe": true,
+            "rawDescribe": true,
+            "rawSuite": true,
+            "testDescribe": true
+          }
+        ]
+      }
+    },
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "realm-retention",
+        "trace": [
+          {
+            "label": "second realm",
+            "test": true,
+            "describe": true,
+            "rawDescribe": true,
+            "rawSuite": true,
+            "testDescribe": true
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "borrowed fixture 6",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "bound each 2",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "bound for 2",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "cached suite second realm aliases",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "called each 4",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "called for 4",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "called not run",
+      "status": "skipped",
+      "failureMessages": []
+    },
+    {
+      "name": "called skipped",
+      "status": "skipped",
+      "failureMessages": []
+    },
+    {
+      "name": "first realm aliases",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 9,
+    "numPassedTests": 7,
+    "numFailedTests": 0,
+    "numPendingTests": 2,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

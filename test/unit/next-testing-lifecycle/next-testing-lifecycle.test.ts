@@ -8104,3 +8104,224 @@ it('runs collection-created Chai prototype callables with live invocation owners
       await fs.rm(evidence, { recursive: true, force: true })
   }
 }, 30000)
+
+describe('raw test declaration fn', () => {
+  const receiver = () => ({
+    concurrent: false,
+    only: false,
+    skip: false,
+    todo: false,
+    fails: false,
+  })
+
+  it('publishes one readonly root callable and shares its actual helper members', () => {
+    const c = createCollector('raw-declaration')
+    const t = c.api.test
+    expect(Object.getOwnPropertyDescriptor(t, 'fn')).toEqual({
+      value: t.fn,
+      enumerable: false,
+      configurable: false,
+      writable: false,
+    })
+    expect([t.fn.name, t.fn.length]).toEqual(['', 3])
+    expect(t.fn).toBe(c.api.it.fn)
+    expect((t.fn as any).each).toBe(t.each)
+    expect((t.fn as any).for).toBe(t.for)
+    expect((t.fn as any).extend).toBe(t.extend)
+    expect((t.fn as any).describe).toBe(c.api.describe)
+    for (const key of ['skip', 'only', 'todo', 'concurrent', 'fails'])
+      expect(t[key].fn).toBeUndefined()
+    expect(t.skipIf(false)).toBe(t)
+    expect(t.runIf(true)).toBe(t)
+    expect(t.extend({ value: 3 }).fn).not.toBe(t.fn)
+  })
+
+  it('retains receiver reads, authored option writes and raw public fails values', () => {
+    const c = createCollector('raw-receiver')
+    const reads: string[] = []
+    const context: any = {}
+    for (const key of [
+      'concurrent',
+      'only',
+      'skip',
+      'todo',
+      'fails',
+      'ignored',
+    ])
+      Object.defineProperty(context, key, {
+        enumerable: true,
+        get() {
+          reads.push(`receiver:${key}`)
+          return key === 'fails' ? 1 : false
+        },
+      })
+    let concurrent = true
+    const opts: any = {}
+    Object.defineProperty(opts, 'concurrent', {
+      enumerable: true,
+      get() {
+        reads.push('options:get-concurrent')
+        return concurrent
+      },
+      set(value) {
+        reads.push(`options:set-concurrent:${value}`)
+        concurrent = value
+      },
+    })
+    expect(c.api.test.fn.call(context, 'raw', opts, () => {})).toBeUndefined()
+    expect(reads).toEqual([
+      'receiver:concurrent',
+      'options:set-concurrent:false',
+      'receiver:concurrent',
+      'receiver:only',
+      'receiver:skip',
+      'receiver:todo',
+      'receiver:fails',
+      'receiver:ignored',
+      'options:get-concurrent',
+    ])
+    expect(c.root.children[0].options.fails).toBe(1)
+    expect(concurrent).toBe(false)
+    expect(() =>
+      c.api.test('ordinary', { concurrent: 1 as any }, () => {})
+    ).toThrow('Test concurrent must be a boolean.')
+    expect(() =>
+      c.api.test('ordinary fails', { fails: 1 as any }, () => {})
+    ).toThrow('Test fails must be a boolean.')
+    expect(c.root.children).toHaveLength(1)
+  })
+
+  it('does not implicitly bind the extended template to an explicit raw receiver', async () => {
+    const c = createCollector('raw-fixtures')
+    const observed: unknown[] = []
+    const extended = c.api.test.extend({ value: 3 })
+    extended.fn.call(receiver(), 'raw', {}, ({ value }) => {
+      observed.push(value)
+    })
+    extended('ordinary', ({ value }) => {
+      observed.push(value)
+    })
+    const result = await run(c)
+    expect(result.cases.map((c) => c.status)).toEqual(['passed', 'passed'])
+    expect(observed).toEqual([undefined, 3])
+  })
+
+  it('requires an actual chain receiver for the shared parameter and fixture helpers', () => {
+    const c = createCollector('raw-members')
+    const raw = c.api.test.fn as any
+    for (const key of ['each', 'for'])
+      expect(() => raw[key]([1])).toThrow(
+        "Cannot read properties of undefined (reading 'withContext')"
+      )
+    for (const key of ['extend', 'override'])
+      expect(() => raw[key]({ value: 1 })).toThrow(
+        "Cannot read properties of undefined (reading 'getFixtures')"
+      )
+    raw.each.call(c.api.test.skip, [1])('skipped %i', () => {})
+    expect(c.root.children.map((c) => [c.name, c.mode])).toEqual([
+      ['skipped 1', 'skip'],
+    ])
+  })
+
+  it('dispatches held raw declarations to the live collector without borrowing a closed scope', () => {
+    let active: ReturnType<typeof createCollector> | undefined
+    const first = createCollector('first', { getActiveCollector: () => active })
+    const held = first.api.test.fn
+    first.close()
+    const second = createCollector('second')
+    active = second
+    held.call(receiver(), 'second declaration', {}, () => {})
+    expect(first.root.children).toHaveLength(0)
+    expect(second.root.children.map((c) => c.name)).toEqual([
+      'second declaration',
+    ])
+    const late: Error[] = []
+    const scope = createAsyncScope(
+      { kind: 'collection', context: { id: 'old', name: 'old' } },
+      (error) => late.push(error)
+    )
+    scope.close()
+    let caught: unknown
+    scope.run(() => {
+      try {
+        held.call(receiver(), 'late', {}, () => {})
+      } catch (error) {
+        caught = error
+      }
+    })
+    expect(caught).toBe(late[0])
+    expect(late[0].message).toContain('closed collection scope "old"')
+    expect(second.root.children).toHaveLength(1)
+  })
+
+  it('keeps a cached raw suite alias subject to its originating collection scope', () => {
+    let active: ReturnType<typeof createCollector> | undefined
+    const first = createCollector('first alias', {
+      getActiveCollector: () => active,
+    })
+    const heldAlias = (first.api.test.fn as any).describe
+    first.close()
+    const second = createCollector('second alias')
+    active = second
+    heldAlias('live suite', () => second.api.test('child', () => {}))
+    expect(first.root.children).toHaveLength(0)
+    expect(second.root.children.map((child) => child.name)).toEqual([
+      'live suite',
+    ])
+    const late: Error[] = []
+    const scope = createAsyncScope(
+      { kind: 'collection', context: { id: 'old-alias', name: 'old alias' } },
+      (error) => late.push(error)
+    )
+    scope.close()
+    let caught: unknown
+    scope.run(() => {
+      try {
+        heldAlias('late suite', () => second.api.test('late child', () => {}))
+      } catch (error) {
+        caught = error
+      }
+    })
+    expect(caught).toBe(late[0])
+    expect(late[0].message).toContain('closed collection scope "old alias"')
+    expect(second.root.children).toHaveLength(1)
+  })
+})
+
+it('matches complete compiled raw fn declaration rows in both Node modes', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'declaration-fn-integration.cjs')],
+    { encoding: 'utf8', timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(
+    actual.profiles.map(({ mode, group, cases, rows }) => ({
+      mode,
+      group,
+      cases,
+      rows,
+    }))
+  ).toEqual([
+    { mode: 'development', group: 'contract', cases: 14, rows: 2 },
+    { mode: 'development', group: 'focus', cases: 3, rows: 1 },
+    { mode: 'development', group: 'retention', cases: 9, rows: 2 },
+    { mode: 'production', group: 'contract', cases: 14, rows: 2 },
+    { mode: 'production', group: 'focus', cases: 3, rows: 1 },
+    { mode: 'production', group: 'retention', cases: 9, rows: 2 },
+  ])
+}, 130000)
+
+it('retains the pinned public fn receiver and fixture type contract', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'declaration-fn-types.cjs')],
+    { encoding: 'utf8', timeout: 30000 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(actual.rootConfigAndGlobalAugmentations).toBe(true)
+  expect(actual.results[0]).toEqual({ kind: 'positive', diagnostics: [] })
+  expect(actual.results[1].diagnostics.map(({ code }) => code)).toEqual([
+    2345, 2559, 2339, 2339, 2322,
+  ])
+}, 35000)

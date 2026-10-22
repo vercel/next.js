@@ -1,0 +1,358 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "surface",
+        "fn": {
+          "type": "function",
+          "name": "",
+          "length": 3,
+          "keys": [
+            "length",
+            "name",
+            "prototype",
+            "each",
+            "for",
+            "skipIf",
+            "runIf",
+            "override",
+            "scoped",
+            "extend",
+            "describe",
+            "suite",
+            "beforeEach",
+            "afterEach",
+            "beforeAll",
+            "afterAll",
+            "aroundEach",
+            "aroundAll"
+          ],
+          "descriptor": {
+            "enumerable": false,
+            "configurable": false,
+            "writable": false
+          },
+          "sameRead": true,
+          "alias": true,
+          "ownFn": "undefined",
+          "eachSame": true,
+          "forSame": true,
+          "extendSame": true,
+          "describeSame": true,
+          "suiteSame": true
+        },
+        "modifiers": [
+          {
+            "key": "skip",
+            "type": "undefined",
+            "own": false
+          },
+          {
+            "key": "only",
+            "type": "undefined",
+            "own": false
+          },
+          {
+            "key": "todo",
+            "type": "undefined",
+            "own": false
+          },
+          {
+            "key": "concurrent",
+            "type": "undefined",
+            "own": false
+          },
+          {
+            "key": "fails",
+            "type": "undefined",
+            "own": false
+          }
+        ],
+        "conditions": {
+          "skipIf": true,
+          "runIf": true
+        },
+        "extended": {
+          "different": true,
+          "name": "",
+          "length": 3,
+          "eachSame": true,
+          "extendSame": true,
+          "skipFn": "undefined"
+        }
+      }
+    },
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "trace",
+        "trace": [
+          {
+            "event": "declared",
+            "name": "plain",
+            "returned": "undefined"
+          },
+          {
+            "event": "declared",
+            "name": "skipped",
+            "returned": "undefined"
+          },
+          {
+            "event": "declared",
+            "name": "todo",
+            "returned": "undefined"
+          },
+          {
+            "event": "declared",
+            "name": "fails",
+            "returned": "undefined"
+          },
+          {
+            "event": "declared",
+            "name": "concurrent",
+            "returned": "undefined"
+          },
+          {
+            "event": "declared",
+            "name": "options-fails",
+            "returned": "undefined"
+          },
+          {
+            "event": "receiver-error",
+            "name": "undefined",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading 'concurrent')"
+            }
+          },
+          {
+            "event": "receiver-error",
+            "name": "null",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of null (reading 'concurrent')"
+            }
+          },
+          {
+            "event": "receiver-declared",
+            "name": "empty",
+            "returned": "undefined"
+          },
+          {
+            "event": "receiver-declared",
+            "name": "primitive",
+            "returned": "undefined"
+          },
+          {
+            "event": "reads",
+            "reads": [
+              "receiver:concurrent",
+              "options:set-concurrent:false",
+              "receiver:concurrent",
+              "receiver:only",
+              "receiver:skip",
+              "receiver:todo",
+              "receiver:fails",
+              "receiver:ignored",
+              "options:get-concurrent"
+            ],
+            "mutatedOption": false
+          },
+          {
+            "event": "raw-helper-error",
+            "key": "each",
+            "name": "TypeError",
+            "message": "Cannot read properties of undefined (reading 'withContext')"
+          },
+          {
+            "event": "raw-helper-error",
+            "key": "for",
+            "name": "TypeError",
+            "message": "Cannot read properties of undefined (reading 'withContext')"
+          },
+          {
+            "event": "raw-helper-error",
+            "key": "extend",
+            "name": "TypeError",
+            "message": "Cannot read properties of undefined (reading 'getFixtures')"
+          },
+          {
+            "event": "raw-helper-error",
+            "key": "override",
+            "name": "TypeError",
+            "message": "Cannot read properties of undefined (reading 'getFixtures')"
+          },
+          {
+            "event": "case",
+            "name": "plain",
+            "task": "plain",
+            "concurrent": null,
+            "fails": false,
+            "meta": {},
+            "valueType": "undefined"
+          },
+          {
+            "event": "case",
+            "name": "fails",
+            "task": "fails",
+            "concurrent": null,
+            "fails": true,
+            "meta": {},
+            "valueType": "undefined"
+          },
+          {
+            "event": "case",
+            "name": "concurrent",
+            "task": "concurrent",
+            "concurrent": true,
+            "fails": false,
+            "meta": {},
+            "valueType": "undefined"
+          },
+          {
+            "event": "case",
+            "name": "options-fails",
+            "task": "options-fails",
+            "concurrent": null,
+            "fails": true,
+            "meta": {},
+            "valueType": "undefined"
+          },
+          {
+            "event": "case",
+            "name": "receiver-empty",
+            "task": "receiver-empty",
+            "concurrent": null,
+            "fails": null,
+            "meta": {},
+            "valueType": "undefined"
+          },
+          {
+            "event": "case",
+            "name": "receiver-primitive",
+            "task": "receiver-primitive",
+            "concurrent": null,
+            "fails": null,
+            "meta": {},
+            "valueType": "undefined"
+          },
+          {
+            "event": "case",
+            "name": "extended raw",
+            "task": "extended raw",
+            "concurrent": null,
+            "fails": false,
+            "meta": {},
+            "valueType": "undefined"
+          },
+          {
+            "event": "ordinary-fixture",
+            "value": 3
+          },
+          {
+            "event": "case",
+            "name": "observed receiver",
+            "task": "observed receiver",
+            "concurrent": null,
+            "fails": false,
+            "meta": {
+              "from": "options"
+            },
+            "valueType": "undefined"
+          },
+          {
+            "event": "inside-case",
+            "error": {
+              "name": "Error",
+              "message": "Calling the test function inside another test function is not allowed. Please put it inside \"describe\" or \"suite\" so it can be properly collected."
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "plain",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "skipped",
+      "status": "skipped",
+      "failureMessages": []
+    },
+    {
+      "name": "todo",
+      "status": "todo",
+      "failureMessages": []
+    },
+    {
+      "name": "fails",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "concurrent",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "options-fails",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "receiver-empty",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "receiver-primitive",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "extended raw",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "ordinary extended",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "observed receiver",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "borrowed skipped 1",
+      "status": "skipped",
+      "failureMessages": []
+    },
+    {
+      "name": "inside case",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "control",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 14,
+    "numPassedTests": 11,
+    "numFailedTests": 0,
+    "numPendingTests": 2,
+    "numTodoTests": 1,
+    "success": true
+  },
+  "exit": 0
+}

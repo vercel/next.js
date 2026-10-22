@@ -22,7 +22,7 @@ import type {
   FixtureOptions,
   BuilderFixtureFn,
 } from './fixtures'
-import { assertScopeActive } from './async-context'
+import { assertScopeActive, getOriginatingAttempt } from './async-context'
 import {
   formatWithOptions,
   inspect,
@@ -31,6 +31,35 @@ import {
 import { shuffleTests, type TestSequenceOptions } from './sequence'
 
 const fixtureBuilderReceiver = Symbol('fixture builder receiver')
+export const testDeclarationMembers: readonly string[] = [
+  'each',
+  'for',
+  'skipIf',
+  'runIf',
+  'override',
+  'scoped',
+  'extend',
+  'describe',
+  'suite',
+  'beforeEach',
+  'afterEach',
+  'beforeAll',
+  'afterAll',
+  'aroundEach',
+  'aroundAll',
+]
+const testDeclarationOptions = [
+  'timeout',
+  'retry',
+  'repeats',
+  'concurrent',
+  'only',
+  'skip',
+  'todo',
+  'fails',
+  'tags',
+  'meta',
+] as const
 type FixtureBuilderArguments = [unknown, unknown?, unknown?]
 type FixtureBuilderOperations = {
   extend(...args: FixtureBuilderArguments): TestDeclaration
@@ -301,6 +330,12 @@ export interface TestDeclaration<
   T extends object = {},
   Context extends object = TestContext,
 > {
+  readonly fn: (
+    this: Record<'concurrent' | 'only' | 'skip' | 'todo' | 'fails', any>,
+    name: Name,
+    options?: TestOptions,
+    fn?: (context: Context & T) => void | PromiseLike<void>
+  ) => void
   describe: SuiteDeclaration<Context>
   suite: SuiteDeclaration<Context>
   beforeEach(
@@ -636,7 +671,8 @@ export interface CollectorDispatch {
     kind: 'test' | 'suite',
     mode: TestMode,
     fixtures?: FixtureDefinitions,
-    options?: SuiteOptions
+    options?: SuiteOptions,
+    rootChain?: boolean
   ): any
   createHook(
     name: HookName,
@@ -669,6 +705,8 @@ export function createCollector(
   })
   const suiteStorage = createDeclarationStorage<TestSuite>()
   const pending: Promise<PromiseSettledResult<unknown>>[] = []
+  const pendingDeclarations: (() => void)[] = []
+  let initializing = true
   let closed = false
 
   const currentSuite = () => suiteStorage.getStore() ?? root
@@ -686,13 +724,20 @@ export function createCollector(
     kind: 'test' | 'suite',
     mode: TestMode,
     fixtures: FixtureDefinitions = {},
-    declarationOptions: SuiteOptions = {}
+    declarationOptions: SuiteOptions = {},
+    rootChain = true
   ): any {
     const redirected = () => {
       assertScopeActive()
       const active = config.getActiveCollector?.()
       return active && active.root !== root
-        ? active.createDeclaration(kind, mode, fixtures, declarationOptions)
+        ? active.createDeclaration(
+            kind,
+            mode,
+            fixtures,
+            declarationOptions,
+            rootChain
+          )
         : undefined
     }
     function fixturesFor(start: TestSuite) {
@@ -878,6 +923,7 @@ export function createCollector(
         }
         Object.defineProperty(test, 'registrationError', { value: new Error() })
         current.children.push(test)
+        return test
       }
     }
     const builder: FixtureBuilderOperations = {
@@ -939,140 +985,317 @@ export function createCollector(
         current.fixtureOverrides.set(fixtures, overridden)
       },
     }
-    const receiverContext = { getFixtures: () => builder }
-    return new Proxy(declare, {
+    const receiverContext = {
+      getFixtures: () => builder,
+      withContext: () => declare,
+    }
+    const members = new Map<PropertyKey, unknown>()
+    let rawDeclaration: Function | undefined
+    let rawSuiteAlias: unknown
+    const updateSuiteAlias = () => {
+      if (!rawDeclaration) return
+      const alias = config.getSuiteAlias?.() ?? describe
+      if (alias !== rawSuiteAlias) {
+        Object.assign(rawDeclaration, { describe: alias, suite: alias })
+        rawSuiteAlias = alias
+      }
+    }
+    const chain = new Proxy(declare, {
+      apply(target, receiver, args) {
+        Reflect.apply(target, receiver, args)
+      },
       get(target, key, receiver) {
-        if (kind === 'test' && (key === 'beforeAll' || key === 'afterAll'))
-          return hook(key, fixtures)
-        if (kind === 'test' && (key === 'beforeEach' || key === 'afterEach'))
-          return hook(key)
-        if (kind === 'test' && (key === 'aroundEach' || key === 'aroundAll'))
-          return around(key, fixtures)
-        assertScopeActive()
-        if (kind === 'test' && (key === 'describe' || key === 'suite'))
-          return config.getSuiteAlias?.() ?? describe
-        if (key === 'scoped' && kind === 'test')
-          return function (this: TestDeclaration, values: object) {
-            console.warn(
-              'test.scoped() is deprecated and will be removed in future versions. Please use test.override() instead.'
-            )
-            this.override(values)
-            return this
-          }
-        if (key === fixtureBuilderReceiver && kind === 'test')
-          return receiverContext
-        if (key === 'extend' && kind === 'test')
-          return function (
-            this: TestDeclaration,
-            ...args: FixtureBuilderArguments
-          ) {
-            assertScopeActive()
-            return fixtureBuilderOperations(this).extend(...args)
-          }
-        if (key === 'override' && kind === 'test')
-          return function (
-            this: TestDeclaration,
-            ...args: FixtureBuilderArguments
-          ) {
-            assertScopeActive()
-            fixtureBuilderOperations(this).override(...args)
-            return this
-          }
+        if (key === 'fn' && kind === 'test') {
+          assertScopeActive()
+          updateSuiteAlias()
+          return Reflect.get(target, key, receiver)
+        }
+        if (members.has(key)) {
+          assertScopeActive()
+          return members.get(key)
+        }
+        const value = member(target, key, receiver)
         if (
-          (key === 'each' || key === 'for') &&
-          (kind === 'test' || kind === 'suite')
+          kind === 'test' &&
+          typeof key === 'string' &&
+          testDeclarationMembers.includes(key) &&
+          key !== 'describe' &&
+          key !== 'suite'
         )
-          return (casesOrStrings: readonly unknown[], ...values: unknown[]) => {
-            assertScopeActive()
-            const cases =
-              Array.isArray(casesOrStrings) && values.length
-                ? templateCases(casesOrStrings as readonly string[], values)
-                : casesOrStrings
-            if (!Array.isArray(cases))
-              throw new TypeError(
-                `${kind}.${String(key)} requires an array or template table.`
-              )
-            return (
-              name: Name,
-              optionsOrFn?: TestOptions | Function,
-              bodyOrTimeout?: Function | number
-            ) => {
-              const options =
-                optionsOrFn && typeof optionsOrFn === 'object'
-                  ? optionsOrFn
-                  : undefined
-              const fn =
-                typeof optionsOrFn === 'function'
-                  ? optionsOrFn
-                  : typeof bodyOrTimeout === 'function'
-                    ? bodyOrTimeout
-                    : undefined
-              const timeout =
-                typeof bodyOrTimeout === 'number' ? bodyOrTimeout : undefined
-              const arrayOnly = cases.every(Array.isArray)
-              cases.forEach((value, index) => {
-                const items = Array.isArray(value) ? value : [value]
-                const title = formatTitle(formatName(name), items, index)
-                let callback: Function | undefined
-                if (fn) {
-                  if (key === 'for' && kind === 'test') {
-                    callback = (context: TestContext) => fn(value, context)
-                    configureFixtureCallback(callback, fn, 1)
-                  } else if (arrayOnly) callback = () => fn(...items)
-                  else callback = () => fn(value)
-                }
-                if (options) declare(title, options, callback as TestBody)
-                else declare(title, callback as TestBody | undefined, timeout)
-              })
-            }
-          }
-        if (key === 'skip' || key === 'only' || key === 'todo')
-          return declaration(
-            kind,
-            mode === 'skip' || mode === 'todo' ? mode : key,
-            fixtures,
-            declarationOptions
+          members.set(key, value)
+        return value
+      },
+      getOwnPropertyDescriptor(target, key) {
+        if (key === 'fn' && kind === 'test') updateSuiteAlias()
+        return Reflect.getOwnPropertyDescriptor(target, key)
+      },
+    })
+    function member(
+      target: typeof declare,
+      key: PropertyKey,
+      receiver: unknown
+    ) {
+      if (kind === 'test' && (key === 'beforeAll' || key === 'afterAll'))
+        return hook(key, fixtures)
+      if (kind === 'test' && (key === 'beforeEach' || key === 'afterEach'))
+        return hook(key)
+      if (kind === 'test' && (key === 'aroundEach' || key === 'aroundAll'))
+        return around(key, fixtures)
+      assertScopeActive()
+      if (kind === 'test' && (key === 'describe' || key === 'suite'))
+        return config.getSuiteAlias?.() ?? describe
+      if (key === 'scoped' && kind === 'test')
+        return function (this: TestDeclaration, values: object) {
+          console.warn(
+            'test.scoped() is deprecated and will be removed in future versions. Please use test.override() instead.'
           )
-        if (key === 'shuffle' && kind === 'suite')
-          return declaration(kind, mode, fixtures, {
+          this.override(values)
+          return this
+        }
+      if (key === fixtureBuilderReceiver && kind === 'test')
+        return receiverContext
+      if (key === 'extend' && kind === 'test')
+        return function (
+          this: TestDeclaration,
+          ...args: FixtureBuilderArguments
+        ) {
+          assertScopeActive()
+          return fixtureBuilderOperations(this).extend(...args)
+        }
+      if (key === 'override' && kind === 'test')
+        return function (
+          this: TestDeclaration,
+          ...args: FixtureBuilderArguments
+        ) {
+          assertScopeActive()
+          fixtureBuilderOperations(this).override(...args)
+          return this
+        }
+      if (
+        (key === 'each' || key === 'for') &&
+        (kind === 'test' || kind === 'suite')
+      )
+        return function (
+          this: unknown,
+          casesOrStrings: readonly unknown[],
+          ...values: unknown[]
+        ) {
+          assertScopeActive()
+          const owner =
+            kind === 'test'
+              ? this == null
+                ? undefined
+                : (Reflect.get(Object(this), fixtureBuilderReceiver) as
+                    | typeof receiverContext
+                    | undefined)
+              : undefined
+          const invokeDeclaration =
+            kind === 'test' ? owner!.withContext() : declare
+          const cases =
+            Array.isArray(casesOrStrings) && values.length
+              ? templateCases(casesOrStrings as readonly string[], values)
+              : casesOrStrings
+          if (!Array.isArray(cases))
+            throw new TypeError(
+              `${kind}.${String(key)} requires an array or template table.`
+            )
+          return (
+            name: Name,
+            optionsOrFn?: TestOptions | Function,
+            bodyOrTimeout?: Function | number
+          ) => {
+            const options =
+              optionsOrFn && typeof optionsOrFn === 'object'
+                ? optionsOrFn
+                : undefined
+            const fn =
+              typeof optionsOrFn === 'function'
+                ? optionsOrFn
+                : typeof bodyOrTimeout === 'function'
+                  ? bodyOrTimeout
+                  : undefined
+            const timeout =
+              typeof bodyOrTimeout === 'number' ? bodyOrTimeout : undefined
+            const arrayOnly = cases.every(Array.isArray)
+            cases.forEach((value, index) => {
+              const items = Array.isArray(value) ? value : [value]
+              const title = formatTitle(formatName(name), items, index)
+              let callback: Function | undefined
+              if (fn) {
+                if (key === 'for' && kind === 'test') {
+                  callback = (context: TestContext) => fn(value, context)
+                  configureFixtureCallback(callback, fn, 1)
+                } else if (arrayOnly) callback = () => fn(...items)
+                else callback = () => fn(value)
+              }
+              if (options)
+                invokeDeclaration(title, options, callback as TestBody)
+              else
+                invokeDeclaration(
+                  title,
+                  callback as TestBody | undefined,
+                  timeout
+                )
+            })
+          }
+        }
+      if (key === 'skip' || key === 'only' || key === 'todo')
+        return declaration(
+          kind,
+          mode === 'skip' || mode === 'todo' ? mode : key,
+          fixtures,
+          declarationOptions,
+          false
+        )
+      if (key === 'shuffle' && kind === 'suite')
+        return declaration(
+          kind,
+          mode,
+          fixtures,
+          {
             ...declarationOptions,
             shuffle: true,
-          })
-        if (key === 'concurrent')
-          return declaration(kind, mode, fixtures, {
+          },
+          false
+        )
+      if (key === 'concurrent')
+        return declaration(
+          kind,
+          mode,
+          fixtures,
+          {
             ...declarationOptions,
             concurrent: true,
-          })
-        if (key === 'fails' && kind === 'test')
-          return declaration(kind, mode, fixtures, {
+          },
+          false
+        )
+      if (key === 'fails' && kind === 'test')
+        return declaration(
+          kind,
+          mode,
+          fixtures,
+          {
             ...declarationOptions,
             fails: true,
-          })
-        if (key === 'skipIf')
+          },
+          false
+        )
+      if (key === 'skipIf')
+        if (kind === 'test')
+          return function (this: TestDeclaration, condition: unknown) {
+            assertScopeActive()
+            return condition ? this.skip : this
+          }
+        else
           return (condition: unknown) => {
             assertScopeActive()
             return declaration(
               kind,
               condition ? 'skip' : mode,
               fixtures,
-              declarationOptions
+              declarationOptions,
+              false
             )
           }
-        if (key === 'runIf')
+      if (key === 'runIf')
+        if (kind === 'test')
+          return function (this: TestDeclaration, condition: unknown) {
+            assertScopeActive()
+            return condition ? this : this.skip
+          }
+        else
           return (condition: unknown) => {
             assertScopeActive()
             return declaration(
               kind,
               condition ? mode : 'skip',
               fixtures,
-              declarationOptions
+              declarationOptions,
+              false
             )
           }
-        if (Reflect.has(target, key) || typeof key === 'symbol')
-          return Reflect.get(target, key, receiver)
-        return unsupported(`${kind === 'test' ? 'test' : 'describe'}.${key}`)
-      },
-    })
+      if (Reflect.has(target, key) || typeof key === 'symbol')
+        return Reflect.get(target, key, receiver)
+      return unsupported(`${kind === 'test' ? 'test' : 'describe'}.${key}`)
+    }
+    if (kind === 'test' && rootChain) {
+      const raw = function (
+        this: any,
+        name: Name,
+        optionsOrFn?: TestOptions | TestBody,
+        optionsOrTest?: TestBody | number
+      ) {
+        assertScopeActive()
+        if (getOriginatingAttempt())
+          throw new Error(
+            'Calling the test function inside another test function is not allowed. Please put it inside "describe" or "suite" so it can be properly collected.'
+          )
+        const active = redirected()
+        if (active)
+          return Reflect.apply(active.fn, this, [
+            name,
+            optionsOrFn,
+            optionsOrTest,
+          ])
+        assertCollecting()
+        if (optionsOrTest != null && typeof optionsOrTest === 'object')
+          throw new TypeError(
+            'Signature "test(name, fn, { ... })" was deprecated in Vitest 3 and removed in Vitest 4. Please, provide options as a second argument instead.'
+          )
+        let options: TestOptions = {}
+        if (typeof optionsOrTest === 'number')
+          options = { timeout: optionsOrTest }
+        else if (typeof optionsOrFn === 'object') options = optionsOrFn!
+        let handler: TestBody | undefined
+        if (typeof optionsOrFn === 'function') {
+          if (typeof optionsOrTest === 'function')
+            throw new TypeError(
+              'Cannot use two functions as arguments. Please use the second argument for options.'
+            )
+          handler = optionsOrFn
+        } else if (typeof optionsOrTest === 'function') handler = optionsOrTest
+        const concurrent = this.concurrent ?? options?.concurrent
+        if (concurrent != null) options.concurrent = concurrent
+        const combined = { ...this, ...options }
+        const normalized: TestOptions = {}
+        for (const key of testDeclarationOptions)
+          if (Object.hasOwn(combined, key))
+            (normalized as any)[key] = combined[key]
+        for (const key of [
+          'concurrent',
+          'only',
+          'skip',
+          'todo',
+          'fails',
+        ] as const)
+          if (Object.hasOwn(normalized, key))
+            normalized[key] = !!normalized[key]
+        const rawFixtures = combined.fixtures ?? {}
+        const rawChain = declaration('test', 'run', rawFixtures, {}, false)
+        const registered = rawChain[fixtureBuilderReceiver].withContext()(
+          name,
+          normalized,
+          handler
+        ) as TestCase
+        if (Object.hasOwn(combined, 'fails'))
+          registered.options.fails = combined.fails
+      }
+      Object.defineProperty(raw, 'name', { value: '' })
+      rawDeclaration = raw
+      const initialize = () => {
+        for (const key of testDeclarationMembers)
+          Object.defineProperty(raw, key, {
+            value: Reflect.get(chain, key),
+            enumerable: true,
+            configurable: true,
+            writable: true,
+          })
+      }
+      if (initializing) pendingDeclarations.push(initialize)
+      else initialize()
+      Object.defineProperty(declare, 'fn', { value: raw })
+    }
+    return chain
   }
 
   const test: TestDeclaration<{}, InternalTestContext> = declaration(
@@ -1126,6 +1349,8 @@ export function createCollector(
       currentSuite().around[name].push(registered)
     }
 
+  initializing = false
+  for (const initialize of pendingDeclarations) initialize()
   return {
     root,
     createDeclaration: declaration,

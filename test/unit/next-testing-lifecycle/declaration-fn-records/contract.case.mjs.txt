@@ -1,0 +1,24 @@
+import {test,it,describe,expect,afterAll} from 'vitest';
+const flags=()=>({concurrent:false,only:false,skip:false,todo:false,fails:false});
+const trace=[],reads=[],raw=test.fn,extended=test.extend({value:3});
+const descriptor=Object.getOwnPropertyDescriptor(test,'fn');
+console.log('DECLARATION_FN:'+JSON.stringify({kind:'surface',fn:{type:typeof raw,name:raw.name,length:raw.length,keys:Reflect.ownKeys(raw).map(String),descriptor:{enumerable:descriptor.enumerable,configurable:descriptor.configurable,writable:descriptor.writable},sameRead:raw===test.fn,alias:raw===it.fn,ownFn:typeof raw.fn,eachSame:raw.each===test.each,forSame:raw.for===test.for,extendSame:raw.extend===test.extend,describeSame:raw.describe===describe,suiteSame:raw.suite===describe},modifiers:['skip','only','todo','concurrent','fails'].map(key=>({key,type:typeof test[key].fn,own:Object.hasOwn(test[key],'fn')})),conditions:{skipIf:test.skipIf(false)===test,runIf:test.runIf(true)===test},extended:{different:extended.fn!==raw,name:extended.fn.name,length:extended.fn.length,eachSame:extended.fn.each===extended.each,extendSame:extended.fn.extend===extended.extend,skipFn:typeof extended.skip.fn}}));
+const observe=name=>ctx=>trace.push({event:'case',name,task:ctx.task.name,concurrent:ctx.task.concurrent??null,fails:ctx.task.fails??null,meta:ctx.task.meta,valueType:typeof ctx.value});
+for(const [name,receiver] of [['plain',flags()],['skipped',{...flags(),skip:true}],['todo',{...flags(),todo:true}],['fails',{...flags(),fails:true}],['concurrent',{...flags(),concurrent:true}],['options-fails',{...flags(),fails:false}]]){
+ const result=raw.call(receiver,name,name==='options-fails'?{fails:true}:{},ctx=>{observe(name)(ctx);if(name==='fails'||name==='options-fails')throw new Error('expected failure')});
+ trace.push({event:'declared',name,returned:typeof result});
+}
+for(const [name,receiver] of [['undefined',undefined],['null',null],['empty',{}],['primitive',1]]){
+ try{const result=Reflect.apply(raw,receiver,['receiver-'+name,{},observe('receiver-'+name)]);trace.push({event:'receiver-declared',name,returned:typeof result})}catch(error){trace.push({event:'receiver-error',name,error:{name:error.name,message:error.message}})}
+}
+extended.fn.call(flags(),'extended raw',{},observe('extended raw'));
+extended('ordinary extended',({value})=>{trace.push({event:'ordinary-fixture',value});expect(value).toBe(3)});
+const receiver={};for(const key of ['concurrent','only','skip','todo','fails','ignored'])Object.defineProperty(receiver,key,{enumerable:true,get(){reads.push('receiver:'+key);return key==='ignored'?7:false}});
+let concurrent=true;const options={meta:{from:'options'}};Object.defineProperty(options,'concurrent',{enumerable:true,get(){reads.push('options:get-concurrent');return concurrent},set(value){reads.push('options:set-concurrent:'+String(value));concurrent=value}});
+raw.call(receiver,'observed receiver',options,observe('observed receiver'));
+trace.push({event:'reads',reads:[...reads],mutatedOption:concurrent});
+for(const [key,args]of [['each',[[1]]],['for',[[1]]],['extend',[{value:1}]],['override',[{value:1}]]]){try{const value=Reflect.apply(raw[key],raw,args);trace.push({event:'raw-helper',key,returned:typeof value})}catch(error){trace.push({event:'raw-helper-error',key,name:error.name,message:error.message})}}
+raw.each.call(test.skip,[1])('borrowed skipped %i',()=>{throw new Error('must skip')});
+test('inside case',()=>{let error;try{raw.call(flags(),'late declaration',{},()=>{})}catch(caught){error=caught}trace.push({event:'inside-case',error:error?{name:error.name,message:error.message}:null});expect(error).toBeInstanceOf(Error)});
+test('control',()=>expect(true).toBe(true));
+afterAll(()=>console.log('DECLARATION_FN:'+JSON.stringify({kind:'trace',trace})));

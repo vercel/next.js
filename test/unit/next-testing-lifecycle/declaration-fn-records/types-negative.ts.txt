@@ -1,0 +1,7 @@
+import {test} from 'vitest';
+const receiver={concurrent:false,only:false,skip:false,todo:false,fails:false};
+test.fn.call({},'missing modifiers',{},()=>{});
+test.fn('old callback overload',()=>{});
+test.fn.call(receiver,'missing fixture',{},({missing})=>{});
+test.fn.extend({value:1});
+const number:number=test.fn.call(receiver,'wrong return',{},()=>{});
