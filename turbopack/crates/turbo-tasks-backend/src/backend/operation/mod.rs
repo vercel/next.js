@@ -418,11 +418,11 @@ impl<'e> ExecuteContext<'e> {
     /// or missing in memory and on disk is skipped instead (a missing one is discarded), and the
     /// callback is not called for it. `MaybeCreate` is not supported.
     ///
-    /// `prepared_task_callback` must not panic. A missing key is reported only after every task in
-    /// the batch has been handed off, so that panic leaves nothing behind. A panicking callback is
-    /// a bug in the backend, which is expected to abort, and it gets no such care: one that runs in
-    /// Phase 1a can leave restores this batch has already claimed with their restoring bits set,
-    /// and any thread waiting on those tasks then waits forever.
+    /// `prepared_task_callback` must not panic. A missing key is reported only after every other
+    /// task in the batch has been handed off, so that panic leaves nothing behind. A panicking
+    /// callback is a bug in the backend, which is expected to abort, and it gets no such care:
+    /// one that runs in Phase 1a can leave restores this batch has already claimed with their
+    /// restoring bits set, and any thread waiting on those tasks then waits forever.
     fn prepare_tasks_with_callback(
         &mut self,
         task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
@@ -744,8 +744,20 @@ impl<'e> ExecuteContext<'e> {
                 // eviction won the handoff.
                 let task = match self.restore_existing_task(entry.task_id, entry.category, access) {
                     Ok((task, outcome)) => {
-                        if access == TaskAccess::AllowMissing && outcome.missing_on_disk {
-                            handle_missing_task(task, entry.task_id, access, reason);
+                        if outcome.missing_on_disk {
+                            // A tombstone committed after Phase 1c read the task, and eviction
+                            // dropped it before this handoff. Persisting a snapshot does not hold
+                            // its exclusion, so this can race. Like Phase 3, keep handing off the
+                            // remaining tasks and report the failure at the end.
+                            if access == TaskAccess::MustExist {
+                                missing_tasks.push(entry.task_id);
+                            }
+                            handle_missing_task(
+                                task,
+                                entry.task_id,
+                                TaskAccess::AllowMissing,
+                                reason,
+                            );
                             continue;
                         }
                         task
@@ -2079,6 +2091,156 @@ mod must_exist_tests {
             assert!(task.flags.is_restored(TaskDataCategory::All));
             assert_eq!(task.gc_transient_ref_count(), 0);
         }
+    }
+
+    /// Eviction can drop a task between its Phase 1c restore and its Phase 2 handoff. Phase 2 then
+    /// re-reads it from disk and, with its keys still there, hands it off fully restored, exactly
+    /// once, and with no claims left.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn prepare_tasks_rerestores_task_evicted_before_phase2_handoff() {
+        let first = persistent(1);
+        let evicted = persistent(2);
+        let (tt, _dir) = persisted_tasks(&[first, evicted]);
+        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let mut seen = Vec::new();
+        restore_lookup_counts::reset();
+        ctx.for_each_task(
+            [first, evicted].map(|id| (id, TaskDataCategory::All)),
+            "evicted before handoff",
+            |guard, _| {
+                let id = guard.id();
+                // Release the shard lock before touching another task.
+                drop(guard);
+                if id == first {
+                    // A full eviction of the restored, unmodified task removes its entry.
+                    let task = tt.backend().storage.access_entry_mut(evicted);
+                    assert!(task.flags.is_restored(TaskDataCategory::All));
+                    task.discard();
+                }
+                seen.push(id);
+            },
+        );
+        assert_eq!(seen, [first, evicted]);
+        // One batched read per category in Phase 1b, then one single read per category for the
+        // Phase 2 re-restore of the evicted task.
+        assert_eq!(restore_lookup_counts::get(), (2, 2));
+        for id in [first, evicted] {
+            let task = tt.backend().storage.access_mut(id);
+            assert!(task.flags.is_restored(TaskDataCategory::All));
+            assert!(!task.flags.data_restoring() && !task.flags.meta_restoring());
+            assert_eq!(task.gc_transient_ref_count(), 0);
+        }
+    }
+
+    /// Runs a batch of three persisted tasks. Before Phase 2 hands off the second one, the first
+    /// callback commits its tombstone and runs an eviction sweep. A persist commits after its
+    /// snapshot exclusion ends, so this can race a running operation. Appends each id handed to
+    /// the callback to `seen`, after checking that it was handed off fully restored.
+    fn prepare_with_tombstone_committed_before_phase2_handoff(
+        tt: &TurboTasks<TurboTasksBackend>,
+        tasks: [TaskId; 3],
+        access: TaskAccess,
+        seen: &mut Vec<TaskId>,
+    ) {
+        use crate::backing_storage::SnapshotItem;
+
+        let [first, gone, _] = tasks;
+        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        ctx.for_each_task_with_access(
+            tasks.map(|id| (id, TaskDataCategory::All)),
+            access,
+            "tombstoned before handoff",
+            |guard, _| {
+                let id = guard.id();
+                // Release the shard lock before touching another task.
+                drop(guard);
+                assert_eq!(
+                    tt.backend()
+                        .storage
+                        .with_task(id, |t| t.flags.is_restored(TaskDataCategory::All)),
+                    Some(true),
+                    "task {id} must be handed off fully restored"
+                );
+                if id == first {
+                    tt.backend()
+                        .backing_storage
+                        .save_snapshot(
+                            None,
+                            vec![vec![SnapshotItem::Delete {
+                                task_id: gone,
+                                task_type_hash: [0; 8],
+                            }]],
+                        )
+                        .unwrap();
+                    // The tombstoned task, restored and unmodified, is evicted in full. So are
+                    // the others, which are re-read from disk if not yet handed off.
+                    tt.backend().storage.evict_after_snapshot(None);
+                    assert!(!has_entry(tt, gone));
+                }
+                seen.push(id);
+            },
+        );
+    }
+
+    fn assert_tombstoned_handoff(
+        tt: &TurboTasks<TurboTasksBackend>,
+        [first, gone, later]: [TaskId; 3],
+        seen: &[TaskId],
+    ) {
+        assert_eq!(
+            seen,
+            [first, later],
+            "the tombstoned task is not handed off"
+        );
+        assert!(!has_entry(tt, gone));
+        // The sweep may have evicted `first` after its handoff, so don't recreate entries here.
+        for id in [first, later] {
+            if let Some((restoring, pins)) = tt.backend().storage.with_task(id, |t| {
+                (
+                    t.flags.data_restoring() || t.flags.meta_restoring(),
+                    t.gc_transient_ref_count(),
+                )
+            }) {
+                assert!(!restoring, "task {id} keeps a restoring claim");
+                assert_eq!(pins, 0, "task {id} stays pinned");
+            }
+        }
+        assert!(has_entry(tt, later), "the re-read task must stay resident");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
+    async fn prepare_tasks_defers_tombstoned_task_after_phase2_handoffs() {
+        let tasks = [persistent(1), persistent(2), persistent(3)];
+        let (tt, _dir) = persisted_tasks(&tasks);
+        let mut seen = Vec::new();
+        let msg = catch_missing_task_panic(|| {
+            prepare_with_tombstone_committed_before_phase2_handoff(
+                &tt,
+                tasks,
+                TaskAccess::MustExist,
+                &mut seen,
+            );
+        });
+        assert!(
+            msg.contains("tombstoned before handoff, MustExist"),
+            "{msg}"
+        );
+        assert_tombstoned_handoff(&tt, tasks, &seen);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn try_tasks_skip_tombstoned_task_before_phase2_handoff() {
+        let tasks = [persistent(1), persistent(2), persistent(3)];
+        let (tt, _dir) = persisted_tasks(&tasks);
+        let mut seen = Vec::new();
+        prepare_with_tombstone_committed_before_phase2_handoff(
+            &tt,
+            tasks,
+            TaskAccess::AllowMissing,
+            &mut seen,
+        );
+        assert_tombstoned_handoff(&tt, tasks, &seen);
     }
 
     #[tokio::test(flavor = "multi_thread")]
