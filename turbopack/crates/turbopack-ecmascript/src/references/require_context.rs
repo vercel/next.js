@@ -18,7 +18,7 @@ use turbopack_core::{
     module::Module,
     reference::ModuleReference,
     reference_type::{InnerAssets, ReferenceType},
-    resolve::{ModuleResolveResult, origin::ResolveOrigin},
+    resolve::{ModuleResolveResult, options::ResolveOptions, origin::ResolveOrigin},
     source::Source,
     virtual_source::VirtualSource,
 };
@@ -47,8 +47,8 @@ pub(crate) struct DirList(
 #[turbo_tasks::value_impl]
 impl DirList {
     #[turbo_tasks::function]
-    pub(crate) fn read(dir: FileSystemPath, recursive: bool, filter: Vc<EsRegex>) -> Vc<Self> {
-        Self::read_internal(dir.clone(), dir, recursive, filter)
+    pub(crate) fn read(dir: FileSystemPath, recursive: bool) -> Vc<Self> {
+        Self::read_internal(dir.clone(), dir, recursive)
     }
 
     #[turbo_tasks::function]
@@ -56,11 +56,9 @@ impl DirList {
         root: FileSystemPath,
         dir: FileSystemPath,
         recursive: bool,
-        filter: Vc<EsRegex>,
     ) -> Result<Vc<Self>> {
         let root_val = root.clone();
         let dir_val = dir.clone();
-        let regex = &filter.await?;
 
         let mut list = FxIndexMap::default();
 
@@ -73,10 +71,7 @@ impl DirList {
         for (_, entry) in entries.iter().flat_map(|m| m.iter()) {
             match entry {
                 DirectoryEntry::File(path) => {
-                    // Webpack always checks the RegExp against a path prefixed with `./`
-                    if let Some(relative_path) = root_val.get_relative_request_to(path)
-                        && regex.is_match(&relative_path)
-                    {
+                    if let Some(relative_path) = root_val.get_relative_request_to(path) {
                         list.insert(relative_path, DirListEntry::File(path.clone()));
                     }
                 }
@@ -85,14 +80,9 @@ impl DirList {
                         list.insert(
                             relative_path,
                             DirListEntry::Dir(
-                                DirList::read_internal(
-                                    root.clone(),
-                                    path.clone(),
-                                    recursive,
-                                    filter,
-                                )
-                                .to_resolved()
-                                .await?,
+                                DirList::read_internal(root.clone(), path.clone(), recursive)
+                                    .to_resolved()
+                                    .await?,
                             ),
                         );
                     }
@@ -140,29 +130,36 @@ pub(crate) struct FlatDirList(
 #[turbo_tasks::value_impl]
 impl FlatDirList {
     #[turbo_tasks::function]
-    pub(crate) fn read(dir: FileSystemPath, recursive: bool, filter: Vc<EsRegex>) -> Vc<Self> {
-        DirList::read(dir, recursive, filter).flatten()
+    pub(crate) fn read(dir: FileSystemPath, recursive: bool) -> Vc<Self> {
+        DirList::read(dir, recursive).flatten()
     }
 }
 
-/// The files matched by a `require.context(..)` call, keyed by their path relative
-/// to the context directory, with the request that imports each one from the
-/// calling module.
+/// The keys of a `require.context(..)` call, with the request that imports the
+/// file of each key from the calling module.
 #[turbo_tasks::value(transparent)]
 pub struct RequireContextMap(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, RcStr>);
 
 #[turbo_tasks::value_impl]
 impl RequireContextMap {
+    /// Like webpack, a file can be requested from the context in every way it could
+    /// be resolved: by its path relative to the context directory (`./dir/index.js`),
+    /// without one of the resolve extensions (`./dir/index`), and as a directory when
+    /// it is a default file (`./dir/` and `./dir`). The filter applies to these keys,
+    /// not to the files, and the keys are sorted.
     #[turbo_tasks::function]
     pub(crate) async fn generate(
         origin_path: FileSystemPath,
         dir: FileSystemPath,
         recursive: bool,
         filter: Vc<EsRegex>,
+        resolve_options: Vc<ResolveOptions>,
     ) -> Result<Vc<Self>> {
         let origin_dir = origin_path.parent();
+        let filter = filter.await?;
+        let resolve_options = resolve_options.await?;
 
-        let list = &*FlatDirList::read(dir, recursive, filter).await?;
+        let list = &*FlatDirList::read(dir, recursive).await?;
 
         let mut map = FxIndexMap::default();
 
@@ -171,11 +168,48 @@ impl RequireContextMap {
                 bail!("invariant error: this was already checked in `list_dir`");
             };
 
-            map.insert(context_relative.clone(), origin_relative);
+            for key in alternative_keys(context_relative, &resolve_options) {
+                if filter.is_match(&key) {
+                    map.insert(key, origin_relative.clone());
+                }
+            }
         }
+
+        map.sort_keys();
 
         Ok(Vc::cell(map))
     }
+}
+
+/// The keys a file can be requested by from a context, as webpack's
+/// `RequireContextPlugin` derives them.
+fn alternative_keys(request: &RcStr, resolve_options: &ResolveOptions) -> Vec<RcStr> {
+    if resolve_options.fully_specified {
+        return vec![request.clone()];
+    }
+
+    let mut keys: Vec<RcStr> = resolve_options
+        .extensions
+        .iter()
+        .filter_map(|extension| request.strip_suffix(extension.as_str()))
+        .map(RcStr::from)
+        .collect();
+    keys.push(request.clone());
+
+    let mut with_directories = Vec::with_capacity(keys.len());
+    for key in keys {
+        for default_file in &resolve_options.default_files {
+            if let Some(directory) = key
+                .strip_suffix(default_file.as_str())
+                .filter(|directory| directory.ends_with('/'))
+            {
+                with_directories.push(directory.into());
+                with_directories.push(directory[..directory.len() - 1].into());
+            }
+        }
+        with_directories.push(key);
+    }
+    with_directories
 }
 
 /// A reference for `require.context()`. The call is replaced with a synthetic
@@ -251,6 +285,7 @@ impl RequireContextAssetReference {
             origin_path.parent().join(&self.dir)?,
             self.include_subdirs,
             *self.filter,
+            origin.resolve_options(),
         )
         .await?;
 
@@ -370,5 +405,59 @@ impl RequireContextAssetReferenceCodeGen {
         ));
 
         Ok(CodeGeneration::visitors(visitors))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use turbo_rcstr::{RcStr, rcstr};
+    use turbopack_core::resolve::options::ResolveOptions;
+
+    use super::alternative_keys;
+
+    fn keys(request: &str, resolve_options: &ResolveOptions) -> Vec<RcStr> {
+        let mut keys = alternative_keys(&request.into(), resolve_options);
+        keys.sort();
+        keys
+    }
+
+    fn options() -> ResolveOptions {
+        ResolveOptions {
+            extensions: vec![rcstr!(".ts"), rcstr!(".js")],
+            default_files: vec![rcstr!("index")],
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn strips_resolve_extensions() {
+        assert_eq!(keys("./a/file.js", &options()), ["./a/file", "./a/file.js"]);
+        assert_eq!(keys("./a/file.css", &options()), ["./a/file.css"]);
+    }
+
+    #[test]
+    fn requests_default_files_as_directories() {
+        assert_eq!(
+            keys("./a/index.js", &options()),
+            ["./a", "./a/", "./a/index", "./a/index.js"]
+        );
+        assert_eq!(
+            keys("./index.js", &options()),
+            [".", "./", "./index", "./index.js"]
+        );
+        // Only a whole path segment is a default file.
+        assert_eq!(
+            keys("./a/myindex.js", &options()),
+            ["./a/myindex", "./a/myindex.js"]
+        );
+    }
+
+    #[test]
+    fn keeps_fully_specified_requests() {
+        let options = ResolveOptions {
+            fully_specified: true,
+            ..options()
+        };
+        assert_eq!(keys("./a/index.js", &options), ["./a/index.js"]);
     }
 }
