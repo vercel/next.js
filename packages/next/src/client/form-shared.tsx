@@ -80,6 +80,8 @@ export function createFormSubmitDestinationUrl(
   const formData = new FormData(formElement)
 
   for (let [name, value] of formData) {
+    name = normalizeFormEntryNewlines(name)
+
     if (typeof value !== 'string') {
       // For file inputs, the native browser behavior is to use the filename as the value instead:
       //
@@ -93,11 +95,17 @@ export function createFormSubmitDestinationUrl(
         )
       }
       value = value.name
+    } else {
+      value = normalizeFormEntryNewlines(value)
     }
 
     targetUrl.searchParams.append(name, value)
   }
   return targetUrl
+}
+
+function normalizeFormEntryNewlines(value: string): string {
+  return value.replace(/\r\n|\r|\n/g, '\r\n')
 }
 
 export function checkFormActionUrl(
