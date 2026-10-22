@@ -22,8 +22,20 @@ pub enum EcmascriptModuleCanonicalization {
     FollowReexports(Option<ModulePart>),
 }
 
+/// Returns the module that stands for `module` under `canonicalization`. Without
+/// canonicalization that is the module itself, which needs no task.
+pub fn canonicalize_ecmascript_module(
+    module: Vc<EcmascriptModuleAsset>,
+    canonicalization: EcmascriptModuleCanonicalization,
+) -> Vc<Box<dyn EcmascriptChunkPlaceable>> {
+    match canonicalization {
+        EcmascriptModuleCanonicalization::None => Vc::upcast(module),
+        canonicalization => canonicalize_ecmascript_module_inner(module, canonicalization),
+    }
+}
+
 #[turbo_tasks::function]
-pub async fn canonicalize_ecmascript_module(
+async fn canonicalize_ecmascript_module_inner(
     module: ResolvedVc<EcmascriptModuleAsset>,
     canonicalization: EcmascriptModuleCanonicalization,
 ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
