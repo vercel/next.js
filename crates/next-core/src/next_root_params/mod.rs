@@ -31,6 +31,12 @@ use crate::{
 // The resolver extracts queries from module subpaths.
 const ROOT_PARAM_GETTER_MODULE: &str = "private-next-root-params/getter";
 
+/// The generated getters live in Next's internal filesystem. The collector uses
+/// this directory to distinguish them from user files with the same names.
+pub fn root_param_getters_path() -> Vc<FileSystemPath> {
+    next_js_file_path("root-params".into())
+}
+
 pub async fn insert_next_root_params_mapping(
     import_map: &mut ImportMap,
     ty: Either<ServerContextType, ClientContextType>,
@@ -143,13 +149,15 @@ impl NextRootParamsMapper {
     ) -> Result<Vc<ImportMapResult>> {
         let collected_root_params = collected_root_params.await?;
 
-        let (filename, module_content) = if let Some(param_name) = param_name {
+        let (path, module_content) = if let Some(param_name) = &param_name {
             ensure!(
-                collected_root_params.contains(&param_name),
+                collected_root_params.contains(param_name),
                 "Unknown root parameter in generated getter request: {param_name}"
             );
             (
-                format!("root-params/{param_name}.js").into(),
+                root_param_getters_path()
+                    .await?
+                    .join(&format!("{param_name}.js"))?,
                 formatdoc!(
                     r#"
                         import {{ getRootParam }} from 'next/dist/server/request/root-params';
@@ -172,11 +180,14 @@ impl NextRootParamsMapper {
                         )
                     }))
                     .join("\n");
-            ("root-params.js".into(), module_content)
+            (
+                next_js_file_path("root-params.js".into()).owned().await?,
+                module_content,
+            )
         };
 
         let virtual_source = VirtualSource::new(
-            next_js_file_path(filename).owned().await?,
+            path,
             AssetContent::file(FileContent::Content(module_content.into()).cell()),
         )
         .to_resolved()

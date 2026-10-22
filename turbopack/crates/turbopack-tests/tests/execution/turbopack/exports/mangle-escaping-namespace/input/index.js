@@ -64,10 +64,12 @@ it('should preserve namespace reads through an export-star forwarding edge', () 
 
 it('should preserve namespace names through a multi-hop diamond', () => {
   expect(readMultiHopDiamond()).toEqual(['multi-hop', 'multi-hop'])
-  // Without a mangling-only facade, the escaped namespace and named consumers use the original
-  // export keys from the same source module.
-  expect(multiHopExportsInfo.veryLongMultiHopExportName.canMangle).toBe(false)
-  expect(multiHopExportsInfo.veryLongMultiHopExportName.mangledName).toBeNull()
+  // The backing module can mangle its local keys, while the escaped facade retains the
+  // original public export names for consumers of the namespace.
+  expect(multiHopExportsInfo.veryLongMultiHopExportName.canMangle).toBe(true)
+  expect(multiHopExportsInfo.veryLongMultiHopExportName.mangledName).not.toBe(
+    'veryLongMultiHopExportName'
+  )
   // The escaped namespace must still expose the ORIGINAL names, both by enumeration and by
   // dynamic (non-statically-analyzable) key access.
   expect(enumerateMultiHopNamespace()).toEqual([

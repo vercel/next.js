@@ -2,13 +2,13 @@ import stripAnsi from 'strip-ansi'
 import { retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('server-action-logging', () => {
-  const { next, isNextStart, skipped } = nextTestSetup({
-    skipDeployment: true,
+  const { next, isNextStart } = nextTestSetup({
     files: __dirname,
   })
-
-  if (skipped) return
 
   if (isNextStart) {
     it('should not log server actions in production mode', async () => {
@@ -188,16 +188,16 @@ describe('server-action-logging', () => {
   })
 })
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('server-action-logging when logging.serverFunctions is disabled', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
-    skipDeployment: true,
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     env: {
       NEXT_TEST_SERVER_FUNCTION_LOGGING: 'false',
     },
   })
-
-  if (skipped) return
 
   it('should not log server actions', async () => {
     const browser = await next.browser('/')

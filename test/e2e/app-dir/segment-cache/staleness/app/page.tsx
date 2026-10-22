@@ -31,6 +31,11 @@ export default function Page() {
           </LinkAccordion>
         </li>
         <li>
+          <LinkAccordion href="/hanging-input-stale-4-minutes">
+            Page with stale time of 4 minutes (in a cache with a hanging input)
+          </LinkAccordion>
+        </li>
+        <li>
           <LinkAccordion href="/dynamic">Page with dynamic data</LinkAccordion>
         </li>
         <li>

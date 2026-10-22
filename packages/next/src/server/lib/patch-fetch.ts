@@ -9,7 +9,7 @@ import {
   recordRequestInsightFetch,
 } from './trace/request-insights'
 import { getRequestInsightsIdentity } from './trace/request-insights-identity'
-import { getTracer, SpanKind } from './trace/tracer'
+import { getTracer, SpanKind, SpanStatusCode } from './trace/tracer'
 import {
   CACHE_ONE_YEAR_SECONDS,
   INFINITE_CACHE,
@@ -20,6 +20,7 @@ import { markCurrentScopeAsDynamic } from '../app-render/dynamic-rendering'
 import { makeDynamicHangingPromise } from '../dynamic-rendering-utils'
 import type { FetchMetric } from '../base-http'
 import { createDedupeFetch } from './dedupe-fetch'
+import { NEXT_PATCH_SYMBOL } from './patch-fetch-symbol'
 import {
   getCacheSignal,
   type RevalidateStore,
@@ -86,8 +87,6 @@ type PatchedFetcher = Fetcher & {
   readonly __nextGetStaticStore: () => WorkAsyncStorage
   readonly _nextOriginalFetch: Fetcher
 }
-
-export const NEXT_PATCH_SYMBOL = Symbol.for('next-patch')
 
 function isFetchPatched() {
   return (globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] === true
@@ -185,6 +184,11 @@ function trackFetchMetric(
     'next.fetch.cache_status': metric.cacheStatus,
     'next.fetch.cache_reason': metric.cacheReason,
   })
+
+  if (span && metric.status >= 400) {
+    span.setStatus({ code: SpanStatusCode.ERROR })
+    span.setAttribute('error.type', String(metric.status))
+  }
 
   if (isRequestInsightsEnabled()) {
     const requestInsightsIdentity = getRequestInsightsIdentity()

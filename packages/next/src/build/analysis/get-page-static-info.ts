@@ -48,7 +48,7 @@ import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-pat
 import { isProxyFile } from '../utils'
 
 const PARSE_PATTERN =
-  /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const|generateImageMetadata|generateSitemaps|middleware|proxy/
+  /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|unstable_paramMatching|unstable_generateParamMatching|export const|generateImageMetadata|generateSitemaps|middleware|proxy/
 
 export type ProxyMatcher = {
   regexp: string
@@ -78,7 +78,6 @@ export type ProxyConfig = {
 }
 
 export interface SharedPageStaticInfo {
-  rsc?: RSCModuleType
   generateSitemaps?: boolean
   generateImageMetadata?: boolean
   middleware?: ProxyConfig
@@ -180,6 +179,8 @@ function checkExports(
   getServerSideProps?: boolean
   generateImageMetadata?: boolean
   generateSitemaps?: boolean
+  paramMatching?: boolean
+  generateParamMatching?: boolean
   generateStaticParams?: boolean
   directives?: Set<string>
   exports?: Set<string>
@@ -189,6 +190,8 @@ function checkExports(
     'getServerSideProps',
     'generateImageMetadata',
     'generateSitemaps',
+    'unstable_paramMatching',
+    'unstable_generateParamMatching',
     'generateStaticParams',
   ])
   if (!Array.isArray(ast?.body)) {
@@ -200,6 +203,8 @@ function checkExports(
     let getServerSideProps: boolean = false
     let generateImageMetadata: boolean = false
     let generateSitemaps: boolean = false
+    let paramMatching = false
+    let generateParamMatching = false
     let generateStaticParams = false
     let exports = new Set<string>()
     let directives = new Set<string>()
@@ -244,6 +249,10 @@ function checkExports(
         getStaticProps = id === 'getStaticProps'
         generateImageMetadata = id === 'generateImageMetadata'
         generateSitemaps = id === 'generateSitemaps'
+        if (id === 'unstable_paramMatching') paramMatching = true
+        if (id === 'unstable_generateParamMatching') {
+          generateParamMatching = true
+        }
         generateStaticParams = id === 'generateStaticParams'
       }
 
@@ -257,6 +266,10 @@ function checkExports(
           getStaticProps = id === 'getStaticProps'
           generateImageMetadata = id === 'generateImageMetadata'
           generateSitemaps = id === 'generateSitemaps'
+          if (id === 'unstable_paramMatching') paramMatching = true
+          if (id === 'unstable_generateParamMatching') {
+            generateParamMatching = true
+          }
           generateStaticParams = id === 'generateStaticParams'
         }
       }
@@ -281,6 +294,15 @@ function checkExports(
             if (!generateSitemaps && value === 'generateSitemaps') {
               generateSitemaps = true
             }
+            if (!paramMatching && value === 'unstable_paramMatching') {
+              paramMatching = true
+            }
+            if (
+              !generateParamMatching &&
+              value === 'unstable_generateParamMatching'
+            ) {
+              generateParamMatching = true
+            }
             if (!generateStaticParams && value === 'generateStaticParams') {
               generateStaticParams = true
             }
@@ -301,6 +323,8 @@ function checkExports(
       getServerSideProps,
       generateImageMetadata,
       generateSitemaps,
+      paramMatching,
+      generateParamMatching,
       generateStaticParams,
       directives,
       exports,
@@ -647,14 +671,14 @@ export async function getAppPageStaticInfo({
   })
 
   const {
+    paramMatching,
+    generateParamMatching,
     generateStaticParams,
     generateImageMetadata,
     generateSitemaps,
     exports,
     directives,
   } = checkExports(ast, AppSegmentConfigSchemaKeys, page)
-
-  const { type: rsc } = getRSCModuleInformation(content, true)
 
   const exportedConfig: Record<string, unknown> = {}
   if (exports) {
@@ -678,6 +702,32 @@ export async function getAppPageStaticInfo({
   const route = normalizeAppPath(page)
   const config = parseAppSegmentConfig(exportedConfig, route)
 
+  const hasParamMatching = paramMatching || generateParamMatching
+
+  if (paramMatching && generateParamMatching) {
+    throw new Error(
+      `Page "${page}" cannot export both \`unstable_paramMatching\` and \`unstable_generateParamMatching\`.`
+    )
+  }
+
+  if (hasParamMatching && /\/route\.[^/]+$/.test(pageFilePath)) {
+    throw new Error(
+      `Route "${page}" cannot export parameter matching. It is only supported in layouts and pages.`
+    )
+  }
+
+  if (isEdgeRuntime(config.runtime) && hasParamMatching) {
+    throw new Error(
+      `Page "${page}" cannot use both \`export const runtime = 'edge'\` and parameter matching.`
+    )
+  }
+
+  if (directives?.has('client') && hasParamMatching) {
+    throw new Error(
+      `Page "${page}" cannot use both "use client" and a parameter matching export.`
+    )
+  }
+
   // Prevent edge runtime and generateStaticParams in the same file.
   if (isEdgeRuntime(config.runtime) && generateStaticParams) {
     throw new Error(
@@ -692,11 +742,7 @@ export async function getAppPageStaticInfo({
     )
   }
 
-  for (const exportName of [
-    'instant',
-    'prefetch',
-    'unstable_ensureStatic',
-  ] as const) {
+  for (const exportName of ['instant', 'prefetch', 'ensureStatic'] as const) {
     if (exportName in config) {
       if (directives?.has('client')) {
         throw new Error(
@@ -739,7 +785,6 @@ export async function getAppPageStaticInfo({
 
   return {
     type: PAGE_TYPES.APP,
-    rsc,
     generateImageMetadata,
     generateSitemaps,
     config,
@@ -778,8 +823,6 @@ export async function getPagesPageStaticInfo({
   })
 
   const { exports } = checkExports(ast, PagesSegmentConfigSchemaKeys, page)
-
-  const { type: rsc } = getRSCModuleInformation(content, true)
 
   const exportedConfig: Record<string, unknown> = {}
   if (exports) {
@@ -852,7 +895,6 @@ export async function getPagesPageStaticInfo({
 
   return {
     type: PAGE_TYPES.PAGES,
-    rsc,
     config,
     middleware: parseMiddlewareConfig(page, exportedConfig.config, nextConfig),
     runtime: resolvedRuntime,

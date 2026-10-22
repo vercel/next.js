@@ -6,16 +6,14 @@ const PNG_1X1 = Buffer.from(
   'base64'
 )
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// No deploy-specific incompatibility is documented.
+// @force-gate !deploy
 describe('testmode', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     dependencies: require('./package.json').dependencies,
   })
-
-  if (skipped) {
-    return
-  }
 
   let proxyServer: Awaited<ReturnType<typeof createProxyServer>>
 

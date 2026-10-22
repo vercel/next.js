@@ -35,20 +35,13 @@ export const config = {
 }
 
 describe('react-current-version', () => {
+  // This block asserts local build and server CLI output.
+  // @force-gate !deploy
   describe('React 18 deprecation warning', () => {
-    const { next, isNextDeploy, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: join(__dirname, 'app'),
       skipStart: true,
     })
-
-    if (skipped) {
-      return
-    }
-
-    if (isNextDeploy) {
-      it('should skip in deploy mode', () => {})
-      return
-    }
 
     if (isNextDev) {
       it('warns during next dev only when using React 18', async () => {

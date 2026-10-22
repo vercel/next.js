@@ -5,15 +5,16 @@ import type { FallbackRouteParam } from '../static-paths/types'
 import {
   AppPageRouteModule,
   type AppPageRouteHandlerContext,
+  type DevRenderContext,
   type RouteMatch,
 } from '../../server/route-modules/app-page/module.compiled' with { 'turbopack-transition': 'next-ssr' }
+import { createDevRenderContext } from '../../server/route-modules/app-page/dev-render-context' with { 'turbopack-transition': 'next-server-utility' }
 
 import { RouteKind } from '../../server/route-kind' with { 'turbopack-transition': 'next-server-utility' }
 
 import { getRevalidateReason } from '../../server/instrumentation/utils' with { 'turbopack-transition': 'next-server-utility' }
 import {
   getTracer,
-  SpanKind,
   SpanStatusCode,
   type Span,
 } from '../../server/lib/trace/tracer' with { 'turbopack-transition': 'next-server-utility' }
@@ -25,6 +26,10 @@ import {
 } from '../../server/request-meta' with { 'turbopack-transition': 'next-server-utility' }
 import { BaseServerSpan } from '../../server/lib/trace/constants' with { 'turbopack-transition': 'next-server-utility' }
 import { stripFlightHeaders } from '../../server/app-render/strip-flight-headers' with { 'turbopack-transition': 'next-server-utility' }
+import {
+  parseRequestHeaders,
+  type ParsedRequestHeaders,
+} from '../../server/route-modules/app-page/parse-request-headers' with { 'turbopack-transition': 'next-server-utility' }
 import {
   NodeNextRequest,
   NodeNextResponse,
@@ -44,10 +49,11 @@ import { setManifestsSingleton } from '../../server/app-render/manifests-singlet
 import { shouldServeStreamingMetadata } from '../../server/lib/streaming-metadata' with { 'turbopack-transition': 'next-server-utility' }
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths' with { 'turbopack-transition': 'next-server-utility' }
 import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app' with { 'turbopack-transition': 'next-server-utility' }
-import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta' with { 'turbopack-transition': 'next-server-utility' }
+import { getServerActionRequestMetadata } from '../../server/lib/server-action-request-meta' with { 'turbopack-transition': 'next-server-utility' }
 import {
   RSC_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_PREFETCH_STATIC,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_INSTANT_TEST_COOKIE,
   NEXT_IS_PRERENDER_HEADER,
@@ -95,6 +101,8 @@ import { RedirectStatusCode } from '../../client/components/redirect-status-code
 import { InvariantError } from '../../shared/lib/invariant-error' with { 'turbopack-transition': 'next-server-utility' }
 import { scheduleOnNextTick } from '../../lib/scheduler' with { 'turbopack-transition': 'next-server-utility' }
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param' with { 'turbopack-transition': 'next-server-utility' }
+import { createTurbopackBootstrapScriptStreamForPage } from '../../server/app-render/turbopack-bootstrap-script' with { 'turbopack-transition': 'next-server-utility' }
+import { getScriptNonceFromHeaders } from '../../server/app-render/get-script-nonce-from-header' with { 'turbopack-transition': 'next-server-utility' }
 
 type AppPageRenderOperation = 'render' | 'prerender'
 
@@ -236,6 +244,47 @@ export function createAppPageEntrypoint({
     const multiZoneDraftMode = process.env
       .__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
 
+    // Registering `instrumentation.ts` usually installs the tracer provider, so
+    // do it before starting the request span. The span is started before
+    // `prepare`, so route module preparation is part of the request's trace.
+    // When this request triggers registration, the lifecycle spans of
+    // `instrumentation.ts` are emitted inside the request span.
+    const { instrumentation } = await routeModule.ensureInstrumentation(req, {
+      deferSpans: true,
+    })
+    return routeModule.traceRequest(
+      req,
+      {
+        tracer: getTracer(),
+        spanName: `${req.method || 'GET'} ${srcPage}`,
+        httpTarget,
+        instrumentation,
+      },
+      (requestSpan, requestRootSpan) =>
+        handleRequest(
+          req,
+          res,
+          ctx,
+          isMinimalMode,
+          multiZoneDraftMode,
+          requestSpan,
+          requestRootSpan
+        )
+    )
+  }
+
+  async function handleRequest(
+    req: IncomingMessage,
+    res: ServerResponse,
+    ctx: {
+      waitUntil?: (prom: Promise<void>) => void
+      requestMeta?: RequestMeta
+    },
+    isMinimalMode: boolean,
+    multiZoneDraftMode: boolean,
+    requestSpan: Span | undefined,
+    requestRootSpan: Span | undefined
+  ) {
     const prepareResult = await routeModule.prepare(req, res, {
       srcPage,
       multiZoneDraftMode,
@@ -307,7 +356,8 @@ export function createAppPageEntrypoint({
      */
     const isPrefetchRSCRequest =
       getRequestMeta(req, 'isPrefetchRSCRequest') ??
-      req.headers[NEXT_ROUTER_PREFETCH_HEADER] === '1' // exclude runtime prefetches, which use '2'
+      // Runtime prefetches use the other values, so they're excluded.
+      req.headers[NEXT_ROUTER_PREFETCH_HEADER] === NEXT_ROUTER_PREFETCH_STATIC
 
     // NOTE: Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
 
@@ -315,7 +365,8 @@ export function createAppPageEntrypoint({
       getRequestMeta(req, 'isRSCRequest') ??
       isRSCRequestHeader(req.headers[RSC_HEADER])
 
-    const isPossibleServerAction = getIsPossibleServerAction(req)
+    const serverActionRequestMetadata = getServerActionRequestMetadata(req)
+    const { isPossibleServerAction } = serverActionRequestMetadata
 
     // For subresource requests (e.g. images or fonts), return plain text 404
     // instead of rendering the not-found route.
@@ -468,7 +519,8 @@ export function createAppPageEntrypoint({
       typeof req.headers.cookie === 'string' &&
       req.headers.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=') &&
       (!isRSCRequestHeader(req.headers[RSC_HEADER]) ||
-        req.headers[NEXT_ROUTER_PREFETCH_HEADER] === '1')
+        req.headers[NEXT_ROUTER_PREFETCH_HEADER] ===
+          NEXT_ROUTER_PREFETCH_STATIC)
 
     // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
     // prerender manifest and this is an app page.
@@ -643,6 +695,9 @@ export function createAppPageEntrypoint({
     let shellCacheKey: string | null = null
     if (
       nextConfig.cacheComponents &&
+      // A closed matcher has no fallback shell. Its generated outputs must
+      // retain their concrete cache keys.
+      prerenderInfo?.fallback !== false &&
       // Never-prerenderable params must stay out of the key even when Partial
       // Prefetching is disabled.
       (nextConfig.partialPrefetching ||
@@ -743,10 +798,6 @@ export function createAppPageEntrypoint({
 
     const method = req.method || 'GET'
     const tracer = getTracer()
-    const activeSpan = tracer.getActiveScopeSpan()
-    const isWrappedByNextServer = Boolean(
-      routerServerContext?.isWrappedByNextServer
-    )
     const render404 = async () => {
       // TODO: should route-module itself handle rendering the 404
       if (routerServerContext?.render404) {
@@ -764,19 +815,17 @@ export function createAppPageEntrypoint({
         interceptionRoutePatterns
       )
       res.setHeader('Vary', varyHeader)
-      let parentSpan: Span | undefined
       const invokeRouteModule = async (
         span: Span | undefined,
         context: AppPageRouteHandlerContext,
         renderOperation: AppPageRenderOperation
       ) => {
-        const nextReq = new NodeNextRequest(req)
         const nextRes = new NodeNextResponse(res)
 
         const result =
           renderOperation === 'prerender'
-            ? routeModule.prerender(nextReq, nextRes, context)
-            : routeModule.render(nextReq, nextRes, context)
+            ? routeModule.prerender(nextRes, context)
+            : routeModule.render(new NodeNextRequest(req), nextRes, context)
 
         return result.finally(() => {
           if (!span) return
@@ -827,11 +876,12 @@ export function createAppPageEntrypoint({
           })
           span.updateName(name)
 
-          // Propagate http.route to the parent span if one exists (e.g.
-          // a platform-created HTTP span in adapter deployments).
-          if (parentSpan && parentSpan !== span) {
-            parentSpan.setAttribute('http.route', route)
-            parentSpan.updateName(name)
+          // Propagate http.route to the request's root span if it isn't the
+          // request span (e.g. a platform-created HTTP span in adapter
+          // deployments).
+          if (requestRootSpan && requestRootSpan !== span) {
+            requestRootSpan.setAttribute('http.route', route)
+            requestRootSpan.updateName(name)
           }
         })
       }
@@ -872,22 +922,41 @@ export function createAppPageEntrypoint({
 
         renderOperation: AppPageRenderOperation
       }): Promise<ResponseCacheEntry | PrerenderFailure> => {
-        const routeMatch: RouteMatch = { resolvedPathname }
+        // A static page may have stripped Flight headers before reaching this
+        // render. Parse only when the response cache invokes the render.
+        const parsedRequestHeaders: ParsedRequestHeaders = parseRequestHeaders(
+          req.headers,
+          {
+            isRoutePPREnabled,
+            previewModeId: previewProps?.previewModeId,
+          }
+        )
+        const routeMatch: RouteMatch = {
+          resolvedPathname,
+          couldBeIntercepted: routeModule.pathCouldBeIntercepted(
+            resolvedPathname,
+            interceptionRoutePatterns
+          ),
+        }
+        const dev: DevRenderContext | undefined = createDevRenderContext(req)
         const context: AppPageRouteHandlerContext = {
+          requestUrl: req.url!,
+          requestHeaders: req.headers,
           query,
           params,
           page: normalizedSrcPage,
           routeMatch,
+          parsedRequestHeaders,
+          serverActionRequestMetadata,
           sharedContext: {
             buildId,
             deploymentId,
             clientAssetToken,
           },
-          serverComponentsHmrCache: getRequestMeta(
-            req,
-            'serverComponentsHmrCache'
-          ),
+          dev,
           fallbackRouteParams,
+          stagedFallbackParams:
+            getRequestMeta(req, 'stagedFallbackParams') ?? null,
           renderOpts: {
             App: () => null,
             Document: () => null,
@@ -924,8 +993,10 @@ export function createAppPageEntrypoint({
             isDraftMode,
             botType,
             isOnDemandRevalidate,
-            isPossibleServerAction,
-            assetPrefix: nextConfig.assetPrefix,
+            assetPrefix: routeModule.getAssetPrefixForRender(
+              routerServerContext,
+              nextConfig.assetPrefix
+            ),
             nextConfigOutput: nextConfig.output,
             crossOrigin: nextConfig.crossOrigin,
             trailingSlash: nextConfig.trailingSlash,
@@ -941,10 +1012,15 @@ export function createAppPageEntrypoint({
             // URLs. Read the current manifest here because dev updates it as
             // routes compile.
             notFoundParams:
-              prerenderManifest.dynamicRoutes[normalizedSrcPage]?.fallback ===
+              (routeModule.isDev
+                ? getRequestMeta(req, 'devNotFoundParams')
+                : undefined) ??
+              prerenderManifest.dynamicRoutes[normalizedSrcPage]
+                ?.notFoundParams ??
+              (prerenderManifest.dynamicRoutes[normalizedSrcPage]?.fallback ===
               false
                 ? routeParamNames
-                : undefined,
+                : undefined),
             incrementalCache,
             cacheLifeProfiles: nextConfig.cacheLife,
             staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
@@ -1004,7 +1080,7 @@ export function createAppPageEntrypoint({
               cachedNavigations:
                 nextConfig.experimental.cachedNavigations ?? false,
               clientTraceMetadata:
-                nextConfig.experimental.clientTraceMetadata || ([] as any),
+                nextConfig.experimental.clientTraceMetadata || [],
               clientParamParsingOrigins:
                 nextConfig.experimental.clientParamParsingOrigins,
               maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
@@ -1017,17 +1093,16 @@ export function createAppPageEntrypoint({
             },
 
             waitUntil: ctx.waitUntil,
-            onClose: (cb) => {
-              res.on('close', cb)
+            onClose: (callback) => {
+              if (res.closed) {
+                callback()
+              } else {
+                res.once('close', callback)
+              }
             },
             onAfterTaskError: () => {},
 
-            onInstrumentationRequestError: (
-              error,
-              _request,
-              errorContext,
-              silenceLog
-            ) =>
+            onInstrumentationRequestError: (error, errorContext, silenceLog) =>
               routeModule.onRequestError(
                 req,
                 error,
@@ -1186,6 +1261,7 @@ export function createAppPageEntrypoint({
             prerenderInfo?.fallback === null &&
             // TODO(ensure-static): express this in a cleaner way
             !isEnsureStaticPage &&
+            !prerenderInfo.isExplicitlyBlocking &&
             !hasOmittedConcreteFallbackParam &&
             !hasUnresolvedRootFallbackParams &&
             remainingPrerenderableParams.length > 0
@@ -1221,6 +1297,10 @@ export function createAppPageEntrypoint({
           }
 
           if (
+            // Ordinary dev requests always use the request-specific render
+            // below. Only production, forced background work, and explicit
+            // shell debugging may enter fallback prerender handling.
+            (isProduction || forceStaticRender || isDebugPrerender) &&
             !isMinimalMode &&
             fallbackMode !== FallbackMode.BLOCKING_STATIC_RENDER &&
             staticPathKey &&
@@ -1747,6 +1827,13 @@ export function createAppPageEntrypoint({
       }
 
       const handleResponse = async (span?: Span): Promise<null | void> => {
+        // Development evaluates the configured policy without emitting its
+        // production matchers. Use that outcome at the same admission boundary.
+        const devParamMatchingRejected =
+          routeModule.isDev &&
+          !isDebugPrerender &&
+          getRequestMeta(req, 'devParamMatchingRejected')
+
         // Decide whether this URL is allowed before consulting ISR. An exact
         // build path remains valid even when its cached result is missing, and
         // the most specific matched route controls whether other paths may be
@@ -1758,8 +1845,8 @@ export function createAppPageEntrypoint({
           !isDraftMode &&
           !isPossibleServerAction &&
           pageIsDynamic &&
-          prerenderInfo?.fallback === false &&
-          !isPrerendered
+          (devParamMatchingRejected ||
+            (prerenderInfo?.fallback === false && !isPrerendered))
         ) {
           if (nextConfig.adapterPath) {
             return await render404()
@@ -1937,6 +2024,19 @@ export function createAppPageEntrypoint({
         }
 
         const didPostpone = typeof cacheEntry.value.postponed === 'string'
+
+        // A static shell with postponed parts doesn't include the Turbopack
+        // bootstrap: the resume emits it with the request's CSP nonce. When
+        // such a shell is served without a resume, it has to be added.
+        const pushTurbopackBootstrapScript = (result: RenderResult) => {
+          if (!didPostpone) return
+          const bootstrapScript = createTurbopackBootstrapScriptStreamForPage(
+            buildManifest,
+            srcPage,
+            getScriptNonceFromHeaders(req.headers)
+          )
+          if (bootstrapScript) result.push(bootstrapScript)
+        }
 
         // Set the build ID header for RSC navigation requests when deploymentId is configured. This
         // corresponds with maybeAppendBuildIdToRSCPayload in app-render.tsx which omits the build ID
@@ -2260,8 +2360,11 @@ export function createAppPageEntrypoint({
           // Non-empty shell: the cookie-guarded bootstrap that sets
           // self.__next_instant_test is embedded in the prerendered shell via
           // `bootstrapScriptContent`, so it is already present (in the served
-          // shell for a fresh render, or in the cached prelude on deploy). Append
-          // the closing tags so the browser can parse a complete document.
+          // shell for a fresh render, or in the cached prelude on deploy). The
+          // Turbopack bootstrap is left out of the shell for the resume to
+          // emit, so add it here. Append the closing tags so the browser can
+          // parse a complete document.
+          pushTurbopackBootstrapScript(body)
           body.push(
             new ReadableStream({
               start(controller) {
@@ -2314,8 +2417,11 @@ export function createAppPageEntrypoint({
         // HTML will be the static shell so all the Dynamic API's will be used
         // during static generation.
         if (isDebugStaticShell || isDebugDynamicAccesses) {
-          // Since we're not resuming the render, we need to at least add the
-          // closing body and html tags to create valid HTML.
+          // The Turbopack bootstrap is left out of the shell for the resume to
+          // emit, so add it here. Since we're not resuming the render, we need
+          // to at least add the closing body and html tags to create valid
+          // HTML.
+          pushTurbopackBootstrapScript(body)
           body.push(
             new ReadableStream({
               start(controller) {
@@ -2357,31 +2463,7 @@ export function createAppPageEntrypoint({
         })
       }
 
-      // TODO: activeSpan code path is for when wrapped by
-      // next-server can be removed when this is no longer used
-      if (isWrappedByNextServer && activeSpan) {
-        await handleResponse(activeSpan)
-      } else {
-        parentSpan = tracer.getActiveScopeSpan()
-        return await tracer.withPropagatedContext(
-          req.headers,
-          () =>
-            tracer.trace(
-              BaseServerSpan.handleRequest,
-              {
-                spanName: `${method} ${srcPage}`,
-                kind: SpanKind.SERVER,
-                attributes: {
-                  'http.method': method,
-                  'http.target': httpTarget,
-                },
-              },
-              handleResponse
-            ),
-          undefined,
-          !isWrappedByNextServer
-        )
-      }
+      return await handleResponse(requestSpan)
     } catch (err) {
       // If an Instant Navigation Testing document render fails (e.g. the page
       // blocks at the root with no Suspense boundary above it, producing an empty

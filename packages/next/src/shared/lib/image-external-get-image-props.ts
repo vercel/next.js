@@ -15,7 +15,7 @@ const defaultLoader = Reflect.get(defaultLoaderModule, 'default')
 // The bundler replaces this with fixed options. Public getImageProps has no
 // context, so prepare those options once when the module is loaded.
 const imageConfig = prepareImageConfig(
-  process.env.__NEXT_IMAGE_OPTS as any as ImageConfigForRendering | undefined
+  process.env.__NEXT_IMAGE_OPTS as ImageConfigForRendering | undefined
 )
 
 /**

@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import { SlugClient } from './client'
 
-export const unstable_ensureStatic = 'navigation'
+export const ensureStatic = 'navigation'
 
 type Params = { slug: string }
 

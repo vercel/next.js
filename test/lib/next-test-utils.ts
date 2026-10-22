@@ -1232,8 +1232,15 @@ export async function getRedboxTotalErrorCount(
   return parseInt(text || '-1')
 }
 
-export function getRedboxSource(browser: Playwright): Promise<string | null> {
-  return browser.eval(() => {
+// Editor controls are not part of the source code captured by error snapshots.
+function normalizeRedboxSource(source: string | null): string | null {
+  return source?.replace(/\nOpen in Editor(?=\n|$)/g, '') ?? null
+}
+
+export async function getRedboxSource(
+  browser: Playwright
+): Promise<string | null> {
+  const source = await browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) =>
@@ -1247,6 +1254,7 @@ export function getRedboxSource(browser: Playwright): Promise<string | null> {
         ?.innerText ?? null
     )
   })
+  return normalizeRedboxSource(source)
 }
 
 export function getRedboxTitle(browser: Playwright): Promise<string | null> {
@@ -1677,7 +1685,7 @@ export interface RedboxCauseEntry {
 export async function getRedboxCause(
   browser: Playwright
 ): Promise<RedboxCauseEntry[] | null> {
-  return browser.eval(() => {
+  const entries = await browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
@@ -1711,12 +1719,18 @@ export async function getRedboxCause(
     }
     return causes
   })
+  return (
+    entries?.map((entry) => ({
+      ...entry,
+      source: normalizeRedboxSource(entry.source),
+    })) ?? null
+  )
 }
 
 export async function getRedboxAggregateErrors(
   browser: Playwright
 ): Promise<RedboxCauseEntry[] | null> {
-  return browser.eval(() => {
+  const entries = await browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
@@ -1754,6 +1768,12 @@ export async function getRedboxAggregateErrors(
     }
     return entries
   })
+  return (
+    entries?.map((entry) => ({
+      ...entry,
+      source: normalizeRedboxSource(entry.source),
+    })) ?? null
+  )
 }
 
 export async function getRedboxCallStack(
@@ -2180,6 +2200,30 @@ export function getClientReferenceManifest(
 export const getCacheHeader = (curRes: Response) =>
   // favor generic header
   curRes.headers.get('x-nextjs-cache') || curRes.headers.get('x-vercel-cache')
+
+/**
+ * Asserts that the cache-control header consists of exactly these directives,
+ * in any order.
+ *
+ * @param header The cache-control header to check.
+ * @param directives The directives to expect.
+ */
+export const expectDirectives = (
+  header: string | null,
+  directives: Array<string | RegExp>
+) => {
+  const split = (header ?? '').split(',').map((directive) => directive.trim())
+  expect(split).toEqual(
+    expect.arrayContaining(
+      directives.map((directive) =>
+        directive instanceof RegExp
+          ? expect.stringMatching(directive)
+          : directive
+      )
+    )
+  )
+  expect(split).toHaveLength(directives.length)
+}
 
 export function getDeploymentId(appDir: string, isDev: boolean) {
   let requiredServerFiles: RequiredServerFilesManifest | undefined

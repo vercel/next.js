@@ -1138,7 +1138,7 @@ export default class Router implements BaseRouter {
           ;({
             __routerFilterStatic: staticFilterData,
             __routerFilterDynamic: dynamicFilterData,
-          } = (await getClientBuildManifest()) as any as {
+          } = (await getClientBuildManifest()) as {
             __routerFilterStatic?: Filter
             __routerFilterDynamic?: Filter
           })

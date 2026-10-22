@@ -395,10 +395,10 @@ describe('app-root-param-getters - cache dedup with root params', () => {
     expect(french('#second').text()).toBe('fr')
   })
 
+  // Cross-request deduplication requires a shared server process. Deployed
+  // requests can reach different function instances.
+  // @force-gate !deploy
   it('should dedupe same root params and isolate different root params', async () => {
-    // In deploy mode, this can flake if Fluid routes concurrent requests
-    // to different function instances: each instance may independently
-    // compute a value before the cache is populated.
     // Three concurrent requests: ca/en, ca/fr, ca/fr.
     const [$en, $fr1, $fr2] = await Promise.all([
       next.render$('/ca/en'),
@@ -420,6 +420,9 @@ describe('app-root-param-getters - cache dedup with root params', () => {
     expect(randomFr1).toBe(randomFr2)
   })
 
+  // These cross-request cache checks require a shared server process. Deployed
+  // requests can reach different function instances.
+  // @force-gate !deploy
   it('should dedupe same root params and isolate different root params for private caches', async () => {
     // Three concurrent requests: ca/en, ca/fr, ca/fr.
     const [$en, $fr1, $fr2] = await Promise.all([

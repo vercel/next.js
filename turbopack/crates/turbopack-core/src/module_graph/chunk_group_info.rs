@@ -1,4 +1,5 @@
 use std::{
+    cmp::Reverse,
     hash::Hash,
     ops::{Deref, DerefMut},
     sync::LazyLock,
@@ -119,15 +120,17 @@ impl ChunkGroupInfo {
         *self.module_chunk_groups
     }
 
+    /// Returns the index of the chunk group identified by `key` in
+    /// [`ChunkGroupInfo::chunk_groups`].
     #[turbo_tasks::function]
-    pub async fn get_index_of(&self, chunk_group: ChunkGroup) -> Result<Vc<usize>> {
-        if let Some(idx) = self.chunk_groups.get_index_of(&chunk_group) {
+    pub async fn get_index_of(&self, key: ChunkGroupKey) -> Result<Vc<usize>> {
+        if let Some(idx) = self.chunk_group_keys.get_index_of(&key) {
             Ok(Vc::cell(idx))
         } else {
             if cfg!(debug_assertions) {
                 bail!(
                     "Couldn't find chunk group index for {} in {}",
-                    chunk_group.debug_str(self).await?,
+                    key.debug_str(self.chunk_group_keys.clone()).await?,
                     self.chunk_groups
                         .iter()
                         .map(|c| c.debug_str(self))
@@ -262,6 +265,35 @@ impl ChunkGroup {
         }
     }
 
+    /// Returns the canonical identity used to index this chunk group.
+    ///
+    /// A merged group is identified by its parent and merge tag alone. Those two determine the
+    /// group; its `entries` are the *result* of merging everything reachable through the tagged
+    /// references, not part of its identity, and their order is unspecified. Including them would
+    /// make two values describing the same group compare unequal.
+    pub fn key(&self) -> ChunkGroupKey {
+        match self {
+            ChunkGroup::Entry(entries) => ChunkGroupKey::Entry(entries.clone()),
+            ChunkGroup::Async(module) => ChunkGroupKey::Async(*module),
+            ChunkGroup::Isolated(module) => ChunkGroupKey::Isolated(*module),
+            ChunkGroup::IsolatedMerged {
+                parent, merge_tag, ..
+            } => ChunkGroupKey::IsolatedMerged {
+                parent: ChunkGroupId::from(*parent),
+                merge_tag: merge_tag.clone(),
+            },
+            ChunkGroup::Shared(module) => ChunkGroupKey::Shared(*module),
+            ChunkGroup::SharedMultiple(entries) => ChunkGroupKey::SharedMultiple(entries.clone()),
+            ChunkGroup::SharedMerged {
+                parent, merge_tag, ..
+            } => ChunkGroupKey::SharedMerged {
+                parent: ChunkGroupId::from(*parent),
+                merge_tag: merge_tag.clone(),
+            },
+            ChunkGroup::Collected(module) => ChunkGroupKey::Collected(*module),
+        }
+    }
+
     pub fn entries_count(&self) -> usize {
         match self {
             ChunkGroup::Async(_)
@@ -344,6 +376,7 @@ impl ChunkGroup {
 }
 
 /// See [ChunkGroup] for documentation
+#[turbo_tasks::task_input]
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Encode, Decode)]
 pub enum ChunkGroupKey {
     Entry(Vec<ResolvedVc<Box<dyn Module>>>),
@@ -415,6 +448,7 @@ impl ChunkGroupKey {
     }
 }
 
+#[turbo_tasks::task_input]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct ChunkGroupId(u32);
 
@@ -428,30 +462,6 @@ impl Deref for ChunkGroupId {
     type Target = u32;
     fn deref(&self) -> &Self::Target {
         &self.0
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct TraversalPriority {
-    pub depth: usize,
-    pub chunk_group_len: u64,
-}
-impl PartialOrd for TraversalPriority {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-// TODO automatically derive this using Reverse<_>
-impl Ord for TraversalPriority {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        // BinaryHeap prioritizes high values
-
-        // Smaller depth has higher priority
-        let depth_order = self.depth.cmp(&other.depth).reverse();
-        // Smaller group length has higher priority
-        let chunk_group_len_order = self.chunk_group_len.cmp(&other.chunk_group_len).reverse();
-
-        depth_order.then(chunk_group_len_order)
     }
 }
 
@@ -485,30 +495,14 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         // use all entries from all graphs
         let entries = graph.all_chunk_group_entries().collect::<Vec<_>>();
 
-        // First, compute the depth for each module in the graph and initialize
-        // `module_chunk_groups` with empty bitmaps.
-        let module_depth: FxHashMap<ResolvedVc<Box<dyn Module>>, usize> = {
-            let mut module_depth =
-                FxHashMap::with_capacity_and_hasher(module_count, Default::default());
-            graph.traverse_edges_bfs(
-                entries.iter().flat_map(|e| e.entries()),
-                |parent, node| {
-                    if let Some((parent, _)) = parent {
-                        let parent_depth = *module_depth
-                            .get(&parent)
-                            .context("Module depth not found")?;
-                        module_depth.entry(node).or_insert(parent_depth + 1);
-                    } else {
-                        module_depth.insert(node, 0);
-                    };
-
-                    module_chunk_groups.insert(node, RoaringBitmapWrapper::default());
-
-                    Ok(GraphTraversalAction::Continue)
-                },
-            )?;
-            module_depth
-        };
+        // First, rank every module in reverse postorder (so that a module is visited after the
+        // modules importing it), and initialize `module_chunk_groups` with empty bitmaps.
+        let module_rank =
+            graph.reverse_postorder_ranks(entries.iter().flat_map(|e| e.entries()))?;
+        module_chunk_groups.reserve(module_rank.len());
+        for module in module_rank.keys() {
+            module_chunk_groups.insert(*module, RoaringBitmapWrapper::default());
+        }
 
         // ----
 
@@ -579,10 +573,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                 .map(|e| {
                     Ok((
                         e,
-                        TraversalPriority {
-                            depth: *module_depth.get(&e).context("Module depth not found")?,
-                            chunk_group_len: 0,
-                        },
+                        Reverse(*module_rank.get(&e).context("Module rank not found")?),
                     ))
                 })
                 .collect::<Result<Vec<_>>>()?,
@@ -777,23 +768,16 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                     }
                 })
             },
-            // This priority is used as a heuristic to keep the number of retraversals down, by
-            // - keeping it similar to a BFS via the depth priority
-            // - prioritizing smaller chunk groups which are expected to themselves reference
-            //   bigger chunk groups (i.e. shared code deeper down in the graph).
-            //
-            // Both try to first visit modules with a large dependency subgraph first (which
-            // would be higher in the graph and are included by few chunks themselves).
-            |successor, module_chunk_groups| {
-                Ok(TraversalPriority {
-                    depth: *module_depth
+            // Visit modules in reverse postorder (lowest rank first, the traversal visits the
+            // highest priority first). This visits a module only after all of the modules
+            // importing it (except via cycles), so most modules are visited once, with their final
+            // set of chunk groups.
+            |successor, _| {
+                Ok(Reverse(
+                    *module_rank
                         .get(&successor)
-                        .context("Module depth not found")?,
-                    chunk_group_len: module_chunk_groups
-                        .get(&successor)
-                        .context("Module chunk group not found")?
-                        .len(),
-                })
+                        .context("Module rank not found")?,
+                ))
             },
         )?;
 

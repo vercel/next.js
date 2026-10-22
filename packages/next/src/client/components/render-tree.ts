@@ -34,12 +34,12 @@ import {
   readSegmentCacheEntryForNavigation,
   waitForSegmentCacheEntry,
   invalidateRouteCacheEntries,
-  spawnStaticStageCacheWrite,
-  writeRuntimePrefetchStreamIntoCache,
+  bufferAndWriteNavigationResponse,
   EntryStatus,
   MetadataOnlyRequestTree,
 } from './segment-cache/cache'
 import { discoverKnownRoute } from './segment-cache/optimistic-routes'
+import { Completeness } from './segment-cache/types'
 import type { NormalizedSearch } from './segment-cache/cache-key'
 import type { CacheMap } from './segment-cache/cache-map'
 import {
@@ -1138,7 +1138,8 @@ function createRenderTreeForSegment(
       case EntryStatus.Fulfilled: {
         // Happy path: a cache hit
         cachedRsc = segmentEntry.rsc
-        isCachedRscPartial = segmentEntry.isPartial
+        isCachedRscPartial =
+          segmentEntry.completeness !== Completeness.FullyComplete
         cachedVaryParams = segmentEntry.varyParams
         break
       }
@@ -1158,11 +1159,11 @@ function createRenderTreeForSegment(
         // do yet another request to fill in the remaining data, creating
         // a waterfall.
         //
-        // The one exception is if this segment is being fetched with via
-        // prefetch={true} (i.e. the "force stale" or "full" strategy). If so,
-        // we can assume the response will be full. This field is set to `false`
-        // for such segments.
-        isCachedRscPartial = segmentEntry.isPartial
+        // The exception is a request we expect to return the segment fully
+        // complete, like a legacy prefetch. If so, we can assume the response
+        // will have nothing left to request.
+        isCachedRscPartial =
+          segmentEntry.completeness !== Completeness.FullyComplete
         break
       }
       case EntryStatus.Empty:
@@ -1783,28 +1784,18 @@ async function fetchMissingDynamicData(
       await navigationLock
     }
 
-    if (routeCacheEntry !== null && result.staticStageResponse !== null) {
-      spawnStaticStageCacheWrite(
+    if (routeCacheEntry !== null) {
+      bufferAndWriteNavigationResponse(
         now,
-        result.staticStageResponse,
+        result.flightResponse,
         result.isResponsePartial,
-        result.responseHeaders,
-        dynamicRequestTree,
-        result.renderedSearch,
-        map
-      )
-    }
-
-    if (routeCacheEntry !== null && result.runtimePrefetchStream !== null) {
-      writeRuntimePrefetchStreamIntoCache(
-        now,
-        result.runtimePrefetchStream,
+        result.responseChunks,
         dynamicRequestTree,
         result.renderedSearch,
         map
       ).catch(() => {
-        // The runtime prefetch cache write failed. Not fatal — the
-        // navigation completed normally, we just won't cache runtime data.
+        // The cache write failed. Not fatal — the navigation completed
+        // normally, we just won't write into the cache.
       })
     }
 

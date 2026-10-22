@@ -36,8 +36,24 @@ async function Hub({
         </LinkAccordion>
       </div>
       <div>
+        <LinkAccordion
+          href={`/required-fallback-params/${top}/b2`}
+          prefetch={false}
+        >
+          Required fallback shell, other bottom
+        </LinkAccordion>
+      </div>
+      <div>
         <LinkAccordion href={`/fully-static-params/${top}`} prefetch={false}>
           Fully static page
+        </LinkAccordion>
+      </div>
+      <div>
+        <LinkAccordion
+          href={`/partial-fully-static-params/${top}`}
+          prefetch={false}
+        >
+          Fully static page with Partial Prefetching
         </LinkAccordion>
       </div>
       {top === 'time' ? (

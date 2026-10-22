@@ -248,7 +248,9 @@ export async function fetchGithubStars() {
 ```
 
 The `register` function will execute before your code runs in a new environment.
-You can start creating new spans, and they should be correctly added to the exported trace.
+After that, spans you create while handling a request are added to that request's trace.
+
+> **Good to know**: Spans created while the `instrumentation` file is loaded, or inside `register`, don't automatically join a request trace. Spans started before the tracer provider is installed (for example, at the top level of the file before `registerOTel` runs) are not recorded, and spans started inside `register` after `registerOTel` (or your OpenTelemetry SDK) has started typically become separate root traces. To trace work as part of a request, create the span in code that runs while handling the request, such as when rendering a page or in a Route Handler or API Route.
 
 ## Default Spans in Next.js
 

@@ -14,7 +14,7 @@ import {
 
 // Cannot prerender individual pages in deploy mode
 // @force-gate !deploy
-describe('unstable_ensureStatic config validation', () => {
+describe('ensureStatic config validation', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: !isNextDev,
@@ -53,7 +53,7 @@ describe('unstable_ensureStatic config validation', () => {
   // just to determine whether a redbox is shown makes it take a long time.
   const REDBOX_WAIT_OPTS = { waitInMs: 1000 }
 
-  describe('nesting unstable_ensureStatic', () => {
+  describe('nesting ensureStatic', () => {
     const ALWAYS_ALLOWED_NESTINGS = [
       [undefined, true],
       ['auto', true],
@@ -141,8 +141,8 @@ describe('unstable_ensureStatic config validation', () => {
 
           const INVALID_CONFIG_MESSAGE = // `false` has a dedicated error message.
             parent === false || child === false
-              ? `A child segment cannot override a parent segment with an incompatible \`unstable_ensureStatic\`.`
-              : `A child segment cannot override a parent segment with a less-constrained \`unstable_ensureStatic\`.`
+              ? `A child segment cannot override a parent segment with an incompatible \`ensureStatic\`.`
+              : `A child segment cannot override a parent segment with a less-constrained \`ensureStatic\`.`
 
           if (isNextDev) {
             const browser = await next.browser(route)
@@ -176,7 +176,7 @@ describe('unstable_ensureStatic config validation', () => {
     })
   })
 
-  describe('unstable_ensureStatic in sibling slots', () => {
+  describe('ensureStatic in sibling slots', () => {
     it.each<{
       left: EnsureStatic | undefined
       right: EnsureStatic | undefined
@@ -196,7 +196,7 @@ describe('unstable_ensureStatic config validation', () => {
       async ({ left, right, isValid }) => {
         const route = `/sibling-slots/left-${left}-right-${right}`
 
-        const INVALID_CONFIG_MESSAGE = `Parallel slots cannot have incompatible \`unstable_ensureStatic\`.`
+        const INVALID_CONFIG_MESSAGE = `Parallel slots cannot have incompatible \`ensureStatic\`.`
 
         if (isNextDev) {
           const browser = await next.browser(route)

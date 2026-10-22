@@ -38,7 +38,7 @@ pub enum StartupCacheState {
     NoCache,
     Cached,
     Invalidated {
-        /// A short code passed to [`BackingStorage::invalidate`]. This value is
+        /// A short code passed to `TurboBackingStorage::invalidate`. This value is
         /// application-specific.
         ///
         /// If the value is `None` or doesn't match an expected value, the application should just
@@ -46,8 +46,6 @@ pub enum StartupCacheState {
         /// modified by an external tool.
         ///
         /// See [`invalidation_reasons`] for some common reason codes.
-        ///
-        /// [`BackingStorage::invalidate`]: crate::BackingStorage::invalidate
         reason_code: Option<String>,
     },
 }
@@ -77,7 +75,7 @@ pub mod invalidation_reasons {
 /// This should be run with the base (non-versioned) path, as that likely aligns closest with user
 /// expectations (e.g. if they're clearing the cache for disk space reasons).
 ///
-/// In most cases, you should prefer a higher-level API like [`crate::BackingStorage::invalidate`]
+/// In most cases, you should prefer a higher-level API like `TurboBackingStorage::invalidate`
 /// to this one.
 pub(crate) fn invalidate_db(base_path: &Path, reason_code: &str) -> anyhow::Result<()> {
     match File::create_new(base_path.join(INVALIDATION_MARKER)) {

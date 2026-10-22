@@ -1,4 +1,4 @@
-export const unstable_ensureStatic = 'shell'
+export const ensureStatic = 'shell'
 
 export default function Page() {
   return <main>Page</main>

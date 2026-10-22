@@ -18,7 +18,11 @@ import os from 'os'
 import { exec } from 'child_process'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import { getMemoryRestartStats, RESTART_EXIT_CODE } from './utils'
+import {
+  blockOnOutputWrites,
+  getMemoryRestartStats,
+  RESTART_EXIT_CODE,
+} from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import {
@@ -29,6 +33,7 @@ import {
   getEnvInfo,
   logExperimentalInfo,
   logStartInfo,
+  syncAgentUpgradeForDev,
   syncAgentFeedbackForDev,
   syncAgentRulesForDev,
 } from './app-info-log'
@@ -447,7 +452,12 @@ export async function startServer(
                   // Use flushDetached to avoid blocking process exit
                   // Each process writes to a unique file (_events_${pid}.json)
                   // to avoid race conditions with the parent process
-                  telemetry.flushDetached('dev', dir)
+                  telemetry.flushDetached({
+                    mode: 'dev',
+                    dir,
+                    distDir: null,
+                    events: null,
+                  })
                 }
               } catch (_) {
                 // Ignore telemetry errors during cleanup
@@ -517,6 +527,17 @@ export async function startServer(
               `Generated ${files} for AI agents. Set \`agentRules: false\` in next.config to disable.`,
             (files) =>
               `Removed agent rules from ${files} because \`agentRules\` is disabled.`
+          )
+
+          logAgentFileSync(
+            await syncAgentUpgradeForDev(
+              dir,
+              initResult.agentUpgrade !== false
+            ),
+            (files) =>
+              `Generated upgrade instructions in ${files}. Set \`experimental.agentUpgrade: false\` in next.config to disable.`,
+            (files) =>
+              `Removed upgrade instructions from ${files} because \`experimental.agentUpgrade\` is disabled.`
           )
 
           if (!isCI) {
@@ -623,7 +644,22 @@ export async function startServer(
 }
 
 if (process.env.NEXT_PRIVATE_WORKER && process.send) {
+  // Output is piped to the CLI to hold it while the upgrade menu is open.
+  if (process.env.NEXT_PRIVATE_PROMPT_OUTPUT === '1') {
+    blockOnOutputWrites()
+  }
   process.addListener('message', async (msg: any) => {
+    if (
+      msg &&
+      typeof msg === 'object' &&
+      typeof msg.nextTerminalColumns === 'number'
+    ) {
+      // The CLI's terminal was resized. Code frames read this width.
+      process.env.NEXT_PRIVATE_TERMINAL_COLUMNS = String(
+        msg.nextTerminalColumns
+      )
+      return
+    }
     if (
       msg &&
       typeof msg === 'object' &&
@@ -649,7 +685,7 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
       }
 
       startServerSpan = trace('start-dev-server', undefined, {
-        cpus: String(os.cpus().length),
+        cpus: String(os.availableParallelism()),
         platform: os.platform(),
         'memory.freeMem': String(os.freemem()),
         'memory.totalMem': String(os.totalmem()),

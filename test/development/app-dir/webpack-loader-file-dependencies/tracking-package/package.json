@@ -1,0 +1,7 @@
+{
+  "name": "tracking-package",
+  "version": "1.0.0",
+  "exports": {
+    "./value": "./value.js"
+  }
+}

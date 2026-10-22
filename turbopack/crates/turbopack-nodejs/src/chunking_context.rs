@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, bail};
+use smallvec::{SmallVec, smallvec};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -565,7 +566,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     async fn chunk_group(
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: ChunkGroup,
+        chunk_groups: SmallVec<[ChunkGroup; 1]>,
         module_graph: ResolvedVc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
@@ -576,7 +577,7 @@ impl ChunkingContext for NodeJsChunkingContext {
                 references,
                 availability_info,
             } = make_chunk_group(
-                chunk_group,
+                chunk_groups,
                 module_graph,
                 ResolvedVc::upcast(self),
                 availability_info,
@@ -625,7 +626,7 @@ impl ChunkingContext for NodeJsChunkingContext {
                 references,
                 availability_info,
             } = make_chunk_group(
-                chunk_group.clone(),
+                smallvec![chunk_group.clone()],
                 module_graph,
                 ResolvedVc::upcast(self),
                 availability_info,
