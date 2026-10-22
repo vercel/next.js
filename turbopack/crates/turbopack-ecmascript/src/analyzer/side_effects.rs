@@ -553,6 +553,8 @@ struct SideEffectVisitor<'a> {
     /// A binding may have multiple declarations. Every declaration must be pure.
     impure_top_level_declarations: HashSet<Id>,
     has_side_effects: bool,
+    /// Effects that module inference ignores, but that prevent dropping an initializer.
+    has_initializer_side_effects: bool,
     will_invoke_fn_exprs: bool,
     has_imports: bool,
 }
@@ -574,6 +576,7 @@ impl<'a> SideEffectVisitor<'a> {
             pure_top_level_declarations: HashSet::new(),
             impure_top_level_declarations: HashSet::new(),
             has_side_effects: false,
+            has_initializer_side_effects: false,
             will_invoke_fn_exprs: false,
             has_imports: false,
         }
@@ -588,9 +591,11 @@ impl<'a> SideEffectVisitor<'a> {
     /// Early exits within an item must not hide later pure declarations.
     fn check_for_side_effects(&mut self, f: impl FnOnce(&mut Self)) -> bool {
         let previous = std::mem::take(&mut self.has_side_effects);
+        let previous_initializer = std::mem::take(&mut self.has_initializer_side_effects);
         f(self);
-        let has_side_effects = self.has_side_effects;
+        let has_side_effects = self.has_side_effects || self.has_initializer_side_effects;
         self.has_side_effects |= previous;
+        self.has_initializer_side_effects |= previous_initializer;
         has_side_effects
     }
 
@@ -617,16 +622,19 @@ impl<'a> SideEffectVisitor<'a> {
                 self.record_top_level_declarations([class.ident.to_id()], has_side_effects);
             }
             Decl::Var(var) => {
-                for declarator in &var.decls {
-                    let has_side_effects =
-                        self.check_for_side_effects(|this| declarator.visit_with(this));
-                    let ids: Vec<Id> = find_pat_ids(&declarator.name);
-                    self.record_top_level_declarations(ids, has_side_effects);
-                }
+                self.visit_top_level_var_decl(var);
             }
             _ => {
                 self.check_for_side_effects(|this| decl.visit_with(this));
             }
+        }
+    }
+
+    fn visit_top_level_var_decl(&mut self, var: &VarDecl) {
+        for declarator in &var.decls {
+            let has_side_effects = self.check_for_side_effects(|this| declarator.visit_with(this));
+            let ids: Vec<Id> = find_pat_ids(&declarator.name);
+            self.record_top_level_declarations(ids, has_side_effects);
         }
     }
 
@@ -635,6 +643,13 @@ impl<'a> SideEffectVisitor<'a> {
             self.visit_top_level_decl(decl);
         } else {
             self.check_for_side_effects(|this| stmt.visit_with(this));
+            // The loop is still conservatively effectful, but an unused pure initializer
+            // can be removed independently. Uses in the condition or body keep it live.
+            if let Stmt::For(for_stmt) = stmt
+                && let Some(VarDeclOrExpr::VarDecl(var)) = &for_stmt.init
+            {
+                self.visit_top_level_var_decl(var);
+            }
         }
     }
 
@@ -1119,10 +1134,13 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                     });
                 } else if self.is_require_or_import(&call.callee) {
                     self.has_imports = true;
+                    // Removing the initializer would also remove the imported module's effects.
+                    self.has_initializer_side_effects = true;
                     // It would be weird to have a side effect in a require(...) statement, but not
                     // impossible.
                     call.args.visit_children_with(self);
                 } else if self.define_property_target_is_pure(call) {
+                    self.has_initializer_side_effects = true;
                     call.args.visit_children_with(self);
                 } else {
                     // Unmarked calls are considered to have side effects
@@ -1153,6 +1171,8 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                 // is excluded up front, so `assign_target_is_pure` already returns
                 // false for member writes that could invoke one.
                 if assign.op == AssignOp::Assign && self.assign_target_is_pure(&assign.left) {
+                    // A module-local mutation can still affect another declaration or an export.
+                    self.has_initializer_side_effects = true;
                     // Still check the assigned value, and the target's computed
                     // property keys (e.g. `exports[sideEffect()] = …`).
                     assign.left.visit_with(self);
@@ -1167,6 +1187,7 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                 self.mark_side_effect();
             }
             Expr::Await(e) => {
+                self.has_initializer_side_effects = true;
                 e.arg.visit_with(self);
             }
             Expr::Yield(e) => {
@@ -1241,13 +1262,12 @@ impl<'a> Visit for SideEffectVisitor<'a> {
         match prop {
             PropOrSpread::Spread(spread) => {
                 // Copying an unknown object's properties can invoke getters.
-                if matches!(unparen(&spread.expr), Expr::Object(_))
-                    && !contains_getters_or_setters(&spread.expr)
+                if !matches!(unparen(&spread.expr), Expr::Object(_))
+                    || contains_getters_or_setters(&spread.expr)
                 {
-                    spread.expr.visit_with(self);
-                } else {
-                    self.mark_side_effect();
+                    self.has_initializer_side_effects = true;
                 }
+                spread.expr.visit_with(self);
             }
             PropOrSpread::Prop(prop) => {
                 prop.visit_with(self);
@@ -1262,10 +1282,9 @@ impl<'a> Visit for SideEffectVisitor<'a> {
         if expr.spread.is_some()
             && !matches!(unparen(&expr.expr), Expr::Array(_) | Expr::Lit(Lit::Str(_)))
         {
-            self.mark_side_effect();
-        } else {
-            expr.expr.visit_with(self);
+            self.has_initializer_side_effects = true;
         }
+        expr.expr.visit_with(self);
     }
 
     fn visit_prop(&mut self, prop: &Prop) {
@@ -1555,6 +1574,10 @@ mod tests {
     #[case("const a = /*#__PURE__*/ factory(), b = /*#__PURE__*/ factory(effect());", &["a"])]
     #[case("const a = /*#__PURE__*/ factory(...iterable), b = [...iterable];", &[])]
     #[case("const a = { ...value }, b = { ...{ x: 1 } };", &["b"])]
+    #[case("const a = require('module'), b = import('module');", &[])]
+    #[case("const object = {}; const a = (object.value = 1);", &["object"])]
+    #[case("const a = await value;", &[])]
+    #[case("for (const a = 1, b = effect(); false;) {}", &["a"])]
     fn pure_top_level_declarations(#[case] code: &str, #[case] expected: &[&str]) {
         let actual = parse_and_analyze(code);
         let names: HashSet<_> = actual
@@ -1928,9 +1951,9 @@ mod tests {
             "const obj = { [foo()]: value };"
         );
 
-        side_effects!(test_spread_in_array, "const arr = [...other];");
+        no_side_effects!(test_spread_in_array, "const arr = [...other];");
 
-        side_effects!(test_spread_in_object, "const obj = { ...other };");
+        no_side_effects!(test_spread_in_object, "const obj = { ...other };");
 
         no_side_effects!(test_destructuring_assignment, "const { a, b } = obj;");
 

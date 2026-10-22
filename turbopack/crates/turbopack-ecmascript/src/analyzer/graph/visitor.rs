@@ -16,7 +16,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbopack_core::resolve::ExportUsage;
+use turbopack_core::resolve::{ExportUsage, ImportUsage};
 
 use crate::{
     AnalyzeMode,
@@ -35,6 +35,7 @@ use crate::{
     references::{
         cjs::{CjsExportsDropCodeGen, DroppableCjsExportAssignment},
         esm::EsmModuleItem,
+        removal::UnusedPureInitializerCodeGen,
     },
     utils::{AstPathRange, extract_name_from_member_prop, extract_names_from_object_pat, unparen},
 };
@@ -2150,6 +2151,24 @@ impl VisitAstPath for Analyzer<'_, '_> {
         {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::VarDeclarator(n, VarDeclaratorField::Init));
+
+            if self.analyze_mode.is_codegen
+                && n.init.is_some()
+                && let Pat::Ident(binding) = &n.name
+                && let Some(ImportUsage::Exports(exports)) = self
+                    .eval_context
+                    .imports
+                    .pure_declaration_usage
+                    .get(&binding.to_id())
+            {
+                self.code_gens.push(
+                    UnusedPureInitializerCodeGen::new(
+                        self.ast_paths.intern(ast_path.kinds().iter().copied()),
+                        exports.iter().cloned().collect(),
+                    )
+                    .into(),
+                );
+            }
 
             self.visit_opt_expr(&n.init, &mut ast_path);
         }
