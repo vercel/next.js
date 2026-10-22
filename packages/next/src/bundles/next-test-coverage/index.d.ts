@@ -25,7 +25,7 @@ export interface CoverageData {
     lastFunction: number
     lastStatement: number
     seen: Record<string, number>
-    fnNames: Record<string, number>
+    fnNames: Map<string, number> | Record<string, number>
   }
 }
 interface Location {
@@ -44,3 +44,11 @@ export function convert(options: {
     }[]
   }
 }): Promise<Record<string, CoverageData>>
+
+/** Pinned formatter primitives only; all inputs are supplied by the Next owner. */
+export function writeReports(
+  data: Record<string, CoverageData>,
+  directory: string,
+  reporters: string[],
+  options?: Record<string, object>
+): Promise<string>

@@ -9802,3 +9802,234 @@ it('matches complete pristine numeric-call-default coverage for executed and unt
     genuineReports: 4,
   })
 }, 190000)
+
+describe('project-configured standard V8 coverage', () => {
+  it('matches complete pristine configured reports and case rows through ordinary CLI execution', () => {
+    const { execFileSync } = require('node:child_process')
+    const result = execFileSync(
+      process.execPath,
+      [join(__dirname, 'project-configured-reports.cjs')],
+      { encoding: 'utf8', timeout: 300000 }
+    )
+    expect(JSON.parse(result)).toEqual({
+      profiles: 10,
+      cases: 10,
+      completeReports: 8,
+      genuineReports: 8,
+    })
+  }, 310000)
+  it('retains configured fields while replacing only explicit CLI values', async () => {
+    const {
+      parseProjectStandardCoverage,
+      parseStandardCoverageOptions,
+      resolveProjectStandardCoverage,
+    } = await import('next/dist/experimental/testing/coverage/options')
+    const configured = parseProjectStandardCoverage({
+      provider: 'v8',
+      enabled: false,
+      include: ['configured.mjs'],
+      exclude: ['excluded.mjs'],
+      reporter: ['lcovonly'],
+      reportsDirectory: 'configured-output',
+      clean: false,
+      reportOnFailure: true,
+      thresholds: { lines: 100, branches: -9 },
+    })!
+    const flags = {
+      coverage: true,
+      'coverage.reporter': ['json'],
+      'coverage.include': ['selected.mjs'],
+      'coverage.thresholds.lines': '0',
+    }
+    const resolved = resolveProjectStandardCoverage(
+      [{ standardCoverage: configured }],
+      flags,
+      parseStandardCoverageOptions(flags)
+    )
+    expect(resolved).toEqual({
+      enabled: true,
+      configured: true,
+      options: {
+        ...configured.options,
+        reporter: ['json'],
+        include: ['selected.mjs'],
+        thresholds: { lines: 0, branches: -9 },
+      },
+    })
+    expect(configured.options.include).toEqual(['configured.mjs'])
+    expect(configured.options.thresholds.lines).toBe(100)
+  })
+
+  it('publishes genuine default formatter names instead of CLI defaults', async () => {
+    const { parseProjectStandardCoverage } = await import(
+      'next/dist/experimental/testing/coverage/options'
+    )
+    const configured = parseProjectStandardCoverage({
+      provider: 'v8',
+      enabled: true,
+    })!
+    expect(configured.options.reporter.slice(0, 4)).toEqual([
+      'text',
+      'html',
+      'clover',
+      'json',
+    ])
+    expect(configured.options.clean).toBe(true)
+    expect(configured.options.formatterReports).toBe(true)
+    expect(parseProjectStandardCoverage({ provider: 'custom' })).toBeUndefined()
+  })
+
+  it('disables configured capture without discarding its later explicit CLI enable defaults', async () => {
+    const { parseProjectStandardCoverage, resolveProjectStandardCoverage } =
+      await import('next/dist/experimental/testing/coverage/options')
+    const configured = parseProjectStandardCoverage({
+      provider: 'v8',
+      enabled: true,
+      reporter: ['json'],
+    })!
+    expect(
+      resolveProjectStandardCoverage(
+        [{ standardCoverage: configured }],
+        { coverage: false },
+        undefined
+      )
+    ).toEqual({ enabled: false, configured: true })
+    configured.enabled = false
+    expect(
+      resolveProjectStandardCoverage(
+        [{ standardCoverage: configured }],
+        {},
+        undefined
+      ).enabled
+    ).toBe(false)
+    expect(
+      resolveProjectStandardCoverage(
+        [{ standardCoverage: configured }],
+        { coverage: true },
+        undefined
+      ).options?.reporter
+    ).toEqual(['json'])
+  })
+
+  it('does not choose one incompatible selected project configuration silently', async () => {
+    const { parseProjectStandardCoverage, resolveProjectStandardCoverage } =
+      await import('next/dist/experimental/testing/coverage/options')
+    const configured = parseProjectStandardCoverage({
+      enabled: true,
+      reporter: ['json'],
+    })!
+    expect(() =>
+      resolveProjectStandardCoverage(
+        [{ standardCoverage: configured }, {}],
+        {},
+        undefined
+      )
+    ).toThrow('same V8 coverage configuration')
+    expect(
+      resolveProjectStandardCoverage(
+        [{ standardCoverage: configured }, {}],
+        { coverage: false },
+        undefined
+      )
+    ).toEqual({ enabled: false, configured: true })
+    expect(() =>
+      parseProjectStandardCoverage({
+        enabled: true,
+        thresholds: { autoUpdate: true },
+      })
+    ).toThrow('Unsupported V8 coverage threshold')
+    expect(() =>
+      parseProjectStandardCoverage({
+        enabled: true,
+        reporter: [['json', { file: '../file.json' }]],
+      })
+    ).toThrow('Unsupported V8 coverage reporter option')
+  })
+
+  it('preserves unrelated prior report files with clean false through actual formatter publication', async () => {
+    const { mkdir } = await import('fs/promises')
+    const { publishStandardCoverage } = await import(
+      'next/dist/experimental/testing/coverage/report-standard'
+    )
+    const { parseProjectStandardCoverage } = await import(
+      'next/dist/experimental/testing/coverage/options'
+    )
+    const f = await standardReportFixture()
+    try {
+      await mkdir(join(f.root, 'coverage'))
+      await writeFile(join(f.root, 'coverage/sentinel.txt'), 'retain')
+      const config = parseProjectStandardCoverage({
+        provider: 'v8',
+        enabled: true,
+        reporter: ['json', 'html', 'clover'],
+        include: ['*.mjs'],
+        exclude: ['excluded.mjs'],
+        clean: false,
+      })!.options
+      const result = await publishStandardCoverage({
+        ...f,
+        projectDir: f.root,
+        config,
+        status: 'passed',
+      })
+      expect(result.published).toBe(true)
+      // A second real HTML publication retains its regular nested assets.
+      expect(
+        (
+          await publishStandardCoverage({
+            ...f,
+            projectDir: f.root,
+            config,
+            status: 'passed',
+          })
+        ).published
+      ).toBe(true)
+      expect(
+        await readFile(join(f.root, 'coverage/sentinel.txt'), 'utf8')
+      ).toBe('retain')
+      expect(
+        await readFile(join(f.root, 'coverage/index.html'), 'utf8')
+      ).toContain('subject.mjs')
+      expect(
+        await readFile(join(f.root, 'coverage/clover.xml'), 'utf8')
+      ).toContain('subject.mjs')
+      expect(
+        JSON.parse(
+          await readFile(join(f.root, 'coverage/coverage-final.json'), 'utf8')
+        )[f.file].s
+      ).toEqual(f.data.s)
+    } finally {
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+
+  it('cleans the actual dedicated directory before a failed unreported run', async () => {
+    const { mkdir } = await import('fs/promises')
+    const { prepareStandardCoverageDirectory, publishStandardCoverage } =
+      await import('next/dist/experimental/testing/coverage/report-standard')
+    const f = await standardReportFixture()
+    try {
+      await mkdir(join(f.root, 'coverage'))
+      await writeFile(join(f.root, 'coverage/sentinel.txt'), 'prior')
+      const config = { ...f.config, clean: true }
+      await prepareStandardCoverageDirectory(
+        f.root,
+        config,
+        new AbortController().signal
+      )
+      await expect(
+        readFile(join(f.root, 'coverage/sentinel.txt'))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+      expect(
+        await publishStandardCoverage({
+          ...f,
+          projectDir: f.root,
+          config,
+          status: 'failed',
+        })
+      ).toEqual({ published: false, thresholdErrors: [] })
+    } finally {
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+})

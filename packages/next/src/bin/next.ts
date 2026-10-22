@@ -715,6 +715,7 @@ program
   )
   .option('--capabilities', 'Print the supported test capabilities as JSON.')
   .option('--coverage', 'Collect one-shot development Node line coverage.')
+  .option('--no-coverage', 'Disable configured V8 coverage collection.')
   .option(
     '--coverage.reporter <name>',
     'Standard coverage reporter: json, json-summary, text-summary, or lcov.',

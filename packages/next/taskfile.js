@@ -180,6 +180,36 @@ export async function ncc_next_test_coverage(task) {
   await task
     .source('src/bundles/next-test-coverage/{package.json,index.d.ts}')
     .target('src/compiled/next-test-coverage')
+  // ncc 0.38 does not relocate import.meta.dirname. These pinned report
+  // implementations read real adjacent assets, so retain both actual owners.
+  const output = join(__dirname, 'src/compiled/next-test-coverage')
+  const entry = join(output, 'index.js')
+  let source = await fs.readFile(entry, 'utf8')
+  for (const [asset, directory] of [
+    ['assets', 'html'],
+    ['./assets', 'html-spa'],
+  ]) {
+    const needle = `import.meta.dirname,${JSON.stringify(asset)}`
+    if (source.split(needle).length !== 2)
+      throw new Error(`Coverage reporter asset owner changed: ${directory}`)
+    source = source.replace(
+      needle,
+      `__dirname+${JSON.stringify('/' + directory)},${JSON.stringify(asset)}`
+    )
+    await fs.cp(
+      join(
+        dirname(require.resolve('@vitest/istanbul-lib-report')),
+        'reports',
+        directory,
+        'assets'
+      ),
+      join(output, directory, 'assets'),
+      { recursive: true }
+    )
+  }
+  if (source.includes('import.meta'))
+    throw new Error('Coverage reporter contains an unrelocated ESM path.')
+  await fs.writeFile(entry, source)
 }
 
 export async function ncc_node_html_parser(task, opts) {

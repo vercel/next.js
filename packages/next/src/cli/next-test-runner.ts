@@ -13,7 +13,10 @@ import type {
   CustomCoverageRequest,
 } from '../experimental/testing/coverage/custom-types'
 import { realpath } from 'fs/promises'
-import { parseStandardCoverageOptions } from '../experimental/testing/coverage/options'
+import {
+  parseStandardCoverageOptions,
+  resolveProjectStandardCoverage,
+} from '../experimental/testing/coverage/options'
 import type {
   CompilerSourceCoverage,
   StandardCoverageOptions,
@@ -123,10 +126,13 @@ export async function nextTestRunner(
   directory: string | undefined,
   options: NextTestRunnerOptions
 ): Promise<void> {
-  const standardCoverageOptions = parseStandardCoverageOptions(
+  const coverageFlags = options as unknown as Record<string, unknown>
+  let standardCoverageOptions = parseStandardCoverageOptions(
     options as unknown as Record<string, unknown>
   )
-  if (standardCoverageOptions) options = { ...options, coverage: true }
+  if (standardCoverageOptions && options.coverage !== false)
+    options = { ...options, coverage: true }
+  if (options.coverage === false) standardCoverageOptions = undefined
   const breakAddress = parseTestInspectBrkAddress(options.inspectBrk)
   const inspectBrk = breakAddress !== undefined
   const inspect = inspectBrk
@@ -379,6 +385,36 @@ export async function nextTestRunner(
       project: options.project,
       files: options.filter,
     })
+    const configuredCoverage = resolveProjectStandardCoverage(
+      projects,
+      coverageFlags,
+      standardCoverageOptions
+    )
+    if (configuredCoverage.configured) {
+      options = { ...options, coverage: configuredCoverage.enabled }
+      standardCoverageOptions = configuredCoverage.options
+      if (configuredCoverage.enabled) {
+        if (
+          options.watch ||
+          options.list ||
+          inspect ||
+          options.update ||
+          projects.some(
+            (project) =>
+              project.typecheck?.enabled ||
+              project.isolate === false ||
+              project.executionEnvironment ||
+              project.profile.environment !== 'node' ||
+              project.profile.route ||
+              project.entries.some((entry) => entry.executionEnvironment)
+          )
+        )
+          throw new Error(
+            'Configured V8 coverage currently requires one-shot isolated Node execution without DOM, type tests, debugging or snapshot updates.'
+          )
+        requireTestCapability('coverage')
+      }
+    }
     if ((options.related || options.changed) && !options.watch) {
       const { findChangedTestSources, selectSourceRelatedProjects } =
         await import('../experimental/testing/incremental/source-selection.js')
@@ -662,6 +698,16 @@ export async function nextTestRunner(
       // One owner covers the full watch lifetime, including journal recovery
       // before the first generation and every parent-side snapshot commit.
       runLock = await acquireTestRunLock(projectDir)
+      if (standardCoverageOptions?.clean === true) {
+        const { prepareStandardCoverageDirectory } = await import(
+          '../experimental/testing/coverage/report-standard.js'
+        )
+        await prepareStandardCoverageDirectory(
+          projectDir,
+          standardCoverageOptions,
+          controller.signal
+        )
+      }
       if (options.watch) {
         const { watchTests } = await import(
           '../experimental/testing/watch-orchestrator.js'

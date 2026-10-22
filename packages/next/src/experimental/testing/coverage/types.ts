@@ -135,7 +135,21 @@ export type StandardCoverageMetric =
   | 'branches'
   | 'lines'
 export interface StandardCoverageOptions {
-  reporter: ('json' | 'json-summary' | 'text-summary' | 'lcov' | 'lcovonly')[]
+  reporter: (
+    | 'json'
+    | 'json-summary'
+    | 'text-summary'
+    | 'lcov'
+    | 'lcovonly'
+    | 'text'
+    | 'html'
+    | 'clover'
+  )[]
+  /** Configured providers use the pinned formatter's complete report contracts. */
+  formatterReports?: true
+  reporterOptions?: { text?: { skipFull?: boolean } }
+  /** Undefined retains the existing CLI report-publication behavior. */
+  clean?: boolean
   include?: string[]
   exclude: string[]
   reportsDirectory: string
@@ -145,6 +159,11 @@ export interface StandardCoverageOptions {
   thresholds: Partial<Record<StandardCoverageMetric, number>> & {
     perFile?: boolean
   }
+}
+
+export interface ProjectStandardCoverageConfig {
+  enabled: boolean
+  options: StandardCoverageOptions
 }
 
 /** The native compiler emits this entry but no runtime may evaluate it. */

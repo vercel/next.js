@@ -1449,6 +1449,12 @@ importers:
       '@vitest/expect':
         specifier: 5.0.4
         version: 5.0.4(patch_hash=b1d56074dffed8b224669284d00d13628cef3ef3c152e8774f329ea474e4c1bb)
+      '@vitest/istanbul-lib-coverage':
+        specifier: 1.0.2
+        version: 1.0.2
+      '@vitest/istanbul-lib-report':
+        specifier: 1.0.2
+        version: 1.0.2
       '@vitest/mocker':
         specifier: 5.0.4
         version: 5.0.4(msw@2.3.0(typescript@6.0.2))(vite@8.3.4(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(esbuild@0.25.9)(jiti@2.6.1)(sass@1.77.8)(terser@5.27.0)(tsx@4.19.2))
@@ -7566,6 +7572,14 @@ packages:
 
   '@vitest/expect@5.0.4':
     resolution: {integrity: sha512-1Cko3Uav9doH3l+dmIBntzy9kcLM6c0Q7B9qMUgFqhDNgeJiYW57CUn1EIlWZlZ97Uaqj7SYSfu2ezwvDhE3og==}
+
+  '@vitest/istanbul-lib-coverage@1.0.2':
+    resolution: {integrity: sha512-9J/JMwOf9AoJhAywhrn7ScKTL38hsWQP/qPG60OtaAFcQ5OXPwKsxZFlbnuCKmZ61m8/lGgHYnFpdyQZUvG/iA==}
+    engines: {node: '>=22'}
+
+  '@vitest/istanbul-lib-report@1.0.2':
+    resolution: {integrity: sha512-gUsfXZJbzPamoIY5TvHFiMMoXESBrUMo+xqaj+rYrWI69+EnvRlYBlP96ZnHPY4vX8kyUpgAnFUCg5wZG/HkDQ==}
+    engines: {node: '>=22'}
 
   '@vitest/mocker@5.0.4':
     resolution: {integrity: sha512-tqAlrYWce4iUxhr3ncNohejtCTOcHeE8XWrSNZY3OhPoDn01yeGv+gnaBy64ATp7o6pb03eIbBAjzmibpc9vIQ==}
@@ -24103,6 +24117,12 @@ snapshots:
       '@vitest/utils': 5.0.4
       chai: 6.3.0(patch_hash=f4d3c01da32f45a0fa6fff8c76316cbd7a9767b5b82ce6f67d44f75d1809321e)
       tinyrainbow: 3.2.0
+
+  '@vitest/istanbul-lib-coverage@1.0.2': {}
+
+  '@vitest/istanbul-lib-report@1.0.2':
+    dependencies:
+      '@vitest/istanbul-lib-coverage': 1.0.2
 
   '@vitest/mocker@5.0.4(msw@2.3.0(typescript@6.0.2))(vite@8.3.4(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(esbuild@0.25.9)(jiti@2.6.1)(sass@1.77.8)(terser@5.27.0)(tsx@4.19.2))':
     dependencies:

@@ -240,6 +240,8 @@
     "@vercel/routing-utils": "5.2.0",
     "@vercel/turbopack-ecmascript-runtime": "*",
     "@vitest/expect": "5.0.4",
+    "@vitest/istanbul-lib-coverage": "1.0.2",
+    "@vitest/istanbul-lib-report": "1.0.2",
     "@vitest/mocker": "5.0.4",
     "@vitest/snapshot": "5.0.4",
     "@vitest/spy": "5.0.4",

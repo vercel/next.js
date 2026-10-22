@@ -20,10 +20,12 @@ import {
   writeFile,
   rename,
   rm,
+  cp,
 } from 'fs/promises'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'path'
 import { coverageHash, within } from './artifact'
 import { createUncoveredSource } from './istanbul'
+import { writeReports } from '../../../compiled/next-test-coverage'
 import { standardCoverageSourceSelector } from './options'
 import type {
   CompilerSourceCoverage,
@@ -40,6 +42,37 @@ const metrics: StandardCoverageMetric[] = [
   'branches',
   'lines',
 ]
+
+/** Configured clean is an actual pre-run action, including runs that fail. */
+export async function prepareStandardCoverageDirectory(
+  projectDir: string,
+  config: StandardCoverageOptions,
+  signal: AbortSignal
+) {
+  signal.throwIfAborted()
+  const root = await realpath(projectDir)
+  const output = resolve(root, config.reportsDirectory)
+  if (output === root || !within(root, output))
+    throw new Error(
+      'Standard coverage reportsDirectory must be a dedicated directory inside the project.'
+    )
+  let current = root
+  for (const part of relative(root, output).split(sep).filter(Boolean)) {
+    current = join(current, part)
+    try {
+      const info = await lstat(current)
+      if (!info.isDirectory() || info.isSymbolicLink())
+        throw new Error(
+          'Standard coverage output must use regular directories.'
+        )
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+      throw error
+    }
+  }
+  signal.throwIfAborted()
+  await rm(output, { recursive: true, force: true })
+}
 const object = (value: unknown): value is Record<string, any> =>
   !!value && typeof value === 'object' && !Array.isArray(value)
 const count = (value: unknown): value is number =>
@@ -732,16 +765,31 @@ export async function publishStandardCoverage(options: {
       throw new Error(
         'Standard coverage output is not a regular dedicated directory.'
       )
-    for (const item of await readdir(output, { withFileTypes: true }))
-      if (
-        !item.isFile() ||
-        !['coverage-final.json', 'coverage-summary.json', 'lcov.info'].includes(
-          item.name
+    if (config.formatterReports) {
+      async function assertRegularEntries(directory: string) {
+        for (const item of await readdir(directory, { withFileTypes: true })) {
+          if (item.isDirectory())
+            await assertRegularEntries(join(directory, item.name))
+          else if (!item.isFile())
+            throw new Error(
+              'Standard coverage directory contains a nonregular entry.'
+            )
+        }
+      }
+      await assertRegularEntries(output)
+    } else
+      for (const item of await readdir(output, { withFileTypes: true }))
+        if (
+          !item.isFile() ||
+          ![
+            'coverage-final.json',
+            'coverage-summary.json',
+            'lcov.info',
+          ].includes(item.name)
         )
-      )
-        throw new Error(
-          'Standard coverage directory contains an unrelated file.'
-        )
+          throw new Error(
+            'Standard coverage directory contains an unrelated file.'
+          )
     existed = true
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
@@ -750,9 +798,31 @@ export async function publishStandardCoverage(options: {
   const backup = staging + '-previous'
   let displaced = false
   let published = false
+  let formatterText: string | undefined
+  let reportFiles = Object.keys(artifacts)
   try {
-    for (const [name, value] of Object.entries(artifacts))
-      await writeFile(join(staging, name), value, { flag: 'wx', signal })
+    if (config.formatterReports) {
+      if (existed) await cp(output, staging, { recursive: true })
+      formatterText = await writeReports(
+        data,
+        staging,
+        config.reporter,
+        config.reporterOptions
+      )
+      reportFiles = []
+      async function collect(directory: string) {
+        for (const item of await readdir(directory, { withFileTypes: true })) {
+          const file = join(directory, item.name)
+          if (item.isDirectory()) await collect(file)
+          else if (item.isFile()) reportFiles.push(relative(staging, file))
+        }
+      }
+      await collect(staging)
+      reportFiles.sort()
+    } else {
+      for (const [name, value] of Object.entries(artifacts))
+        await writeFile(join(staging, name), value, { flag: 'wx', signal })
+    }
     await assertRuntime()
     // Recheck all source bytes after unimported discovery and before committing.
     for (const [file, value] of files)
@@ -806,9 +876,11 @@ export async function publishStandardCoverage(options: {
     published: true,
     summary,
     thresholdErrors,
-    textSummary: config.reporter.includes('text-summary')
-      ? standardCoverageTextSummary(data, summary)
-      : undefined,
-    files: Object.keys(artifacts).map((name) => join(output, name)),
+    textSummary: config.formatterReports
+      ? formatterText
+      : config.reporter.includes('text-summary')
+        ? standardCoverageTextSummary(data, summary)
+        : undefined,
+    files: reportFiles.map((name) => join(output, name)),
   }
 }

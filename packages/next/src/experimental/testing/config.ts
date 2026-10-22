@@ -1,6 +1,8 @@
 import type { CompilerAliases } from './compiler/aliases'
 import { parseCustomCoverageConfig } from './coverage/custom-options'
 import type { CustomCoverageConfig } from './coverage/custom-types'
+import { parseProjectStandardCoverage } from './coverage/options'
+import type { ProjectStandardCoverageConfig } from './coverage/types'
 import { validateOptions, type TestOptions } from './runner/collector'
 import type { TestTagDefinition } from './runner/tasks'
 import {
@@ -27,6 +29,7 @@ export interface TestProjectConfig {
   /** Private evaluated config mapping; raw public test settings cannot supply it. */
   compilerAliases?: CompilerAliases
   customCoverage?: CustomCoverageConfig
+  standardCoverage?: ProjectStandardCoverageConfig
   executionEnvironment?: TestExecutionEnvironment
   /** Explicit author name, distinct from the internal unnamed profile ID. */
   displayName?: string
@@ -300,7 +303,10 @@ export function parseTestConfig(
       )
       if (project.isolate !== undefined && typeof project.isolate !== 'boolean')
         invalid(`${label}.isolate must be a boolean.`)
-      const customCoverage = parseCustomCoverageConfig(project.coverage)
+      const standardCoverage = parseProjectStandardCoverage(project.coverage)
+      const customCoverage = standardCoverage
+        ? undefined
+        : parseCustomCoverageConfig(project.coverage)
       const name = project.name
       const browser =
         project.browser === undefined
@@ -681,6 +687,7 @@ export function parseTestConfig(
           : { isolate: project.isolate as boolean }),
         ...(executionEnvironment ? { executionEnvironment } : {}),
         ...(customCoverage ? { customCoverage } : {}),
+        ...(standardCoverage ? { standardCoverage } : {}),
         include: strings(project.include, [defaultPattern], `${label}.include`),
         ...(includeSource === undefined ? {} : { includeSource }),
         exclude: strings(project.exclude, [], `${label}.exclude`),
