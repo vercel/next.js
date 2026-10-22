@@ -902,6 +902,11 @@ async fn analyze_ecmascript_module_internal(
         // it, and every path in the module ends up in one arena.
         analysis.adopt_ast_paths(take(&mut var_graph.ast_paths));
         analysis.code_gens.extend(take(&mut var_graph.code_gens));
+        for (path, used_by_exports) in take(&mut var_graph.pure_initializers) {
+            analysis
+                .esm_bindings
+                .add_pure_initializer(path, used_by_exports);
+        }
         let effects = take(&mut var_graph.effects);
         // How each `require("…")` call's result is used, keyed by call position.
         let require_binding_usage = take(&mut var_graph.require_usage);

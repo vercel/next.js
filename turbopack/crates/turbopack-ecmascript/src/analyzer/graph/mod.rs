@@ -4,6 +4,7 @@ use swc_core::{
     common::BytePos,
     ecma::{ast::*, visit::VisitWithAstPath},
 };
+use turbo_rcstr::RcStr;
 use turbopack_core::resolve::ExportUsage;
 
 pub use crate::analyzer::graph::{
@@ -15,7 +16,7 @@ pub use crate::analyzer::graph::{
 use crate::{
     AnalyzeMode, SpecifiedModuleType,
     analyzer::{Bump, JsValue, graph::visitor::Analyzer},
-    ast_path_trie::AstPathTrieBuilder,
+    ast_path_trie::{AstPathId, AstPathTrieBuilder},
     chunk::CjsStaticExports,
     code_gen::CodeGen,
 };
@@ -37,6 +38,8 @@ pub struct VarGraph<'a> {
     pub effects: Vec<Effect<'a>>,
     // Some unconditional codegens, usually for ESM items.
     pub code_gens: Vec<CodeGen>,
+    /// Pure initializer paths and the exports that keep each initializer live.
+    pub pure_initializers: Vec<(AstPathId, Vec<RcStr>)>,
     /// Interns the AST paths used by `code_gens`. Effect processing keeps interning into
     /// this same trie, so every path for the module ends up sharing one arena.
     pub ast_paths: AstPathTrieBuilder,
@@ -84,6 +87,7 @@ pub fn create_graph<'a>(
             free_var_ids: Default::default(),
             effects: Default::default(),
             code_gens: Default::default(),
+            pure_initializers: Default::default(),
             ast_paths: Default::default(),
             require_usage: Default::default(),
             cjs_static_exports: Default::default(),

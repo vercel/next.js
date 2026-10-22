@@ -16,7 +16,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbopack_core::resolve::ExportUsage;
+use turbopack_core::resolve::{ExportUsage, ImportUsage};
 
 use crate::{
     AnalyzeMode,
@@ -2150,6 +2150,20 @@ impl VisitAstPath for Analyzer<'_, '_> {
         {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::VarDeclarator(n, VarDeclaratorField::Init));
+
+            if self.analyze_mode.is_codegen
+                && let Pat::Ident(ident) = &n.name
+                && let Some(ImportUsage::Exports(exports)) = self
+                    .eval_context
+                    .imports
+                    .pure_declarations
+                    .get(&ident.id.to_id())
+            {
+                let path = self.ast_paths.intern(ast_path.kinds().iter().copied());
+                self.data
+                    .pure_initializers
+                    .push((path, exports.iter().cloned().collect()));
+            }
 
             self.visit_opt_expr(&n.init, &mut ast_path);
         }
