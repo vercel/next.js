@@ -283,7 +283,6 @@ import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
 import isError, { getProperError } from '../../lib/is-error'
 import { createServerInsertedMetadata } from './metadata-insertion/create-server-inserted-metadata'
 import type { ParsedRequestHeaders } from '../route-modules/app-page/parse-request-headers'
-import { executeRevalidates } from '../revalidation-utils'
 import { trackPendingModules } from './module-loading/track-module-loading.external'
 import { isReactLargeShellError } from './react-large-shell-error'
 import type { GlobalErrorComponent } from '../../client/components/builtin/global-error'
@@ -2769,7 +2768,8 @@ async function prerenderAppPage({
   }
 
   // If we have pending revalidates, wait until they are all resolved.
-  const maybeRevalidatesPromise = executeRevalidates(workStore)
+  const maybeRevalidatesPromise =
+    workStore.afterContext.executeRevalidations(workStore)
   if (maybeRevalidatesPromise !== false) {
     const revalidatesPromise = maybeRevalidatesPromise.finally(() => {
       if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
@@ -2922,6 +2922,9 @@ async function renderAppPage(
 
   // MARK: RSC request
   if (isRSCRequest) {
+    // Register the close flush for Flight responses. These branches return
+    // before the HTML path executes pending revalidations.
+    workStore.afterContext.scheduleRevalidationsOnClose(workStore)
     if (runtimePrefetchStage !== null) {
       // MARK: RSC runtimePrefetch
       return generateRuntimePrefetchResult(
@@ -3087,7 +3090,8 @@ async function renderAppPage(
     }
 
     // If we have pending revalidates, wait until they are all resolved.
-    const maybeRevalidatesPromise = executeRevalidates(workStore)
+    const maybeRevalidatesPromise =
+      workStore.afterContext.executeRevalidations(workStore)
     if (maybeRevalidatesPromise !== false) {
       const revalidatesPromise = maybeRevalidatesPromise.finally(() => {
         if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
