@@ -188,7 +188,10 @@ async function handle(message: any) {
       await send({
         type: 'custom-reporter-result',
         captureTaskResults: reporters.some(
-          (reporter) => typeof reporter.onTestCaseResult === 'function'
+          (reporter) =>
+            typeof reporter.onTestCaseResult === 'function' ||
+            typeof reporter.onTestModuleEnd === 'function' ||
+            typeof reporter.onTestRunEnd === 'function'
         ),
       })
       return

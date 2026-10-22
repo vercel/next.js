@@ -4008,6 +4008,40 @@ it('matches actual raw collector parents in supported case and completion report
   })
 }, 160000)
 
+it('captures actual physical order and lexical parents for completion-only custom reporters', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'logical-case-parent.cjs'), 'completion'],
+    { encoding: 'utf8', timeout: 150000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 2,
+    cases: 16,
+    authoredRows: 2,
+    callbackRows: 32,
+    fullReferenceRows: true,
+  })
+}, 160000)
+
+it.each(['module', 'run'])(
+  'captures actual task snapshots when only the %s completion hook is present',
+  (variant) => {
+    const result = execFileSync(
+      process.execPath,
+      [join(__dirname, 'logical-case-parent.cjs'), variant],
+      { encoding: 'utf8', timeout: 150000 }
+    )
+    expect(JSON.parse(result)).toEqual({
+      profiles: 2,
+      cases: 16,
+      authoredRows: 2,
+      callbackRows: 16,
+      fullReferenceRows: true,
+    })
+  },
+  160000
+)
+
 it('retains actual collected hierarchy and live task identities before following bodies complete', async () => {
   const { createCollector } = await import(
     'next/dist/experimental/testing/runner/collector'

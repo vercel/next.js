@@ -5,6 +5,9 @@ const os = require('node:os')
 const { pathToFileURL } = require('node:url')
 
 async function main() {
+  const variant = process.argv[2] ?? 'case'
+  assert(['case', 'completion', 'module', 'run'].includes(variant))
+  const completionOnly = variant !== 'case'
   const repo = path.resolve(__dirname, '../../..')
   const { runOwnedNode, assertOwnedNodeCompleted } = await import(
     pathToFileURL(
@@ -24,7 +27,13 @@ async function main() {
     await fs.readFile(path.join(authored, 'pristine-task-scope.json'), 'utf8')
   )
   const callbacks = JSON.parse(
-    await fs.readFile(path.join(source, 'pristine.json'), 'utf8')
+    await fs.readFile(
+      path.join(
+        source,
+        completionOnly ? `pristine-${variant}.json` : 'pristine.json'
+      ),
+      'utf8'
+    )
   )
   const evidence = await fs.mkdtemp(
     path.join(os.tmpdir(), 'next-test-case-parent-')
@@ -42,7 +51,10 @@ async function main() {
       try {
         await fs.writeFile(path.join(fixture, 'task-scope.case.mjs'), body)
         await fs.copyFile(
-          path.join(source, 'reporter.mjs.txt'),
+          path.join(
+            source,
+            completionOnly ? 'completion-reporter.mjs.txt' : 'reporter.mjs.txt'
+          ),
           path.join(fixture, 'reporter.mjs')
         )
         await fs.writeFile(
@@ -83,6 +95,7 @@ async function main() {
           NEXT_TELEMETRY_DISABLED: '1',
           FORCE_COLOR: '0',
           NEXT_TEST_HIERARCHY_FILE: callbackFile,
+          NEXT_TEST_PARENT_HOOKS: variant,
         }
         for (const key of [
           'CI',
