@@ -9,6 +9,7 @@
  */
 
 import type { PostponedState, PrerenderOptions } from 'react-dom/static'
+import type { FlightResult } from './entry-base'
 import {
   renderToPipeableStream,
   resumeToPipeableStream,
@@ -77,6 +78,7 @@ export type {
 export type AnyStream = AnyStreamType
 
 export type FlightComponentMod = {
+  renderResultToPipeableStream?: typeof import('./entry-base').renderResultToPipeableStream
   renderToReadableStream: (
     model: any,
     webpackMap: any,
@@ -550,19 +552,44 @@ export function renderToNodeFlightStream(
     throw new Error('renderToPipeableStream is not implemented')
   }
 
-  // `renderToPipeableStream` has no `signal` option (unlike the Web
-  // `renderToReadableStream`), so pull `signal` out of the options and abort
-  // the returned pipeable ourselves when it fires. We drop the listener when
-  // the passthrough closes so a finished render's `pipeable` isn't retained by
-  // the request signal, which can outlive it.
   const { signal, ...renderOptions } = opts ?? {}
-
-  const pt = new PassThrough()
   const pipeable = ComponentMod.renderToPipeableStream!(
     payload,
     clientModules,
     renderOptions
   )
+  return pipeFlightToNodeStream(pipeable, signal)
+}
+
+export function renderResultToNodeStream(
+  ComponentMod: FlightComponentMod,
+  result: FlightResult,
+  clientModules: FlightClientModules,
+  opts: Omit<FlightRenderOptions, 'debugChannel'>
+): AnyStream {
+  if (!ComponentMod.renderResultToPipeableStream) {
+    throw new Error('renderResultToPipeableStream is not implemented')
+  }
+  const { signal, ...renderOptions } = opts ?? {}
+  const pipeable = ComponentMod.renderResultToPipeableStream(
+    result,
+    clientModules,
+    renderOptions
+  )
+  return pipeFlightToNodeStream(pipeable, signal)
+}
+
+function pipeFlightToNodeStream(
+  pipeable: ReturnType<
+    NonNullable<FlightComponentMod['renderToPipeableStream']>
+  >,
+  signal: AbortSignal | undefined
+): AnyStream {
+  // `renderToPipeableStream` has no `signal` option (unlike the Web
+  // `renderToReadableStream`), so abort the returned pipeable ourselves when
+  // the request signal fires. Drop the listener when the passthrough closes
+  // so a finished render isn't retained by a signal that can outlive it.
+  const pt = new PassThrough()
 
   // If the destination is destroyed before the render ended, React aborts with a
   // generic "The destination stream closed early." error that `onError` can't
@@ -1037,6 +1064,12 @@ async function pullFlightData(
       if (dataStream.readableEnded) {
         output.end()
         return
+      }
+
+      // A raw encoder stream can fail before hydration attaches its reader.
+      // Its error event has already fired, but the failure remains on the stream.
+      if (dataStream.errored) {
+        throw dataStream.errored
       }
 
       await waitForReadableOrEnd()

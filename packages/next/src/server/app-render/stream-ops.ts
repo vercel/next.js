@@ -48,6 +48,7 @@ export const createOnHeadersCallback = _m.createOnHeadersCallback
 export const resumeAndAbort = _m.resumeAndAbort
 export const renderToWebFlightStream = _m.renderToWebFlightStream
 export const renderToNodeFlightStream = _m.renderToNodeFlightStream
+export const renderResultToNodeStream = _m.renderResultToNodeStream
 export const streamToString = _m.streamToString
 export const renderToWebFizzStream = _m.renderToWebFizzStream
 export const renderToNodeFizzStream = _m.renderToNodeFizzStream

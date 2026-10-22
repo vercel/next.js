@@ -8,6 +8,7 @@
  */
 
 import type { PostponedState, PrerenderOptions } from 'react-dom/static'
+import type { FlightResult } from './entry-base'
 import { resume, renderToReadableStream } from 'react-dom/server'
 import { prerender } from 'react-dom/static'
 import type { renderToReadableStream as flightRenderToReadableStream } from 'react-server-dom-webpack/server'
@@ -242,6 +243,15 @@ export function renderToNodeFlightStream(
   _payload: FlightPayload,
   _clientModules: FlightClientModules,
   _opts: FlightRenderOptions
+): AnyStream {
+  throw new Error('not implemented')
+}
+
+export function renderResultToNodeStream(
+  _ComponentMod: FlightComponentMod,
+  _result: FlightResult,
+  _clientModules: FlightClientModules,
+  _opts: Omit<FlightRenderOptions, 'debugChannel'>
 ): AnyStream {
   throw new Error('not implemented')
 }
