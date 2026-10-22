@@ -498,12 +498,17 @@ fn module_exports_has_accessor(program: &Program, unresolved_mark: Mark) -> bool
     found
 }
 
+pub struct ModuleSideEffectsAnalysisResult {
+    pub side_effects: ModuleSideEffects,
+    pub pure_top_level_declarations: HashSet<Id>,
+}
+
 /// Analyzes a program to determine if it contains side effects at the top level.
 pub fn compute_module_evaluation_side_effects(
     program: &Program,
     comments: Option<&dyn Comments>,
     unresolved_mark: Mark,
-) -> ModuleSideEffects {
+) -> ModuleSideEffectsAnalysisResult {
     let module_exports_tainted = module_exports_is_tainted(program, unresolved_mark);
     let module_exports_has_accessor = module_exports_has_accessor(program, unresolved_mark);
     let safe_assignment_constant_ids = collect_safe_assignment_constant_ids(program);
@@ -515,12 +520,17 @@ pub fn compute_module_evaluation_side_effects(
         safe_assignment_constant_ids,
     );
     program.visit_with(&mut visitor);
-    if visitor.has_side_effects {
+    let side_effects = if visitor.has_side_effects {
         ModuleSideEffects::SideEffectful
     } else if visitor.has_imports {
         ModuleSideEffects::ModuleEvaluationIsSideEffectFree
     } else {
         ModuleSideEffects::SideEffectFree
+    };
+    ModuleSideEffectsAnalysisResult {
+        side_effects,
+        // TODO pass the right value
+        pure_top_level_declarations: visitor.safe_assignment_constant_ids,
     }
 }
 
@@ -1426,7 +1436,7 @@ mod tests {
                 ModuleSideEffects::SideEffectFree => "Expected code to be side effect free",
                 ModuleSideEffects::SideEffectful => "Expected code to have side effects",
             };
-            assert_eq!(actual, expected, "{}:\n{}", msg, code);
+            assert_eq!(actual.side_effects, expected, "{}:\n{}", msg, code);
         })
     }
 

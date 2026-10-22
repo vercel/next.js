@@ -48,16 +48,18 @@ impl EvalContext {
         force_free_values: Arc<FxHashSet<Id>>,
         comments: Option<&dyn Comments>,
     ) -> Self {
+        let module_side_effects =
+            module.map(|m| compute_module_evaluation_side_effects(m, comments, unresolved_mark));
+        let imports = module.map_or(ImportMap::default(), |m| {
+            ImportMap::analyze(unresolved_mark, m, comments, module_side_effects.as_ref())
+        });
         Self {
             unresolved_mark,
             top_level_mark,
-            imports: module.map_or(ImportMap::default(), |m| {
-                ImportMap::analyze(unresolved_mark, m, comments)
-            }),
+            imports,
             force_free_values,
-            module_side_effects: module.map_or(ModuleSideEffects::SideEffectful, |m| {
-                compute_module_evaluation_side_effects(m, comments, unresolved_mark)
-            }),
+            module_side_effects: module_side_effects
+                .map_or(ModuleSideEffects::SideEffectful, |m| m.side_effects),
         }
     }
 
