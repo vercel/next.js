@@ -43,6 +43,17 @@ export const getTemplateFile = ({
 export const SRC_DIR_NAMES = ["app", "pages", "styles"];
 
 /**
+ * Installed for `tracing: true`. The names must match `TRACING_PACKAGES` in
+ * packages/next/src/build/builtin-instrumentation.ts (a test fails if they
+ * drift).
+ */
+export const TRACING_DEPENDENCIES: Record<string, string> = {
+  "@vercel/otel": "^2.1.3",
+  "@opentelemetry/api": "^1.9.0",
+  "@opentelemetry/api-logs": "^0.223.0",
+};
+
+/**
  * Install a Next.js internal template to a given `root` directory.
  */
 export const installTemplate = async ({
@@ -185,6 +196,21 @@ export const installTemplate = async ({
     await fs.writeFile(nextConfigFile, configContent);
   }
 
+  {
+    const nextConfigFile = path.join(
+      root,
+      mode === "js" ? "next.config.mjs" : "next.config.ts",
+    );
+    let configContent = await fs.readFile(nextConfigFile, "utf8");
+
+    configContent = configContent.replace(
+      "/* config options here */\n",
+      "/* config options here */\n  tracing: true,\n",
+    );
+
+    await fs.writeFile(nextConfigFile, configContent);
+  }
+
   const tsconfigFile = path.join(
     root,
     mode === "js" ? "jsconfig.json" : "tsconfig.json",
@@ -313,6 +339,7 @@ export const installTemplate = async ({
       react: nextjsReactPeerVersion,
       "react-dom": nextjsReactPeerVersion,
       next: resolvePkgVersion("next"),
+      ...TRACING_DEPENDENCIES,
     },
     devDependencies: {},
   };

@@ -4,6 +4,7 @@ import {
   TemplateMode,
   TemplateType,
 } from '../../../../packages/create-next-app/templates'
+import { TRACING_PACKAGES } from 'next/dist/build/builtin-instrumentation'
 
 export type ProjectSettings = {
   files: string[]
@@ -40,6 +41,7 @@ export const projectSpecification: ProjectSpecification = {
       'next',
       'react',
       'react-dom',
+      ...TRACING_PACKAGES,
       ...(process.env.NEXT_RSPACK ? ['next-rspack'] : []),
     ],
     devDeps: ['eslint', 'eslint-config-next'],
@@ -178,12 +180,20 @@ export const projectSpecification: ProjectSpecification = {
   },
   'app-api': {
     js: {
-      deps: ['next', ...(process.env.NEXT_RSPACK ? ['next-rspack'] : [])],
+      deps: [
+        'next',
+        ...TRACING_PACKAGES,
+        ...(process.env.NEXT_RSPACK ? ['next-rspack'] : []),
+      ],
       devDeps: [],
       files: ['app/route.js', 'app/[slug]/route.js', 'jsconfig.json'],
     },
     ts: {
-      deps: ['next', ...(process.env.NEXT_RSPACK ? ['next-rspack'] : [])],
+      deps: [
+        'next',
+        ...TRACING_PACKAGES,
+        ...(process.env.NEXT_RSPACK ? ['next-rspack'] : []),
+      ],
       devDeps: ['@types/node', '@types/react', 'typescript'],
       files: [
         'app/route.ts',
