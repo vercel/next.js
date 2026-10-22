@@ -7,6 +7,27 @@ const repo = path.resolve(__dirname, '../../..')
 const { createHash } = require('node:crypto')
 const group = process.argv[2]
 const ordinaryEsmNamespaceGroups = {
+  'cjs-import-mock-hidden-flag-body-definitions': {
+    cases: 2,
+    prefix: 'WS2_CALLABLE_',
+  },
+  'cjs-import-mock-hidden-flag-callable': { cases: 9, prefix: 'WS2_CALLABLE_' },
+  'cjs-import-mock-hidden-flag-inherited': {
+    cases: 2,
+    prefix: 'WS2_CALLABLE_',
+  },
+  'cjs-import-mock-hidden-flag-definition-observation': {
+    cases: 2,
+    prefix: 'WS2_CALLABLE_',
+  },
+  'cjs-import-mock-hidden-flag-all-definitions': {
+    cases: 2,
+    prefix: 'WS2_CALLABLE_',
+  },
+  'cjs-import-mock-hidden-flag-publication-proxy': {
+    cases: 3,
+    prefix: 'WS2_CALLABLE_',
+  },
   'cjs-import-mock-self-default-publication': {
     cases: 9,
     prefix: 'WS2_CALLABLE_',

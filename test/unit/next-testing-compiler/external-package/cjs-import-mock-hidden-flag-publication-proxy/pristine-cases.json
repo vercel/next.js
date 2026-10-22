@@ -1,0 +1,17 @@
+[
+  {
+    "name": "publication-held-proxy",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "publication-throw-named",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "publication-throw-tag",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

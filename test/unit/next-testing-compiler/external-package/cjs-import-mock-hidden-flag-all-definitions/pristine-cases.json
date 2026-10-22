@@ -1,0 +1,12 @@
+[
+  {
+    "name": "complete hidden-all-definitions source and null-namespace definition observation",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete ordinary-all-definitions source and null-namespace definition observation",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

@@ -1,0 +1,47 @@
+[
+  {
+    "name": "complete truthy-hidden-flag callable default publication",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete hidden-async callable default publication",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete hidden-generator callable default publication",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete hidden-async-generator callable default publication",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete hidden-flag-last callable default publication",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete hidden-delete-flag publication mutation",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete hidden-default-enumerability publication mutation",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete hidden-replace-default publication mutation",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "callable automatic helper aliases retain fresh mocks and lazy originals",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

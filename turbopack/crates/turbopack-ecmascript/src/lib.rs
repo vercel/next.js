@@ -78,7 +78,7 @@ use swc_core::{
             Program, Script, SourceMapperExt, Stmt,
         },
         codegen::{Emitter, text_writer::JsWriter},
-        utils::StmtLikeInjector,
+        utils::{StmtLikeInjector, private_ident},
         visit::{VisitMut, VisitMutWith, VisitMutWithAstPath, VisitWith},
     },
     quote,
@@ -1224,6 +1224,7 @@ impl EcmascriptModuleContentOptions {
         &self,
         scope_hoisting_context: ScopeHoistingContext<'_>,
         eval_context: &EvalContext,
+        globals: &Globals,
     ) -> Result<(Vec<CodeGeneration>, ReadRef<CodeGens>)> {
         // Don't read `parsed` here again, it will cause a recomputation as `process_parse_result`
         // has consumed the cell already.
@@ -1318,10 +1319,18 @@ impl EcmascriptModuleContentOptions {
                         && !analysis.code_generation.await?.code_gens.iter().any(|code| matches!(code, code_gen::CodeGen::DynamicExpression(_)))
                         && turbopack_core::reference::primary_chunkable_referenced_modules(Vc::upcast(*actual), false, false).await?.is_empty(),
                         "Callable namespace must retain its exact successful leaf publication proof");
-                    let statement = quote!("((module, global) => { if (module.namespaceObject === undefined) { const raw = module.exports; if (typeof raw === 'function') { const namespace = global.Object.create(null); for (const key in raw) { if (key !== 'default' && !(key in namespace)) global.Object.defineProperty(namespace, key, {enumerable:true, configurable:true, get: () => raw[key]}); } global.Object.defineProperty(namespace, 'default', {value:raw, writable:true, enumerable:true, configurable:true}); global.Object.defineProperty(namespace, global.Symbol.toStringTag, {value:'Module'}); module.namespaceObject = namespace; global.Object.defineProperty(module, 'commonJsNamespacePublished', {value:true, configurable:true}); } } })($module, $global);" as Stmt,
-                        module: Expr = runtime_functions::TURBOPACK_MODULE.unmapped_expr(),
-                        global: Expr = runtime_functions::TURBOPACK_GLOBAL.unmapped_expr());
-                    Some(CodeGeneration { late_stmts: vec![CodeGenerationHoistedStmt::new(rcstr!("commonjs callable namespace publication"), statement)], ..Default::default() })
+                    let finish = GLOBALS.set(globals, || private_ident!("__turbopack_publish_commonjs__"));
+                    let interop_default = !actual.source().ident().await?.path.path.ends_with(".mjs");
+                    let prepare = quote!("var $finish = $prepare($interop_default);" as Stmt,
+                        finish = finish.clone(),
+                        prepare: Expr = runtime_functions::TURBOPACK_COMMONJS_PUBLICATION.unmapped_expr(),
+                        interop_default: Expr = Expr::Lit(ast::Lit::Bool(ast::Bool { span: DUMMY_SP, value: interop_default })));
+                    let publish = quote!("if ($finish) $finish();" as Stmt, finish = finish);
+                    Some(CodeGeneration {
+                        hoisted_stmts: vec![CodeGenerationHoistedStmt::new(rcstr!("commonjs callable namespace preparation"), prepare)],
+                        late_stmts: vec![CodeGenerationHoistedStmt::new(rcstr!("commonjs callable namespace publication"), publish)],
+                        ..Default::default()
+                    })
                 } else { None }
             } else { None };
             let additional_code_gens = [async_code_gen, exports_code_gen, commonjs_publication];
@@ -2275,6 +2284,7 @@ async fn process_parse_result(
                                 Either::Left(e) => e,
                                 Either::Right(e) => e,
                             },
+                            globals,
                         )
                         .await?;
 
@@ -2331,6 +2341,7 @@ async fn process_parse_result(
                                 Either::Left(e) => e,
                                 Either::Right(e) => e,
                             },
+                            globals,
                         )
                         .await?;
                     (code_gens, Some(ast_paths), None, None)

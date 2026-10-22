@@ -1,0 +1,52 @@
+import {test,expect,vi} from 'vitest';
+function val(v){return typeof v==='function'?{type:'function',name:v.name,length:v.length,tag:Object.prototype.toString.call(v),mock:vi.isMockFunction(v)}:v!==null&&typeof v==='object'?{type:'object',tag:Object.prototype.toString.call(v),keys:Reflect.ownKeys(v).map(String)}:{type:typeof v,value:v}}
+function shape(v){if(v===null||(typeof v!=='object'&&typeof v!=='function'))return val(v);return {type:typeof v,tag:Object.prototype.toString.call(v),nullPrototype:Object.getPrototypeOf(v)===null,objectPrototype:Object.getPrototypeOf(v)===Object.prototype,functionPrototype:Object.getPrototypeOf(v)===Function.prototype,keys:Reflect.ownKeys(v).map(k=>typeof k==='symbol'?'symbol:'+String(k.description):k),descriptors:Reflect.ownKeys(v).map(k=>{const d=Object.getOwnPropertyDescriptor(v,k);return {key:typeof k==='symbol'?'symbol:'+String(k.description):k,value:val(d.value),get:typeof d.get,set:typeof d.set,writable:d.writable??null,enumerable:d.enumerable,configurable:d.configurable}}),prototype:typeof v==='function'&&Object.hasOwn(v,'prototype')?{keys:Reflect.ownKeys(v.prototype).map(String),descriptors:Reflect.ownKeys(v.prototype).map(k=>{const d=Object.getOwnPropertyDescriptor(v.prototype,k);return {key:String(k),value:val(d.value),get:typeof d.get,set:typeof d.set,writable:d.writable??null,enumerable:d.enumerable,configurable:d.configurable}})}:null}}
+
+test('throw', async () => {
+const name = 'throw';
+    const originalDefine = Object.defineProperty;
+    const failure = new Error('authored body definition failure');
+    const trace = [];
+    Object.defineProperty = function(target, key, descriptor) {
+      if (key === '__esModule' && typeof target === 'function') {
+        trace.push({ event: 'flag-definition', keys: Object.keys(descriptor), bodyCount: globalThis.__bodyDefinitions?.[name] ?? 0 });
+        if (name === 'throw') throw failure;
+        return target;
+      }
+      if (key === Symbol.toStringTag && descriptor.value === 'Module' && Object.getPrototypeOf(target) === null) {
+        trace.push({ event: 'namespace-tag', bodyCount: globalThis.__bodyDefinitions?.[name] ?? 0, keys: Reflect.ownKeys(target).map(String) });
+      }
+      return Reflect.apply(originalDefine, this, [target, key, descriptor]);
+    };
+    let mocked, error;
+    try { mocked = await vi.importMock('./throw.cjs') } catch (caught) { error = caught } finally { Object.defineProperty = originalDefine }
+    let raw, again;
+    try { raw = await import('./throw.cjs') } catch (caught) { again = caught }
+    const serialize = error => error ? { name: error.name, message: error.message, ownKeys: Reflect.ownKeys(error).map(String) } : null;
+    console.log('WS2_CALLABLE_BODY:' + JSON.stringify({ name, trace, error: serialize(error), exactAuthoredError: error === failure, cachedErrorSame: again !== undefined && again === error, afterError: serialize(again), bodyCount: globalThis.__bodyDefinitions?.[name] ?? 0, afterDefinition: globalThis.__bodyAfterDefinitions?.[name] ?? 0, mock: shape(mocked), raw: shape(raw) }));
+    expect(true).toBe(true);
+});
+test('elide', async () => {
+const name = 'elide';
+    const originalDefine = Object.defineProperty;
+    const failure = new Error('authored body definition failure');
+    const trace = [];
+    Object.defineProperty = function(target, key, descriptor) {
+      if (key === '__esModule' && typeof target === 'function') {
+        trace.push({ event: 'flag-definition', keys: Object.keys(descriptor), bodyCount: globalThis.__bodyDefinitions?.[name] ?? 0 });
+        if (name === 'throw') throw failure;
+        return target;
+      }
+      if (key === Symbol.toStringTag && descriptor.value === 'Module' && Object.getPrototypeOf(target) === null) {
+        trace.push({ event: 'namespace-tag', bodyCount: globalThis.__bodyDefinitions?.[name] ?? 0, keys: Reflect.ownKeys(target).map(String) });
+      }
+      return Reflect.apply(originalDefine, this, [target, key, descriptor]);
+    };
+    let mocked, error;
+    try { mocked = await vi.importMock('./elide.cjs') } catch (caught) { error = caught } finally { Object.defineProperty = originalDefine }
+    let raw, again;
+    try { raw = await import('./elide.cjs') } catch (caught) { again = caught }
+    const serialize = error => error ? { name: error.name, message: error.message, ownKeys: Reflect.ownKeys(error).map(String) } : null;
+    console.log('WS2_CALLABLE_BODY:' + JSON.stringify({ name, trace, error: serialize(error), exactAuthoredError: error === failure, cachedErrorSame: again !== undefined && again === error, afterError: serialize(again), bodyCount: globalThis.__bodyDefinitions?.[name] ?? 0, afterDefinition: globalThis.__bodyAfterDefinitions?.[name] ?? 0, mock: shape(mocked), raw: shape(raw) }));
+    expect(true).toBe(true);
+});

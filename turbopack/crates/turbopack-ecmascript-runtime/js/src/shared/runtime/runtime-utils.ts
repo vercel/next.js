@@ -103,6 +103,13 @@ declare function getOrInstantiateRuntimeModule(
   moduleId: ModuleId
 ): Module
 
+// Preserve the module evaluator primitives while semantic definitions still observe
+// the live Object methods. Private module bookkeeping must not call authored hooks.
+const commonJsPublicationObject = Object
+const commonJsPublicationProxy = Proxy
+const commonJsPublicationReflect = Reflect
+const commonJsPublicationDefineProperty = Object.defineProperty
+
 const hasOwnProperty = Object.prototype.hasOwnProperty
 const toStringTag = typeof Symbol !== 'undefined' && Symbol.toStringTag
 
@@ -530,6 +537,92 @@ function exportNamespace(
   module.exports = module.namespaceObject = namespace
 }
 contextPrototype.n = exportNamespace
+
+/** Prepare only the namespace of the current compiler-certified callable owner. */
+function prepareCommonJsPublication(
+  this: TurbopackBaseContext<Module>,
+  interopDefault: boolean
+): (() => void) | undefined {
+  const module = this.m
+  if (module.namespaceObject !== undefined) return
+
+  const namespace: Exports = Object.create(null)
+  Object.defineProperty(namespace, Symbol.toStringTag, {
+    value: 'Module',
+    enumerable: false,
+    configurable: false,
+  })
+
+  const defineExport = (
+    target: object,
+    key: PropertyKey,
+    get: () => unknown
+  ) => {
+    Object.defineProperty(target, key, {
+      enumerable: true,
+      configurable: true,
+      get,
+    })
+  }
+  const primitive = (value: unknown) =>
+    value === null || (typeof value !== 'object' && typeof value !== 'function')
+  const copyExports = (source: any) => {
+    if (
+      proxy === source ||
+      primitive(source) ||
+      Array.isArray(source) ||
+      source instanceof Promise
+    )
+      return
+    for (const key in source) {
+      if (key !== 'default' && !(key in proxy)) {
+        try {
+          defineExport(proxy, key, () => source[key])
+        } catch {}
+      }
+    }
+  }
+  const proxy = new commonJsPublicationProxy(namespace, {
+    get(target, key, receiver) {
+      if (commonJsPublicationReflect.has(target, key)) {
+        return commonJsPublicationReflect.get(target, key, receiver)
+      }
+      return commonJsPublicationReflect.get(
+        commonJsPublicationObject.prototype,
+        key,
+        receiver
+      )
+    },
+    getPrototypeOf: () => commonJsPublicationObject.prototype,
+    set(_target, key, value) {
+      if (key === 'default' && interopDefault && proxy !== value) {
+        copyExports(value)
+        namespace.default = value
+        return true
+      }
+      if (!commonJsPublicationReflect.has(namespace, 'default'))
+        namespace.default = {}
+      if (!primitive(namespace.default)) namespace.default[key] = value
+      if (key !== 'default') defineExport(namespace, key, () => value)
+      return true
+    },
+  })
+
+  return () => {
+    // Preserve an independently created partial namespace, and leave raw exports intact.
+    if (module.namespaceObject !== undefined) return
+    const raw = module.exports
+    if (typeof raw !== 'function') return
+    copyExports(raw)
+    namespace.default = raw
+    module.namespaceObject = namespace
+    commonJsPublicationDefineProperty(module, 'commonJsNamespacePublished', {
+      value: true,
+      configurable: true,
+    })
+  }
+}
+contextPrototype.p = prepareCommonJsPublication
 
 function createGetter(obj: Record<string | symbol, any>, key: string | symbol) {
   return () => obj[key]

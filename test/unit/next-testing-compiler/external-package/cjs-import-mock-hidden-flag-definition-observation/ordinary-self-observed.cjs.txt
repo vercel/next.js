@@ -1,0 +1,3 @@
+globalThis.__ws2CallableAutomaticCounts??={};globalThis.__ws2CallableAutomaticCounts["ordinary-self-observed"]=(globalThis.__ws2CallableAutomaticCounts["ordinary-self-observed"]||0)+1;
+function callable(input){return this.label+':'+input};callable.__esModule=true;callable.default=callable;
+callable.label='root';callable.method=function member(){return this.label};module.exports=callable;

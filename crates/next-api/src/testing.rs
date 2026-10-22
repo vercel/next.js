@@ -4518,6 +4518,8 @@ mod typescript_fallback_tests {
                 ("./object.cjs", turbopack_ecmascript::cjs_reset_export::CommonJsResetExportShape::ObjectLiteral, false),
                 ("./unknown.cjs", turbopack_ecmascript::cjs_reset_export::CommonJsResetExportShape::Unsupported, false),
                 ("./self.cjs", turbopack_ecmascript::cjs_reset_export::CommonJsResetExportShape::Unsupported, true),
+                ("./hidden.cjs", turbopack_ecmascript::cjs_reset_export::CommonJsResetExportShape::Unsupported, true),
+                ("./hidden-unproven.cjs", turbopack_ecmascript::cjs_reset_export::CommonJsResetExportShape::Unsupported, false),
             ] {
                 let origin = PlainResolveOrigin::new(Vc::upcast(*context), project.join("entry.test.mjs")?);
                 let resolved = esm_resolve(Vc::upcast(origin), Request::parse_string(request.into()), EcmaScriptModulesReferenceSubType::Import, ResolveErrorMode::Ignore, None).await?;
@@ -4557,6 +4559,18 @@ mod typescript_fallback_tests {
             (
                 "self.cjs",
                 "function exported(value) { return value }; exported.__esModule=true; \
+                 exported.default=exported; module.exports=exported;\n",
+            ),
+            (
+                "hidden.cjs",
+                "function exported(value) { return value }; \
+                 Object.defineProperty(exported,'__esModule',{value:true,writable:true,\
+                 configurable:true}); exported.default=exported; module.exports=exported;\n",
+            ),
+            (
+                "hidden-unproven.cjs",
+                "function exported(value) { return value }; \
+                 Object.defineProperty(exported,'__esModule',{value:true}); \
                  exported.default=exported; module.exports=exported;\n",
             ),
         ] {

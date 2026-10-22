@@ -1,0 +1,1 @@
+export default {test:{environment:'node',include:['contract.test.mjs'],maxWorkers:1,fileParallelism:false,isolate:true},cacheDir:'./.reference-cache'}

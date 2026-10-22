@@ -7916,3 +7916,45 @@ it('retains complete callable self-default inherited setter observations', () =>
   expect(actual.close).toEqual({ code: 0, signal: null })
   expect(actual.rows).toHaveLength(2)
 }, 140000)
+
+it.each([
+  ['hidden-flag-body-definitions', 2],
+  ['hidden-flag-callable', 9],
+  ['hidden-flag-inherited', 2],
+  ['hidden-flag-definition-observation', 2],
+  ['hidden-flag-all-definitions', 2],
+  ['hidden-flag-publication-proxy', 3],
+])(
+  'retains complete CommonJS %s publication behavior',
+  (group, cases) => {
+    const { execFileSync } = require('node:child_process')
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'external-package-integration.cjs'),
+          `cjs-import-mock-${group}`,
+        ],
+        { encoding: 'utf8', timeout: 135000 }
+      )
+    )
+    expect(actual.close).toEqual({ code: 0, signal: null })
+    expect(actual.rows).toHaveLength(cases)
+  },
+  140000
+)
+
+it('keeps callable publication namespaces private to each module generation', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [join(__dirname, 'commonjs-publication-runtime.cjs')],
+      {
+        encoding: 'utf8',
+        timeout: 10000,
+      }
+    )
+  )
+  expect(actual).toEqual({ assertions: 20 })
+})

@@ -86,6 +86,7 @@ pub const TURBOPACK_ESM: &TurbopackRuntimeFunctionShortcut = make_shortcut!("s")
 pub const TURBOPACK_ESM_REEXPORT: &TurbopackRuntimeFunctionShortcut = make_shortcut!("S");
 pub const TURBOPACK_EXPORT_VALUE: &TurbopackRuntimeFunctionShortcut = make_shortcut!("v");
 pub const TURBOPACK_EXPORT_URL: &TurbopackRuntimeFunctionShortcut = make_shortcut!("q");
+pub const TURBOPACK_COMMONJS_PUBLICATION: &TurbopackRuntimeFunctionShortcut = make_shortcut!("p");
 pub const TURBOPACK_EXPORT_NAMESPACE: &TurbopackRuntimeFunctionShortcut = make_shortcut!("n");
 pub const TURBOPACK_CACHE: &TurbopackRuntimeFunctionShortcut = make_shortcut!("c");
 pub const TURBOPACK_MODULES: &TurbopackRuntimeFunctionShortcut = make_shortcut!("M");

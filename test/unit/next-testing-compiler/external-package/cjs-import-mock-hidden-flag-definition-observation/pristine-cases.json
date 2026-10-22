@@ -1,0 +1,12 @@
+[
+  {
+    "name": "complete hidden-flag-observed Object.defineProperty observation",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete ordinary-self-observed Object.defineProperty observation",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

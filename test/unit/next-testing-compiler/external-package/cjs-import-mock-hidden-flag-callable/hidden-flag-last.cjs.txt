@@ -1,0 +1,2 @@
+globalThis.__ws2CallableAutomaticCounts??={};globalThis.__ws2CallableAutomaticCounts["hidden-flag-last"]=(globalThis.__ws2CallableAutomaticCounts["hidden-flag-last"]||0)+1;
+function callable(input){return this.label+':'+input};callable.label='root';callable.method=function member(){return this.label};callable.default=callable;Object.defineProperty(callable,'__esModule',{value:true,writable:true,configurable:true});module.exports=callable;

@@ -109,6 +109,60 @@ fn assignment(statement: &Stmt) -> Option<&swc_core::ecma::ast::AssignExpr> {
     };
     (value.op == AssignOp::Assign).then_some(value)
 }
+fn own_true_flag_definition(statement: &Stmt, binding: &Id, unresolved: Mark) -> bool {
+    let Stmt::Expr(statement) = statement else {
+        return false;
+    };
+    let Expr::Call(call) = &*statement.expr else {
+        return false;
+    };
+    let swc_core::ecma::ast::Callee::Expr(callee) = &call.callee else {
+        return false;
+    };
+    let Expr::Member(member) = &**callee else {
+        return false;
+    };
+    if !matches!(&*member.obj, Expr::Ident(ident) if is_global(ident, "Object", unresolved))
+        || !matches!(&member.prop, MemberProp::Ident(key) if key.sym == "defineProperty")
+        || call.type_args.is_some()
+        || call.args.len() != 3
+        || call.args.iter().any(|arg| arg.spread.is_some())
+        || !matches!(&*call.args[0].expr, Expr::Ident(ident) if ident.to_id() == *binding)
+        || !matches!(&*call.args[1].expr, Expr::Lit(Lit::Str(key)) if key.value.as_str() == Some("__esModule"))
+    {
+        return false;
+    }
+    let Expr::Object(descriptor) = &*call.args[2].expr else {
+        return false;
+    };
+    if descriptor.props.len() != 3 {
+        return false;
+    }
+    let mut fields = [false; 3];
+    for property in &descriptor.props {
+        let PropOrSpread::Prop(property) = property else {
+            return false;
+        };
+        let Prop::KeyValue(property) = &**property else {
+            return false;
+        };
+        let Some(index) = (match property_key(&property.key) {
+            Some("value") => Some(0),
+            Some("writable") => Some(1),
+            Some("configurable") => Some(2),
+            _ => None,
+        }) else {
+            return false;
+        };
+        if fields[index] || !matches!(&*property.value, Expr::Lit(Lit::Bool(value)) if value.value)
+        {
+            return false;
+        }
+        fields[index] = true;
+    }
+    fields.into_iter().all(|field| field)
+}
+
 fn certify(program: &Program, unresolved: Mark) -> CommonJsResetExportShape {
     certify_for_callable_publication(program, unresolved, false)
 }
@@ -174,6 +228,7 @@ fn certify_for_callable_publication(
         }
         _ => return unsupported,
     };
+    let mut flag_definitions = 0;
     let mut self_default_assignments = 0;
     let mut default_assignments = 0;
     let mut flag_assignments = 0;
@@ -186,6 +241,12 @@ fn certify_for_callable_publication(
             continue;
         }
         if let Some(binding) = &binding {
+            if allow_self_default && own_true_flag_definition(statement, binding, unresolved) {
+                flag_definitions += 1;
+                flag_assignments += 1;
+                true_flag_assignments += 1;
+                continue;
+            }
             if let Stmt::Decl(Decl::Fn(function)) = statement
                 && function.ident.to_id() == *binding
             {
@@ -226,7 +287,7 @@ fn certify_for_callable_publication(
             return unsupported;
         }
     }
-    if self_default_assignments != 0
+    if (self_default_assignments != 0 || flag_definitions != 0)
         && !(self_default_assignments == 1
             && default_assignments == 1
             && flag_assignments == 1
@@ -560,6 +621,94 @@ mod tests {
              exported.default=exported; module.exports=exported",
             "function exported() {}; exported.__esModule=true; { let exported={}; \
              exported.default=exported }; module.exports=exported.default",
+        ] {
+            check_publication(source, CommonJsResetExportShape::Unsupported);
+        }
+    }
+
+    #[test]
+    fn publication_accepts_exact_own_hidden_data_flags_without_reset_admission() {
+        for kind in ["function", "async function", "function*", "async function*"] {
+            for descriptor in [
+                "{value:true,writable:true,configurable:true}",
+                "{'configurable':true,'value':true,'writable':true}",
+            ] {
+                for flag_first in [true, false] {
+                    let flag = format!("Object.defineProperty(exported,'__esModule',{descriptor})");
+                    let members = if flag_first {
+                        format!("{flag}; exported.default=exported")
+                    } else {
+                        format!("exported.default=exported; {flag}")
+                    };
+                    check_publication(
+                        &format!(
+                            "{kind} exported(value) {{ return this.label }}; {members}; \
+                             module.exports=exported"
+                        ),
+                        CommonJsResetExportShape::FunctionBinding,
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn publication_rejects_unproven_hidden_flag_descriptors_and_bindings() {
+        for descriptor in [
+            "{value:true}",
+            "{value:false,writable:true,configurable:true}",
+            "{value:1,writable:true,configurable:true}",
+            "{value:true,writable:false,configurable:true}",
+            "{value:true,writable:true,configurable:false}",
+            "{value:true,writable:true,enumerable:false}",
+            "{value:true,writable:true,configurable:true,enumerable:false}",
+            "{value:true,writable:true,configurable:true,value:true}",
+            "{value:true,writable:true,configurable:true,...extra}",
+            "{['value']:true,writable:true,configurable:true}",
+            "{get value(){return true},writable:true,configurable:true}",
+            "{value,writable:true,configurable:true}",
+            "{value:true,writable:true,configurable:enabled}",
+        ] {
+            check_publication(
+                &format!(
+                    "function exported() {{}}; \
+                     Object.defineProperty(exported,'__esModule',{descriptor}); \
+                     exported.default=exported; module.exports=exported"
+                ),
+                CommonJsResetExportShape::Unsupported,
+            );
+        }
+        for source in [
+            "const Object=globalThis.Object; function exported() {}; \
+             Object.defineProperty(exported,'__esModule',{value:true,writable:true,configurable:\
+             true}); exported.default=exported; module.exports=exported",
+            "function exported() {}; \
+             Object['defineProperty'](exported,'__esModule',{value:true,writable:true,\
+             configurable:true}); exported.default=exported; module.exports=exported",
+            "function exported() {}; Object.defineProperty(exported,'__esModule',...descriptors); \
+             exported.default=exported; module.exports=exported",
+            "function exported() {}; \
+             Object.defineProperty(exported,'__esModule',{value:true,writable:true,configurable:\
+             true},extra); exported.default=exported; module.exports=exported",
+            "function exported() {}; \
+             Object.defineProperty(exported,'__esModule',{value:true,writable:true,configurable:\
+             true}); module.exports=exported",
+            "function exported() {}; \
+             Object.defineProperty(exported,'__esModule',{value:true,writable:true,configurable:\
+             true}); exported.__esModule=true; exported.default=exported; module.exports=exported",
+            "function exported() {}; \
+             Object.defineProperty(exported,'__esModule',{value:true,writable:true,configurable:\
+             true}); Object.defineProperty(exported,'__esModule',{value:true,writable:true,\
+             configurable:true}); exported.default=exported; module.exports=exported",
+            "function exported() {}; \
+             Object.defineProperty(exported,'__esModule',{value:true,writable:true,configurable:\
+             true}); exported.default=exported; exported.default=7; module.exports=exported",
+            "function exported() { return exported }; \
+             Object.defineProperty(exported,'__esModule',{value:true,writable:true,configurable:\
+             true}); exported.default=exported; module.exports=exported",
+            "function exported() {}; \
+             Object.defineProperty(exported,'__esModule',{value:true,writable:true,configurable:\
+             true}); exported.default=exported; const escaped=exported; module.exports=exported",
         ] {
             check_publication(source, CommonJsResetExportShape::Unsupported);
         }

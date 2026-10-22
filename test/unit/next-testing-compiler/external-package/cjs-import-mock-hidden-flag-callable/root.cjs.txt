@@ -1,0 +1,1 @@
+globalThis.__ws2CallableAlias=(globalThis.__ws2CallableAlias||0)+1;function callable(input){return this.label+':'+input};Object.defineProperty(callable,'__esModule',{value:true,writable:true,configurable:true});callable.default=callable;callable.label='root';callable.method=function member(){return this.label};module.exports=callable;

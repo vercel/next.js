@@ -1,0 +1,786 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CALLABLE_PROXY",
+    "value": {
+      "name": "publication-held-proxy",
+      "trace": [
+        {
+          "event": "empty-tag",
+          "keys": [],
+          "descriptorKeys": ["value", "enumerable", "configurable"],
+          "descriptor": {
+            "value": "Module",
+            "enumerable": false,
+            "configurable": false
+          },
+          "bodyCount": 0
+        },
+        {
+          "event": "named-label",
+          "keys": ["symbol:Symbol.toStringTag"],
+          "nullPrototype": false,
+          "objectPrototype": true,
+          "sameAsEmpty": false,
+          "descriptorKeys": ["enumerable", "configurable", "get"],
+          "defaultPresent": false,
+          "receiver": {
+            "type": "string",
+            "value": "root"
+          }
+        }
+      ],
+      "thrown": false,
+      "error": null,
+      "rawErrorSame": false,
+      "rawErrorAfter": null,
+      "rawErrorAfterSame": true,
+      "bodyCount": 1,
+      "mock": {
+        "type": "object",
+        "tag": "[object Module]",
+        "nullPrototype": false,
+        "objectPrototype": true,
+        "functionPrototype": false,
+        "keys": [
+          "label",
+          "method",
+          "__esModule",
+          "default",
+          "symbol:Symbol.toStringTag"
+        ],
+        "descriptors": [
+          {
+            "key": "label",
+            "value": {
+              "type": "string",
+              "value": "root"
+            },
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "method",
+            "value": {
+              "type": "function",
+              "name": "member",
+              "length": 0,
+              "tag": "[object Function]",
+              "mock": true
+            },
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "__esModule",
+            "value": {
+              "type": "boolean",
+              "value": true
+            },
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "default",
+            "value": {
+              "type": "function",
+              "name": "callable",
+              "length": 1,
+              "tag": "[object Function]",
+              "mock": true
+            },
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "symbol:Symbol.toStringTag",
+            "value": {
+              "type": "string",
+              "value": "Module"
+            },
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          }
+        ],
+        "prototype": null
+      },
+      "raw": {
+        "type": "object",
+        "tag": "[object Module]",
+        "nullPrototype": true,
+        "objectPrototype": false,
+        "functionPrototype": false,
+        "keys": [
+          "label",
+          "method",
+          "__esModule",
+          "default",
+          "symbol:Symbol.toStringTag"
+        ],
+        "descriptors": [
+          {
+            "key": "label",
+            "value": {
+              "type": "undefined"
+            },
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "method",
+            "value": {
+              "type": "undefined"
+            },
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "__esModule",
+            "value": {
+              "type": "undefined"
+            },
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "default",
+            "value": {
+              "type": "function",
+              "name": "callable",
+              "length": 1,
+              "tag": "[object Function]",
+              "mock": false
+            },
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "symbol:Symbol.toStringTag",
+            "value": {
+              "type": "string",
+              "value": "Module"
+            },
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": false
+          }
+        ],
+        "prototype": null
+      },
+      "mutation": {
+        "rawAdded": {
+          "type": "string",
+          "value": "late"
+        },
+        "defaultAdded": {
+          "type": "string",
+          "value": "late"
+        },
+        "proxyAdded": {
+          "type": "string",
+          "value": "late"
+        },
+        "proxyProtoObject": true,
+        "namespaceProtoNull": true,
+        "rawSameEmpty": true,
+        "rawSameProxy": false,
+        "proxyDefaultSame": true,
+        "namespaceShape": {
+          "type": "object",
+          "tag": "[object Module]",
+          "nullPrototype": true,
+          "objectPrototype": false,
+          "functionPrototype": false,
+          "keys": [
+            "label",
+            "method",
+            "__esModule",
+            "default",
+            "added",
+            "symbol:Symbol.toStringTag"
+          ],
+          "descriptors": [
+            {
+              "key": "label",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "__esModule",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "value": {
+                "type": "function",
+                "name": "callable",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "added",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.toStringTag",
+              "value": {
+                "type": "string",
+                "value": "Module"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ],
+          "prototype": null
+        },
+        "proxyShape": {
+          "type": "object",
+          "tag": "[object Module]",
+          "nullPrototype": false,
+          "objectPrototype": true,
+          "functionPrototype": false,
+          "keys": [
+            "label",
+            "method",
+            "__esModule",
+            "default",
+            "added",
+            "symbol:Symbol.toStringTag"
+          ],
+          "descriptors": [
+            {
+              "key": "label",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "method",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "__esModule",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "value": {
+                "type": "function",
+                "name": "callable",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "added",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.toStringTag",
+              "value": {
+                "type": "string",
+                "value": "Module"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ],
+          "prototype": null
+        }
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CALLABLE_PROXY",
+    "value": {
+      "name": "publication-throw-named",
+      "trace": [
+        {
+          "event": "empty-tag",
+          "keys": [],
+          "descriptorKeys": ["value", "enumerable", "configurable"],
+          "descriptor": {
+            "value": "Module",
+            "enumerable": false,
+            "configurable": false
+          },
+          "bodyCount": 0
+        },
+        {
+          "event": "named-label",
+          "keys": ["symbol:Symbol.toStringTag"],
+          "nullPrototype": false,
+          "objectPrototype": true,
+          "sameAsEmpty": false,
+          "descriptorKeys": ["enumerable", "configurable", "get"],
+          "defaultPresent": false,
+          "receiver": {
+            "type": "string",
+            "value": "root"
+          }
+        }
+      ],
+      "thrown": true,
+      "error": null,
+      "rawErrorSame": false,
+      "rawErrorAfter": null,
+      "rawErrorAfterSame": true,
+      "bodyCount": 1,
+      "mock": {
+        "type": "object",
+        "tag": "[object Module]",
+        "nullPrototype": false,
+        "objectPrototype": true,
+        "functionPrototype": false,
+        "keys": [
+          "method",
+          "__esModule",
+          "default",
+          "symbol:Symbol.toStringTag"
+        ],
+        "descriptors": [
+          {
+            "key": "method",
+            "value": {
+              "type": "function",
+              "name": "member",
+              "length": 0,
+              "tag": "[object Function]",
+              "mock": true
+            },
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "__esModule",
+            "value": {
+              "type": "boolean",
+              "value": true
+            },
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "default",
+            "value": {
+              "type": "function",
+              "name": "callable",
+              "length": 1,
+              "tag": "[object Function]",
+              "mock": true
+            },
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "symbol:Symbol.toStringTag",
+            "value": {
+              "type": "string",
+              "value": "Module"
+            },
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          }
+        ],
+        "prototype": null
+      },
+      "raw": {
+        "type": "object",
+        "tag": "[object Module]",
+        "nullPrototype": true,
+        "objectPrototype": false,
+        "functionPrototype": false,
+        "keys": [
+          "method",
+          "__esModule",
+          "default",
+          "symbol:Symbol.toStringTag"
+        ],
+        "descriptors": [
+          {
+            "key": "method",
+            "value": {
+              "type": "undefined"
+            },
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "__esModule",
+            "value": {
+              "type": "undefined"
+            },
+            "get": "function",
+            "set": "undefined",
+            "writable": null,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "default",
+            "value": {
+              "type": "function",
+              "name": "callable",
+              "length": 1,
+              "tag": "[object Function]",
+              "mock": false
+            },
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "symbol:Symbol.toStringTag",
+            "value": {
+              "type": "string",
+              "value": "Module"
+            },
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": false
+          }
+        ],
+        "prototype": null
+      },
+      "mutation": {
+        "rawAdded": {
+          "type": "string",
+          "value": "late"
+        },
+        "defaultAdded": {
+          "type": "string",
+          "value": "late"
+        },
+        "proxyAdded": {
+          "type": "string",
+          "value": "late"
+        },
+        "proxyProtoObject": true,
+        "namespaceProtoNull": true,
+        "rawSameEmpty": true,
+        "rawSameProxy": false,
+        "proxyDefaultSame": true,
+        "namespaceShape": {
+          "type": "object",
+          "tag": "[object Module]",
+          "nullPrototype": true,
+          "objectPrototype": false,
+          "functionPrototype": false,
+          "keys": [
+            "method",
+            "__esModule",
+            "default",
+            "added",
+            "symbol:Symbol.toStringTag"
+          ],
+          "descriptors": [
+            {
+              "key": "method",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "__esModule",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "value": {
+                "type": "function",
+                "name": "callable",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "added",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.toStringTag",
+              "value": {
+                "type": "string",
+                "value": "Module"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ],
+          "prototype": null
+        },
+        "proxyShape": {
+          "type": "object",
+          "tag": "[object Module]",
+          "nullPrototype": false,
+          "objectPrototype": true,
+          "functionPrototype": false,
+          "keys": [
+            "method",
+            "__esModule",
+            "default",
+            "added",
+            "symbol:Symbol.toStringTag"
+          ],
+          "descriptors": [
+            {
+              "key": "method",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "__esModule",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "value": {
+                "type": "function",
+                "name": "callable",
+                "length": 1,
+                "tag": "[object Function]",
+                "mock": false
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "added",
+              "value": {
+                "type": "undefined"
+              },
+              "get": "function",
+              "set": "undefined",
+              "writable": null,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "symbol:Symbol.toStringTag",
+              "value": {
+                "type": "string",
+                "value": "Module"
+              },
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ],
+          "prototype": null
+        }
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CALLABLE_PROXY",
+    "value": {
+      "name": "publication-throw-tag",
+      "trace": [
+        {
+          "event": "empty-tag",
+          "keys": [],
+          "descriptorKeys": ["value", "enumerable", "configurable"],
+          "descriptor": {
+            "value": "Module",
+            "enumerable": false,
+            "configurable": false
+          },
+          "bodyCount": 0
+        }
+      ],
+      "thrown": true,
+      "error": {
+        "name": "Error",
+        "message": "authored-definition-failure",
+        "cause": null,
+        "ownKeys": ["stack", "message"]
+      },
+      "rawErrorSame": true,
+      "rawErrorAfter": {
+        "name": "Error",
+        "message": "authored-definition-failure",
+        "cause": null,
+        "ownKeys": ["stack", "message"]
+      },
+      "rawErrorAfterSame": true,
+      "bodyCount": 0,
+      "mock": {
+        "type": "undefined"
+      },
+      "raw": null,
+      "mutation": null
+    }
+  }
+]
