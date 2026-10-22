@@ -80,18 +80,25 @@ pub async fn get_sass_loader_rules(
     let additional_data = sass_options
         .get("prependData")
         .or(sass_options.get("additionalData"));
+    let mut sass_loader_options = take(
+        serde_json::json!({
+            "sourceMap": true,
+            "sassOptions": sass_options,
+        })
+        .as_object_mut()
+        .unwrap(),
+    );
+    // `json!` serializes absent optional values as null, which the loader schema rejects.
+    // Omit absent settings, but preserve explicit nulls so validation can reject them.
+    if let Some(implementation) = sass_options.get("implementation") {
+        sass_loader_options.insert("implementation".into(), implementation.clone());
+    }
+    if let Some(additional_data) = additional_data {
+        sass_loader_options.insert("additionalData".into(), additional_data.clone());
+    }
     let sass_loader = WebpackLoaderItem {
         loader: rcstr!("next/dist/compiled/sass-loader"),
-        options: take(
-            serde_json::json!({
-                "implementation": sass_options.get("implementation"),
-                "sourceMap": true,
-                "sassOptions": sass_options,
-                "additionalData": additional_data
-            })
-            .as_object_mut()
-            .unwrap(),
-        ),
+        options: sass_loader_options,
     };
     let resolve_url_loader = WebpackLoaderItem {
         loader: rcstr!("next/dist/build/webpack/loaders/resolve-url-loader/index"),

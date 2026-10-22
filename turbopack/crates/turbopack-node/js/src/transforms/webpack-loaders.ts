@@ -16,6 +16,7 @@ import {
 } from './webpack-loaders-runtime'
 import fs from 'fs'
 import path from 'path'
+import { parse as parseQuery } from 'querystring'
 
 export type IpcInfoMessage =
   | {
@@ -178,10 +179,11 @@ const transform = (
       trace: StackFrame[] | undefined
     }> = []
 
+    let loaderContext: any
     runLoaders(
       {
         resource: resource + query,
-        context: {
+        context: (loaderContext = {
           version: 2,
           _module: {
             // For debugging purpose, if someone find context is not full compatible to
@@ -193,11 +195,50 @@ const transform = (
           target,
           mode,
           sourceMap,
-          getOptions() {
-            const entry = this.loaders[this.loaderIndex]
-            return entry.options && typeof entry.options === 'object'
-              ? entry.options
-              : {}
+          getOptions(schema?: any) {
+            const entry = loaderContext.loaders[loaderContext.loaderIndex]
+            let options = entry.options
+            if (typeof options === 'string') {
+              if (options.startsWith('{') && options.endsWith('}')) {
+                try {
+                  // Match the formatting metadata added by webpack's JSON parser.
+                  const formatting =
+                    options.match(/^\{\}$/) ||
+                    options.match(/^\s*\{((?:\r?\n)+)([\s\t]*)/)
+                  const [, newline = '\n', indent = '  '] = formatting || [
+                    '',
+                    '',
+                    '',
+                  ]
+                  options = JSON.parse(options)
+                  options[Symbol.for('newline')] = newline
+                  options[Symbol.for('indent')] = indent
+                } catch (err) {
+                  throw new Error(
+                    `Cannot parse string options: ${(err as Error).message}`
+                  )
+                }
+              } else {
+                options = parseQuery(options, '&', '=', { maxKeys: 0 })
+              }
+            }
+            if (options === null || options === undefined) {
+              options = {}
+            }
+            if (schema) {
+              const {
+                validate,
+              }: typeof import('schema-utils') = require('@vercel/turbopack/schema-utils')
+              let name = 'Loader'
+              let baseDataPath = 'options'
+              const match = schema.title && /^(.+) (.+)$/.exec(schema.title)
+              if (match) {
+                name = match[1]
+                baseDataPath = match[2]
+              }
+              validate(schema, options, { name, baseDataPath })
+            }
+            return options
           },
           addBuildDependency(dependency: string) {
             buildDependencies.add(dependency)
@@ -529,7 +570,7 @@ const transform = (
               },
             }
           },
-        },
+        }),
 
         loaders: loadersWithOptions.map((loader) => ({
           loader: __turbopack_external_require__.resolve(loader.loader, {

@@ -166,6 +166,14 @@ pub async fn webpack_loader_options(
         WebpackLoadersOptions {
             rules: ResolvedVc::cell(rules),
             loader_runner_package: Some(loader_runner_package_mapping().to_resolved().await?),
+            schema_utils_package: Some(
+                ImportMapping::External(
+                    Some(rcstr!("next/dist/compiled/schema-utils3")),
+                    ExternalType::CommonJs,
+                    ExternalTraced::Untraced,
+                )
+                .resolved_cell(),
+            ),
             builtin_conditions: NextWebpackLoaderBuiltinConditionSet::new(builtin_conditions)
                 .to_resolved()
                 .await?,
