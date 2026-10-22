@@ -1616,9 +1616,21 @@ mod tests {
             "const { fn } = /*#__NO_SIDE_EFFECTS__*/ other; fn();"
         );
 
+        no_side_effects!(
+            test_no_side_effects_annotation_does_not_invoke_callbacks,
+            "const fn = /*#__NO_SIDE_EFFECTS__*/ other;
+             fn(() => console.log('arrow'), function () { console.log('function'); });"
+        );
+
         side_effects!(
             test_no_side_effects_annotation_still_checks_arguments,
             "const fn = /*#__NO_SIDE_EFFECTS__*/ other; fn(sideEffect());"
+        );
+
+        side_effects!(
+            test_no_side_effects_annotation_callback_argument_evaluation,
+            "const fn = /*#__NO_SIDE_EFFECTS__*/ other;
+             fn(() => console.log('callback'), sideEffect());"
         );
 
         side_effects!(
