@@ -8,11 +8,9 @@ const $$RSC_SERVER_CACHE_0_INNER = async function fn([$$ACTION_ARG_0, $$ACTION_A
         foo: $$ACTION_ARG_1
     };
 };
-export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function fn() {
+export var $$RSC_SERVER_CACHE_0 = Object["defineProperty"](registerServerReference($$reactCache__(function fn() {
     return $$cache__("default", "c03128060c414d59f8552e4788b846c0d2b7f74743", 2, $$RSC_SERVER_CACHE_0_INNER, Array.prototype.slice.call(arguments, 0, 1));
-});
-registerServerReference($$RSC_SERVER_CACHE_0, "c03128060c414d59f8552e4788b846c0d2b7f74743", null);
-Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
+}), "c03128060c414d59f8552e4788b846c0d2b7f74743", null), "name", {
     value: "fn"
 });
 async function Component({ foo }) {

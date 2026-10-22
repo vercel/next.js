@@ -6,11 +6,9 @@ import { cache as $$reactCache__ } from "react";
 const $$RSC_SERVER_CACHE_0_INNER = async function action(x) {
     return x;
 };
-export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function action() {
+export var $$RSC_SERVER_CACHE_0 = Object["defineProperty"](registerServerReference($$reactCache__(function action() {
     return $$cache__("default", "c03128060c414d59f8552e4788b846c0d2b7f74743", 0, $$RSC_SERVER_CACHE_0_INNER, Array.prototype.slice.call(arguments, 0, 1));
-});
-registerServerReference($$RSC_SERVER_CACHE_0, "c03128060c414d59f8552e4788b846c0d2b7f74743", null);
-Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
+}), "c03128060c414d59f8552e4788b846c0d2b7f74743", null), "name", {
     value: "action"
 });
 export var action = $$RSC_SERVER_CACHE_0;

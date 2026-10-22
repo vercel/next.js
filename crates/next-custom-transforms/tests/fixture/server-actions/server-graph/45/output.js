@@ -10,11 +10,9 @@ function Foo() {
 const $$RSC_SERVER_CACHE_0_INNER = async function bar() {
     return <Foo/>;
 };
-export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function bar() {
+export var $$RSC_SERVER_CACHE_0 = Object["defineProperty"](registerServerReference($$reactCache__(function bar() {
     return $$cache__("default", "803128060c414d59f8552e4788b846c0d2b7f74743", 0, $$RSC_SERVER_CACHE_0_INNER, []);
-});
-registerServerReference($$RSC_SERVER_CACHE_0, "803128060c414d59f8552e4788b846c0d2b7f74743", null);
-Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
+}), "803128060c414d59f8552e4788b846c0d2b7f74743", null), "name", {
     value: "bar"
 });
 export var bar = $$RSC_SERVER_CACHE_0;
