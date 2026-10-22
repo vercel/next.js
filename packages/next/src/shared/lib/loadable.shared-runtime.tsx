@@ -138,13 +138,21 @@ function createLoadableComponent(loadFn: any, options: any) {
 
     return React.useMemo(() => {
       if (state.loading || state.error) {
-        return React.createElement(opts.loading, {
-          isLoading: state.loading,
-          pastDelay: state.pastDelay,
-          timedOut: state.timedOut,
-          error: state.error,
-          retry: subscription.retry,
-        })
+        if (opts.loading) {
+          return React.createElement(opts.loading, {
+            isLoading: state.loading,
+            pastDelay: state.pastDelay,
+            timedOut: state.timedOut,
+            error: state.error,
+            retry: subscription.retry,
+          })
+        }
+
+        if (state.error) {
+          throw state.error
+        }
+
+        return null
       } else if (state.loaded) {
         return React.createElement(resolve(state.loaded), props)
       } else {
