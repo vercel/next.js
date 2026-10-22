@@ -758,6 +758,16 @@ export async function runCollected(
     inheritedErrors: RunnerFailure[],
     collectionBlocked = false
   ) {
+    if (test.suite !== ancestors[ancestors.length - 1]) {
+      const declarationAncestors: TestSuite[] = []
+      for (
+        let parent: TestSuite | undefined = test.suite;
+        parent;
+        parent = parent.suite
+      )
+        declarationAncestors.unshift(parent)
+      ancestors = declarationAncestors
+    }
     const name = [...ancestors.map((parent) => parent.name), test.name]
       .filter(Boolean)
       .join(' > ')

@@ -8308,11 +8308,15 @@ it('matches complete compiled raw fn declaration rows in both Node modes', async
     { mode: 'development', group: 'retention', cases: 9, rows: 2 },
     { mode: 'development', group: 'suite-collector', cases: 3, rows: 2 },
     { mode: 'development', group: 'suite-queue', cases: 10, rows: 1 },
+    { mode: 'development', group: 'task-scope', cases: 8, rows: 1 },
+    { mode: 'development', group: 'task-publish', cases: 3, rows: 1 },
     { mode: 'production', group: 'contract', cases: 14, rows: 2 },
     { mode: 'production', group: 'focus', cases: 3, rows: 1 },
     { mode: 'production', group: 'retention', cases: 9, rows: 2 },
     { mode: 'production', group: 'suite-collector', cases: 3, rows: 2 },
     { mode: 'production', group: 'suite-queue', cases: 10, rows: 1 },
+    { mode: 'production', group: 'task-scope', cases: 8, rows: 1 },
+    { mode: 'production', group: 'task-publish', cases: 3, rows: 1 },
   ])
 }, 130000)
 
@@ -8432,6 +8436,9 @@ describe('raw suite declaration collectors', () => {
     await c.settle()
     expect(invoked).toBe(1)
     c.close()
+    expect(() => api.task('late', { handler() {} })).toThrow(
+      'Test collection has already closed.'
+    )
     expect(() => api.clear()).toThrow('Test collection has already closed.')
     expect(() => api.on('beforeEach', () => {})).toThrow(
       'Test collection has already closed.'

@@ -28,6 +28,8 @@ async function main() {
         'retention',
         'suite-collector',
         'suite-queue',
+        'task-scope',
+        'task-publish',
       ]) {
         const fixture = await fs.mkdtemp(
           path.join(repo, '.next-test-declaration-fn-')

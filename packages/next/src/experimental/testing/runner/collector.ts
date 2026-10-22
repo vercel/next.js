@@ -794,6 +794,90 @@ export function createCollector(
     return view
   }
 
+  function registerTest(
+    current: TestSuite,
+    container: Pick<TestSuite, 'id' | 'children'>,
+    name: string,
+    ownOptions: TestOptions,
+    fn: TestBody | undefined,
+    fixtures: FixtureDefinitions,
+    mode: TestMode
+  ): TestCase {
+    const id = `${container.id}/${container.children.length}`
+    let options: TestOptions
+    const tags = [
+      ...new Set([
+        ...current.tags,
+        ...(ownOptions.tags === undefined
+          ? []
+          : Array.isArray(ownOptions.tags)
+            ? ownOptions.tags
+            : [ownOptions.tags]),
+      ]),
+    ]
+    const definitions = tags
+      .flatMap((tag) => {
+        const definition = config.tags?.find((entry) => entry.name === tag)
+        if (!definition && config.strictTags)
+          throw new Error(`Unknown test tag "${tag}".`)
+        return definition ? [definition] : []
+      })
+      .sort((a, b) => (b.priority ?? Infinity) - (a.priority ?? Infinity))
+    const tagOptions: TestOptions = {}
+    const tagMeta = Object.create(null)
+    for (const {
+      name: _name,
+      description: _description,
+      priority: _priority,
+      meta,
+      ...definition
+    } of definitions) {
+      Object.assign(tagOptions, definition)
+      Object.assign(tagMeta, meta)
+    }
+    const { shuffle: _shuffle, ...suiteOptions } = current.options
+    options = {
+      ...(config.sequence?.concurrent === undefined
+        ? {}
+        : { concurrent: config.sequence.concurrent }),
+      ...(config.getRuntimeConfig?.().testTimeout === undefined
+        ? {}
+        : { timeout: config.getRuntimeConfig?.().testTimeout }),
+      ...suiteOptions,
+      ...tagOptions,
+      ...ownOptions,
+    }
+    validateOptions(options)
+    const meta = Object.assign(
+      Object.create(null),
+      tagMeta,
+      current === root ? undefined : current.meta,
+      ownOptions.meta
+    )
+    const optionMode = options.only
+      ? 'only'
+      : options.skip
+        ? 'skip'
+        : options.todo
+          ? 'todo'
+          : mode
+    const test: TestCase = {
+      type: 'test',
+      meta,
+      tags,
+      id,
+      name,
+      mode: !fn && optionMode === 'run' ? 'todo' : optionMode,
+      suite: current,
+      options: { ...options },
+      fixtures,
+      fn,
+    }
+    Object.defineProperty(test, 'registrationError', { value: new Error() })
+    container.children.push(test)
+    return test
+  }
+
   function rawSuite(
     name: Name,
     factory: Function | undefined,
@@ -805,6 +889,15 @@ export function createCollector(
     const id = `${parent.id}/${parent.children.length}`
     let node = suite(id, formatName(name), mode, parent, options)
     parent.children.push(node)
+    let staged = node.children
+    const registrationContainer = {
+      get id() {
+        return node.id
+      },
+      get children() {
+        return staged
+      },
+    }
     const tasks: SuiteCollector['tasks'] = []
     const ownedTest = declaration('test', 'run')
     Object.defineProperties(ownedTest, {
@@ -814,13 +907,20 @@ export function createCollector(
     const test = new Proxy(ownedTest, {
       apply(target, receiver, args) {
         assertCollecting()
-        suiteStorage.run(node, () => Reflect.apply(target, receiver, args))
+        const owner = node
+        const published = owner.children
+        owner.children = staged
+        try {
+          suiteStorage.run(owner, () => Reflect.apply(target, receiver, args))
+        } finally {
+          owner.children = published
+        }
         refreshTasks()
       },
     })
     function refreshTasks() {
       tasks.length = 0
-      for (const child of node.children)
+      for (const child of staged)
         tasks.push(
           child.type === 'suite' && rawSuiteNodes.has(child)
             ? rawSuiteNodes.get(child)!.api!
@@ -833,6 +933,7 @@ export function createCollector(
         assertCollecting()
         if (!file) throw new TypeError('File is required to collect tasks.')
         if (automatic) state.collected = true
+        node.children = staged
         if (factory) await suiteStorage.run(node, () => factory(test))
         async function descendants(container: TestSuite) {
           for (const child of container.children) {
@@ -843,6 +944,7 @@ export function createCollector(
           }
         }
         await descendants(node)
+        node.children = [...staged]
         refreshTasks()
         return publishSuite(node)
       },
@@ -852,14 +954,19 @@ export function createCollector(
     }
     function task(taskName = '', taskOptions: TaskCustomOptions = {}) {
       assertCollecting()
-      if (currentSuite() !== node)
-        return unsupported('SuiteCollector.task outside its live factory')
       const { handler, each, ...testOptions } = taskOptions
-      const previous = node.children.length
-      test(taskName, testOptions, handler)
-      const registered = node.children[previous]
+      const registered = registerTest(
+        currentSuite(),
+        registrationContainer,
+        formatName(taskName),
+        testOptions,
+        handler,
+        {},
+        'run'
+      )
       const view = publicTask(registered) as Test & { each?: boolean }
       if (each !== undefined) view.each = each
+      view.shuffle = options.shuffle
       refreshTasks()
       return view
     }
@@ -867,6 +974,7 @@ export function createCollector(
       assertCollecting()
       const previous = node
       node = suite(id, previous.name, previous.mode, parent, options)
+      staged = node.children
       const index = parent.children.indexOf(previous)
       parent.children[index] = node
       rawSuiteNodes.delete(previous)
@@ -1066,77 +1174,15 @@ export function createCollector(
         const ownOptions = { ...declarationOptions, ...options }
         if (declarationOptions.concurrent !== undefined)
           ownOptions.concurrent = declarationOptions.concurrent
-        const tags = [
-          ...new Set([
-            ...current.tags,
-            ...(ownOptions.tags === undefined
-              ? []
-              : Array.isArray(ownOptions.tags)
-                ? ownOptions.tags
-                : [ownOptions.tags]),
-          ]),
-        ]
-        const definitions = tags
-          .flatMap((tag) => {
-            const definition = config.tags?.find((entry) => entry.name === tag)
-            if (!definition && config.strictTags)
-              throw new Error(`Unknown test tag "${tag}".`)
-            return definition ? [definition] : []
-          })
-          .sort((a, b) => (b.priority ?? Infinity) - (a.priority ?? Infinity))
-        const tagOptions: TestOptions = {}
-        const tagMeta = Object.create(null)
-        for (const {
-          name: _name,
-          description: _description,
-          priority: _priority,
-          meta,
-          ...definition
-        } of definitions) {
-          Object.assign(tagOptions, definition)
-          Object.assign(tagMeta, meta)
-        }
-        const { shuffle: _shuffle, ...suiteOptions } = current.options
-        options = {
-          ...(config.sequence?.concurrent === undefined
-            ? {}
-            : { concurrent: config.sequence.concurrent }),
-          ...(config.getRuntimeConfig?.().testTimeout === undefined
-            ? {}
-            : { timeout: config.getRuntimeConfig?.().testTimeout }),
-          ...suiteOptions,
-          ...tagOptions,
-          ...ownOptions,
-        }
-        validateOptions(options)
-        const meta = Object.assign(
-          Object.create(null),
-          tagMeta,
-          current === root ? undefined : current.meta,
-          ownOptions.meta
-        )
-        const optionMode = options.only
-          ? 'only'
-          : options.skip
-            ? 'skip'
-            : options.todo
-              ? 'todo'
-              : mode
-        const test: TestCase = {
-          type: 'test',
-          meta,
-          tags,
-          id,
+        return registerTest(
+          current,
+          current,
           name,
-          mode: !fn && optionMode === 'run' ? 'todo' : optionMode,
-          suite: current,
-          options: { ...options },
-          fixtures,
+          ownOptions,
           fn,
-        }
-        Object.defineProperty(test, 'registrationError', { value: new Error() })
-        current.children.push(test)
-        return test
+          fixtures,
+          mode
+        )
       }
     }
     const builder: FixtureBuilderOperations = {

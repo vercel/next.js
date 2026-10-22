@@ -1,0 +1,102 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "suite-task-publish",
+        "trace": [
+          {
+            "kind": "factory",
+            "name": "first"
+          },
+          {
+            "kind": "factory",
+            "name": "second"
+          },
+          {
+            "kind": "root-before",
+            "name": "inside",
+            "parent": "first"
+          },
+          {
+            "kind": "first-before",
+            "name": "inside"
+          },
+          {
+            "kind": "body",
+            "name": "inside"
+          },
+          {
+            "kind": "first-after",
+            "name": "inside"
+          },
+          {
+            "kind": "root-after",
+            "name": "inside",
+            "parent": "first"
+          },
+          {
+            "kind": "root-before",
+            "name": "second child",
+            "parent": "second"
+          },
+          {
+            "kind": "second-before",
+            "name": "second child"
+          },
+          {
+            "kind": "second-after",
+            "name": "second child"
+          },
+          {
+            "kind": "root-after",
+            "name": "second child",
+            "parent": "second"
+          },
+          {
+            "kind": "root-before",
+            "name": "control",
+            "parent": null
+          },
+          {
+            "kind": "root-after",
+            "name": "control",
+            "parent": null
+          }
+        ],
+        "lateRan": false,
+        "lateState": null,
+        "lateParent": "second",
+        "staged": ["inside", "late"],
+        "published": ["inside"]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "first inside",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "second second child",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "control",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 3,
+    "numPassedTests": 3,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

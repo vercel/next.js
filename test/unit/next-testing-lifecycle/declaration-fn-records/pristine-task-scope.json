@@ -1,0 +1,409 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "suite-task-scope",
+        "trace": [
+          {
+            "kind": "handler-get",
+            "name": "before"
+          },
+          {
+            "kind": "handler-get",
+            "name": "extracted"
+          },
+          {
+            "kind": "handler-get",
+            "name": "foreign-this"
+          },
+          {
+            "kind": "before-manual",
+            "staged": [
+              {
+                "name": "before",
+                "type": "test",
+                "parent": null,
+                "fullName": "task-scope.case.mjs > before",
+                "contextEnumerable": false
+              },
+              {
+                "name": "extracted",
+                "type": "test",
+                "parent": null,
+                "fullName": "task-scope.case.mjs > extracted",
+                "contextEnumerable": false
+              },
+              {
+                "name": "foreign-this",
+                "type": "test",
+                "parent": null,
+                "fullName": "task-scope.case.mjs > foreign-this",
+                "contextEnumerable": false
+              }
+            ],
+            "published": []
+          },
+          {
+            "kind": "factory",
+            "name": "first",
+            "pass": 1
+          },
+          {
+            "kind": "handler-get",
+            "name": "inside-1"
+          },
+          {
+            "kind": "handler-get",
+            "name": "after"
+          },
+          {
+            "kind": "after-manual",
+            "staged": [
+              {
+                "name": "before",
+                "type": "test",
+                "parent": null,
+                "fullName": "task-scope.case.mjs > before",
+                "contextEnumerable": false
+              },
+              {
+                "name": "extracted",
+                "type": "test",
+                "parent": null,
+                "fullName": "task-scope.case.mjs > extracted",
+                "contextEnumerable": false
+              },
+              {
+                "name": "foreign-this",
+                "type": "test",
+                "parent": null,
+                "fullName": "task-scope.case.mjs > foreign-this",
+                "contextEnumerable": false
+              },
+              {
+                "name": "inside-1",
+                "type": "test",
+                "parent": "first",
+                "fullName": "task-scope.case.mjs > first > inside-1",
+                "contextEnumerable": false
+              },
+              {
+                "name": "after",
+                "type": "test",
+                "parent": null,
+                "fullName": "task-scope.case.mjs > after",
+                "contextEnumerable": false
+              }
+            ],
+            "published": [
+              {
+                "name": "before",
+                "type": "test",
+                "parent": null,
+                "fullName": "task-scope.case.mjs > before",
+                "contextEnumerable": false
+              },
+              {
+                "name": "extracted",
+                "type": "test",
+                "parent": null,
+                "fullName": "task-scope.case.mjs > extracted",
+                "contextEnumerable": false
+              },
+              {
+                "name": "foreign-this",
+                "type": "test",
+                "parent": null,
+                "fullName": "task-scope.case.mjs > foreign-this",
+                "contextEnumerable": false
+              },
+              {
+                "name": "inside-1",
+                "type": "test",
+                "parent": "first",
+                "fullName": "task-scope.case.mjs > first > inside-1",
+                "contextEnumerable": false
+              }
+            ]
+          },
+          {
+            "kind": "factory",
+            "name": "first",
+            "pass": 2
+          },
+          {
+            "kind": "handler-get",
+            "name": "inside-2"
+          },
+          {
+            "kind": "factory",
+            "name": "second"
+          },
+          {
+            "kind": "body",
+            "name": "before",
+            "actual": "before",
+            "parent": null,
+            "same": true,
+            "contextSame": true
+          },
+          {
+            "kind": "body",
+            "name": "extracted",
+            "actual": "extracted",
+            "parent": null,
+            "same": true,
+            "contextSame": true
+          },
+          {
+            "kind": "body",
+            "name": "foreign-this",
+            "actual": "foreign-this",
+            "parent": null,
+            "same": true,
+            "contextSame": true
+          },
+          {
+            "kind": "body",
+            "name": "inside-1",
+            "actual": "inside-1",
+            "parent": "first",
+            "same": true,
+            "contextSame": true
+          },
+          {
+            "kind": "body",
+            "name": "after",
+            "actual": "after",
+            "parent": null,
+            "same": true,
+            "contextSame": true
+          },
+          {
+            "kind": "body",
+            "name": "inside-2",
+            "actual": "inside-2",
+            "parent": "first",
+            "same": true,
+            "contextSame": true
+          }
+        ],
+        "handles": [
+          {
+            "name": "before",
+            "type": "test",
+            "parent": null,
+            "fullName": "task-scope.case.mjs > before",
+            "contextEnumerable": false,
+            "sameSuite": false,
+            "contextSame": true,
+            "meta": {
+              "marker": "before"
+            }
+          },
+          {
+            "name": "extracted",
+            "type": "test",
+            "parent": null,
+            "fullName": "task-scope.case.mjs > extracted",
+            "contextEnumerable": false,
+            "sameSuite": false,
+            "contextSame": true,
+            "meta": {
+              "marker": "extracted"
+            }
+          },
+          {
+            "name": "foreign-this",
+            "type": "test",
+            "parent": null,
+            "fullName": "task-scope.case.mjs > foreign-this",
+            "contextEnumerable": false,
+            "sameSuite": false,
+            "contextSame": true,
+            "meta": {
+              "marker": "foreign-this"
+            }
+          },
+          {
+            "name": "inside-1",
+            "type": "test",
+            "parent": "first",
+            "fullName": "task-scope.case.mjs > first > inside-1",
+            "contextEnumerable": false,
+            "sameSuite": true,
+            "contextSame": true,
+            "meta": {
+              "marker": "inside-1"
+            }
+          },
+          {
+            "name": "after",
+            "type": "test",
+            "parent": null,
+            "fullName": "task-scope.case.mjs > after",
+            "contextEnumerable": false,
+            "sameSuite": false,
+            "contextSame": true,
+            "meta": {
+              "marker": "after"
+            }
+          },
+          {
+            "name": "inside-2",
+            "type": "test",
+            "parent": "first",
+            "fullName": "task-scope.case.mjs > first > inside-2",
+            "contextEnumerable": false,
+            "sameSuite": true,
+            "contextSame": true,
+            "meta": {
+              "marker": "inside-2"
+            }
+          }
+        ],
+        "tasks": [
+          {
+            "name": "before",
+            "type": "test",
+            "parent": null,
+            "fullName": "task-scope.case.mjs > before",
+            "contextEnumerable": false
+          },
+          {
+            "name": "extracted",
+            "type": "test",
+            "parent": null,
+            "fullName": "task-scope.case.mjs > extracted",
+            "contextEnumerable": false
+          },
+          {
+            "name": "foreign-this",
+            "type": "test",
+            "parent": null,
+            "fullName": "task-scope.case.mjs > foreign-this",
+            "contextEnumerable": false
+          },
+          {
+            "name": "inside-1",
+            "type": "test",
+            "parent": "first",
+            "fullName": "task-scope.case.mjs > first > inside-1",
+            "contextEnumerable": false
+          },
+          {
+            "name": "after",
+            "type": "test",
+            "parent": null,
+            "fullName": "task-scope.case.mjs > after",
+            "contextEnumerable": false
+          },
+          {
+            "name": "inside-2",
+            "type": "test",
+            "parent": "first",
+            "fullName": "task-scope.case.mjs > first > inside-2",
+            "contextEnumerable": false
+          }
+        ],
+        "published": [
+          {
+            "name": "before",
+            "type": "test",
+            "parent": null,
+            "fullName": "task-scope.case.mjs > before",
+            "contextEnumerable": false
+          },
+          {
+            "name": "extracted",
+            "type": "test",
+            "parent": null,
+            "fullName": "task-scope.case.mjs > extracted",
+            "contextEnumerable": false
+          },
+          {
+            "name": "foreign-this",
+            "type": "test",
+            "parent": null,
+            "fullName": "task-scope.case.mjs > foreign-this",
+            "contextEnumerable": false
+          },
+          {
+            "name": "inside-1",
+            "type": "test",
+            "parent": "first",
+            "fullName": "task-scope.case.mjs > first > inside-1",
+            "contextEnumerable": false
+          },
+          {
+            "name": "after",
+            "type": "test",
+            "parent": null,
+            "fullName": "task-scope.case.mjs > after",
+            "contextEnumerable": false
+          },
+          {
+            "name": "inside-2",
+            "type": "test",
+            "parent": "first",
+            "fullName": "task-scope.case.mjs > first > inside-2",
+            "contextEnumerable": false
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "before",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "extracted",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "foreign-this",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "first inside-1",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "after",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "first inside-2",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "second second child",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "control",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 8,
+    "numPassedTests": 8,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

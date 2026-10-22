@@ -233,7 +233,12 @@ export function createTaskTree(
   file.file = file
   const tasks = new Map<TestCase | TestSuite, Task>([[root, file]])
   function visit(node: TestCase | TestSuite, parent: Suite) {
-    const fullTestName = [parent.fullTestName, node.name]
+    const held = collectionTaskViews.get(node)
+    const declarationParent =
+      held && node.type === 'test'
+        ? (getCollectionTaskView(root, node.suite, options) as Suite)
+        : parent
+    const fullTestName = [declarationParent.fullTestName, node.name]
       .filter(Boolean)
       .join(' > ')
     const common = {
@@ -249,13 +254,14 @@ export function createTaskTree(
         : {}),
       shuffle:
         node.type === 'test'
-          ? node.suite.options.shuffle
+          ? held
+            ? held.shuffle
+            : node.suite.options.shuffle
           : node.options.shuffle,
       file,
-      suite: parent === file ? undefined : parent,
+      suite: declarationParent === file ? undefined : declarationParent,
     }
     let task: Task
-    const held = collectionTaskViews.get(node)
     if (node.type === 'suite') {
       task = held ?? { ...common, type: 'suite', tasks: [] }
       if (held) {
