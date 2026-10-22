@@ -136,7 +136,7 @@
                     effects: [],
                     range: Exact(
                         AstPathId(
-                            30,
+                            38,
                         ),
                     ),
                 },

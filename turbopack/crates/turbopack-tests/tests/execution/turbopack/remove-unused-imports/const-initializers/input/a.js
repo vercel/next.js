@@ -1,6 +1,7 @@
 import { unused } from './library/unused.js'
 import { used } from './library/used.js'
 import { effect, iterable } from './library/effects.js'
+import { loopValue } from './library/loop.js'
 
 export const unusedAlias = unused
 export const unusedArrow = () => unused()
@@ -26,11 +27,18 @@ const unusedBeforeEffect = unused,
 let unusedLet = unused
 var unusedVar = () => unused()
 
+// Module-local writes are pure for module inference, but must not disappear just
+// because the result of the assignment is unused.
+export const config = {}
+const unusedMutationResult = (config.value = 'kept')
+const unusedRequireResult = require('./required.js')
+
 for (const ignored of [1, 2]) {
   effect('iteration')
 }
 
 for (const unusedLoopAlias = unused; false; ) {}
+for (const unusedLoopResult = effect(loopValue); false; ) {}
 
 function identity(value) {
   return value
