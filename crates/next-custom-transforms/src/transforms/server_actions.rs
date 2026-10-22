@@ -586,39 +586,33 @@ impl<C: Comments> ServerActions<C> {
                         span: DUMMY_SP,
                         name: Pat::Ident(action_ident.clone().into()),
                         definite: false,
-                        init: Some(Box::new(Expr::Fn(FnExpr {
-                            ident: self.arrow_or_fn_expr_ident.clone(),
-                            function: Box::new(Function {
-                                params: new_params,
-                                body: match new_body {
-                                    ArrowFunctionBody::FunctionBody(body) => Some(body),
-                                    ArrowFunctionBody::Expr(expr) => Some(FunctionBody {
-                                        span: DUMMY_SP,
-                                        stmts: vec![Stmt::Return(ReturnStmt {
+                        init: Some(Box::new(annotate_as_server_reference(
+                            Expr::Fn(FnExpr {
+                                ident: self.arrow_or_fn_expr_ident.clone(),
+                                function: Box::new(Function {
+                                    params: new_params,
+                                    body: match new_body {
+                                        ArrowFunctionBody::FunctionBody(body) => Some(body),
+                                        ArrowFunctionBody::Expr(expr) => Some(FunctionBody {
                                             span: DUMMY_SP,
-                                            arg: Some(expr),
-                                        })],
-                                    }),
-                                },
-                                is_async: true,
-                                ..Default::default()
+                                            stmts: vec![Stmt::Return(ReturnStmt {
+                                                span: DUMMY_SP,
+                                                arg: Some(expr),
+                                            })],
+                                        }),
+                                    },
+                                    is_async: true,
+                                    ..Default::default()
+                                }),
                             }),
-                        }))),
+                            action_id.clone(),
+                            arrow.span,
+                        ))),
                     }],
                     declare: Default::default(),
                     ctxt: self.private_ctxt,
                 }
                 .into(),
-            })));
-
-        self.hoisted_extra_items
-            .push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                span: DUMMY_SP,
-                expr: Box::new(annotate_ident_as_server_reference(
-                    action_ident.clone(),
-                    action_id.clone(),
-                    arrow.span,
-                )),
             })));
 
         if ids_from_closure.is_empty() {
@@ -727,6 +721,8 @@ impl<C: Comments> ServerActions<C> {
             }
         }
 
+        let original_span = function.span;
+
         // Create the action export decl from the function
         // export const $$RSC_SERVER_ACTION_0 = async function action($$ACTION_CLOSURE_BOUND) {}
         self.hoisted_extra_items
@@ -739,29 +735,23 @@ impl<C: Comments> ServerActions<C> {
                         span: DUMMY_SP, // TODO: need to map it to the original span?
                         name: Pat::Ident(action_ident.clone().into()),
                         definite: false,
-                        init: Some(Box::new(Expr::Fn(FnExpr {
-                            ident: fn_name,
-                            function: Box::new(Function {
-                                params: new_params,
-                                body: new_body,
-                                ..function.take()
+                        init: Some(Box::new(annotate_as_server_reference(
+                            Expr::Fn(FnExpr {
+                                ident: fn_name,
+                                function: Box::new(Function {
+                                    params: new_params,
+                                    body: new_body,
+                                    ..function.take()
+                                }),
                             }),
-                        }))),
+                            action_id.clone(),
+                            original_span,
+                        ))),
                     }],
                     declare: Default::default(),
                     ctxt: self.private_ctxt,
                 }
                 .into(),
-            })));
-
-        self.hoisted_extra_items
-            .push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                span: DUMMY_SP,
-                expr: Box::new(annotate_ident_as_server_reference(
-                    action_ident.clone(),
-                    action_id.clone(),
-                    function.span,
-                )),
             })));
 
         if ids_from_closure.is_empty() {
@@ -851,21 +841,15 @@ impl<C: Comments> ServerActions<C> {
             ids_from_closure.len(),
             cache_name,
             self.arrow_or_fn_expr_ident.clone(),
+            self.arrow_or_fn_expr_ident
+                .as_ref()
+                .map(|ident| ident.sym.as_str()),
             new_params.clone(),
             inner_fn_body,
             arrow.span,
             &mut self.hoisted_extra_items,
             self.unresolved_ctxt,
         );
-
-        if let Some(Ident { sym, .. }) = &self.arrow_or_fn_expr_ident {
-            self.hoisted_extra_items
-                .push(ModuleItem::Stmt(assign_name_to_ident(
-                    &cache_ident,
-                    sym.as_str(),
-                    self.unresolved_ctxt,
-                )));
-        }
 
         let bound_args: Vec<_> = ids_from_closure
             .iter()
@@ -945,28 +929,16 @@ impl<C: Comments> ServerActions<C> {
             ids_from_closure.len(),
             cache_name,
             fn_name.clone(),
+            fn_name
+                .as_ref()
+                .map(|ident| ident.sym.as_str())
+                .or_else(|| self.is_default_export().then_some("default")),
             new_params.clone(),
             function_body,
             function_span,
             &mut self.hoisted_extra_items,
             self.unresolved_ctxt,
         );
-
-        if let Some(Ident { ref sym, .. }) = fn_name {
-            self.hoisted_extra_items
-                .push(ModuleItem::Stmt(assign_name_to_ident(
-                    &cache_ident,
-                    sym.as_str(),
-                    self.unresolved_ctxt,
-                )));
-        } else if self.is_default_export() {
-            self.hoisted_extra_items
-                .push(ModuleItem::Stmt(assign_name_to_ident(
-                    &cache_ident,
-                    "default",
-                    self.unresolved_ctxt,
-                )));
-        }
 
         let bound_args: Vec<_> = ids_from_closure
             .iter()
@@ -1051,18 +1023,15 @@ impl<C: Comments> ServerActions<C> {
                         decls: vec![VarDeclarator {
                             span: DUMMY_SP,
                             name: Pat::Ident(action_ident.clone().into()),
-                            init: Some(take_fn_or_arrow_expr()),
+                            init: Some(Box::new(assign_name_to_expr(
+                                *take_fn_or_arrow_expr(),
+                                "default",
+                                self.unresolved_ctxt,
+                            ))),
                             definite: false,
                         }],
                         ..Default::default()
                     })))));
-
-                self.hoisted_extra_items
-                    .push(ModuleItem::Stmt(assign_name_to_ident(
-                        &action_ident,
-                        "default",
-                        self.unresolved_ctxt,
-                    )));
 
                 self.rewrite_default_fn_expr_to_proxy_expr =
                     Some(Box::new(Expr::Ident(action_ident)));
@@ -2413,8 +2382,29 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         })))));
 
                     let wrapper_stmts = {
-                        let mut stmts = vec![
-                            // $$RSC_SERVER_CACHE_exportName = $$reactCache__(...);
+                        let wrapper = create_cache_wrapper(
+                            "default",
+                            ref_id.clone(),
+                            0,
+                            // Don't use the same name as the original to avoid shadowing.
+                            None,
+                            Expr::Ident(ident.clone()),
+                            ident.span,
+                            None,
+                            self.unresolved_ctxt,
+                        );
+                        let mut wrapper =
+                            annotate_as_server_reference(wrapper, ref_id.clone(), ident.span);
+
+                        // Only assign a name if the original ident is not a generated one.
+                        if !ident.sym.starts_with("$$RSC_SERVER_") {
+                            wrapper =
+                                assign_name_to_expr(wrapper, &ident.sym, self.unresolved_ctxt);
+                        }
+
+                        vec![
+                            // $$RSC_SERVER_CACHE_exportName =
+                            // registerServerReference($$reactCache__(...), ...);
                             Stmt::Expr(ExprStmt {
                                 span: DUMMY_SP,
                                 expr: Box::new(Expr::Assign(AssignExpr {
@@ -2423,42 +2413,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     left: AssignTarget::Simple(SimpleAssignTarget::Ident(
                                         wrapper_ident.clone().into(),
                                     )),
-                                    right: Box::new(create_cache_wrapper(
-                                        "default",
-                                        ref_id.clone(),
-                                        0,
-                                        // Don't use the same name as the original to avoid
-                                        // shadowing. We don't need it here for call stacks.
-                                        None,
-                                        Expr::Ident(ident.clone()),
-                                        ident.span,
-                                        None,
-                                        self.unresolved_ctxt,
-                                    )),
+                                    right: Box::new(wrapper),
                                 })),
                             }),
-                            // registerServerReference($$RSC_SERVER_CACHE_exportName, ...);
-                            Stmt::Expr(ExprStmt {
-                                span: DUMMY_SP,
-                                expr: Box::new(annotate_ident_as_server_reference(
-                                    wrapper_ident.clone(),
-                                    ref_id.clone(),
-                                    ident.span,
-                                )),
-                            }),
-                        ];
-
-                        // Only assign a name if the original ident is not a generated one.
-                        if !ident.sym.starts_with("$$RSC_SERVER_") {
-                            // Object.defineProperty($$RSC_SERVER_CACHE_exportName, "name", {...});
-                            stmts.push(assign_name_to_ident(
-                                &wrapper_ident,
-                                &ident.sym,
-                                self.unresolved_ctxt,
-                            ));
-                        }
-
-                        stmts
+                        ]
                     };
 
                     // if (typeof ident === "function") { $$RSC_SERVER_CACHE_exportName = wrapper }
@@ -2514,8 +2472,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 } else {
                     self.annotations.push(Stmt::Expr(ExprStmt {
                         span: DUMMY_SP,
-                        expr: Box::new(annotate_ident_as_server_reference(
-                            ident.clone(),
+                        expr: Box::new(annotate_as_server_reference(
+                            Expr::Ident(ident.clone()),
                             ref_id.clone(),
                             ident.span,
                         )),
@@ -3072,6 +3030,7 @@ fn create_and_hoist_cache_function(
     bound_args_length: usize,
     cache_name: Atom,
     fn_ident: Option<Ident>,
+    name: Option<&str>,
     params: Vec<Param>,
     body: Option<FunctionBody>,
     original_span: Span,
@@ -3082,7 +3041,7 @@ fn create_and_hoist_cache_function(
     let inner_fn_name: Atom = format!("{}_INNER", cache_name).into();
     let inner_fn_ident = private_ident!(Span::dummy_with_cmt(), inner_fn_name);
 
-    let wrapper_fn = Box::new(create_cache_wrapper(
+    let wrapper_fn = create_cache_wrapper(
         cache_kind,
         reference_id.clone(),
         bound_args_length,
@@ -3091,7 +3050,11 @@ fn create_and_hoist_cache_function(
         original_span,
         Some(&params),
         unresolved_ctxt,
-    ));
+    );
+    let mut wrapper_fn = annotate_as_server_reference(wrapper_fn, reference_id, original_span);
+    if let Some(name) = name {
+        wrapper_fn = assign_name_to_expr(wrapper_fn, name, unresolved_ctxt);
+    }
 
     let inner_fn_expr = FnExpr {
         ident: fn_ident.clone(),
@@ -3104,6 +3067,13 @@ fn create_and_hoist_cache_function(
         }),
     };
 
+    // Avoid leaking the internal variable name in anonymous function stack traces.
+    let inner_fn_expr = if fn_ident.is_none() {
+        assign_name_to_expr(Expr::Fn(inner_fn_expr), "", unresolved_ctxt)
+    } else {
+        Expr::Fn(inner_fn_expr)
+    };
+
     hoisted_extra_items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
         span: original_span,
         kind: VarDeclKind::Const,
@@ -3113,21 +3083,11 @@ fn create_and_hoist_cache_function(
                 id: inner_fn_ident.clone(),
                 type_ann: None,
             }),
-            init: Some(Box::new(Expr::Fn(inner_fn_expr))),
+            init: Some(Box::new(inner_fn_expr)),
             definite: false,
         }],
         ..Default::default()
     })))));
-
-    // For anonymous functions, set the name property to an empty string to
-    // avoid leaking the internal variable name in stack traces.
-    if fn_ident.is_none() {
-        hoisted_extra_items.push(ModuleItem::Stmt(assign_name_to_ident(
-            &inner_fn_ident,
-            "",
-            unresolved_ctxt,
-        )));
-    }
 
     hoisted_extra_items.push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
         span: DUMMY_SP,
@@ -3136,7 +3096,7 @@ fn create_and_hoist_cache_function(
             decls: vec![VarDeclarator {
                 span: original_span,
                 name: Pat::Ident(cache_ident.clone().into()),
-                init: Some(wrapper_fn),
+                init: Some(Box::new(wrapper_fn)),
                 definite: false,
             }],
             ..Default::default()
@@ -3144,19 +3104,10 @@ fn create_and_hoist_cache_function(
         .into(),
     })));
 
-    hoisted_extra_items.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-        span: DUMMY_SP,
-        expr: Box::new(annotate_ident_as_server_reference(
-            cache_ident.clone(),
-            reference_id,
-            original_span,
-        )),
-    })));
-
     cache_ident
 }
 
-fn assign_name_to_ident(ident: &Ident, name: &str, unresolved_ctxt: SyntaxContext) -> Stmt {
+fn assign_name_to_expr(expr: Expr, name: &str, unresolved_ctxt: SyntaxContext) -> Expr {
     // Assign a name with `Object.defineProperty($$ACTION_0, 'name', {value: 'default'})`
     quote!(
         // WORKAROUND for https://github.com/microsoft/TypeScript/issues/61165
@@ -3166,15 +3117,15 @@ fn assign_name_to_ident(ident: &Ident, name: &str, unresolved_ctxt: SyntaxContex
         //
         // but due to the above typescript bug, `Object.defineProperty` calls are typechecked incorrectly
         // in js files, and it can cause false positives when typechecking our fixture files.
-        "$object[\"defineProperty\"]($action, \"name\", { value: $name });"
-            as Stmt,
+        "$object[\"defineProperty\"]($action, \"name\", { value: $name })"
+            as Expr,
         object = quote_ident!(unresolved_ctxt, "Object"),
-        action: Ident = ident.clone(),
+        action: Expr = expr,
         name: Expr = name.into(),
     )
 }
 
-fn annotate_ident_as_server_reference(ident: Ident, action_id: Atom, original_span: Span) -> Expr {
+fn annotate_as_server_reference(expr: Expr, action_id: Atom, original_span: Span) -> Expr {
     // registerServerReference(reference, id, null)
     Expr::Call(CallExpr {
         span: original_span,
@@ -3182,7 +3133,7 @@ fn annotate_ident_as_server_reference(ident: Ident, action_id: Atom, original_sp
         args: vec![
             ExprOrSpread {
                 spread: None,
-                expr: Box::new(Expr::Ident(ident)),
+                expr: Box::new(expr),
             },
             ExprOrSpread {
                 spread: None,
