@@ -16,12 +16,7 @@ describe('cache-components-segment-configs', () => {
   it("it should error when using segment configs that aren't supported by cacheComponents", async () => {
     if (isNextDev) {
       await next.start()
-    } else {
-      // The build is expected to fail.
-      await expect(next.start()).rejects.toThrow()
-    }
 
-    if (isNextDev) {
       const browser = await next.browser('/revalidate')
       await waitForRedbox(browser)
       const redbox = {
@@ -41,52 +36,56 @@ describe('cache-components-segment-configs', () => {
       expect(redbox.source).toContain(
         '"revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
       )
-    } else {
-      expect(next.cliOutput).toContain('./app/dynamic-params/[slug]/page.tsx')
-      expect(next.cliOutput).toContain(
-        '"dynamicParams" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+      return
+    }
+
+    // The build is expected to fail.
+    await expect(next.start()).rejects.toThrow()
+
+    expect(next.cliOutput).toContain('./app/dynamic-params/[slug]/page.tsx')
+    expect(next.cliOutput).toContain(
+      '"dynamicParams" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+    )
+    expect(next.cliOutput).toContain('./app/dynamic/nested/page.tsx')
+    expect(next.cliOutput).toContain('./app/dynamic/page.tsx')
+    expect(next.cliOutput).toContain(
+      '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+    )
+
+    expect(next.cliOutput).toContain('./app/fetch-cache/page.tsx')
+    expect(next.cliOutput).toContain(
+      '"fetchCache" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+    )
+
+    expect(next.cliOutput).toContain('./app/revalidate/page.tsx')
+    expect(next.cliOutput).toContain(
+      '"revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+    )
+
+    // The remaining fixtures opt into `export const runtime = 'edge'` (the
+    // `runtime` page and the metadata convention files, which compile to
+    // route handlers and accept the same route segment configs). `next build`
+    // prints only the first five webpack errors and appends the edge
+    // compiler's errors last, so the five Node-runtime page errors above fill
+    // that limit and these edge-runtime errors are truncated from webpack's
+    // output. They're only asserted under Turbopack, which reports every
+    // build error.
+    if (isTurbopack) {
+      expect(next.cliOutput).toContain('./app/runtime/page.tsx')
+
+      expect(next.cliOutput).toContain('./app/metadata/icon.tsx')
+      expect(next.cliOutput).toContain('./app/metadata/apple-icon.tsx')
+      expect(next.cliOutput).toContain('./app/metadata/opengraph-image.tsx')
+      expect(next.cliOutput).toContain('./app/metadata/twitter-image.tsx')
+      expect(next.cliOutput).toContain('./app/metadata/sitemap.ts')
+
+      // Emitted once for each fixture that exports `runtime`:
+      // `runtime/page.tsx`, `multiple/page.tsx`, and the five `metadata/*`
+      // convention files.
+      expect(next.cliOutput).toIncludeRepeated(
+        '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it.',
+        7
       )
-      expect(next.cliOutput).toContain('./app/dynamic/nested/page.tsx')
-      expect(next.cliOutput).toContain('./app/dynamic/page.tsx')
-      expect(next.cliOutput).toContain(
-        '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
-      )
-
-      expect(next.cliOutput).toContain('./app/fetch-cache/page.tsx')
-      expect(next.cliOutput).toContain(
-        '"fetchCache" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
-      )
-
-      expect(next.cliOutput).toContain('./app/revalidate/page.tsx')
-      expect(next.cliOutput).toContain(
-        '"revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
-      )
-
-      // The remaining fixtures opt into `export const runtime = 'edge'` (the
-      // `runtime` page and the metadata convention files, which compile to
-      // route handlers and accept the same route segment configs). `next build`
-      // prints only the first five webpack errors and appends the edge
-      // compiler's errors last, so the five Node-runtime page errors above fill
-      // that limit and these edge-runtime errors are truncated from webpack's
-      // output. They're only asserted under Turbopack, which reports every
-      // build error.
-      if (isTurbopack) {
-        expect(next.cliOutput).toContain('./app/runtime/page.tsx')
-
-        expect(next.cliOutput).toContain('./app/metadata/icon.tsx')
-        expect(next.cliOutput).toContain('./app/metadata/apple-icon.tsx')
-        expect(next.cliOutput).toContain('./app/metadata/opengraph-image.tsx')
-        expect(next.cliOutput).toContain('./app/metadata/twitter-image.tsx')
-        expect(next.cliOutput).toContain('./app/metadata/sitemap.ts')
-
-        // Emitted once for each fixture that exports `runtime`:
-        // `runtime/page.tsx`, `multiple/page.tsx`, and the five `metadata/*`
-        // convention files.
-        expect(next.cliOutput).toIncludeRepeated(
-          '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it.',
-          7
-        )
-      }
     }
   }, 240_000)
 })
@@ -107,12 +106,7 @@ describe('cache-components-segment-configs layout propagation', () => {
   it('should propagate configurations from layouts to pages', async () => {
     if (isNextDev) {
       await next.start()
-    } else {
-      // The build is expected to fail.
-      await expect(next.start()).rejects.toThrow()
-    }
 
-    if (isNextDev) {
       const browser = await next.browser('/revalidate')
       await waitForRedbox(browser)
       const redbox = {
@@ -140,24 +134,28 @@ describe('cache-components-segment-configs layout propagation', () => {
       expect(next.cliOutput).toContain(
         '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
       )
-    } else {
-      await retry(async () => {
-        expect(next.cliOutput).toContain(
-          '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
-        )
-
-        // the stack trace is different between turbopack/webpack
-        if (isTurbopack) {
-          expectLinesToAppearTogether(next.cliOutput, ['./app/layout.tsx:1:14'])
-        } else {
-          expectLinesToAppearTogether(next.cliOutput, [
-            'Import trace for requested module:',
-            './app/fetch-cache/page.tsx',
-            './app/layout.tsx',
-          ])
-        }
-      })
+      return
     }
+
+    // The build is expected to fail.
+    await expect(next.start()).rejects.toThrow()
+
+    await retry(async () => {
+      expect(next.cliOutput).toContain(
+        '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+      )
+
+      // the stack trace is different between turbopack/webpack
+      if (isTurbopack) {
+        expectLinesToAppearTogether(next.cliOutput, ['./app/layout.tsx:1:14'])
+      } else {
+        expectLinesToAppearTogether(next.cliOutput, [
+          'Import trace for requested module:',
+          './app/fetch-cache/page.tsx',
+          './app/layout.tsx',
+        ])
+      }
+    })
   }, 240_000)
 })
 
