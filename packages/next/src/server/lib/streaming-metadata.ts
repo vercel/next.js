@@ -1,6 +1,6 @@
 import {
   HTML_LIMITED_BOT_UA_RE_STRING,
-  MAX_USER_AGENT_LENGTH,
+  isOversizedUserAgent,
 } from '../../shared/lib/router/utils/is-bot'
 
 let cachedPattern: string | undefined
@@ -12,7 +12,7 @@ export function shouldServeStreamingMetadata(
 ): boolean {
   // No real UA string exceeds this bound, so oversized UAs are not bots we need
   // to identify; skip the (possibly user-configured) regex on them entirely.
-  if (!userAgent || userAgent.length > MAX_USER_AGENT_LENGTH) {
+  if (!userAgent || isOversizedUserAgent(userAgent)) {
     return true
   }
   const pattern = htmlLimitedBots || HTML_LIMITED_BOT_UA_RE_STRING

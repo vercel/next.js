@@ -15,17 +15,34 @@ export { HTML_LIMITED_BOT_UA_RE }
 // input.
 export const MAX_USER_AGENT_LENGTH = 1024
 
+let didWarnOversizedUserAgent = false
+
+export function isOversizedUserAgent(userAgent: string): boolean {
+  if (userAgent.length <= MAX_USER_AGENT_LENGTH) {
+    return false
+  }
+  // A 400 response might be more prudent for these requests, but then affected
+  // bots see no content at all, so we only warn to keep at least some o11y.
+  // warnOnce is a no-op in production, so dedupe manually to warn in every mode.
+  if (!didWarnOversizedUserAgent) {
+    didWarnOversizedUserAgent = true
+    console.warn(
+      `Received a User-Agent string longer than ${MAX_USER_AGENT_LENGTH} bytes. Skipping bot detection for this request.`
+    )
+  }
+  return true
+}
+
 function isDomBotUA(userAgent: string) {
   return (
-    userAgent.length <= MAX_USER_AGENT_LENGTH &&
+    !isOversizedUserAgent(userAgent) &&
     HEADLESS_BROWSER_BOT_UA_RE.test(userAgent)
   )
 }
 
 function isHtmlLimitedBotUA(userAgent: string) {
   return (
-    userAgent.length <= MAX_USER_AGENT_LENGTH &&
-    HTML_LIMITED_BOT_UA_RE.test(userAgent)
+    !isOversizedUserAgent(userAgent) && HTML_LIMITED_BOT_UA_RE.test(userAgent)
   )
 }
 
