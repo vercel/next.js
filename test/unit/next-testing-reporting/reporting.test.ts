@@ -3867,6 +3867,147 @@ describe('authored Browser instance reporter labels', () => {
   )
 })
 
+it('reports lexical parents without moving raw collector children or replacing task views', async () => {
+  const { createCollector } = await import(
+    'next/dist/experimental/testing/runner/collector'
+  )
+  const { runCollected } = await import(
+    'next/dist/experimental/testing/runner/lifecycle'
+  )
+  const { captureReporterTaskTree, assertReporterTaskTree } = await import(
+    'next/dist/experimental/testing/reporting/live-tasks'
+  )
+  const { createLiveReporterTaskStore } = await import(
+    'next/dist/experimental/testing/reporting/custom-reporter-live-tasks'
+  )
+  const c = createCollector('lexical-file')
+  const raw = c.api.describe.fn.call(
+    {
+      concurrent: false,
+      only: false,
+      skip: false,
+      todo: false,
+      shuffle: false,
+    },
+    'physical',
+    {},
+    () => {
+      raw.task('inside', { handler() {} })
+    }
+  )
+  raw.task('outside', { handler() {} })
+  c.api.describe('later lexical suite', () => {
+    raw.task('cross', { handler() {} })
+    c.api.test('ordinary lexical child', () => {})
+  })
+  await c.settle()
+  const store = createLiveReporterTaskStore('/project')
+  let tree!: ReturnType<typeof captureReporterTaskTree>
+  let early: unknown[] = []
+  const result = await runCollected(
+    c.close(),
+    {
+      runId: 'lexical-run',
+      signal: new AbortController().signal,
+      filePath: '/project/lexical.test.mjs',
+      onCollected(file) {
+        tree = captureReporterTaskTree(file)
+        store.update(tree)
+        early = [...store.get(file.id)!.children!.allTests()]
+      },
+      onCaseResult(task) {
+        store.update(captureReporterTaskTree(task.file), [task.id])
+      },
+    },
+    () => {}
+  )
+  expect(result.errors).toEqual([])
+  const module = store.get('lexical-file')!
+  const [physical, lexical] = module.children!.array()
+  const [outside, cross, inside] = [...physical.children!.allTests()]
+  expect([...module.children!.allTests()]).toEqual(early)
+  expect([outside.name, cross.name, inside.name]).toEqual([
+    'outside',
+    'cross',
+    'inside',
+  ])
+  expect(outside.parent).toBe(module)
+  expect(cross.parent).toBe(lexical)
+  expect(inside.parent).toBe(physical)
+  expect(lexical.children!.size).toBe(1)
+  expect(lexical.children!.at(0)!.parent).toBe(lexical)
+  expect(tree.parentSuiteId).toBeNull()
+  expect(tree.tasks![0].parentSuiteId).toBeNull()
+  expect(tree.tasks![0].tasks!.map((task) => task.parentSuiteId)).toEqual([
+    null,
+    tree.tasks![1].id,
+    tree.tasks![0].id,
+  ])
+  const legacy = structuredClone(tree)
+  const omitParent = (task: typeof tree) => {
+    delete task.parentSuiteId
+    task.tasks?.forEach(omitParent)
+  }
+  omitParent(legacy)
+  const legacyModule = createLiveReporterTaskStore('/project').update(legacy)
+  const legacyPhysical = legacyModule.children!.at(0)!
+  for (const task of legacyPhysical.children!.allTests())
+    expect(task.parent).toBe(legacyPhysical)
+  expect(() => store.update(legacy)).toThrow('declaration identity changed')
+  expect(outside.result().state).toBe('passed')
+  expect(cross.result().state).toBe('passed')
+  const assertTree: typeof assertReporterTaskTree = assertReporterTaskTree
+  const entryId = tree.id
+  for (const mutate of [
+    (changed: typeof tree) => {
+      changed.tasks![0].parentSuiteId = 'missing'
+    },
+    (changed: typeof tree) => {
+      changed.tasks![1].parentSuiteId = changed.tasks![0].tasks![0].id
+    },
+    (changed: typeof tree) => {
+      changed.tasks![0].parentSuiteId = changed.tasks![0].id
+    },
+    (changed: typeof tree) => {
+      changed.tasks![0].parentSuiteId = changed.tasks![1].id
+      changed.tasks![1].parentSuiteId = changed.tasks![0].id
+    },
+    (changed: typeof tree) => {
+      changed.parentSuiteId = changed.tasks![0].id
+    },
+    (changed: typeof tree) => {
+      changed.tasks![0].parentSuiteId = changed.id
+    },
+    (changed: typeof tree) => {
+      Object.assign(changed.tasks![0], { parentSuiteId: 4 })
+    },
+  ]) {
+    const changed = structuredClone(tree)
+    mutate(changed)
+    expect(() => assertTree(changed, entryId)).toThrow(/reporter.*parent/)
+    expect(() => store.update(changed)).toThrow(/reporter.*parent/)
+    expect(store.get(entryId)).toBe(module)
+    expect(outside.parent).toBe(module)
+    expect(cross.parent).toBe(lexical)
+    expect(outside.result().state).toBe('passed')
+  }
+})
+
+it('matches actual raw collector parents in supported case and completion reporter callbacks', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'logical-case-parent.cjs')],
+    { encoding: 'utf8', timeout: 150000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 2,
+    cases: 16,
+    authoredRows: 2,
+    callbackRows: 48,
+    fullReferenceRows: true,
+  })
+}, 160000)
+
 it('retains actual collected hierarchy and live task identities before following bodies complete', async () => {
   const { createCollector } = await import(
     'next/dist/experimental/testing/runner/collector'

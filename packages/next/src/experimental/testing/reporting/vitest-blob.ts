@@ -339,6 +339,7 @@ function importedReporterTree(file: ForeignTask): ReporterTaskSnapshot {
       name: task.name,
       fullName: task.fullName,
       fullTestName: task.fullTestName,
+      parentSuiteId: task.suite?.id ?? null,
       mode: task.mode,
       meta: task.meta,
       tags: task.tags!,

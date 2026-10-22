@@ -3559,6 +3559,8 @@ describe('Browser actual logical-case reporter facts', () => {
     'unknown-task',
     'missing-task',
     'wrong-parent',
+    'wrong-lexical-parent',
+    'wrong-file-parent',
     'forged-name',
     'context',
   ])(
@@ -3589,6 +3591,10 @@ describe('Browser actual logical-case reporter facts', () => {
       if (kind === 'unknown-task') message.taskTree.tasks[0].id = 'foreign/0'
       if (kind === 'missing-task') message.taskTree.tasks.pop()
       if (kind === 'wrong-parent') message.taskTree.tasks[0].id = 'entry/5/0'
+      if (kind === 'wrong-lexical-parent')
+        message.taskTree.tasks[0].parentSuiteId = message.taskTree.tasks[1].id
+      if (kind === 'wrong-file-parent')
+        message.taskTree.parentSuiteId = message.taskTree.id
       if (kind === 'forged-name') message.taskTree.tasks[0].name = 'invented'
       if (kind === 'context') message.taskTree.tasks[0].context = {}
       expect(() => collector.accept(message)).toThrow(/Browser Mode/)

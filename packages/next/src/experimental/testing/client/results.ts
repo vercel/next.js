@@ -1,4 +1,7 @@
-import type { ReporterTaskSnapshot } from '../reporting/live-tasks'
+import {
+  assertReporterTaskParents,
+  type ReporterTaskSnapshot,
+} from '../reporting/live-tasks'
 import { basename, dirname, join } from 'node:path'
 import assert from 'node:assert'
 import type {
@@ -179,6 +182,9 @@ export function createClientResultCollector(
         (!suite && !test) ||
         visited.has(value.id) ||
         declaredParent !== parentId ||
+        (value.parentSuiteId !== undefined &&
+          value.parentSuiteId !==
+            (declaredParent === artifact.entryId ? null : declaredParent)) ||
         (!root && value.id !== `${parentId}/${index}`) ||
         value.type !== (suite ? 'suite' : 'test') ||
         value.name !== name ||
@@ -212,6 +218,7 @@ export function createClientResultCollector(
               'name',
               'fullName',
               'fullTestName',
+              'parentSuiteId',
               'mode',
               'meta',
               'tags',
@@ -266,6 +273,11 @@ export function createClientResultCollector(
     visit(rootSnapshot, null)
     if (visited.size !== declarations.cases.size + declarations.suites.size)
       throw invalid()
+    try {
+      assertReporterTaskParents(rootSnapshot as unknown as ReporterTaskSnapshot)
+    } catch {
+      throw invalid()
+    }
     return rootSnapshot as unknown as ReporterTaskSnapshot
   }
   // Unstarted mode changes remain quarantined until the failed ancestor suite

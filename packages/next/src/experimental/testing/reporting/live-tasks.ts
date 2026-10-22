@@ -15,6 +15,8 @@ export interface ReporterTaskSnapshot {
   name: string
   fullName: string
   fullTestName?: string
+  /** Actual registration suite; null denotes the file, omission a legacy graph. */
+  parentSuiteId?: string | null
   mode: Task['mode']
   meta: TaskMeta
   tags: string[]
@@ -46,6 +48,7 @@ export function captureReporterTaskTree(
       name: task.name,
       fullName: task.fullName,
       fullTestName: task.fullTestName,
+      parentSuiteId: task.suite?.id ?? null,
       mode: task.mode,
       meta: pack.meta,
       tags: task.tags,
@@ -126,6 +129,45 @@ export function assertReporterTaskTree(
       throw new Error('Invalid live reporter case fields.')
   }
   visit(value, true)
+  assertReporterTaskParents(value as ReporterTaskSnapshot)
   if (!found)
     throw new Error('Live reporter result is missing its actual case.')
+}
+
+/** Validate lexical parents independently of the physical child arrays. */
+export function assertReporterTaskParents(tree: ReporterTaskSnapshot): void {
+  const nodes = new Map<string, ReporterTaskSnapshot>()
+  const parents = new Map<string, string | null>()
+  function collect(task: ReporterTaskSnapshot, physicalParent: string | null) {
+    nodes.set(task.id, task)
+    const parent = task.parentSuiteId
+    if (
+      (parent !== undefined && parent !== null && typeof parent !== 'string') ||
+      (task === tree && parent !== undefined && parent !== null)
+    )
+      throw new Error('Invalid live reporter suite parent.')
+    parents.set(task.id, parent === undefined ? physicalParent : parent)
+    task.tasks?.forEach((child) =>
+      collect(child, task === tree ? null : task.id)
+    )
+  }
+  collect(tree, null)
+  const checked = new Set<string>()
+  for (const task of nodes.values()) {
+    const pending = new Set<string>()
+    let id: string | null = task.id
+    while (id !== null && !checked.has(id)) {
+      if (pending.has(id))
+        throw new Error('Cyclic live reporter suite parents.')
+      pending.add(id)
+      const parent: string | null = parents.get(id)!
+      if (
+        parent !== null &&
+        (parent === tree.id || nodes.get(parent)?.type !== 'suite')
+      )
+        throw new Error('Invalid live reporter suite parent.')
+      id = parent
+    }
+    for (const visited of pending) checked.add(visited)
+  }
 }

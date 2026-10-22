@@ -126,29 +126,48 @@ export function createLiveReporterTaskStore(projectDir: string) {
       throw new Error(
         'Live reporter updates require the actual collected file.'
       )
-    const observed = new Set<string>()
-    const collect = (value: ReporterTaskSnapshot) => {
-      observed.add(value.id)
-      value.tasks?.forEach(collect)
+    const observed = new Map<
+      string,
+      { value: ReporterTaskSnapshot; parentId: string | null }
+    >()
+    const collect = (
+      value: ReporterTaskSnapshot,
+      physicalParent: string | null
+    ) => {
+      observed.set(value.id, {
+        value,
+        parentId:
+          value.parentSuiteId === undefined
+            ? physicalParent
+            : value.parentSuiteId,
+      })
+      value.tasks?.forEach((child) => collect(child, value.id))
     }
-    collect(tree)
+    collect(tree, null)
     if (updating && [...updating].some((id) => !observed.has(id)))
       throw new Error('Live reporter update references an absent task.')
+    // Reject declaration changes before replacing any previously exposed state.
+    for (const { value, parentId } of observed.values()) {
+      const retained = tasks.get(value.id)
+      if (
+        retained &&
+        (retained.view.type !== (value === tree ? 'module' : value.type) ||
+          retained.view.parent !==
+            (value === tree
+              ? undefined
+              : tasks.get(parentId ?? tree.id)?.view) ||
+          retained.childIds.join('\0') !==
+            (value.tasks?.map((item) => item.id) ?? []).join('\0'))
+      )
+        throw new Error('Live reporter declaration identity changed.')
+    }
     const project = { name: tree.projectName ?? '' }
-    function visit(
-      value: ReporterTaskSnapshot,
-      parent?: View,
-      root?: View
-    ): View {
+    const created = new Set<string>()
+    function allocate(value: ReporterTaskSnapshot): View {
+      const isRoot = value === tree
       const childIds = value.tasks?.map((item) => item.id) ?? []
       let retained = tasks.get(value.id)
       if (retained) {
-        if (
-          retained.value.type !== value.type ||
-          retained.view.parent !== parent ||
-          retained.childIds.join('\0') !== childIds.join('\0')
-        )
-          throw new Error('Live reporter declaration identity changed.')
         if (!updating || updating.has(value.id)) {
           retained.value = value
           retained.meta = value.meta
@@ -159,23 +178,21 @@ export function createLiveReporterTaskStore(projectDir: string) {
           children: View[] = []
         const current = () => tasks.get(value.id)!.value
         const state = () =>
-          !parent && fileOutcomes.has(tree.id)
+          isRoot && fileOutcomes.has(tree.id)
             ? fileOutcomes.get(tree.id)!.state
             : stateOf(current().result?.state ?? current().mode)
         const errors = () =>
-          !parent && fileOutcomes.has(tree.id)
+          isRoot && fileOutcomes.has(tree.id)
             ? fileOutcomes.get(tree.id)!.errors
             : (current().result?.errors ?? [])
         const view: View = {
-          type: parent ? value.type : 'module',
+          type: isRoot ? 'module' : value.type,
           id: value.id,
           project,
-          ...(parent
+          ...(!isRoot
             ? {
                 name: value.name,
                 fullName: value.fullTestName ?? value.name,
-                parent,
-                module: root,
               }
             : {
                 moduleId: tree.filepath,
@@ -214,7 +231,7 @@ export function createLiveReporterTaskStore(projectDir: string) {
           annotations: () => [...(current().annotations ?? [])],
           artifacts: () => [...(current().artifacts ?? [])],
         }
-        if (parent && !view.options)
+        if (!isRoot && !view.options)
           view.options = declarationOptions(value, tags)
         const exposed = new Proxy(view, {
           get(target, key, receiver) {
@@ -235,19 +252,32 @@ export function createLiveReporterTaskStore(projectDir: string) {
         })
         retained = { value, view: exposed, meta, tags, children, childIds }
         tasks.set(value.id, retained)
+        created.add(value.id)
       }
       const view = retained.view
-      if (parent) {
+      if (!isRoot) {
         view.name = value.name
         view.fullName = value.fullTestName ?? value.name
       }
-      const children = (value.tasks ?? []).map((child) =>
-        visit(child, view, root ?? view)
-      )
-      retained.children.splice(0, retained.children.length, ...children)
       return view
     }
-    const module = visit(tree)
+    for (const { value } of observed.values()) allocate(value)
+    const module = tasks.get(tree.id)!.view
+    for (const { value, parentId } of observed.values()) {
+      const retained = tasks.get(value.id)!
+      const parent =
+        value === tree ? undefined : tasks.get(parentId ?? tree.id)!.view
+      if (!created.has(value.id) && retained.view.parent !== parent)
+        throw new Error('Live reporter declaration identity changed.')
+      if (value !== tree) {
+        retained.view.parent = parent
+        retained.view.module = module
+      }
+      const children = (value.tasks ?? []).map(
+        (child) => tasks.get(child.id)!.view
+      )
+      retained.children.splice(0, retained.children.length, ...children)
+    }
     modules.set(tree.id, module)
     return module
   }
