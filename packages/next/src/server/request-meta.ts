@@ -221,6 +221,13 @@ export interface RequestMeta {
   middlewareInvoke?: boolean
 
   /**
+   * The W3C `traceparent` of the middleware invocation's `handleRequest` span,
+   * written onto the request headers so the middleware span and the render
+   * that follows are siblings under that span.
+   */
+  middlewareInvokeTraceparent?: string
+
+  /**
    * Whether the request should render the fallback shell or not.
    */
   renderFallbackShell?: boolean
