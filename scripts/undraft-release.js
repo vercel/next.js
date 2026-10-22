@@ -2,17 +2,22 @@
 // @ts-check
 
 const semver = require('semver')
+const fs = require('fs/promises')
+const path = require('path')
 const {
   getGitHubToken,
   getGitHubTokenMissingMessage,
 } = require('./release-github-auth')
-const { readReleaseVersion } = require('./release-version')
+
+const cwd = process.cwd()
 
 ;(async function () {
-  const version = readReleaseVersion()
+  const { version } = JSON.parse(
+    await fs.readFile(path.join(cwd, 'lerna.json'), 'utf-8')
+  )
   const parsedVersion = semver.parse(version)
   if (parsedVersion === null) {
-    throw new Error(`Invalid version: ${version}`)
+    throw new Error(`Invalid version in lerna.json: ${version}`)
   }
   const { prerelease } = parsedVersion
   const isPrerelease = prerelease.length > 0
