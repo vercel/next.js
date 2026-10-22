@@ -182,8 +182,16 @@ pub async fn resolve_source_map_sources(
 
             for (source, content) in sources.iter_mut().zip(contents.iter_mut()) {
                 if let Some(source) = source {
-                    if let Some(source_root) = &map.source_root {
-                        *source = format!("{source_root}{source}");
+                    // ECMA-426 prefixes sources with the root, followed by a `/` if it has none.
+                    if let Some(source_root) = map.source_root.as_deref()
+                        && !source_root.is_empty()
+                    {
+                        let separator = if source_root.ends_with('/') || source.starts_with('/') {
+                            ""
+                        } else {
+                            "/"
+                        };
+                        *source = format!("{source_root}{separator}{source}");
                     }
                     resolve_source(source, Some(content)).await?;
                 }
@@ -401,8 +409,7 @@ mod tests {
                 let rooted_source_map: SourceMapJson = serde_json::from_str(
                     &resolve_source_map_sources(
                         Some(&source_map_rope(
-                            // NOTE: these should get literally concated, a slash should NOT get
-                            // added.
+                            // A `/` is added between the root and the source.
                             Some("../source%20root%20"),
                             ["page.js"],
                         )),
@@ -440,7 +447,7 @@ mod tests {
 
             assert_eq!(
                 resolved_source_maps.rooted_sources,
-                vec![Some(format!("{prefix}/source root page.js"))]
+                vec![Some(format!("{prefix}/source root /page.js"))]
             );
 
             anyhow::Ok(())
