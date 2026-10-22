@@ -1483,6 +1483,38 @@ describe('uncaught errors in setImmediate do not affect surrounding tasks or oth
     }
   }
 
+  /**
+   * Sync errors from fast immediates and patched nextTicks are rethrown from a `queueMicrotask`.
+   * Whether async context survives into `uncaughtException` for such a rethrow depends on the runtime:
+   * Node's `queueMicrotask` unwinds its async scope before the error is reported,
+   * so the context is only visible when `AsyncLocalStorage` is backed by `AsyncContextFrame`
+   * (the default since Node 24). Probe what a native microtask throw sees on the current runtime.
+   */
+  const getNativeMicrotaskUncaughtContext = async <T>(
+    Ctx: AsyncLocalStorage<T>,
+    value: T
+  ): Promise<T | undefined> => {
+    const result = createPromiseWithResolvers<T | undefined>()
+    const probeError = new Error('native microtask probe')
+    using _ = trackUncaughtErrors((error, kind) => {
+      if (error === probeError && kind === 'uncaughtException') {
+        result.resolve(Ctx.getStore())
+      } else {
+        result.reject(
+          new Error(`Unexpected ${kind} while probing native microtask`, {
+            cause: error,
+          })
+        )
+      }
+    })
+    Ctx.run(value, () => {
+      queueMicrotask(() => {
+        throw probeError
+      })
+    })
+    return await result.promise
+  }
+
   it('preserves native nextTick error timing without capture', async () => {
     const { log, logs } = createLogger()
     const done = createPromiseWithResolvers<void>()
@@ -1608,6 +1640,10 @@ describe('uncaught errors in setImmediate do not affect surrounding tasks or oth
 
     const Ctx = new AsyncLocalStorage<string>()
     const contextValue = 'hello'
+    const expectedUncaughtContext = await getNativeMicrotaskUncaughtContext(
+      Ctx,
+      contextValue
+    )
 
     let triggeredError: TriggeredUncaught | undefined = undefined
     using _ = trackUncaughtErrors((error, kind) => {
@@ -1662,9 +1698,9 @@ describe('uncaught errors in setImmediate do not affect surrounding tasks or oth
       'timeout 1 -> immediate 1',
       'timeout 1 -> immediate 1 -> nextTick', // undesirable (too early) but acceptable
 
-      // FIXME: no async context in uncaughtException
-      // `uncaughtException - ${contextValue}`,
-      `uncaughtException - undefined`,
+      // FIXME: native immediates keep async context in uncaughtException on all Node versions,
+      // but we rethrow via `queueMicrotask`, which only keeps it with `AsyncContextFrame` (Node 24+).
+      `uncaughtException - ${expectedUncaughtContext}`,
 
       // ======================
       'timeout 1 -> immediate 2',
@@ -1679,6 +1715,10 @@ describe('uncaught errors in setImmediate do not affect surrounding tasks or oth
 
     const Ctx = new AsyncLocalStorage<string>()
     const contextValue = 'hello'
+    const expectedUncaughtContext = await getNativeMicrotaskUncaughtContext(
+      Ctx,
+      contextValue
+    )
 
     let triggeredError: TriggeredUncaught | undefined = undefined
     using _ = trackUncaughtErrors((error, kind) => {
@@ -1728,9 +1768,9 @@ describe('uncaught errors in setImmediate do not affect surrounding tasks or oth
       'timeout 1 -> immediate 1',
       `timeout 1 -> immediate 1 -> nextTick - ${contextValue}`,
 
-      // FIXME: no async context in uncaughtException
-      // `uncaughtException - ${contextValue}`,
-      `uncaughtException - undefined`,
+      // FIXME: native nextTicks keep async context in uncaughtException on all Node versions,
+      // but we rethrow via `queueMicrotask`, which only keeps it with `AsyncContextFrame` (Node 24+).
+      `uncaughtException - ${expectedUncaughtContext}`,
 
       // ======================
       'timeout 1 -> immediate 2',
