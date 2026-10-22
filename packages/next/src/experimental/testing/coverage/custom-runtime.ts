@@ -118,6 +118,7 @@ export function assertCustomCoverageRequest(
     ExecuteTestOptions,
     | 'customCoverage'
     | 'onCustomCoverage'
+    | 'onCustomCoverageSuite'
     | 'coverage'
     | 'collectOnly'
     | 'entry'
@@ -131,7 +132,7 @@ export function assertCustomCoverageRequest(
     )
   const request = options.customCoverage
   if (!request) {
-    if (options.onCustomCoverage)
+    if (options.onCustomCoverage || options.onCustomCoverageSuite)
       throw new Error('Custom coverage callback requires a request.')
     return
   }

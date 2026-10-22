@@ -12,13 +12,19 @@ export interface WorkerInput {
   artifact: CompiledTestArtifact
   options: Omit<
     ExecuteTestOptions,
-    'signal' | 'onEvent' | 'onCoverage' | 'onCustomCoverage'
+    | 'signal'
+    | 'onEvent'
+    | 'onCoverage'
+    | 'onCustomCoverage'
+    | 'onCustomCoverageSuite'
   >
+  customCoverageSuite?: true
   cacheScope: { type: 'file'; directory: string }
 }
 
 export type WorkerMessage =
   | { type: 'event'; event: ResultEvent }
+  | { type: 'custom-coverage-suite'; completion: CustomCoverageCompletion }
   | {
       type: 'complete'
       result: FileResult

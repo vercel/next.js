@@ -81,12 +81,7 @@ for (const pristine of profiles) {
           .split('\n')
           .map((line) => JSON.parse(line.replaceAll(fixture, '<project>')))
       : []
-    assert.deepEqual(
-      trace,
-      pristine.disabled
-        ? pristine.providerTrace
-        : expected.enabledBaseline.providerTrace
-    )
+    assert.deepEqual(trace, pristine.providerTrace)
     const reportFile = path.join(fixture, 'custom-coverage.json')
     const report = fs.existsSync(reportFile)
       ? JSON.parse(fs.readFileSync(reportFile))

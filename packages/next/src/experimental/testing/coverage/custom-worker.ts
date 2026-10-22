@@ -1,4 +1,5 @@
 import { resolve } from 'node:path'
+import { isDeepStrictEqual } from 'node:util'
 import { coverageConfigDefaults } from '../config-api'
 import { serializeDiagnostic } from '../reporting/diagnostics'
 import {
@@ -23,6 +24,7 @@ let started = false
 let finished = false
 let failed = false
 let queue = Promise.resolve()
+const suites = new Map<string, CustomCoverageFact>()
 function send(message: unknown) {
   return new Promise<void>((resolveSend, reject) => {
     if (!process.send)
@@ -107,6 +109,30 @@ async function initialize(value: Input) {
     reportsDirectory: coverage.reportsDirectory,
   })
 }
+async function afterSuite(fact: CustomCoverageFact) {
+  if (!input || !provider || finished || failed)
+    throw new Error('Custom coverage host cannot receive a suite.')
+  if (
+    !fact?.completion?.complete ||
+    suites.has(fact.completion.entryId) ||
+    fact.completion.provider.file !== input.provider.file ||
+    fact.completion.provider.sha256 !== input.provider.sha256
+  )
+    throw new Error('Invalid or duplicate custom coverage suite.')
+  await assertCustomProviderIdentity(input.provider)
+  // Preserve the original handoff for final closure validation even if the
+  // provider mutates its own payload or testFiles during this hook.
+  suites.set(fact.completion.entryId, structuredClone(fact))
+  await provider.onAfterSuiteRun({
+    coverage: fact.completion.payload,
+    testFiles: fact.testFiles,
+    environment: fact.environment,
+    ...(fact.projectName === undefined
+      ? {}
+      : { projectName: fact.projectName }),
+  })
+  await assertCustomProviderIdentity(input.provider)
+}
 async function finish(
   facts: CustomCoverageFact[],
   status: 'passed' | 'failed',
@@ -114,20 +140,23 @@ async function finish(
 ) {
   if (!input || !provider || finished || failed)
     throw new Error('Custom coverage host cannot finish.')
+  if (suites.size) {
+    if (
+      facts.length !== suites.size ||
+      new Set(facts.map((fact) => fact.completion.entryId)).size !==
+        facts.length ||
+      facts.some(
+        (fact) => !isDeepStrictEqual(suites.get(fact.completion.entryId), fact)
+      )
+    )
+      throw new Error(
+        'Custom coverage suite lacks matching closed-worker facts.'
+      )
+  } else {
+    for (const fact of facts) await afterSuite(fact)
+  }
   finished = true
   await assertCustomProviderIdentity(input.provider)
-  for (const fact of facts) {
-    if (!fact.completion.complete)
-      throw new Error('Incomplete custom coverage payload.')
-    await provider.onAfterSuiteRun({
-      coverage: fact.completion.payload,
-      testFiles: fact.testFiles,
-      environment: fact.environment,
-      ...(fact.projectName === undefined
-        ? {}
-        : { projectName: fact.projectName }),
-    })
-  }
   if (status === 'failed') await provider.onTestFailure?.()
   const coverage = await provider.generateCoverage({ allTestsRun })
   await assertCustomProviderIdentity(input.provider)
@@ -149,7 +178,10 @@ process.on('message', (message: any) => {
     .then(async () => {
       if (failed) return
       if (message?.type === 'run') await initialize(message.input)
-      else if (message?.type === 'custom-coverage-finish')
+      else if (message?.type === 'custom-coverage-suite') {
+        await afterSuite(message.fact)
+        await send({ type: 'custom-coverage-suite-received' })
+      } else if (message?.type === 'custom-coverage-finish')
         await finish(message.facts, message.status, message.allTestsRun)
       else if (message?.type === 'shutdown') {
         await assertCustomProviderIdentity(input!.provider)

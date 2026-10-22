@@ -155,6 +155,15 @@ export async function openCustomCoverageSession(options: {
         reportsDirectory,
         coverageFilesDirectory: directory,
       } satisfies CustomCoverageRequest,
+      async afterSuite(fact: CustomCoverageFact) {
+        await command(
+          'custom-coverage-suite',
+          'custom-coverage-suite-received',
+          {
+            fact,
+          }
+        )
+      },
       async finish(
         facts: CustomCoverageFact[],
         status: 'passed' | 'failed',

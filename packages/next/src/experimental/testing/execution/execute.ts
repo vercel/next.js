@@ -67,6 +67,7 @@ export async function executeWithEnvironment(
     onEvent,
     onCoverage,
     onCustomCoverage,
+    onCustomCoverageSuite,
     onSnapshotUpdates,
     signal,
     ...workerOptions
@@ -116,12 +117,15 @@ export async function executeWithEnvironment(
   let snapshotUpdates: SnapshotUpdate[] | undefined
   let coverage: TestCoverageCompletion | undefined
   let customCoverage: CustomCoverageCompletion | undefined
+  let customSuite: Promise<void> | undefined
   const exit = await withFileCacheDirectory(async (directory) => {
     const input: WorkerInput = {
       artifact,
       options: workerOptions,
       cacheScope: { type: 'file', directory },
+      ...(onCustomCoverageSuite ? { customCoverageSuite: true as const } : {}),
     }
+    let send!: (message: unknown) => Promise<void>
     return runTestProcess(require.resolve('./worker'), {
       cwd: options.projectDir,
       env: {
@@ -135,6 +139,9 @@ export async function executeWithEnvironment(
       inspectBrk: options.inspectBrk,
       signal,
       timeoutMs: options.fileTimeout,
+      onReady(value) {
+        send = value
+      },
       onMessage(value) {
         if (!value || typeof value !== 'object')
           throw new Error('Invalid test worker message')
@@ -158,6 +165,38 @@ export async function executeWithEnvironment(
           if (options.coverage || options.customCoverage)
             attempts.observe(message.event)
           onEvent(message.event)
+        } else if (message.type === 'custom-coverage-suite') {
+          if (!options.customCoverage || !onCustomCoverageSuite || customSuite)
+            throw new Error('Unrequested or duplicate custom coverage suite')
+          assertCustomCoverageCompletion(
+            message.completion,
+            artifact,
+            options.runId,
+            options.customCoverage
+          )
+          if (!message.completion.complete || !attempts.complete)
+            throw new Error('Custom coverage suite has incomplete attempts')
+          customSuite = (async () => {
+            let error: ReturnType<typeof serializeDiagnostic> | undefined
+            try {
+              signal.throwIfAborted()
+              await onCustomCoverageSuite(message.completion)
+              signal.throwIfAborted()
+            } catch (failure) {
+              error = serializeDiagnostic(failure, { phase: 'runtime' })
+            }
+            await send({
+              type: 'custom-coverage-suite-received',
+              runId: options.runId,
+              entryId: artifact.entryId,
+              revision: artifact.revision,
+              ...(error ? { error } : {}),
+            }).catch((failure) => {
+              if (!signal.aborted) throw failure
+            })
+          })()
+          // The process owner joins this task after the worker closes.
+          void customSuite.catch(() => {})
         } else if (message.type === 'complete' && !result) {
           if (
             message.result?.entryId !== artifact.entryId ||
@@ -221,7 +260,18 @@ export async function executeWithEnvironment(
         })
       },
     })
+  }).catch(async (error) => {
+    try {
+      await customSuite
+    } catch (suiteError) {
+      throw new AggregateError(
+        [error, suiteError],
+        'Test worker cleanup and custom coverage handoff failed'
+      )
+    }
+    throw error
   })
+  await customSuite
   if (
     exit.reason === 'cancelled' ||
     (signal.aborted && exit.reason === 'exit' && exit.code === 0)

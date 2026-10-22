@@ -834,7 +834,22 @@ export async function nextTestRunner(
         coverage: options.coverage ?? false,
         standardCoverageOptions,
         coverageInputs: configuration.watchInputs,
-        ...(customProjects.length ? { customCoverageRequests } : {}),
+        ...(customProjects.length
+          ? {
+              customCoverageRequests,
+              onCustomCoverageSuite: async (fact: CustomCoverageFact) => {
+                const owners = [...projectsForCustomCoverage].filter(
+                  ([, ownedEntries]) =>
+                    ownedEntries.includes(fact.completion.entryId)
+                )
+                if (owners.length !== 1)
+                  throw new Error(
+                    'Custom coverage suite has no unique project owner.'
+                  )
+                await customSessions.get(owners[0][0])!.afterSuite(fact)
+              },
+            }
+          : {}),
         ...(coverageFlags.coverage === false
           ? { customCoverageDisabled: true as const }
           : {}),

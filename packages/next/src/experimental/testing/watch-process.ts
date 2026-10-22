@@ -16,7 +16,10 @@ import {
 } from './coverage/source-analysis-plan'
 import { analyzeCompiledCoverageSource } from './coverage/source-analysis'
 import type { BrowserApplicationOwnership } from './execution/broker'
-import type { CustomCoverageRequest } from './coverage/custom-types'
+import type {
+  CustomCoverageRequest,
+  CustomCoverageFact,
+} from './coverage/custom-types'
 import { assertCustomCoverageFacts } from './coverage/custom-facts'
 import { fork, execFile } from 'child_process'
 import type {
@@ -26,7 +29,7 @@ import type {
 import { promisify } from 'node:util'
 import { randomUUID } from 'crypto'
 import { mkdir, mkdtemp, rm } from 'fs/promises'
-import { join, isAbsolute, resolve as resolvePath } from 'path'
+import { join, relative, isAbsolute, resolve as resolvePath } from 'path'
 import type { DiscoveredTestProject } from './discovery'
 import type { TestProfile } from './contracts'
 import type { WatchDirectories } from './incremental/watch-files'
@@ -198,6 +201,7 @@ export async function runWatchProcess(
     onEvent?: (event: ResultEvent) => void
     /** Parent-validated actual config module files; never child-provided watch paths. */
     onRuntimeConfigurationInputs?: (files: readonly string[]) => Promise<void>
+    onCustomCoverageSuite?: (fact: CustomCoverageFact) => Promise<void>
     onSnapshotCommitStart?: () => void
     onSnapshotCommitEnd?: () => void
     /** Keep event validation/aggregation but let an outer run render results. */
@@ -389,6 +393,7 @@ export async function runWatchProcess(
       failed = true
       failure ??= error
     }
+    const customSuiteEntries = new Set<string>()
     const broker = brokerModule?.createExecutionBrokerHost({
       signal: options.signal,
       browserProjects:
@@ -402,6 +407,65 @@ export async function runWatchProcess(
         (request.isolatedProfile === true ||
           (request.watchCoverage === true &&
             !!request.standardCoverageOptions)),
+      ...(options.onCustomCoverageSuite
+        ? {
+            onCustomCoverageSuite: async (artifact, execution, completion) => {
+              if (
+                request.operation !== 'run' ||
+                !request.isolatedProfile ||
+                !artifactRoots.has(artifact.rootDir) ||
+                customSuiteEntries.has(artifact.entryId)
+              )
+                throw new Error(
+                  'Custom coverage suite lacks its parent file lease.'
+                )
+              const project = request.projects.find((candidate) =>
+                isDeepStrictEqual(candidate.profile, artifact.profile)
+              )
+              const entry = project?.entries.find(
+                (candidate) =>
+                  candidate.id === artifact.entryId &&
+                  isDeepStrictEqual(candidate, execution.entry)
+              )
+              if (
+                !project ||
+                !entry ||
+                !request.customCoverageRequests ||
+                !isDeepStrictEqual(
+                  request.customCoverageRequests[project.profile.id],
+                  execution.customCoverage
+                )
+              )
+                throw new Error(
+                  'Custom coverage suite differs from parent selection.'
+                )
+              const fact: CustomCoverageFact = {
+                completion,
+                testFiles: [
+                  relative(request.projectDir, entry.file).replaceAll(
+                    '\\',
+                    '/'
+                  ),
+                ],
+                environment: 'ssr',
+                ...(project.displayName === undefined
+                  ? {}
+                  : { projectName: project.displayName }),
+              }
+              assertCustomCoverageFacts(
+                [fact],
+                request.projectDir,
+                [{ ...project, entries: [entry] }],
+                request.customCoverageRequests,
+                new Map([[entry.id, artifact.revision]]),
+                execution.runId
+              )
+              customSuiteEntries.add(entry.id)
+              await options.onCustomCoverageSuite!(fact)
+              options.signal.throwIfAborted()
+            },
+          }
+        : {}),
       ...(runtimeConfigurationPlan
         ? {
             onRuntimeConfiguration: async (artifact, signal) => {

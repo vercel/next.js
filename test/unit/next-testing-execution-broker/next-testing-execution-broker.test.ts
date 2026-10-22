@@ -621,6 +621,25 @@ describe('shared cohort broker', () => {
     expect(oneShot.sent).toEqual([])
   })
 
+  it('keeps the live custom provider suite hook in its parent instead of serializing it', async () => {
+    const channel = transport(true, true)
+    const onCustomCoverageSuite = jest.fn(async () => {})
+    await expect(
+      channel.client.execute(artifact, {
+        ...options,
+        onCustomCoverageSuite,
+      })
+    ).rejects.toThrow('parent broker owner')
+    await expect(
+      channel.client.executeCohort(
+        cohort,
+        executionOptions().map((value) => ({ ...value, onCustomCoverageSuite }))
+      )
+    ).rejects.toThrow('without coverage')
+    expect(channel.sent).toEqual([])
+    expect(onCustomCoverageSuite).not.toHaveBeenCalled()
+  })
+
   it('retains the entire artifact cohort until cancellation has an authoritative aggregate response', async () => {
     const channel = transport(false, true),
       controller = new AbortController()

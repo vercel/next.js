@@ -2462,6 +2462,138 @@ describe('real custom coverage provider ownership', () => {
     })
     return { result, facts }
   }
+  it.each([
+    'normal',
+    'body-failure',
+    'suite-failure',
+    'stop-failure',
+    'final-mismatch',
+  ])(
+    'awaits the actual provider suite hook before stopping the live collector for %s',
+    async (mode) => {
+      const f = await customFixture(
+        mode,
+        `
+const originalSuite = ReleaseProvider.prototype.onAfterSuiteRun;
+ReleaseProvider.prototype.onAfterSuiteRun = async function(meta) {
+  originalSuite.call(this, meta);
+  await new Promise(resolve => setImmediate(resolve));
+  record('suite-settled');
+  ${mode === 'suite-failure' ? "throw new Error('suite handoff sentinel');" : ''}
+};
+${mode === 'stop-failure' ? "import self from './provider.mjs'; const originalStop = self.stopCoverage; self.stopCoverage = function(options) {originalStop(options); throw new Error('collector stop sentinel')};" : ''}
+`
+      )
+      const controller = new AbortController()
+      let session: Awaited<ReturnType<typeof openSession>> | undefined
+      let expectedProviderFailure = false
+      try {
+        session = await openSession(f.root, controller.signal, {
+          reportOnFailure: true,
+        })
+        const { execute } = await import(
+          'next/dist/experimental/testing/execution/execute'
+        )
+        const facts: import('next/dist/experimental/testing/coverage/custom-types').CustomCoverageFact[] =
+          []
+        const trace = async () =>
+          (await readFile(join(f.root, 'provider-trace.jsonl'), 'utf8'))
+            .trim()
+            .split('\n')
+            .map((line) => JSON.parse(line).name)
+        let handoffs = 0
+        const result = await execute(f.artifact, {
+          runId: 'custom-suite-run',
+          projectDir: f.root,
+          entry: f.entry,
+          setupFiles: [],
+          signal: controller.signal,
+          testTimeout: 2000,
+          hookTimeout: 1000,
+          fileTimeout: 5000,
+          snapshotUpdateMode: 'none',
+          customCoverage: session.request,
+          onEvent() {},
+          async onCustomCoverageSuite(completion) {
+            handoffs++
+            const pid = JSON.parse(
+              await readFile(join(f.root, 'body-pid.json'), 'utf8')
+            )
+            expect(() => process.kill(pid, 0)).not.toThrow()
+            expect((await trace()).slice(-1)).toEqual(['take'])
+            await session!.afterSuite({
+              completion,
+              testFiles: ['contract.case.mjs'],
+              environment: 'ssr',
+            })
+            expect((await trace()).slice(-2)).toEqual([
+              'suite',
+              'suite-settled',
+            ])
+            expect(() => process.kill(pid, 0)).not.toThrow()
+          },
+          async onCustomCoverage(completion) {
+            const pid = JSON.parse(
+              await readFile(join(f.root, 'body-pid.json'), 'utf8')
+            )
+            expect(() => process.kill(pid, 0)).toThrow()
+            facts.push({
+              completion,
+              testFiles: ['contract.case.mjs'],
+              environment: 'ssr',
+            })
+          },
+        })
+        expect(handoffs).toBe(1)
+        expect(result.status).toBe(
+          mode === 'normal' || mode === 'final-mismatch' ? 'passed' : 'failed'
+        )
+        expect((await trace()).slice(6)).toEqual([
+          'take',
+          'suite',
+          'suite-settled',
+          'stop',
+        ])
+        await expect(
+          readFile(join(f.root, 'custom-coverage.json'))
+        ).rejects.toMatchObject({ code: 'ENOENT' })
+        if (mode === 'suite-failure' || mode === 'stop-failure') {
+          expect(facts).toEqual([])
+          expectedProviderFailure = mode === 'suite-failure'
+        } else if (mode === 'final-mismatch') {
+          const wrong = structuredClone(facts)
+          if (!wrong[0].completion.complete)
+            throw new Error('Expected complete payload')
+          wrong[0].completion.payload = { releasePayload: 0 }
+          expectedProviderFailure = true
+          await expect(session.finish(wrong, 'passed', true)).rejects.toThrow(
+            'matching closed-worker facts'
+          )
+        } else {
+          await session.finish(
+            facts,
+            result.status as 'passed' | 'failed',
+            true
+          )
+          expect((await trace()).slice(-3)).toEqual([
+            'stop',
+            'generate',
+            'report',
+          ])
+          expect(
+            JSON.parse(
+              await readFile(join(f.root, 'custom-coverage.json'), 'utf8')
+            )
+          ).toEqual({ payloads: [{ releasePayload: 42 }] })
+        }
+      } finally {
+        if (expectedProviderFailure)
+          await expect(session?.dispose()).rejects.toThrow()
+        else await session?.dispose()
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  )
   it.each(['normal', 'body-failure'])(
     'retains the original provider payload after real worker closure for %s',
     async (mode) => {

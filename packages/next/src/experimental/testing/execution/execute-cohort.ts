@@ -116,6 +116,7 @@ async function runCohort(
       value.browser ||
       value.coverage ||
       value.onCoverage ||
+      value.onCustomCoverageSuite ||
       value.bail ||
       value.entry.inSource ||
       value.entry.executionEnvironment ||

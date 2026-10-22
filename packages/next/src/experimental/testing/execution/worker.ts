@@ -47,6 +47,13 @@ let releaseNativeAssertionRecords: (() => void) | undefined
 let reportUnhandledRejection:
   | ((reason: unknown, promise: Promise<unknown>) => void)
   | undefined
+let pendingCustomSuite:
+  | {
+      completion: CustomCoverageCompletion
+      resolve(): void
+      reject(error: unknown): void
+    }
+  | undefined
 
 function send(message: WorkerMessage): Promise<void> {
   return new Promise((resolveSend, reject) => {
@@ -55,6 +62,26 @@ function send(message: WorkerMessage): Promise<void> {
       error ? reject(error) : resolveSend()
     )
   })
+}
+
+async function handOffCustomSuite(completion: CustomCoverageCompletion) {
+  controller.signal.throwIfAborted()
+  if (pendingCustomSuite) throw new Error('Duplicate custom coverage handoff.')
+  let cancel!: () => void
+  const received = new Promise<void>((resolveReceived, reject) => {
+    pendingCustomSuite = { completion, resolve: resolveReceived, reject }
+    cancel = () => reject(controller.signal.reason)
+    controller.signal.addEventListener('abort', cancel, { once: true })
+  })
+  try {
+    await send({ type: 'custom-coverage-suite', completion })
+    await received
+  } finally {
+    // A failed send may precede a cancellation rejection.
+    void received.catch(() => {})
+    controller.signal.removeEventListener('abort', cancel)
+    pendingCustomSuite = undefined
+  }
 }
 
 function artifactPath(root: string, file: string): string {
@@ -73,7 +100,12 @@ function artifactPath(root: string, file: string): string {
   return resolved
 }
 
-async function run({ artifact, options, cacheScope }: WorkerInput) {
+async function run({
+  artifact,
+  options,
+  cacheScope,
+  customCoverageSuite,
+}: WorkerInput) {
   const started = performance.now()
   const event = (payload: EventPayload, timestamp = realDateNow()) =>
     send({
@@ -1117,6 +1149,17 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       if (!customCollector)
         throw new Error('Custom coverage collection did not start')
       const payload = await customCollector.take()
+      if (customCoverageSuite) {
+        if (
+          !coverageComplete ||
+          controller.signal.aborted ||
+          unfinishedAttempts.size
+        )
+          throw new Error(
+            'Custom coverage suite is incomplete after interruption'
+          )
+        await handOffCustomSuite({ ...identity, complete: true, payload })
+      }
       await customCollector.dispose()
       await lateFailures.flush()
       captured = true
@@ -1220,25 +1263,51 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
   await lateFailures.flush()
 }
 
-process.on('message', (message: { type: string; input?: WorkerInput }) => {
-  if (message.type === 'cancel')
-    controller.abort(new Error('Test file cancelled'))
-  else if (message.type === 'run' && message.input && !running) {
-    running = true
-    run(message.input)
-      .finally(() => {
-        releaseNativeAssertionRecords?.()
-        releaseNativeAssertionRecords = undefined
-      })
-      .then(
-        () => process.exit(process.exitCode ?? 0),
-        (error) => {
-          console.error(error)
-          process.exit(1)
-        }
-      )
+process.on(
+  'message',
+  (message: {
+    type: string
+    input?: WorkerInput
+    runId?: string
+    entryId?: string
+    revision?: string
+    error?: { message: string; stack?: string }
+  }) => {
+    if (message.type === 'cancel')
+      controller.abort(new Error('Test file cancelled'))
+    else if (message.type === 'custom-coverage-suite-received') {
+      const pending = pendingCustomSuite
+      if (
+        !pending ||
+        message.runId !== pending.completion.runId ||
+        message.entryId !== pending.completion.entryId ||
+        message.revision !== pending.completion.revision
+      ) {
+        controller.abort(
+          new Error('Mismatched custom coverage acknowledgement.')
+        )
+      } else if (message.error) {
+        const error = new Error(message.error.message)
+        if (message.error.stack) error.stack = message.error.stack
+        pending.reject(error)
+      } else pending.resolve()
+    } else if (message.type === 'run' && message.input && !running) {
+      running = true
+      run(message.input)
+        .finally(() => {
+          releaseNativeAssertionRecords?.()
+          releaseNativeAssertionRecords = undefined
+        })
+        .then(
+          () => process.exit(process.exitCode ?? 0),
+          (error) => {
+            console.error(error)
+            process.exit(1)
+          }
+        )
+    }
   }
-})
+)
 process.once('disconnect', () => process.exit(1))
 
 process.on('unhandledRejection', (error, promise) => {

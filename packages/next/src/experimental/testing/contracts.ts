@@ -402,6 +402,10 @@ export interface ExecuteTestOptions {
   customCoverage?: CustomCoverageRequest
   /** Parent-only opaque payload consumer after authoritative worker cleanup. */
   onCustomCoverage?: (completion: CustomCoverageCompletion) => Promise<void>
+  /** Await the provider's suite hook before the file collector stops. */
+  onCustomCoverageSuite?: (
+    completion: CustomCoverageCompletion
+  ) => Promise<void>
   /** Actual configured application directory; never the artifact directory. */
   projectDir: string
   entry: TestEntry

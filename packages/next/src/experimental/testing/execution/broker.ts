@@ -31,7 +31,12 @@ import { join } from 'node:path'
 
 type SerializableOptions = Omit<
   ExecuteTestOptions,
-  'signal' | 'onEvent' | 'onCoverage' | 'onCustomCoverage' | 'onSnapshotUpdates'
+  | 'signal'
+  | 'onEvent'
+  | 'onCoverage'
+  | 'onCustomCoverage'
+  | 'onCustomCoverageSuite'
+  | 'onSnapshotUpdates'
 >
 
 export type ExecutionBrokerRequest =
@@ -133,6 +138,12 @@ export function createExecutionBrokerHost(options: {
     artifact: CompiledTestArtifact,
     signal: AbortSignal
   ) => Promise<() => Promise<void>>
+  /** Parent-owned provider hook, awaited while the file collector is running. */
+  onCustomCoverageSuite?: (
+    artifact: CompiledTestArtifact,
+    execution: SerializableOptions,
+    completion: CustomCoverageCompletion
+  ) => Promise<void>
   browserApplications?: readonly BrowserApplicationOwnership[]
   /** Parent-discovered registration; child endpoint/fixture metadata is never trusted. */
   browserProjects?: readonly Pick<
@@ -388,6 +399,18 @@ export function createExecutionBrokerHost(options: {
               },
               ...(message.options.customCoverage && options.allowCoverage
                 ? {
+                    ...(options.onCustomCoverageSuite
+                      ? {
+                          onCustomCoverageSuite: (
+                            completion: CustomCoverageCompletion
+                          ) =>
+                            options.onCustomCoverageSuite!(
+                              message.artifact,
+                              message.options,
+                              completion
+                            ),
+                        }
+                      : {}),
                     onCustomCoverage: (completion: CustomCoverageCompletion) =>
                       publish({
                         type: 'execution-broker-response',
@@ -549,6 +572,12 @@ export function createExecutionBrokerClient(options: {
 
   const execute: ExecuteTest = (artifact, executionOptions) => {
     if (disconnected) return Promise.reject(disconnected)
+    if (executionOptions.onCustomCoverageSuite)
+      return Promise.reject(
+        new Error(
+          'Custom coverage suite hooks require the parent broker owner.'
+        )
+      )
     if (
       !options.allowCoverage &&
       (executionOptions.coverage ||
@@ -566,6 +595,7 @@ export function createExecutionBrokerClient(options: {
       onEvent,
       onCoverage: _onCoverage,
       onCustomCoverage: _onCustomCoverage,
+      onCustomCoverageSuite: _onCustomCoverageSuite,
       onSnapshotUpdates: _onSnapshotUpdates,
       ...serializable
     } = executionOptions
@@ -685,6 +715,7 @@ export function createExecutionBrokerClient(options: {
           value.coverage ||
           value.customCoverage ||
           value.onCustomCoverage ||
+          value.onCustomCoverageSuite ||
           value.onCoverage
       )
     )
@@ -700,6 +731,7 @@ export function createExecutionBrokerClient(options: {
         onEvent: _onEvent,
         onCoverage: _onCoverage,
         onCustomCoverage: _onCustomCoverage,
+        onCustomCoverageSuite: _onCustomCoverageSuite,
         onSnapshotUpdates: _onSnapshotUpdates,
         ...value
       }) => value

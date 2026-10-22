@@ -90,6 +90,8 @@ export interface RunTestsOptions {
     signal: AbortSignal
   ) => Promise<void>
   customCoverageRequests?: Record<string, CustomCoverageRequest>
+  /** Provisional suite handoff; report publication still requires full closure. */
+  onCustomCoverageSuite?: (fact: CustomCoverageFact) => Promise<void>
   /** Original explicit CLI disable; configured project data remains intact. */
   customCoverageDisabled?: true
   inspect?: string
@@ -665,6 +667,33 @@ export async function runTests(
           ? {
               customCoverage:
                 options.customCoverageRequests[project.profile.id],
+              ...(options.onCustomCoverageSuite
+                ? {
+                    onCustomCoverageSuite: async (
+                      completion: import('./coverage/custom-types').CustomCoverageCompletion
+                    ) => {
+                      assertCustomCoverageCompletion(
+                        completion,
+                        artifact,
+                        runId,
+                        options.customCoverageRequests![project.profile.id]
+                      )
+                      await options.onCustomCoverageSuite!({
+                        completion,
+                        testFiles: [
+                          relative(projectDir, entry.file).replaceAll(
+                            '\\',
+                            '/'
+                          ),
+                        ],
+                        environment: 'ssr',
+                        ...(project.displayName === undefined
+                          ? {}
+                          : { projectName: project.displayName }),
+                      })
+                    },
+                  }
+                : {}),
               onCustomCoverage: async (
                 completion: import('./coverage/custom-types').CustomCoverageCompletion
               ) => {
@@ -1011,6 +1040,7 @@ export async function runTests(
           write: options.write,
           writeError: options.reporter?.writeError,
           report: false,
+          onCustomCoverageSuite: options.onCustomCoverageSuite,
           onEvent(event) {
             if (
               event.type === 'file-start' &&
