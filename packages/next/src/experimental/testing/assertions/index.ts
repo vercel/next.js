@@ -653,16 +653,25 @@ export async function createAssertionRuntime(options: {
       scope: AssertionScope
       prototype: object
       receiver?: object
+      collectionPrototype: boolean
     }
   >()
   function strictFunction(
     fn: Function,
     scope: AssertionScope,
     prototype: object,
-    receiver?: object
+    receiver?: object,
+    collectionPrototype = false
   ): (...args: unknown[]) => unknown {
+    // Collection plugins retain prototype methods, rather than assertions.
+    // Resolve their actual invocation owner without lending that permission to
+    // functions captured from an assertion, case or suite hook.
+    function invocationScope() {
+      return collectionPrototype ? current() : scope
+    }
     const invoke = function (this: unknown, ...args: unknown[]) {
-      assertStrictScope(scope)
+      const owner = invocationScope()
+      assertStrictScope(owner)
       let actualReceiver = receiver
       if (actualReceiver === undefined) {
         const record =
@@ -679,13 +688,14 @@ export async function createAssertionRuntime(options: {
       }
       return strictResult(
         Reflect.apply(fn, actualReceiver, args),
-        scope,
+        owner,
         prototype
       )
     }
     const proxy = new Proxy(invoke, {
       get(target, key, proxyReceiver) {
-        assertStrictScope(scope)
+        const owner = invocationScope()
+        assertStrictScope(owner)
         if (key === '__flags')
           throw new Error('Raw Chai assertion flags are not exposed')
         if (
@@ -705,25 +715,32 @@ export async function createAssertionRuntime(options: {
         )
           return value
         if (typeof value === 'function')
-          return strictFunction(value, scope, prototype, fn)
-        return strictResult(value, scope, prototype)
+          return strictFunction(value, owner, prototype, fn)
+        return strictResult(value, owner, prototype)
       },
       construct(_target, args) {
-        assertStrictScope(scope)
+        const owner = invocationScope()
+        assertStrictScope(owner)
         return guardStrictChaiAssertion(
           Reflect.construct(fn, args),
-          scope,
+          owner,
           prototype
         )
       },
       getOwnPropertyDescriptor() {
-        assertStrictScope(scope)
+        assertStrictScope(invocationScope())
         throw new Error(
           'This Chai assertion reflection API is not yet supported'
         )
       },
     })
-    strictFunctionRecords.set(proxy, { raw: fn, scope, prototype, receiver })
+    strictFunctionRecords.set(proxy, {
+      raw: fn,
+      scope,
+      prototype,
+      receiver,
+      collectionPrototype,
+    })
     return proxy
   }
   function guardStrictChaiAssertion(
@@ -914,7 +931,13 @@ export async function createAssertionRuntime(options: {
     }
     let method = functions.get(value)
     if (!method) {
-      method = strictFunction(value, scope, prototype)
+      method = strictFunction(
+        value,
+        scope,
+        prototype,
+        undefined,
+        scope.kind === 'collection'
+      )
       functions.set(value, method)
     }
     return method
@@ -1025,7 +1048,7 @@ export async function createAssertionRuntime(options: {
           ? strictFunctionRecords.get(input)
           : undefined
       if (method) {
-        assertStrictScope(method.scope)
+        assertStrictScope(method.collectionPrototype ? current() : method.scope)
         const result = Reflect.apply(fn, chai.util, [
           method.raw,
           ...args.slice(1),
@@ -1036,7 +1059,8 @@ export async function createAssertionRuntime(options: {
               result as Function,
               method.scope,
               method.prototype,
-              method.receiver
+              method.receiver,
+              method.collectionPrototype
             )
       }
       // Ordinary payloads use Chai's exact proxy and property behavior.

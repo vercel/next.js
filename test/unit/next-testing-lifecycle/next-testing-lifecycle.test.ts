@@ -8039,3 +8039,68 @@ it('runs actual Chai prototype descriptor callbacks with guarded receiver and li
       await fs.rm(evidence, { recursive: true, force: true })
   }
 }, 30000)
+
+it('runs collection-created Chai prototype callables with live invocation owners', async () => {
+  const fs = await import('node:fs/promises')
+  const { tmpdir } = await import('node:os')
+  const base = process.env.NEXT_TESTING_CHAI202_EVIDENCE ?? tmpdir()
+  await fs.mkdir(base, { recursive: true })
+  const evidence = await fs.mkdtemp(join(base, 'next-chai-collection-'))
+  const argv = [
+    '--test-reporter=tap',
+    '--import',
+    require.resolve('tsx'),
+    join(__dirname, 'chai-collection-integration.ts'),
+  ]
+  const pending = promisify(execFile)(process.execPath, argv, {
+    timeout: 20000,
+  })
+  const child = pending.child
+  const closed = new Promise<{
+    code: number | null
+    signal: NodeJS.Signals | null
+  }>((resolve) => {
+    child.once('close', (code, signal) => resolve({ code, signal }))
+  })
+  let stdout = ''
+  let stderr = ''
+  let failure: unknown
+  try {
+    try {
+      const result = await pending
+      stdout = result.stdout
+      stderr = result.stderr
+    } catch (error) {
+      failure = error
+      const raw = error as { stdout?: string; stderr?: string }
+      stdout = raw.stdout ?? ''
+      stderr = raw.stderr ?? ''
+    }
+    const actualClose = await closed
+    await fs.writeFile(join(evidence, 'stdout.log'), stdout)
+    await fs.writeFile(join(evidence, 'stderr.log'), stderr)
+    await fs.writeFile(
+      join(evidence, 'owned-child.json'),
+      JSON.stringify(
+        {
+          pid: child.pid,
+          argv: [process.execPath, ...argv],
+          actualClose,
+          stdoutClosed: child.stdout?.destroyed,
+          stderrClosed: child.stderr?.destroyed,
+          error: failure === undefined ? null : String(failure),
+        },
+        null,
+        2
+      )
+    )
+    if (failure !== undefined) throw failure
+    expect(actualClose).toEqual({ code: 0, signal: null })
+    expect(stdout).toContain('# tests 4')
+    expect(stdout).toContain('# pass 4')
+    expect(stdout).toContain('# fail 0')
+  } finally {
+    if (!process.env.NEXT_TESTING_CHAI202_EVIDENCE)
+      await fs.rm(evidence, { recursive: true, force: true })
+  }
+}, 30000)
