@@ -5,7 +5,7 @@ import cheerio from 'cheerio'
 // Deploy mode exclusion: Vercel CLI doesn't upload `.env.local` or
 // `.env.*.local` files, so the `*.local` values this suite asserts are
 // undefined when deployed.
-// @force-gate !deploy
+// @force-gate !vercel
 describe('env-config', () => {
   const { next } = nextTestSetup({
     files: __dirname,

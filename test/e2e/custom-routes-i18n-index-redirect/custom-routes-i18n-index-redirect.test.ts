@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 
 // Deploy mode exclusion: Vercel serves this i18n index redirect from its routing layer
 // with a "Redirecting..." body instead of the destination path.
-// @force-gate !deploy
+// @force-gate !vercel
 describe('Custom routes i18n with index redirect', () => {
   const { next } = nextTestSetup({
     files: __dirname,
