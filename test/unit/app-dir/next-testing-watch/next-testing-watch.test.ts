@@ -2802,3 +2802,42 @@ it.each(['custom', 'standard'] as const)(
     }
   }
 )
+
+it('evaluates empty publication once against each fresh discovery when coverage is enabled and disabled', async () => {
+  let enabled = false
+  const admissions: boolean[] = []
+  const runs: boolean[] = []
+  const session = createWatchSession({
+    discover: async () => ({
+      entryIds: [],
+      discoveryRevision: String(enabled),
+      coverage: enabled,
+    }),
+    runEmpty(discovery) {
+      admissions.push(discovery.coverage)
+      return discovery.coverage
+    },
+    async run({ discovery }) {
+      runs.push(discovery.coverage)
+      return { status: 'passed' }
+    },
+    onError(error) {
+      throw error
+    },
+  })
+  try {
+    await session.waitForIdle()
+    expect(runs).toEqual([])
+    enabled = true
+    session.invalidate({ invalidateAll: true })
+    await session.waitForIdle()
+    expect(runs).toEqual([true])
+    enabled = false
+    session.invalidate({ invalidateAll: true })
+    await session.waitForIdle()
+    expect(runs).toEqual([true])
+    expect(admissions).toEqual([false, true, false])
+  } finally {
+    await session.close()
+  }
+})

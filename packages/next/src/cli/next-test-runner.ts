@@ -126,13 +126,20 @@ export async function nextTestRunner(
   directory: string | undefined,
   options: NextTestRunnerOptions
 ): Promise<void> {
-  const coverageFlags = options as unknown as Record<string, unknown>
+  const coverageFlags = structuredClone(
+    Object.fromEntries(
+      Object.entries(options).filter(
+        ([key]) => key === 'coverage' || key.startsWith('coverage.')
+      )
+    )
+  )
   let standardCoverageOptions = parseStandardCoverageOptions(
     options as unknown as Record<string, unknown>
   )
   if (standardCoverageOptions && options.coverage !== false)
     options = { ...options, coverage: true }
   if (options.coverage === false) standardCoverageOptions = undefined
+  const cliStandardCoverageOptions = standardCoverageOptions
   const breakAddress = parseTestInspectBrkAddress(options.inspectBrk)
   const inspectBrk = breakAddress !== undefined
   const inspect = inspectBrk
@@ -214,11 +221,6 @@ export async function nextTestRunner(
   }
   if (options.coverage && options.list) {
     throw new Error('--coverage cannot be combined with --list.')
-  }
-  if (options.coverage && options.watch && !standardCoverageOptions) {
-    throw new Error(
-      'Watch coverage requires explicit standard coverage options.'
-    )
   }
   if (options.coverage) requireTestCapability('coverage')
   if (options.watch && (options.run || options.list || options.update)) {
@@ -395,7 +397,6 @@ export async function nextTestRunner(
       standardCoverageOptions = configuredCoverage.options
       if (configuredCoverage.enabled) {
         if (
-          options.watch ||
           options.list ||
           inspect ||
           options.update ||
@@ -410,11 +411,15 @@ export async function nextTestRunner(
           )
         )
           throw new Error(
-            'Configured V8 coverage currently requires one-shot isolated Node execution without DOM, type tests, debugging or snapshot updates.'
+            'Configured V8 coverage currently requires isolated Node execution without DOM, type tests, debugging or snapshot updates.'
           )
         requireTestCapability('coverage')
       }
     }
+    if (options.coverage && options.watch && !standardCoverageOptions)
+      throw new Error(
+        'Watch coverage requires explicit standard coverage options.'
+      )
     if ((options.related || options.changed) && !options.watch) {
       const { findChangedTestSources, selectSourceRelatedProjects } =
         await import('../experimental/testing/incremental/source-selection.js')
@@ -701,7 +706,7 @@ export async function nextTestRunner(
       // One owner covers the full watch lifetime, including journal recovery
       // before the first generation and every parent-side snapshot commit.
       runLock = await acquireTestRunLock(projectDir)
-      if (standardCoverageOptions?.clean === true) {
+      if (!options.watch && standardCoverageOptions?.clean === true) {
         const { prepareStandardCoverageDirectory } = await import(
           '../experimental/testing/coverage/report-standard.js'
         )
@@ -735,9 +740,13 @@ export async function nextTestRunner(
           project: options.project,
           files: options.filter,
           related: watchRelatedSources,
+          ...(options.changed && !options.related
+            ? { initialRelatedFromChanged: true as const }
+            : {}),
           testNamePattern: options.testNamePattern,
           maxWorkers: options.maxWorkers === undefined ? undefined : maxWorkers,
-          standardCoverageOptions,
+          standardCoverageOptions: cliStandardCoverageOptions,
+          coverageFlags,
           resultReporters: reporters,
           outputFile: options.outputFile,
           writeReport: (text) => process.stdout.write(text),

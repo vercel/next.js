@@ -7,7 +7,11 @@ import type { CompilerSourceCoverage } from './coverage/types'
 import { createHash, randomUUID } from 'crypto'
 import type { StandardCoverageOptions } from './coverage/types'
 import { createStandardCoverageGenerationCache } from './coverage/generation-cache'
-import { publishStandardCoverage } from './coverage/report-standard'
+import {
+  prepareStandardCoverageDirectory,
+  publishStandardCoverage,
+} from './coverage/report-standard'
+import { resolveProjectStandardCoverage } from './coverage/options'
 import { readdir } from 'node:fs/promises'
 import { dirname, resolve } from 'path'
 import { serialize } from 'node:v8'
@@ -52,6 +56,10 @@ interface Discovery extends WatchDiscovery {
   snapshotUpdateMode?: SnapshotUpdateMode
   testNamePattern?: string | RegExp
   maxWorkers: number
+  coverage: ReturnType<typeof resolveProjectStandardCoverage>
+  customCoverageDisabled?: true
+  coverageInputs: string[]
+  coverageConfigurationRevision: string
 }
 
 /** Fresh compilation/execution per generation; the scheduler owns no output writer. */
@@ -63,9 +71,13 @@ export async function watchTests(
     project?: string
     files?: string[]
     related?: readonly string[]
+    /** The Git changed union has a separate coverage-source filter contract. */
+    initialRelatedFromChanged?: true
     testNamePattern?: string | RegExp
     maxWorkers?: number
     standardCoverageOptions?: StandardCoverageOptions
+    /** Only original explicit coverage and coverage.* CLI fields. */
+    coverageFlags?: Record<string, unknown>
     resultReporters?: readonly ResultReporter[]
     outputFile?: string
     writeReport?(text: string): void
@@ -85,9 +97,12 @@ export async function watchTests(
   }
 ): Promise<{ status: 'passed' | 'failed' | 'cancelled' }> {
   // Caller-owned option objects cannot alter a retained generation's source selection.
-  const standardCoverageOptions = options.standardCoverageOptions
+  const cliCoverageOptions = options.standardCoverageOptions
     ? structuredClone(options.standardCoverageOptions)
     : undefined
+  const coverageFlags = structuredClone(options.coverageFlags ?? {})
+  let activeDiscovery: Discovery | undefined
+  let coverageConfigurationRevision: string | undefined
   const controller = new AbortController()
   const configurationLifetime = new AbortController()
   const cancel = () => controller.abort(options.signal.reason)
@@ -122,7 +137,7 @@ export async function watchTests(
   let editorFileRerun: string | undefined
   let coverageHasPublished = false
   let coverageAllTestsRun = false
-  const coverageCache = createStandardCoverageGenerationCache(projectDir)
+  let coverageCache = createStandardCoverageGenerationCache(projectDir)
   const failures: unknown[] = []
   let watcher: Awaited<ReturnType<typeof watchTestFiles>> | undefined
   let session: ReturnType<typeof createWatchSession<Discovery>> | undefined
@@ -144,7 +159,7 @@ export async function watchTests(
     )
       return true
     return (
-      !standardCoverageOptions &&
+      !activeDiscovery?.coverage.options &&
       configuration.retainGlobalSetupForWatch(
         configurationLifetime.signal,
         applyTestConfigOverrides(
@@ -172,6 +187,45 @@ export async function watchTests(
       project: selectedProject,
       files: selectedFiles,
     })
+    const coverage = resolveProjectStandardCoverage(
+      projects,
+      coverageFlags,
+      cliCoverageOptions
+    )
+    const customCoverageDisabled = coverageFlags.coverage === false
+    if (
+      !customCoverageDisabled &&
+      projects.some((project) => project.customCoverage)
+    )
+      throw new Error(
+        'Custom coverage watch requires an implemented provider lifecycle.'
+      )
+    if (
+      coverage.configured &&
+      coverage.enabled &&
+      projects.some(
+        (project) =>
+          project.typecheck?.enabled ||
+          project.isolate === false ||
+          project.executionEnvironment ||
+          project.profile.environment !== 'node' ||
+          project.profile.route ||
+          project.entries.some((entry) => entry.executionEnvironment)
+      )
+    )
+      throw new Error(
+        'Configured V8 coverage watch requires isolated ordinary Node execution.'
+      )
+    if (
+      coverage.configured &&
+      coverage.enabled &&
+      options.initialRelatedFromChanged
+    )
+      throw new Error(
+        'Configured V8 changed-watch coverage source filtering is not implemented.'
+      )
+    const standardCoverageOptions = coverage.options
+    const coverageInputs = [...configuration.watchInputs]
     if (failedOnly) {
       const selectedFailures = failedSelection
       for (const project of projects) {
@@ -319,9 +373,35 @@ export async function watchTests(
       ],
       signal,
     })
-    return {
+    const configurationInputs = new Set([
+      ...configurationSources,
+      ...coverageInputs,
+    ])
+    // These inputs belong to configuration imports/closures, not the test graph.
+    // A file keeps that role when it is also selected as a test or source.
+    const coverageRevision = registry
+      ? createHash('sha256')
+          .update(
+            serialize({
+              coverage,
+              customCoverageDisabled,
+              inputs: registry.inputs
+                .filter((input) => configurationInputs.has(input.file))
+                .sort((left, right) =>
+                  left.file < right.file ? -1 : left.file > right.file ? 1 : 0
+                ),
+            })
+          )
+          .digest('hex')
+      : randomUUID()
+    signal.throwIfAborted()
+    const discovery: Discovery = {
       projects,
       registry,
+      coverage,
+      ...(customCoverageDisabled ? { customCoverageDisabled: true } : {}),
+      coverageInputs,
+      coverageConfigurationRevision: coverageRevision,
       maxWorkers: options.maxWorkers ?? config.maxWorkers,
       directories,
       entryIds: projects.flatMap((project) =>
@@ -332,6 +412,8 @@ export async function watchTests(
         .update(serialize(projects))
         .digest('hex'),
     }
+    activeDiscovery = discovery
+    return discovery
   }
 
   function report(error: unknown) {
@@ -356,7 +438,7 @@ export async function watchTests(
         session?.cancelCurrent()
         return
       case 'update':
-        if (standardCoverageOptions) {
+        if (activeDiscovery?.coverage.options) {
           options.write(
             '--coverage cannot be combined with snapshot updates.\n'
           )
@@ -442,9 +524,13 @@ export async function watchTests(
         {
           cancelRun: () => onCommand({ type: 'cancel' }),
           rerun: () => onCommand({ type: 'rerun' }),
-          ...(!standardCoverageOptions
+          ...(!initial.coverage.options
             ? {
                 rerunFile(entryId: string) {
+                  if (activeDiscovery?.coverage.options)
+                    throw new Error(
+                      'Editor file reruns with coverage are not implemented.'
+                    )
                   editorFileRerun = entryId
                   coverageAllTestsRun = false
                   failedOnly = false
@@ -487,14 +573,16 @@ export async function watchTests(
       },
     })
     const publishInitialEmptySelection = (discovery: Discovery) =>
-      machineEnabled &&
+      (discovery.coverage.options
+        ? discovery.coverage.configured
+        : machineEnabled) &&
       initialRelatedPending &&
       initialRelatedSources !== undefined &&
-      !standardCoverageOptions &&
-      !discovery.projects.some((project) => project.customCoverage)
+      (discovery.customCoverageDisabled === true ||
+        !discovery.projects.some((project) => project.customCoverage))
     session = createWatchSession<Discovery>({
       signal: controller.signal,
-      runEmpty: machineEnabled || !!standardCoverageOptions,
+      runEmpty: (discovery) => machineEnabled || !!discovery.coverage.options,
       publishInitialEmptySelection,
       ...(initialRelatedSources
         ? {
@@ -558,7 +646,7 @@ export async function watchTests(
       }) {
         const owner = configuration
         if (
-          standardCoverageOptions ||
+          discovery.coverage.options ||
           !owner ||
           !(await owner.retainGlobalSetupForWatch(
             configurationLifetime.signal,
@@ -643,7 +731,7 @@ export async function watchTests(
         if (
           discovery.entryIds.length ||
           machineEnabled ||
-          standardCoverageOptions
+          discovery.coverage.options
         )
           options.write(
             formatWatchStatus(
@@ -660,6 +748,10 @@ export async function watchTests(
         running = true
         try {
           const discovery = await discover(signal)
+          if (updateThisRun && discovery.coverage.options)
+            throw new Error(
+              '--coverage cannot be combined with snapshot updates.'
+            )
           return {
             ...discovery,
             updateSnapshots: updateThisRun,
@@ -692,7 +784,28 @@ export async function watchTests(
         running = true
         const requestedEditorFile = editorFileRerun
         editorFileRerun = undefined
-        const coverageConfig = standardCoverageOptions
+        const coverageConfig = discovery.coverage.options
+        const configurationRestarted =
+          coverageConfigurationRevision !==
+          discovery.coverageConfigurationRevision
+        if (configurationRestarted) {
+          coverageCache = createStandardCoverageGenerationCache(projectDir)
+          coverageHasPublished = false
+          coverageAllTestsRun = true
+          coverageConfigurationRevision =
+            discovery.coverageConfigurationRevision
+        }
+        if (
+          coverageConfig?.formatterReports &&
+          (configurationRestarted
+            ? coverageConfig.clean !== false
+            : coverageConfig.cleanOnRerun !== false)
+        )
+          await prepareStandardCoverageDirectory(
+            projectDir,
+            coverageConfig,
+            signal
+          )
         const selected = new Set(
           coverageConfig
             ? await coverageCache.selectEntryIds({
@@ -735,7 +848,7 @@ export async function watchTests(
               projectDir,
               projects: discovery.projects,
               config: coverageConfig,
-              inputs: configuration?.watchInputs,
+              inputs: discovery.coverageInputs,
               includeUnimported,
               signal,
             })
@@ -744,7 +857,7 @@ export async function watchTests(
           ? await createRuntimeConfigurationPlan({
               projectDir,
               projects,
-              inputs: configuration?.watchInputs,
+              inputs: discovery.coverageInputs,
               signal,
             })
           : undefined
@@ -757,9 +870,11 @@ export async function watchTests(
               outputFile: options.outputFile,
               ...(initialEmptySelection
                 ? {
-                    emptySelectionPassWithNoTests: projects.every(
-                      (project) => project.passWithNoTests !== false
-                    ),
+                    emptySelectionPassWithNoTests:
+                      !!coverageConfig ||
+                      projects.every(
+                        (project) => project.passWithNoTests !== false
+                      ),
                   }
                 : {}),
               write: options.writeReport ?? options.write,
@@ -875,14 +990,18 @@ export async function watchTests(
               : {}),
             signal,
           })
-          if (coverage.textSummary) options.write(coverage.textSummary)
+          if (coverage.textSummary)
+            (coverageConfig.formatterReports
+              ? (options.writeReport ?? options.write)
+              : options.write)(coverage.textSummary)
           for (const error of coverage.thresholdErrors) {
             ;(options.writeError ?? options.write)(error + '\n')
             coverageDiagnostic(error)
           }
           signal.throwIfAborted()
           prepared.commit()
-          coverageHasPublished = true
+          // Initial related zero maps do not consume the first actual test run.
+          coverageHasPublished = !initialEmptySelection
           coverageAllTestsRun = false
           return coverage.thresholdErrors.length > 0
         }
@@ -933,6 +1052,9 @@ export async function watchTests(
           const response = await runWatchProcess(
             {
               operation: 'run',
+              ...(discovery.customCoverageDisabled
+                ? { customCoverageDisabled: true }
+                : {}),
               captureTaskResults: machine?.captureTaskResults,
               projectDir,
               projects,
@@ -951,14 +1073,16 @@ export async function watchTests(
                     watchCoverage: true,
                     coverageSourcePlan,
                     runtimeConfigurationPlan,
-                    coverageInputs: configuration?.watchInputs,
+                    coverageInputs: discovery.coverageInputs,
                     includeUnimportedCoverage: includeUnimported,
                   }
                 : {}),
               updateSnapshots: discovery.updateSnapshots,
               snapshotUpdateMode: discovery.snapshotUpdateMode,
-              passWithNoTests: projects.every(
-                (project) => project.passWithNoTests === true
+              passWithNoTests: projects.every((project) =>
+                initialEmptySelection
+                  ? !!coverageConfig || project.passWithNoTests !== false
+                  : project.passWithNoTests === true
               ),
             },
             {

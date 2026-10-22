@@ -67,7 +67,7 @@ export interface WatchSessionOptions<Discovery extends WatchDiscovery> {
   /** Configuration/compilation errors are recoverable on the next invalidation. */
   onError(error: unknown): void
   /** A report owner must replace results when discovery becomes empty. */
-  runEmpty?: boolean
+  runEmpty?: boolean | ((discovery: Discovery) => boolean)
   /** Publish a first empty compiler selection before committing watch readiness. */
   publishInitialEmptySelection?(discovery: Discovery): boolean
 }
@@ -219,8 +219,12 @@ export function createWatchSession<Discovery extends WatchDiscovery>(
         }
         // Empty discovery is a valid watch state (e.g. the last test deleted).
         // Do not ask the one-shot runner to report "No test files selected".
+        const runEmpty =
+          typeof options.runEmpty === 'function'
+            ? options.runEmpty(discovery)
+            : options.runEmpty
         const result: WatchRunResult =
-          !unchanged && (selection.entryIds.length || options.runEmpty)
+          !unchanged && (selection.entryIds.length || runEmpty)
             ? await options.run({
                 discovery,
                 selection,

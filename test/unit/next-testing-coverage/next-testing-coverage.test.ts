@@ -10261,3 +10261,30 @@ describe('explicitly disabled custom coverage', () => {
     })
   }, 160000)
 })
+
+describe('project-configured V8 coverage watch', () => {
+  it.each([
+    ['matrix', { profiles: 8, generations: 16, completeReports: 16 }],
+    ['refresh', { profiles: 2, generations: 10, completeReports: 8 }],
+    ['empty', { profiles: 6, generations: 12, completeReports: 12 }],
+    ['overrides', { profiles: 2, generations: 4, completeReports: 4 }],
+    ['defaults', { profiles: 2, generations: 2, completeReports: 2 }],
+    ['disabled', { profiles: 4, generations: 8, completeReports: 0 }],
+    ['enable', { profiles: 2, generations: 4, completeReports: 4 }],
+  ])(
+    'matches complete pristine development and production reports for %s',
+    (scenario, expected) => {
+      const { execFileSync } = require('node:child_process')
+      const result = execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'configured-watch-reports.cjs'),
+          `--scenario=${scenario}`,
+        ],
+        { encoding: 'utf8', timeout: 300000 }
+      )
+      expect(JSON.parse(result)).toEqual(expected)
+    },
+    310000
+  )
+})

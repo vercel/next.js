@@ -1497,10 +1497,7 @@ describe('Next-owned test discovery and configuration', () => {
 
   it('rejects coverage combinations before loading configuration', async () => {
     for (const [options, message] of [
-      [
-        { watch: true },
-        'Watch coverage requires explicit standard coverage options',
-      ],
+      [{ watch: true }, 'ENOENT'],
       [{ list: true }, '--coverage cannot be combined with --list'],
     ] as const) {
       await expect(
