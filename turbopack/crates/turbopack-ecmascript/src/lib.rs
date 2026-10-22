@@ -102,7 +102,9 @@ use turbopack_core::{
     module_graph::ModuleGraph,
     reference::ModuleReferences,
     reference_type::InnerAssets,
-    resolve::{FindContextFileResult, find_context_file, origin::ResolveOrigin, package_json},
+    resolve::{
+        FindContextFileResult, ImportUsage, find_context_file, origin::ResolveOrigin, package_json,
+    },
     source::Source,
     source_map::{GenerateSourceMap, structured::StructuredSourceMap},
 };
@@ -1992,6 +1994,31 @@ async fn process_parse_result(
                 )
                 .into_inner();
 
+            let imports = match &eval_context {
+                Either::Left(e) => &e.imports,
+                Either::Right(e) => &e.imports,
+            };
+            let unused_pure_declarations = if let Some(options) = options
+                && !imports.pure_declarations.is_empty()
+                && !options.chunking_context.unused_references().await?.is_empty()
+            {
+                let module_usage = options
+                    .chunking_context
+                    .module_export_usage(*ResolvedVc::upcast(options.module))
+                    .await?;
+                let used_exports = module_usage.export_usage.await?;
+                imports
+                    .pure_declarations
+                    .iter()
+                    .filter(|(_, usage)| {
+                        matches!(usage, ImportUsage::Exports(exports) if exports.iter().all(|export| !used_exports.is_export_used(export)))
+                    })
+                    .map(|(id, _)| id.clone())
+                    .collect()
+            } else {
+                FxHashSet::default()
+            };
+
             let (mut code_gens, ast_paths, retain_syntax_context, prepend_ident_comment) =
                 if let Some(scope_hoisting_options) = scope_hoisting_options {
                     let is_import_mark = GLOBALS.set(globals, || Mark::new());
@@ -2101,6 +2128,12 @@ async fn process_parse_result(
             }
 
             GLOBALS.set(globals, || {
+                if !unused_pure_declarations.is_empty() {
+                    program.visit_mut_with(&mut RemoveUnusedPureInitializers {
+                        bindings: &unused_pure_declarations,
+                    });
+                }
+
                 // Delimit the early hoisted statements, which `merge_modules` moves in front of
                 // the merged module this module is part of.
                 if retain_syntax_context.is_some() && early_hoisted_count > 0 {
@@ -2442,6 +2475,24 @@ async fn emit_content(
         additional_ids,
     }
     .cell())
+}
+
+struct RemoveUnusedPureInitializers<'a> {
+    bindings: &'a FxHashSet<Id>,
+}
+
+impl VisitMut for RemoveUnusedPureInitializers<'_> {
+    fn visit_mut_var_declarator(&mut self, node: &mut ast::VarDeclarator) {
+        if let ast::Pat::Ident(ident) = &node.name
+            && self.bindings.contains(&ident.id.to_id())
+        {
+            // Keep the declaration valid (including const declarations and for-loop
+            // initializers) without evaluating references to imports that were removed.
+            node.init = Some(Expr::undefined(node.span));
+        } else {
+            node.visit_mut_children_with(self);
+        }
+    }
 }
 
 /// Applies the code generations, returning the number of early hoisted statements it prepended.

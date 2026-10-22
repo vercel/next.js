@@ -16,7 +16,7 @@ use swc_core::{
     ecma::{
         ast::*,
         atoms::{Atom, atom},
-        utils::{IsDirective, find_pat_ids},
+        utils::{ExprCtx, ExprExt, IsDirective, find_pat_ids},
         visit::{Visit, VisitWith},
     },
 };
@@ -321,50 +321,45 @@ pub(crate) struct ProgramDeclUsage {
     pub(crate) named_reexports: FxHashMap<usize, AutoSet<RcStr>>,
     // export name -> top level decl
     pub(crate) exports: FxHashMap<RcStr, Id>,
+    pure_declarations: FxHashSet<Id>,
 }
 impl ProgramDeclUsage {
+    fn compute_usage<'a>(&'a self, ids: impl Iterator<Item = &'a Id>) -> ImportUsage {
+        // TODO make this more efficient, i.e. cache the result?
+        let mut stack = ids.collect::<Vec<_>>();
+        let mut visited = stack
+            .iter()
+            .map(|id| (*id).clone())
+            .collect::<FxHashSet<_>>();
+        while let Some(id) = stack.pop() {
+            match self.decl_usages.get(id) {
+                Some(DeclUsage::SideEffects) => return ImportUsage::TopLevel,
+                Some(DeclUsage::Bindings(callers)) => {
+                    for caller in callers {
+                        if visited.insert(caller.clone()) {
+                            stack.push(caller);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        ImportUsage::Exports(
+            self.exports
+                .iter()
+                .filter(|(_, id)| visited.contains(*id))
+                .map(|(exported, _)| exported.clone())
+                .collect(),
+        )
+    }
+
     fn compute_import_usage(&self) -> FxHashMap<usize, ImportUsage> {
         let mut import_usage =
             FxHashMap::with_capacity_and_hasher(self.import_usages.len(), Default::default());
         for (reference, usage) in &self.import_usages {
-            // TODO make this more efficient, i.e. cache the result?
             if let DeclUsage::Bindings(ids) = usage {
-                // compute transitive closure of `ids` over `top_level_mappings`
-                let mut visited = ids.clone();
-                let mut stack = ids.iter().collect::<Vec<_>>();
-                let mut has_global_usage = false;
-                while let Some(id) = stack.pop() {
-                    match self.decl_usages.get(id) {
-                        Some(DeclUsage::SideEffects) => {
-                            has_global_usage = true;
-                            break;
-                        }
-                        Some(DeclUsage::Bindings(callers)) => {
-                            for caller in callers {
-                                if visited.insert(caller.clone()) {
-                                    stack.push(caller);
-                                }
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-
-                // Collect all `visited` declarations which are exported
-                import_usage.insert(
-                    *reference,
-                    if has_global_usage {
-                        ImportUsage::TopLevel
-                    } else {
-                        ImportUsage::Exports(
-                            self.exports
-                                .iter()
-                                .filter(|(_, id)| visited.contains(*id))
-                                .map(|(exported, _)| exported.clone())
-                                .collect(),
-                        )
-                    },
-                );
+                import_usage.insert(*reference, self.compute_usage(ids.iter()));
             }
         }
         // Fold re-exports (`export { x } from "foo"`) into `import_usage` for tree-shaking.
@@ -460,6 +455,10 @@ pub(crate) struct ImportMap {
     pub(super) assignment_scopes: FxHashMap<Id, AssignmentScopes>,
 
     pub(crate) import_usage: FxHashMap<usize, ImportUsage>,
+
+    /// Pure initializers must be removed along with the imports they depend on,
+    /// even when the emitted code is not minified.
+    pub(crate) pure_declarations: FxHashMap<Id, ImportUsage>,
 
     /// Map from exported name to local binding id (includes the syntax context).
     pub(crate) exports_ids: FxHashMap<RcStr, (Id, Span)>,
@@ -971,6 +970,19 @@ impl ImportMap {
 
         m.visit_with(&mut analyzer);
 
+        analyzer.data.pure_declarations = analyzer
+            .program_decl_usage
+            .pure_declarations
+            .iter()
+            .map(|id| {
+                (
+                    id.clone(),
+                    analyzer
+                        .program_decl_usage
+                        .compute_usage(std::iter::once(id)),
+                )
+            })
+            .collect();
         data.import_usage = analyzer.program_decl_usage.compute_import_usage();
 
         data
@@ -1646,7 +1658,46 @@ impl Visit for Analyzer<'_> {
 
     fn visit_var_declarator(&mut self, node: &VarDeclarator) {
         self.record_require_usage_var(node);
-        node.visit_children_with(self);
+
+        let expr_ctx = ExprCtx {
+            unresolved_ctxt: SyntaxContext::empty().apply_mark(self.unresolved_mark),
+            is_unresolved_ref_safe: false,
+            in_strict: self.data.strict,
+            remaining_depth: 4,
+        };
+        let has_side_effects = node.init.as_deref().is_some_and(|init| {
+            match unparen(init) {
+                Expr::Call(call)
+                    if call.span.lo == BytePos::PURE
+                        || self
+                            .comments
+                            .is_some_and(|comments| comments.has_flag(call.span.lo, "PURE")) =>
+                {
+                    // A pure call can be removed, but evaluating its callee and arguments
+                    // must also be side-effect-free.
+                    !matches!(&call.callee, Callee::Expr(callee) if !callee.may_have_side_effects(expr_ctx))
+                        || call.args.iter().any(|arg| {
+                            arg.spread.is_some() || arg.expr.may_have_side_effects(expr_ctx)
+                        })
+                }
+                init => init.may_have_side_effects(expr_ctx),
+            }
+        });
+
+        if !self.state.is_in_fn()
+            && !has_side_effects
+            && let Pat::Ident(ident) = &node.name
+            && node.init.is_some()
+        {
+            self.program_decl_usage
+                .pure_declarations
+                .insert(ident.id.to_id());
+            self.enter_top_level_decl(&ident.id, |this| {
+                node.visit_children_with(this);
+            });
+        } else {
+            node.visit_children_with(self);
+        }
     }
 
     fn visit_assign_expr(&mut self, node: &AssignExpr) {
