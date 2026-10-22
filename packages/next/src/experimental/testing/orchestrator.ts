@@ -90,6 +90,8 @@ export interface RunTestsOptions {
     signal: AbortSignal
   ) => Promise<void>
   customCoverageRequests?: Record<string, CustomCoverageRequest>
+  /** Original explicit CLI disable; configured project data remains intact. */
+  customCoverageDisabled?: true
   inspect?: string
   inspectBrk?: boolean
   updateSnapshots?: boolean
@@ -171,6 +173,10 @@ export async function runTests(
     )
   }
   const customCoverage: CustomCoverageFact[] = []
+  if (options.customCoverageDisabled && options.customCoverageRequests)
+    throw new Error(
+      'Disabled custom coverage cannot receive provider sessions.'
+    )
   if (options.customCoverageRequests) {
     if (
       options.coverage ||
@@ -190,7 +196,11 @@ export async function runTests(
         throw new Error('Unrequested custom coverage project.')
   }
   for (const project of projects)
-    if (project.customCoverage && project.entries.length) {
+    if (
+      !options.customCoverageDisabled &&
+      project.customCoverage &&
+      project.entries.length
+    ) {
       if (
         !options.customCoverageRequests?.[project.profile.id] ||
         project.isolate === false ||
@@ -958,6 +968,7 @@ export async function runTests(
           snapshotUpdateMode,
           coverage: options.coverage,
           standardCoverageOptions: options.standardCoverageOptions,
+          customCoverageDisabled: options.customCoverageDisabled,
           ...(options.standardCoverageOptions
             ? {
                 runtimeConfigurationPlan: {

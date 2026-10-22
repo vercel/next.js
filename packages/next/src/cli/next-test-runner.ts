@@ -482,7 +482,10 @@ export async function nextTestRunner(
     }
     const entries = projects.flatMap((project) => project.entries)
     const customProjects = projects.filter(
-      (project) => project.customCoverage && project.entries.length
+      (project) =>
+        coverageFlags.coverage !== false &&
+        project.customCoverage &&
+        project.entries.length
     )
     if (
       customProjects.length &&
@@ -832,6 +835,9 @@ export async function nextTestRunner(
         standardCoverageOptions,
         coverageInputs: configuration.watchInputs,
         ...(customProjects.length ? { customCoverageRequests } : {}),
+        ...(coverageFlags.coverage === false
+          ? { customCoverageDisabled: true as const }
+          : {}),
         inspect,
         ...(inspectBrk ? { inspectBrk: true } : {}),
         maxWorkers,

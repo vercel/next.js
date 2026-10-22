@@ -82,6 +82,7 @@ export type WatchProcessRequest =
       coverageInputs?: readonly string[]
       includeUnimportedCoverage?: boolean
       customCoverageRequests?: Record<string, CustomCoverageRequest>
+      customCoverageDisabled?: true
       /** One-shot mixed-profile orchestration; never inherit another mode. */
       isolatedProfile?: boolean
       /** Explicit standard watch generation; parent owns retained facts/publication. */

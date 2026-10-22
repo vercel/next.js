@@ -105,6 +105,7 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
           }
         : {}),
       customCoverageRequests: request.customCoverageRequests,
+      customCoverageDisabled: request.customCoverageDisabled,
       execute: broker.execute,
       brokerOwnsBrowser: true,
       ...(request.isolatedProfile === true

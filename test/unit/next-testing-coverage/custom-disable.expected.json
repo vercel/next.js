@@ -1,0 +1,133 @@
+{
+  "reference": "unpatched Vitest 5.0.4; unchanged maintained custom provider and case",
+  "rows": [
+    {
+      "mode": "development",
+      "disabled": false,
+      "exit": 0,
+      "cases": [
+        {
+          "fullName": "custom provider owns coverage collection",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "providerTrace": [
+        {
+          "name": "get-provider"
+        },
+        {
+          "name": "initialize"
+        },
+        {
+          "name": "resolve"
+        },
+        {
+          "name": "clean"
+        },
+        {
+          "name": "run-start"
+        },
+        {
+          "name": "start"
+        },
+        {
+          "name": "take"
+        },
+        {
+          "name": "suite",
+          "coverage": {
+            "releasePayload": 42
+          },
+          "testFiles": ["contract.case.mjs"]
+        },
+        {
+          "name": "stop"
+        },
+        {
+          "name": "generate"
+        },
+        {
+          "name": "report"
+        }
+      ],
+      "customReport": {
+        "payloads": [
+          {
+            "releasePayload": 42
+          }
+        ]
+      }
+    },
+    {
+      "mode": "development",
+      "disabled": true,
+      "exit": 0,
+      "cases": [
+        {
+          "fullName": "custom provider owns coverage collection",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "providerTrace": [],
+      "customReport": null
+    },
+    {
+      "mode": "production",
+      "disabled": true,
+      "exit": 0,
+      "cases": [
+        {
+          "fullName": "custom provider owns coverage collection",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "providerTrace": [],
+      "customReport": null
+    }
+  ],
+  "enabledBaseline": {
+    "providerTrace": [
+      {
+        "name": "get-provider"
+      },
+      {
+        "name": "initialize"
+      },
+      {
+        "name": "resolve"
+      },
+      {
+        "name": "clean"
+      },
+      {
+        "name": "run-start"
+      },
+      {
+        "name": "start"
+      },
+      {
+        "name": "take"
+      },
+      {
+        "name": "stop"
+      },
+      {
+        "name": "suite",
+        "coverage": {
+          "releasePayload": 42
+        },
+        "testFiles": ["contract.case.mjs"]
+      },
+      {
+        "name": "generate"
+      },
+      {
+        "name": "report"
+      }
+    ],
+    "knownReferenceDifference": "Next stop precedes suite; genuine suite precedes stop. Preserved baseline only, not enabled-provider conformance."
+  }
+}

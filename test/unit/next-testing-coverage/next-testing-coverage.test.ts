@@ -10033,3 +10033,99 @@ describe('project-configured standard V8 coverage', () => {
     }
   })
 })
+
+describe('explicitly disabled custom coverage', () => {
+  it('rejects a disabled run carrying an actual parent-owned provider session before execution', async () => {
+    const { copyFile } = await import('fs/promises')
+    const { parseTestConfig } = await import(
+      'next/dist/experimental/testing/config'
+    )
+    const { discoverTests } = await import(
+      'next/dist/experimental/testing/discovery'
+    )
+    const { runTests } = await import(
+      'next/dist/experimental/testing/orchestrator'
+    )
+    const { openCustomCoverageSession } = await import(
+      'next/dist/experimental/testing/coverage/custom-session'
+    )
+    const root = await realpath(
+      await mkdtemp(join(tmpdir(), 'next-custom-disable-session-'))
+    )
+    const source = join(
+      __dirname,
+      '../app-dir/next-testing-stable-release-gaps/fixtures/custom-coverage-provider'
+    )
+    let session:
+      | Awaited<ReturnType<typeof openCustomCoverageSession>>
+      | undefined
+    try {
+      for (const name of ['contract.case.mjs', 'coverage-provider.mjs'])
+        await copyFile(join(source, name), join(root, name))
+      const projects = await discoverTests(
+        root,
+        parseTestConfig({
+          projects: [
+            {
+              name: 'disabled-session',
+              include: ['contract.case.mjs'],
+              coverage: {
+                enabled: true,
+                provider: 'custom',
+                customProviderModule: './coverage-provider.mjs',
+              },
+            },
+          ],
+        })
+      )
+      const signal = new AbortController().signal
+      session = await openCustomCoverageSession({
+        projectDir: root,
+        config: projects[0].customCoverage!,
+        signal,
+      })
+      await expect(
+        runTests(root, projects, {
+          signal,
+          write() {},
+          customCoverageDisabled: true,
+          customCoverageRequests: { [projects[0].profile.id]: session.request },
+        })
+      ).rejects.toThrow(
+        'Disabled custom coverage cannot receive provider sessions'
+      )
+      const trace = (await readFile(join(root, 'provider-trace.jsonl'), 'utf8'))
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line).name)
+      expect(trace).toEqual([
+        'get-provider',
+        'initialize',
+        'resolve',
+        'clean',
+        'run-start',
+      ])
+      await expect(
+        readFile(join(root, 'custom-coverage.json'))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      await session?.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('matches pristine disabled cases and preserves the actual enabled provider trace and report', () => {
+    const { execFileSync } = require('node:child_process')
+    const result = execFileSync(
+      process.execPath,
+      [join(__dirname, 'custom-disable-reports.cjs')],
+      { encoding: 'utf8', timeout: 150000 }
+    )
+    expect(JSON.parse(result)).toEqual({
+      profiles: 3,
+      cases: 3,
+      referenceDisabledProfiles: 2,
+      preservedEnabledProfiles: 1,
+      customReports: 1,
+    })
+  }, 160000)
+})
