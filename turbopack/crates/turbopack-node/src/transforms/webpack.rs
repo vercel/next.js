@@ -678,13 +678,20 @@ impl WebpackLoadersProcessedAsset {
 
             let source_ident = self.source.ident().await?;
             let resource_fs_path = &source_ident.path;
-            let Some(resource_path) = project_path.get_relative_path_to(resource_fs_path) else {
-                bail!(
-                    "Resource path \"{}\" needs to be on project filesystem \"{}\"",
-                    resource_fs_path,
-                    project_path
-                );
-            };
+            // Resources in a registered additional filesystem (for example pnpm's
+            // global virtual store) cannot be expressed relative to project_path.
+            // The JS loader executor accepts absolute paths via path.resolve.
+            let resource_path =
+                if let Some(path) = project_path.get_relative_path_to(resource_fs_path) {
+                    path
+                } else {
+                    let path = to_sys_path(resource_fs_path.clone())
+                        .await?
+                        .context("webpack loader resource is not on a disk filesystem")?;
+                    path.to_str()
+                        .context("webpack loader resource path is not valid UTF-8")?
+                        .into()
+                };
             let loader_names: Vec<RcStr> = loaders.iter().map(|l| l.loader.clone()).collect();
 
             // TODO pass this into additional_invalidation again once we have proper pool handling
