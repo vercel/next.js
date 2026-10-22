@@ -47,8 +47,8 @@ function coereceMdxTransformOptions(options = {}) {
   }
 
   return {
-    ...restOptions,
     parse,
+    ...restOptions,
   }
 }
 
