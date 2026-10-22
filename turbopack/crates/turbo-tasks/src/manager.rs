@@ -2014,17 +2014,15 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
     }
 
     fn unemit_collectibles(&self, trait_type: TraitTypeId, collectibles: &TaskCollectiblesMap) {
-        for (&collectible, &count) in collectibles {
-            if count > 0 {
-                self.backend.unemit_collectible(
-                    trait_type,
-                    collectible,
-                    count as u32,
-                    current_task("emitting collectible"),
-                    self,
-                );
-            }
+        if !collectibles.values().any(|&count| count > 0) {
+            return;
         }
+        self.backend.unemit_collectibles(
+            trait_type,
+            collectibles,
+            current_task("unemitting collectibles"),
+            self,
+        );
     }
 
     fn read_own_task_cell(&self, task: TaskId, index: CellId) -> Result<TypedCellContent> {

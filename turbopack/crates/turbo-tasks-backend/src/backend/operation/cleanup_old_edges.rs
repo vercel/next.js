@@ -9,7 +9,7 @@ use crate::{
     backend::{
         TaskDataCategory,
         operation::{
-            AggregatedDataUpdate, ExecuteContext, TaskGuard,
+            AggregatedDataUpdate, CollectiblesUpdateVec, ExecuteContext, TaskGuard,
             aggregation_update::{
                 AggregationUpdateJob, AggregationUpdateQueue, InnerOfUppersLostFollowersJob,
                 get_aggregation_number, get_uppers, is_aggregating_node,
@@ -225,7 +225,7 @@ fn cleanup_old_edges_inner(
                 }
             }
             OutdatedEdge::Collectible(collectible, count) => {
-                let mut collectibles = Vec::new();
+                let mut collectibles = CollectiblesUpdateVec::new();
                 collectibles.push((collectible, -count));
                 outdated.retain(|e| match e {
                     OutdatedEdge::Collectible(collectible, count) => {
