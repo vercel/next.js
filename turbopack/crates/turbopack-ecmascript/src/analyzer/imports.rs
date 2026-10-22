@@ -36,6 +36,7 @@ use crate::{
         cjs_ast::{is_global, is_module_dot_exports},
         graph::{AssignmentScope, AssignmentScopes, EvalContext},
         is_unresolved, is_unresolved_id,
+        side_effects::ModuleSideEffectsAnalysisResult,
     },
     magic_identifier::{MAGIC_IDENTIFIER_DEFAULT_EXPORT, MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM},
     module_fragments::{PartId, find_turbopack_part_id_in_asserts},
@@ -857,12 +858,14 @@ impl ImportMap {
         unresolved_mark: Mark,
         m: &Program,
         comments: Option<&dyn Comments>,
+        module_side_effects: Option<&ModuleSideEffectsAnalysisResult>,
     ) -> Self {
         let mut data = ImportMap::default();
         let mut analyzer = Analyzer {
             unresolved_mark,
             data: &mut data,
             comments,
+            module_side_effects,
             namespace_imports_to_specifier: FxIndexMap::default(),
             state: Default::default(),
             program_decl_usage: Default::default(),
@@ -1043,6 +1046,8 @@ struct Analyzer<'a> {
     unresolved_mark: Mark,
     data: &'a mut ImportMap,
     comments: Option<&'a dyn Comments>,
+    module_side_effects: Option<&'a ModuleSideEffectsAnalysisResult>,
+
     /// Map from local identifier of namespace imports to module path, used temporarily during
     /// analysis to detect dynamic accesses to namespace imports.
     namespace_imports_to_specifier: FxIndexMap<Id, Wtf8Atom>,
@@ -1646,7 +1651,18 @@ impl Visit for Analyzer<'_> {
 
     fn visit_var_declarator(&mut self, node: &VarDeclarator) {
         self.record_require_usage_var(node);
-        node.visit_children_with(self);
+
+        if let Pat::Ident(ident) = &node.name
+            && self
+                .module_side_effects
+                .is_some_and(|m| m.pure_top_level_declarations.contains(&ident.id.to_id()))
+        {
+            self.enter_top_level_decl(&ident.id, |this| {
+                node.visit_children_with(this);
+            });
+        } else {
+            node.visit_children_with(self);
+        }
     }
 
     fn visit_assign_expr(&mut self, node: &AssignExpr) {
@@ -2124,7 +2140,9 @@ mod tests {
             shebang: None,
         });
         let globals = Default::default();
-        let map = GLOBALS.set(&globals, || ImportMap::analyze(Mark::new(), &program, None));
+        let map = GLOBALS.set(&globals, || {
+            ImportMap::analyze(Mark::new(), &program, None, None)
+        });
 
         assert_eq!(map.reference_declaration_orders, vec![0, 1, 0, 2]);
         assert_eq!(
