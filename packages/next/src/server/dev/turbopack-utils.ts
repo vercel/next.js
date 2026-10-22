@@ -365,7 +365,9 @@ export async function handleRouteType({
     case 'app-page': {
       const key = getEntryKey('app', 'server', page)
 
-      const writtenEndpoint = await route.htmlEndpoint.writeToDisk()
+      const writtenEndpoint = await route.htmlEndpoint.writeToDisk(
+        dev ? key : undefined
+      )
       hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
 
       if (dev) {
@@ -428,7 +430,9 @@ export async function handleRouteType({
     case 'app-route': {
       const key = getEntryKey('app', 'server', page)
 
-      const writtenEndpoint = await route.endpoint.writeToDisk()
+      const writtenEndpoint = await route.endpoint.writeToDisk(
+        dev ? key : undefined
+      )
       hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
 
       if (dev) {
