@@ -145,6 +145,10 @@ pub enum ModuleType {
         /// The tag that is passed to ChunkingContext::asset_url
         tag: Option<RcStr>,
     },
+    StaticUrl {
+        /// The tag that is passed to ChunkingContext::asset_url
+        tag: Option<RcStr>,
+    },
     StaticUrlCss {
         /// The tag that is passed to ChunkingContext::asset_url
         tag: Option<RcStr>,
@@ -167,6 +171,7 @@ impl Display for ModuleType {
             ModuleType::CssModule => write!(f, "CssModule"),
             ModuleType::Css { .. } => write!(f, "Css"),
             ModuleType::StaticUrlJs { .. } => write!(f, "StaticUrlJs"),
+            ModuleType::StaticUrl { .. } => write!(f, "StaticUrl"),
             ModuleType::StaticUrlCss { .. } => write!(f, "StaticUrlCss"),
             ModuleType::WebAssembly { .. } => write!(f, "WebAssembly"),
             ModuleType::Custom(_) => write!(f, "Custom"),
@@ -256,7 +261,7 @@ impl ConfiguredModuleType {
                 )]))
             }
             ConfiguredModuleType::Asset => {
-                ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs { tag: None })
+                ModuleRuleEffect::ModuleType(ModuleType::StaticUrl { tag: None })
             }
             ConfiguredModuleType::Ecmascript => {
                 ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
