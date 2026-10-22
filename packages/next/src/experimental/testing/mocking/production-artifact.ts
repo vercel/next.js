@@ -58,14 +58,18 @@ export function assertProductionStaticMockProfile(
   if (
     certificate.version !== 1 ||
     artifact.moduleMocking?.version !== 1 ||
-    artifact.kind !== 'node' ||
-    artifact.profile.environment !== 'node' ||
+    !(
+      (artifact.kind === 'node' && artifact.profile.environment === 'node') ||
+      (artifact.kind === 'browser' &&
+        artifact.profile.environment === 'browser' &&
+        artifact.profile.browserClient === true)
+    ) ||
     artifact.profile.mode !== 'production' ||
     artifact.profile.route !== undefined ||
     artifact.moduleMocking.coverage ||
-    artifact.moduleCache ||
-    artifact.dynamicModuleMocking ||
-    artifact.cohort ||
+    ('moduleCache' in artifact && artifact.moduleCache) ||
+    ('dynamicModuleMocking' in artifact && artifact.dynamicModuleMocking) ||
+    ('cohort' in artifact && artifact.cohort) ||
     options.setupFiles.length ||
     options.snapshotSerializers?.length ||
     options.entry.executionEnvironment ||

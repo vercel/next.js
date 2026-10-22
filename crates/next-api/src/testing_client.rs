@@ -918,6 +918,33 @@ impl ClientTestEndpoint {
             )
             .await?,
         ));
+        if this.project.next_mode().await?.is_production() {
+            let plan = crate::testing::static_mock_plan(&this.path).await?;
+            if !plan.is_empty() {
+                if !this.setup_paths.is_empty() || !crate::testing::production_factory_plan(&plan) {
+                    bail!("Production Browser mocks require isolated static relative factories");
+                }
+                assets.push(ResolvedVc::upcast(
+                    VirtualOutputAsset::new(
+                        this.project
+                            .node_root()
+                            .await?
+                            .join(&format!("server/next-test/{}.metadata.json", this.id))?,
+                        AssetContent::file(
+                            FileContent::Content(File::from(
+                                serde_json::json!({"moduleMocking": {
+                                    "version": 1, "productionStaticFactory": 1
+                                }})
+                                .to_string(),
+                            ))
+                            .cell(),
+                        ),
+                    )
+                    .to_resolved()
+                    .await?,
+                ));
+            }
+        }
         Ok(Vc::cell(assets))
     }
 }

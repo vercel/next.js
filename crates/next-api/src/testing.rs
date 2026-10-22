@@ -460,7 +460,7 @@ pub(crate) async fn test_endpoint(
     }
     if project.next_mode().await?.is_production()
         && !production_plan.is_empty()
-        && (&*environment != "node"
+        && ((&*environment != "node" && !*browser_client)
             || route.is_some()
             || !setup_paths.is_empty()
             || !snapshot_serializers.is_empty()
@@ -469,14 +469,17 @@ pub(crate) async fn test_endpoint(
     {
         return Err(test_input_error(
             path.clone(),
-            "Production module mocks require isolated Node static relative factory declarations \
-             without setup, serializers, in-source entries or other mock features",
+            "Production module mocks require isolated Node or Browser static relative factory \
+             declarations without setup, serializers, in-source entries or other mock features",
         ));
     }
     if &*environment != "node" {
         let plan = static_mock_plan(&path).await?;
-        let rsc_mocks_supported = (&*environment == "rsc" || *browser_client)
+        let rsc_mocks_supported = ((&*environment == "rsc" || *browser_client)
             && project.next_mode().await?.is_development()
+            || *browser_client
+                && project.next_mode().await?.is_production()
+                && production_factory_plan(&plan))
             && route.is_none()
             && setup_paths.is_empty()
             && snapshot_serializers.is_empty()
@@ -566,7 +569,7 @@ async fn virtual_test_source(
     ))
 }
 
-fn production_factory_plan(plan: &StaticMockPlan) -> bool {
+pub(crate) fn production_factory_plan(plan: &StaticMockPlan) -> bool {
     !plan.declarations.is_empty()
         && plan.hoisted.is_empty()
         && plan.actual_imports.is_empty()

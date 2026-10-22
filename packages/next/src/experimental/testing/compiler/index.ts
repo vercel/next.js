@@ -1542,7 +1542,9 @@ export async function createTestCompilerSession(
         } else {
           const productionStaticFactory =
             profile.mode === 'production' &&
-            profile.environment === 'node' &&
+            (profile.environment === 'node' ||
+              (profile.environment === 'browser' &&
+                profile.browserClient === true)) &&
             metadata.moduleMocking?.productionStaticFactory === 1 &&
             metadata.moduleMocking?.coverage === undefined &&
             metadata.moduleMocking?.cjsNamedSpy === undefined &&
@@ -1554,7 +1556,8 @@ export async function createTestCompilerSession(
             !entry.executionEnvironment &&
             !coverage
           if (
-            !['node', 'rsc'].includes(profile.environment) ||
+            (!['node', 'rsc'].includes(profile.environment) &&
+              !productionStaticFactory) ||
             (profile.mode !== 'development' && !productionStaticFactory) ||
             (profile.mode !== 'production' &&
               metadata.moduleMocking?.productionStaticFactory !== undefined) ||

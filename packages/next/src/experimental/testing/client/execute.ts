@@ -1,4 +1,5 @@
 import { cleanupClientKeyboard, runClientKeyboard } from './keyboard'
+import { captureProductionStaticMockClosure } from '../mocking/production-artifact'
 import { randomBytes } from 'node:crypto'
 import { resolve } from 'node:path'
 import type { Browser, BrowserContext, ConsoleMessage, Page } from 'playwright'
@@ -78,6 +79,10 @@ export async function executeClient(
     )
   if (!Number.isFinite(options.fileTimeout) || options.fileTimeout <= 0)
     throw new Error('Browser Mode requires a finite file deadline.')
+  const verifyProductionStaticMock = await captureProductionStaticMockClosure(
+    artifact,
+    options
+  )
   // Vitest Browser projects provided values through JSON before file loading.
   const provide: Record<string, unknown> = JSON.parse(
     JSON.stringify(options.provide ?? {})
@@ -688,6 +693,7 @@ export async function executeClient(
     try {
       await server!.verify()
       server!.assertClean()
+      await verifyProductionStaticMock?.()
     } catch (error) {
       errors.push(error)
     }

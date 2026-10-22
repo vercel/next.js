@@ -6958,6 +6958,31 @@ it('validates production Browser client profiles without enabling route-aware or
   }
 })
 
+it.each(['development', 'production'])(
+  'retains the original relative factory body in actual %s Node compilation',
+  (mode) => {
+    const { execFileSync } = require('node:child_process')
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'production-factory-integration.cjs'), 'node', mode],
+        { encoding: 'utf8', timeout: 135000 }
+      )
+    )
+    expect(actual.close).toEqual({ code: 0, signal: null })
+    expect(actual.cases).toEqual([
+      {
+        name: 'factory mocks production compiled entry',
+        status: 'passed',
+        failureMessages: [],
+      },
+    ])
+    expect(actual.authoredSourcesUnchanged).toBe(true)
+    expect(actual.fixtureRemoved).toBe(true)
+  },
+  140000
+)
+
 it('awaits actual Shared ESM setup dependencies while retaining lazy noninheriting Shared CJS harness imports', () => {
   const { execFileSync } = require('node:child_process')
   const output = execFileSync(
