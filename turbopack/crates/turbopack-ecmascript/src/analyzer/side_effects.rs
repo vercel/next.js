@@ -1049,7 +1049,8 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                 // Check for /*#__PURE__*/ annotation or known pure constructor
                 let is_pure_annotated = self.is_pure_annotated(new.span);
                 if is_pure_annotated || self.is_known_pure_constructor(&new.callee) {
-                    // Pure constructor, but still need to check arguments
+                    // The annotation only covers invocation, not callee or argument evaluation.
+                    new.callee.visit_with(self);
                     self.with_will_invoke_fn_exprs(!is_pure_annotated, |this| {
                         new.args.visit_children_with(this);
                     });
@@ -1458,6 +1459,47 @@ mod tests {
                 ModuleSideEffects::ModuleEvaluationIsSideEffectFree
             );
         };
+    }
+
+    mod constructor_callee_tests {
+        use super::*;
+
+        side_effects!(test_call_callee, "/*#__PURE__*/ new (getConstructor())();");
+        side_effects!(
+            test_nested_call_callee,
+            "/*#__PURE__*/ new (getContainer().Constructor)();"
+        );
+        side_effects!(
+            test_computed_callee,
+            "/*#__PURE__*/ new (constructors[getKey()])();"
+        );
+        side_effects!(
+            test_conditional_callee,
+            "/*#__PURE__*/ new (flag ? getConstructor() : Constructor)();"
+        );
+        side_effects!(
+            test_callee_and_arguments,
+            "/*#__PURE__*/ new (getConstructor())(effect());"
+        );
+        side_effects!(test_arguments, "/*#__PURE__*/ new Constructor(effect());");
+        no_side_effects!(test_identifier_callee, "/*#__PURE__*/ new Constructor();");
+        no_side_effects!(
+            test_member_callee,
+            "/*#__PURE__*/ new constructors.Constructor();"
+        );
+        no_side_effects!(
+            test_computed_pure_callee,
+            "/*#__PURE__*/ new constructors[key]();"
+        );
+        no_side_effects!(
+            test_uninvoked_constructor_body,
+            "/*#__PURE__*/ new (function () { effect(); })();"
+        );
+        no_side_effects!(test_known_constructor, "new Map();");
+        no_side_effects!(
+            test_pure_callee_call,
+            "/*#__PURE__*/ new (/*#__PURE__*/ getConstructor())();"
+        );
     }
 
     mod basic_tests {
