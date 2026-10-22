@@ -628,7 +628,7 @@ export const testCapabilities = {
       ],
       reports: ['json', 'json-summary', 'text', 'text-summary', 'lcov'],
       reportsScope:
-        'The reports list includes bare-coverage legacy JSON/text output. Standard dotted reporter flags admit JSON, JSON summary, text summary, LCOV and the additional LCOV-only subset; the standard full text reporter remains unimplemented.',
+        'The reports list includes bare-coverage legacy JSON/text output. Standard dotted reporter flags admit JSON, JSON summary, text summary, LCOV and the additional LCOV-only subset. Project-configured V8 coverage additionally uses full text, HTML and Clover formatters.',
       additionalReports: [
         {
           name: 'lcovonly',
@@ -636,6 +636,25 @@ export const testCapabilities = {
           execution: 'one-shot',
         },
       ],
+      projectConfigured: {
+        provider: 'v8',
+        profiles: ['development Node', 'production Node'],
+        execution: 'one-shot isolated execution',
+        enabledByDefault: false,
+        defaultReports: ['text', 'html', 'clover', 'json'],
+        reports: [
+          'json',
+          'json-summary',
+          'text-summary',
+          'lcov',
+          'lcovonly',
+          'text',
+          'html',
+          'clover',
+        ],
+        scope:
+          'Selected projects must share effective coverage settings. Explicit CLI fields override their configured counterparts. Initial clean, retained output with clean:false and reportOnFailure are qualified for one-shot isolated Node execution. Metric thresholds retain their existing scope. Configured watch, heterogeneous enabled project settings, Istanbul and other execution profiles remain unqualified.',
+      },
       lcovOnly:
         'Explicit --coverage.reporter=lcovonly publishes only lcov.info through the existing LCOV formatter. One-shot development/production Node with and without JSON matches complete pinned two-file coverage reports and exact LCOV bytes, including unimported source denominators. The measured same-line no-else if-return followed by a return retains its authored endpoint through unique actual authored/emitted AST roles and six exact native-map associations. Every counter, branch ID and unrelated field remains intact; 44 controls check actual maps and ambiguous/missing associations. Other reporter, provider, watch, threshold and profile combinations remain unqualified.',
       jsonSummary:
@@ -664,8 +683,8 @@ export const testCapabilities = {
         'combining coverage with snapshot updates',
         'coverage-provider compatibility',
         'unqualified typed-source compiler configurations, arrow owners beyond qualified variable, static object-property, call arguments and the bounded classFieldArrows subset, remaining runtime-generating TypeScript, unexecuted constructor parameter properties beyond the bounded constructorParameterProperties subset and JSX standard coverage beyond the measured planned explicit-include owners',
-        'project-configured standard coverage and broader custom-provider service/transform dependencies',
-        'standard reporters beyond JSON, JSON summary, text summary and LCOV, and advanced threshold modes',
+        'project-configured standard coverage watch, heterogeneous enabled project settings and broader custom-provider service/transform dependencies',
+        'additional configured and CLI coverage reporter options, and advanced threshold modes',
       ],
     },
   },
