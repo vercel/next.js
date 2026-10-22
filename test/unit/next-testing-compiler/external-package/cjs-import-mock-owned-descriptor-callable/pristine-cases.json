@@ -1,0 +1,42 @@
+[
+  {
+    "name": "complete truthy-getter-flag callable default publication",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete truthy-hidden-default callable default publication",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete getter-async callable default publication",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete getter-generator callable default publication",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete getter-flag-last callable default publication",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete hidden-default-async callable default publication",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete hidden-default-generator callable default publication",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete hidden-default-first callable default publication",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

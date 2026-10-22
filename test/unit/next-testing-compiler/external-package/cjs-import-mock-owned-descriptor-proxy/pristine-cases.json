@@ -1,0 +1,22 @@
+[
+  {
+    "name": "getter-held-proxy",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "default-held-proxy",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "getter-throw-tag",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "default-throw-named",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

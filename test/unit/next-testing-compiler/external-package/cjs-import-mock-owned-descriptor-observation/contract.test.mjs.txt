@@ -1,0 +1,61 @@
+import {test,expect,vi} from 'vitest';
+function val(v){return typeof v==='function'?{type:'function',name:v.name,length:v.length,tag:Object.prototype.toString.call(v),mock:vi.isMockFunction(v)}:v!==null&&typeof v==='object'?{type:'object',tag:Object.prototype.toString.call(v),keys:Reflect.ownKeys(v).map(String)}:{type:typeof v,value:v}}
+function shape(v){if(v===null||(typeof v!=='object'&&typeof v!=='function'))return val(v);return {type:typeof v,tag:Object.prototype.toString.call(v),nullPrototype:Object.getPrototypeOf(v)===null,objectPrototype:Object.getPrototypeOf(v)===Object.prototype,functionPrototype:Object.getPrototypeOf(v)===Function.prototype,keys:Reflect.ownKeys(v).map(k=>typeof k==='symbol'?'symbol:'+String(k.description):k),descriptors:Reflect.ownKeys(v).map(k=>{const d=Object.getOwnPropertyDescriptor(v,k);return {key:typeof k==='symbol'?'symbol:'+String(k.description):k,value:val(d.value),get:typeof d.get,set:typeof d.set,writable:d.writable??null,enumerable:d.enumerable,configurable:d.configurable}}),prototype:typeof v==='function'&&Object.hasOwn(v,'prototype')?{keys:Reflect.ownKeys(v.prototype).map(String),descriptors:Reflect.ownKeys(v.prototype).map(k=>{const d=Object.getOwnPropertyDescriptor(v.prototype,k);return {key:String(k),value:val(d.value),get:typeof d.get,set:typeof d.set,writable:d.writable??null,enumerable:d.enumerable,configurable:d.configurable}})}:null}}
+
+test("getter-throw",async()=>{
+const name="getter-throw",originalDefine=Object.defineProperty,failure=new Error('authored owned descriptor failure'),trace=[];
+Object.defineProperty=function(target,key,descriptor){
+ if(key===Symbol.toStringTag&&descriptor.value==='Module'&&Object.getPrototypeOf(target)===null)trace.push({event:'namespace-tag',body:globalThis.__ownedDescriptorBodies?.[name]??0,keys:Reflect.ownKeys(target).map(String)});
+ if(key==="__esModule"&&typeof target==='function'){trace.push({event:'owned-definition',body:globalThis.__ownedDescriptorBodies?.[name]??0,keys:Object.keys(descriptor)});throw failure;}
+ return Reflect.apply(originalDefine,this,[target,key,descriptor]);
+};
+let mocked,error;try{mocked=await vi.importMock('./getter-throw.cjs')}catch(caught){error=caught}finally{Object.defineProperty=originalDefine}
+let raw,again;try{raw=await import('./getter-throw.cjs')}catch(caught){again=caught}
+const err=value=>value?{name:value.name,message:value.message,keys:Reflect.ownKeys(value).map(String)}:null;
+console.log('WS2_CALLABLE_OWNED:'+JSON.stringify({name,trace,error:err(error),exactError:error===failure,cachedErrorSame:again!==undefined&&again===error,afterError:err(again),bodies:globalThis.__ownedDescriptorBodies?.[name]??0,after:globalThis.__ownedDescriptorAfter?.[name]??0,mocked:shape(mocked),raw:shape(raw)}));expect(true).toBe(true);
+});
+test("getter-elide",async()=>{
+const name="getter-elide",originalDefine=Object.defineProperty,failure=new Error('authored owned descriptor failure'),trace=[];
+Object.defineProperty=function(target,key,descriptor){
+ if(key===Symbol.toStringTag&&descriptor.value==='Module'&&Object.getPrototypeOf(target)===null)trace.push({event:'namespace-tag',body:globalThis.__ownedDescriptorBodies?.[name]??0,keys:Reflect.ownKeys(target).map(String)});
+ if(key==="__esModule"&&typeof target==='function'){trace.push({event:'owned-definition',body:globalThis.__ownedDescriptorBodies?.[name]??0,keys:Object.keys(descriptor)});return target;}
+ return Reflect.apply(originalDefine,this,[target,key,descriptor]);
+};
+let mocked,error;try{mocked=await vi.importMock('./getter-elide.cjs')}catch(caught){error=caught}finally{Object.defineProperty=originalDefine}
+let raw,again;try{raw=await import('./getter-elide.cjs')}catch(caught){again=caught}
+const err=value=>value?{name:value.name,message:value.message,keys:Reflect.ownKeys(value).map(String)}:null;
+console.log('WS2_CALLABLE_OWNED:'+JSON.stringify({name,trace,error:err(error),exactError:error===failure,cachedErrorSame:again!==undefined&&again===error,afterError:err(again),bodies:globalThis.__ownedDescriptorBodies?.[name]??0,after:globalThis.__ownedDescriptorAfter?.[name]??0,mocked:shape(mocked),raw:shape(raw)}));expect(true).toBe(true);
+});
+test("default-throw",async()=>{
+const name="default-throw",originalDefine=Object.defineProperty,failure=new Error('authored owned descriptor failure'),trace=[];
+Object.defineProperty=function(target,key,descriptor){
+ if(key===Symbol.toStringTag&&descriptor.value==='Module'&&Object.getPrototypeOf(target)===null)trace.push({event:'namespace-tag',body:globalThis.__ownedDescriptorBodies?.[name]??0,keys:Reflect.ownKeys(target).map(String)});
+ if(key==="default"&&typeof target==='function'){trace.push({event:'owned-definition',body:globalThis.__ownedDescriptorBodies?.[name]??0,keys:Object.keys(descriptor)});throw failure;}
+ return Reflect.apply(originalDefine,this,[target,key,descriptor]);
+};
+let mocked,error;try{mocked=await vi.importMock('./default-throw.cjs')}catch(caught){error=caught}finally{Object.defineProperty=originalDefine}
+let raw,again;try{raw=await import('./default-throw.cjs')}catch(caught){again=caught}
+const err=value=>value?{name:value.name,message:value.message,keys:Reflect.ownKeys(value).map(String)}:null;
+console.log('WS2_CALLABLE_OWNED:'+JSON.stringify({name,trace,error:err(error),exactError:error===failure,cachedErrorSame:again!==undefined&&again===error,afterError:err(again),bodies:globalThis.__ownedDescriptorBodies?.[name]??0,after:globalThis.__ownedDescriptorAfter?.[name]??0,mocked:shape(mocked),raw:shape(raw)}));expect(true).toBe(true);
+});
+test("default-elide",async()=>{
+const name="default-elide",originalDefine=Object.defineProperty,failure=new Error('authored owned descriptor failure'),trace=[];
+Object.defineProperty=function(target,key,descriptor){
+ if(key===Symbol.toStringTag&&descriptor.value==='Module'&&Object.getPrototypeOf(target)===null)trace.push({event:'namespace-tag',body:globalThis.__ownedDescriptorBodies?.[name]??0,keys:Reflect.ownKeys(target).map(String)});
+ if(key==="default"&&typeof target==='function'){trace.push({event:'owned-definition',body:globalThis.__ownedDescriptorBodies?.[name]??0,keys:Object.keys(descriptor)});return target;}
+ return Reflect.apply(originalDefine,this,[target,key,descriptor]);
+};
+let mocked,error;try{mocked=await vi.importMock('./default-elide.cjs')}catch(caught){error=caught}finally{Object.defineProperty=originalDefine}
+let raw,again;try{raw=await import('./default-elide.cjs')}catch(caught){again=caught}
+const err=value=>value?{name:value.name,message:value.message,keys:Reflect.ownKeys(value).map(String)}:null;
+console.log('WS2_CALLABLE_OWNED:'+JSON.stringify({name,trace,error:err(error),exactError:error===failure,cachedErrorSame:again!==undefined&&again===error,afterError:err(again),bodies:globalThis.__ownedDescriptorBodies?.[name]??0,after:globalThis.__ownedDescriptorAfter?.[name]??0,mocked:shape(mocked),raw:shape(raw)}));expect(true).toBe(true);
+});
+test('getter-body-throw',async()=>{
+const name='getter-body-throw',failure=new Error('authored getter failure');
+globalThis.__ownedGetterFail=true;globalThis.__ownedGetterFailure=failure;globalThis.__ownedGetterReads=[];
+let first,error;try{first=await vi.importMock('./getter-body-throw.cjs')}catch(caught){error=caught}finally{globalThis.__ownedGetterFail=false}
+const raw=await import('./getter-body-throw.cjs');
+let recovered,recoveryError;try{recovered=await vi.importMock('./getter-body-throw.cjs')}catch(caught){recoveryError=caught}
+const err=value=>value?{name:value.name,message:value.message,keys:Reflect.ownKeys(value).map(String)}:null;
+console.log('WS2_CALLABLE_OWNED:'+JSON.stringify({name,error:err(error),exactError:error===failure,recoveryError:err(recoveryError),bodies:globalThis.__ownedGetterBodies,reads:[...globalThis.__ownedGetterReads],first:shape(first),raw:shape(raw),recovered:shape(recovered)}));expect(error===failure).toBe(true);
+});

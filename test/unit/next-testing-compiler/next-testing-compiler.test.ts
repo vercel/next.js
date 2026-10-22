@@ -7918,6 +7918,9 @@ it('retains complete callable self-default inherited setter observations', () =>
 }, 140000)
 
 it.each([
+  ['owned-descriptor-callable', 8],
+  ['owned-descriptor-observation', 5],
+  ['owned-descriptor-proxy', 4],
   ['hidden-flag-body-definitions', 2],
   ['hidden-flag-callable', 9],
   ['hidden-flag-inherited', 2],

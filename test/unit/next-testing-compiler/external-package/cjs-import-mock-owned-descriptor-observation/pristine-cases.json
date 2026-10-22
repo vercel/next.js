@@ -1,0 +1,27 @@
+[
+  {
+    "name": "getter-throw",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "getter-elide",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "default-throw",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "default-elide",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "getter-body-throw",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

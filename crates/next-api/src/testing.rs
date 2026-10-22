@@ -4520,6 +4520,10 @@ mod typescript_fallback_tests {
                 ("./self.cjs", turbopack_ecmascript::cjs_reset_export::CommonJsResetExportShape::Unsupported, true),
                 ("./hidden.cjs", turbopack_ecmascript::cjs_reset_export::CommonJsResetExportShape::Unsupported, true),
                 ("./hidden-unproven.cjs", turbopack_ecmascript::cjs_reset_export::CommonJsResetExportShape::Unsupported, false),
+                ("./getter.cjs", turbopack_ecmascript::cjs_reset_export::CommonJsResetExportShape::Unsupported, true),
+                ("./hidden-default.cjs", turbopack_ecmascript::cjs_reset_export::CommonJsResetExportShape::Unsupported, true),
+                ("./getter-unproven.cjs", turbopack_ecmascript::cjs_reset_export::CommonJsResetExportShape::Unsupported, false),
+                ("./hidden-default-extra.cjs", turbopack_ecmascript::cjs_reset_export::CommonJsResetExportShape::Unsupported, false),
             ] {
                 let origin = PlainResolveOrigin::new(Vc::upcast(*context), project.join("entry.test.mjs")?);
                 let resolved = esm_resolve(Vc::upcast(origin), Request::parse_string(request.into()), EcmaScriptModulesReferenceSubType::Import, ResolveErrorMode::Ignore, None).await?;
@@ -4572,6 +4576,33 @@ mod typescript_fallback_tests {
                 "function exported(value) { return value }; \
                  Object.defineProperty(exported,'__esModule',{value:true}); \
                  exported.default=exported; module.exports=exported;\n",
+            ),
+            (
+                "getter.cjs",
+                "function exported(value) { return value }; \
+                 Object.defineProperty(exported,'__esModule',{enumerable:true,configurable:true,\
+                 get(){globalThis.trace.push(this);return true}}); exported.default=exported; \
+                 module.exports=exported;\n",
+            ),
+            (
+                "hidden-default.cjs",
+                "function exported(value) { return value }; exported.__esModule=true; \
+                 Object.defineProperty(exported,'default',{value:function nested(value){return \
+                 value+1},writable:true,configurable:true}); module.exports=exported;\n",
+            ),
+            (
+                "getter-unproven.cjs",
+                "function exported(value) { return value }; \
+                 Object.defineProperty(exported,'__esModule',{enumerable:true,configurable:true,\
+                 get(){if(globalThis.flag)return false;return true}}); exported.default=exported; \
+                 module.exports=exported;\n",
+            ),
+            (
+                "hidden-default-extra.cjs",
+                "function exported(value) { return value }; exported.__esModule=true; \
+                 Object.defineProperty(exported,'default',{value:function nested(value){return \
+                 value+1},writable:true,configurable:true}); exported.default=7; \
+                 module.exports=exported;\n",
             ),
         ] {
             std::fs::write(directory.path().join(file), source)?;

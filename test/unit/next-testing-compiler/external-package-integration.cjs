@@ -7,6 +7,18 @@ const repo = path.resolve(__dirname, '../../..')
 const { createHash } = require('node:crypto')
 const group = process.argv[2]
 const ordinaryEsmNamespaceGroups = {
+  'cjs-import-mock-owned-descriptor-callable': {
+    cases: 8,
+    prefix: 'WS2_CALLABLE_',
+  },
+  'cjs-import-mock-owned-descriptor-observation': {
+    cases: 5,
+    prefix: 'WS2_CALLABLE_',
+  },
+  'cjs-import-mock-owned-descriptor-proxy': {
+    cases: 4,
+    prefix: 'WS2_CALLABLE_',
+  },
   'cjs-import-mock-hidden-flag-body-definitions': {
     cases: 2,
     prefix: 'WS2_CALLABLE_',

@@ -109,18 +109,23 @@ fn assignment(statement: &Stmt) -> Option<&swc_core::ecma::ast::AssignExpr> {
     };
     (value.op == AssignOp::Assign).then_some(value)
 }
-fn own_true_flag_definition(statement: &Stmt, binding: &Id, unresolved: Mark) -> bool {
+fn own_definition<'a>(
+    statement: &'a Stmt,
+    binding: &Id,
+    unresolved: Mark,
+    key: &str,
+) -> Option<&'a ObjectLit> {
     let Stmt::Expr(statement) = statement else {
-        return false;
+        return None;
     };
     let Expr::Call(call) = &*statement.expr else {
-        return false;
+        return None;
     };
     let swc_core::ecma::ast::Callee::Expr(callee) = &call.callee else {
-        return false;
+        return None;
     };
     let Expr::Member(member) = &**callee else {
-        return false;
+        return None;
     };
     if !matches!(&*member.obj, Expr::Ident(ident) if is_global(ident, "Object", unresolved))
         || !matches!(&member.prop, MemberProp::Ident(key) if key.sym == "defineProperty")
@@ -128,11 +133,17 @@ fn own_true_flag_definition(statement: &Stmt, binding: &Id, unresolved: Mark) ->
         || call.args.len() != 3
         || call.args.iter().any(|arg| arg.spread.is_some())
         || !matches!(&*call.args[0].expr, Expr::Ident(ident) if ident.to_id() == *binding)
-        || !matches!(&*call.args[1].expr, Expr::Lit(Lit::Str(key)) if key.value.as_str() == Some("__esModule"))
+        || !matches!(&*call.args[1].expr, Expr::Lit(Lit::Str(property)) if property.value.as_str() == Some(key))
     {
-        return false;
+        return None;
     }
     let Expr::Object(descriptor) = &*call.args[2].expr else {
+        return None;
+    };
+    Some(descriptor)
+}
+fn own_true_flag_definition(statement: &Stmt, binding: &Id, unresolved: Mark) -> bool {
+    let Some(descriptor) = own_definition(statement, binding, unresolved, "__esModule") else {
         return false;
     };
     if descriptor.props.len() != 3 {
@@ -156,6 +167,111 @@ fn own_true_flag_definition(statement: &Stmt, binding: &Id, unresolved: Mark) ->
         };
         if fields[index] || !matches!(&*property.value, Expr::Lit(Lit::Bool(value)) if value.value)
         {
+            return false;
+        }
+        fields[index] = true;
+    }
+    fields.into_iter().all(|field| field)
+}
+
+#[derive(Default)]
+struct HasReturn(bool);
+impl Visit for HasReturn {
+    fn visit_return_stmt(&mut self, _: &swc_core::ecma::ast::ReturnStmt) {
+        self.0 = true;
+    }
+}
+fn own_true_getter_flag_definition(statement: &Stmt, binding: &Id, unresolved: Mark) -> bool {
+    let Some(descriptor) = own_definition(statement, binding, unresolved, "__esModule") else {
+        return false;
+    };
+    if descriptor.props.len() != 3 {
+        return false;
+    }
+    let mut fields = [false; 3];
+    for property in &descriptor.props {
+        let PropOrSpread::Prop(property) = property else {
+            return false;
+        };
+        let index = match &**property {
+            Prop::KeyValue(property) => {
+                if !matches!(&*property.value, Expr::Lit(Lit::Bool(value)) if value.value) {
+                    return false;
+                }
+                match property_key(&property.key) {
+                    Some("enumerable") => 0,
+                    Some("configurable") => 1,
+                    _ => return false,
+                }
+            }
+            Prop::Method(property)
+                if property_key(&property.key) == Some("get")
+                    && property.function.params.is_empty()
+                    && !property.function.is_async
+                    && !property.function.is_generator =>
+            {
+                let Some(body) = &property.function.body else {
+                    return false;
+                };
+                let Some((last, preceding)) = body.stmts.split_last() else {
+                    return false;
+                };
+                if !matches!(last, Stmt::Return(value) if matches!(value.arg.as_deref(), Some(Expr::Lit(Lit::Bool(value))) if value.value))
+                    || !clean(body, unresolved, Some(binding))
+                {
+                    return false;
+                }
+                let mut returns = HasReturn::default();
+                preceding.visit_with(&mut returns);
+                if returns.0 {
+                    return false;
+                }
+                2
+            }
+            _ => return false,
+        };
+        if fields[index] {
+            return false;
+        }
+        fields[index] = true;
+    }
+    fields.into_iter().all(|field| field)
+}
+fn own_hidden_function_default_definition(
+    statement: &Stmt,
+    binding: &Id,
+    unresolved: Mark,
+) -> bool {
+    let Some(descriptor) = own_definition(statement, binding, unresolved, "default") else {
+        return false;
+    };
+    if descriptor.props.len() != 3 {
+        return false;
+    }
+    let mut fields = [false; 3];
+    for property in &descriptor.props {
+        let PropOrSpread::Prop(property) = property else {
+            return false;
+        };
+        let Prop::KeyValue(property) = &**property else {
+            return false;
+        };
+        let index = match property_key(&property.key) {
+            Some("value")
+                if matches!(&*property.value, Expr::Fn(function) if function.function.body.is_some())
+                    && clean(&*property.value, unresolved, Some(binding)) =>
+            {
+                0
+            }
+            Some("writable") if matches!(&*property.value, Expr::Lit(Lit::Bool(value)) if value.value) => {
+                1
+            }
+            Some("configurable") if matches!(&*property.value, Expr::Lit(Lit::Bool(value)) if value.value) => {
+                2
+            }
+            _ => return false,
+        };
+        if fields[index] {
             return false;
         }
         fields[index] = true;
@@ -229,6 +345,7 @@ fn certify_for_callable_publication(
         _ => return unsupported,
     };
     let mut flag_definitions = 0;
+    let mut hidden_default_definitions = 0;
     let mut self_default_assignments = 0;
     let mut default_assignments = 0;
     let mut flag_assignments = 0;
@@ -241,10 +358,20 @@ fn certify_for_callable_publication(
             continue;
         }
         if let Some(binding) = &binding {
-            if allow_self_default && own_true_flag_definition(statement, binding, unresolved) {
+            if allow_self_default
+                && (own_true_flag_definition(statement, binding, unresolved)
+                    || own_true_getter_flag_definition(statement, binding, unresolved))
+            {
                 flag_definitions += 1;
                 flag_assignments += 1;
                 true_flag_assignments += 1;
+                continue;
+            }
+            if allow_self_default
+                && own_hidden_function_default_definition(statement, binding, unresolved)
+            {
+                hidden_default_definitions += 1;
+                default_assignments += 1;
                 continue;
             }
             if let Stmt::Decl(Decl::Fn(function)) = statement
@@ -287,11 +414,14 @@ fn certify_for_callable_publication(
             return unsupported;
         }
     }
-    if (self_default_assignments != 0 || flag_definitions != 0)
-        && !(self_default_assignments == 1
-            && default_assignments == 1
+    if (self_default_assignments != 0 || flag_definitions != 0 || hidden_default_definitions != 0)
+        && !(default_assignments == 1
             && flag_assignments == 1
-            && true_flag_assignments == 1)
+            && true_flag_assignments == 1
+            && ((self_default_assignments == 1 && hidden_default_definitions == 0)
+                || (hidden_default_definitions == 1
+                    && self_default_assignments == 0
+                    && flag_definitions == 0)))
     {
         return unsupported;
     }
@@ -711,6 +841,128 @@ mod tests {
              true}); exported.default=exported; const escaped=exported; module.exports=exported",
         ] {
             check_publication(source, CommonJsResetExportShape::Unsupported);
+        }
+    }
+
+    #[test]
+    fn publication_accepts_owned_getter_flags_and_hidden_nested_defaults_only() {
+        for kind in ["function", "async function", "function*", "async function*"] {
+            for getter in [
+                "{enumerable:true,configurable:true,get(){return true}}",
+                "{'configurable':true,get(){globalThis.trace.push(this);return \
+                 true},'enumerable':true}",
+                "{get(){if(globalThis.fail)throw globalThis.failure;return \
+                 true},enumerable:true,configurable:true}",
+            ] {
+                check_publication(
+                    &format!(
+                        "{kind} exported(value) {{return this.label}}; \
+                         Object.defineProperty(exported,'__esModule',{getter}); \
+                         exported.default=exported; module.exports=exported"
+                    ),
+                    CommonJsResetExportShape::FunctionBinding,
+                );
+            }
+            for nested in [
+                "function nested(value){return value+1}",
+                "function(value){return this.label}",
+                "async function* nested(){yield 1}",
+            ] {
+                check_publication(
+                    &format!(
+                        "{kind} exported(value) {{return this.label}}; exported.__esModule=true; \
+                         Object.defineProperty(exported,'default',{{value:{nested},writable:true,\
+                         configurable:true}}); module.exports=exported"
+                    ),
+                    CommonJsResetExportShape::FunctionBinding,
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn publication_rejects_unproven_getter_truth_and_hidden_default_ownership() {
+        for descriptor in [
+            "{enumerable:true,configurable:true,get(){return false}}",
+            "{enumerable:true,configurable:true,get(){return globalThis.flag}}",
+            "{enumerable:true,configurable:true,get(){if(globalThis.flag)return false;return \
+             true}}",
+            "{enumerable:true,configurable:true,get(){if(globalThis.flag)return true;return true}}",
+            "{enumerable:true,configurable:true,get(){return true;globalThis.after()}}",
+            "{enumerable:true,configurable:true,get(){globalThis.take(exported);return true}}",
+            "{enumerable:true,configurable:true,get(){globalThis.take(module);return true}}",
+            "{enumerable:true,configurable:true,get(){globalThis.take(exports);return true}}",
+            "{enumerable:true,configurable:true,get(value){return true}}",
+            "{enumerable:true,configurable:true,async get(){return true}}",
+            "{enumerable:true,configurable:true,*get(){return true}}",
+            "{enumerable:true,configurable:true,get get(){return ()=>true}}",
+            "{enumerable:false,configurable:true,get(){return true}}",
+            "{enumerable:true,configurable:false,get(){return true}}",
+            "{enumerable:true,configurable:true,get(){return true},set(value){}}",
+            "{enumerable:true,configurable:true,get(){return true},get(){return true}}",
+            "{enumerable:true,configurable:true,['get'](){return true}}",
+            "{enumerable:true,configurable:true,...extra,get(){return true}}",
+        ] {
+            check_publication(
+                &format!(
+                    "function exported(){{}};Object.defineProperty(exported,'__esModule',\
+                     {descriptor}); exported.default=exported;module.exports=exported"
+                ),
+                CommonJsResetExportShape::Unsupported,
+            );
+        }
+        for descriptor in [
+            "{value:function(){return exported},writable:true,configurable:true}",
+            "{value:function(){return module.exports},writable:true,configurable:true}",
+            "{value:function(){return exports},writable:true,configurable:true}",
+            "{value:()=>1,writable:true,configurable:true}",
+            "{value:1,writable:true,configurable:true}",
+            "{value:function(){},writable:false,configurable:true}",
+            "{value:function(){},writable:true,configurable:false}",
+            "{value:function(){},writable:true,configurable:true,enumerable:false}",
+            "{value:function(){},writable:true,configurable:true,value:function(){}}",
+            "{value:function(){},writable:true,configurable:true,...extra}",
+            "{['value']:function(){},writable:true,configurable:true}",
+            "{get value(){return function(){}},writable:true,configurable:true}",
+        ] {
+            check_publication(
+                &format!(
+                    "function exported(){{}};exported.__esModule=true; \
+                     Object.defineProperty(exported,'default',{descriptor});module.\
+                     exports=exported"
+                ),
+                CommonJsResetExportShape::Unsupported,
+            );
+        }
+        for extra in [
+            "exported.default=7",
+            "exported.default=exported",
+            "exported.__esModule=true",
+            "globalThis.take(exported)",
+        ] {
+            check_publication(
+                &format!(
+                    "function exported(){{}};exported.__esModule=true; \
+                     Object.defineProperty(exported,'default',{{value:function(){{}},writable:\
+                     true,configurable:true}}); {extra};module.exports=exported"
+                ),
+                CommonJsResetExportShape::Unsupported,
+            );
+        }
+        for extra in [
+            "exported.default=7",
+            "exported.default=exported",
+            "exported.__esModule=true",
+            "globalThis.take(exported)",
+        ] {
+            check_publication(
+                &format!(
+                    "function exported(){{}};Object.defineProperty(exported,'__esModule', \
+                     {{enumerable:true,configurable:true,get(){{return true}}}}); \
+                     exported.default=exported;{extra};module.exports=exported"
+                ),
+                CommonJsResetExportShape::Unsupported,
+            );
         }
     }
 }
