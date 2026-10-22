@@ -629,7 +629,7 @@ class DebugHash implements WebpackHash {
 }
 
 export function createHash(
-  algorithm: string | HashConstructor = 'md4'
+  algorithm: string | HashConstructor = 'xxhash64'
 ): WebpackHash {
   if (typeof algorithm === 'function')
     return new BulkHash(() => new algorithm())

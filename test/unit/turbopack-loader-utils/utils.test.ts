@@ -237,12 +237,12 @@ describe('webpack loader utils', () => {
     })
   })
 
-  it('defaults to md4', () => {
+  it('defaults to xxhash64', () => {
     expect(createHash().update('abc').digest('hex')).toBe(
-      'a448017aaf21d8525fc10ae87aa6729d'
+      webpackCreateHash('xxhash64').update('abc').digest('hex')
     )
-    expect(createHash('xxhash64').update('abc').digest('hex')).toBe(
-      '44bc2cf5ad770999'
+    expect(createHash(undefined).update('abc').digest('hex')).toBe(
+      webpackCreateHash('xxhash64').update('abc').digest('hex')
     )
   })
 

@@ -11,7 +11,6 @@ const nextConfig: NextConfig = {
     },
   },
   webpack(config) {
-    config.output.hashFunction = 'md4'
     config.module.rules.push(
       { test: /\.utils-test\.js$/, use: [utilsLoader] },
       { test: /\.style-test\.txt$/, use: styleLoaders }
