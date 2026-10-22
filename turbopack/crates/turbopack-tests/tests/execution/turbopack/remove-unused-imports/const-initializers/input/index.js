@@ -16,6 +16,7 @@ it('preserves initializer, argument, destructuring, spread, and iteration effect
     'argument',
     'destructuring',
     'spread',
+    'mixed declaration',
     'iteration',
     'iteration',
   ])
