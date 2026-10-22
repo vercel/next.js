@@ -3376,6 +3376,11 @@ export async function cache(
                   entry.expire
                 )
               }
+              if (resumeDataCache?.mutable) {
+                // Record why this entry was omitted so the final prerender
+                // does not treat it as an unexpected cache miss.
+                resumeDataCache.cache.set(serializedCacheKey, SESSION_DATA)
+              }
               if (cacheSignal) {
                 cacheSignal.endRead()
               }
