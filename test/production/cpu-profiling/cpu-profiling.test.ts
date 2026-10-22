@@ -24,7 +24,7 @@ describe('CPU Profiling', () => {
 
       for (const profile of cpuProfiles) {
         expect(profile).toMatch(
-          /^(build-main|build-webpack-(server|client|edge-server)|build-turbopack|build-static-worker|build-trace-worker)-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.cpuprofile$/
+          /^(build-main|build-webpack-(server|client|edge-server)|build-turbopack|build-static-worker|build-trace-worker)-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d+\.cpuprofile$/
         )
       }
     })
