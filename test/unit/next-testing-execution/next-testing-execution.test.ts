@@ -5928,3 +5928,21 @@ it.each(['preflight', 'native-error', 'held-state'])(
     })
   }
 )
+
+it.each(['preflight', 'native-error', 'cleanup-error'])(
+  'retains named default keyboard %s ownership through the native path',
+  (scenario) => {
+    const result = require('node:child_process').spawnSync(
+      process.execPath,
+      [path.join(__dirname, 'browser-user-event-named-keys.cjs'), scenario],
+      { encoding: 'utf8', timeout: 20_000 }
+    )
+    expect(result.error).toBeUndefined()
+    expect(result.signal).toBeNull()
+    expect(result.status).toBe(0)
+    expect(JSON.parse(result.stdout)).toEqual({
+      scenario,
+      existingNativeOwnership: true,
+    })
+  }
+)
