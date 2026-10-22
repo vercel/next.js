@@ -356,6 +356,238 @@ interface RelatedWatchReport {
   success: boolean
 }
 
+it.each(
+  (['related', 'changed'] as const).flatMap((selector) =>
+    (['development', 'production'] as const).flatMap((mode) =>
+      (selector === 'changed' ? [undefined, false] : [undefined]).map(
+        (passWithNoTests) => ({ selector, mode, passWithNoTests })
+      )
+    )
+  )
+)(
+  'publishes an initial empty $selector watch report in $mode (passWithNoTests=$passWithNoTests) before watching later consumers',
+  async ({ selector, mode, passWithNoTests }) => {
+    const repo = join(__dirname, '../../../..')
+    const fixture = await mkdtemp(join(repo, '.next-empty-selection-watch-'))
+    const inputs = join(__dirname, 'related-watch')
+    const originals = new Map<string, Buffer>()
+    let child: ReturnType<typeof spawn> | undefined
+    let close:
+      | { code: number | null; signal: NodeJS.Signals | null }
+      | undefined
+    let failure: Error | undefined
+    let stdout = ''
+    let stderr = ''
+    try {
+      for (const name of await readdir(inputs)) {
+        if (!name.endsWith('.txt')) continue
+        const bytes = await readFile(join(inputs, name))
+        originals.set(name.slice(0, -4), bytes)
+        await writeFile(join(fixture, name.slice(0, -4)), bytes)
+      }
+      await symlink(join(repo, 'node_modules'), join(fixture, 'node_modules'))
+      await writeFile(
+        join(fixture, 'next.config.mjs'),
+        'export default ' + JSON.stringify({ turbopack: { root: repo } }) + '\n'
+      )
+      await writeFile(
+        join(fixture, 'next.test.config.json'),
+        JSON.stringify({
+          maxWorkers: 1,
+          projects: [
+            {
+              name: 'empty-watch',
+              mode,
+              environment: 'node',
+              include: ['*.test.mjs'],
+              ...(passWithNoTests === undefined ? {} : { passWithNoTests }),
+            },
+          ],
+        })
+      )
+      await writeFile(
+        join(fixture, '.gitignore'),
+        'node_modules/\n.next-test*/\nwatch-result.json\n'
+      )
+      if (selector === 'changed') {
+        const git = (...args: string[]) =>
+          execFileSync(
+            'git',
+            [
+              '-c',
+              'core.hooksPath=/dev/null',
+              '-c',
+              'commit.gpgsign=false',
+              '-c',
+              'user.name=Next test fixture',
+              '-c',
+              'user.email=next-test@example.invalid',
+              ...args,
+            ],
+            { cwd: fixture, env: { ...process.env, GIT_NO_LAZY_FETCH: '1' } }
+          )
+        git('init', '-q')
+        git('add', '.')
+        git('commit', '-qm', 'Unchanged test fixture')
+      }
+      const env: NodeJS.ProcessEnv = {
+        ...process.env,
+        NODE_ENV: mode,
+        NEXT_TELEMETRY_DISABLED: '1',
+        FORCE_COLOR: '0',
+      }
+      delete env.CI
+      const outputFile = join(fixture, 'watch-result.json')
+      child = spawn(
+        process.execPath,
+        [
+          join(repo, 'packages/next/dist/bin/next'),
+          'test',
+          fixture,
+          '--watch',
+          '--' + selector,
+          selector === 'changed' ? 'HEAD' : 'unrelated.mjs',
+          '--reporter=default',
+          '--reporter=json',
+          '--outputFile',
+          outputFile,
+        ],
+        { cwd: fixture, env, stdio: ['ignore', 'pipe', 'pipe'] }
+      )
+      child.stdout!.on('data', (chunk) => {
+        stdout += chunk
+      })
+      child.stderr!.on('data', (chunk) => {
+        stderr += chunk
+      })
+      child.once('error', (error) => {
+        failure = error
+      })
+      child.once('close', (code, signal) => {
+        close = { code, signal }
+      })
+      const readiness = () =>
+        (stdout.match(/Waiting for file changes\.\.\./g) ?? []).length
+      let settled = 0
+      let digest: string | undefined
+      const rows = (
+        JSON.parse(
+          await readFile(
+            join(
+              inputs,
+              passWithNoTests === false
+                ? 'empty-watch-false.expected.json'
+                : 'empty-watch.expected.json'
+            ),
+            'utf8'
+          )
+        ) as Record<typeof mode, RelatedWatchRow[]>
+      )[mode]
+      async function readGeneration(row: RelatedWatchRow) {
+        await retry(
+          async () => {
+            if (failure) throw failure
+            expect(close).toBeUndefined()
+            expect(readiness()).toBeGreaterThan(settled)
+            const raw = await readFile(outputFile)
+            const nextDigest = createHash('sha256').update(raw).digest('hex')
+            if (row.noNewReport) {
+              expect(nextDigest).toBe(digest)
+              return
+            }
+            expect(nextDigest).not.toBe(digest)
+            const report: RelatedWatchReport = JSON.parse(raw.toString())
+            const cases = report.testResults
+              .flatMap((file) =>
+                file.assertionResults.map(
+                  ({ fullName, status, failureMessages }) => ({
+                    fullName,
+                    status,
+                    failureMessages,
+                  })
+                )
+              )
+              .sort((a, b) => a.fullName.localeCompare(b.fullName))
+            const outputs = report.next.events
+              .filter((event) => event.type === 'output')
+              .flatMap((event) => event.text.split('\n'))
+              .filter((line) => line.startsWith('RELATED153:'))
+              .map((line) => JSON.parse(line.slice('RELATED153:'.length)))
+              .sort((a, b) => a.case.localeCompare(b.case))
+            expect({
+              cases,
+              outputs,
+              total: report.numTotalTests,
+              passed: report.numPassedTests,
+              success: report.success,
+            }).toEqual({
+              cases: row.cases,
+              outputs: row.outputs,
+              total: row.total,
+              passed: row.passed,
+              success: row.success,
+            })
+            expect(report.numFailedTests).toBe(0)
+            expect(
+              report.next.events.find((event) => event.type === 'run-end')
+            ).toMatchObject({ status: 'passed' })
+            digest = nextDigest
+          },
+          60000,
+          100,
+          'initially empty source selection: ' + row.stage
+        )
+      }
+      for (const row of rows) {
+        const edits: Record<string, readonly [string, string]> = {
+          'beta-edit': ['source-beta.mjs', 'export const value = 45\n'],
+          'unrelated-edit': ['unrelated.mjs', 'export const unused = 1\n'],
+          'alpha-edit': ['source-alpha.mjs', 'export const value = 44\n'],
+        }
+        const edit = edits[row.stage]
+        if (edit) await writeFile(join(fixture, edit[0]), edit[1])
+        await readGeneration(row)
+        settled = readiness()
+      }
+      for (const name of ['alpha.test.mjs', 'beta.test.mjs', 'package.json'])
+        expect(await readFile(join(fixture, name))).toEqual(originals.get(name))
+      child.kill('SIGINT')
+      await retry(
+        () => expect(close).toEqual({ code: 130, signal: null }),
+        15000,
+        100,
+        'empty selection watch cleanup'
+      )
+    } finally {
+      if (child && !close) {
+        child.kill('SIGTERM')
+        try {
+          await retry(
+            () => expect(close).toBeDefined(),
+            15000,
+            100,
+            'failed empty watch cleanup'
+          )
+        } finally {
+          if (!close) {
+            child.kill('SIGKILL')
+            await retry(
+              () => expect(close).toBeDefined(),
+              5000,
+              100,
+              'forced empty watch cleanup'
+            )
+          }
+        }
+      }
+      if (failure || (child && close?.code !== 130))
+        console.error({ failure, close, stdout, stderr })
+      await rm(fixture, { recursive: true, force: true })
+    }
+  },
+  270000
+)
+
 it.each(['development', 'production'] as const)(
   'retains related-watch discovery and selects actual %s source consumers',
   async (mode) => {

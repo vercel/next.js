@@ -209,6 +209,8 @@ export function createMachineReporter(options: {
   writeError?: (text: string) => void
   presentation?: Omit<TestReporterOptions, 'write' | 'projectDir' | 'style'>
   collect?: boolean
+  /** JSON's empty-selection policy does not change the owned run outcome. */
+  emptySelectionPassWithNoTests?: boolean
   replayTaskResults?: boolean
   recordedReporterErrors?: SerializedDiagnostic[]
 }) {
@@ -412,20 +414,22 @@ export function createMachineReporter(options: {
       snapshot,
       startTime: events.find((event) => event.type === 'run-start')?.timestamp,
       success:
-        summary.status === 'passed' ||
-        (summary.status === 'failed' &&
-          files.length === entries.length &&
-          summary.files.cancelled === 0 &&
-          summary.files.failed === unhandledOnlyFiles.size &&
-          unhandledOnlyFiles.size > 0 &&
-          events.every(
-            (event) =>
-              event.type !== 'diagnostic' ||
-              event.diagnostic.severity !== 'error' ||
-              (event.entryId !== undefined &&
-                unhandledOnlyFiles.has(event.entryId) &&
-                event.diagnostic.unhandled === 'rejection')
-          )),
+        (entries.length > 0 ||
+          options.emptySelectionPassWithNoTests !== false) &&
+        (summary.status === 'passed' ||
+          (summary.status === 'failed' &&
+            files.length === entries.length &&
+            summary.files.cancelled === 0 &&
+            summary.files.failed === unhandledOnlyFiles.size &&
+            unhandledOnlyFiles.size > 0 &&
+            events.every(
+              (event) =>
+                event.type !== 'diagnostic' ||
+                event.diagnostic.severity !== 'error' ||
+                (event.entryId !== undefined &&
+                  unhandledOnlyFiles.has(event.entryId) &&
+                  event.diagnostic.unhandled === 'rejection')
+            ))),
       testResults: orderedEntries.map(({ entry, timestamp }) => {
         const file = files.find((result) => result.entryId === entry.id)
         const diagnostics = events.filter(

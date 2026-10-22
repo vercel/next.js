@@ -1078,6 +1078,58 @@ describe('Next structured source attribution', () => {
 })
 
 describe('Next machine result reporters', () => {
+  it.each(
+    ([undefined, false, true] as const).flatMap(
+      (emptySelectionPassWithNoTests) =>
+        [false, true].map((hasEntry) => ({
+          emptySelectionPassWithNoTests,
+          hasEntry,
+        }))
+    )
+  )(
+    'keeps empty JSON policy $emptySelectionPassWithNoTests separate from owned outcomes (hasEntry=$hasEntry)',
+    ({ emptySelectionPassWithNoTests, hasEntry }) => {
+      const machine = createMachineReporter({
+        projectDir: '/project',
+        reporters: ['json'],
+        ...(emptySelectionPassWithNoTests === undefined
+          ? {}
+          : { emptySelectionPassWithNoTests }),
+      })
+      const emit = (event: object) =>
+        machine.onEvent({ ...envelope, ...event } as ResultEvent)
+      try {
+        emit({ type: 'run-start' })
+        if (hasEntry) {
+          emit({ type: 'file-start', entry })
+          emit({ type: 'case-end', ...result(0, 'passed') })
+          emit({
+            type: 'file-end',
+            entryId: entry.id,
+            status: 'passed',
+            durationMs: 3,
+          })
+        }
+        emit({ type: 'run-end', status: 'passed', durationMs: 3 })
+        const report = machine.getJson()
+        expect(report.success).toBe(
+          hasEntry || emptySelectionPassWithNoTests !== false
+        )
+        expect(report.numPassedTests).toBe(hasEntry ? 1 : 0)
+        expect(report.numFailedTests).toBe(0)
+        expect(report.next.summary.status).toBe('passed')
+        expect(
+          report.next.events.find((event) => event.type === 'run-end')
+        ).toMatchObject({ status: 'passed' })
+        expect(machine.getJUnit()).toContain(
+          hasEntry ? 'failures="0"' : '<testsuites></testsuites>'
+        )
+      } finally {
+        machine.dispose()
+      }
+    }
+  )
+
   it('retains retry evidence while reporting final outcomes, todo, and collection errors', async () => {
     const machine = createMachineReporter({
       projectDir: '/project',

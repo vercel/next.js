@@ -2633,3 +2633,172 @@ it('skips an exact empty compiler selection while retaining future watched entri
     await session.close()
   }
 })
+
+it('joins the initial empty report before readiness and skips later empty selections', async () => {
+  let selected: string[] = []
+  const entered = deferred()
+  const published = deferred()
+  const ready = jest.fn()
+  const runs: string[][] = []
+  const session = createWatchSession({
+    runEmpty: true,
+    publishInitialEmptySelection: () => true,
+    discover: async () => ({
+      entryIds: ['alpha', 'beta'],
+      discoveryRevision: 'all-watched-entries',
+    }),
+    selectTests: async () => ({
+      entryIds: selected,
+      reason: 'compiler-dependencies',
+    }),
+    async run({ selection }) {
+      runs.push([...selection.entryIds])
+      if (runs.length === 1) {
+        entered.resolve()
+        await published.promise
+      }
+      return { status: 'passed' }
+    },
+    onRunSettled: ready,
+    onError(error) {
+      throw error
+    },
+  })
+  try {
+    await entered.promise
+    expect(runs).toEqual([[]])
+    expect(ready).not.toHaveBeenCalled()
+    published.resolve()
+    await session.waitForIdle()
+    expect(ready).toHaveBeenCalledTimes(1)
+    session.invalidate({ registryPaths: ['/unrelated.mjs'] })
+    await session.waitForIdle()
+    expect(runs).toEqual([[]])
+    selected = ['beta']
+    session.invalidate({ registryPaths: ['/sources/beta.mjs'] })
+    await session.waitForIdle()
+    expect(runs).toEqual([[], ['beta']])
+  } finally {
+    published.resolve()
+    await session.close()
+  }
+})
+
+it('joins cancelled initial empty reports before publishing a replacement generation', async () => {
+  const entered = deferred()
+  const closed = deferred()
+  const ready = jest.fn()
+  let firstSignal: AbortSignal | undefined
+  let runs = 0
+  const session = createWatchSession({
+    runEmpty: true,
+    publishInitialEmptySelection: () => true,
+    discover: async () => ({
+      entryIds: ['alpha', 'beta'],
+      discoveryRevision: 'all-watched-entries',
+    }),
+    selectTests: async () => ({
+      entryIds: [],
+      reason: 'compiler-dependencies',
+    }),
+    async run({ signal }) {
+      runs++
+      if (runs === 1) {
+        firstSignal = signal
+        entered.resolve()
+        await closed.promise
+        signal.throwIfAborted()
+      }
+      return { status: 'passed' }
+    },
+    onRunSettled: ready,
+    onError(error) {
+      throw error
+    },
+  })
+  try {
+    await entered.promise
+    session.invalidate({ registryPaths: ['/unrelated.mjs'] })
+    expect(firstSignal!.aborted).toBe(true)
+    expect(ready).not.toHaveBeenCalled()
+    expect(runs).toBe(1)
+    closed.resolve()
+    await session.waitForIdle()
+    expect(runs).toBe(2)
+    expect(ready).toHaveBeenCalledTimes(1)
+  } finally {
+    closed.resolve()
+    await session.close()
+  }
+})
+
+it.each(['custom', 'standard'] as const)(
+  'does not reuse initial empty admission after cancellation adds %s coverage',
+  async (coverageKind) => {
+    const entered = deferred()
+    const closed = deferred()
+    const ready = jest.fn()
+    let coverage: typeof coverageKind | undefined
+    let revision = 'without-coverage'
+    let firstSignal: AbortSignal | undefined
+    let selected: string[] = []
+    const runs: string[][] = []
+    const admission = jest.fn(
+      (discovery: WatchDiscovery & { coverage: typeof coverage }) =>
+        discovery.coverage === undefined
+    )
+    const session = createWatchSession({
+      runEmpty: true,
+      publishInitialEmptySelection: admission,
+      discover: async () => ({
+        entryIds: ['alpha', 'beta'],
+        discoveryRevision: revision,
+        coverage,
+      }),
+      selectTests: async () => ({
+        entryIds: selected,
+        reason: 'compiler-dependencies',
+      }),
+      async run({ selection, signal }) {
+        runs.push([...selection.entryIds])
+        if (runs.length === 1) {
+          firstSignal = signal
+          entered.resolve()
+          await closed.promise
+          signal.throwIfAborted()
+        }
+        return { status: 'passed' }
+      },
+      onRunSettled: ready,
+      onError(error) {
+        throw error
+      },
+    })
+    try {
+      await entered.promise
+      expect(admission.mock.results.map((result) => result.value)).toEqual([
+        true,
+      ])
+      coverage = coverageKind
+      revision = 'with-coverage'
+      session.invalidate({ invalidateAll: true })
+      expect(firstSignal!.aborted).toBe(true)
+      expect(ready).not.toHaveBeenCalled()
+      closed.resolve()
+      await session.waitForIdle()
+      expect(runs).toEqual([[]])
+      expect(admission.mock.results.map((result) => result.value)).toEqual([
+        true,
+        false,
+      ])
+      expect(ready).toHaveBeenCalledTimes(1)
+      selected = ['beta']
+      session.invalidate({ registryPaths: ['/sources/beta.mjs'] })
+      await session.waitForIdle()
+      expect(runs).toEqual([[], ['beta']])
+    } finally {
+      closed.resolve()
+      await session.close()
+    }
+  }
+)

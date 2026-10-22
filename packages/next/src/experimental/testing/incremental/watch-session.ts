@@ -68,6 +68,8 @@ export interface WatchSessionOptions<Discovery extends WatchDiscovery> {
   onError(error: unknown): void
   /** A report owner must replace results when discovery becomes empty. */
   runEmpty?: boolean
+  /** Publish a first empty compiler selection before committing watch readiness. */
+  publishInitialEmptySelection?(discovery: Discovery): boolean
 }
 
 /** A superseded run is cancelled, but its cleanup is never detached. */
@@ -209,7 +211,10 @@ export function createWatchSession<Discovery extends WatchDiscovery>(
               )
             selection = refined
             unchanged =
-              refined.entryIds.length === 0 && discovery.entryIds.length > 0
+              refined.entryIds.length === 0 &&
+              discovery.entryIds.length > 0 &&
+              (previousDiscoveryRevision !== undefined ||
+                options.publishInitialEmptySelection?.(discovery) !== true)
           }
         }
         // Empty discovery is a valid watch state (e.g. the last test deleted).

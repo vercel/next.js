@@ -486,9 +486,16 @@ export async function watchTests(
         }
       },
     })
+    const publishInitialEmptySelection = (discovery: Discovery) =>
+      machineEnabled &&
+      initialRelatedPending &&
+      initialRelatedSources !== undefined &&
+      !standardCoverageOptions &&
+      !discovery.projects.some((project) => project.customCoverage)
     session = createWatchSession<Discovery>({
       signal: controller.signal,
       runEmpty: machineEnabled || !!standardCoverageOptions,
+      publishInitialEmptySelection,
       ...(initialRelatedSources
         ? {
             async selectTests({
@@ -716,6 +723,10 @@ export async function watchTests(
           ...project,
           entries: project.entries.filter((entry) => selected.has(entry.id)),
         }))
+        const initialEmptySelection =
+          publishInitialEmptySelection(discovery) &&
+          discovery.entryIds.length > 0 &&
+          selection.entryIds.length === 0
         editorApi?.prepareRun(
           discovery.projects.flatMap((project) => project.entries)
         )
@@ -744,6 +755,13 @@ export async function watchTests(
               projectDir,
               reporters: options.resultReporters!,
               outputFile: options.outputFile,
+              ...(initialEmptySelection
+                ? {
+                    emptySelectionPassWithNoTests: projects.every(
+                      (project) => project.passWithNoTests !== false
+                    ),
+                  }
+                : {}),
               write: options.writeReport ?? options.write,
               writeError: options.writeError,
               presentation: {
@@ -880,7 +898,8 @@ export async function watchTests(
               )
             let status =
               !missingEditorFile &&
-              projects.every((project) => project.passWithNoTests === true)
+              (initialEmptySelection ||
+                projects.every((project) => project.passWithNoTests === true))
                 ? ('passed' as const)
                 : ('failed' as const)
             const envelope = {
