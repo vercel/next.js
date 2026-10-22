@@ -501,7 +501,7 @@ fn module_exports_has_accessor(program: &Program, unresolved_mark: Mark) -> bool
 /// Analyzes a program to determine if it contains side effects at the top level.
 pub fn compute_module_evaluation_side_effects(
     program: &Program,
-    comments: &dyn Comments,
+    comments: Option<&dyn Comments>,
     unresolved_mark: Mark,
 ) -> ModuleSideEffects {
     let module_exports_tainted = module_exports_is_tainted(program, unresolved_mark);
@@ -525,7 +525,7 @@ pub fn compute_module_evaluation_side_effects(
 }
 
 struct SideEffectVisitor<'a> {
-    comments: &'a dyn Comments,
+    comments: Option<&'a dyn Comments>,
     unresolved_mark: Mark,
     /// Whether `module.exports` was reassigned to a non-safe value, making member
     /// writes to `module.exports.*` potentially observable.
@@ -543,7 +543,7 @@ struct SideEffectVisitor<'a> {
 
 impl<'a> SideEffectVisitor<'a> {
     fn new(
-        comments: &'a dyn Comments,
+        comments: Option<&'a dyn Comments>,
         unresolved_mark: Mark,
         module_exports_tainted: bool,
         module_exports_has_accessor: bool,
@@ -1417,7 +1417,7 @@ mod tests {
             program.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
 
             let actual =
-                compute_module_evaluation_side_effects(&program, &comments, unresolved_mark);
+                compute_module_evaluation_side_effects(&program, Some(&comments), unresolved_mark);
 
             let msg = match expected {
                 ModuleSideEffects::ModuleEvaluationIsSideEffectFree => {

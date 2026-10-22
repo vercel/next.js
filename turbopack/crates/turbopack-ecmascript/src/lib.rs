@@ -108,10 +108,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    analyzer::{
-        graph::EvalContext, imports::ExportRegistrationMode,
-        side_effects::compute_module_evaluation_side_effects,
-    },
+    analyzer::{graph::EvalContext, imports::ExportRegistrationMode},
     ast_path_trie::AstPathTrie,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
@@ -800,10 +797,7 @@ impl EcmascriptModuleAsset {
     }
 }
 
-/// Computes a module's side effects from parse data only.
-///
-/// This intentionally stays independent of [`EcmascriptModuleAsset::analyze`], since side-effect
-/// information is needed while resolving references during analysis.
+/// TODO un-turbotask-ify?
 #[turbo_tasks::function]
 async fn compute_ecmascript_module_side_effects(
     module: ResolvedVc<EcmascriptModuleAsset>,
@@ -812,9 +806,7 @@ async fn compute_ecmascript_module_side_effects(
     let parsed = module.failsafe_parse().await?;
     let ParseResult::Ok {
         program,
-        globals,
         eval_context,
-        comments,
         ..
     } = &*parsed
     else {
@@ -829,9 +821,7 @@ async fn compute_ecmascript_module_side_effects(
         // constant folding would not be safe.
         ModuleSideEffects::SideEffectFree
     } else if options.infer_module_side_effects {
-        GLOBALS.set(globals, || {
-            compute_module_evaluation_side_effects(program, comments, eval_context.unresolved_mark)
-        })
+        eval_context.module_side_effects
     } else {
         ModuleSideEffects::SideEffectful
     };
@@ -2286,6 +2276,7 @@ async fn with_consumed_parse_result<T>(
             top_level_mark: Mark::new(),
             imports: Default::default(),
             force_free_values: Default::default(),
+            module_side_effects: ModuleSideEffects::SideEffectful,
         });
         return success(
             Program::Module(swc_core::ecma::ast::Module::dummy()),
@@ -2320,6 +2311,7 @@ async fn with_consumed_parse_result<T>(
                             top_level_mark: eval_context.top_level_mark,
                             imports: Default::default(),
                             force_free_values: Default::default(),
+                            module_side_effects: ModuleSideEffects::SideEffectful,
                         },
                     )),
                     match Arc::try_unwrap(take(comments)) {
