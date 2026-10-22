@@ -180,6 +180,16 @@ tail -5 /tmp/test-output.log             # Summary
 
 **Test writing expectations:**
 
+- **Prefer integration tests over unit tests.** Use Next.js e2e tests
+  (`test/e2e/`, `test/development/`, `test/production/`) for Next.js features,
+  and Turbopack execution tests
+  (`turbopack/crates/turbopack-tests/tests/execution/`) for Turbopack features.
+
+- **Avoid unit tests that map directly to the implementation**, except for
+  complicated algorithms. You can temporarily write unit tests to verify an
+  implementation, but don't commit them or add them to the pull request unless
+  they are necessary.
+
 - **Use `pnpm new-test` to generate new test suites** - it creates proper structure with fixture files
 
 - **Normalize filesystem paths in cross-platform assertions.** Windows

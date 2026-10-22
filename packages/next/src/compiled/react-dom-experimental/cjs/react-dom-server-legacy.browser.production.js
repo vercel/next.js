@@ -2961,16 +2961,16 @@ function createRenderState(resumableState, generateStaticMarkup) {
       "\x3c/script>"
     ));
   bootstrapScriptContent = idPrefix + "P:";
-  var JSCompiler_object_inline_segmentPrefix_1924 = idPrefix + "S:";
+  var JSCompiler_object_inline_segmentPrefix_1927 = idPrefix + "S:";
   idPrefix += "B:";
-  var JSCompiler_object_inline_preconnects_1938 = new Set(),
-    JSCompiler_object_inline_fontPreloads_1939 = new Set(),
-    JSCompiler_object_inline_highImagePreloads_1940 = new Set(),
-    JSCompiler_object_inline_styles_1941 = new Map(),
-    JSCompiler_object_inline_bootstrapScripts_1942 = new Set(),
-    JSCompiler_object_inline_scripts_1943 = new Set(),
-    JSCompiler_object_inline_bulkPreloads_1944 = new Set(),
-    JSCompiler_object_inline_preloads_1945 = {
+  var JSCompiler_object_inline_preconnects_1941 = new Set(),
+    JSCompiler_object_inline_fontPreloads_1942 = new Set(),
+    JSCompiler_object_inline_highImagePreloads_1943 = new Set(),
+    JSCompiler_object_inline_styles_1944 = new Map(),
+    JSCompiler_object_inline_bootstrapScripts_1945 = new Set(),
+    JSCompiler_object_inline_scripts_1946 = new Set(),
+    JSCompiler_object_inline_bulkPreloads_1947 = new Set(),
+    JSCompiler_object_inline_preloads_1948 = {
       images: new Map(),
       stylesheets: new Map(),
       scripts: new Map(),
@@ -3007,7 +3007,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
       scriptConfig.moduleScriptResources[href] = null;
       scriptConfig = [];
       pushLinkImpl(scriptConfig, props);
-      JSCompiler_object_inline_bootstrapScripts_1942.add(scriptConfig);
+      JSCompiler_object_inline_bootstrapScripts_1945.add(scriptConfig);
       bootstrapChunks.push('<script src="', escapeTextForBrowser(src), '"');
       "string" === typeof integrity &&
         bootstrapChunks.push(
@@ -3054,7 +3054,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
         (props.moduleScriptResources[scriptConfig] = null),
         (props = []),
         pushLinkImpl(props, integrity),
-        JSCompiler_object_inline_bootstrapScripts_1942.add(props),
+        JSCompiler_object_inline_bootstrapScripts_1945.add(props),
         bootstrapChunks.push(
           '<script type="module" src="',
           escapeTextForBrowser(i),
@@ -3076,7 +3076,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
         bootstrapChunks.push(' async="">\x3c/script>');
   return {
     placeholderPrefix: bootstrapScriptContent,
-    segmentPrefix: JSCompiler_object_inline_segmentPrefix_1924,
+    segmentPrefix: JSCompiler_object_inline_segmentPrefix_1927,
     boundaryPrefix: idPrefix,
     startInlineScript: "<script",
     startInlineStyle: "<style",
@@ -3096,14 +3096,14 @@ function createRenderState(resumableState, generateStaticMarkup) {
     charsetChunks: [],
     viewportChunks: [],
     hoistableChunks: [],
-    preconnects: JSCompiler_object_inline_preconnects_1938,
-    fontPreloads: JSCompiler_object_inline_fontPreloads_1939,
-    highImagePreloads: JSCompiler_object_inline_highImagePreloads_1940,
-    styles: JSCompiler_object_inline_styles_1941,
-    bootstrapScripts: JSCompiler_object_inline_bootstrapScripts_1942,
-    scripts: JSCompiler_object_inline_scripts_1943,
-    bulkPreloads: JSCompiler_object_inline_bulkPreloads_1944,
-    preloads: JSCompiler_object_inline_preloads_1945,
+    preconnects: JSCompiler_object_inline_preconnects_1941,
+    fontPreloads: JSCompiler_object_inline_fontPreloads_1942,
+    highImagePreloads: JSCompiler_object_inline_highImagePreloads_1943,
+    styles: JSCompiler_object_inline_styles_1944,
+    bootstrapScripts: JSCompiler_object_inline_bootstrapScripts_1945,
+    scripts: JSCompiler_object_inline_scripts_1946,
+    bulkPreloads: JSCompiler_object_inline_bulkPreloads_1947,
+    preloads: JSCompiler_object_inline_preloads_1948,
     nonce: { script: void 0, style: void 0 },
     stylesToHoist: !1,
     generateStaticMarkup: generateStaticMarkup
@@ -3262,10 +3262,9 @@ function pushTreeContext(baseContext, totalChildren, index) {
   var length = 32 - clz32(totalChildren) + baseLength;
   if (30 < length) {
     var numberOfOverflowBits = baseLength - (baseLength % 5);
-    length = (
-      baseIdWithLeadingBit &
-      ((1 << numberOfOverflowBits) - 1)
-    ).toString(32);
+    length = (baseIdWithLeadingBit & ((1 << numberOfOverflowBits) - 1))
+      .toString(32)
+      .padStart(numberOfOverflowBits / 5, "0");
     baseIdWithLeadingBit >>= numberOfOverflowBits;
     baseLength -= numberOfOverflowBits;
     return {
@@ -5318,18 +5317,18 @@ function retryNode(request, task) {
                           x)
                         );
                       task.replay.pendingTasks--;
-                      key = getThrownInfo(task.componentStack);
+                      props = getThrownInfo(task.componentStack);
                       currentNode = request;
-                      props = task.blockedBoundary;
+                      key = task.blockedBoundary;
                       request = request.aborted ? request.fatalError : x;
-                      key = logRecoverableError(currentNode, request, key);
+                      props = logRecoverableError(currentNode, request, props);
                       abortRemainingReplayNodes(
                         currentNode,
-                        props,
+                        key,
                         childNodes,
                         childSlots,
                         request,
-                        key
+                        props
                       );
                     }
                     task.replay = replay;
@@ -5343,16 +5342,16 @@ function retryNode(request, task) {
                         )
                       );
                     b: {
-                      replay = node$jscomp$0[5];
-                      type = node$jscomp$0[2];
-                      ref = node$jscomp$0[3];
-                      name =
+                      var id = node$jscomp$0[5];
+                      replay = node$jscomp$0[2];
+                      type = node$jscomp$0[3];
+                      ref =
                         null === node$jscomp$0[4] ? [] : node$jscomp$0[4][2];
                       node$jscomp$0 =
                         null === node$jscomp$0[4] ? null : node$jscomp$0[4][3];
-                      keyOrIndex = task.keyPath;
-                      var prevContext = task.formatContext,
-                        prevRow = task.row,
+                      name = task.keyPath;
+                      keyOrIndex = task.formatContext;
+                      var prevRow = task.row,
                         previousReplaySet = task.replay,
                         parentBoundary = task.blockedBoundary,
                         parentHoistableState = task.hoistableState,
@@ -5368,18 +5367,28 @@ function retryNode(request, task) {
                         defer
                       );
                       defer.parentFlushed = !0;
-                      defer.rootSegmentID = replay;
+                      defer.rootSegmentID = id;
+                      id = [key[0], "Suspense Fallback", key[2]];
+                      var trackedPostpones = request.trackedPostpones;
+                      if (null !== trackedPostpones) {
+                        var fallbackReplayNode = [id[1], id[2], [], null];
+                        trackedPostpones.workingMap.set(id, fallbackReplayNode);
+                        defer.tracked = {
+                          contentKeyPath: key,
+                          fallbackNode: fallbackReplayNode
+                        };
+                      }
                       task.blockedBoundary = defer;
                       task.hoistableState = defer.contentState;
                       task.keyPath = key;
                       task.formatContext = getSuspenseContentFormatContext(
                         request.resumableState,
-                        prevContext
+                        keyOrIndex
                       );
                       task.row = null;
                       task.replay = {
-                        nodes: type,
-                        slots: ref,
+                        nodes: replay,
+                        slots: type,
                         pendingTasks: 1
                       };
                       try {
@@ -5413,20 +5422,20 @@ function retryNode(request, task) {
                         (task.blockedBoundary = parentBoundary),
                           (task.hoistableState = parentHoistableState),
                           (task.replay = previousReplaySet),
-                          (task.keyPath = keyOrIndex),
-                          (task.formatContext = prevContext),
+                          (task.keyPath = name),
+                          (task.formatContext = keyOrIndex),
                           (task.row = prevRow);
                       }
                       task = createReplayTask(
                         request,
                         null,
-                        { nodes: name, slots: node$jscomp$0, pendingTasks: 0 },
+                        { nodes: ref, slots: node$jscomp$0, pendingTasks: 0 },
                         fallback,
                         -1,
                         parentBoundary,
                         defer.fallbackState,
                         props,
-                        [key[0], "Suspense Fallback", key[2]],
+                        id,
                         getSuspenseFallbackFormatContext(
                           request.resumableState,
                           task.formatContext
@@ -5639,7 +5648,8 @@ function renderChildrenArray(request, task, children, childIndex) {
 }
 function trackPostponedBoundary(request, trackedPostpones, boundary) {
   boundary.status = 5;
-  boundary.rootSegmentID = request.nextSegmentId++;
+  -1 === boundary.rootSegmentID &&
+    (boundary.rootSegmentID = request.nextSegmentId++);
   var tracked = boundary.tracked;
   if (null === tracked) throw Error(formatProdErrorMessage(486));
   request = tracked.contentKeyPath;
@@ -6194,7 +6204,10 @@ function finishedTask(request, boundary, row, segment) {
           segment.parentFlushed &&
           (1 === segment.status || 3 === segment.status) &&
           queueCompletedSegment(boundary, segment),
-        boundary.parentFlushed && request.completedBoundaries.push(boundary),
+        boundary.parentFlushed &&
+          (5 === boundary.status
+            ? request.partialBoundaries.push(boundary)
+            : request.completedBoundaries.push(boundary)),
         1 === boundary.status)
       )
         (row = boundary.row),
@@ -7136,6 +7149,7 @@ function flushCompletedQueues(request, destination) {
       0 === request.allPendingTasks &&
         0 === request.clientRenderedBoundaries.length &&
         0 === request.completedBoundaries.length &&
+        0 === request.partialBoundaries.length &&
         ((request.flushScheduled = !1),
         (i = request.resumableState),
         i.hasBody &&
@@ -7300,4 +7314,4 @@ exports.renderToString = function (children, options) {
     'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
   );
 };
-exports.version = "19.3.0-experimental-ba39b32a-20261019";
+exports.version = "19.3.0-experimental-ab0d927f-20261020";

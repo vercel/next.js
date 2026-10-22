@@ -15,8 +15,8 @@ permissions: {}
 jobs:
   update_dev_manifest:
     name: Update and upload Rspack development test manifest
-    if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
+    environment: bot-autonomous
     permissions:
       # Used by `gh api` in test/update-bundler-manifest.js to list and download
       # test result artifacts.
@@ -85,8 +85,8 @@ jobs:
           PR_BODY: This auto-generated PR updates the development integration test manifest used when testing Rspack.
   update_build_manifest:
     name: Update and upload Rspack production test manifest
-    if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
+    environment: bot-autonomous
     permissions:
       # Used by `gh api` in test/update-bundler-manifest.js to list and download
       # test result artifacts.

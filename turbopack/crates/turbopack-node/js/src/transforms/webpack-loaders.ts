@@ -1,58 +1,71 @@
-declare const __turbopack_external_require__: {
-  resolve: (name: string, opt?: { paths: string[] }) => string
-} & ((id: string, thunk: () => any, esm?: boolean) => any)
-
 import type { Channel as Ipc } from '../types'
 import { dirname, resolve as pathResolve } from 'path'
 import {
   StackFrame,
   parse as parseStackTrace,
 } from '../compiled/stacktrace-parser'
-import { structuredError, type StructuredError } from '../error'
-import { getReadEnvVariables, type TransformIpc } from './transforms'
+import { structuredError } from '../error'
+import {
+  getReadEnvVariables,
+  type BuildModuleRequest,
+  type IpcInfoMessage,
+  type IpcRequestMessage,
+  type TransformIpc,
+} from './transforms'
 import {
   evaluateBundle,
   type ImportModuleResult,
 } from './webpack-loaders-runtime'
 import fs from 'fs'
 import path from 'path'
+import Module, { createRequire } from 'module'
 
-export type IpcInfoMessage =
-  | {
-      type: 'dependencies'
-      envVariables?: string[]
-      directories?: Array<[string, string]>
-      filePaths?: string[]
-      buildFilePaths?: string[]
-      buildDependencyRequests?: Array<[string, boolean]>
-    }
-  | {
-      type: 'emittedError'
-      severity: 'warning' | 'error'
-      error: StructuredError
-    }
-  | {
-      type: 'log'
-      logs: Array<{
-        time: number
-        logType: string
-        args: any[]
-        trace?: StackFrame[]
-      }>
-    }
+export type { IpcInfoMessage, IpcRequestMessage } from './transforms'
 
-export type IpcRequestMessage =
-  | {
-      type: 'resolve'
-      options: any
-      lookupPath: string
-      request: string
+// CommonJS requests Node resolved, keyed by lookup directory and then resolved filename. Cached
+// modules only expose their children's filenames, and a request reconstructed from a symlinked
+// package's real path loses the package name, so a nearer package would not invalidate it. Node
+// skips resolution for repeated requests from the same directory, so requests are keyed by it.
+const resolvedRequests = new Map<string, Map<string, Set<string>>>()
+const moduleWithResolveFilename = Module as typeof Module & {
+  _resolveFilename(
+    request: string,
+    parent: NodeJS.Module | undefined,
+    isMain: boolean,
+    options?: { paths?: string[] }
+  ): string
+}
+const originalResolveFilename = moduleWithResolveFilename._resolveFilename
+moduleWithResolveFilename._resolveFilename = function (
+  request,
+  parent,
+  isMain,
+  options
+) {
+  const resolved = originalResolveFilename.call(
+    this,
+    request,
+    parent,
+    isMain,
+    options
+  )
+  // Requests resolved with custom lookup paths cannot be reproduced from the parent's directory.
+  if (parent?.filename && !options?.paths && path.isAbsolute(resolved)) {
+    const lookupPath = path.dirname(parent.filename)
+    let requestsByFilename = resolvedRequests.get(lookupPath)
+    if (!requestsByFilename) {
+      requestsByFilename = new Map()
+      resolvedRequests.set(lookupPath, requestsByFilename)
     }
-  | {
-      type: 'importModule'
-      lookupPath: string
-      request: string
+    let requests = requestsByFilename.get(resolved)
+    if (!requests) {
+      requests = new Set()
+      requestsByFilename.set(resolved, requests)
     }
+    requests.add(request)
+  }
+  return resolved
+}
 
 type LoaderConfig =
   | string
@@ -152,7 +165,7 @@ type ResolveOptions = {
   importFields?: string[]
 }
 
-const transform = (
+const transform = async (
   ipc: TransformIpc,
   content: string | { binary: string },
   name: string,
@@ -162,14 +175,59 @@ const transform = (
   mode: 'development' | 'production',
   sourceMap: boolean
 ) => {
+  const resource = pathResolve(contextDir, name)
+  const resourceDir = dirname(resource)
+  const resolvedLoaders = await Promise.all(
+    loaders.map(async (config) => {
+      const { loader, options } =
+        typeof config === 'string' ? { loader: config, options: {} } : config
+      const result = (await ipc.sendRequest({
+        type: 'resolveLoader',
+        lookupPaths: [contextDir, resourceDir],
+        request: loader,
+      })) as { path: string }
+      return { loader: result.path, options }
+    })
+  )
   return new Promise((resolve, reject) => {
-    const resource = pathResolve(contextDir, name)
-    const resourceDir = dirname(resource)
-
-    const loadersWithOptions = loaders.map((loader) =>
-      typeof loader === 'string' ? { loader, options: {} } : loader
+    const nodeRequire = createRequire(path.join(contextDir, 'package.json'))
+    const buildDependencies = new Set(
+      resolvedLoaders.map((loader) => loader.loader)
     )
-    const buildDependencies = new Set<string>()
+    const buildModuleRequests = new Map<string, BuildModuleRequest>()
+    const buildDependencyRequests = new Set<string>()
+    const addBuildModuleRequest = (
+      dependency: string,
+      lookupPath: string,
+      expectedPath: string,
+      bypassExports = false
+    ) => {
+      let request = dependency
+      if (path.isAbsolute(request)) {
+        request = path.relative(lookupPath, request)
+        if (!path.isAbsolute(request) && request.split(path.sep)[0] !== '..') {
+          request = `./${request}`
+        }
+      }
+      request = request.replaceAll(path.sep, '/')
+      buildModuleRequests.set(`${lookupPath}\0${request}\0${bypassExports}`, {
+        lookupPath,
+        request,
+        expectedPath,
+        bypassExports,
+      })
+    }
+    const addBuildDependency = (dependency: string) => {
+      buildDependencyRequests.add(dependency)
+      if (!/[\\/]$/.test(dependency)) {
+        try {
+          // Node resolution is only used to inspect the runtime cache. Rust tracks the request,
+          // classifies filesystem inputs, and reports unresolved dependencies.
+          const resolved = nodeRequire.resolve(dependency)
+          buildDependencies.add(resolved)
+        } catch {}
+      }
+    }
 
     const logs: Array<{
       time: number
@@ -199,9 +257,7 @@ const transform = (
               ? entry.options
               : {}
           },
-          addBuildDependency(dependency: string) {
-            buildDependencies.add(dependency)
-          },
+          addBuildDependency,
           fs: {
             readFile(p: string, optionsOrCb: any, maybeCb: any) {
               ipc
@@ -531,12 +587,7 @@ const transform = (
           },
         },
 
-        loaders: loadersWithOptions.map((loader) => ({
-          loader: __turbopack_external_require__.resolve(loader.loader, {
-            paths: [contextDir, resourceDir],
-          }),
-          options: loader.options,
-        })),
+        loaders: resolvedLoaders,
         readResource: (_filename, callback) => {
           // TODO assuming that filename === resource, but loaders might change that
           let data =
@@ -551,6 +602,55 @@ const transform = (
           ipc.sendInfo({ type: 'log', logs: logs })
           logs.length = 0
         }
+        const pendingBuildDependencies = [...buildDependencies]
+        for (const dependency of pendingBuildDependencies) {
+          const loadedModule = nodeRequire.cache[dependency]
+          if (!loadedModule) continue
+          for (const child of loadedModule.children) {
+            if (!buildDependencies.has(child.filename)) {
+              buildDependencies.add(child.filename)
+              pendingBuildDependencies.push(child.filename)
+            }
+            const lookupPath = path.dirname(dependency)
+            const requests = resolvedRequests
+              .get(lookupPath)
+              ?.get(child.filename)
+            if (requests) {
+              for (const request of requests) {
+                addBuildModuleRequest(request, lookupPath, child.filename)
+              }
+              continue
+            }
+            // Modules resolved before the hook was installed, or with custom lookup paths, fall
+            // back to webpack's cached-child reconstruction, which bypasses exports for package
+            // subpaths that Node has already loaded.
+            // https://github.com/webpack/webpack/blob/f1bdec5cc70236083e45b665831d5d79d6485db7/lib/FileSystemInfo.js#L1835-L1895
+            const modulePath = loadedModule.paths.find((modulePath) =>
+              child.filename.startsWith(`${modulePath}${path.sep}`)
+            )
+            let request = modulePath
+              ? child.filename.slice(modulePath.length + 1)
+              : path.relative(lookupPath, child.filename)
+            if (request.endsWith('.js')) request = request.slice(0, -3)
+            request = request.replaceAll(path.sep, '/')
+            if (
+              !modulePath &&
+              !request.startsWith('../') &&
+              !path.isAbsolute(request)
+            ) {
+              request = `./${request}`
+            }
+            addBuildModuleRequest(
+              request,
+              lookupPath,
+              child.filename,
+              !!modulePath
+            )
+          }
+        }
+        const buildModuleDependencies = [...buildDependencies].filter(
+          (dependency) => !nodeRequire.cache[dependency]
+        )
         ipc.sendInfo({
           type: 'dependencies',
           envVariables: getReadEnvVariables(),
@@ -559,10 +659,12 @@ const transform = (
             ...result.missingDependencies,
           ],
           directories: result.contextDependencies.map((dep) => [dep, '**']),
-          buildDependencyRequests: [...buildDependencies]
+          buildFilePaths: [...buildDependencies],
+          buildModulePaths: buildModuleDependencies,
+          buildDependencyRequests: [...buildDependencyRequests]
             .map((dependency) => {
-              // Webpack uses a trailing slash or backslash to identify directory build dependencies:
-              // https://github.com/webpack/webpack/blob/v5.98.0/lib/FileSystemInfo.js#L1741-L1748
+              // Webpack identifies directory build dependencies by a trailing slash or backslash.
+              // https://github.com/webpack/webpack/blob/f1bdec5cc70236083e45b665831d5d79d6485db7/lib/FileSystemInfo.js#L1741-L1748
               const isDirectory = /[\\/]$/.test(dependency)
               let request = isDirectory ? dependency.slice(0, -1) : dependency
               if (path.isAbsolute(request)) {
@@ -579,19 +681,12 @@ const transform = (
               return [request, isDirectory] as [string, boolean]
             })
             .sort(([a], [b]) => a.localeCompare(b)),
+          buildModuleRequests: [...buildModuleRequests.values()],
         })
         if (err) {
-          // Resolve loader paths to include in the error message using
+          // Include resolved loader paths in the error message using
           // the same "(from ...)" style as webpack's format-webpack-messages.
-          const loaderPathList = loadersWithOptions.map((l) => {
-            try {
-              return __turbopack_external_require__.resolve(l.loader, {
-                paths: [contextDir, resourceDir],
-              })
-            } catch {
-              return l.loader
-            }
-          })
+          const loaderPathList = resolvedLoaders.map((loader) => loader.loader)
           const loaderPaths = loaderPathList.join(', ')
 
           if (!(err instanceof Error)) {

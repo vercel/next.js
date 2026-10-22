@@ -2974,10 +2974,9 @@ function pushTreeId(workInProgress, totalChildren, index) {
   var length = 32 - clz32(totalChildren) + baseLength;
   if (30 < length) {
     var numberOfOverflowBits = baseLength - (baseLength % 5);
-    length = (
-      baseIdWithLeadingBit &
-      ((1 << numberOfOverflowBits) - 1)
-    ).toString(32);
+    length = (baseIdWithLeadingBit & ((1 << numberOfOverflowBits) - 1))
+      .toString(32)
+      .padStart(numberOfOverflowBits / 5, "0");
     baseIdWithLeadingBit >>= numberOfOverflowBits;
     baseLength -= numberOfOverflowBits;
     treeContextId =
@@ -20794,14 +20793,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2273 = React.version;
 if (
-  "19.3.0-experimental-ba39b32a-20261019" !==
+  "19.3.0-experimental-ab0d927f-20261020" !==
   isomorphicReactPackageVersion$jscomp$inline_2273
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2273,
-      "19.3.0-experimental-ba39b32a-20261019"
+      "19.3.0-experimental-ab0d927f-20261020"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -20823,10 +20822,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2939 = {
   bundleType: 0,
-  version: "19.3.0-experimental-ba39b32a-20261019",
+  version: "19.3.0-experimental-ab0d927f-20261020",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-experimental-ba39b32a-20261019"
+  reconcilerVersion: "19.3.0-experimental-ab0d927f-20261020"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2940 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -21084,4 +21083,4 @@ exports.observeVisibleRects = function (
     }
   };
 };
-exports.version = "19.3.0-experimental-ba39b32a-20261019";
+exports.version = "19.3.0-experimental-ab0d927f-20261020";
