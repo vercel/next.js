@@ -86,14 +86,14 @@ fn lockfile_try_acquire_sync_inner(
     path: &str,
     content: Option<&str>,
 ) -> io::Result<LockfileResult> {
-    // On Windows, File::lock is mandatory and would prevent other tools from reading the lockfile.
-    // Opening without FILE_SHARE_WRITE instead provides exclusion while still allowing readers.
     #[cfg(windows)]
     let mut file = {
         use std::{fs::OpenOptions, os::windows::fs::OpenOptionsExt};
 
         use windows_sys::Win32::{Foundation, Storage::FileSystem};
 
+        // On Windows, opening with write mode without FILE_SHARE_WRITE acts as the lock.
+        // We use truncate(true) here because if we can open the file, we have the lock.
         let mut open_options = OpenOptions::new();
         open_options.write(true).create(true).truncate(true);
         open_options
@@ -119,16 +119,20 @@ fn lockfile_try_acquire_sync_inner(
 
     #[cfg(not(windows))]
     let mut file = {
-        use std::{fs::TryLockError, io::Seek};
+        use std::fs::TryLockError;
 
-        // flock is advisory: truncating before acquiring the lock would erase its holder's data.
-        let mut file = fs_err::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .read(true)
-            .open(path)?;
+        // On Unix, we must NOT truncate on open because flock is advisory -
+        // opening with truncate would clear another process's lockfile content.
+        // Instead, open without truncate, acquire the lock, then truncate.
+        let mut open_options = fs_err::OpenOptions::new();
+        open_options.write(true).create(true).read(true);
+
+        let file = open_options.open(path)?;
         match file.try_lock() {
-            Ok(_) => {}
+            Ok(_) => {
+                file.set_len(0)?;
+                file
+            }
             Err(TryLockError::WouldBlock) => return Ok(LockfileResult::WouldBlock),
             Err(TryLockError::Error(error)) => {
                 return Ok(LockfileResult::Error {
@@ -136,9 +140,6 @@ fn lockfile_try_acquire_sync_inner(
                 });
             }
         }
-        file.set_len(0)?;
-        file.seek(io::SeekFrom::Start(0))?;
-        file
     };
 
     if let Some(data) = content {
