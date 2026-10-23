@@ -15,7 +15,6 @@ import { RouteKind } from '../../server/route-kind' with { 'turbopack-transition
 import { getRevalidateReason } from '../../server/instrumentation/utils' with { 'turbopack-transition': 'next-server-utility' }
 import {
   getTracer,
-  SpanKind,
   SpanStatusCode,
   type Span,
 } from '../../server/lib/trace/tracer' with { 'turbopack-transition': 'next-server-utility' }
@@ -244,6 +243,52 @@ export function createAppPageEntrypoint({
 
     const multiZoneDraftMode = process.env
       .__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
+
+    // Registering `instrumentation.ts` usually installs the tracer provider, so
+    // do it before starting the request span. The span is started before
+    // `prepare`, so route module preparation is part of the request's trace.
+    // When this request triggers registration, the lifecycle spans of
+    // `instrumentation.ts` are emitted inside the request span.
+    const { instrumentation } = await routeModule.ensureInstrumentation(req, {
+      deferSpans: true,
+    })
+    return routeModule.traceRequest(
+      req,
+      {
+        tracer: getTracer(),
+        spanName: `${req.method || 'GET'} ${srcPage}`,
+        httpTarget,
+        instrumentation,
+      },
+      (requestSpan, requestRootSpan) =>
+        handleRequest(
+          req,
+          res,
+          ctx,
+          isMinimalMode,
+          multiZoneDraftMode,
+          requestSpan,
+          requestRootSpan
+        )
+    )
+  }
+
+  async function handleRequest(
+    req: IncomingMessage,
+    res: ServerResponse,
+    ctx: {
+      waitUntil?: (prom: Promise<void>) => void
+      requestMeta?: RequestMeta
+    },
+    isMinimalMode: boolean,
+    multiZoneDraftMode: boolean,
+    requestSpan: Span | undefined,
+    requestRootSpan: Span | undefined
+  ) {
+    // Dev passes the selected shell's staged params from base-server. Each
+    // render selects its own map without changing this adapter input.
+    const incomingStagedFallbackParams =
+      getRequestMeta(req, 'stagedFallbackParams') ?? null
 
     const prepareResult = await routeModule.prepare(req, res, {
       srcPage,
@@ -758,10 +803,6 @@ export function createAppPageEntrypoint({
 
     const method = req.method || 'GET'
     const tracer = getTracer()
-    const activeSpan = tracer.getActiveScopeSpan()
-    const isWrappedByNextServer = Boolean(
-      routerServerContext?.isWrappedByNextServer
-    )
     const render404 = async () => {
       // TODO: should route-module itself handle rendering the 404
       if (routerServerContext?.render404) {
@@ -779,7 +820,6 @@ export function createAppPageEntrypoint({
         interceptionRoutePatterns
       )
       res.setHeader('Vary', varyHeader)
-      let parentSpan: Span | undefined
       const invokeRouteModule = async (
         span: Span | undefined,
         context: AppPageRouteHandlerContext,
@@ -841,11 +881,12 @@ export function createAppPageEntrypoint({
           })
           span.updateName(name)
 
-          // Propagate http.route to the parent span if one exists (e.g.
-          // a platform-created HTTP span in adapter deployments).
-          if (parentSpan && parentSpan !== span) {
-            parentSpan.setAttribute('http.route', route)
-            parentSpan.updateName(name)
+          // Propagate http.route to the request's root span if it isn't the
+          // request span (e.g. a platform-created HTTP span in adapter
+          // deployments).
+          if (requestRootSpan && requestRootSpan !== span) {
+            requestRootSpan.setAttribute('http.route', route)
+            requestRootSpan.updateName(name)
           }
         })
       }
@@ -867,6 +908,7 @@ export function createAppPageEntrypoint({
         span,
         postponed,
         fallbackRouteParams,
+        stagedFallbackParams,
         renderOperation,
         allowEmptyStaticShell,
       }: {
@@ -883,6 +925,11 @@ export function createAppPageEntrypoint({
          * The unknown route params for this render.
          */
         fallbackRouteParams: OpaqueFallbackRouteParams | null
+
+        /**
+         * Defer access to these params while retaining their request values.
+         */
+        stagedFallbackParams: OpaqueFallbackRouteParams | null
 
         renderOperation: AppPageRenderOperation
       }): Promise<ResponseCacheEntry | PrerenderFailure> => {
@@ -919,8 +966,7 @@ export function createAppPageEntrypoint({
           },
           dev,
           fallbackRouteParams,
-          stagedFallbackParams:
-            getRequestMeta(req, 'stagedFallbackParams') ?? null,
+          stagedFallbackParams,
           renderOpts: {
             App: () => null,
             Document: () => null,
@@ -1044,7 +1090,7 @@ export function createAppPageEntrypoint({
               cachedNavigations:
                 nextConfig.experimental.cachedNavigations ?? false,
               clientTraceMetadata:
-                nextConfig.experimental.clientTraceMetadata || ([] as any),
+                nextConfig.experimental.clientTraceMetadata || [],
               clientParamParsingOrigins:
                 nextConfig.experimental.clientParamParsingOrigins,
               maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
@@ -1057,8 +1103,12 @@ export function createAppPageEntrypoint({
             },
 
             waitUntil: ctx.waitUntil,
-            onClose: (cb) => {
-              res.on('close', cb)
+            onClose: (callback) => {
+              if (res.closed) {
+                callback()
+              } else {
+                res.once('close', callback)
+              }
             },
             onAfterTaskError: () => {},
 
@@ -1322,11 +1372,6 @@ export function createAppPageEntrypoint({
                 }
               }
 
-              // Debug rendering stages the params of the selected source shell.
-              if (isDebugStaticShell) {
-                addRequestMeta(req, 'stagedFallbackParams', fallbackRouteParams)
-              }
-
               // We use the response cache here to handle the revalidation and
               // management of the fallback shell.
               const fallbackResponse = await routeModule.handleResponse({
@@ -1349,6 +1394,10 @@ export function createAppPageEntrypoint({
                     // the background path below will complete the shell into a
                     // more specific cache entry for later requests.
                     fallbackRouteParams,
+                    // Debug rendering stages the selected source shell.
+                    stagedFallbackParams: isDebugStaticShell
+                      ? fallbackRouteParams
+                      : incomingStagedFallbackParams,
                     renderOperation: 'prerender',
                     allowEmptyStaticShell: isInstantNavigationTest || undefined,
                   }),
@@ -1408,6 +1457,7 @@ export function createAppPageEntrypoint({
                                     remainingFallbackRouteParams
                                   )
                                 : null,
+                            stagedFallbackParams: incomingStagedFallbackParams,
                             renderOperation: 'prerender',
                           })
                         },
@@ -1650,11 +1700,11 @@ export function createAppPageEntrypoint({
           // Staging defers params without replacing their values with opaque
           // placeholders. A resumed render reads the selected artifact's mask
           // from its postponed state.
+          let stagedFallbackParams = incomingStagedFallbackParams
           if (
             (isProduction || isDebugStaticShell) &&
             nextConfig.cacheComponents
           ) {
-            let stagedFallbackParams: OpaqueFallbackRouteParams | null
             if (hasPlaceholderFallbackRouteParams) {
               stagedFallbackParams = createOpaqueFallbackRouteParams(
                 placeholderFallbackRouteParams
@@ -1674,8 +1724,6 @@ export function createAppPageEntrypoint({
             } else {
               stagedFallbackParams = null
             }
-
-            addRequestMeta(req, 'stagedFallbackParams', stagedFallbackParams)
           }
 
           // Forced static and debug renders are prerenders even when the
@@ -1690,6 +1738,7 @@ export function createAppPageEntrypoint({
             span,
             postponed,
             fallbackRouteParams,
+            stagedFallbackParams,
             renderOperation: isRequestSpecificRender ? 'render' : 'prerender',
             allowEmptyStaticShell: isInstantNavigationTest || undefined,
           })
@@ -1739,15 +1788,12 @@ export function createAppPageEntrypoint({
         const transformer = new TransformStream<Uint8Array, Uint8Array>()
         body.push(transformer.readable)
 
-        // This metadata supplies fallback params when the saved state does not
-        // record them. App-render uses the saved state's own set when present.
-        if (nextConfig.cacheComponents && prerenderInfo?.fallbackRouteParams) {
-          addRequestMeta(
-            req,
-            'stagedFallbackParams',
-            createOpaqueFallbackRouteParams(prerenderInfo.fallbackRouteParams)
-          )
-        }
+        // Supply fallback params when the saved state does not record them.
+        // App-render uses the saved state's own set when present.
+        const stagedFallbackParams =
+          nextConfig.cacheComponents && prerenderInfo?.fallbackRouteParams
+            ? createOpaqueFallbackRouteParams(prerenderInfo.fallbackRouteParams)
+            : incomingStagedFallbackParams
 
         // Start the resume without awaiting it. The response consumes the
         // continuation stream attached above.
@@ -1757,6 +1803,7 @@ export function createAppPageEntrypoint({
           // The resume retains concrete param values; staging only defers
           // access.
           fallbackRouteParams: null,
+          stagedFallbackParams,
           renderOperation: 'render',
         })
           .then(async (result) => {
@@ -2423,31 +2470,7 @@ export function createAppPageEntrypoint({
         })
       }
 
-      // TODO: activeSpan code path is for when wrapped by
-      // next-server can be removed when this is no longer used
-      if (isWrappedByNextServer && activeSpan) {
-        await handleResponse(activeSpan)
-      } else {
-        parentSpan = tracer.getActiveScopeSpan()
-        return await tracer.withPropagatedContext(
-          req.headers,
-          () =>
-            tracer.trace(
-              BaseServerSpan.handleRequest,
-              {
-                spanName: `${method} ${srcPage}`,
-                kind: SpanKind.SERVER,
-                attributes: {
-                  'http.method': method,
-                  'http.target': httpTarget,
-                },
-              },
-              handleResponse
-            ),
-          undefined,
-          !isWrappedByNextServer
-        )
-      }
+      return await handleResponse(requestSpan)
     } catch (err) {
       // If an Instant Navigation Testing document render fails (e.g. the page
       // blocks at the root with no Suspense boundary above it, producing an empty

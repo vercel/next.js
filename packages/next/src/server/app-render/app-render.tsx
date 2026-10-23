@@ -180,12 +180,14 @@ import {
   formatDynamicAPIAccesses,
   isPrerenderInterruptedError,
   createDynamicTrackingState,
+  consumeDynamicAccess,
+  type DynamicAccess,
+} from './dynamic-rendering'
+import {
   createDynamicValidationState,
   trackAllowedDynamicAccess,
   throwIfDisallowedDynamic,
   PreludeState,
-  consumeDynamicAccess,
-  type DynamicAccess,
   logDisallowedDynamicError,
   trackDynamicHoleInStaticShell,
   getStaticShellDisallowedDynamicReasons,
@@ -200,20 +202,16 @@ import {
   throwIfDisallowedDynamicInStaticRoute,
   getDisallowedReasonsInStaticRoute,
   type InstantValidationHoleKind,
-} from './dynamic-rendering'
+} from './dynamic-rendering-validation'
 import { logBuildDebugHint } from './blocking-route-messages'
-import {
-  ClientComponentLoadTracker,
-  wrapClientComponentLoader,
-} from '../client-component-renderer-logger'
-import { isNodeNextResponse } from '../base-http/helpers'
-import { waitForResponseToFinish } from './wait-for-response'
+import { ClientComponentLoadTracker } from '../client-component-renderer-logger'
+import type { DevResponseLifecycle } from './dev-response-lifecycle'
+import { installGlobalModuleLoadingHandlers } from './install-global-module-loading-handlers'
 import {
   beginDevValidation,
   type DevValidationGeneration,
   yieldToForegroundRequest,
 } from './dev-validation-scheduler'
-import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import {
   parseRelativeUrl,
   type ParsedRelativeUrl,
@@ -285,12 +283,7 @@ import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
 import isError, { getProperError } from '../../lib/is-error'
 import { createServerInsertedMetadata } from './metadata-insertion/create-server-inserted-metadata'
 import type { ParsedRequestHeaders } from '../route-modules/app-page/parse-request-headers'
-import { executeRevalidates } from '../revalidation-utils'
-import {
-  trackPendingChunkLoad,
-  trackPendingImport,
-  trackPendingModules,
-} from './module-loading/track-module-loading.external'
+import { trackPendingModules } from './module-loading/track-module-loading.external'
 import { isReactLargeShellError } from './react-large-shell-error'
 import type { GlobalErrorComponent } from '../../client/components/builtin/global-error'
 import { normalizeConventionFilePath } from './segment-explorer-path'
@@ -425,6 +418,7 @@ export type AppRenderContext = {
   isNotFoundPath: boolean
   nonce: string | undefined
   res: BaseNextResponse
+  devResponseLifecycle: DevResponseLifecycle | null
   /**
    * For now, the implicit tags are common for the whole route. If we ever start
    * rendering/revalidating segments independently, they need to move to the
@@ -844,9 +838,8 @@ async function generateDynamicFlightRenderResult(
   const requestAbortSignal =
     process.env.__NEXT_DEV_SERVER &&
     renderOpts.experimental.serverComponentsHmrCancellation === true &&
-    requestStore.isHmrRefresh === true &&
-    isNodeNextResponse(ctx.res)
-      ? signalFromNodeResponse(ctx.res.originalResponse)
+    requestStore.isHmrRefresh === true
+      ? ctx.devResponseLifecycle?.getCloseSignal()
       : undefined
 
   if (process.env.__NEXT_USE_NODE_STREAMS) {
@@ -1407,9 +1400,8 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     // render" button.
     const requestAbortSignal =
       renderOpts.experimental.serverComponentsHmrCancellation === true &&
-      initialRequestStore.isHmrRefresh === true &&
-      isNodeNextResponse(ctx.res)
-        ? signalFromNodeResponse(ctx.res.originalResponse)
+      initialRequestStore.isHmrRefresh === true
+        ? ctx.devResponseLifecycle?.getCloseSignal()
         : undefined
 
     const result = await stagedRenderWithCachesInDev({
@@ -2464,78 +2456,6 @@ function ErrorApp<T>({
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type BinaryStreamOf<T> = AnyStream
 
-/**
- * Extracted to a separate function to prevent V8 from retaining the entire
- * the render initialization scope through globalThis.__next_require__.
- * V8 shares a single Context object per scope for all closures; by creating
- * these closures in their own function scope, the globalThis references only
- * retain `instrumented` and `cacheComponents`, not request-specific data like
- * req/res/workStore.
- */
-function installGlobalModuleLoadingHandlers(
-  ComponentMod: AppPageModule,
-  cacheComponents: boolean
-) {
-  const instrumented = wrapClientComponentLoader(ComponentMod)
-
-  // When we are prerendering if there is a cacheSignal for tracking
-  // cache reads we track calls to `loadChunk` and `require`. This allows us
-  // to treat chunk/module loading with similar semantics as cache reads to avoid
-  // module loading from causing a prerender to abort too early.
-  const shouldTrackModuleLoading = () => {
-    if (!cacheComponents) {
-      return false
-    }
-    if (process.env.__NEXT_DEV_SERVER) {
-      return true
-    }
-    const workUnitStore = workUnitAsyncStorage.getStore()
-
-    if (!workUnitStore) {
-      return false
-    }
-
-    switch (workUnitStore.type) {
-      case 'prerender':
-      case 'prerender-client':
-      case 'validation-client':
-      case 'prerender-runtime':
-      case 'cache':
-      case 'private-cache':
-        return true
-      case 'prerender-legacy':
-      case 'request':
-      case 'unstable-cache':
-      case 'build-time-generator':
-        return false
-      default:
-        workUnitStore satisfies never
-    }
-  }
-
-  // @ts-expect-error
-  globalThis.__next_require__ = (
-    ...args: Parameters<typeof instrumented.require>
-  ) => {
-    const exportsOrPromise = instrumented.require(...args)
-    if (shouldTrackModuleLoading()) {
-      trackPendingImport(exportsOrPromise)
-    }
-    return exportsOrPromise
-  }
-
-  // @ts-expect-error
-  globalThis.__next_chunk_load__ = (
-    ...args: Parameters<typeof instrumented.loadChunk>
-  ) => {
-    const loadingChunk = instrumented.loadChunk(...args)
-    if (shouldTrackModuleLoading()) {
-      trackPendingChunkLoad(loadingChunk)
-    }
-    return loadingChunk
-  }
-}
-
 type PreparedAppPageRender = {
   serverActionRequestMetadata: ServerActionRequestMetadata
   ctx: AppRenderContext
@@ -2616,7 +2536,8 @@ async function prepareAppPageRender(
   routeMatch: RouteMatch,
   generateRequestId: GenerateRequestId,
   missingPrefetchHintPolicy: MissingPrefetchHintPolicy,
-  renderCapabilities: AppRenderCapabilities
+  renderCapabilities: AppRenderCapabilities,
+  devResponseLifecycle: DevResponseLifecycle | null
 ): Promise<PreparedAppPageRender> {
   const isNotFoundPath = pagePath === '/404'
   if (isNotFoundPath) {
@@ -2752,6 +2673,7 @@ async function prepareAppPageRender(
     isNotFoundPath,
     nonce,
     res,
+    devResponseLifecycle,
     sharedContext,
     implicitTags,
   }
@@ -2847,7 +2769,8 @@ async function prerenderAppPage({
   }
 
   // If we have pending revalidates, wait until they are all resolved.
-  const maybeRevalidatesPromise = executeRevalidates(workStore)
+  const maybeRevalidatesPromise =
+    workStore.afterContext.executeRevalidations(workStore)
   if (maybeRevalidatesPromise !== false) {
     const revalidatesPromise = maybeRevalidatesPromise.finally(() => {
       if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
@@ -3000,6 +2923,9 @@ async function renderAppPage(
 
   // MARK: RSC request
   if (isRSCRequest) {
+    // Register the close flush for Flight responses. These branches return
+    // before the HTML path executes pending revalidations.
+    workStore.afterContext.scheduleRevalidationsOnClose(workStore)
     if (runtimePrefetchStage !== null) {
       // MARK: RSC runtimePrefetch
       return generateRuntimePrefetchResult(
@@ -3165,7 +3091,8 @@ async function renderAppPage(
     }
 
     // If we have pending revalidates, wait until they are all resolved.
-    const maybeRevalidatesPromise = executeRevalidates(workStore)
+    const maybeRevalidatesPromise =
+      workStore.afterContext.executeRevalidations(workStore)
     if (maybeRevalidatesPromise !== false) {
       const revalidatesPromise = maybeRevalidatesPromise.finally(() => {
         if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
@@ -3220,7 +3147,8 @@ async function renderToHTMLOrFlightImpl(
   interpolatedParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   routeMatch: RouteMatch,
-  stagedFallbackParams: OpaqueFallbackRouteParams | null
+  stagedFallbackParams: OpaqueFallbackRouteParams | null,
+  devResponseLifecycle: DevResponseLifecycle | null
 ) {
   if (renderOpts.ComponentMod.__next_app__) {
     installGlobalModuleLoadingHandlers(
@@ -3251,7 +3179,8 @@ async function renderToHTMLOrFlightImpl(
     {
       isPossiblyPartialResponse: false,
       supportsPerSegmentPrefetching: renderOpts.cacheComponents,
-    }
+    },
+    devResponseLifecycle
   )
   return renderAppPage(
     req,
@@ -3308,7 +3237,8 @@ async function prerenderToHTMLOrFlightImpl(
     {
       isPossiblyPartialResponse: isRoutePPREnabled,
       supportsPerSegmentPrefetching: true,
-    }
+    },
+    null
   )
   return prerenderAppPage(prepared)
 }
@@ -3327,7 +3257,8 @@ export type AppPageRender = (
   routeMatch: RouteMatch,
   parsedRequestHeaders: ParsedRequestHeaders,
   serverActionRequestMetadata: ServerActionRequestMetadata,
-  stagedFallbackParams: OpaqueFallbackRouteParams | null
+  stagedFallbackParams: OpaqueFallbackRouteParams | null,
+  devResponseLifecycle: DevResponseLifecycle | null
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export type AppPagePrerender = (
@@ -3430,7 +3361,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
   routeMatch,
   parsedRequestHeaders,
   serverActionRequestMetadata,
-  stagedFallbackParams
+  stagedFallbackParams,
+  devResponseLifecycle
 ) => {
   const { url, interpolatedParams, postponedState } = prepareAppPage(
     serverActionRequestMetadata,
@@ -3472,7 +3404,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
     interpolatedParams,
     fallbackRouteParams,
     routeMatch,
-    stagedFallbackParams
+    stagedFallbackParams,
+    devResponseLifecycle
   )
 }
 
@@ -4861,8 +4794,8 @@ function runDevValidationInBackground(
       // the response has finished so that work cannot delay Flight delivery or
       // the client navigation.
       if (
-        isNodeNextResponse(ctx.res) &&
-        !(await waitForResponseToFinish(ctx.res.originalResponse))
+        ctx.devResponseLifecycle &&
+        !(await ctx.devResponseLifecycle.waitForFinish())
       ) {
         logValidationAborted(ctx)
         return
@@ -6674,8 +6607,7 @@ async function runWithDevValidationLogging(
 
   const requestId = ctx.requestId
   const url = ctx.url.href
-  const responseFinished =
-    !isNodeNextResponse(ctx.res) || ctx.res.originalResponse.writableFinished
+  const responseFinished = ctx.devResponseLifecycle?.isFinished() ?? true
 
   console.log(
     formatValidationEvent({
@@ -8683,6 +8615,7 @@ async function validateInstantConfigInBuildWithSample(
       isNotFoundPath: outerCtx.isNotFoundPath,
       nonce: outerCtx.nonce,
       res: outerCtx.res,
+      devResponseLifecycle: outerCtx.devResponseLifecycle,
       sharedContext: outerCtx.sharedContext,
       implicitTags: outerCtx.implicitTags,
     }

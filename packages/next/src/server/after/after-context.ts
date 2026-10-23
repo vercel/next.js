@@ -3,8 +3,17 @@ import type { RequestLifecycleOpts } from '../base-server'
 import type { AfterCallback, AfterTask } from './after'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { isThenable } from '../../shared/lib/is-thenable'
-import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import { withExecuteRevalidates } from '../revalidation-utils'
+import {
+  workAsyncStorage,
+  type WorkStore,
+} from '../app-render/work-async-storage.external'
+import {
+  cloneRevalidationState,
+  diffRevalidationState,
+  executeRevalidates,
+  withExecuteRevalidates,
+  type RevalidationState,
+} from '../revalidation-utils'
 import { bindSnapshot } from '../app-render/async-local-storage'
 import type { WorkUnitStore } from '../app-render/work-unit-async-storage.external'
 import { afterTaskAsyncStorage } from '../app-render/after-task-async-storage.external'
@@ -27,6 +36,8 @@ export class AfterContext {
   private runCallbacksOnClosePromise: Promise<void> | undefined
   private callbackQueue: PromiseQueue
   private workUnitStores = new Set<WorkUnitStore>()
+  private executedRevalidations: RevalidationState | undefined = undefined
+  private revalidateOnClose: (() => void) | undefined = undefined
 
   constructor({ waitUntil, onClose, onTaskError }: AfterContextOpts) {
     this.waitUntil = waitUntil
@@ -45,11 +56,61 @@ export class AfterContext {
         for (const workUnitStore of this.workUnitStores) {
           workUnitStore.phase = 'after'
         }
+
+        const revalidate = this.revalidateOnClose
+        this.revalidateOnClose = undefined
+        revalidate?.()
       })
     } catch (err) {
       // If onClose is broken, report errors lazily, when after() is called.
       this.initialOnCloseError = { error: err }
     }
+  }
+
+  public scheduleRevalidationsOnClose(workStore: WorkStore): void {
+    if (
+      !this.waitUntil ||
+      this.initialOnCloseError ||
+      this.isRequestClosed ||
+      this.revalidateOnClose
+    ) {
+      return
+    }
+
+    // Register before the handler returns. The internal Edge adapter captures
+    // its waitUntil promises at that point.
+    this.waitUntil(
+      new Promise<void>((resolve, reject) => {
+        this.revalidateOnClose = bindSnapshot(() => {
+          try {
+            // Capture synchronously at close, before after() callbacks start.
+            // Their existing completion flush handles callback revalidations.
+            const current = cloneRevalidationState(workStore)
+            const previous = this.executedRevalidations
+            this.executedRevalidations = undefined
+            resolve(
+              executeRevalidates(
+                workStore,
+                previous ? diffRevalidationState(previous, current) : current
+              ) || undefined
+            )
+          } catch (error) {
+            reject(error)
+          }
+        })
+      })
+    )
+  }
+
+  public executeRevalidations(workStore: WorkStore): false | Promise<void> {
+    const result = executeRevalidates(workStore)
+
+    this.scheduleRevalidationsOnClose(workStore)
+    if (this.revalidateOnClose) {
+      this.executedRevalidations = cloneRevalidationState(workStore)
+    }
+
+    return result
   }
 
   public after(task: AfterTask, workUnitStore: WorkUnitStore): void {
@@ -124,6 +185,8 @@ export class AfterContext {
       // See: https://github.com/facebook/react/pull/34911
       async () => {
         try {
+          // A callback registered after close missed the earlier phase change.
+          workUnitStore.phase = 'after'
           await afterTaskAsyncStorage.run({ rootTaskSpawnPhase }, () =>
             callback()
           )

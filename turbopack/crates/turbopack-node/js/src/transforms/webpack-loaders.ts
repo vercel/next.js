@@ -16,6 +16,7 @@ import {
 } from './webpack-loaders-runtime'
 import fs from 'fs'
 import path from 'path'
+import { absolutify, contextify, createHash } from './webpack-loaders-utils'
 
 export type IpcInfoMessage =
   | {
@@ -193,6 +194,7 @@ const transform = (
           target,
           mode,
           sourceMap,
+          utils: { absolutify, contextify, createHash },
           getOptions() {
             const entry = this.loaders[this.loaderIndex]
             return entry.options && typeof entry.options === 'object'
