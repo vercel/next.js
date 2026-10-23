@@ -601,10 +601,17 @@ export async function adapter(
     }
 
     if (isServerAction) {
-      const redirectLocation = getRelativeURL(
+      let redirectLocation = getRelativeURL(
         redirectURL.toString(),
         requestURL.toString()
       )
+      const basePath =
+        (requestURL as NextURL).basePath ||
+        params.request.nextConfig?.basePath ||
+        ''
+      if (basePath && redirectLocation.startsWith(basePath)) {
+        redirectLocation = redirectLocation.slice(basePath.length) || '/'
+      }
       response.headers.delete('Location')
       response.headers.set(
         'x-action-redirect',

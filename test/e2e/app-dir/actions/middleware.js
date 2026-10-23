@@ -7,7 +7,10 @@ export async function middleware(req) {
     return NextResponse.rewrite(req.nextUrl)
   }
 
-  if (req.nextUrl.pathname.includes('middleware-redirect-action')) {
+  if (
+    req.nextUrl.pathname.includes('middleware-redirect-action') &&
+    (req.headers.has('next-action') || req.method === 'POST')
+  ) {
     return NextResponse.redirect(new URL('/client/redirects', req.url))
   }
 

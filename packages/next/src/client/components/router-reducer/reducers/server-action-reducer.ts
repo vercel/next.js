@@ -218,7 +218,7 @@ async function fetchServerAction(
 
   let redirectLocation = location
     ? assignLocation(
-        location,
+        removeBasePath(location),
         new URL(state.canonicalUrl, window.location.href)
       )
     : undefined
