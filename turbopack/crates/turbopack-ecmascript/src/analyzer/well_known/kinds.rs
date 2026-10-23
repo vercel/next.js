@@ -65,6 +65,10 @@ impl WellKnownObjectKind {
         }
     }
 
+    pub fn may_be_undefined(&self) -> bool {
+        matches!(self, Self::NavigatorServiceWorker)
+    }
+
     /// Returns a short display name and a longer explanation for this object,
     /// used when rendering [`JsValue`] explanations.
     pub fn explain(&self) -> (&'static str, &'static str) {
