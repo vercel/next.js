@@ -53,6 +53,7 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     ident::{AssetIdent, Layer},
+    json::RcJsonRawValue,
     module::Module,
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
@@ -1279,7 +1280,10 @@ impl PageEndpoint {
                 .node_root()
                 .await?
                 .join("server")?,
-            project.server_chunking_context(true),
+            project.server_chunking_context(
+                true, // client_assets
+                true, // supports_lazy_dynamic_imports
+            ),
             project.edge_chunking_context(true),
         ))
     }
@@ -1295,7 +1299,10 @@ impl PageEndpoint {
                 .node_root()
                 .await?
                 .join("server/data")?,
-            this.pages_project.project().server_chunking_context(true),
+            this.pages_project.project().server_chunking_context(
+                true, // client_assets
+                true, // supports_lazy_dynamic_imports
+            ),
             this.pages_project.project().edge_chunking_context(true),
         ))
     }
@@ -1311,7 +1318,10 @@ impl PageEndpoint {
                 .node_root()
                 .await?
                 .join("server")?,
-            this.pages_project.project().server_chunking_context(false),
+            this.pages_project.project().server_chunking_context(
+                false, // client_assets
+                true,  // supports_lazy_dynamic_imports
+            ),
             this.pages_project.project().edge_chunking_context(false),
         ))
     }
@@ -1384,7 +1394,7 @@ impl PageEndpoint {
         client_chunks: ResolvedVc<OutputAssets>,
         // Inline bootstrap params, present when the bootstrap is inlined rather
         // than emitted as a per-route chunk.
-        chunk_group_bootstrap_params: Option<RcStr>,
+        chunk_group_bootstrap_params: Option<RcJsonRawValue>,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
         let node_root = self.pages_project.project().node_root().owned().await?;
         let client_relative_path = self

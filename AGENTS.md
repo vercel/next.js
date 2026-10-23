@@ -72,7 +72,7 @@ For iterative Next.js source development, default to watch mode plus the explici
 
 **Default agent rule:** If you are changing Next.js source, start `pnpm --filter=next dev` in a separate terminal session before making edits (unless it is already running). If you skip this, explicitly state why (for example: docs-only, test-only, read-only investigation, or CI-only analysis).
 
-**Test-only changes:** When changes are confined to `test/`, do not start `pnpm --filter=next dev` or rebuild Next.js. Run the relevant mode-specific tests directly; the test harness builds test fixtures as needed. This assumes the workspace is already bootstrapped and framework build outputs are current. A fresh checkout, branch switch, or missing/stale build outputs still requires a bootstrap build.
+**Test-only changes:** When changes are confined to `test/`, do not start `pnpm --filter=next dev` or rebuild Next.js. Run the relevant mode-specific tests directly; the test harness builds test fixtures as needed. This assumes the workspace is already bootstrapped and framework build outputs are current. Missing or stale framework build outputs still require a build.
 
 **1. Start watch build in background:**
 
@@ -102,14 +102,9 @@ pnpm test-start-webpack test/path/to/test.ts
 
 **For type errors only:** Use `pnpm --filter=next types` (~10s) instead of `pnpm --filter=next build` (~60s).
 
-After the workspace is bootstrapped, prefer `pnpm --filter=next build` when edits are limited to core Next.js files. Use full `pnpm build-all` for branch switches/bootstrap, before CI push for framework changes, or when changes span multiple packages. Test-only changes do not require a framework rebuild before CI push.
+**Bootstrapping a new clone or worktree does not require `pnpm build-all`.** `pnpm install` already pulls in recent published native bindings, so build only what your work changes: `pnpm --filter=next build` when edits are limited to core Next.js files, `pnpm build` when changes span multiple JS packages, and `pnpm build-all` only when changes include Rust/Turbopack code. Test-only changes do not require a framework rebuild before CI push.
 
-**Always run a full bootstrap build after switching branches:**
-
-```bash
-git checkout <branch>
-pnpm build-all   # Sets up outputs for dependent packages (Turborepo dedupes if unchanged)
-```
+**Switching branches or pulling can still require a build** when it moves JS or Rust source relative to your build outputs: rebuild the affected parts before running tests (`pnpm build` for JS, `pnpm build-all` for Rust). If Next.js fails to start afterwards, the published native bindings may lag canary; see [Stale Native Binary](#stale-native-binary).
 
 ## Bundler Selection
 
@@ -179,6 +174,16 @@ tail -5 /tmp/test-output.log             # Summary
 ## Writing Tests
 
 **Test writing expectations:**
+
+- **Prefer integration tests over unit tests.** Use Next.js e2e tests
+  (`test/e2e/`, `test/development/`, `test/production/`) for Next.js features,
+  and Turbopack execution tests
+  (`turbopack/crates/turbopack-tests/tests/execution/`) for Turbopack features.
+
+- **Avoid unit tests that map directly to the implementation**, except for
+  complicated algorithms. You can temporarily write unit tests to verify an
+  implementation, but don't commit them or add them to the pull request unless
+  they are necessary.
 
 - **Use `pnpm new-test` to generate new test suites** - it creates proper structure with fixture files
 
@@ -450,12 +455,13 @@ npx eslint --config eslint.config.mjs --fix <files>
 
 ## Rebuilding Before Running Tests
 
-When running Next.js integration tests, rebuild if framework source files have changed, not merely test files:
+Rebuild before running Next.js integration tests when framework source files changed, whether from your own edits or from a branch switch or pull that moved JS or Rust source:
 
-- **First run after branch switch/bootstrap (or if unsure)?** → `pnpm build-all`
 - **Only edited `test/` files, with current framework build outputs?** → No framework rebuild or watch build needed; run the relevant tests directly.
-- **Edited only core Next.js files (`packages/next/**`) after bootstrap?** → `pnpm --filter=next build`
-- **Edited Next.js code or Turbopack (Rust)?** → `pnpm build-all`
+- **Changed only core Next.js files (`packages/next/**`)?** → `pnpm --filter=next build`
+- **Changed JS across multiple packages?** → `pnpm build`
+- **Changed Turbopack or other Rust code?** → `pnpm build-all`
+- **Next.js fails to start with Turbopack errors?** → The published canary native bindings may lag the source; see [Stale Native Binary](#stale-native-binary).
 
 ## Development Anti-Patterns
 
@@ -509,6 +515,8 @@ Core runtime/bundling rules (always apply; skills above expand on these with ver
 
 If Turbopack produces unexpected errors after switching branches or pulling, check if `packages/next-swc/native/*.node` is stale. Delete it and run `pnpm install` to get the npm-published binary instead of a locally-built one.
 
+`pnpm install` already pulls in the latest published native bindings, which usually track canary closely. If Next.js still fails to start after that, native binding changes may have landed on canary after the last npm publish. Build the native bindings from source with `pnpm build-all`.
+
 ### Documentation Code Blocks
 
 - When adding `highlight={...}` attributes to code blocks, carefully count the actual line numbers within the code block
@@ -521,3 +529,15 @@ If Turbopack produces unexpected errors after switching branches or pulling, che
 Next.js strips internal headers from incoming requests via `filterInternalHeaders()` in `packages/next/src/server/lib/server-ipc/utils.ts`. This runs at the entry point in `packages/next/src/server/lib/router-server.ts` before any server code executes. Only headers listed in the `INTERNAL_HEADERS` array are stripped.
 
 **When reviewing PRs: if new code reads a request header that is not a standard HTTP header (like `content-type`, `accept`, `user-agent`, `host`, `authorization`, `cookie`, etc.), flag it for security review.** The header may be forgeable by an external attacker if it is not in the `INTERNAL_HEADERS` filter list in `packages/next/src/server/lib/server-ipc/utils.ts`.
+
+<!-- BEGIN:turborepo-agent-rules -->
+
+# This is NOT the Turborepo you know
+
+Turborepo configuration, task behavior, and CLI commands can vary between installed versions and may differ from your training data. Resolve the `turbo` package from this file's directory or relevant workspace; in monorepos, it may not be visible from the repository root. For example, run `node -p "require.resolve('turbo/package.json')"` from a workspace that depends on `turbo`.
+
+Read `docs/README.md` inside that installed package first, then read the relevant pages from its `docs/` directory before changing Turborepo configuration or commands. Heed deprecation notices. These bundled docs match the installed package version and are available without network access.
+
+This block is written and re-added by `turbo` before repository-scoped commands when an AI agent is detected. In the Turborepo source repository, its template is defined in `crates/turborepo-cli/src/cli/agent_guidance.rs`. Removing the managed block while updates are enabled means a later qualifying invocation will add it again. Set `"agentGuidance": false` in the root `turbo.json` or `turbo.jsonc` to opt out; this does not remove an existing block. Keep the block committed with your work to avoid an uncommitted change on the next agent invocation.
+
+<!-- END:turborepo-agent-rules -->

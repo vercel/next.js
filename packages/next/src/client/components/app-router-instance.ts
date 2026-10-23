@@ -336,7 +336,7 @@ export const publicAppRouterInstance: AppRouterInstance = {
 
 // Conditionally add experimental_gesturePush when gestureTransition is enabled
 if (process.env.__NEXT_GESTURE_TRANSITION) {
-  ;(publicAppRouterInstance as any).experimental_gesturePush = gesturePush
+  publicAppRouterInstance.experimental_gesturePush = gesturePush
 }
 
 // Exists for debugging purposes. Don't use in application code.

@@ -114,7 +114,7 @@ env:
   # only orchestrates cargo and names artifacts (types are committed), so
   # drifting from the workspace devDependency (3.7.2) is acceptable.
   NAPI_CLI_VERSION: 3.4.1
-  TURBO_VERSION: 2.11.7
+  TURBO_VERSION: 2.11.10
   TURBO_ARGS: '-v --env-mode loose --remote-cache-timeout 300 --log-order stream'
   NODE_LTS_VERSION: 20.9.0
   # run-tests.js reads `TEST_CONCURRENCY` if no explicit `--concurrency` or `-c`
@@ -376,9 +376,9 @@ jobs:
           name: next-swc-binary-${{ runner.os }}-${{ runner.arch }}
           path: packages/next-swc/native/next-swc.*.node
 
-      # undo normalize version changes for install/build
+      # Restore manifests and lockfile (undoing normalization) before installing dependencies.
       - run: git checkout .
-        if: ${{ inputs.skipInstallBuild != 'yes' }}
+        if: ${{ inputs.skipInstallBuild != 'yes' || inputs.needsRustJsInstall == 'yes' }}
 
       - name: Get pnpm store directory
         id: get-store-path
@@ -407,6 +407,31 @@ jobs:
         working-directory: turbopack/crates/turbopack-tracing/tests/node-file-trace
         run: pnpm install --recursive
 
+      # Tests running in /tmp use a separate store for hard links, so we need to copy the cache
+      # there for it to be useful to tests. If we switch to using pnpm's global virtual store, we
+      # shouldn't need this, as symlinks can cross mountpoints.
+      - name: Copy pnpm cache to tmpfs
+        id: copy-pnpm-cache
+        background: true
+        if: ${{ runner.os == 'Linux' && inputs.skipInstallBuild != 'yes' }}
+        env:
+          PNPM_STORE_PATH: ${{ steps.get-store-path.outputs.STORE_PATH }}
+        run: |
+          PROBE_SOURCE=$(mktemp "$PNPM_STORE_PATH/.hardlink-probe.XXXXXX")
+          PROBE_DIR=$(mktemp -d /tmp/pnpm-hardlink-probe.XXXXXX)
+          if ln "$PROBE_SOURCE" "$PROBE_DIR/link"; then
+            rm -f "$PROBE_SOURCE"
+            rm -rf "$PROBE_DIR"
+            echo "Hard links from the pnpm store to /tmp work; skipping the fixture store copy."
+          else
+            rm -f "$PROBE_SOURCE"
+            rm -rf "$PROBE_DIR"
+            FIXTURE_STORE_PATH="/tmp/.pnpm-store"
+            mkdir -p "$FIXTURE_STORE_PATH"
+            # -a preserves hardlinks, which may be important for the pnpm store
+            cp -a "$PNPM_STORE_PATH" "$FIXTURE_STORE_PATH/"
+          fi
+
       - name: Install Playwright browsers
         background: true
         if: ${{ inputs.skipInstallBuild != 'yes' && inputs.needsPlaywright != 'no' }}
@@ -432,6 +457,9 @@ jobs:
             exit 1
           fi
           echo "Test timings loaded ($(wc -c < test-timings.json) bytes)"
+
+      - name: Wait for pnpm cache copy
+        wait: copy-pnpm-cache
 
       - name: Fetch test timings via turbo
         background: true

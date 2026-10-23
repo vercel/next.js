@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, cmp::Reverse};
 
 use anyhow::{Context, Result, bail};
 use rustc_hash::FxHashMap;
@@ -12,7 +12,7 @@ use crate::{
     module::Module,
     module_graph::{
         GraphTraversalAction, ModuleGraph, RefData,
-        chunk_group_info::{ChunkGroupEntry, RoaringBitmapWrapper, TraversalPriority},
+        chunk_group_info::{ChunkGroupEntry, RoaringBitmapWrapper},
     },
 };
 
@@ -71,26 +71,12 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
         }
     }
 
-    // First, compute the depth for each module in the graph
-    let module_depth: FxHashMap<ResolvedVc<Box<dyn Module>>, usize> = {
-        let mut module_depth =
-            FxHashMap::with_capacity_and_hasher(module_count, Default::default());
-        graph.traverse_edges_bfs(entry_group_modules.iter().copied(), |parent, node| {
-            if let Some((parent, _)) = parent {
-                let parent_depth = *module_depth
-                    .get(&parent)
-                    .context("Module depth not found")?;
-                module_depth.entry(node).or_insert(parent_depth + 1);
-            } else {
-                module_depth.insert(node, 0);
-            };
-
-            module_entry_membership.entry(node).or_default();
-
-            Ok(GraphTraversalAction::Continue)
-        })?;
-        module_depth
-    };
+    // First, rank every module in reverse postorder (so that a module is visited after the
+    // modules importing it), and initialize the membership of every reachable module.
+    let module_rank = graph.reverse_postorder_ranks(entry_group_modules.iter().copied())?;
+    for module in module_rank.keys() {
+        module_entry_membership.entry(*module).or_default();
+    }
 
     // - Discover all collecting module
     // - Discover all emitted references
@@ -105,10 +91,7 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
             .map(|e| {
                 Ok((
                     *e,
-                    TraversalPriority {
-                        depth: *module_depth.get(e).context("Module depth not found")?,
-                        chunk_group_len: 0,
-                    },
+                    Reverse(*module_rank.get(e).context("Module rank not found")?),
                 ))
             })
             .collect::<Result<Vec<_>>>()?,
@@ -158,16 +141,14 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
                 }
             }
         },
-        |successor, (module_entry_membership, _)| {
-            Ok(TraversalPriority {
-                depth: *module_depth
+        // Visit modules in reverse postorder (lowest rank first, the traversal visits the highest
+        // priority first), so that most modules are visited once, with their final membership.
+        |successor, _| {
+            Ok(Reverse(
+                *module_rank
                     .get(&successor)
-                    .context("Module depth not found")?,
-                chunk_group_len: module_entry_membership
-                    .get(&successor)
-                    .context("Module entry membership not found")?
-                    .len(),
-            })
+                    .context("Module rank not found")?,
+            ))
         },
     )?;
 

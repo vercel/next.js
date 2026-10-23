@@ -116,6 +116,9 @@ export interface RequestMeta {
    */
   hmrRefreshHash?: string
 
+  /** Client HMR version captured before rendering dev-server HTML. */
+  initialHmrVersion?: string
+
   /**
    * Equals the segment path that was used for the prefetch RSC request.
    */
@@ -219,6 +222,13 @@ export interface RequestMeta {
    * Whether the request is a middleware invocation
    */
   middlewareInvoke?: boolean
+
+  /**
+   * The W3C `traceparent` of the middleware invocation's `handleRequest` span,
+   * written onto the request headers so the middleware span and the render
+   * that follows are siblings under that span.
+   */
+  middlewareInvokeTraceparent?: string
 
   /**
    * Whether the request should render the fallback shell or not.

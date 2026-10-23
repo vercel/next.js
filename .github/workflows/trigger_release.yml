@@ -29,19 +29,27 @@ on:
         default: false
         type: boolean
 
+      dryRun:
+        description: pass --dry-run to start-release.js (no tag, no release)
+        default: false
+        type: boolean
+
 name: Trigger Release
 
 env:
   NAPI_CLI_VERSION: 3.7.2
-  TURBO_VERSION: 2.11.7
+  TURBO_VERSION: 2.11.10
   NODE_LTS_VERSION: 20
 
 permissions: {}
 
 jobs:
   start:
-    if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
+    # Prerelease channels (and the scheduled nightly, where inputs are empty)
+    # run autonomously; only stable requires approval before the tag exists.
+    # Prerelease publishes are still gated by their release-* environments.
+    environment: ${{ (github.event_name == 'schedule' || inputs.releaseType != 'stable') && 'bot-autonomous' || 'bot-approved' }}
     env:
       NEXT_TELEMETRY_DISABLED: 1
 
@@ -137,7 +145,7 @@ jobs:
         run: pnpm install
 
       - if: steps.new-commits.outputs.has_new_commits == 'true'
-        run: node ./scripts/start-release.js --release-type "${INPUT_RELEASETYPE}" --semver-type "${INPUT_SEMVERTYPE}"
+        run: node ./scripts/start-release.js --release-type "${INPUT_RELEASETYPE}" --semver-type "${INPUT_SEMVERTYPE}"${{ inputs.dryRun && ' --dry-run' || '' }}
         env:
           RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
           RELEASE_GITHUB_APP_SLUG: ${{ steps.release-app-token.outputs.app-slug }}

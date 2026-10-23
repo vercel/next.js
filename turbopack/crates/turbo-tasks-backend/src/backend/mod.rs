@@ -29,7 +29,7 @@ pub use gc::{GcPassResult, GcStats, TtlCounter};
 use hashbrown::hash_table::Entry;
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
-use smallvec::{SmallVec, smallvec};
+use smallvec::SmallVec;
 use tokio::time::{Duration, Instant};
 use tracing::{Span, field::display, trace_span};
 use turbo_bincode::TurboBincodeBuffer;
@@ -39,14 +39,15 @@ use turbo_tasks::{
     TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TaskPersistence, TaskPriority, TraitTypeId,
     TurboTasks, TurboTasksCallApi, TurboTasksPanic, ValueTypeId,
     backend::{
-        Backend, CachedTaskType, CachedTaskTypeArc, CellContent, CellHash, TaskExecutionSpec,
-        TransientTaskType, TurboTaskContextError, TurboTaskLocalContextError, TurboTasksError,
-        TurboTasksExecutionError, TurboTasksExecutionErrorMessage, TypedCellContent,
-        VerificationMode,
+        Backend, CachedTaskType, CachedTaskTypeArc, CellContent, CellHash, TaskCollectiblesMap,
+        TaskExecutionSpec, TransientTaskType, TurboTaskContextError, TurboTaskLocalContextError,
+        TurboTasksError, TurboTasksExecutionError, TurboTasksExecutionErrorMessage,
+        TypedCellContent, VerificationMode,
     },
     event::{Event, EventDescription, EventListener},
     macro_helpers::NativeFunction,
     message_queue::{DiagnosticEvent, Severity, TimingEvent, TraceEvent},
+    parallel,
     registry::get_value_type,
     scope_bounded::scope_bounded,
     task_statistics::TaskStatisticsApi,
@@ -390,6 +391,17 @@ impl TurboTasksBackend {
         ExecuteContext::new(self, turbo_tasks)
     }
 
+    /// Like [`TurboTasksBackend::execute_context`], but with an explicit current task priority
+    /// instead of the one from the task-local task state. For work that runs on another thread
+    /// than the calling task.
+    fn execute_context_with_priority<'a>(
+        &'a self,
+        turbo_tasks: &'a TurboTasks<TurboTasksBackend>,
+        current_task_priority: TaskPriority,
+    ) -> ExecuteContext<'a> {
+        ExecuteContext::new(self, turbo_tasks).with_current_task_priority(current_task_priority)
+    }
+
     /// Like [`TurboTasksBackend::execute_context`], but refuses to hand out a context once
     /// shutdown has begun, and blocks shutdown for as long as the returned context is alive.
     ///
@@ -463,6 +475,24 @@ impl TurboTasksBackend {
     #[doc(hidden)]
     pub fn resident_task_count_for_testing(&self) -> usize {
         self.storage.resident_task_count_for_testing()
+    }
+
+    /// The parent priority a dirty task was made dirty with, or `None` if it doesn't exist or is
+    /// not dirty. Test-only hook for verifying invalidation priorities.
+    #[doc(hidden)]
+    pub fn dirty_parent_priority_for_testing(
+        &self,
+        task: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> Option<TaskPriority> {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let task = ctx.try_task(task, TaskDataCategory::All)?;
+        match task.get_dirty() {
+            Some(Dirtyness::Dirty {
+                parent_priority, ..
+            }) => Some(*parent_priority),
+            _ => None,
+        }
     }
 
     /// The persistent `parent_count` of a resident task (0 if absent or not resident). Test-only
@@ -1846,7 +1876,7 @@ impl TurboTasksBackend {
             panic!("Dependency tracking is disabled so invalidation is not allowed");
         }
         invalidate(
-            smallvec![task_id],
+            [task_id],
             #[cfg(feature = "task_dirty_cause")]
             TaskDirtyCause::Invalidator,
             self.execute_context(turbo_tasks),
@@ -1857,12 +1887,25 @@ impl TurboTasksBackend {
         if !self.should_track_dependencies() {
             panic!("Dependency tracking is disabled so invalidation is not allowed");
         }
-        invalidate(
-            tasks.iter().copied().collect(),
-            #[cfg(feature = "task_dirty_cause")]
-            TaskDirtyCause::Unknown,
-            self.execute_context(turbo_tasks),
+        // `invalidate` checks each chunk for duplicates, but a duplicate split across two chunks
+        // would only be seen here.
+        debug_assert!(
+            tasks.len() <= 1 || tasks.iter().collect::<FxHashSet<_>>().len() == tasks.len(),
+            "invalidate_tasks() must not be called with duplicate task ids: {tasks:?}"
         );
+        // Large batches are invalidated in parallel chunks. The chunks may run on other threads,
+        // which don't have the calling task's state, so its priority (the parent priority of the
+        // dirty tasks) is read once here and passed to every chunk.
+        let current_task_priority = turbo_tasks.get_current_task_priority();
+        parallel::for_each_chunk(tasks, |chunk| {
+            invalidate(
+                chunk.iter().copied(),
+                // Called by `TurboTasksApi::invalidate_many*`, i.e. batched `Invalidator`s.
+                #[cfg(feature = "task_dirty_cause")]
+                TaskDirtyCause::Invalidator,
+                self.execute_context_with_priority(turbo_tasks, current_task_priority),
+            );
+        });
     }
 
     fn invalidate_tasks_set(
@@ -1874,7 +1917,7 @@ impl TurboTasksBackend {
             panic!("Dependency tracking is disabled so invalidation is not allowed");
         }
         invalidate(
-            tasks.iter().copied().collect(),
+            tasks.iter().copied(),
             #[cfg(feature = "task_dirty_cause")]
             TaskDirtyCause::Unknown,
             self.execute_context(turbo_tasks),
@@ -3382,6 +3425,40 @@ impl TurboTasksBackend {
         );
     }
 
+    fn unemit_collectibles(
+        &self,
+        collectible_type: TraitTypeId,
+        collectibles: &TaskCollectiblesMap,
+        task_id: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) {
+        let updates: SmallVec<[_; 1]> = collectibles
+            .iter()
+            .filter(|&(_, &count)| count > 0)
+            .map(|(&collectible, &count)| {
+                self.assert_valid_collectible(task_id, collectible);
+                let Some((collectible_task, cell)) = collectible.as_task_cell() else {
+                    panic!("Collectibles need to be resolved");
+                };
+                (
+                    CollectibleRef {
+                        collectible_type,
+                        cell: CellRef {
+                            task: collectible_task,
+                            cell,
+                        },
+                    },
+                    -count,
+                )
+            })
+            .collect();
+        operation::UpdateCollectibleOperation::run_batch(
+            task_id,
+            updates,
+            self.execute_context(turbo_tasks),
+        );
+    }
+
     fn update_task_cell(
         &self,
         task_id: TaskId,
@@ -3883,6 +3960,16 @@ impl Backend for TurboTasksBackend {
         turbo_tasks: &TurboTasks<Self>,
     ) {
         self.unemit_collectible(collectible_type, collectible, count, task_id, turbo_tasks)
+    }
+
+    fn unemit_collectibles(
+        &self,
+        collectible_type: TraitTypeId,
+        collectibles: &TaskCollectiblesMap,
+        task_id: TaskId,
+        turbo_tasks: &TurboTasks<Self>,
+    ) {
+        self.unemit_collectibles(collectible_type, collectibles, task_id, turbo_tasks)
     }
 
     fn update_task_cell(

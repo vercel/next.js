@@ -111,7 +111,7 @@ class NextRootCommand extends Command {
       // production mode merely because they were launched through this CLI.
       if (commandName !== 'upgrade' || !event.getOptionValue('agent')) {
         ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
-        ;(process.env as any).NEXT_RUNTIME = 'nodejs'
+        process.env.NEXT_RUNTIME = 'nodejs'
       }
 
       if (

@@ -32,8 +32,6 @@ use next_core::{
     },
     next_server_component::NextServerComponentTransition,
     next_server_utility::{NEXT_SERVER_UTILITY_MERGE_TAG, NextServerUtilityTransition},
-    parse_segment_config_from_source,
-    segment_config::{NextSegmentConfig, ParseSegmentMode},
     util::{NextRuntime, app_function_name, module_styles_rule_condition, styles_rule_condition},
 };
 use smallvec::smallvec;
@@ -1079,16 +1077,11 @@ pub fn app_entry_point_to_route(
                 })
                 .collect(),
         ),
-        AppEntrypoint::AppRoute {
-            page,
-            path,
-            root_layouts,
-            ..
-        } => Route::AppRoute {
+        AppEntrypoint::AppRoute { page, path, .. } => Route::AppRoute {
             original_name: page.to_string().into(),
             endpoint: ResolvedVc::upcast(
                 AppEndpoint {
-                    ty: AppEndpointType::Route { path, root_layouts },
+                    ty: AppEndpointType::Route { path },
                     app_project,
                     page,
                 }
@@ -1129,7 +1122,6 @@ enum AppEndpointType {
     },
     Route {
         path: FileSystemPath,
-        root_layouts: ResolvedVc<FileSystemPathVec>,
     },
     Metadata {
         metadata: MetadataItem,
@@ -1161,31 +1153,16 @@ impl AppEndpoint {
     async fn app_route_entry(
         &self,
         path: FileSystemPath,
-        root_layouts: Vc<FileSystemPathVec>,
         next_config: Vc<NextConfig>,
     ) -> Result<Vc<AppEntry>> {
-        let root_layouts = root_layouts.await?;
-        let config = if root_layouts.is_empty() {
-            None
-        } else {
-            let mut config = NextSegmentConfig::default();
-
-            for layout in root_layouts.iter().rev() {
-                let source = Vc::upcast(FileSource::new(layout.clone()));
-                let layout_config = parse_segment_config_from_source(source, ParseSegmentMode::App);
-                config.apply_parent_config(&*layout_config.await?);
-            }
-
-            Some(config.cell())
-        };
-
         Ok(get_app_route_entry(
             self.app_project.route_module_context(),
             self.app_project.edge_route_module_context(),
             Vc::upcast(FileSource::new(path)),
             self.page.clone(),
             self.app_project.project().project_path().owned().await?,
-            config,
+            // Route Handlers only use their own exports, not ancestor layout configuration.
+            None,
             next_config,
         ))
     }
@@ -1214,9 +1191,7 @@ impl AppEndpoint {
         let next_config = self.await?.app_project.project().next_config();
         let app_entry = match &this.ty {
             AppEndpointType::Page { loader_tree, .. } => self.app_page_entry(**loader_tree),
-            AppEndpointType::Route { path, root_layouts } => {
-                self.app_route_entry(path.clone(), **root_layouts, next_config)
-            }
+            AppEndpointType::Route { path } => self.app_route_entry(path.clone(), next_config),
             AppEndpointType::Metadata { metadata } => {
                 self.app_metadata_entry(metadata.clone(), next_config)
             }
@@ -1292,7 +1267,10 @@ impl AppEndpoint {
         let ssr_chunking_context = if process_ssr {
             Some(
                 match runtime {
-                    NextRuntime::NodeJs => Vc::upcast(project.server_chunking_context(true)),
+                    NextRuntime::NodeJs => Vc::upcast(project.server_chunking_context(
+                        true, // client_assets
+                        true, // supports_lazy_dynamic_imports
+                    )),
                     NextRuntime::Edge => this
                         .app_project
                         .project()
@@ -1403,7 +1381,10 @@ impl AppEndpoint {
                 original_name = app_entry.original_name
             ))?;
             let ssr_hmr_chunks = project
-                .server_chunking_context(process_client_assets)
+                .server_chunking_context(
+                    process_client_assets,
+                    true, // supports_lazy_dynamic_imports
+                )
                 .server_hmr_chunk_list(
                     ssr_hmr_chunk_list_path,
                     Vc::cell(ssr_client_reference_chunks),
@@ -1583,14 +1564,13 @@ impl AppEndpoint {
         let app_entry_chunks = app_entry_chunk_group_ref.assets;
         let app_entry_chunks_ref = app_entry_chunks.await?;
 
-        if is_app_page
-            && runtime == NextRuntime::NodeJs
+        if runtime == NextRuntime::NodeJs
             && *project
                 .next_config()
                 .turbopack_lazy_dynamic_imports_ssr(*project.next_mode().await?)
                 .await?
         {
-            let rsc_chunks = expanded_app_entry_chunks
+            let dynamic_import_chunks = expanded_app_entry_chunks
                 .await?
                 .iter()
                 .copied()
@@ -1608,18 +1588,21 @@ impl AppEndpoint {
                 .into_iter()
                 .flatten()
                 .collect::<Vec<_>>();
-            let rsc_hmr_chunks = project
-                .server_chunking_context(true)
+            let dynamic_import_hmr_chunks = project
+                .server_chunking_context(
+                    process_client_assets,
+                    true, // supports_lazy_dynamic_imports
+                )
                 .server_hmr_chunk_list(
                     server_path.join(&format!(
-                        "app{}/rsc-dynamic-imports.js",
+                        "app{}/dynamic-imports.js",
                         app_entry.original_name
                     ))?,
-                    Vc::cell(rsc_chunks),
+                    Vc::cell(dynamic_import_chunks),
                 )
                 .to_resolved()
                 .await?;
-            server_assets.insert(rsc_hmr_chunks);
+            server_assets.insert(dynamic_import_hmr_chunks);
         }
 
         // these references are important for turbotrace
@@ -2246,14 +2229,13 @@ impl Endpoint for AppEndpoint {
                         format!("{hmr_entry_path}.js").into(),
                         format!("{hmr_entry_path}/client-components-ssr.js").into(),
                     ];
-                    if matches!(this.ty, AppEndpointType::Page { .. })
-                        && *project
-                            .next_config()
-                            .turbopack_lazy_dynamic_imports_ssr(*project.next_mode().await?)
-                            .await?
+                    if *project
+                        .next_config()
+                        .turbopack_lazy_dynamic_imports_ssr(*project.next_mode().await?)
+                        .await?
                     {
                         server_hmr_entry_paths
-                            .push(format!("{hmr_entry_path}/rsc-dynamic-imports.js").into());
+                            .push(format!("{hmr_entry_path}/dynamic-imports.js").into());
                     }
                     EndpointOutputPaths::NodeJs {
                         server_hmr_entry_paths,
