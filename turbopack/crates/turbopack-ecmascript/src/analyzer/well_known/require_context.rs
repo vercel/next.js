@@ -3,10 +3,11 @@ use std::{
     sync::LazyLock,
 };
 
-use anyhow::{Result, bail};
+use anyhow::{Context as _, Result, bail};
 use turbo_esregex::EsRegex;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, Vc};
+use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
     analyzer::{ConstantValue, JsValue},
@@ -72,11 +73,26 @@ pub fn parse_require_context(args: &[JsValue<'_>]) -> Result<RequireContextOptio
 pub struct RequireContextValue(pub(crate) FxIndexMap<RcStr, RcStr>);
 
 impl RequireContextValue {
-    pub async fn from_context_map(map: Vc<RequireContextMap>) -> Result<Self> {
-        let mut context_map = FxIndexMap::default();
+    /// Maps every key of the context to the request for its module from the calling
+    /// module in `origin_dir`.
+    pub async fn from_context_map(
+        map: Vc<RequireContextMap>,
+        origin_dir: &FileSystemPath,
+        context_dir: &FileSystemPath,
+    ) -> Result<Self> {
+        let prefix = origin_dir
+            .get_relative_request_to(context_dir)
+            .context("the context directory must be on the filesystem of the calling module")?;
+        let prefix = prefix.trim_end_matches('/');
 
-        for (key, request) in map.await?.iter() {
-            context_map.insert(key.clone(), request.clone());
+        let mut context_map = FxIndexMap::default();
+        for key in map.await?.iter() {
+            let request = match key.strip_prefix("./") {
+                Some(rest) if prefix == "." => format!("./{rest}"),
+                Some(rest) => format!("{prefix}/{rest}"),
+                None => prefix.to_string(),
+            };
+            context_map.insert(key.clone(), request.into());
         }
 
         Ok(RequireContextValue(context_map))
