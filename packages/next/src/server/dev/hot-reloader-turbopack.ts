@@ -1493,28 +1493,26 @@ export async function createHotReloaderTurbopack(
   // This fetch is not kicked off eagerly because the first `fetch()` in
   // Node.js adds roughly 20ms main-thread blocking to load the SSL certificate cache
   // We don't want that blocking time to be in the hot path for the `ready in` logging.
-  // Instead, the fetch is kicked off lazily when `getCurrentVersionInfo()` is first called.
-  // The registry request is never awaited: until it resolves, clients get a
-  // placeholder in `sync`, and every connected client receives the resolved
-  // info in a `versionInfo` message. Otherwise a slow registry would delay
-  // `sync`, and with it the whole dev overlay.
-  const getCurrentVersionInfo = (): VersionInfo => {
-    if (!versionInfoRequested) {
-      versionInfoRequested = true
-      void getVersionInfo().then((versionInfo) => {
-        resolvedVersionInfo = versionInfo
-        for (const client of [
-          ...clientsWithoutHtmlRequestId,
-          ...clientsByHtmlRequestId.values(),
-        ]) {
-          sendToClient(client, {
-            type: HMR_MESSAGE_SENT_TO_BROWSER.VERSION_INFO,
-            versionInfo,
-          })
-        }
-      })
-    }
-    return resolvedVersionInfo ?? getPendingVersionInfo()
+  // Instead, `startVersionInfoRequest()` kicks it off lazily when the first HMR
+  // client connects. The registry request is never awaited: until it resolves,
+  // clients get a placeholder in `sync`, and every connected client receives
+  // the resolved info in a `versionInfo` message. Otherwise a slow registry
+  // would delay `sync`, and with it the whole dev overlay.
+  const startVersionInfoRequest = () => {
+    if (versionInfoRequested) return
+    versionInfoRequested = true
+    void getVersionInfo().then((versionInfo) => {
+      resolvedVersionInfo = versionInfo
+      for (const client of [
+        ...clientsWithoutHtmlRequestId,
+        ...clientsByHtmlRequestId.values(),
+      ]) {
+        sendToClient(client, {
+          type: HMR_MESSAGE_SENT_TO_BROWSER.VERSION_INFO,
+          versionInfo,
+        })
+      }
+    })
   }
 
   let devtoolsFrontendUrl: string | undefined
@@ -1829,6 +1827,8 @@ export async function createHotReloaderTurbopack(
         }
         sendToClient(client, turbopackConnectedMessage)
 
+        startVersionInfoRequest()
+
         if (devIndicatorServerState.disabledUntil < Date.now()) {
           devIndicatorServerState.disabledUntil = 0
         }
@@ -1858,7 +1858,7 @@ export async function createHotReloaderTurbopack(
             errors,
             warnings: [],
             hash: '',
-            versionInfo: getCurrentVersionInfo(),
+            versionInfo: resolvedVersionInfo ?? getPendingVersionInfo(),
             hasVulnerabilityInsight,
             debug: {
               devtoolsFrontendUrl,
