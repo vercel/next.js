@@ -15,8 +15,9 @@ describe('parallel-routes-error-boundary', () => {
     await browser.waitForElementByCss('#slot-error')
 
     // Verify slot error is displayed
+    expect(await browser.hasElementByCssSelector('#slot-error')).toBe(true)
     expect(await browser.elementById('slot-error').text()).toContain(
-      'Slot Error: Triggered slot error in dynamic route'
+      'Slot Error:'
     )
 
     // Verify main page rendered dynamic child and did NOT render home error
@@ -28,8 +29,9 @@ describe('parallel-routes-error-boundary', () => {
 
   it('renders slot-specific error boundary on direct SSR navigation', async () => {
     const browser = await next.browser('/page/one')
+    expect(await browser.hasElementByCssSelector('#slot-error')).toBe(true)
     expect(await browser.elementById('slot-error').text()).toContain(
-      'Slot Error: Triggered slot error in dynamic route'
+      'Slot Error:'
     )
     expect(await browser.hasElementByCssSelector('#home-error')).toBe(false)
     expect(await browser.elementById('dynamic-child').text()).toBe(

@@ -693,9 +693,9 @@ async function createComponentTreeInternal(
             )
           : null
 
-        let slotErrorComponent = ErrorComponent
-        let slotErrorStyles = wrappedErrorStyles
-        let slotErrorScripts = errorScripts
+        let slotErrorComponent: ErrorComponent | undefined = undefined
+        let slotErrorStyles: React.ReactNode | undefined = undefined
+        let slotErrorScripts: React.ReactNode | undefined = undefined
 
         const parsedParallelRoute = parseLoaderTree(parallelRoute)
         if (!isChildrenRouteKey && parsedParallelRoute.modules.error) {
@@ -728,9 +728,12 @@ async function createComponentTreeInternal(
           parallelRouteKey,
           createElement(LayoutRouter, {
             parallelRouterKey: parallelRouteKey,
-            error: slotErrorComponent,
-            errorStyles: slotErrorStyles,
-            errorScripts: slotErrorScripts,
+            error: ErrorComponent,
+            errorStyles: wrappedErrorStyles,
+            errorScripts: errorScripts,
+            slotError: slotErrorComponent,
+            slotErrorStyles: slotErrorStyles,
+            slotErrorScripts: slotErrorScripts,
             template:
               isSegmentViewEnabled && templateFilePath
                 ? createElement(
