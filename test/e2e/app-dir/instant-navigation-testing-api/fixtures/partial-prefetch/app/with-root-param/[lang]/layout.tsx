@@ -1,0 +1,13 @@
+import { ReactNode } from 'react'
+
+export async function generateStaticParams() {
+  return [{ lang: 'en' }]
+}
+
+export default function Root({ children }: { children: ReactNode }) {
+  return (
+    <html>
+      <body>{children}</body>
+    </html>
+  )
+}
