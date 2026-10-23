@@ -18,7 +18,7 @@ const RESTARTED = Symbol('restarted')
 // profiles before falling back to jest-worker's regular (force-kill) shutdown.
 const CPU_PROFILE_FLUSH_TIMEOUT_MS = 60_000
 
-const cleanupWorkers = (worker: JestWorker): Promise<void> | undefined => {
+const cleanupWorkers = async (worker: JestWorker): Promise<void> => {
   const children: ChildProcess[] = []
   for (const curWorker of ((worker as any)._workerPool?._workers || []) as {
     _child?: ChildProcess
@@ -30,14 +30,14 @@ const cleanupWorkers = (worker: JestWorker): Promise<void> | undefined => {
   }
 
   if (!process.env.NEXT_CPU_PROF) {
-    return undefined
+    return
   }
 
   // With CPU profiling enabled, workers save their profile when they receive
   // SIGINT (see `server/lib/cpu-profile.ts`). jest-worker's `end()` force-kills
   // workers that haven't exited after ~1s, which can cut off writing a large
   // profile, so wait for the workers to exit first.
-  return new Promise<void>((resolve) => {
+  await new Promise<void>((resolve) => {
     const timer = setTimeout(resolve, CPU_PROFILE_FLUSH_TIMEOUT_MS)
     Promise.all(
       children.map(
@@ -327,14 +327,14 @@ export class Worker {
     this._onActivityAbort = onActivityAbort
   }
 
-  end(): ReturnType<JestWorker['end']> {
+  async end(): ReturnType<JestWorker['end']> {
     const worker = this._worker
     if (!worker) {
       throw new Error('Farm is ended, no more calls can be done to it')
     }
-    const flushed = cleanupWorkers(worker)
     this._worker = undefined
-    return flushed ? flushed.then(() => worker.end()) : worker.end()
+    await cleanupWorkers(worker)
+    return worker.end()
   }
 
   /**
@@ -343,13 +343,8 @@ export class Worker {
   close(): void {
     if (this._worker) {
       const worker = this._worker
-      const flushed = cleanupWorkers(worker)
       this._worker = undefined
-      if (flushed) {
-        flushed.then(() => worker.end())
-      } else {
-        worker.end()
-      }
+      cleanupWorkers(worker).then(() => worker.end())
     }
   }
 }
