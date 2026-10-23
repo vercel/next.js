@@ -5,12 +5,12 @@ import { cache as $$reactCache__ } from "react";
 const $$RSC_SERVER_CACHE_0_INNER = async function foo([$$ACTION_ARG_0, $$ACTION_ARG_1]) {
     return $$ACTION_ARG_0 * $$ACTION_ARG_1;
 };
-export var $$RSC_SERVER_CACHE_0 = Object["defineProperty"](registerServerReference($$reactCache__(function foo() {
+export var $$RSC_SERVER_CACHE_0 = /*#__PURE__*/ Object["defineProperty"](/*#__PURE__*/ registerServerReference(/*#__PURE__*/ $$reactCache__(function foo() {
     return $$cache__("default", "c03128060c414d59f8552e4788b846c0d2b7f74743", 2, $$RSC_SERVER_CACHE_0_INNER, Array.prototype.slice.call(arguments, 0, 1));
 }), "c03128060c414d59f8552e4788b846c0d2b7f74743", null), "name", {
     value: "foo"
 });
-export const $$RSC_SERVER_ACTION_1 = registerServerReference(async function bar($$ACTION_CLOSURE_BOUND) {
+export const $$RSC_SERVER_ACTION_1 = /*#__PURE__*/ registerServerReference(async function bar($$ACTION_CLOSURE_BOUND) {
     var [$$ACTION_ARG_0] = await decryptActionBoundArgs("4090b5db271335765a4b0eab01f044b381b5ebd5cd", $$ACTION_CLOSURE_BOUND);
     console.log($$ACTION_ARG_0);
 }, "4090b5db271335765a4b0eab01f044b381b5ebd5cd", null);

@@ -1,6 +1,6 @@
 import { registerServerReference } from "private-next-rsc-server-reference";
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
-export const $$RSC_SERVER_ACTION_0 = registerServerReference(async function action($$ACTION_CLOSURE_BOUND) {
+export const $$RSC_SERVER_ACTION_0 = /*#__PURE__*/ registerServerReference(async function action($$ACTION_CLOSURE_BOUND) {
     var [$$ACTION_ARG_0, $$ACTION_ARG_1] = await decryptActionBoundArgs("406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", $$ACTION_CLOSURE_BOUND);
     console.log($$ACTION_ARG_0.find((x)=>x === $$ACTION_ARG_1));
 }, "406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null);
@@ -9,7 +9,7 @@ export const $$RSC_SERVER_ACTION_0 = registerServerReference(async function acti
       <button>submit</button>
     </form>;
 }
-export const $$RSC_SERVER_ACTION_1 = registerServerReference(async function action($$ACTION_CLOSURE_BOUND) {
+export const $$RSC_SERVER_ACTION_1 = /*#__PURE__*/ registerServerReference(async function action($$ACTION_CLOSURE_BOUND) {
     var [$$ACTION_ARG_0, $$ACTION_ARG_1] = await decryptActionBoundArgs("4090b5db271335765a4b0eab01f044b381b5ebd5cd", $$ACTION_CLOSURE_BOUND);
     console.log($$ACTION_ARG_0.find(function(x) {
         return x === $$ACTION_ARG_1;

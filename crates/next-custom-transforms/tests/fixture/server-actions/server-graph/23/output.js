@@ -1,10 +1,10 @@
 import { registerServerReference } from "private-next-rsc-server-reference";
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
-export const $$RSC_SERVER_ACTION_0 = registerServerReference(async function action($$ACTION_CLOSURE_BOUND, a, b, c, d) {
+export const $$RSC_SERVER_ACTION_0 = /*#__PURE__*/ registerServerReference(async function action($$ACTION_CLOSURE_BOUND, a, b, c, d) {
     var [$$ACTION_ARG_0] = await decryptActionBoundArgs("7c6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", $$ACTION_CLOSURE_BOUND);
     console.log(a, b, $$ACTION_ARG_0, c, d);
 }, "7c6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null);
-export const $$RSC_SERVER_ACTION_1 = registerServerReference(async function action2($$ACTION_CLOSURE_BOUND, a, b, c, d) {
+export const $$RSC_SERVER_ACTION_1 = /*#__PURE__*/ registerServerReference(async function action2($$ACTION_CLOSURE_BOUND, a, b, c, d) {
     var [$$ACTION_ARG_0] = await decryptActionBoundArgs("7c90b5db271335765a4b0eab01f044b381b5ebd5cd", $$ACTION_CLOSURE_BOUND);
     console.log(a, b, $$ACTION_ARG_0, c, d);
 }, "7c90b5db271335765a4b0eab01f044b381b5ebd5cd", null);

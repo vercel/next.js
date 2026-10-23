@@ -11,7 +11,7 @@ export { Foo };
 export { type Bar };
 let $$RSC_SERVER_CACHE_foo = foo;
 if (typeof foo === "function") {
-    $$RSC_SERVER_CACHE_foo = Object["defineProperty"](registerServerReference($$reactCache__(function() {
+    $$RSC_SERVER_CACHE_foo = /*#__PURE__*/ Object["defineProperty"](/*#__PURE__*/ registerServerReference(/*#__PURE__*/ $$reactCache__(function() {
         return $$cache__("default", "ffab21efdafbe611287bc25c0462b1e0510d13e48b", 0, foo, Array.prototype.slice.call(arguments));
     }), "ffab21efdafbe611287bc25c0462b1e0510d13e48b", null), "name", {
         value: "foo"
@@ -20,7 +20,7 @@ if (typeof foo === "function") {
 export { $$RSC_SERVER_CACHE_foo as foo };
 let $$RSC_SERVER_CACHE_bar = bar;
 if (typeof bar === "function") {
-    $$RSC_SERVER_CACHE_bar = Object["defineProperty"](registerServerReference($$reactCache__(function() {
+    $$RSC_SERVER_CACHE_bar = /*#__PURE__*/ Object["defineProperty"](/*#__PURE__*/ registerServerReference(/*#__PURE__*/ $$reactCache__(function() {
         return $$cache__("default", "ffac840dcaf5e8197cb02b7f3a43c119b7a770b272", 0, bar, Array.prototype.slice.call(arguments));
     }), "ffac840dcaf5e8197cb02b7f3a43c119b7a770b272", null), "name", {
         value: "bar"

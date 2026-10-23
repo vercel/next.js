@@ -1,5 +1,5 @@
 /* __next_internal_action_entry_do_not_use__ {"00c18c215a6b7cdc64bf709f3a714ffdef1bf9651d":{"name":"default"}} */ import { registerServerReference } from "private-next-rsc-server-reference";
-const $$RSC_SERVER_ACTION_0 = Object["defineProperty"](async function() {}, "name", {
+const $$RSC_SERVER_ACTION_0 = /*#__PURE__*/ Object["defineProperty"](async function() {}, "name", {
     value: "default"
 });
 export default $$RSC_SERVER_ACTION_0;
