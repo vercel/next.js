@@ -57,4 +57,42 @@ describe('standalone mode - tracing-static-files', () => {
     expect(trace.files).not.toContain('../../../data/unrelated.txt')
     expect(trace.files).not.toContain('../../../next.config.js')
   })
+
+  it('should keep dynamic alternatives of fs paths in external packages', async () => {
+    let trace = await next.readJSON('.next/server/app/page.js.nft.json')
+
+    // External packages are traced without the project root: `process.cwd()` is
+    // unknown there and relative paths resolve from the module's directory, so
+    // project files referenced by the package are currently not traced.
+    for (const name of [
+      'cwd',
+      'rel-join',
+      'rel-read',
+      'nullish',
+      'default-param',
+    ]) {
+      expect(trace.files).not.toContain(
+        `../../../data/static-from-ext-${name}.txt`
+      )
+    }
+
+    if (process.env.IS_TURBOPACK_TEST) {
+      // External packages are traced without ignoring dynamic requests, so the
+      // dynamic alternatives are kept and traced relative to the reading
+      // module's directory, which pulls in otherwise unreferenced files there.
+      for (const name of ['nullish', 'default-param', 'bare-dynamic']) {
+        expect(trace.files).toContainEqual(
+          expect.stringMatching(
+            new RegExp(
+              `/node_modules/external-dynamic/${name}/sentinel-${name}\\.txt$`
+            )
+          )
+        )
+      }
+    }
+
+    // ...but they don't cause the whole project to be traced
+    expect(trace.files).not.toContain('../../../data/unrelated.txt')
+    expect(trace.files).not.toContain('../../../next.config.js')
+  })
 })

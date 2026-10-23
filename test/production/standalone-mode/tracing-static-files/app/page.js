@@ -1,6 +1,7 @@
 import path from 'path'
 
 import 'foo'
+import 'external-dynamic'
 import {
   readNullishFallback,
   readDefaultParam,
