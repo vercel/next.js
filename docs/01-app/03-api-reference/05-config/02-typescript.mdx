@@ -36,7 +36,7 @@ Next.js uses the project-local `tsc` CLI by default, so no additional configurat
 > **Good to know**:
 >
 > - CLI type checking prints the native `tsc` diagnostics. It does not apply Next.js-specific code frames or rewrite errors for routes, pages, layouts, or route handlers.
-> - The CLI checks the complete project selected by your `tsconfig` file. This includes test files and `.next/dev/types` when they are included by that configuration. When no `next dev` server is running, `next build` removes `.next/dev/types` before type checking. [`next build --debug-build-paths`](/docs/app/api-reference/cli/next#next-build-options) does not narrow the files that are type checked and produces a warning when used with this option.
+> - The CLI checks the complete project selected by your `tsconfig` file. This includes test files and `.next/dev/types` when they are included by that configuration. When no `next dev` server is running, `next build` removes `.next/dev/types` before type checking. Route types in `.next/types` are regenerated for every route before type checking. [`next build --debug-build-paths`](/docs/app/api-reference/cli/next#next-build-options) does not narrow the files that are type checked and produces a warning when used with this option.
 > - [`typescript.tsconfigPath`](#custom-tsconfig-path) continues to select the configuration passed to `tsc`. [`typescript.ignoreBuildErrors`](#disabling-typescript-errors-in-production) skips the type-checking step, including the CLI checker.
 > - `experimental.useTypeScriptCli` is experimental and its behavior may change.
 
@@ -346,7 +346,7 @@ export function Nav() {
 
 ### Type IntelliSense for Environment Variables
 
-During development, Next.js generates a `.d.ts` file in `.next/types` that contains information about the loaded environment variables for your editor's IntelliSense. If the same environment variable key is defined in multiple files, it is deduplicated according to the [Environment Variable Load Order](/docs/app/guides/environment-variables#environment-variable-load-order).
+During development, Next.js generates a `.d.ts` file in `.next/dev/types` that contains information about the loaded environment variables for your editor's IntelliSense. If the same environment variable key is defined in multiple files, it is deduplicated according to the [Environment Variable Load Order](/docs/app/guides/environment-variables#environment-variable-load-order).
 
 To opt-into this feature, `experimental.typedEnv` needs to be enabled and the project needs to be using TypeScript.
 

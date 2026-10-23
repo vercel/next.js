@@ -5,15 +5,17 @@ import path from 'path'
 import * as Log from '../../build/output/log'
 
 /**
- * Removes the route types a previous `next dev` session wrote to
- * `{distDirRoot}/dev/types`.
+ * Removes the types a previous `next dev` session wrote to
+ * `{distDirRoot}/dev/types`: dev-specific types (`env.d.ts`, webpack type
+ * guards), and copies of the route types that older versions wrote there
+ * before they were shared in `{distDirRoot}/types` (see `getSharedTypesDir`).
  *
  * tsconfig includes both `{distDirRoot}/types` and `{distDirRoot}/dev/types` to avoid
  * config churn between dev and build. Once `next dev` has stopped, its types are
- * no longer updated, so after a route is moved or deleted they reference files
- * that no longer exist and fail type checking (e.g. a `tsc` run after
+ * no longer updated, so after a route is moved or deleted they can reference
+ * files that no longer exist and fail type checking (e.g. a `tsc` run after
  * `next typegen`, or the TypeScript CLI type check of `next build`). `next dev`
- * regenerates them on startup, so removing them loses nothing.
+ * regenerates them, so removing them loses nothing.
  *
  * The types of a running `next dev` server are kept up to date by that server,
  * so they are left in place. Running servers are detected through the dev

@@ -104,23 +104,20 @@ import { IncompatibleParallelRouteSlotsError } from '../../../shared/lib/errors/
 import { findMissingCanonicalInterceptionRoutes } from '../../../shared/lib/router/utils/interception-routes'
 import { getStrictRouteMatchingDefaultWarning } from './strict-route-matching-config'
 import {
-  createRouteTypesManifest,
-  writeRouteTypesManifest,
-  writeValidatorFile,
-} from './route-types-utils'
-import { writeCacheLifeTypes } from './cache-life-type-utils'
-import { writeRootParamsTypes } from './root-params-type-utils'
+  createSharedTypesScheduler,
+  generateSharedTypes,
+  writeSharedTypePlaceholders,
+} from '../../../lib/typescript/shared-types'
 import {
-  addSlotIfNew,
-  type RouteInfo,
-  type SlotInfo,
-} from '../../../build/file-classifier'
+  getSharedTypesDir,
+  getSharedTypesDistDir,
+} from '../../../lib/typescript/shared-types-dir'
+import type { RouteInfo } from '../../../build/file-classifier'
 import {
   normalizeAppPath,
   compareAppPaths,
   selectAppPageEntry,
 } from '../../../shared/lib/router/utils/app-paths'
-import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
 import { Lockfile, type DevServerInfo } from '../../../build/lockfile'
 import { deobfuscateText } from '../../../shared/lib/magic-identifier'
 import { RouteKind } from '../../route-kind'
@@ -179,6 +176,9 @@ async function verifyTypeScript(opts: SetupOpts) {
   const verifyResult = await verifyAndRunTypeScript({
     dir: opts.dir,
     distDir: opts.nextConfig.distDir,
+    // `next-env.d.ts` imports the types shared with `next build` and
+    // `next typegen`, see `getSharedTypesDir`.
+    typesDistDir: getSharedTypesDistDir(opts.nextConfig),
     strictRouteTypes: Boolean(opts.nextConfig.experimental.strictRouteTypes),
     shouldRunTypeCheck: false,
     tsconfigPath: opts.nextConfig.typescript.tsconfigPath,
@@ -301,26 +301,33 @@ async function startWatcher(
 
   await hotReloader.start()
 
-  const distTypesDir = path.join(distDir, 'types')
-  await writeRouteTypesManifest(
-    {
-      appRoutes: {},
-      pageRoutes: {},
-      layoutRoutes: {},
-      appRouteHandlerRoutes: {},
-      redirectRoutes: {},
-      rewriteRoutes: {},
-      appPagePaths: new Set(),
-      pagesRouterPagePaths: new Set(),
-      layoutPaths: new Set(),
-      appRouteHandlers: new Set(),
-      pageApiRoutes: new Set(),
-      filePathToRoute: new Map(),
-      rootParams: new Map(),
-    },
-    path.join(distTypesDir, 'routes.d.ts'),
-    opts.nextConfig
+  // Route types are shared with `next build` and `next typegen`. Create any
+  // missing file `next-env.d.ts` imports so the imports resolve, then
+  // generate them in the background without delaying startup.
+  await writeSharedTypePlaceholders({
+    typesDir: getSharedTypesDir(opts.dir, nextConfig),
+    strictRouteTypes: Boolean(nextConfig.experimental.strictRouteTypes),
+    typedRoutes: nextConfig.typedRoutes === true,
+  }).catch((err) => {
+    Log.warn('Failed to create route type placeholders:', err)
+  })
+  // Copies of these types that older versions wrote to the dev `distDir` are
+  // gone: the hot reloader cleans the dev `distDir` when it starts.
+  const sharedTypes = createSharedTypesScheduler(() =>
+    generateSharedTypes({
+      dir: opts.dir,
+      config: nextConfig,
+      appDir,
+      pagesDir,
+    })
   )
+  // Generate once on startup, also when Watchpack never reports an aggregation
+  // (e.g. empty route directories).
+  sharedTypes.schedule()
+  // The route files that were last used to generate the shared types. Their
+  // contents don't affect the generated types, so only additions and
+  // removals regenerate them.
+  let sharedTypesRouteFilesKey: string | undefined
 
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
   const routesManifest: DevRoutesManifest = {
@@ -469,9 +476,6 @@ async function startWatcher(
     let hadInitialScan = false
     let previousDuplicatePagePaths: Set<string> = new Set()
 
-    const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
-    const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
-
     let initialWatchTime = performance.now() + performance.timeOrigin
     // Startup only waits this long for Watchpack to observe the files found by
     // the snapshot above, so a file it never reports cannot stall the server.
@@ -511,9 +515,6 @@ async function startWatcher(
       const appRouteHandlers: Array<RouteInfo & { page: string }> = []
       const pageApiRoutes: RouteInfo[] = []
       const pageRoutes: RouteInfo[] = []
-      const appRoutes: RouteInfo[] = []
-      const layoutRoutes: RouteInfo[] = []
-      const slots: SlotInfo[] = []
 
       let envFileChange = false
       let clientRouterFiltersChange = false
@@ -750,9 +751,6 @@ async function startWatcher(
           // Skip files/directories starting with `_` in the app directory
           if (normalizedPageName.includes('/_')) continue
 
-          // Record parallel route slots
-          addSlotIfNew(slots, normalizedPageName)
-
           // Handle layouts separately - they don't get added to appPaths
           if (validFileMatcher.isAppLayoutPage(fileName)) {
             const layoutPath =
@@ -760,10 +758,6 @@ async function startWatcher(
                 .replace(/%5F/g, '_')
                 .replace(/\/layout$/, '') || '/'
             parallelRouteLayoutFiles.set(layoutPath, fileName)
-            const layoutRoute = ensureLeadingSlash(
-              normalizeAppPath(normalizedPageName).replace(/\/layout$/, '')
-            )
-            layoutRoutes.push({ route: layoutRoute, filePath: fileName })
             continue
           }
 
@@ -777,7 +771,6 @@ async function startWatcher(
 
           const originalPageName = pageName
           pageName = normalizeAppPath(pageName).replace(/%5F/g, '_')
-          const appRoute = normalizePathSep(pageName)
           const appPath = opts.turbo
             ? originalPageName.replace(/%5F/g, '_')
             : originalPageName
@@ -802,11 +795,12 @@ async function startWatcher(
             }
           }
 
-          const routeEntry = { route: appRoute, filePath: fileName }
           if (isAppRouteRoute(appPath)) {
-            appRouteHandlers.push({ ...routeEntry, page: appPath })
-          } else {
-            appRoutes.push(routeEntry)
+            appRouteHandlers.push({
+              route: normalizePathSep(pageName),
+              filePath: fileName,
+              page: appPath,
+            })
           }
 
           if (routedPages.includes(pageName)) continue
@@ -1436,40 +1430,24 @@ async function startWatcher(
             })
           }
 
-          const routeTypesManifest = await createRouteTypesManifest({
-            dir,
-            pageRoutes,
-            appRoutes,
-            layoutRoutes,
-            slots,
-            redirects: opts.nextConfig.redirects,
-            rewrites: opts.nextConfig.rewrites,
-            // Ensure relative paths in validator.ts are computed from validatorFilePath,
-            // matching behavior of build and CLI typegen.
-            validatorFilePath,
-            appRouteHandlers,
-            pageApiRoutes,
-          })
-
-          await writeRouteTypesManifest(
-            routeTypesManifest,
-            routeTypesFilePath,
-            opts.nextConfig
-          )
-          await writeValidatorFile(
-            routeTypesManifest,
-            validatorFilePath,
-            Boolean(nextConfig.experimental.strictRouteTypes)
-          )
-
-          // Generate cache-life types if cacheLife config exists
-          const cacheLifeFilePath = path.join(distTypesDir, 'cache-life.d.ts')
-          writeCacheLifeTypes(opts.nextConfig.cacheLife, cacheLifeFilePath)
-
-          await writeRootParamsTypes(
-            routeTypesManifest,
-            path.join(distTypesDir, 'root-params.d.ts')
-          )
+          // Regenerate the shared route types when route files were added or
+          // removed. Debounced, and never runs concurrently with itself.
+          const routeFilesKey = [...devPageFiles]
+            .filter(
+              (file) =>
+                !appDir ||
+                !normalizePathSep(file).startsWith(
+                  normalizePathSep(appDir) + '/'
+                ) ||
+                validFileMatcher.isAppRouterPage(file) ||
+                validFileMatcher.isAppLayoutPage(file) ||
+                validFileMatcher.isAppDefaultPage(file)
+            )
+            .join('\n')
+          if (routeFilesKey !== sharedTypesRouteFilesKey) {
+            sharedTypesRouteFilesKey = routeFilesKey
+            sharedTypes.schedule()
+          }
         }
 
         if (!resolved) {
