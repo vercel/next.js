@@ -1,0 +1,110 @@
+body {
+  font-family: Helvetica Neue, Helvetica, Arial, sans-serif;
+  color: #747474;
+  text-align: center;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+nav {
+  border-bottom: solid 1px #cccccc;
+}
+
+nav a {
+  display: inline-block;
+  padding: 10px;
+  text-decoration: none;
+  color: #ababab;
+}
+
+nav a:hover {
+  color: #00b39b;
+}
+
+img {
+  max-width: 300px;
+}
+
+.languages {
+  display: inline-block;
+}
+
+.languages span {
+  margin-left: 1rem;
+}
+
+.languages span:hover,
+.languages span[data-active='true'] {
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+h1 {
+  color: #00b39b;
+  font-weight: 200;
+}
+
+h2 {
+  color: #00b39b;
+  font-weight: 200;
+}
+
+ul {
+  padding: 0;
+  list-style: none;
+}
+
+footer {
+  padding: 20px;
+  border-top: 1px solid #eef2f2;
+  font-size: 0.75rem;
+  color: #ababab;
+}
+
+.active {
+  color: black;
+}
+
+.expander {
+  border: solid 1px #cccccc;
+  box-shadow: 0 10px 16px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19) !important;
+  vertical-align: middle;
+  margin-bottom: 20px;
+}
+
+.expanderHeader {
+  cursor: pointer;
+  margin: 5px;
+}
+
+.expanderIcon {
+  width: 1em;
+  height: 1em;
+  display: inline-block;
+  font-size: 1.5rem;
+  vertical-align: middle;
+}
+
+.open .expanderIcon {
+  transform: rotate(180deg);
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+}
+
+.closed .expanderIcon {
+  transform: rotate(0deg);
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+}
+
+.hint {
+  font-size: 0.7em;
+}
+
+.disable-a-pointer-events a {
+  pointer-events: none;
+}
