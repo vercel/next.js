@@ -60,6 +60,11 @@ import type { AppSharedContext } from '../server/app-render/app-render'
 import { MultiFileWriter } from '../lib/multi-file-writer'
 import { createRenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
 import { getExportPathPageKey } from './utils'
+import {
+  assertExportResultsFitInIpcMessage,
+  shouldCheckExportResultsMessageSize,
+} from './ipc-message-size'
+import { isMainThread } from 'worker_threads'
 import { installGlobalBehaviors } from '../server/node-environment-extensions/global-behaviors'
 ;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,
@@ -573,6 +578,19 @@ export async function exportPages(
     )
 
     results.push(...subsetResults)
+  }
+
+  // The results are sent back to the main process as one IPC message. When
+  // that message is too large, the child process IPC channel fails to
+  // serialize it outside of this function, and the main process would wait
+  // for the results forever. Fail with an actionable error instead.
+  if (
+    shouldCheckExportResultsMessageSize({
+      isMainThread,
+      hasIpcChannel: typeof process.send === 'function',
+    })
+  ) {
+    assertExportResultsFitInIpcMessage(results, exportPaths.length)
   }
 
   return results
