@@ -5,7 +5,7 @@ use crossbeam_utils::CachePadded;
 use parking_lot::{Mutex, MutexGuard};
 use thread_local::ThreadLocal;
 
-use crate::tracing::{DeltaEncodedTimestamp, TimestampEncoder, TraceRow};
+use crate::tracing::{DeltaEncodedTimestamp, TRACE_HEADER, TimestampEncoder, TraceRow};
 
 type ThreadLocalState = CachePadded<Mutex<Option<TraceInfoBuffer>>>;
 
@@ -112,7 +112,7 @@ impl TraceWriter {
         }
 
         let handle: std::thread::JoinHandle<()> = std::thread::spawn(move || {
-            let _ = writer.write(b"TRACEv0");
+            let _ = writer.write(TRACE_HEADER);
             let mut buf = Vec::with_capacity(WRITE_BUFFER_SIZE);
             let mut stolen_buffers = Vec::new();
             let mut should_exit = false;
@@ -349,7 +349,7 @@ mod tests {
 
     use crate::{
         trace_writer::{THREAD_LOCAL_INITIAL_BUFFER_SIZE, TraceWriter, WriteGuard},
-        tracing::{TimestampDecoder, TraceRow},
+        tracing::{TRACE_HEADER, TimestampDecoder, TraceRow},
     };
 
     #[derive(Clone, Default)]
@@ -373,7 +373,7 @@ mod tests {
         drop(writer);
         drop(guard);
         let data = Arc::try_unwrap(buffer.0).unwrap().into_inner().unwrap();
-        data.strip_prefix(b"TRACEv0").unwrap().to_vec()
+        data.strip_prefix(TRACE_HEADER).unwrap().to_vec()
     }
 
     #[test]
