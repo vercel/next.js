@@ -229,11 +229,13 @@ impl<'a, T> TraceRow<'a, T> {
                 ts,
                 memory,
                 memory_pressure,
+                memory_footprint,
                 active_worker_threads,
             } => TraceRow::MemorySample {
                 ts: f(ts)?,
                 memory,
                 memory_pressure,
+                memory_footprint,
                 active_worker_threads,
             },
             TraceRow::TimestampBase { ts } => TraceRow::TimestampBase { ts },
@@ -554,6 +556,46 @@ mod tests {
         assert!(matches!(record, TraceRow::Record { id: 5, .. }));
         // No base was needed and none is pending: the first timestamp still gets a base.
         assert!(encoder.encode_row(end(1)).0.is_some());
+    }
+
+    #[test]
+    fn memory_sample_keeps_all_fields() {
+        let mut encoder = TimestampEncoder::default();
+        let (base, row) = encoder.encode_row(TraceRow::<u64>::MemorySample {
+            ts: 1234,
+            memory: 1 << 30,
+            memory_pressure: 42,
+            memory_footprint: 3 << 30,
+            active_worker_threads: 7,
+        });
+        // Through the serialized form, like a reader sees it
+        let bytes: Vec<Vec<u8>> = base
+            .into_iter()
+            .chain([row])
+            .map(|row| postcard::to_stdvec(&row).unwrap())
+            .collect();
+        let mut decoder = TimestampDecoder::default();
+        let mut decoded = None;
+        for bytes in &bytes {
+            let row: TraceRow<'_> = postcard::from_bytes(bytes).unwrap();
+            decoded = Some(decoder.decode(row).unwrap());
+        }
+        match decoded.unwrap() {
+            TraceRow::MemorySample {
+                ts,
+                memory,
+                memory_pressure,
+                memory_footprint,
+                active_worker_threads,
+            } => {
+                assert_eq!(ts, 1234);
+                assert_eq!(memory, 1 << 30);
+                assert_eq!(memory_pressure, 42);
+                assert_eq!(memory_footprint, 3 << 30);
+                assert_eq!(active_worker_threads, 7);
+            }
+            row => panic!("expected a MemorySample, got {row:?}"),
+        }
     }
 
     #[test]
