@@ -271,6 +271,7 @@ export function getInstrumentationEntry(opts: {
   absolutePagePath: string
   isEdgeServer: boolean
   isDev: boolean
+  modules: string[]
 }) {
   // the '../' is needed to make sure the file is not chunked
   const filename = `${
@@ -278,7 +279,9 @@ export function getInstrumentationEntry(opts: {
   }${INSTRUMENTATION_HOOK_FILENAME}.js`
 
   return {
-    import: opts.absolutePagePath,
+    import: opts.modules.length
+      ? `next-instrumentation-loader?${JSON.stringify({ modules: opts.modules })}!${opts.absolutePagePath}`
+      : opts.absolutePagePath,
     filename,
     layer: WEBPACK_LAYERS.instrument,
   }
@@ -666,6 +669,7 @@ export async function createEntrypoints(
                 absolutePagePath,
                 isEdgeServer: false,
                 isDev: false,
+                modules: config.instrumentationInject,
               })
           } else if (isMiddlewareFile(page)) {
             server[serverBundlePath.replace('src/', '')] = getEdgeServerEntry({
@@ -718,6 +722,7 @@ export async function createEntrypoints(
                 absolutePagePath,
                 isEdgeServer: true,
                 isDev: false,
+                modules: config.instrumentationInject,
               })
           } else {
             if (pagesType === 'app') {

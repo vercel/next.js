@@ -108,6 +108,7 @@ pub struct NextConfig {
     images: ImageConfig,
     page_extensions: Vec<RcStr>,
     instrumentation_client_inject: Option<Vec<RcStr>>,
+    instrumentation_inject: Option<Vec<RcStr>>,
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
     react_production_profiling: Option<bool>,
     react_strict_mode: Option<bool>,
@@ -1769,6 +1770,11 @@ impl NextConfig {
                 .clone()
                 .unwrap_or_default(),
         )
+    }
+
+    #[turbo_tasks::function]
+    pub fn instrumentation_inject(&self) -> Vc<Vec<RcStr>> {
+        Vc::cell(self.instrumentation_inject.clone().unwrap_or_default())
     }
 
     #[turbo_tasks::function]

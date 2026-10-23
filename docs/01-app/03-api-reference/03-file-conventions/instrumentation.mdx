@@ -144,6 +144,10 @@ export function onRequestError() {
 }
 ```
 
+## Config plugins
+
+`next.config` plugins can add server instrumentation modules using [`instrumentationInject`](/docs/app/api-reference/config/next-config-js/instrumentationInject), without creating or modifying this file. Injected modules load first, and their `register` and `onRequestError` hooks run in array order before the corresponding hook in this file. Application code should generally continue to use this file convention directly.
+
 ## Version History
 
 | Version   | Changes                                                 |

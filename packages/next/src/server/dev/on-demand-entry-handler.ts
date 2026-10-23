@@ -403,7 +403,8 @@ export async function findPagePathData(
   extensions: string[],
   pagesDir: string | undefined,
   appDir: string | undefined,
-  isGlobalNotFoundEnabled: boolean
+  isGlobalNotFoundEnabled: boolean,
+  hasInjectedInstrumentation = false
 ): Promise<PagePathData> {
   const normalizedPagePath = tryToNormalizePagePath(page)
   let pagePath: string | null = null
@@ -418,6 +419,15 @@ export async function findPagePathData(
     )
 
     if (!pagePath) {
+      if (isInstrumentation && hasInjectedInstrumentation) {
+        return {
+          filename: require.resolve(
+            '../../build/webpack/loaders/instrumentation-stub'
+          ),
+          bundlePath: 'instrumentation',
+          page: '/instrumentation',
+        }
+      }
       throw new PageNotFoundError(normalizedPagePath)
     }
 
@@ -841,7 +851,8 @@ export function onDemandEntryHandler({
           nextConfig.pageExtensions,
           pagesDir,
           appDir,
-          !!nextConfig.experimental.globalNotFound
+          !!nextConfig.experimental.globalNotFound,
+          nextConfig.instrumentationInject.length > 0
         )
       }
 

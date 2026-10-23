@@ -1,0 +1,72 @@
+---
+title: instrumentationInject
+description: Inject additional server instrumentation modules before the application's instrumentation.js file.
+---
+
+`instrumentationInject` is a list of server instrumentation modules loaded before the application's [`instrumentation.js|ts`](/docs/app/api-reference/file-conventions/instrumentation) file.
+
+```ts filename="next.config.ts" highlight={4}
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  instrumentationInject: [
+    'my-instrumentation-package/server',
+    './lib/instrumentation.ts',
+  ],
+}
+
+export default nextConfig
+```
+
+## Reference
+
+The option accepts an array of module specifiers and defaults to `[]`. Each entry can be:
+
+- A package name or package subpath, resolved from the project's `node_modules`.
+- A path relative to the project root, even when the application uses a `src` directory.
+
+Each module can export the same optional [`register`](/docs/app/api-reference/file-conventions/instrumentation#register-optional) and [`onRequestError`](/docs/app/api-reference/file-conventions/instrumentation#onrequesterror-optional) functions as an instrumentation file. Modules with neither export are loaded for their side effects.
+
+## Execution order
+
+Next.js loads each injected module in array order, followed by the application's instrumentation file, if present. It then calls and awaits each module's `register()` in the same order, with the application's `register()` running last. Registration completes before the server handles requests.
+
+If loading a module or calling its `register()` fails, registration fails, just as it does for an application's instrumentation file.
+
+When a server request error occurs, Next.js calls and awaits every exported `onRequestError` in array order, with the application's hook running last. Each hook receives the same error, request, and context arguments. A hook that throws or rejects is logged without preventing subsequent hooks from running.
+
+## Runtime targeting
+
+Injected modules run in both the Node.js and Edge runtimes. Use `process.env.NEXT_RUNTIME` to conditionally import runtime-specific dependencies, as with the [`instrumentation` file convention](/docs/app/api-reference/file-conventions/instrumentation#specifying-the-runtime).
+
+```ts filename="lib/instrumentation.ts"
+export async function register() {
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    await import('./instrumentation.node')
+  } else {
+    await import('./instrumentation.edge')
+  }
+}
+```
+
+## Config plugins
+
+This option is primarily intended for `next.config` plugins. A plugin can append a module without creating or modifying the application's instrumentation file:
+
+```js filename="withMyInstrumentation.js"
+module.exports = function withMyInstrumentation(nextConfig = {}) {
+  return {
+    ...nextConfig,
+    instrumentationInject: [
+      ...(nextConfig.instrumentationInject ?? []),
+      'my-instrumentation-package/server',
+    ],
+  }
+}
+```
+
+## Good to know
+
+- An application instrumentation file is not required. Injected modules work independently of it.
+- Application code should generally continue to use the [`instrumentation` file convention](/docs/app/api-reference/file-conventions/instrumentation) directly.
+- This option only affects server instrumentation. Use [`instrumentationClientInject`](/docs/app/api-reference/config/next-config-js/instrumentationClientInject) for client instrumentation.

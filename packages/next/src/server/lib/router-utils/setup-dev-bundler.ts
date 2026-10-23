@@ -534,6 +534,7 @@ async function startWatcher(
 
       let proxyFilePath: string | undefined
       let middlewareFilePath: string | undefined
+      let instrumentationHookFile: string | undefined
 
       for (const fileName of sortedKnownFiles) {
         if (
@@ -674,12 +675,7 @@ async function startWatcher(
           continue
         }
         if (isInstrumentationHookFile(rootFile)) {
-          serverFields.actualInstrumentationHookFile = rootFile
-          await propagateServerField(
-            opts,
-            'actualInstrumentationHookFile',
-            serverFields.actualInstrumentationHookFile
-          )
+          instrumentationHookFile = rootFile
           continue
         }
 
@@ -874,6 +870,18 @@ async function startWatcher(
         }
 
         routedPages.push(pageName)
+      }
+
+      // Config plugins can provide instrumentation without a convention file.
+      // Wait until the scan completes so a user file takes precedence.
+      if (instrumentationHookFile || nextConfig.instrumentationInject.length) {
+        serverFields.actualInstrumentationHookFile =
+          instrumentationHookFile || '/instrumentation'
+        await propagateServerField(
+          opts,
+          'actualInstrumentationHookFile',
+          serverFields.actualInstrumentationHookFile
+        )
       }
 
       const numConflicting = conflictingAppPagePaths.size

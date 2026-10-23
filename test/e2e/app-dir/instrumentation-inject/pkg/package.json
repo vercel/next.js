@@ -1,0 +1,7 @@
+{
+  "name": "instrumentation-test-package",
+  "version": "1.0.0",
+  "exports": {
+    "./setup": "./setup.cjs"
+  }
+}

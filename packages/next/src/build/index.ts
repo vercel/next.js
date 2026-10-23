@@ -1535,7 +1535,9 @@ export default async function build(
         )
       }
 
-      const hasInstrumentationHook = Boolean(instrumentationHookFilePath)
+      const hasInstrumentationHook = Boolean(
+        instrumentationHookFilePath || config.instrumentationInject.length
+      )
       const hasMiddlewareFile = Boolean(middlewareFilePath)
       const hasProxyFile = Boolean(proxyFilePath)
 
@@ -1584,6 +1586,12 @@ export default async function build(
             appDirOnly,
           })
         )
+
+      if (!instrumentationHookFilePath && config.instrumentationInject.length) {
+        NextBuildContext.mappedRootPaths['/instrumentation'] = require.resolve(
+          './webpack/loaders/instrumentation-stub'
+        )
+      }
 
       const {
         pageRoutes,

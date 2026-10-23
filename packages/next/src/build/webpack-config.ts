@@ -1373,6 +1373,7 @@ export default async function getBaseWebpackConfig(
         'next-swc-loader',
         'next-client-pages-loader',
         'next-instrumentation-client-loader',
+        'next-instrumentation-loader',
         'next-image-loader',
         'next-metadata-image-loader',
         'next-style-loader',

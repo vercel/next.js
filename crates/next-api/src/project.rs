@@ -13,7 +13,7 @@ use next_core::{
     app_structure::find_app_dir,
     emit_assets, get_edge_chunking_context, get_edge_chunking_context_with_client_assets,
     get_edge_compile_time_info, get_edge_resolve_options_context,
-    instrumentation::instrumentation_files,
+    instrumentation::{create_instrumentation_source, instrumentation_files},
     middleware::middleware_files,
     mode::NextMode,
     next_app::{AppPage, AppPath},
@@ -2194,7 +2194,13 @@ impl Project {
         };
 
         let instrumentation = self.find_instrumentation();
-        let instrumentation = if let FindContextFileResult::Found(..) = *instrumentation.await? {
+        let instrumentation = if matches!(*instrumentation.await?, FindContextFileResult::Found(..))
+            || !self
+                .next_config()
+                .instrumentation_inject()
+                .await?
+                .is_empty()
+        {
             Some(Instrumentation {
                 node_js: self.instrumentation_endpoint(false).to_resolved().await?,
                 edge: self.instrumentation_endpoint(true).to_resolved().await?,
@@ -2538,11 +2544,17 @@ impl Project {
         self: Vc<Self>,
         is_edge: bool,
     ) -> Result<Vc<Box<dyn Endpoint>>> {
-        let instrumentation = self.find_instrumentation();
-        let FindContextFileResult::Found(fs_path, _) = &*instrumentation.await? else {
-            return Ok(Vc::upcast(EmptyEndpoint::new(self)));
+        let instrumentation = self.find_instrumentation().await?;
+        let user_file = match &*instrumentation {
+            FindContextFileResult::Found(fs_path, _) => Some(fs_path.clone()),
+            _ => None,
         };
-        let source = Vc::upcast(FileSource::new(fs_path.clone()));
+        let modules = self.next_config().instrumentation_inject();
+        if user_file.is_none() && modules.await?.is_empty() {
+            return Ok(Vc::upcast(EmptyEndpoint::new(self)));
+        }
+        let source =
+            create_instrumentation_source(self.project_path().owned().await?, user_file, modules);
         let app_dir = find_app_dir(self.project_path().owned().await?)
             .owned()
             .await?;
