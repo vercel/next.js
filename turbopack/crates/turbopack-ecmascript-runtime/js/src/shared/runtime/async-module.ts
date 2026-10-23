@@ -121,7 +121,9 @@ function asyncModule(
   hasAwait: boolean
 ) {
   const module = this.m
-  const queue: AsyncQueue = Object.assign([], { status: QueueStatus.Unknown })
+  let queue: AsyncQueue | undefined = hasAwait
+    ? Object.assign([], { status: QueueStatus.Unknown })
+    : undefined
 
   const depQueues: Set<AsyncQueue> = new Set()
 
@@ -130,7 +132,7 @@ function asyncModule(
   const promise: AsyncModulePromise = Object.assign(rawPromise, {
     [turbopackExports]: module.exports,
     [turbopackQueues]: (fn) => {
-      fn(queue)
+      queue && fn(queue)
       depQueues.forEach(fn)
       promise['catch'](() => {})
     },
@@ -164,7 +166,9 @@ function asyncModule(
 
     const fn: AsyncQueueFn = Object.assign(
       () => {
-        queue.status = QueueStatus.Unresolved
+        if (!queue) {
+          queue = Object.assign([], { status: QueueStatus.Unresolved })
+        }
         resolve(getResult)
       },
       { queueCount: 0 }
@@ -193,11 +197,14 @@ function asyncModule(
     }
 
     resolveQueue(queue)
+    if (!hasAwait) {
+      queue = undefined
+    }
   }
 
   body(handleAsyncDependencies, asyncResult)
 
-  if (hasAwait && queue.status === QueueStatus.Unknown) {
+  if (queue && queue.status === QueueStatus.Unknown) {
     queue.status = QueueStatus.Unresolved
   }
 }
