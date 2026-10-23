@@ -33,7 +33,7 @@ import {
 } from './segment-cache/cache-key'
 import type { CacheMap } from './segment-cache/cache-map'
 import { schedulePrefetchTask } from './segment-cache/scheduler'
-import { PrefetchPriority, FetchStrategy } from './segment-cache/types'
+import { PrefetchPriority, AppStage } from './segment-cache/types'
 import { getLinkForCurrentNavigation } from './links'
 import type { AppRouterState } from './router-reducer/router-reducer-types'
 import { ScrollBehavior } from './router-reducer/router-reducer-types'
@@ -261,10 +261,11 @@ export function navigateToKnownRoute(
     process.env.NODE_ENV !== 'production' &&
     process.env.__NEXT_CACHE_COMPONENTS
   ) {
-    // Warn when navigating via a `<Link prefetch={true}>` to a route that has
-    // not opted into Partial Prefetching. Such a link does a legacy "full"
-    // prefetch that includes the route's dynamic data, defeating the
-    // static/dynamic split that Cache Components provides.
+    // Warn when navigating via a link that asks for more than the shell, like
+    // `<Link prefetch={true}>`, to a route that has not opted into Partial
+    // Prefetching. Such a link does a legacy "full" prefetch that includes the
+    // route's dynamic data, defeating the static/dynamic split that Cache
+    // Components provides.
     //
     // This runs at navigation time (rather than prefetch time) so that, in dev
     // where we don't prefetch, the warning only appears when you actually
@@ -277,7 +278,7 @@ export function navigateToKnownRoute(
     const link = getLinkForCurrentNavigation()
     if (
       link !== null &&
-      link.fetchStrategy === FetchStrategy.Full &&
+      link.prefetchStage !== AppStage.Shell &&
       (navigationSeed.root.tree.prefetchHints &
         (PrefetchHint.SubtreeHasPartialPrefetching |
           PrefetchHint.SubtreeHasInstantFalse)) ===
@@ -288,7 +289,7 @@ export function navigateToKnownRoute(
       if (ownerStack === undefined) {
         console.error(
           '' +
-            'Cannot associate the "prefetch={true}" warning with a specific <Link> making it harder to find the cause of the following warning. ' +
+            'Cannot associate the prefetch warning with a specific <Link> making it harder to find the cause of the following warning. ' +
             'This is a bug in Next.js.'
         )
       } else if (ownerStack !== null) {
@@ -313,7 +314,7 @@ export function navigateToKnownRoute(
     const link = getLinkForCurrentNavigation()
     restrictToShell = shouldRestrictNavigationToShell(
       navigationSeed.root.tree.prefetchHints,
-      link !== null ? link.fetchStrategy : FetchStrategy.PPR
+      link !== null ? link.prefetchStage : AppStage.Shell
     )
   }
 
@@ -833,7 +834,7 @@ async function ensurePrefetchThenNavigate(
   navigationLock: NavigationLock | null
 ): Promise<AppRouterState> {
   const link = getLinkForCurrentNavigation()
-  const fetchStrategy = link !== null ? link.fetchStrategy : FetchStrategy.PPR
+  const prefetchStage = link !== null ? link.prefetchStage : AppStage.Shell
 
   const cacheKey = createCacheKey(url.href, nextUrl)
 
@@ -848,7 +849,7 @@ async function ensurePrefetchThenNavigate(
   const prefetchTask = schedulePrefetchTask(
     cacheKey,
     currentRoot,
-    fetchStrategy,
+    prefetchStage,
     PrefetchPriority.Default,
     null, // onInvalidate
     navigationLockPrefetch

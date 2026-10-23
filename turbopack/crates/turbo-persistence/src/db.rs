@@ -1385,10 +1385,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
         let mut guard = self.acquire_write_operation("compaction")?;
 
-        // Free block caches and SST mmaps before compaction. The block caches
-        // are not used during compaction (we iterate uncached), and any cached
-        // SST mmaps would use MADV_RANDOM which is wrong for sequential scans.
-        // Clearing them upfront frees memory for the merge work.
+        // Free block caches and SST mmaps before compaction. Neither is used during
+        // compaction (we iterate uncached with `pread`), so clearing them upfront frees
+        // memory for the merge work.
         self.clear_cache();
 
         let mut sequence_number;
@@ -1697,9 +1696,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     })
                                 }
                             };
-                            // Open SST files independently for compaction.
-                            // Uses MADV_SEQUENTIAL for better OS page management
-                            // and avoids caching mmaps on MetaEntry's OnceLock.
+                            // Open SST files independently for compaction. They are read
+                            // with `pread`, which keeps the memory of an open file to the
+                            // blocks it currently holds, and doesn't cache an mmap on
+                            // MetaEntry's OnceLock.
                             let iters = indices
                                 .iter()
                                 .map(|&index| {
@@ -1711,7 +1711,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         path,
                                         entry.sst_metadata(),
                                         meta_file.compression(),
-                                        self.config.access_mode,
                                     )
                                 })
                                 .collect::<Result<Vec<_>>>()?;

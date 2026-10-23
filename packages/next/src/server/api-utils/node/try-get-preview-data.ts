@@ -32,7 +32,7 @@ export function tryGetPreviewData(
   // Read cached preview data if present
   // TODO: use request metadata instead of a symbol
   if (SYMBOL_PREVIEW_DATA in req) {
-    return (req as any)[SYMBOL_PREVIEW_DATA] as any
+    return req[SYMBOL_PREVIEW_DATA] as any
   }
 
   const headers = HeadersAdapter.from(req.headers)

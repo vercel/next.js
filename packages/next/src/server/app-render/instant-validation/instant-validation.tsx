@@ -221,7 +221,10 @@ export async function collectStagedSegmentData(
       break
     }
     case ValidationPrefetchKind.LegacySpeculative: {
-      partialStages = [RenderStage.Static, RenderStage.PrefetchRuntime]
+      partialStages = [
+        RenderStage.NavigationStatic,
+        RenderStage.PrefetchRuntime,
+      ]
       break
     }
   }
@@ -292,7 +295,6 @@ async function collectSegmentDataForStage(
       case RenderStage.ShellStatic:
       case RenderStage.PrefetchStatic_prefetchApi:
       case RenderStage.PrefetchStatic:
-      case RenderStage.Static:
       case RenderStage.NavigationStatic:
         return 'Prerender'
       case RenderStage.ShellRuntime: // TODO(app-shells) - proper environmentName
@@ -1302,8 +1304,8 @@ export async function createCombinedPayloadAtDepth(
         instantConfig === true ||
         (typeof instantConfig === 'object' && instantConfig !== null)
       ) {
-        const rawFactory: unknown = (layoutOrPageMod as any)
-          .__debugCreateInstantConfigStack
+        const rawFactory: unknown =
+          layoutOrPageMod.__debugCreateInstantConfigStack
         localCreateInstantStack =
           typeof rawFactory === 'function' ? (rawFactory as () => Error) : null
       }
@@ -1325,8 +1327,7 @@ export async function createCombinedPayloadAtDepth(
         break
       }
       case ValidationPrefetchKind.LegacySpeculative: {
-        // In legacy speculative prefetches, we always use static.
-        stage = overrideStageForPartialSegments ?? RenderStage.Static
+        stage = overrideStageForPartialSegments ?? RenderStage.NavigationStatic
         break
       }
     }
@@ -1452,7 +1453,8 @@ export async function createCombinedPayloadAtDepth(
       break
     }
     case ValidationPrefetchKind.LegacySpeculative: {
-      headStage = overrideStageForPartialSegments ?? RenderStage.Static
+      headStage =
+        overrideStageForPartialSegments ?? RenderStage.NavigationStatic
       break
     }
   }

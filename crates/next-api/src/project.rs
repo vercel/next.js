@@ -133,6 +133,10 @@ pub struct DraftModeOptions {
     pub preview_mode_signing_key: RcStr,
 }
 
+/// A cell holding [`DraftModeOptions`], some of these change in every session.
+#[turbo_tasks::value(transparent)]
+struct DraftModeOptionsValue(DraftModeOptions);
+
 #[turbo_tasks::task_input]
 #[derive(
     Debug,
@@ -973,7 +977,7 @@ impl ProjectContainer {
             versioned_content_map: self.versioned_content_map,
             build_id,
             encryption_key,
-            preview_props,
+            preview_props: ResolvedVc::cell(preview_props),
             no_mangling,
             write_routes_hashes_manifest,
             current_node_js_version,
@@ -1063,7 +1067,7 @@ pub struct Project {
 
     encryption_key: RcStr,
 
-    preview_props: DraftModeOptions,
+    preview_props: ResolvedVc<DraftModeOptionsValue>,
 
     /// When the code is minified, this opts out of the default mangling of
     /// local names for variables, functions etc., which can be useful for
@@ -1680,15 +1684,16 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn edge_env(&self) -> Vc<EnvMap> {
+    pub(super) async fn edge_env(&self) -> Result<Vc<EnvMap>> {
+        let preview_props = self.preview_props.await?;
         let edge_env = fxindexmap! {
             rcstr!("__NEXT_BUILD_ID") => self.build_id.clone(),
             rcstr!("NEXT_SERVER_ACTIONS_ENCRYPTION_KEY") => self.encryption_key.clone(),
-            rcstr!("__NEXT_PREVIEW_MODE_ID") => self.preview_props.preview_mode_id.clone(),
-            rcstr!("__NEXT_PREVIEW_MODE_ENCRYPTION_KEY") => self.preview_props.preview_mode_encryption_key.clone(),
-            rcstr!("__NEXT_PREVIEW_MODE_SIGNING_KEY") => self.preview_props.preview_mode_signing_key.clone(),
+            rcstr!("__NEXT_PREVIEW_MODE_ID") => preview_props.preview_mode_id.clone(),
+            rcstr!("__NEXT_PREVIEW_MODE_ENCRYPTION_KEY") => preview_props.preview_mode_encryption_key.clone(),
+            rcstr!("__NEXT_PREVIEW_MODE_SIGNING_KEY") => preview_props.preview_mode_signing_key.clone(),
         };
-        Vc::cell(edge_env)
+        Ok(Vc::cell(edge_env))
     }
 
     #[turbo_tasks::function]
@@ -1790,10 +1795,13 @@ impl Project {
         )))
     }
 
+    // Proxy and instrumentation stay eager: the lazy activation hook rebuilds route entries,
+    // not these startup entries.
     #[turbo_tasks::function]
     pub(super) async fn server_chunking_context(
         self: Vc<Self>,
         client_assets: bool,
+        supports_lazy_dynamic_imports: bool,
     ) -> Result<Vc<NodeJsChunkingContext>> {
         let css_url_suffix = self.next_config().asset_suffix_path();
         let options = ServerChunkingContextOptions {
@@ -1824,9 +1832,11 @@ impl Project {
             hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
             style_groups_algorithm: self.next_config().css_chunking().owned().await?,
             per_page_module_graph: self.per_page_module_graph(),
-            lazy_dynamic_imports: self
-                .next_config()
-                .turbopack_lazy_dynamic_imports_ssr(*self.next_mode().await?),
+            lazy_dynamic_imports: supports_lazy_dynamic_imports
+                && *self
+                    .next_config()
+                    .turbopack_lazy_dynamic_imports_ssr(*self.next_mode().await?)
+                    .await?,
         };
         Ok(if client_assets {
             get_server_chunking_context_with_client_assets(options)
@@ -1884,7 +1894,10 @@ impl Project {
     ) -> Vc<Box<dyn ChunkingContext>> {
         match runtime {
             NextRuntime::Edge => self.edge_chunking_context(client_assets),
-            NextRuntime::NodeJs => Vc::upcast(self.server_chunking_context(client_assets)),
+            NextRuntime::NodeJs => Vc::upcast(self.server_chunking_context(
+                client_assets,
+                true, // supports_lazy_dynamic_imports
+            )),
         }
     }
 

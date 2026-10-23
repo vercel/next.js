@@ -108,7 +108,6 @@ async function requestHandler(
   // INJECT_RAW:cacheHandlerRegistration
 
   const serverActionRequestMetadata = getServerActionRequestMetadata(baseReq)
-  const { isPossibleServerAction } = serverActionRequestMetadata
   const userAgent = req.headers.get('User-Agent') || ''
   const botType = getBotType(userAgent)
   const { isOnDemandRevalidate } = checkIsOnDemandRevalidate(
@@ -118,13 +117,18 @@ async function requestHandler(
 
   const closeController = new CloseController()
 
-  const routeMatch: RouteMatch = { resolvedPathname }
+  const routeMatch: RouteMatch = {
+    resolvedPathname,
+    // The Vary header is currently added after rendering in the Edge adapter.
+    couldBeIntercepted: false,
+  }
   const dev: DevRenderContext | undefined = createDevRenderContext(baseReq)
   const renderContextBase: Omit<
     AppPageRouteHandlerContext,
     'parsedRequestHeaders'
   > = {
     requestUrl: baseReq.url,
+    requestHeaders: baseReq.headers,
     serverActionRequestMetadata,
     page: normalizedSrcPage,
     routeMatch,
@@ -138,6 +142,7 @@ async function requestHandler(
       clientAssetToken,
     },
     fallbackRouteParams: null,
+    stagedFallbackParams: null,
 
     renderOpts: {
       App: () => null,
@@ -166,7 +171,6 @@ async function requestHandler(
       botType,
       isDraftMode: false,
       isOnDemandRevalidate,
-      isPossibleServerAction,
       assetPrefix: nextConfig.assetPrefix,
       nextConfigOutput: nextConfig.output,
       crossOrigin: nextConfig.crossOrigin,
@@ -209,8 +213,7 @@ async function requestHandler(
           nextConfig.experimental.durableUseCacheEntries
         ),
         cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
-        clientTraceMetadata:
-          nextConfig.experimental.clientTraceMetadata || ([] as any),
+        clientTraceMetadata: nextConfig.experimental.clientTraceMetadata || [],
         clientParamParsingOrigins:
           nextConfig.experimental.clientParamParsingOrigins,
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
@@ -269,7 +272,7 @@ async function requestHandler(
     const headers = new Headers()
     finalStatus = metadata.statusCode || baseRes.statusCode || 200
     // Pull any fetch metrics from the render onto the request.
-    ;(req as any).fetchMetrics = metadata.fetchMetrics
+    req.fetchMetrics = metadata.fetchMetrics
 
     // Set content type
     const contentType = result.contentType || 'text/html; charset=utf-8'
@@ -401,6 +404,9 @@ async function requestHandler(
 
       return renderResultToResponse(result)
     } catch (err) {
+      if (!closeController.isClosed) {
+        closeController.dispatchClose()
+      }
       const silenceLog = false
       await pageRouteModule.onRequestError(
         baseReq,
