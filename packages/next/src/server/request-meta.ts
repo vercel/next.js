@@ -323,6 +323,10 @@ export interface RequestMeta {
   minimalMode?: boolean
 
   /**
+   * Dev passes the selected shell's staged params from base-server to the App
+   * Page handler here. The handler captures this input once and passes an
+   * explicit map to each render instead of updating this metadata.
+   *
    * Staged renders defer these route params until after the static stage. They
    * keep their concrete request values instead of replacing them with
    * placeholders. Dev static-shell validation uses the same set for the
@@ -333,8 +337,8 @@ export interface RequestMeta {
    * - A layout's `params` containing only `top` can resolve statically.
    * - A page's `params` containing `bottom` waits until after the static stage.
    *
-   * A set recorded in postponed state overrides this metadata on a resume,
-   * including an explicitly empty set.
+   * A mask recorded in postponed state overrides the supplied map on a resume,
+   * including an explicitly empty set or null.
    */
   stagedFallbackParams?: OpaqueFallbackRouteParams | null
 
