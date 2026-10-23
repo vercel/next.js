@@ -16,7 +16,6 @@ mod collector;
 mod collector_entry;
 mod compaction;
 mod compression;
-mod concurrent_slice;
 mod constants;
 mod db;
 mod key;
