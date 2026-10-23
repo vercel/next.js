@@ -13,9 +13,10 @@ path.join(projectDir, 'data', 'static-from-app-cwd.txt')
 path.join('data', 'static-from-app-rel-join.txt')
 path.join('data', 'static-from-app-rel-read.txt')
 
+readNullishFallback()
+readDefaultParam()
+readBareDynamic()
+
 export default function Page() {
-  readNullishFallback()
-  readDefaultParam()
-  readBareDynamic()
   return 'hello'
 }
