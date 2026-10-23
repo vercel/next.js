@@ -180,12 +180,14 @@ import {
   formatDynamicAPIAccesses,
   isPrerenderInterruptedError,
   createDynamicTrackingState,
+  consumeDynamicAccess,
+  type DynamicAccess,
+} from './dynamic-rendering'
+import {
   createDynamicValidationState,
   trackAllowedDynamicAccess,
   throwIfDisallowedDynamic,
   PreludeState,
-  consumeDynamicAccess,
-  type DynamicAccess,
   logDisallowedDynamicError,
   trackDynamicHoleInStaticShell,
   getStaticShellDisallowedDynamicReasons,
@@ -200,7 +202,7 @@ import {
   throwIfDisallowedDynamicInStaticRoute,
   getDisallowedReasonsInStaticRoute,
   type InstantValidationHoleKind,
-} from './dynamic-rendering'
+} from './dynamic-rendering-validation'
 import { logBuildDebugHint } from './blocking-route-messages'
 import {
   ClientComponentLoadTracker,

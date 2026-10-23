@@ -20,6 +20,7 @@ import { markCurrentScopeAsDynamic } from '../app-render/dynamic-rendering'
 import { makeDynamicHangingPromise } from '../dynamic-rendering-utils'
 import type { FetchMetric } from '../base-http'
 import { createDedupeFetch } from './dedupe-fetch'
+import { NEXT_PATCH_SYMBOL } from './patch-fetch-symbol'
 import {
   getCacheSignal,
   type RevalidateStore,
@@ -86,8 +87,6 @@ type PatchedFetcher = Fetcher & {
   readonly __nextGetStaticStore: () => WorkAsyncStorage
   readonly _nextOriginalFetch: Fetcher
 }
-
-export const NEXT_PATCH_SYMBOL = Symbol.for('next-patch')
 
 function isFetchPatched() {
   return (globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] === true
