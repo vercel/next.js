@@ -5,10 +5,7 @@ use bincode::{Decode, Encode};
 use rustc_hash::FxHashSet;
 use swc_core::{
     common::DUMMY_SP,
-    ecma::ast::{
-        CallExpr, Callee, Expr, ExprOrSpread, KeyValueProp, Lit, ObjectLit, Prop, PropName,
-        PropOrSpread,
-    },
+    ecma::ast::{ArrayLit, CallExpr, Callee, Expr, ExprOrSpread, Lit},
     quote, quote_expr,
 };
 use turbo_rcstr::{RcStr, rcstr};
@@ -169,7 +166,7 @@ impl SinglePatternMapping {
         }
     }
 
-    pub fn create_import(&self, key_expr: Cow<'_, Expr>, import_externals: bool) -> Expr {
+    pub fn create_import(&self, key_expr: Cow<'_, Expr>) -> Expr {
         match self {
             Self::Invalid => {
                 let error = quote_expr!(
@@ -187,33 +184,17 @@ impl SinglePatternMapping {
                 })
             }
             Self::Unresolvable(request) => throw_module_not_found_expr_async(request),
-            Self::External(_, ExternalType::EcmaScriptModule) => {
-                if import_externals {
-                    Expr::Call(CallExpr {
-                        callee: Callee::Expr(Box::new(TURBOPACK_EXTERNAL_IMPORT.into())),
-                        args: vec![ExprOrSpread {
-                            spread: None,
-                            expr: Box::new(key_expr.into_owned()),
-                        }],
-                        span: DUMMY_SP,
-                        ..Default::default()
-                    })
-                } else {
-                    Expr::Call(CallExpr {
-                        callee: Callee::Expr(quote_expr!("Promise.resolve().then")),
-                        args: vec![ExprOrSpread {
-                            spread: None,
-                            expr: quote_expr!(
-                                "() => $turbopack_external_require($arg, () => require($arg), true)",
-                                turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
-                                arg: Expr = key_expr.into_owned()
-                            ),
-                        }],
-                        span: DUMMY_SP,
-                        ..Default::default()
-                    })
-                }
-            }
+            // Externals are replaced with modules that import them, which decide how to do
+            // that, in every context that produces code that runs.
+            Self::External(_, ExternalType::EcmaScriptModule) => Expr::Call(CallExpr {
+                callee: Callee::Expr(Box::new(TURBOPACK_EXTERNAL_IMPORT.into())),
+                args: vec![ExprOrSpread {
+                    spread: None,
+                    expr: Box::new(key_expr.into_owned()),
+                }],
+                span: DUMMY_SP,
+                ..Default::default()
+            }),
             Self::External(_, ExternalType::CommonJs | ExternalType::Url) => Expr::Call(CallExpr {
                 callee: Callee::Expr(quote_expr!("Promise.resolve().then")),
                 args: vec![ExprOrSpread {
@@ -258,43 +239,101 @@ impl SinglePatternMapping {
     }
 }
 
+#[derive(Clone, Copy)]
 enum ImportMode {
     Require,
-    Import { import_externals: bool },
+    Import,
 }
 
-fn create_context_map(
+/// Creates the context of a request with a dynamic part. It is given to the runtime as
+/// flat `[key, module, ...]` entries, together with how the modules are loaded (see
+/// `ModuleContextMode` in the runtime). A module is given by its id when it can be
+/// loaded that way, as `undefined` when it is ignored, and otherwise as a function
+/// that returns it, e.g. one that throws for a request that can't be resolved.
+fn create_context(
     map: &FxIndexMap<RcStr, SinglePatternMapping>,
     key_expr: &Expr,
     import_mode: ImportMode,
 ) -> Expr {
-    let props = map
-        .iter()
-        .map(|(k, v)| {PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {key: PropName::Str(k.as_str().into()),
-                value: quote_expr!(
-                        "{id: () => $id, module: () => $module}",
-                        id: Expr = v.create_id(Cow::Borrowed(key_expr)),
-                        module: Expr = match import_mode {ImportMode::Require => v.create_require(Cow::Borrowed(key_expr)),
-                            ImportMode::Import {import_externals} => v.create_import(Cow::Borrowed(key_expr), import_externals),},
-                    ),})))})
-        .collect();
+    // Every module of a context is resolved the same way, so they are either all
+    // loaded by their module ids or all by the ids of their async loaders.
+    let mode = match import_mode {
+        ImportMode::Require => CONTEXT_MODE_REQUIRE,
+        ImportMode::Import => {
+            if map
+                .values()
+                .any(|entry| matches!(entry, SinglePatternMapping::ModuleLoader(_)))
+            {
+                CONTEXT_MODE_ASYNC_LOADER
+            } else {
+                CONTEXT_MODE_IMPORT
+            }
+        }
+    };
 
-    Expr::Object(ObjectLit {
+    let mut elems = Vec::with_capacity(map.len() * 2);
+    for (key, entry) in map {
+        let module = match (mode, entry) {
+            (_, SinglePatternMapping::Ignored | SinglePatternMapping::Dropped) => {
+                quote!("undefined" as Expr)
+            }
+            (CONTEXT_MODE_REQUIRE | CONTEXT_MODE_IMPORT, SinglePatternMapping::Module(id))
+            | (CONTEXT_MODE_ASYNC_LOADER, SinglePatternMapping::ModuleLoader(id)) => {
+                module_id_to_lit(id)
+            }
+            _ => quote!(
+                "() => $module" as Expr,
+                module: Expr = match import_mode {
+                    ImportMode::Require => entry.create_require(Cow::Borrowed(key_expr)),
+                    ImportMode::Import => entry.create_import(Cow::Borrowed(key_expr)),
+                }
+            ),
+        };
+        elems.push(Some(ExprOrSpread {
+            spread: None,
+            expr: Box::new(Expr::Lit(Lit::Str(key.as_str().into()))),
+        }));
+        elems.push(Some(ExprOrSpread {
+            spread: None,
+            expr: Box::new(module),
+        }));
+    }
+
+    let mut args = vec![ExprOrSpread {
+        spread: None,
+        expr: Box::new(Expr::Array(ArrayLit {
+            span: DUMMY_SP,
+            elems,
+        })),
+    }];
+    if mode != CONTEXT_MODE_REQUIRE {
+        args.push(ExprOrSpread {
+            spread: None,
+            expr: Box::new(Lit::Num(f64::from(mode).into()).into()),
+        });
+    }
+    Expr::Call(CallExpr {
+        callee: Callee::Expr(Box::new(TURBOPACK_MODULE_CONTEXT.into())),
+        args,
         span: DUMMY_SP,
-        props,
+        ..Default::default()
     })
 }
+
+// The values of `ModuleContextMode` in the runtime.
+const CONTEXT_MODE_REQUIRE: u8 = 0;
+const CONTEXT_MODE_IMPORT: u8 = 1;
+const CONTEXT_MODE_ASYNC_LOADER: u8 = 2;
 
 impl PatternMapping {
     pub fn create_id(&self, key_expr: Expr) -> Expr {
         match self {
             PatternMapping::Single(pm) => pm.create_id(Cow::Owned(key_expr)),
             PatternMapping::Map(map) => {
-                let map = create_context_map(map, &key_expr, ImportMode::Require);
+                let module_context = create_context(map, &key_expr, ImportMode::Require);
 
-                quote!("$turbopack_module_context($map).resolve($key)" as Expr,
-                    turbopack_module_context: Expr = TURBOPACK_MODULE_CONTEXT.into(),
-                    map: Expr = map,
+                quote!("$module_context.resolve($key)" as Expr,
+                    module_context: Expr = module_context,
                     key: Expr = key_expr
                 )
             }
@@ -305,27 +344,24 @@ impl PatternMapping {
         match self {
             PatternMapping::Single(pm) => pm.create_require(Cow::Owned(key_expr)),
             PatternMapping::Map(map) => {
-                let map = create_context_map(map, &key_expr, ImportMode::Require);
+                let module_context = create_context(map, &key_expr, ImportMode::Require);
 
-                quote!("$turbopack_module_context($map)($key)" as Expr,
-                    turbopack_module_context: Expr = TURBOPACK_MODULE_CONTEXT.into(),
-                    map: Expr = map,
+                quote!("$module_context($key)" as Expr,
+                    module_context: Expr = module_context,
                     key: Expr = key_expr
                 )
             }
         }
     }
 
-    pub fn create_import(&self, key_expr: Expr, import_externals: bool) -> Expr {
+    pub fn create_import(&self, key_expr: Expr) -> Expr {
         match self {
-            PatternMapping::Single(pm) => pm.create_import(Cow::Owned(key_expr), import_externals),
+            PatternMapping::Single(pm) => pm.create_import(Cow::Owned(key_expr)),
             PatternMapping::Map(map) => {
-                let map =
-                    create_context_map(map, &key_expr, ImportMode::Import { import_externals });
+                let module_context = create_context(map, &key_expr, ImportMode::Import);
 
-                quote!("$turbopack_module_context($map).import($key)" as Expr,
-                    turbopack_module_context: Expr = TURBOPACK_MODULE_CONTEXT.into(),
-                    map: Expr = map,
+                quote!("$module_context.import($key)" as Expr,
+                    module_context: Expr = module_context,
                     key: Expr = key_expr
                 )
             }

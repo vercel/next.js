@@ -736,27 +736,49 @@ contextPrototype.r = commonJsRequire;
 }
 /**
  * `require.context` and require/import expression runtime.
- */ function moduleContext(mapOrIds) {
-    var map;
-    if (Array.isArray(mapOrIds)) {
-        var _loop = function(i) {
-            var id = mapOrIds[i + 1];
-            map[mapOrIds[i]] = {
-                id: function id1() {
-                    return id;
-                },
-                // inlined require implementation, which gives an ignored module empty exports
-                module: function module() {
-                    return id === undefined ? {} : getOrInstantiateModuleFromParent(id, parentModule).exports;
-                }
+ */ function moduleContextFactory(ids) {
+    var _loop = function(i) {
+        var entry = ids[i + 1];
+        var id = void 0;
+        var module = void 0;
+        if (typeof entry === 'function') {
+            id = module = entry;
+        } else {
+            id = function id() {
+                return entry;
             };
+            if (mode === 0) {
+                // inlined require implementation, which gives an ignored module empty exports
+                module = function module() {
+                    return entry === undefined ? {} : getOrInstantiateModuleFromParent(entry, parentModule).exports;
+                };
+            } else if (entry === undefined) {
+                module = function module() {
+                    return Promise.resolve({});
+                };
+            } else if (mode === 1) {
+                // Like `import()`, the module is evaluated asynchronously.
+                module = function module() {
+                    return Promise.resolve().then(function() {
+                        return esmImport.call(context, entry);
+                    });
+                };
+            } else {
+                module = function module() {
+                    return asyncLoader.call(context, entry);
+                };
+            }
+        }
+        map[ids[i]] = {
+            id: id,
+            module: module
         };
-        var parentModule = this.m;
-        map = {};
-        for(var i = 0; i < mapOrIds.length; i += 2)_loop(i);
-    } else {
-        map = mapOrIds;
-    }
+    };
+    var mode = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : 0;
+    var context = this;
+    var parentModule = this.m;
+    var map = {};
+    for(var i = 0; i < ids.length; i += 2)_loop(i);
     function moduleContext(id) {
         id = parseRequest(id);
         if (hasOwnProperty.call(map, id)) {
@@ -798,7 +820,7 @@ contextPrototype.r = commonJsRequire;
     };
     return moduleContext;
 }
-contextPrototype.f = moduleContext;
+contextPrototype.f = moduleContextFactory;
 /**
  * Returns the path of a chunk defined by its data.
  */ function getChunkPath(chunkData) {
