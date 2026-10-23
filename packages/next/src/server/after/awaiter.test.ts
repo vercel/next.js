@@ -1,5 +1,15 @@
+/**
+ * @jest-environment node
+ */
+
+import { AsyncLocalStorage } from 'async_hooks'
+import { runInNewContext } from 'node:vm'
+import { setFlagsFromString } from 'node:v8'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { AwaiterMulti, AwaiterOnce } from './awaiter'
+
+setFlagsFromString('--expose-gc')
+const forceGarbageCollection = runInNewContext('gc') as () => void
 
 describe('AwaiterOnce/AwaiterMulti', () => {
   describe.each([
@@ -59,6 +69,74 @@ describe('AwaiterOnce', () => {
     expect(() => awaiter.waitUntil(Promise.resolve(2))).toThrow(InvariantError)
   })
 })
+
+describe('AwaiterMulti/AwaiterOnce retention', () => {
+  // Install AsyncLocalStorage before importing the module that captures the snapshot.
+  type AwaiterMod = typeof import('./awaiter')
+  let Awaiters: AwaiterMod
+
+  beforeAll(async () => {
+    // @ts-expect-error
+    globalThis.AsyncLocalStorage = AsyncLocalStorage
+    jest.resetModules()
+    Awaiters = await import('./awaiter')
+  })
+
+  describe.each(['AwaiterMulti', 'AwaiterOnce'] as const)('%s', (implName) => {
+    it('does not retain the async context of a task that never settles', async () => {
+      const awaiter = new Awaiters[implName]({ onError: () => {} })
+
+      const requestStoreRef = await runInRequestContext(() => {
+        awaiter.waitUntil(new Promise<void>(() => {}))
+      })
+
+      await expectCollected(requestStoreRef)
+    })
+
+    it('does not retain the async context of a task that settles', async () => {
+      const awaiter = new Awaiters[implName]({ onError: () => {} })
+
+      const requestStoreRef = await runInRequestContext(() => {
+        awaiter.waitUntil(Promise.resolve())
+      })
+
+      await expectCollected(requestStoreRef)
+    })
+  })
+})
+
+async function runInRequestContext(
+  callback: () => void
+): Promise<WeakRef<object>> {
+  const requestStorage = new AsyncLocalStorage<object>()
+  let requestStoreRef: WeakRef<object> | undefined
+
+  await requestStorage.run({ requestId: 'request' }, async () => {
+    const requestStore = requestStorage.getStore()
+
+    if (!requestStore) {
+      throw new Error('Expected a request store')
+    }
+
+    requestStoreRef = new WeakRef(requestStore)
+    callback()
+  })
+
+  if (!requestStoreRef) {
+    throw new Error('Expected a request store reference')
+  }
+
+  return requestStoreRef
+}
+
+async function expectCollected(ref: WeakRef<object>): Promise<void> {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    forceGarbageCollection()
+    await new Promise<void>((resolve) => setImmediate(resolve))
+  }
+
+  expect(ref.deref()).toBeUndefined()
+}
 
 type TrackedPromise<T> = Promise<T> & { isSettled: boolean }
 
