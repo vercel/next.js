@@ -1,7 +1,6 @@
-import type { BaseNextRequest, BaseNextResponse } from '../base-http'
+import type { BaseNextRequest } from '../base-http'
 import type { IncomingHttpHeaders } from 'http'
 import type { RequestStore } from '../app-render/work-unit-async-storage.external'
-import type { RenderOpts } from '../app-render/types'
 import type { NextRequest } from '../web/spec-extension/request'
 import type { __ApiPreviewProps } from '../api-utils'
 
@@ -76,38 +75,10 @@ function getMutableCookies(
   return MutableRequestCookiesAdapter.wrap(cookies, onUpdateCookies)
 }
 
-export type WrapperRenderOpts = Partial<Pick<RenderOpts, 'onUpdateCookies'>> & {
+export type WrapperRenderOpts = {
+  onUpdateCookies?: (cookies: string[]) => void
   previewProps?: __ApiPreviewProps
 }
-
-type RequestContext = RequestResponsePair & {
-  /**
-   * The URL of the request. This only specifies the pathname and the search
-   * part of the URL. This is only undefined when generating static paths (ie,
-   * there is no request in progress, nor do we know one).
-   */
-  url: {
-    /**
-     * The pathname of the requested URL.
-     */
-    pathname: string
-
-    /**
-     * The search part of the requested URL. If the request did not provide a
-     * search part, this will be an empty string.
-     */
-    search?: string
-  }
-  phase: RequestStore['phase']
-  renderOpts?: WrapperRenderOpts
-  isHmrRefresh?: boolean
-  serverComponentsHmrCache?: ServerComponentsHmrCache
-  implicitTags: ImplicitTags
-}
-
-type RequestResponsePair =
-  | { req: BaseNextRequest; res: BaseNextResponse } // for an app page
-  | { req: NextRequest; res: undefined } // in an api route or middleware
 
 /**
  * The fields the request store actually reads from `req` / `res`. Decoupling
@@ -136,7 +107,7 @@ export type RequestStoreInputs = {
   rootParams: Params
   implicitTags: ImplicitTags
   resumeDataCache: ResumeDataCache | null
-  previewProps: WrapperRenderOpts['previewProps']
+  previewProps: __ApiPreviewProps | undefined
   isHmrRefresh: boolean | undefined
   serverComponentsHmrCache: ServerComponentsHmrCache | undefined
   /**
@@ -183,14 +154,13 @@ function mergeMiddlewareCookies(
 
 export function createRequestStoreForRender(
   headers: IncomingHttpHeaders,
-  res: RequestContext['res'],
-  url: RequestContext['url'],
+  url: RequestStoreInputs['url'],
   rootParams: Params,
-  implicitTags: RequestContext['implicitTags'],
-  onUpdateCookies: RenderOpts['onUpdateCookies'],
-  previewProps: WrapperRenderOpts['previewProps'],
-  isHmrRefresh: RequestContext['isHmrRefresh'],
-  serverComponentsHmrCache: RequestContext['serverComponentsHmrCache'],
+  implicitTags: RequestStoreInputs['implicitTags'],
+  onUpdateCookies: RequestStoreInputs['onUpdateCookies'],
+  previewProps: __ApiPreviewProps | undefined,
+  isHmrRefresh: RequestStoreInputs['isHmrRefresh'],
+  serverComponentsHmrCache: RequestStoreInputs['serverComponentsHmrCache'],
   resumeDataCache: ResumeDataCache | null,
   stagedFallbackParams: ReadonlySet<string> | null,
   hmrRefreshHash: string | undefined
@@ -199,13 +169,7 @@ export function createRequestStoreForRender(
     // Pages start in render phase by default
     phase: 'render',
     headers,
-    onUpdateCookies:
-      onUpdateCookies ??
-      (res
-        ? (cookies: string[]) => {
-            res.setHeader('Set-Cookie', cookies)
-          }
-        : undefined),
+    onUpdateCookies,
     url,
     rootParams,
     implicitTags,
@@ -219,11 +183,11 @@ export function createRequestStoreForRender(
 }
 
 export function createRequestStoreForAPI(
-  req: RequestContext['req'],
-  url: RequestContext['url'],
-  implicitTags: RequestContext['implicitTags'],
-  onUpdateCookies: RenderOpts['onUpdateCookies'],
-  previewProps: WrapperRenderOpts['previewProps'],
+  req: BaseNextRequest | NextRequest,
+  url: RequestStoreInputs['url'],
+  implicitTags: RequestStoreInputs['implicitTags'],
+  onUpdateCookies: RequestStoreInputs['onUpdateCookies'],
+  previewProps: __ApiPreviewProps | undefined,
   hmrRefreshHash: string | undefined
 ): RequestStore {
   return createRequestStore({
