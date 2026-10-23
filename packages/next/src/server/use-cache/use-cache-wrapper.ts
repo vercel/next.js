@@ -2929,7 +2929,14 @@ export async function cache(
             // already handled by the early return above. We return a hanging
             // promise so this becomes a dynamic hole rather than generating a
             // broken cache entry that gets aborted.
-            console.warn(new UnexpectedCacheMissError(workStore.route))
+            //
+            // In draft mode, cache entries are deliberately never saved (see
+            // the write path below), so the prospective prerender cannot warm
+            // them and a miss here is expected rather than a sign of a
+            // non-deterministic cache key.
+            if (!workStore.isDraftMode) {
+              console.warn(new UnexpectedCacheMissError(workStore.route))
+            }
             // This is an anomaly (non-deterministic cache key), so we can't
             // know whether a runtime prerender would resolve it.
             return makeUnknownRuntimeDataHangingPromise(

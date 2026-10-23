@@ -52,5 +52,21 @@ describe('cache-components', () => {
         'Loading draft content...'
       )
     })
+
+    it('should not warn about unexpected cache misses when draft mode is enabled', async () => {
+      const draftRes = await next.fetch('/draftmode/toggle')
+      const setCookie = draftRes.headers.get('set-cookie')
+      const cookieHeader = { Cookie: setCookie?.split(';', 1)[0] }
+
+      expect(cookieHeader.Cookie).toBeTruthy()
+
+      const $ = await next.render$('/draftmode/use-cache', undefined, {
+        headers: cookieHeader,
+      })
+
+      expect($('#draft-mode').text()).toBe('true')
+      expect($('#cached-name').text()).toBe('name:nav')
+      expect(getLines('Unexpected cache miss')).toEqual([])
+    })
   }
 })
