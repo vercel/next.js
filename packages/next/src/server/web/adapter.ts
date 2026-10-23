@@ -15,6 +15,7 @@ import {
 import { NextURL } from './next-url'
 import { stripInternalSearchParams } from '../internal-utils'
 import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
+import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import {
   ACTION_HEADER,
   FLIGHT_HEADERS,
@@ -609,8 +610,8 @@ export async function adapter(
         (requestURL as NextURL).basePath ||
         params.request.nextConfig?.basePath ||
         ''
-      if (basePath && redirectLocation.startsWith(basePath)) {
-        redirectLocation = redirectLocation.slice(basePath.length) || '/'
+      if (basePath) {
+        redirectLocation = removePathPrefix(redirectLocation, basePath)
       }
       response.headers.delete('Location')
       response.headers.set(

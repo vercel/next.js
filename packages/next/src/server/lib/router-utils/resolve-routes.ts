@@ -776,11 +776,9 @@ export function getResolveRoutes(
                 // Process as redirect: update parsedUrl and convert to relative URL
                 const rel = getRelativeURL(value, initUrl)
                 if (req.headers[ACTION_HEADER.toLowerCase()]) {
-                  const basePath = nextConfig.basePath || ''
-                  let redirectPath = rel
-                  if (basePath && redirectPath.startsWith(basePath)) {
-                    redirectPath = redirectPath.slice(basePath.length) || '/'
-                  }
+                  const redirectPath = config.basePath
+                    ? removePathPrefix(rel, config.basePath)
+                    : rel
                   resHeaders['x-action-redirect'] = `${redirectPath};replace`
                   delete resHeaders['location']
                   return {
