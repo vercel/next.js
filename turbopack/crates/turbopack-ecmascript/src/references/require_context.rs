@@ -286,18 +286,14 @@ impl RequireContextAssetReference {
         )
         .await?;
 
-        // One dependency per key: its module is required by the id that
-        // `require.resolve` evaluates to.
-        let mut code = String::from("const ids = {\n");
+        // One dependency per key: `require.resolve` evaluates to the id of its module at
+        // compile time, which the runtime requires.
+        let mut code = String::from("module.exports = __turbopack_module_context__([\n");
         for key in keys.iter() {
             let key = StringifyJs(key);
-            writeln!(code, "  {key}: () => require.resolve({key}),")?;
+            writeln!(code, "  {key}, require.resolve({key}),")?;
         }
-        code.push_str(
-            "};\nconst map = {};\nfor (const key in ids) {\n  map[key] = { id: ids[key], module: \
-             () => __turbopack_require__(ids[key]()) };\n}\nmodule.exports = \
-             __turbopack_module_context__(map);\n",
-        );
+        code.push_str("]);\n");
 
         // Issues in the synthetic module are reported at the call.
         let ident = AssetIdent::from_path(context_dir.join(".require-context.cjs")?)
