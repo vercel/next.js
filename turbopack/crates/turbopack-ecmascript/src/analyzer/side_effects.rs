@@ -500,7 +500,7 @@ fn module_exports_has_accessor(program: &Program, unresolved_mark: Mark) -> bool
 
 pub struct ModuleSideEffectsAnalysisResult {
     pub side_effects: ModuleSideEffects,
-    /// Module-scope bindings whose declarations have no module-evaluation side effects.
+    /// Module-scope `const`/`let` bindings whose initializers can be removed when unused.
     pub pure_top_level_declarations: HashSet<Id>,
 }
 
@@ -528,9 +528,6 @@ pub fn compute_module_evaluation_side_effects(
     } else {
         ModuleSideEffects::SideEffectFree
     };
-    visitor
-        .pure_top_level_declarations
-        .retain(|id| !visitor.impure_top_level_declarations.contains(id));
     ModuleSideEffectsAnalysisResult {
         side_effects,
         pure_top_level_declarations: visitor.pure_top_level_declarations,
@@ -550,8 +547,6 @@ struct SideEffectVisitor<'a> {
     /// Member mutations rooted at these are not module-evaluation side effects.
     safe_assignment_constant_ids: HashSet<Id>,
     pure_top_level_declarations: HashSet<Id>,
-    /// A binding may have multiple declarations. Every declaration must be pure.
-    impure_top_level_declarations: HashSet<Id>,
     has_side_effects: bool,
     /// Effects that module inference ignores, but that prevent dropping an initializer.
     has_initializer_side_effects: bool,
@@ -574,7 +569,6 @@ impl<'a> SideEffectVisitor<'a> {
             module_exports_has_accessor,
             safe_assignment_constant_ids,
             pure_top_level_declarations: HashSet::new(),
-            impure_top_level_declarations: HashSet::new(),
             has_side_effects: false,
             has_initializer_side_effects: false,
             will_invoke_fn_exprs: false,
@@ -599,28 +593,10 @@ impl<'a> SideEffectVisitor<'a> {
         has_side_effects
     }
 
-    fn record_top_level_declarations(
-        &mut self,
-        ids: impl IntoIterator<Item = Id>,
-        has_side_effects: bool,
-    ) {
-        if has_side_effects {
-            self.impure_top_level_declarations.extend(ids);
-        } else {
-            self.pure_top_level_declarations.extend(ids);
-        }
-    }
-
     fn visit_top_level_decl(&mut self, decl: &Decl) {
         match decl {
-            Decl::Fn(function) => {
-                self.pure_top_level_declarations
-                    .insert(function.ident.to_id());
-            }
-            Decl::Class(class) => {
-                let has_side_effects = self.check_for_side_effects(|this| class.visit_with(this));
-                self.record_top_level_declarations([class.ident.to_id()], has_side_effects);
-            }
+            // Function declarations do not execute their bodies during module evaluation.
+            Decl::Fn(_) => {}
             Decl::Var(var) => {
                 self.visit_top_level_var_decl(var);
             }
@@ -633,8 +609,12 @@ impl<'a> SideEffectVisitor<'a> {
     fn visit_top_level_var_decl(&mut self, var: &VarDecl) {
         for declarator in &var.decls {
             let has_side_effects = self.check_for_side_effects(|this| declarator.visit_with(this));
-            let ids: Vec<Id> = find_pat_ids(&declarator.name);
-            self.record_top_level_declarations(ids, has_side_effects);
+            // A `var` binding may have effectful redeclarations in nested statements that
+            // this analysis does not inspect. Lexical bindings cannot be redeclared.
+            if var.kind != VarDeclKind::Var && !has_side_effects {
+                let ids: Vec<Id> = find_pat_ids(&declarator.name);
+                self.pure_top_level_declarations.extend(ids);
+            }
         }
     }
 
@@ -877,18 +857,6 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                 ModuleItem::Stmt(stmt) => self.visit_top_level_stmt(stmt),
                 ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export)) => {
                     self.visit_top_level_decl(&export.decl);
-                }
-                ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(export)) => {
-                    let has_side_effects =
-                        self.check_for_side_effects(|this| item.visit_with(this));
-                    let ident = match &export.decl {
-                        DefaultDecl::Fn(function) => function.ident.as_ref(),
-                        DefaultDecl::Class(class) => class.ident.as_ref(),
-                        DefaultDecl::TsInterfaceDecl(_) => None,
-                    };
-                    if let Some(ident) = ident {
-                        self.record_top_level_declarations([ident.to_id()], has_side_effects);
-                    }
                 }
                 _ => {
                     self.check_for_side_effects(|this| item.visit_with(this));
@@ -1556,15 +1524,15 @@ mod tests {
     }
 
     #[rstest::rstest]
-    #[case("const a = 1; let b; var c = () => effect();", &["a", "b", "c"])]
+    #[case("const a = 1; let b; var c = () => effect();", &["a", "b"])]
     #[case("effect(); const a = 1, b = effect(), c = 2;", &["a", "c"])]
     #[case("export const a = effect(), b = 1; export let c = 2;", &["b", "c"])]
     #[case("const { a, b: [c = 1], ...d } = value;", &["a", "c", "d"])]
     #[case("const { a = effect(), b } = value; const c = 1;", &["c"])]
-    #[case("function a() { effect(); const nested = 1; } export function b() {}", &["a", "b"])]
-    #[case("class A { method() { effect(); } } class B { static x = effect(); }", &["A"])]
-    #[case("export class A {} export default class B {}", &["A", "B"])]
-    #[case("export default function a() { effect(); }", &["a"])]
+    #[case("function a() { effect(); const nested = 1; } export function b() {}", &[])]
+    #[case("class A { method() { effect(); } } class B { static x = effect(); }", &[])]
+    #[case("export class A {} export default class B {}", &[])]
+    #[case("export default function a() { effect(); }", &[])]
     #[case("export default class A { static x = effect(); }", &[])]
     #[case("export default function () {}", &[])]
     #[case("export default class {}", &[])]

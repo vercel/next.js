@@ -5,7 +5,7 @@ const pureHoistedInner = async function cached() {
   return pureExpensive()
 }
 
-export var pureHoistedWrapper = /*#__PURE__*/ wrapper(function cached() {
+export const pureHoistedWrapper = /*#__PURE__*/ wrapper(function cached() {
   return pureHoistedInner()
 })
 
