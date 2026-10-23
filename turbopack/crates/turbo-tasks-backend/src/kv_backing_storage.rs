@@ -423,37 +423,41 @@ impl TurboBackingStorage {
         Ok(Some(storage))
     }
 
+    /// Looks up and decodes the `category` of many tasks. Calls `on_result` with the index of the
+    /// task in `task_ids` and its decoded storage, or `None` if the category has no key on disk.
+    ///
+    /// When this returns `Ok`, `on_result` was called exactly once for every index. The calls
+    /// happen in no particular order and may run concurrently on other threads, so decoding
+    /// runs in parallel for large batches. A read, decode or `on_result` error aborts the
+    /// batch.
     pub(crate) fn batch_lookup_data(
         &self,
         task_ids: &[TaskId],
         category: SpecificTaskDataCategory,
-    ) -> Result<Vec<Option<TaskStorage>>> {
+        on_result: impl Fn(usize, Option<TaskStorage>) -> Result<()> + Sync,
+    ) -> Result<()> {
         let inner = &*self.inner;
         let int_keys: Vec<_> = task_ids.iter().map(|&id| IntKey::new(*id)).collect();
         let keys = int_keys.iter().map(|k| k.as_ref()).collect::<Vec<_>>();
-        let bytes = inner
+        inner
             .database
-            .batch_get(category.key_space(), &keys)
-            .with_context(|| {
-                format!(
-                    "Looking up typed data for {} tasks from database failed",
-                    task_ids.len()
-                )
-            })?;
-        bytes
-            .into_iter()
-            .map(|opt_bytes| {
+            .batch_get(category.key_space(), &keys, |index, opt_bytes| {
                 let Some(bytes) = opt_bytes else {
-                    return Ok(None);
+                    return on_result(index, None);
                 };
                 let mut storage = TaskStorage::new();
                 let mut decoder = new_turbo_bincode_decoder(bytes.borrow());
                 storage
                     .decode(category, &mut decoder)
                     .map_err(|e| anyhow::anyhow!("Failed to decode {category:?}: {e:?}"))?;
-                Ok(Some(storage))
+                on_result(index, Some(storage))
             })
-            .collect::<Result<Vec<_>>>()
+            .with_context(|| {
+                format!(
+                    "Looking up typed data for {} tasks from database failed",
+                    task_ids.len()
+                )
+            })
     }
 
     pub(crate) fn compact(&self) -> Result<Option<CommitStats>> {

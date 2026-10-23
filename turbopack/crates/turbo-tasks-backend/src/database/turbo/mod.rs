@@ -92,8 +92,15 @@ impl TurboKeyValueDatabase {
         self.db.get(key_space as usize, &key)
     }
 
-    pub fn batch_get(&self, key_space: KeySpace, keys: &[&[u8]]) -> Result<Vec<Option<ArcBytes>>> {
-        self.db.batch_get(key_space as usize, keys)
+    /// Looks up many keys at once. See [`TurboPersistence::batch_get`] for how `on_result` is
+    /// called.
+    pub fn batch_get(
+        &self,
+        key_space: KeySpace,
+        keys: &[&[u8]],
+        on_result: impl Fn(usize, Option<ArcBytes>) -> Result<()> + Sync,
+    ) -> Result<()> {
+        self.db.batch_get(key_space as usize, keys, on_result)
     }
 
     /// Looks up a key and returns all matching values.

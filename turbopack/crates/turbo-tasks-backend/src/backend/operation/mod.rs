@@ -10,7 +10,7 @@ mod update_collectible;
 use std::{
     fmt::{Debug, Display, Formatter},
     ops::DerefMut,
-    sync::Arc,
+    sync::{Arc, OnceLock},
 };
 
 use anyhow::{Context, Result};
@@ -266,13 +266,16 @@ impl<'e> ExecuteContext<'e> {
             .with_context(|| format!("Failed to restore {category:?} for {task_id}"))
     }
 
-    /// Batched [`Self::restore_task_data`]: one entry per id, `None` where the requested
-    /// category has no disk key.
+    /// Batched [`Self::restore_task_data`]. Calls `on_result` with the index of each id and its
+    /// storage, or `None` where the requested category has no disk key. See
+    /// [`TurboBackingStorage::batch_lookup_data`](crate::kv_backing_storage::TurboBackingStorage::batch_lookup_data)
+    /// for how `on_result` is called.
     fn restore_task_data_batch(
         &self,
         task_ids: &[TaskId],
         category: SpecificTaskDataCategory,
-    ) -> Result<Vec<Option<TaskStorage>>> {
+        on_result: impl Fn(usize, Option<TaskStorage>) -> Result<()> + Sync,
+    ) -> Result<()> {
         debug_assert!(task_ids.len() > 1, "Use restore_task_data for single task");
         debug_assert!(
             self.backend.should_restore(),
@@ -282,7 +285,7 @@ impl<'e> ExecuteContext<'e> {
         restore_lookup_counts::record(true);
         self.backend
             .backing_storage
-            .batch_lookup_data(task_ids, category)
+            .batch_lookup_data(task_ids, category, on_result)
             .with_context(|| {
                 format!(
                     "Failed to restore {category:?} for batch of {} tasks",
@@ -507,8 +510,8 @@ impl<'e> ExecuteContext<'e> {
             .map(|(id, category)| TaskRestoreEntry {
                 task_id: id,
                 category,
-                data_restore_result: None,
-                meta_restore_result: None,
+                data_restore_result: OnceLock::new(),
+                meta_restore_result: OnceLock::new(),
                 wait_data: false,
                 wait_meta: false,
                 task_type: None,
@@ -572,64 +575,64 @@ impl<'e> ExecuteContext<'e> {
         }
 
         // --- Phase 1b: Batch I/O for tasks we claimed ---
-
-        // Data I/O
-        match tasks_to_restore_for_data.len() {
-            0 => {}
-            1 => {
-                let task_id = tasks_to_restore_for_data[0];
-                let idx = tasks_to_restore_for_data_indices[0];
-                tasks[idx].data_restore_result =
-                    Some(self.restore_task_data(task_id, SpecificTaskDataCategory::Data));
-            }
-            _ => {
-                match self.restore_task_data_batch(
-                    &tasks_to_restore_for_data,
-                    SpecificTaskDataCategory::Data,
-                ) {
-                    Ok(data) => {
-                        for (item, &idx) in data.into_iter().zip(&tasks_to_restore_for_data_indices)
-                        {
-                            tasks[idx].data_restore_result = Some(Ok(item));
-                        }
-                    }
-                    Err(e) => {
-                        // Batch failure: distribute the error to each affected task
-                        let msg = format!("{e:?}");
-                        for &idx in &tasks_to_restore_for_data_indices {
-                            tasks[idx].data_restore_result =
-                                Some(Err(anyhow::anyhow!("Batch data restore failed: {msg}")));
-                        }
-                    }
+        for (category, task_ids, indices) in [
+            (
+                SpecificTaskDataCategory::Data,
+                &tasks_to_restore_for_data,
+                &tasks_to_restore_for_data_indices,
+            ),
+            (
+                SpecificTaskDataCategory::Meta,
+                &tasks_to_restore_for_meta,
+                &tasks_to_restore_for_meta_indices,
+            ),
+        ] {
+            match task_ids.len() {
+                0 => {}
+                1 => {
+                    let result = self.restore_task_data(task_ids[0], category);
+                    *tasks[indices[0]].restore_result_mut(category) = OnceLock::from(result);
                 }
-            }
-        }
-
-        // Meta I/O
-        match tasks_to_restore_for_meta.len() {
-            0 => {}
-            1 => {
-                let task_id = tasks_to_restore_for_meta[0];
-                let idx = tasks_to_restore_for_meta_indices[0];
-                tasks[idx].meta_restore_result =
-                    Some(self.restore_task_data(task_id, SpecificTaskDataCategory::Meta));
-            }
-            _ => {
-                match self.restore_task_data_batch(
-                    &tasks_to_restore_for_meta,
-                    SpecificTaskDataCategory::Meta,
-                ) {
-                    Ok(data) => {
-                        for (item, &idx) in data.into_iter().zip(&tasks_to_restore_for_meta_indices)
-                        {
-                            tasks[idx].meta_restore_result = Some(Ok(item));
+                _ => {
+                    // Each result is stored in its entry as soon as it is decoded, possibly
+                    // concurrently. Every index is reported at most once.
+                    let batch_result = {
+                        let tasks = &tasks;
+                        self.restore_task_data_batch(task_ids, category, |i, storage| {
+                            if tasks[indices[i]]
+                                .restore_result(category)
+                                .set(Ok(storage))
+                                .is_err()
+                            {
+                                anyhow::bail!("task {} was restored twice", task_ids[i]);
+                            }
+                            Ok(())
+                        })
+                    };
+                    match batch_result {
+                        Ok(()) => {
+                            for (&task_id, &idx) in task_ids.iter().zip(indices) {
+                                let result = tasks[idx].restore_result_mut(category);
+                                if result.get().is_none() {
+                                    // Unreachable: `batch_get` reports every index.
+                                    *result = OnceLock::from(Err(anyhow::anyhow!(
+                                        "Batch {category:?} restore returned no result for \
+                                         {task_id}"
+                                    )));
+                                }
+                            }
                         }
-                    }
-                    Err(e) => {
-                        let msg = format!("{e:?}");
-                        for &idx in &tasks_to_restore_for_meta_indices {
-                            tasks[idx].meta_restore_result =
-                                Some(Err(anyhow::anyhow!("Batch meta restore failed: {msg}")));
+                        Err(e) => {
+                            // Batch failure: distribute the error to each affected task, replacing
+                            // any result stored before the failure.
+                            let msg = format!("{e:?}");
+                            for &idx in indices {
+                                *tasks[idx].restore_result_mut(category) =
+                                    OnceLock::from(Err(anyhow::anyhow!(
+                                        "Batch {} restore failed: {msg}",
+                                        category_name(category.into())
+                                    )));
+                            }
                         }
                     }
                 }
@@ -646,7 +649,9 @@ impl<'e> ExecuteContext<'e> {
         // Tasks that exist nowhere, reported once waiters are unblocked.
         let mut missing_tasks: Vec<TaskId> = Vec::new();
         for entry in &mut tasks {
-            if entry.data_restore_result.is_none() && entry.meta_restore_result.is_none() {
+            if entry.data_restore_result.get().is_none()
+                && entry.meta_restore_result.get().is_none()
+            {
                 continue;
             }
             entry.self_restored = true;
@@ -656,11 +661,11 @@ impl<'e> ExecuteContext<'e> {
             self.task_lock_counter.acquire();
             let mut task = self.backend.storage.access_entry_mut(task_id);
 
-            let has_error = matches!(entry.data_restore_result, Some(Err(_)))
-                || matches!(entry.meta_restore_result, Some(Err(_)));
+            let has_error = matches!(entry.data_restore_result.get(), Some(Err(_)))
+                || matches!(entry.meta_restore_result.get(), Some(Err(_)));
             let missing = !has_error
-                && (matches!(entry.data_restore_result, Some(Ok(None)))
-                    || matches!(entry.meta_restore_result, Some(Ok(None))));
+                && (matches!(entry.data_restore_result.get(), Some(Ok(None)))
+                    || matches!(entry.meta_restore_result.get(), Some(Ok(None))));
             if missing {
                 // No missing category may be published as restored, even if another category
                 // was present on disk or a peer is still restoring it. Clear every claim before
@@ -681,8 +686,8 @@ impl<'e> ExecuteContext<'e> {
                 self.task_lock_counter.release();
                 continue;
             } else {
-                let claimed_data = entry.data_restore_result.is_some();
-                let claimed_meta = entry.meta_restore_result.is_some();
+                let claimed_data = entry.data_restore_result.get().is_some();
+                let claimed_meta = entry.meta_restore_result.get().is_some();
                 if let Some(result) = entry.data_restore_result.take() {
                     match apply_restore_result(&mut task, result, SpecificTaskDataCategory::Data) {
                         Ok(()) => {
@@ -833,12 +838,14 @@ fn category_name(category: TaskDataCategory) -> &'static str {
 struct TaskRestoreEntry {
     task_id: TaskId,
     category: TaskDataCategory,
-    /// Result of restoring the data category (set in Phase 1b, consumed in Phase 1c). The inner
-    /// `Option` is `None` when the task was not present on disk.
-    data_restore_result: Option<Result<Option<TaskStorage>>>,
-    /// Result of restoring the meta category (set in Phase 1b, consumed in Phase 1c). The inner
-    /// `Option` is `None` when the task was not present on disk.
-    meta_restore_result: Option<Result<Option<TaskStorage>>>,
+    /// Result of restoring the data category (set in Phase 1b, possibly concurrently by a batched
+    /// read, and consumed in Phase 1c). The inner `Option` is `None` when the task was not present
+    /// on disk.
+    data_restore_result: OnceLock<Result<Option<TaskStorage>>>,
+    /// Result of restoring the meta category (set in Phase 1b, possibly concurrently by a batched
+    /// read, and consumed in Phase 1c). The inner `Option` is `None` when the task was not present
+    /// on disk.
+    meta_restore_result: OnceLock<Result<Option<TaskStorage>>>,
     /// Another thread claimed the data restore; we must wait in Phase 3.
     wait_data: bool,
     /// Another thread claimed the meta restore; we must wait in Phase 3.
@@ -849,6 +856,28 @@ struct TaskRestoreEntry {
     self_restored: bool,
     /// The task is missing or failed to restore (set in Phase 1c), so the later phases skip it.
     failed: bool,
+}
+
+impl TaskRestoreEntry {
+    fn restore_result(
+        &self,
+        category: SpecificTaskDataCategory,
+    ) -> &OnceLock<Result<Option<TaskStorage>>> {
+        match category {
+            SpecificTaskDataCategory::Data => &self.data_restore_result,
+            SpecificTaskDataCategory::Meta => &self.meta_restore_result,
+        }
+    }
+
+    fn restore_result_mut(
+        &mut self,
+        category: SpecificTaskDataCategory,
+    ) -> &mut OnceLock<Result<Option<TaskStorage>>> {
+        match category {
+            SpecificTaskDataCategory::Data => &mut self.data_restore_result,
+            SpecificTaskDataCategory::Meta => &mut self.meta_restore_result,
+        }
+    }
 }
 
 /// Outcome of [`ExecuteContext::restore_task`].
