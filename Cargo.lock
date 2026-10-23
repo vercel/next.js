@@ -4345,6 +4345,7 @@ dependencies = [
  "console-subscriber",
  "dhat",
  "flate2",
+ "fs-err",
  "futures-util",
  "getrandom 0.2.15",
  "iana-time-zone",
