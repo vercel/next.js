@@ -10,7 +10,6 @@ use std::{
 
 use anyhow::{Context, Result, anyhow, bail};
 use bincode::{Decode, Encode};
-use flate2::write::GzEncoder;
 use futures_util::TryFutureExt;
 use napi::{
     Env, Status, Unknown,
@@ -79,7 +78,7 @@ use turbopack_trace_utils::{
     exit::{ExitHandler, ExitReceiver},
     filter_layer::FilterLayer,
     raw_trace::{RawTraceLayer, RawTraceLayerOptions},
-    trace_writer::TraceWriter,
+    trace_writer::{TraceWriter, TraceWriterCompression, TraceWriterOptions, parse_split_size},
 };
 use url::Url;
 
@@ -87,7 +86,6 @@ use crate::{
     next_api::{
         analyze::{WriteAnalyzeResult, write_analyze_data_with_issues_operation},
         endpoint::ExternalEndpoint,
-        trace_writer::{TraceFileWriter, parse_split_size},
         turbopack_ctx::{
             MemoryEvictionMode, NapiNextTurbopackCallbacks, NapiNextTurbopackCallbacksJsObject,
             NapiTurbopackGcOptions, NextTurboTasks, NextTurbopackContext, create_turbo_tasks,
@@ -465,14 +463,7 @@ pub fn project_new<'env>(
         trace = Some("overview".to_owned());
     }
 
-    enum Compression {
-        None,
-        GzipFast,
-        GzipBest,
-        /// zstd with the given compression level
-        Zstd(i32),
-    }
-    let mut compress = Compression::None;
+    let mut compression = None;
     let mut raw_trace_options = RawTraceLayerOptions::default();
     if let Some(mut trace) = trace {
         let split_size = std::env::var_os("NEXT_TURBOPACK_TRACING_SPLIT")
@@ -533,23 +524,25 @@ pub fn project_new<'env>(
                     "turbopack" => Cow::Owned(TRACING_NEXT_TURBOPACK_TARGETS.join(",")),
                     "turbo-tasks" => Cow::Owned(TRACING_NEXT_TURBO_TASKS_TARGETS.join(",")),
                     "gz" => {
-                        compress = Compression::GzipFast;
+                        compression =
+                            Some(TraceWriterCompression::Gzip(flate2::Compression::fast()));
                         return None;
                     }
                     "gz-best" => {
-                        compress = Compression::GzipBest;
+                        compression =
+                            Some(TraceWriterCompression::Gzip(flate2::Compression::best()));
                         return None;
                     }
                     "zstd" => {
-                        compress = Compression::Zstd(3);
+                        compression = Some(TraceWriterCompression::Zstd(3));
                         return None;
                     }
                     "zstd-fast" => {
-                        compress = Compression::Zstd(1);
+                        compression = Some(TraceWriterCompression::Zstd(1));
                         return None;
                     }
                     "zstd-best" => {
-                        compress = Compression::Zstd(19);
+                        compression = Some(TraceWriterCompression::Zstd(19));
                         return None;
                     }
                     "no-memory" => {
@@ -583,26 +576,14 @@ pub fn project_new<'env>(
                 )
             })
             .unwrap();
-        let trace_writer = TraceFileWriter::new(&trace_file, split_size).unwrap();
-        let (trace_writer, trace_writer_guard) = match compress {
-            Compression::None => TraceWriter::new(trace_writer),
-            Compression::GzipFast => {
-                let trace_writer = GzEncoder::new(trace_writer, flate2::Compression::fast());
-                TraceWriter::new(trace_writer)
-            }
-            Compression::GzipBest => {
-                let trace_writer = GzEncoder::new(trace_writer, flate2::Compression::best());
-                TraceWriter::new(trace_writer)
-            }
-            Compression::Zstd(level) => {
-                let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
-                // `auto_finish` completes the zstd frame when the trace writer drops it on exit.
-                let trace_writer = zstd::Encoder::new(trace_writer, level)
-                    .unwrap()
-                    .auto_finish();
-                TraceWriter::new(trace_writer)
-            }
-        };
+        let (trace_writer, trace_writer_guard) = TraceWriter::new(
+            &trace_file,
+            TraceWriterOptions {
+                split_size,
+                compression,
+            },
+        )
+        .unwrap();
         let subscriber =
             subscriber.with(RawTraceLayer::with_options(trace_writer, raw_trace_options));
 
