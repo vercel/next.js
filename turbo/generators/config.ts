@@ -65,30 +65,31 @@ export default function generator(plop: NodePlopAPI): void {
       const { appDir, type, name } = answers as TestResponse
       const basePath = plop.getDestBasePath()
       const testRoot = path.join(basePath, 'test')
-      const isUnit = type === 'unit'
-      // Unit tests are flat files in test/unit/, so appDir doesn't apply.
-      const appDirPath = appDir && !isUnit ? 'app-dir/' : ''
+
+      // Unit tests are single flat files in test/unit/ without a Next.js app
+      // fixture, so appDir doesn't apply. The template is deliberately not
+      // named `*.test.ts` (and has no spaces in its path) so the unit test
+      // runner doesn't pick it up as a test.
+      if (type === 'unit') {
+        return [
+          {
+            type: 'add',
+            templateFile: path.join(testRoot, 'unit/test-template/template.ts'),
+            path: path.join(testRoot, 'unit', '{{ toFileName name }}.test.ts'),
+          },
+        ]
+      }
+
+      const appDirPath = appDir ? 'app-dir/' : ''
 
       const templatePath = path.join(
         testRoot,
-        isUnit ? 'unit' : 'e2e',
+        'e2e',
         appDirPath,
         'test-template'
       )
 
       const targetPath = path.join(testRoot, type, appDirPath)
-
-      const addTemplate = {
-        type: 'addMany' as const,
-        templateFiles: path.join(templatePath, '**/*'),
-        base: templatePath,
-        destination: targetPath,
-      }
-
-      // Unit tests don't need a Next.js app fixture.
-      if (isUnit) {
-        return [addTemplate]
-      }
 
       const cnaTemplatePath = path.join(
         basePath,
@@ -98,7 +99,12 @@ export default function generator(plop: NodePlopAPI): void {
       )
 
       return [
-        addTemplate,
+        {
+          type: 'addMany',
+          templateFiles: path.join(templatePath, '**/*'),
+          base: templatePath,
+          destination: targetPath,
+        },
         {
           type: 'add',
           templateFile: path.join(cnaTemplatePath, 'tsconfig.json'),
