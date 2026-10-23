@@ -120,7 +120,6 @@ export default async function transform(
     filePaths,
     directories,
     buildFilePaths,
-    buildModulePaths: buildFilePaths,
     envVariables: getReadEnvVariables(),
   })
   return {
