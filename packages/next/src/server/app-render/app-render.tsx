@@ -2234,12 +2234,15 @@ async function notFoundTransportTree(
   tree: LoaderTree,
   ctx: AppRenderContext,
   hintTree: PrefetchHints | null,
-  MetadataOutlet: ComponentType<{ tree: LoaderTree }>,
   isPrerendering: boolean
 ): Promise<FullTransportNode | null> {
-  const loaderTree = tree[2]['global-not-found']
-    ? createNotFoundLoaderTree(tree)
-    : nearestNotFoundLoaderTree(tree)
+  const nearestTree = nearestNotFoundLoaderTree(tree)
+  const loaderTree =
+    nearestTree !== null
+      ? nearestTree
+      : tree[2]['global-not-found']
+        ? createNotFoundLoaderTree(tree)
+        : null
   if (loaderTree === null) {
     return null
   }
@@ -2256,7 +2259,7 @@ async function notFoundTransportTree(
       injectedFontPreloadTags: new Set(),
       preloadCallbacks: [],
       authInterrupts: ctx.renderOpts.experimental.authInterrupts,
-      MetadataOutlet,
+      MetadataOutlet: () => null,
       isPrerendering,
       hintTree,
     })
@@ -2283,7 +2286,6 @@ async function getErrorRSCPayload(
 
   let Viewport: ComponentType | null = null
   let Metadata: ComponentType | null = null
-  let MetadataOutlet: ComponentType<{ tree: LoaderTree }> = () => null
   if (shouldRenderMetadataAndViewport) {
     const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
     const metadataComponents = createMetadataComponents({
@@ -2297,7 +2299,6 @@ async function getErrorRSCPayload(
     })
     Viewport = metadataComponents.Viewport
     Metadata = metadataComponents.Metadata
-    MetadataOutlet = metadataComponents.MetadataOutlet
   }
 
   const initialHead = createElement(
@@ -2357,7 +2358,6 @@ async function getErrorRSCPayload(
       tree,
       ctx,
       errorHints,
-      MetadataOutlet,
       isPrerendering
     )
   }

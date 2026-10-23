@@ -57,7 +57,7 @@ describe('app dir - not-found - basic', () => {
     expect(escalatedRes.status).toBe(404)
     const escalatedMarkup = markup(await escalatedRes.text())
     expect(escalatedMarkup).toContain('Root Not Found')
-    expect(escalatedMarkup).toContain('Dynamic with Layout')
+    expect(escalatedMarkup).not.toContain('Dynamic with Layout')
   })
 
   if (isNextStart) {
