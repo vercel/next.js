@@ -155,6 +155,9 @@ Generating tests using `pnpm new-test` is mandatory.
 # type: e2e | production | development | unit
 
 pnpm new-test --args true my-feature e2e
+
+# Unit tests are created as a flat test/unit/<name>.test.ts (appDir is ignored)
+pnpm new-test --args false my-util unit
 ```
 
 **Analyzing test output efficiently:**

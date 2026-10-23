@@ -65,16 +65,30 @@ export default function generator(plop: NodePlopAPI): void {
       const { appDir, type, name } = answers as TestResponse
       const basePath = plop.getDestBasePath()
       const testRoot = path.join(basePath, 'test')
-      const appDirPath = appDir ? 'app-dir/' : ''
+      const isUnit = type === 'unit'
+      // Unit tests are flat files in test/unit/, so appDir doesn't apply.
+      const appDirPath = appDir && !isUnit ? 'app-dir/' : ''
 
       const templatePath = path.join(
         testRoot,
-        type === 'unit' ? 'unit' : 'e2e',
+        isUnit ? 'unit' : 'e2e',
         appDirPath,
         'test-template'
       )
 
       const targetPath = path.join(testRoot, type, appDirPath)
+
+      const addTemplate = {
+        type: 'addMany' as const,
+        templateFiles: path.join(templatePath, '**/*'),
+        base: templatePath,
+        destination: targetPath,
+      }
+
+      // Unit tests don't need a Next.js app fixture.
+      if (isUnit) {
+        return [addTemplate]
+      }
 
       const cnaTemplatePath = path.join(
         basePath,
@@ -84,12 +98,7 @@ export default function generator(plop: NodePlopAPI): void {
       )
 
       return [
-        {
-          type: 'addMany',
-          templateFiles: path.join(templatePath, '**/*'),
-          base: templatePath,
-          destination: targetPath,
-        },
+        addTemplate,
         {
           type: 'add',
           templateFile: path.join(cnaTemplatePath, 'tsconfig.json'),
