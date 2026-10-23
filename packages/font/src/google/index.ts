@@ -9585,7 +9585,7 @@ export declare function Google_Sans_Flex<
     | 'tifinagh'
     | 'vietnamese'
   >
-  axes?: ('GRAD' | 'ROND' | 'opsz' | 'slnt' | 'wdth')[]
+  axes?: ('ROND' | 'opsz' | 'slnt' | 'wdth')[]
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gorditas<
   T extends CssVariable | undefined = undefined,

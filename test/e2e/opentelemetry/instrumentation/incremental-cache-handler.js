@@ -5,6 +5,15 @@ const {
 const REJECT_REVALIDATION = Symbol.for('next.test.reject-revalidation')
 
 module.exports = class IncrementalCacheHandler extends FileSystemCache {
+  constructor(ctx) {
+    // Lets a test fail a request while the middleware adapter sets it up,
+    // before it runs the middleware.
+    if (ctx._requestHeaders?.['x-test-fail-cache-handler'] === '1') {
+      throw new Error('cache handler failed for this request')
+    }
+    super(ctx)
+  }
+
   async revalidateTag(tags, durations) {
     if (tags.includes('reject-after-headers')) {
       return new Promise((_, reject) => {

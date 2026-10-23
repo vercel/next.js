@@ -3,9 +3,6 @@ import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely reads files from the isolated local fixture.
-// @force-gate !deploy
 describe('log-file', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,

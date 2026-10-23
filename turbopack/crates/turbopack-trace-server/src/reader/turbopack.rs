@@ -8,7 +8,7 @@ use std::{
 use anyhow::Result;
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::{RcStr, RcStrInterning, rcstr};
-use turbopack_trace_utils::tracing::{Allocations, TraceRow, TraceValue};
+use turbopack_trace_utils::tracing::{Allocations, TimestampDecoder, TraceRow, TraceValue};
 
 use super::TraceFormat;
 use crate::{
@@ -69,6 +69,8 @@ pub struct TurbopackFormat {
     // Only the top frame has an active self-time start; suspended frames have None.
     thread_stacks: FxHashMap<u64, Vec<(u64, Option<Timestamp>)>>,
     interner: RcStrInterning,
+    /// Resolves the timestamps of the rows, which are relative to each other in the stream.
+    timestamps: TimestampDecoder,
 }
 
 impl TurbopackFormat {
@@ -86,6 +88,7 @@ impl TurbopackFormat {
             outdated_spans: FxHashSet::with_capacity_and_hasher(8_192, Default::default()),
             thread_stacks: FxHashMap::with_capacity_and_hasher(64, Default::default()),
             interner: RcStrInterning::new(),
+            timestamps: TimestampDecoder::default(),
         }
     }
 
@@ -103,7 +106,7 @@ impl TurbopackFormat {
             .collect()
     }
 
-    fn process(&mut self, store: &mut StoreWriteGuard, row: TraceRow<'_>) {
+    fn process(&mut self, store: &mut StoreWriteGuard, row: TraceRow<'_, u64>) {
         match row {
             TraceRow::Start {
                 ts,
@@ -252,11 +255,20 @@ impl TurbopackFormat {
                 ts,
                 memory,
                 memory_pressure,
+                memory_footprint,
                 active_worker_threads,
             } => {
                 let ts = Timestamp::from_micros(ts);
-                store.add_memory_sample(ts, memory, memory_pressure, active_worker_threads);
+                store.add_memory_sample(
+                    ts,
+                    memory,
+                    memory_pressure,
+                    memory_footprint,
+                    active_worker_threads,
+                );
             }
+            // Already applied by the timestamp decoder when the row was read
+            TraceRow::TimestampBase { .. } => {}
         }
     }
 
@@ -405,9 +417,9 @@ impl TurbopackFormat {
 }
 
 impl TraceFormat for TurbopackFormat {
-    type Reused = Vec<TraceRow<'static>>;
+    type Reused = Vec<TraceRow<'static, u64>>;
 
-    fn create_reused() -> Vec<TraceRow<'static>> {
+    fn create_reused() -> Vec<TraceRow<'static, u64>> {
         // Pre-allocate for a typical batch size to avoid repeated doubling during initial read.
         Vec::with_capacity(4_096)
     }
@@ -437,15 +449,16 @@ impl TraceFormat for TurbopackFormat {
         let mut reuse = ClearOnDrop(reuse);
         // Safety: The Vec is empty and is cleared on leaving this scope, so it's safe to cast the
         // lifetime of data, since there is no data and data can't leave this function.
-        let rows =
-            unsafe { transmute::<&mut Vec<TraceRow<'_>>, &mut Vec<TraceRow<'_>>>(&mut *reuse) };
+        let rows = unsafe {
+            transmute::<&mut Vec<TraceRow<'_, u64>>, &mut Vec<TraceRow<'_, u64>>>(&mut *reuse)
+        };
         let mut bytes_read = 0;
         loop {
-            match postcard::take_from_bytes(buffer) {
+            match postcard::take_from_bytes::<TraceRow<'_>>(buffer) {
                 Ok((row, remaining)) => {
                     bytes_read += buffer.len() - remaining.len();
                     buffer = remaining;
-                    rows.push(row);
+                    rows.push(self.timestamps.decode(row)?);
                 }
                 Err(err) => {
                     if matches!(err, postcard::Error::DeserializeUnexpectedEnd) {
@@ -497,7 +510,9 @@ impl<T> DerefMut for ClearOnDrop<'_, T> {
 mod tests {
     use std::{borrow::Cow, sync::Arc};
 
-    use turbopack_trace_utils::tracing::{Allocations, TraceRow};
+    use turbopack_trace_utils::tracing::{
+        Allocations, DeltaEncodedTimestamp, TimestampEncoder, TraceRow,
+    };
 
     use crate::{
         reader::{TraceFormat, turbopack::TurbopackFormat},
@@ -506,7 +521,7 @@ mod tests {
         timestamp::Timestamp,
     };
 
-    fn start(id: u64, parent: Option<u64>, name: &'static str) -> TraceRow<'static> {
+    fn start(id: u64, parent: Option<u64>, name: &'static str) -> TraceRow<'static, u64> {
         TraceRow::Start {
             ts: 0,
             id,
@@ -526,13 +541,36 @@ mod tests {
         })
     }
 
+    /// Serializes the rows like the trace writer does: with delta encoded timestamps and a
+    /// [`TraceRow::TimestampBase`] row before the first one.
+    fn encode(rows: &[TraceRow<'_, u64>]) -> Vec<u8> {
+        encode_rows(rows).concat()
+    }
+
+    /// Like [`encode`], but returns the bytes of each row separately. A
+    /// [`TraceRow::TimestampBase`] is part of the bytes of the row it precedes.
+    fn encode_rows(rows: &[TraceRow<'_, u64>]) -> Vec<Vec<u8>> {
+        let mut encoder = TimestampEncoder::default();
+        rows.iter()
+            .map(|row| {
+                // A copy of the row, through its serialized form
+                let bytes = postcard::to_stdvec(row).unwrap();
+                let row: TraceRow<'_, u64> = postcard::from_bytes(&bytes).unwrap();
+                let (base, row) = encoder.encode_row(row);
+                let mut data = Vec::new();
+                if let Some(base) = base {
+                    data.extend(postcard::to_stdvec(&base).unwrap());
+                }
+                data.extend(postcard::to_stdvec(&row).unwrap());
+                data
+            })
+            .collect()
+    }
+
     /// Reads the rows (without header) and returns the self allocations, allocation counts and
     /// deallocations of the spans with the given names.
-    fn read(rows: &[TraceRow<'_>], names: &[&str]) -> Vec<(u64, u64, u64)> {
-        let mut data = Vec::new();
-        for row in rows {
-            data.extend(postcard::to_stdvec(row).unwrap());
-        }
+    fn read(rows: &[TraceRow<'_, u64>], names: &[&str]) -> Vec<(u64, u64, u64)> {
+        let data = encode(rows);
         let store = Arc::new(StoreContainer::new());
         let mut format = TurbopackFormat::new(store.clone());
         let mut reuse = TurbopackFormat::create_reused();
@@ -555,7 +593,7 @@ mod tests {
             .collect()
     }
 
-    fn enter(ts: u64, id: u64, thread_id: u64) -> TraceRow<'static> {
+    fn enter(ts: u64, id: u64, thread_id: u64) -> TraceRow<'static, u64> {
         TraceRow::Enter {
             ts,
             id,
@@ -564,7 +602,7 @@ mod tests {
         }
     }
 
-    fn exit(ts: u64, id: u64, thread_id: u64) -> TraceRow<'static> {
+    fn exit(ts: u64, id: u64, thread_id: u64) -> TraceRow<'static, u64> {
         TraceRow::Exit {
             ts,
             id,
@@ -573,13 +611,7 @@ mod tests {
         }
     }
 
-    fn encode(rows: &[TraceRow<'_>]) -> Vec<u8> {
-        rows.iter()
-            .flat_map(|row| postcard::to_stdvec(row).unwrap())
-            .collect()
-    }
-
-    fn ingest(format: &mut TurbopackFormat, rows: &[TraceRow<'_>]) {
+    fn ingest(format: &mut TurbopackFormat, rows: &[TraceRow<'_, u64>]) {
         let data = encode(rows);
         assert_eq!(
             format
@@ -794,13 +826,16 @@ mod tests {
     fn live_trace_with_partial_exit_preserves_the_resumed_frame() {
         let mut format = TurbopackFormat::new(Arc::new(StoreContainer::new()));
         let mut reuse = TurbopackFormat::create_reused();
-        let prefix = encode(&[
+        // One trace, split before its last row
+        let rows = encode_rows(&[
             start(1, None, "span"),
             enter(10, 1, 1),
             enter(20, 1, 1),
             exit(30, 1, 1),
+            exit(40, 1, 1),
         ]);
-        let final_row = encode(&[exit(40, 1, 1)]);
+        let prefix = rows[..4].concat();
+        let final_row = rows[4].clone();
         let mut data = prefix.clone();
         data.extend_from_slice(&final_row[..final_row.len() - 1]);
         let consumed = format.read(&data, &mut reuse).unwrap();
@@ -881,6 +916,67 @@ mod tests {
             },
         ];
         assert_eq!(read(&rows, &["span"]), vec![(220, 22, 90)]);
+    }
+
+    #[test]
+    fn decodes_timestamps_across_incremental_reads() {
+        let rows: [TraceRow<'_, u64>; 4] = [
+            TraceRow::Start {
+                ts: 10,
+                id: 1,
+                parent: None,
+                name: Cow::Borrowed("split"),
+                target: Cow::Borrowed(""),
+                values: Vec::new(),
+            },
+            TraceRow::Enter {
+                ts: 15,
+                id: 1,
+                thread_id: 1,
+                allocations: None,
+            },
+            TraceRow::Exit {
+                ts: 25,
+                id: 1,
+                thread_id: 1,
+                allocations: None,
+            },
+            TraceRow::End { ts: 30, id: 1 },
+        ];
+        let data = encode(&rows);
+        let base: TraceRow<'_> = TraceRow::TimestampBase { ts: 10 };
+        let base_len = postcard::to_stdvec(&base).unwrap().len();
+        let store = Arc::new(StoreContainer::new());
+        let mut format = TurbopackFormat::new(store.clone());
+        let mut reuse = TurbopackFormat::create_reused();
+        // The first read only contains the base row, the second read the rest
+        let read = TraceFormat::read(&mut format, &data[..base_len], &mut reuse).unwrap();
+        assert_eq!(read, base_len);
+        let read = TraceFormat::read(&mut format, &data[base_len..], &mut reuse).unwrap();
+        assert_eq!(read, data.len() - base_len);
+        let store = store.read();
+        let span = (0..store.spans.len())
+            .filter_map(|i| store.spans.get(i))
+            .find(|span| &*span.name == "split")
+            .unwrap();
+        assert_eq!(span.start, Timestamp::from_micros(10));
+        // Entered from 15 to 25
+        assert_eq!(span.time_data.self_time, Timestamp::from_micros(10));
+        assert_eq!(span.time_data.self_end, Timestamp::from_micros(25));
+        assert!(span.is_complete);
+    }
+
+    #[test]
+    fn rejects_timestamps_without_base() {
+        let row: TraceRow<'_> = TraceRow::End {
+            ts: DeltaEncodedTimestamp(4),
+            id: 1,
+        };
+        let data = postcard::to_stdvec(&row).unwrap();
+        let store = Arc::new(StoreContainer::new());
+        let mut format = TurbopackFormat::new(store);
+        let mut reuse = TurbopackFormat::create_reused();
+        assert!(TraceFormat::read(&mut format, &data, &mut reuse).is_err());
     }
 
     #[test]

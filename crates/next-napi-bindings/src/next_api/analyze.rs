@@ -206,7 +206,7 @@ async fn get_analyze_data_operation(
         }
     }
 
-    let analyze_data_and_summaries = endpoint_groups
+    let prepared_endpoint_groups = endpoint_groups
         .iter()
         .map(async |(key, endpoint_group)| {
             let output_assets = if has_combined
@@ -263,39 +263,49 @@ async fn get_analyze_data_operation(
             {
                 groups.extend(shared_chunk_groups.iter().cloned());
             }
+            Ok((key, output_assets, traced_files, groups, entries))
+        })
+        .try_join()
+        .await?;
+
+    let analyze_data_and_summaries = prepared_endpoint_groups
+        .into_iter()
+        .map(|(key, output_assets, traced_files, groups, entries)| {
             let chunk_groups: Vc<AnalyzeChunkGroups> = Vc::cell(groups);
             let route_entries: Vc<AnalyzeRouteEntries> = Vc::cell(entries);
-            let analyze_data = AnalyzeDataOutputAsset::new(
-                analyze_output_root
-                    .join(&key.to_string())?
-                    .join("analyze.data")?,
-                output_assets,
-                traced_files,
-                route_entries,
-                chunk_groups,
-                *whole_app_module_graphs.await?.full,
-            )
-            .to_resolved()
-            .await?;
+            async move {
+                let analyze_data = AnalyzeDataOutputAsset::new(
+                    analyze_output_root
+                        .join(&key.to_string())?
+                        .join("analyze.data")?,
+                    output_assets,
+                    traced_files,
+                    route_entries,
+                    chunk_groups,
+                    *whole_app_module_graphs.await?.full,
+                )
+                .to_resolved()
+                .await?;
 
-            let summary = if let EndpointGroupKey::Route(route) = key {
-                Some(RouteSummary {
-                    route: route.to_string(),
-                    bundles: analyze_output_assets(
-                        output_assets,
-                        traced_files,
-                        route_entries,
-                        chunk_groups,
-                        *whole_app_module_graphs.await?.full,
-                    )
-                    .await?
-                    .summary,
-                })
-            } else {
-                None
-            };
+                let summary = if let EndpointGroupKey::Route(route) = key {
+                    Some(RouteSummary {
+                        route: route.to_string(),
+                        bundles: analyze_output_assets(
+                            output_assets,
+                            traced_files,
+                            route_entries,
+                            chunk_groups,
+                            *whole_app_module_graphs.await?.full,
+                        )
+                        .await?
+                        .summary,
+                    })
+                } else {
+                    None
+                };
 
-            Ok((ResolvedVc::upcast(analyze_data), summary))
+                Ok((ResolvedVc::upcast(analyze_data), summary))
+            }
         })
         .try_join()
         .await?;

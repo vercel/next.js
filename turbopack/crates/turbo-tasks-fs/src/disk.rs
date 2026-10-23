@@ -25,9 +25,9 @@ use tokio::{
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CapturedEffect, Effect, EffectExt, EffectStateStorage, InvalidationReason, NonLocalValue,
-    OperationVc, ReadRef, ResolvedVc, TurboTasksApi, ValueToString, Vc, debug::ValueDebugFormat,
-    parallel, turbo_tasks_weak, turbobail,
+    CapturedEffect, Effect, EffectExt, EffectStateStorage, InvalidationReason, Invalidator,
+    NonLocalValue, OperationVc, ReadRef, ResolvedVc, TurboTasksApi, ValueToString, Vc,
+    debug::ValueDebugFormat, turbo_tasks_weak, turbobail,
 };
 use turbo_tasks_hash::{hash_xxh3_hash64, hash_xxh3_hash128};
 use turbo_unix_path::{normalize_path, sys_to_unix, unix_to_sys};
@@ -309,9 +309,7 @@ impl DiskFileSystemInner {
             let reason = Write {
                 path: full_path.to_string_lossy().into_owned(),
             };
-            for invalidator in invalidators {
-                invalidator.invalidate_with_reason(&*turbo_tasks, reason.clone());
-            }
+            Invalidator::invalidate_all_with_reason(invalidators, &*turbo_tasks, reason);
         }
     }
 
@@ -345,19 +343,16 @@ impl DiskFileSystemInner {
         let invalidators = invalidator_map
             .into_iter()
             .chain(dir_invalidator_map)
-            .flat_map(|(_, invalidators)| invalidators.into_iter())
-            .collect::<Vec<_>>();
-        parallel::for_each_owned(invalidators, |invalidator| {
-            invalidator.invalidate(&*turbo_tasks)
-        });
+            .flat_map(|(_, invalidators)| invalidators.into_iter());
+        Invalidator::invalidate_all(invalidators, &*turbo_tasks);
     }
 
     /// Invalidates every tracked file in the filesystem.
     ///
     /// Calls the given `reason` closure to find the [`InvalidationReason`].
-    pub(crate) fn invalidate_with_reason<R: InvalidationReason + Clone>(
+    pub(crate) fn invalidate_with_reason<R: InvalidationReason>(
         &self,
-        reason: impl Fn(&Path) -> R + Sync,
+        reason: impl Fn(&Path) -> R,
     ) {
         let _span = tracing::info_span!("invalidate filesystem", name = &*self.root).entered();
         let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
@@ -367,28 +362,32 @@ impl DiskFileSystemInner {
 
         let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
         let dir_invalidator_map = take(&mut *self.dir_invalidator_map.lock().unwrap());
-        let invalidators = invalidator_map
-            .into_iter()
-            .chain(dir_invalidator_map)
-            .flat_map(|(path, invalidators)| {
-                let reason_for_path = reason(&path);
-                invalidators
-                    .into_iter()
-                    .map(move |i| (reason_for_path.clone(), i))
-            })
-            .collect::<Vec<_>>();
-        parallel::for_each_owned(invalidators, |(reason, invalidator)| {
-            invalidator.invalidate_with_reason(&*turbo_tasks, reason)
-        });
+        let path_invalidator_counts = || {
+            invalidator_map
+                .values()
+                .chain(dir_invalidator_map.values())
+                .map(|path_invalidators| path_invalidators.len())
+                .filter(|&count| count > 0)
+        };
+        let mut invalidators = Vec::with_capacity(path_invalidator_counts().sum());
+        let mut reasons = Vec::with_capacity(path_invalidator_counts().count());
+        for (path, path_invalidators) in invalidator_map.into_iter().chain(dir_invalidator_map) {
+            if path_invalidators.is_empty() {
+                continue;
+            }
+            reasons.push(reason(&path));
+            invalidators.extend(path_invalidators);
+        }
+        Invalidator::invalidate_all_with_reasons(invalidators, &*turbo_tasks, reasons);
     }
 
     /// Invalidates tracked files/directories for `paths` and their children.
     /// Also invalidates tracked directory reads for all parent directories to
     /// account for file creations/deletions under the deferred subtree.
-    fn invalidate_path_and_children_with_reason<R: InvalidationReason + Clone>(
+    fn invalidate_path_and_children_with_reason<R: InvalidationReason>(
         &self,
         paths: impl IntoIterator<Item = PathBuf>,
-        reason: impl Fn(&Path) -> R + Sync,
+        reason: impl Fn(&Path) -> R,
     ) {
         let _span =
             tracing::info_span!("invalidate filesystem paths", name = &*self.root).entered();
@@ -397,9 +396,18 @@ impl DiskFileSystemInner {
         };
         let _guard = self.tokio_handle.enter();
 
+        let paths = paths.into_iter();
+        let path_count = paths.size_hint().0;
         let mut invalidator_map = self.invalidator_map.lock().unwrap();
         let mut dir_invalidator_map = self.dir_invalidator_map.lock().unwrap();
-        let mut invalidators = Vec::new();
+        let mut invalidators = Vec::with_capacity(path_count);
+        let mut reasons = Vec::with_capacity(path_count);
+        let mut add = |path: &Path, path_invalidators: FxHashSet<Invalidator>| {
+            if !path_invalidators.is_empty() {
+                reasons.push(reason(path));
+                invalidators.extend(path_invalidators);
+            }
+        };
         let mut parent_dirs_to_invalidate = FxHashSet::default();
 
         for path in paths {
@@ -412,43 +420,26 @@ impl DiskFileSystemInner {
             for (invalidated_path, path_invalidators) in
                 invalidator_map.extract_path_with_children(&path)
             {
-                let reason_for_path = reason(&invalidated_path);
-                invalidators.extend(
-                    path_invalidators
-                        .into_iter()
-                        .map(|invalidator| (reason_for_path.clone(), invalidator)),
-                );
+                add(&invalidated_path, path_invalidators);
             }
 
             for (invalidated_path, path_invalidators) in
                 dir_invalidator_map.extract_path_with_children(&path)
             {
-                let reason_for_path = reason(&invalidated_path);
-                invalidators.extend(
-                    path_invalidators
-                        .into_iter()
-                        .map(|invalidator| (reason_for_path.clone(), invalidator)),
-                );
+                add(&invalidated_path, path_invalidators);
             }
         }
 
         for path in parent_dirs_to_invalidate {
             if let Some(path_invalidators) = dir_invalidator_map.remove(path.as_path()) {
-                let reason_for_path = reason(&path);
-                invalidators.extend(
-                    path_invalidators
-                        .into_iter()
-                        .map(|invalidator| (reason_for_path.clone(), invalidator)),
-                );
+                add(&path, path_invalidators);
             }
         }
 
         drop(invalidator_map);
         drop(dir_invalidator_map);
 
-        parallel::for_each_owned(invalidators, |(reason, invalidator)| {
-            invalidator.invalidate_with_reason(&*turbo_tasks, reason)
-        });
+        Invalidator::invalidate_all_with_reasons(invalidators, &*turbo_tasks, reasons);
     }
 }
 
