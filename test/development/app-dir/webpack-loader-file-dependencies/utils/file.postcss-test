@@ -1,3 +1,0 @@
-.value {
-  content: "__BUILD_DEPENDENCY__";
-}
