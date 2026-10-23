@@ -10,7 +10,6 @@ use std::{
 
 use anyhow::{Context, Result, anyhow, bail};
 use bincode::{Decode, Encode};
-use flate2::write::GzEncoder;
 use futures_util::TryFutureExt;
 use napi::{
     Env, Status, Unknown,
@@ -79,7 +78,7 @@ use turbopack_trace_utils::{
     exit::{ExitHandler, ExitReceiver},
     filter_layer::FilterLayer,
     raw_trace::{RawTraceLayer, RawTraceLayerOptions},
-    trace_writer::TraceWriter,
+    trace_writer::{TraceWriter, TraceWriterCompression, TraceWriterOptions, parse_split_size},
 };
 use url::Url;
 
@@ -464,16 +463,20 @@ pub fn project_new<'env>(
         trace = Some("overview".to_owned());
     }
 
-    enum Compression {
-        None,
-        GzipFast,
-        GzipBest,
-        /// zstd with the given compression level
-        Zstd(i32),
-    }
-    let mut compress = Compression::None;
+    let mut compression = None;
     let mut raw_trace_options = RawTraceLayerOptions::default();
     if let Some(mut trace) = trace {
+        let split_size = std::env::var_os("NEXT_TURBOPACK_TRACING_SPLIT")
+            .map(|value| {
+                value.to_str().and_then(parse_split_size).ok_or_else(|| {
+                    napi::Error::from_reason(
+                        "Invalid NEXT_TURBOPACK_TRACING_SPLIT: expected a positive integer byte \
+                         count, optionally followed by k, m, or g (powers of 1000)"
+                            .to_owned(),
+                    )
+                })
+            })
+            .transpose()?;
         let trace_path_override = std::env::var_os("NEXT_TURBOPACK_TRACING_PATH")
             .filter(|v| !v.is_empty())
             .map(PathBuf::from);
@@ -499,7 +502,17 @@ pub fn project_new<'env>(
 
         println!("Turbopack tracing enabled with targets: {trace}");
         println!("  Note that this might have a small performance impact.");
-        println!("  Trace output will be written to {}", trace_file.display());
+        if let Some(size) = split_size {
+            println!(
+                "  Trace output will be split into files of at most {size} bytes: {}.00000, \
+                 {}.00001, ...",
+                trace_file.display(),
+                trace_file.display()
+            );
+            println!("  Concatenate the parts in numeric order before viewing the trace.");
+        } else {
+            println!("  Trace output will be written to {}", trace_file.display());
+        }
 
         trace = trace
             .split(",")
@@ -511,23 +524,25 @@ pub fn project_new<'env>(
                     "turbopack" => Cow::Owned(TRACING_NEXT_TURBOPACK_TARGETS.join(",")),
                     "turbo-tasks" => Cow::Owned(TRACING_NEXT_TURBO_TASKS_TARGETS.join(",")),
                     "gz" => {
-                        compress = Compression::GzipFast;
+                        compression =
+                            Some(TraceWriterCompression::Gzip(flate2::Compression::fast()));
                         return None;
                     }
                     "gz-best" => {
-                        compress = Compression::GzipBest;
+                        compression =
+                            Some(TraceWriterCompression::Gzip(flate2::Compression::best()));
                         return None;
                     }
                     "zstd" => {
-                        compress = Compression::Zstd(3);
+                        compression = Some(TraceWriterCompression::Zstd(3));
                         return None;
                     }
                     "zstd-fast" => {
-                        compress = Compression::Zstd(1);
+                        compression = Some(TraceWriterCompression::Zstd(1));
                         return None;
                     }
                     "zstd-best" => {
-                        compress = Compression::Zstd(19);
+                        compression = Some(TraceWriterCompression::Zstd(19));
                         return None;
                     }
                     "no-memory" => {
@@ -561,30 +576,14 @@ pub fn project_new<'env>(
                 )
             })
             .unwrap();
-        let (trace_writer, trace_writer_guard) = match compress {
-            Compression::None => {
-                let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
-                TraceWriter::new(trace_writer)
-            }
-            Compression::GzipFast => {
-                let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
-                let trace_writer = GzEncoder::new(trace_writer, flate2::Compression::fast());
-                TraceWriter::new(trace_writer)
-            }
-            Compression::GzipBest => {
-                let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
-                let trace_writer = GzEncoder::new(trace_writer, flate2::Compression::best());
-                TraceWriter::new(trace_writer)
-            }
-            Compression::Zstd(level) => {
-                let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
-                // `auto_finish` completes the zstd frame when the trace writer drops it on exit.
-                let trace_writer = zstd::Encoder::new(trace_writer, level)
-                    .unwrap()
-                    .auto_finish();
-                TraceWriter::new(trace_writer)
-            }
-        };
+        let (trace_writer, trace_writer_guard) = TraceWriter::new(
+            &trace_file,
+            TraceWriterOptions {
+                split_size,
+                compression,
+            },
+        )
+        .unwrap();
         let subscriber =
             subscriber.with(RawTraceLayer::with_options(trace_writer, raw_trace_options));
 
@@ -596,10 +595,17 @@ pub fn project_new<'env>(
 
         let trace_server = std::env::var("NEXT_TURBOPACK_TRACE_SERVER").ok();
         if trace_server.is_some() {
-            thread::spawn(move || {
-                turbopack_trace_server::start_turbopack_trace_server(trace_file, None);
-            });
-            println!("Turbopack trace server started. View trace at https://trace.nextjs.org");
+            if split_size.is_some() {
+                println!(
+                    "Turbopack trace server skipped: NEXT_TURBOPACK_TRACING_SPLIT is enabled. \
+                     Concatenate the parts before viewing the trace."
+                );
+            } else {
+                thread::spawn(move || {
+                    turbopack_trace_server::start_turbopack_trace_server(trace_file, None);
+                });
+                println!("Turbopack trace server started. View trace at https://trace.nextjs.org");
+            }
         }
 
         subscriber.init();
