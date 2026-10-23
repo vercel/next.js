@@ -108,6 +108,22 @@ struct SnapshotOptions {
     shared_runtime: bool,
     #[serde(default)]
     production_chunking: bool,
+    /// `max_chunk_size` of the ecmascript chunking config when `production_chunking` is enabled.
+    #[serde(default)]
+    max_chunk_size: usize,
+    /// Overrides `min_chunk_size` (default `2000`) when `production_chunking` is enabled.
+    #[serde(default)]
+    min_chunk_size: Option<usize>,
+    /// Overrides `max_chunk_count_per_group` (default `40`) when `production_chunking` is enabled.
+    #[serde(default)]
+    max_chunk_count_per_group: Option<usize>,
+    /// Enables component chunks when `production_chunking` is enabled.
+    #[serde(default)]
+    generate_component_chunks: bool,
+    /// `min_component_chunk_size` of the ecmascript chunking config when `production_chunking` is
+    /// enabled.
+    #[serde(default)]
+    min_component_chunk_size: usize,
     #[serde(default)]
     single_chunk: bool,
     #[serde(default)]
@@ -154,6 +170,11 @@ impl Default for SnapshotOptions {
             scope_hoisting: false,
             shared_runtime: false,
             production_chunking: false,
+            max_chunk_size: 0,
+            min_chunk_size: None,
+            max_chunk_count_per_group: None,
+            generate_component_chunks: false,
+            min_component_chunk_size: 0,
             single_chunk: false,
             enable_debug_ids: false,
             source_map_source_type: SourceMapSourceType::default(),
@@ -572,9 +593,14 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                     .chunking_config(
                         Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                         ChunkingConfig {
-                            min_chunk_size: 2_000,
-                            max_chunk_count_per_group: 40,
+                            min_chunk_size: options.min_chunk_size.unwrap_or(2_000),
+                            max_chunk_count_per_group: options
+                                .max_chunk_count_per_group
+                                .unwrap_or(40),
                             max_merge_chunk_size: 200_000,
+                            max_chunk_size: options.max_chunk_size,
+                            generate_component_chunks: options.generate_component_chunks,
+                            min_component_chunk_size: options.min_component_chunk_size,
                             ..Default::default()
                         },
                     )
@@ -619,9 +645,14 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                     .chunking_config(
                         Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                         ChunkingConfig {
-                            min_chunk_size: 2_000,
-                            max_chunk_count_per_group: 40,
+                            min_chunk_size: options.min_chunk_size.unwrap_or(2_000),
+                            max_chunk_count_per_group: options
+                                .max_chunk_count_per_group
+                                .unwrap_or(40),
                             max_merge_chunk_size: 200_000,
+                            max_chunk_size: options.max_chunk_size,
+                            generate_component_chunks: options.generate_component_chunks,
+                            min_component_chunk_size: options.min_component_chunk_size,
                             ..Default::default()
                         },
                     )

@@ -44,6 +44,13 @@ import { join } from 'path'
     let mergeAllChunks: string[]
     let noMergeChunks: string[]
     let mergeAllWithComponentChunks: string[]
+    let mergeAllWithMaxChunkSizeChunks: string[]
+
+    // Merge everything, but split chunks bigger than a small maximum size again.
+    const mergeAllWithMaxChunkSize = {
+      ...mergeAll,
+      maxChunkSize: 20_000,
+    }
 
     beforeAll(async () => {
       mergeAllChunks = await buildWith(mergeAll)
@@ -53,6 +60,7 @@ import { join } from 'path'
         generateComponentChunks: true,
         minComponentChunkSize: 0,
       })
+      mergeAllWithMaxChunkSizeChunks = await buildWith(mergeAllWithMaxChunkSize)
     })
 
     it('changes the client chunk output based on the size thresholds', () => {
@@ -69,11 +77,22 @@ import { join } from 'path'
       )
     })
 
-    it('renders and navigates correctly with custom chunking', async () => {
+    it('splits chunks bigger than maxChunkSize', () => {
+      // With the same merge settings, a small maxChunkSize splits the big merged chunks into
+      // more, smaller chunks.
+      expect(mergeAllWithMaxChunkSizeChunks.length).toBeGreaterThan(
+        mergeAllChunks.length
+      )
+    })
+
+    it.each([
+      ['custom chunking', mergeAll],
+      ['maxChunkSize', mergeAllWithMaxChunkSize],
+    ])('renders and navigates correctly with %s', async (_, chunking) => {
       await next.patchFile(
         'next.config.js',
         `module.exports = ${JSON.stringify(
-          { experimental: { turbopackChunking: mergeAll } },
+          { experimental: { turbopackChunking: chunking } },
           null,
           2
         )}`

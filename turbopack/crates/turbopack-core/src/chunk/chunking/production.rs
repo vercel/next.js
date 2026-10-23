@@ -1,8 +1,8 @@
 use std::{borrow::Cow, collections::BinaryHeap, hash::BuildHasherDefault, mem::take};
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use roaring::RoaringBitmap;
-use rustc_hash::{FxHashMap, FxHasher};
+use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::SmallVec;
 use tracing::{Instrument, field::Empty};
 use turbo_prehash::BuildHasherExt;
@@ -10,9 +10,12 @@ use turbo_tasks::{FxIndexMap, FxIndexSet, MappedReadRef, ReadRef, ResolvedVc, Tr
 
 use crate::{
     chunk::{
-        ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo,
-        ChunkingConfig,
-        chunking::{ChunkItemOrBatchWithInfo, ComponentChunkItems, SplitContext, make_chunk},
+        ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo,
+        ChunkItemOrBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkingConfig,
+        chunking::{
+            ChunkItemOrBatchWithInfo, ComponentChunkItems, SplitContext,
+            deterministic_grouping::deterministic_grouping, dev::expand_batches, make_chunk,
+        },
     },
     module_graph::{
         ModuleGraph,
@@ -130,6 +133,7 @@ pub async fn make_production_chunks(
             min_chunk_size,
             max_chunk_count_per_group,
             max_merge_chunk_size,
+            max_chunk_size,
             first_page_load_priority,
             priority_boost_percent,
             request_cost,
@@ -141,11 +145,17 @@ pub async fn make_production_chunks(
         if min_chunk_size == 0 && max_chunk_count_per_group == 0 {
             span.record("chunks", grouped_chunk_items.len());
             for group in grouped_chunk_items.into_values() {
-                make_chunk(
+                let size = group
+                    .chunk_items
+                    .iter()
+                    .map(|chunk_item| chunk_item.size())
+                    .sum::<usize>();
+                make_size_limited_chunk(
                     group.chunk_items,
                     group.batch_group.into_iter().collect(),
                     Vec::new(),
-                    &mut String::new(),
+                    size,
+                    max_chunk_size,
                     &mut split_context,
                 )
                 .await?;
@@ -610,11 +620,12 @@ pub async fn make_production_chunks(
                     .then(|| split_into_component_chunks(components, min_component_chunk_size))
                     .flatten()
                     .unwrap_or_default();
-                make_chunk(
+                make_size_limited_chunk(
                     chunk_items,
                     batch_groups.into_vec(),
                     components,
-                    &mut String::new(),
+                    size,
+                    max_chunk_size,
                     &mut split_context,
                 )
                 .await?;
@@ -626,6 +637,97 @@ pub async fn make_production_chunks(
     }
     .instrument(span_outer)
     .await
+}
+
+/// Creates a chunk from `chunk_items` (with a total size of `size`), or several chunks when `size`
+/// is bigger than `max_chunk_size` (unless that is `0`).
+///
+/// Oversized chunks are split deterministically by the module identifiers of their chunk items, see
+/// [`deterministic_grouping`]. Batches are expanded into their chunk items for that. The split
+/// chunks get the batch groups whose chunk items they fully contain, and no component chunks.
+async fn make_size_limited_chunk<'l>(
+    chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
+    batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
+    components: Vec<ComponentChunkItems<'l>>,
+    size: usize,
+    max_chunk_size: usize,
+    split_context: &mut SplitContext<'_>,
+) -> Result<()> {
+    if max_chunk_size == 0 || size <= max_chunk_size {
+        return make_chunk(
+            chunk_items,
+            batch_groups,
+            components,
+            &mut String::new(),
+            split_context,
+        )
+        .await;
+    }
+
+    let expanded = expand_batches(
+        chunk_items,
+        split_context.ty,
+        split_context.chunking_context,
+    )
+    .await?;
+    let keyed_items = expanded
+        .iter()
+        .map(|item| match item {
+            ChunkItemOrBatchWithInfo::ChunkItem {
+                asset_ident, size, ..
+            } => Ok((item, asset_ident, *size)),
+            ChunkItemOrBatchWithInfo::Batch { .. } => bail!("batches should have been expanded"),
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let parts = deterministic_grouping(keyed_items, max_chunk_size);
+
+    // The chunk items of each batch group, to find the split chunks that fully contain them.
+    let batch_group_chunk_items = batch_groups
+        .iter()
+        .map(async |&batch_group| {
+            let mut chunk_items = FxHashSet::default();
+            for item in &batch_group.await?.items {
+                match item {
+                    ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(chunk_item) => {
+                        chunk_items.insert(*chunk_item);
+                    }
+                    ChunkItemOrBatchWithAsyncModuleInfo::Batch(batch) => {
+                        chunk_items.extend(batch.await?.chunk_items.iter().copied());
+                    }
+                }
+            }
+            Ok((batch_group, chunk_items))
+        })
+        .try_join()
+        .await?;
+
+    for part in parts {
+        let part_batch_groups = if batch_group_chunk_items.is_empty() {
+            Vec::new()
+        } else {
+            let part_chunk_items = part
+                .iter()
+                .filter_map(|item| match item {
+                    ChunkItemOrBatchWithInfo::ChunkItem { chunk_item, .. } => Some(*chunk_item),
+                    ChunkItemOrBatchWithInfo::Batch { .. } => None,
+                })
+                .collect::<FxHashSet<_>>();
+            batch_group_chunk_items
+                .iter()
+                .filter(|(_, chunk_items)| chunk_items.is_subset(&part_chunk_items))
+                .map(|(batch_group, _)| *batch_group)
+                .collect()
+        };
+        make_chunk(
+            part,
+            part_batch_groups,
+            Vec::new(),
+            &mut String::new(),
+            split_context,
+        )
+        .await?;
+    }
+    Ok(())
 }
 
 /// One original (pre-merge) atomic chunk group. A [`ChunkCandidate`]/[`MergeCandidate`] tracks the

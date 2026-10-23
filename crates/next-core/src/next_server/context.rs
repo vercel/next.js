@@ -1035,6 +1035,8 @@ pub struct ServerChunkingContextOptions {
     pub style_groups_algorithm: StyleGroupsAlgorithm,
     pub per_page_module_graph: Vc<bool>,
     pub lazy_dynamic_imports: bool,
+    /// Best-effort maximum JS chunk size, `0` disables splitting.
+    pub chunking_max_chunk_size: usize,
 }
 
 /// Like `get_server_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -1065,6 +1067,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         style_groups_algorithm,
         per_page_module_graph,
         lazy_dynamic_imports,
+        chunking_max_chunk_size,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
 
@@ -1131,6 +1134,7 @@ pub async fn get_server_chunking_context_with_client_assets(
                     min_chunk_size: 4_000,
                     max_chunk_count_per_group: 0,
                     max_merge_chunk_size: 100_000,
+                    max_chunk_size: chunking_max_chunk_size,
                     request_cost: Some(10_000),
                     ..Default::default()
                 },
@@ -1177,6 +1181,7 @@ pub async fn get_server_chunking_context(
         style_groups_algorithm,
         per_page_module_graph,
         lazy_dynamic_imports,
+        chunking_max_chunk_size,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
     let next_mode = mode.await?;
@@ -1244,6 +1249,7 @@ pub async fn get_server_chunking_context(
                     min_chunk_size: 4_000,
                     max_chunk_count_per_group: 0,
                     max_merge_chunk_size: 100_000,
+                    max_chunk_size: chunking_max_chunk_size,
                     request_cost: Some(10_000),
                     ..Default::default()
                 },

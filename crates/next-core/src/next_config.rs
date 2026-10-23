@@ -927,6 +927,9 @@ const DEFAULT_REQUEST_COST: f32 = 20_000.0;
 /// Default `weightDistribution` for the graph algorithm.
 const DEFAULT_WEIGHT_DISTRIBUTION: f32 = 0.1;
 
+/// Default `experimental.turbopackChunking.maxChunkSize`, in bytes.
+const DEFAULT_MAX_CHUNK_SIZE: usize = 1_000_000;
+
 /// `experimental.turbopackChunking`: hints for Turbopack's production chunker.
 #[derive(
     Clone, Debug, Default, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
@@ -959,6 +962,12 @@ pub struct TurbopackChunkingConfig {
     /// Don't merge chunks bigger than this size, in bytes (default `200000`), with other
     /// chunks. This keeps code in big chunks from being duplicated across multiple chunks.
     max_merge_chunk_size: Option<usize>,
+    /// Best-effort maximum estimated size of a JavaScript chunk, in bytes of uncompressed,
+    /// unminified code (default `1000000`). Bigger chunks are split deterministically into
+    /// smaller chunks, which may be smaller than `min_chunk_size` or exceed
+    /// `max_chunk_count_per_group`. Split merged chunks do not emit component chunks. `0` disables
+    /// splitting. Unlike the other size thresholds, this also applies to server and edge chunks.
+    max_chunk_size: Option<usize>,
     /// Emit each merged production chunk's constituent component chunks alongside it, so the
     /// browser runtime can load only the chunks it doesn't already have (default `false`).
     generate_component_chunks: Option<bool>,
@@ -986,6 +995,8 @@ pub struct TurbopackChunking {
     pub max_chunk_count_per_group: Option<usize>,
     /// Override for the client JS `max_merge_chunk_size`, or `None` to use the default.
     pub max_merge_chunk_size: Option<usize>,
+    /// Best-effort maximum JS chunk size for client, server and edge chunking (defaults applied).
+    pub max_chunk_size: usize,
     /// Override for the client JS `min_component_chunk_size`, or `None` to use the default.
     pub min_component_chunk_size: Option<usize>,
     /// Whether to emit component chunks alongside merged chunks (default `false`).
@@ -1973,6 +1984,9 @@ impl NextConfig {
             min_chunk_size: config.and_then(|c| c.min_chunk_size),
             max_chunk_count_per_group: config.and_then(|c| c.max_chunk_count_per_group),
             max_merge_chunk_size: config.and_then(|c| c.max_merge_chunk_size),
+            max_chunk_size: config
+                .and_then(|c| c.max_chunk_size)
+                .unwrap_or(DEFAULT_MAX_CHUNK_SIZE),
             min_component_chunk_size: config.and_then(|c| c.min_component_chunk_size),
             generate_component_chunks: config
                 .and_then(|c| c.generate_component_chunks)

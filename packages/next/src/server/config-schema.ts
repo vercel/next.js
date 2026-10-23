@@ -441,6 +441,7 @@ export const experimentalSchema = {
       minChunkSize: z.number().min(0).optional(),
       maxChunkCountPerGroup: z.number().min(0).optional(),
       maxMergeChunkSize: z.number().min(0).optional(),
+      maxChunkSize: z.number().min(0).optional(),
       minComponentChunkSize: z.number().min(0).optional(),
       generateComponentChunks: z.boolean().optional(),
     })
