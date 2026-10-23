@@ -693,7 +693,7 @@ async function createComponentTreeInternal(
             )
           : null
 
-        let slotErrorComponent: ErrorComponent | undefined = undefined
+        let slotErrorComponent: ComponentType<any> | undefined = undefined
         let slotErrorStyles: React.ReactNode | undefined = undefined
         let slotErrorScripts: React.ReactNode | undefined = undefined
 
