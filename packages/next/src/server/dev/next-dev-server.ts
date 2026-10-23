@@ -838,6 +838,8 @@ export default class DevServer extends Server {
           paramMatching === undefined &&
           res.value?.fallbackMode !== undefined &&
           // This matches the hasGenerateStaticParams logic we do during build.
+          // TODO: the `hasGenerateStaticParams` in build was recently changed,
+          // does that matter here?
           (!isAppPath || (prerenderedRoutes && prerenderedRoutes.length > 0))
         ) {
           const prerenderManifestPath = pathJoin(

@@ -75,13 +75,40 @@ export function getStagedFallbackParams(route: {
   }
 
   return createOpaqueFallbackRouteParams(
-    fallbackRouteParams.filter(
-      (param) =>
-        !remainingPrerenderableParams.some(
-          (prerenderableParam) =>
-            prerenderableParam.paramName === param.paramName
-        )
+    excludePrerenderableParams(
+      fallbackRouteParams,
+      remainingPrerenderableParams
     )
+  )
+}
+
+export function excludePrerenderableParams(
+  fallbackRouteParams: undefined,
+  remainingPrerenderableParams: readonly FallbackRouteParam[] | undefined
+): undefined
+export function excludePrerenderableParams(
+  fallbackRouteParams: readonly FallbackRouteParam[],
+  remainingPrerenderableParams: readonly FallbackRouteParam[] | undefined
+): readonly FallbackRouteParam[]
+export function excludePrerenderableParams(
+  fallbackRouteParams: readonly FallbackRouteParam[] | undefined,
+  remainingPrerenderableParams: readonly FallbackRouteParam[] | undefined
+): readonly FallbackRouteParam[] | undefined
+export function excludePrerenderableParams(
+  fallbackRouteParams: readonly FallbackRouteParam[] | undefined,
+  remainingPrerenderableParams: readonly FallbackRouteParam[] | undefined
+): readonly FallbackRouteParam[] | undefined {
+  if (!fallbackRouteParams?.length) {
+    return fallbackRouteParams
+  }
+  if (!remainingPrerenderableParams?.length) {
+    return fallbackRouteParams
+  }
+  return fallbackRouteParams.filter(
+    (param) =>
+      !remainingPrerenderableParams.some(
+        (prerenderableParam) => prerenderableParam.paramName === param.paramName
+      )
   )
 }
 
