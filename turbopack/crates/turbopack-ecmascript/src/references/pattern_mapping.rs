@@ -38,6 +38,7 @@ use crate::{
     runtime_functions::{
         TURBOPACK_ASYNC_LOADER, TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE,
         TURBOPACK_IMPORT, TURBOPACK_MODULE_CONTEXT, TURBOPACK_REQUIRE,
+        TURBOPACK_RESOLVE_MODULE_ID_PATH,
     },
     utils::module_id_to_lit,
 };
@@ -258,9 +259,53 @@ impl SinglePatternMapping {
     }
 }
 
+/// How a module entry of a `new URL()` pattern mapping is turned into the URL of its asset.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub(crate) enum UrlModuleMode {
+    /// `__turbopack_require__(id)`, which evaluates to the asset path exported by the module.
+    Require,
+    /// `__turbopack_resolve_module_id_path__(id)`, which evaluates to the full output path of
+    /// the asset.
+    ResolveModuleIdPath,
+}
+
+impl SinglePatternMapping {
+    /// Creates an expression evaluating to the URL (the first `new URL()` argument) this mapping
+    /// points to. URL externals evaluate to their request, as with a single `new URL()` match.
+    fn create_url(&self, module_mode: UrlModuleMode) -> Expr {
+        match self {
+            Self::Invalid => quote!(
+                "(() => {throw new Error('could not resolve the new URL() request into an \
+                 asset');})()" as Expr
+            ),
+            Self::Unresolvable(request) => throw_module_not_found_expr(request),
+            Self::Ignored => quote!("{}" as Expr),
+            Self::Dropped => quote!("0" as Expr),
+            Self::Module(module_id) | Self::ModuleLoader(module_id) => match module_mode {
+                UrlModuleMode::Require => quote!(
+                    "$turbopack_require($id)" as Expr,
+                    turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
+                    id: Expr = module_id_to_lit(module_id),
+                ),
+                UrlModuleMode::ResolveModuleIdPath => quote!(
+                    "$turbopack_resolve_module_id_path($id)" as Expr,
+                    turbopack_resolve_module_id_path: Expr = TURBOPACK_RESOLVE_MODULE_ID_PATH.into(),
+                    id: Expr = module_id_to_lit(module_id),
+                ),
+            },
+            Self::External(request, ExternalType::Url) => request.as_str().into(),
+            Self::External(request, ty) => throw_module_not_found_error_expr(
+                request,
+                &format!("Unsupported external type {ty:?} for URL reference"),
+            ),
+        }
+    }
+}
+
 enum ImportMode {
     Require,
     Import { import_externals: bool },
+    Url(UrlModuleMode),
 }
 
 fn create_context_map(
@@ -275,7 +320,8 @@ fn create_context_map(
                         "{id: () => $id, module: () => $module}",
                         id: Expr = v.create_id(Cow::Borrowed(key_expr)),
                         module: Expr = match import_mode {ImportMode::Require => v.create_require(Cow::Borrowed(key_expr)),
-                            ImportMode::Import {import_externals} => v.create_import(Cow::Borrowed(key_expr), import_externals),},
+                            ImportMode::Import {import_externals} => v.create_import(Cow::Borrowed(key_expr), import_externals),
+                            ImportMode::Url(module_mode) => v.create_url(module_mode),},
                     ),})))})
         .collect();
 
@@ -314,6 +360,26 @@ impl PatternMapping {
                 )
             }
         }
+    }
+
+    /// Creates an expression that looks up, at runtime, the URL (the first `new URL()` argument)
+    /// of the asset matching `key_expr`. It throws `MODULE_NOT_FOUND` when nothing matches, and
+    /// `key_expr` is evaluated exactly once.
+    ///
+    /// Only used for dynamic or multi-result requests, so a [`PatternMapping::Single`] here means
+    /// that the request matched nothing and is mapped to an empty context.
+    pub fn create_url_lookup(&self, key_expr: Expr, module_mode: UrlModuleMode) -> Expr {
+        let empty = FxIndexMap::default();
+        let map = match self {
+            PatternMapping::Single(_) => &empty,
+            PatternMapping::Map(map) => map,
+        };
+        quote!(
+            "$turbopack_module_context($map)($key)" as Expr,
+            turbopack_module_context: Expr = TURBOPACK_MODULE_CONTEXT.into(),
+            map: Expr = create_context_map(map, &key_expr, ImportMode::Url(module_mode)),
+            key: Expr = key_expr
+        )
     }
 
     pub fn create_import(&self, key_expr: Expr, import_externals: bool) -> Expr {

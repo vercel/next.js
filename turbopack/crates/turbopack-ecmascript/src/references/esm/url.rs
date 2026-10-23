@@ -1,6 +1,7 @@
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use swc_core::{
+    common::util::take::Take,
     ecma::ast::{Expr, ExprOrSpread, NewExpr},
     quote,
 };
@@ -21,7 +22,10 @@ use crate::{
     ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::esm::base::ReferencedAsset,
+    references::{
+        esm::base::ReferencedAsset,
+        pattern_mapping::{PatternMapping, ResolveType, UrlModuleMode},
+    },
     runtime_functions::{
         TURBOPACK_RELATIVE_URL, TURBOPACK_REQUIRE, TURBOPACK_RESOLVE_MODULE_ID_PATH,
     },
@@ -152,14 +156,25 @@ impl UrlAssetReferenceCodeGen {
     │ None                          │ new URL(url, base)                                                      │ new URL(url, base)                             │ new URL(url, base)    │
     └───────────────────────────────┴─────────────────────────────────────────────────────────────────────────┴────────────────────────────────────────────────┴───────────────────────┘
     */
+    /// When the request is dynamic (e.g. `new URL(`./${name}`, import.meta.url)`) or resolves to
+    /// multiple assets, the asset is instead picked at runtime from a request -> URL map (see
+    /// [`Self::dynamic_code_generation`]).
     pub async fn code_generation(
         &self,
         trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
-        let mut visitors = vec![];
-
         let reference = self.reference.await?;
+
+        if reference.url_rewrite_behavior != UrlRewriteBehavior::None
+            && let Some(code_generation) = self
+                .dynamic_code_generation(&reference, trie, chunking_context)
+                .await?
+        {
+            return Ok(code_generation);
+        }
+
+        let mut visitors = vec![];
 
         match reference.url_rewrite_behavior {
             UrlRewriteBehavior::Relative => {
@@ -345,5 +360,89 @@ impl UrlAssetReferenceCodeGen {
         };
 
         Ok(CodeGeneration::visitors(visitors))
+    }
+
+    /// Rewrites a `new URL()` call whose request has dynamic parts or resolves to multiple
+    /// assets, so that the asset matching the request is looked up at runtime instead of always
+    /// using a single one (a request that matched nothing throws `MODULE_NOT_FOUND` at runtime).
+    /// Returns `None` for a constant request with at most one result, which is handled by
+    /// [`Self::code_generation`].
+    ///
+    /// The first argument becomes `__turbopack_module_context__(map)(url)`, which evaluates to
+    /// the same URL the corresponding single match would be rewritten to:
+    /// - `Relative`: `new __turbopack_relative_url__(<lookup>)`
+    /// - `Full` + client rendering: `new URL(<lookup>, location.origin)`
+    /// - `Full` otherwise: `new URL(<lookup>, base)`, where modules map to
+    ///   `__turbopack_resolve_module_id_path__(id)` (which is absolute, so the base only applies to
+    ///   URL externals).
+    async fn dynamic_code_generation(
+        &self,
+        reference: &UrlAssetReference,
+        trie: &AstPathTrie,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<Option<CodeGeneration>> {
+        let resolve_result = self.reference.resolve_reference();
+        if !reference
+            .request
+            .request_pattern()
+            .await?
+            .has_dynamic_parts()
+            && resolve_result.await?.primary.len() <= 1
+        {
+            return Ok(None);
+        }
+
+        let pattern_mapping = PatternMapping::resolve_request(
+            *reference.request,
+            *reference.origin,
+            chunking_context,
+            resolve_result,
+            ResolveType::ChunkItem,
+            Some(Vc::upcast(*self.reference)),
+        )
+        .await?;
+
+        let rewrite_url_base = match (reference.url_rewrite_behavior, reference.rendering) {
+            (UrlRewriteBehavior::Full, Rendering::Client) => {
+                Some(quote!("location.origin" as Expr))
+            }
+            _ => None,
+        };
+        let module_mode = match (reference.url_rewrite_behavior, reference.rendering) {
+            (UrlRewriteBehavior::Full, Rendering::None | Rendering::Server) => {
+                UrlModuleMode::ResolveModuleIdPath
+            }
+            _ => UrlModuleMode::Require,
+        };
+        let relative = reference.url_rewrite_behavior == UrlRewriteBehavior::Relative;
+
+        let visitor = create_visitor!(trie, self.path, visit_mut_expr, |new_expr: &mut Expr| {
+            let Expr::New(NewExpr {
+                args: Some(args), ..
+            }) = new_expr
+            else {
+                return;
+            };
+            let Some(ExprOrSpread { expr, spread: None }) = args.get_mut(0) else {
+                return;
+            };
+            let lookup = pattern_mapping.create_url_lookup(*expr.take(), module_mode);
+            if relative {
+                *new_expr = quote!(
+                    "new $turbopack_relative_url($lookup)" as Expr,
+                    turbopack_relative_url: Expr = TURBOPACK_RELATIVE_URL.into(),
+                    lookup: Expr = lookup,
+                );
+                return;
+            }
+            **expr = lookup;
+            if let Some(rewrite) = &rewrite_url_base
+                && let Some(ExprOrSpread { expr, spread: None }) = args.get_mut(1)
+            {
+                **expr = rewrite.clone();
+            }
+        });
+
+        Ok(Some(CodeGeneration::visitors(vec![visitor])))
     }
 }

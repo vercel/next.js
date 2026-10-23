@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 9, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url-dynamic-full/input/index.js"],"sourcesContent":["const name = globalThis.assetName\nconst assetUrl = new URL(`./assets/${name}`, import.meta.url)\nconst staticUrl = new URL('./assets/a.txt', import.meta.url)\n\nconsole.log(assetUrl, staticUrl)\n"],"names":["name","globalThis","assetName","assetUrl","URL","staticUrl","console","log"],"mappings":";;;;;;;;;;;;AAAA,MAAMA,OAAOC,WAAWC,SAAS;AACjC,MAAMC,WAAW,IAAIC;;;;;;;;;GAAI,CAAC,SAAS,EAAEJ,MAAM;AAC3C,MAAMK,YAAY,IAAID;AAEtBE,QAAQC,GAAG,CAACJ,UAAUE"}}]
+}
