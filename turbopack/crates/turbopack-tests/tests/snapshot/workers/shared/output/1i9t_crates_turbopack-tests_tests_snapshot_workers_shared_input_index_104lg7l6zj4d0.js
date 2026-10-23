@@ -755,15 +755,15 @@ function wrapDeps(deps) {
 }
 function asyncModule(body, hasAwait) {
     const module = this.m;
-    const queue = Object.assign([], {
+    let queue = hasAwait ? Object.assign([], {
         status: -1
-    });
+    }) : undefined;
     const depQueues = new Set();
     const { resolve, reject, promise: rawPromise } = createPromise();
     const promise = Object.assign(rawPromise, {
         [turbopackExports]: module.exports,
         [turbopackQueues]: (fn)=>{
-            fn(queue);
+            queue && fn(queue);
             depQueues.forEach(fn);
             promise['catch'](()=>{});
         }
@@ -789,7 +789,11 @@ function asyncModule(body, hasAwait) {
             });
         const { promise, resolve } = createPromise();
         const fn = Object.assign(()=>{
-            queue.status = 0;
+            if (!queue) {
+                queue = Object.assign([], {
+                    status: 0
+                });
+            }
             resolve(getResult);
         }, {
             queueCount: 0
@@ -813,9 +817,12 @@ function asyncModule(body, hasAwait) {
             resolve(promise[turbopackExports]);
         }
         resolveQueue(queue);
+        if (!hasAwait) {
+            queue = undefined;
+        }
     }
     body(handleAsyncDependencies, asyncResult);
-    if (hasAwait && queue.status === -1) {
+    if (queue && queue.status === -1) {
         queue.status = 0;
     }
 }

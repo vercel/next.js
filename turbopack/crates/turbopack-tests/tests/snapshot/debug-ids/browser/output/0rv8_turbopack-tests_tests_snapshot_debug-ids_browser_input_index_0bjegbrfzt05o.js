@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="4ff4af83-4c36-49f6-a8dc-95a30d101c7a")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="71de0ab7-50ac-8459-0539-ce2d5338cfa0")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -756,15 +756,15 @@ function wrapDeps(deps) {
 }
 function asyncModule(body, hasAwait) {
     const module = this.m;
-    const queue = Object.assign([], {
+    let queue = hasAwait ? Object.assign([], {
         status: -1
-    });
+    }) : undefined;
     const depQueues = new Set();
     const { resolve, reject, promise: rawPromise } = createPromise();
     const promise = Object.assign(rawPromise, {
         [turbopackExports]: module.exports,
         [turbopackQueues]: (fn)=>{
-            fn(queue);
+            queue && fn(queue);
             depQueues.forEach(fn);
             promise['catch'](()=>{});
         }
@@ -790,7 +790,11 @@ function asyncModule(body, hasAwait) {
             });
         const { promise, resolve } = createPromise();
         const fn = Object.assign(()=>{
-            queue.status = 0;
+            if (!queue) {
+                queue = Object.assign([], {
+                    status: 0
+                });
+            }
             resolve(getResult);
         }, {
             queueCount: 0
@@ -814,9 +818,12 @@ function asyncModule(body, hasAwait) {
             resolve(promise[turbopackExports]);
         }
         resolveQueue(queue);
+        if (!hasAwait) {
+            queue = undefined;
+        }
     }
     body(handleAsyncDependencies, asyncResult);
-    if (hasAwait && queue.status === -1) {
+    if (queue && queue.status === -1) {
         queue.status = 0;
     }
 }
@@ -2662,5 +2669,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=4ff4af83-4c36-49f6-a8dc-95a30d101c7a
+//# debugId=71de0ab7-50ac-8459-0539-ce2d5338cfa0
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map
