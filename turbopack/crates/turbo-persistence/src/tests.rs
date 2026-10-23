@@ -4,7 +4,7 @@ use std::{fs, path::Path};
 
 use anyhow::Result;
 #[cfg(not(miri))]
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use rstest::rstest;
 
 // Miri rejects a process that exits while rayon's global worker threads are still parked, so
@@ -67,6 +67,18 @@ impl ParallelScheduler for RayonParallelScheduler {
         E: Send,
     {
         items.into_par_iter().try_for_each(f)
+    }
+
+    fn try_parallel_for_each_task_mut<T, E>(
+        &self,
+        items: &mut [T],
+        f: impl (Fn(&mut T) -> Result<(), E>) + Send + Sync,
+    ) -> Result<(), E>
+    where
+        T: Send + Sync,
+        E: Send,
+    {
+        items.into_par_iter().with_max_len(1).try_for_each(f)
     }
 
     fn try_parallel_for_each_owned<T, E>(
@@ -3381,6 +3393,18 @@ fn batch_get_large_batches(#[case] sharded: bool, #[case] mmap: bool) -> Result<
             assert_eq!(result.as_deref(), db.get(0, key)?.as_deref());
         }
     }
+
+    // Duplicates of a key have the same hash, so they are adjacent and span several chunks.
+    let mut keys = vec![3u32.to_be_bytes().to_vec(); 3000];
+    keys.extend(vec![11u32.to_be_bytes().to_vec(); 600]);
+    let results = db.batch_get(0, &keys)?;
+    assert_eq!(results.len(), keys.len());
+    let (hits, deleted) = results.split_at(3000);
+    assert!(
+        hits.iter()
+            .all(|r| r.as_deref() == Some(&value_of(3, 1)[..]))
+    );
+    assert!(deleted.iter().all(Option::is_none));
 
     db.shutdown();
     Ok(())

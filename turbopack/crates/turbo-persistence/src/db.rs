@@ -4,8 +4,9 @@ use std::{
     fmt::Display,
     hash::BuildHasherDefault,
     io::{BufWriter, ErrorKind, Write},
+    marker::PhantomData,
     mem::take,
-    ops::RangeInclusive,
+    ops::{Range, RangeInclusive},
     path::{Path, PathBuf},
     sync::{
         OnceLock,
@@ -308,14 +309,78 @@ impl Drop for WriteOperationGuard<'_> {
 /// scheduling overhead.
 const PARALLEL_BATCH_GET_THRESHOLD: usize = 2048;
 
-/// The keys of one shard looked up by [`TurboPersistence::batch_get`].
-struct ShardBatchGet<'l> {
+/// [`TurboPersistence::batch_get`] splits the keys of a shard into chunks of at most this many
+/// keys, which are the units of parallel work.
+///
+/// Shards are sized for disk IO and compaction, so a shard can hold far more keys of a batch than
+/// one task should look up. Chunks of keys that are adjacent in hash order tend to share key and
+/// value blocks of the same SST files.
+const MAX_BATCH_GET_CHUNK_LEN: usize = 256;
+
+/// A chunk of keys looked up by [`TurboPersistence::batch_get`]. All keys belong to the same shard.
+struct BatchGetChunk<'l> {
     shard: u32,
-    /// The cells of the keys in this shard, sorted by key hash.
-    cells: &'l mut [(u64, usize, Option<LookupValue>)],
-    /// The value found for each cell.
-    values: &'l mut [Option<ArcBytes>],
+    /// `(key hash, key index)` of the keys of this chunk, sorted by key hash.
+    cells: &'l [(u64, u32)],
     counts: BatchGetCounts,
+}
+
+/// Splits `cells`, which are sorted by key hash, into chunks of at most
+/// [`MAX_BATCH_GET_CHUNK_LEN`] contiguous cells that don't cross a shard boundary. The cells of
+/// each shard are split into chunks of nearly equal length. Returns the shard and the range of
+/// cells of each chunk.
+fn batch_get_chunks(cells: &[(u64, u32)], shard_bits: ShardBits) -> Vec<(u32, Range<usize>)> {
+    let mut chunks = Vec::with_capacity(cells.len().div_ceil(MAX_BATCH_GET_CHUNK_LEN));
+    let mut start = 0;
+    while let Some(&(first_hash, _)) = cells.get(start) {
+        let shard = shard_bits.shard_of(first_hash);
+        let shard_len =
+            cells[start..].partition_point(|(hash, _)| shard_bits.shard_of(*hash) == shard);
+        let chunk_count = shard_len.div_ceil(MAX_BATCH_GET_CHUNK_LEN);
+        let (base_len, longer_chunks) = (shard_len / chunk_count, shard_len % chunk_count);
+        for chunk in 0..chunk_count {
+            let len = base_len + usize::from(chunk < longer_chunks);
+            chunks.push((shard, start..start + len));
+            start += len;
+        }
+    }
+    chunks
+}
+
+/// Allows multiple threads to write distinct elements of a slice.
+struct DisjointSliceWriter<'l, T> {
+    ptr: *mut T,
+    len: usize,
+    _slice: PhantomData<&'l mut [T]>,
+}
+
+// SAFETY: The writer only moves `T` values into the slice, which may happen on another thread.
+// Callers of `write` guarantee that no element is written more than once, so threads never access
+// the same element.
+unsafe impl<T: Send> Send for DisjointSliceWriter<'_, T> {}
+// SAFETY: See above.
+unsafe impl<T: Send> Sync for DisjointSliceWriter<'_, T> {}
+
+impl<'l, T> DisjointSliceWriter<'l, T> {
+    fn new(slice: &'l mut [T]) -> Self {
+        Self {
+            ptr: slice.as_mut_ptr(),
+            len: slice.len(),
+            _slice: PhantomData,
+        }
+    }
+
+    /// Replaces the element at `index` with `value`. Panics if `index` is out of bounds.
+    ///
+    /// # Safety
+    ///
+    /// Each `index` must be written at most once over the lifetime of the writer.
+    unsafe fn write(&self, index: usize, value: T) {
+        assert!(index < self.len, "index out of bounds");
+        // SAFETY: `index` is in bounds of the slice, which is mutably borrowed for `'l`, and the
+        // caller guarantees that no other write accesses this element.
+        unsafe { *self.ptr.add(index) = value };
+    }
 }
 
 #[derive(Clone, Copy, Default)]
@@ -2378,11 +2443,13 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// Looks up many keys of a [`FamilyKind::SingleValue`] family at once. The result has one entry
     /// per key, in the order of `keys`.
     ///
-    /// Batches with more than 2048 keys are looked up in parallel
-    /// using the database's [`ParallelScheduler`], with one work item per current shard of the
-    /// family. When SST files match the current shard boundaries, each work item reads a disjoint
-    /// set of SST files. After resharding, older SST files can span multiple current shards and
-    /// may be read by multiple work items.
+    /// The keys are sorted by hash and split into chunks of at most 256 keys that don't cross a
+    /// shard boundary, so each chunk is only looked up in the SST files of its shard. Batches with
+    /// more than 2048 keys look up the chunks in parallel using the database's
+    /// [`ParallelScheduler`]. After resharding, older SST files can span multiple current shards
+    /// and may be read by chunks of different shards.
+    ///
+    /// Panics if there are more than `u32::MAX` keys.
     pub fn batch_get<K: QueryKey + Sync>(
         &self,
         family: usize,
@@ -2402,12 +2469,17 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             result_size = tracing::field::Empty
         )
         .entered();
-        let mut cells: Vec<(u64, usize, Option<LookupValue>)> = Vec::with_capacity(keys.len());
-        for (index, key) in keys.iter().enumerate() {
-            let hash = hash_key(key);
-            cells.push((hash, index, None));
-        }
-        cells.sort_by_key(|(hash, _, _)| *hash);
+        assert!(
+            u32::try_from(keys.len()).is_ok(),
+            "`batch_get` supports at most u32::MAX keys"
+        );
+        // `(key hash, key index)`, sorted by key hash.
+        let mut cells: Vec<(u64, u32)> = keys
+            .iter()
+            .enumerate()
+            .map(|(index, key)| (hash_key(key), index as u32))
+            .collect();
+        cells.sort_unstable_by_key(|(hash, _)| *hash);
         let inner_guard = self.inner.read();
         let inner = &*inner_guard;
         let key_block_cache = self.key_block_cache();
@@ -2418,81 +2490,108 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 .all(|meta| meta.family() as usize == family),
             "meta file stored in the wrong family shard while querying family {family}"
         );
-        // Cells are sorted by hash, so the keys of each shard are a contiguous run. Each run is
-        // only looked up in the SST files of its shard, and the values found are stored in
-        // `values` at the same position as their cell.
-        let shard_bits = inner.shard_indices[family].bits();
-        let mut values: Vec<Option<ArcBytes>> = vec![None; cells.len()];
-        let mut work = Vec::new();
-        let mut remaining_cells = &mut cells[..];
-        let mut remaining_values = &mut values[..];
-        while let Some(&(first_hash, _, _)) = remaining_cells.first() {
-            let shard = shard_bits.shard_of(first_hash);
-            let run_len =
-                remaining_cells.partition_point(|(hash, _, _)| shard_bits.shard_of(*hash) == shard);
-            let (run_cells, rest_cells) = remaining_cells.split_at_mut(run_len);
-            let (run_values, rest_values) = remaining_values.split_at_mut(run_len);
-            remaining_cells = rest_cells;
-            remaining_values = rest_values;
-            work.push(ShardBatchGet {
+        let mut chunks = batch_get_chunks(&cells, inner.shard_indices[family].bits())
+            .into_iter()
+            .map(|(shard, range)| BatchGetChunk {
                 shard,
-                cells: run_cells,
-                values: run_values,
+                cells: &cells[range],
                 counts: BatchGetCounts::default(),
-            });
-        }
-        let lookup_shard = |shard_work: &mut ShardBatchGet<'_>| {
-            self.batch_get_shard(
+            })
+            .collect::<Vec<_>>();
+        let mut results: Vec<Option<ArcBytes>> = vec![None; keys.len()];
+        let results_writer = DisjointSliceWriter::new(&mut results);
+        let lookup_chunk = |chunk: &mut BatchGetChunk<'_>| {
+            self.batch_get_chunk(
                 inner,
                 family,
                 keys,
-                shard_work,
+                chunk,
+                &results_writer,
                 key_block_cache,
                 value_block_cache,
             )
         };
-        if keys.len() > PARALLEL_BATCH_GET_THRESHOLD && work.len() > 1 {
+        if keys.len() > PARALLEL_BATCH_GET_THRESHOLD && chunks.len() > 1 {
             self.parallel_scheduler
-                .try_parallel_for_each_mut(&mut work, lookup_shard)?;
+                .try_parallel_for_each_task_mut(&mut chunks, lookup_chunk)?;
         } else {
-            for shard_work in &mut work {
-                lookup_shard(shard_work)?;
+            for chunk in &mut chunks {
+                lookup_chunk(chunk)?;
             }
         }
-        let counts = work
+        let counts = chunks
             .iter()
-            .fold(BatchGetCounts::default(), |acc, shard_work| {
-                acc + shard_work.counts
-            });
-        drop(work);
-        let mut results = vec![None; keys.len()];
-        for ((_, index, _), value) in cells.iter().zip(values) {
-            results[*index] = value;
-        }
+            .fold(BatchGetCounts::default(), |acc, chunk| acc + chunk.counts);
+        drop(chunks);
         span.record("not_found", counts.not_found);
         span.record("deleted", counts.deleted);
         span.record("result_size", counts.result_size);
         Ok(results)
     }
 
-    /// Looks up the cells of a single shard for [`Self::batch_get`] and materializes the values
-    /// found (including reading blobs) into `shard_work.values`.
-    fn batch_get_shard<K: QueryKey>(
+    /// Looks up the keys of a chunk for [`Self::batch_get`]. Values found (including blobs) are
+    /// written to `results` at the index of their key.
+    #[allow(clippy::too_many_arguments)]
+    fn batch_get_chunk<K: QueryKey>(
         &self,
         inner: &Inner<FAMILIES>,
         family: usize,
         keys: &[K],
-        shard_work: &mut ShardBatchGet<'_>,
+        chunk: &mut BatchGetChunk<'_>,
+        results: &DisjointSliceWriter<'_, Option<ArcBytes>>,
         key_block_cache: &BlockCache,
         value_block_cache: &BlockCache,
     ) -> Result<()> {
-        let ShardBatchGet {
+        let BatchGetChunk {
             shard,
             cells,
-            values,
             counts,
-        } = shard_work;
-        let mut empty_cells = cells.len();
+        } = chunk;
+        let cells: &[(u64, u32)] = cells;
+        debug_assert!(cells.len() <= MAX_BATCH_GET_CHUNK_LEN);
+        // Whether a key was found in a newer SST file already, by position in `cells`.
+        let mut resolved = [false; MAX_BATCH_GET_CHUNK_LEN];
+        let resolved = &mut resolved[..cells.len()];
+        let mut unresolved = cells.len();
+        let mut on_found = |position: usize, value: LookupValue| -> Result<()> {
+            let (hash, index) = cells[position];
+            inner.accessed_key_hashes[family].insert(hash);
+            let value = match value {
+                LookupValue::KeyDeleted => {
+                    #[cfg(feature = "stats")]
+                    self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
+                    counts.deleted += 1;
+                    return Ok(());
+                }
+                LookupValue::KeyValueDeleted { .. } => {
+                    // Key-value tombstones are only written to MultiValue families, and
+                    // `batch_get` rejects those.
+                    bail!(
+                        "unexpected key-value tombstone in SingleValue family {}",
+                        self.config.family_configs[family].name
+                    )
+                }
+                LookupValue::Slice { value } => {
+                    #[cfg(feature = "stats")]
+                    self.stats.hits_small.fetch_add(1, Ordering::Relaxed);
+                    value
+                }
+                LookupValue::Blob { sequence_number } => {
+                    #[cfg(feature = "stats")]
+                    self.stats.hits_blob.fetch_add(1, Ordering::Relaxed);
+                    self.read_blob(
+                        sequence_number,
+                        self.config.family_configs[family].compression,
+                    )?
+                }
+            };
+            counts.result_size += value.len();
+            // SAFETY: Every key index occurs in exactly one cell, every cell belongs to exactly one
+            // chunk, and `batch_lookup_entry` reports each cell at most once since it is marked as
+            // resolved. So every index is written at most once.
+            unsafe { results.write(index as usize, Some(value)) };
+            Ok(())
+        };
         let shard_files = inner.shard_indices[family].shard(*shard);
         for (
             range,
@@ -2508,57 +2607,25 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     range,
                     keys,
                     cells,
-                    &mut empty_cells,
+                    resolved,
+                    &mut unresolved,
                     key_block_cache,
                     value_block_cache,
+                    &mut on_found,
                 )?;
             #[cfg(feature = "stats")]
             self.record_batch_lookup_stats(_result);
-            if empty_cells == 0 {
+            if unresolved == 0 {
                 break;
             }
         }
-        for ((hash, _, result), value) in cells.iter_mut().zip(values.iter_mut()) {
-            let Some(result) = result.take() else {
-                #[cfg(feature = "stats")]
-                self.stats.miss_global.fetch_add(1, Ordering::Relaxed);
-                counts.not_found += 1;
-                continue;
-            };
-            inner.accessed_key_hashes[family].insert(*hash);
-            *value = match result {
-                LookupValue::KeyDeleted => {
-                    #[cfg(feature = "stats")]
-                    self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
-                    counts.deleted += 1;
-                    None
-                }
-                LookupValue::KeyValueDeleted { .. } => {
-                    // Key-value tombstones are only written to MultiValue families, and
-                    // `batch_get` rejects those.
-                    bail!(
-                        "unexpected key-value tombstone in SingleValue family {}",
-                        self.config.family_configs[family].name
-                    )
-                }
-                LookupValue::Slice { value } => {
-                    #[cfg(feature = "stats")]
-                    self.stats.hits_small.fetch_add(1, Ordering::Relaxed);
-                    counts.result_size += value.len();
-                    Some(value)
-                }
-                LookupValue::Blob { sequence_number } => {
-                    #[cfg(feature = "stats")]
-                    self.stats.hits_blob.fetch_add(1, Ordering::Relaxed);
-                    let blob = self.read_blob(
-                        sequence_number,
-                        self.config.family_configs[family].compression,
-                    )?;
-                    counts.result_size += blob.len();
-                    Some(blob)
-                }
-            };
-        }
+        // `on_found` borrows `counts`.
+        drop(on_found);
+        #[cfg(feature = "stats")]
+        self.stats
+            .miss_global
+            .fetch_add(unresolved as u64, Ordering::Relaxed);
+        counts.not_found += unresolved;
         Ok(())
     }
 
@@ -2825,4 +2892,81 @@ pub struct MetaFileEntryInfo {
     pub block_count: u16,
     /// The number of entries in the SST file.
     pub entry_count: u32,
+}
+
+#[cfg(test)]
+mod batch_get_chunks_tests {
+    use super::*;
+
+    /// Cells for `count` keys in each shard of `counts`, with 4 shard bits.
+    fn cells(counts: &[usize]) -> (Vec<(u64, u32)>, ShardBits) {
+        let bits = ShardBits::new(4);
+        let mut cells = Vec::new();
+        for (shard, &count) in counts.iter().enumerate() {
+            let start = *bits.range(shard as u32).start();
+            for i in 0..count {
+                cells.push((start + i as u64, cells.len() as u32));
+            }
+        }
+        (cells, bits)
+    }
+
+    #[test]
+    fn chunks_cover_cells_within_shards() {
+        let counts = [0, 1, 256, 257, 2049, 0, 3, 512, 1000];
+        let (cells, bits) = cells(&counts);
+        let chunks = batch_get_chunks(&cells, bits);
+        let mut next = 0;
+        for (shard, range) in &chunks {
+            assert_eq!(range.start, next, "chunks are contiguous");
+            next = range.end;
+            assert!(!range.is_empty() && range.len() <= MAX_BATCH_GET_CHUNK_LEN);
+            for &(hash, _) in &cells[range.clone()] {
+                assert_eq!(
+                    bits.shard_of(hash),
+                    *shard,
+                    "a chunk crosses a shard boundary"
+                );
+            }
+        }
+        assert_eq!(next, cells.len(), "chunks cover all cells");
+        for (shard, &count) in counts.iter().enumerate() {
+            let lens = chunks
+                .iter()
+                .filter(|(s, _)| *s == shard as u32)
+                .map(|(_, range)| range.len())
+                .collect::<Vec<_>>();
+            assert_eq!(lens.len(), count.div_ceil(MAX_BATCH_GET_CHUNK_LEN));
+            // The chunks of a shard have nearly equal length.
+            if let (Some(min), Some(max)) = (lens.iter().min(), lens.iter().max()) {
+                assert!(max - min <= 1, "{lens:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn no_chunks_for_no_cells() {
+        assert!(batch_get_chunks(&[], ShardBits::new(4)).is_empty());
+    }
+
+    #[test]
+    fn disjoint_slice_writer_writes_from_multiple_threads() {
+        const LEN: usize = 64;
+        let mut values: Vec<Option<Box<usize>>> = vec![Some(Box::new(usize::MAX)); LEN];
+        let writer = DisjointSliceWriter::new(&mut values);
+        std::thread::scope(|scope| {
+            for thread in 0..4 {
+                let writer = &writer;
+                scope.spawn(move || {
+                    for index in (thread..LEN).step_by(4) {
+                        // SAFETY: Each thread writes a distinct residue class of indices.
+                        unsafe { writer.write(index, Some(Box::new(index))) };
+                    }
+                });
+            }
+        });
+        for (index, value) in values.iter().enumerate() {
+            assert_eq!(value.as_deref(), Some(&index));
+        }
+    }
 }

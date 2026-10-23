@@ -614,26 +614,32 @@ impl MetaFile {
     }
 
     /// Looks up the keys of `cells` in the SST file of the entry `entry_index`, whose hash range is
-    /// `range`. Only cells without a result are looked up. `cells` must be sorted by key hash.
+    /// `range`. `cells` holds `(key hash, key index)` pairs and must be sorted by key hash. Only
+    /// cells that are not `resolved` yet are looked up. When a key is found, its cell is marked as
+    /// resolved, `unresolved` is decremented and `on_found` is called with the position of the cell
+    /// and the value.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn batch_lookup_entry<K: QueryKey>(
         &self,
         entry_index: u32,
         range: &StaticSortedFileRange,
         keys: &[K],
-        cells: &mut [(u64, usize, Option<LookupValue>)],
-        empty_cells: &mut usize,
+        cells: &[(u64, u32)],
+        resolved: &mut [bool],
+        unresolved: &mut usize,
         key_block_cache: &BlockCache,
         value_block_cache: &BlockCache,
+        mut on_found: impl FnMut(usize, LookupValue) -> Result<()>,
     ) -> Result<MetaBatchLookupResult> {
         debug_assert!(
-            cells.is_sorted_by_key(|(hash, _, _)| *hash),
+            cells.is_sorted_by_key(|(hash, _)| *hash),
             "Cells must be sorted by key hash"
         );
+        debug_assert_eq!(cells.len(), resolved.len());
         #[allow(unused_mut, reason = "It's used when stats are enabled")]
         let mut lookup_result = MetaBatchLookupResult::default();
         let start_index = cells
-            .binary_search_by(|(hash, _, _)| hash.cmp(&range.min_hash).then(Ordering::Greater))
+            .binary_search_by(|(hash, _)| hash.cmp(&range.min_hash).then(Ordering::Greater))
             .err()
             .unwrap();
         if start_index >= cells.len() {
@@ -644,7 +650,7 @@ impl MetaFile {
             return Ok(lookup_result);
         }
         let end_index = cells
-            .binary_search_by(|(hash, _, _)| hash.cmp(&range.max_hash).then(Ordering::Less))
+            .binary_search_by(|(hash, _)| hash.cmp(&range.max_hash).then(Ordering::Less))
             .err()
             .unwrap();
         if start_index >= end_index {
@@ -655,12 +661,13 @@ impl MetaFile {
             return Ok(lookup_result);
         }
         let entry = &self.entries[entry_index as usize];
-        for (hash, index, result) in &mut cells[start_index..end_index] {
-            debug_assert!(range.contains(*hash), "Key hash out of range");
-            if result.is_some() {
+        for position in start_index..end_index {
+            let (hash, index) = cells[position];
+            debug_assert!(range.contains(hash), "Key hash out of range");
+            if resolved[position] {
                 continue;
             }
-            if !entry.amqf.contains_fingerprint(*hash) {
+            if !entry.amqf.contains_fingerprint(hash) {
                 #[cfg(feature = "stats")]
                 {
                     lookup_result.quick_filter_misses += 1;
@@ -668,8 +675,8 @@ impl MetaFile {
                 continue;
             }
             let sst_result = entry.sst(self)?.lookup::<_, false>(
-                *hash,
-                &keys[*index],
+                hash,
+                &keys[index as usize],
                 key_block_cache,
                 value_block_cache,
             )?;
@@ -679,13 +686,14 @@ impl MetaFile {
                 let Some(value) = values.pop() else {
                     unreachable!()
                 };
-                *result = Some(value);
-                *empty_cells -= 1;
+                resolved[position] = true;
+                *unresolved -= 1;
                 #[cfg(feature = "stats")]
                 {
                     lookup_result.hits += 1;
                 }
-                if *empty_cells == 0 {
+                on_found(position, value)?;
+                if *unresolved == 0 {
                     return Ok(lookup_result);
                 }
             } else {
