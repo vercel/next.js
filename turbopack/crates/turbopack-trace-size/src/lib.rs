@@ -1,6 +1,7 @@
 //! Size analysis for Turbopack trace files (`trace-turbopack.bin`).
 //!
-//! A trace file is a `TRACEv0` magic header followed by a stream of
+//! A trace file is a [`TRACE_HEADER`] (magic bytes with the format version)
+//! followed by a stream of
 //! [`postcard`]-serialized [`TraceRow`]s, optionally gzip or zstd compressed.
 //! [`TraceSizeAnalyzer`] decodes that stream and attributes the bytes of every
 //! row to its row type and span, and the bytes of attributes and strings to
@@ -20,10 +21,9 @@ use std::{
 use anyhow::{Context, Result, bail};
 use flate2::bufread::MultiGzDecoder;
 use rustc_hash::{FxHashMap, FxHashSet};
-use turbopack_trace_utils::tracing::{Allocations, TraceRow, TraceValue};
-
-/// The magic bytes at the start of every (uncompressed) trace file.
-pub const TRACE_HEADER: &[u8] = b"TRACEv0";
+use turbopack_trace_utils::tracing::{
+    Allocations, TRACE_HEADER, TimestampDecoder, TraceRow, TraceValue, check_trace_header,
+};
 
 const READ_CHUNK_SIZE: usize = 16 * 1024 * 1024;
 
@@ -37,10 +37,11 @@ pub enum RowKind {
     Event,
     Record,
     MemorySample,
+    TimestampBase,
 }
 
 impl RowKind {
-    pub const ALL: [RowKind; 7] = [
+    pub const ALL: [RowKind; 8] = [
         RowKind::Start,
         RowKind::End,
         RowKind::Enter,
@@ -48,9 +49,10 @@ impl RowKind {
         RowKind::Event,
         RowKind::Record,
         RowKind::MemorySample,
+        RowKind::TimestampBase,
     ];
 
-    pub fn of(row: &TraceRow<'_>) -> Self {
+    pub fn of<T>(row: &TraceRow<'_, T>) -> Self {
         match row {
             TraceRow::Start { .. } => RowKind::Start,
             TraceRow::End { .. } => RowKind::End,
@@ -59,6 +61,7 @@ impl RowKind {
             TraceRow::Event { .. } => RowKind::Event,
             TraceRow::Record { .. } => RowKind::Record,
             TraceRow::MemorySample { .. } => RowKind::MemorySample,
+            TraceRow::TimestampBase { .. } => RowKind::TimestampBase,
         }
     }
 
@@ -71,6 +74,7 @@ impl RowKind {
             RowKind::Event => "Event",
             RowKind::Record => "Record",
             RowKind::MemorySample => "MemorySample",
+            RowKind::TimestampBase => "TimestampBase",
         }
     }
 }
@@ -209,7 +213,7 @@ pub struct TraceSizeAnalyzer {
     pub compression: Compression,
     /// Size of the decompressed trace stream, including the header.
     pub uncompressed_size: u64,
-    /// Bytes of the `TRACEv0` header.
+    /// Bytes of the [`TRACE_HEADER`].
     pub header_bytes: u64,
     /// Bytes at the end of the stream that don't form a complete row (e.g.
     /// when the process was killed while writing the trace).
@@ -268,6 +272,8 @@ impl TraceSizeAnalyzer {
         // Index into `buffer` up to which rows have been consumed.
         let mut start = 0;
         let mut header_checked = false;
+        // Timestamps aren't analyzed, but decoding them validates the stream.
+        let mut timestamps = TimestampDecoder::default();
         loop {
             let bytes_read = match reader.read(&mut chunk) {
                 Ok(n) => n,
@@ -285,11 +291,9 @@ impl TraceSizeAnalyzer {
                 if buffer.len() < TRACE_HEADER.len() && !eof {
                     continue;
                 }
-                // Old trace files don't have a header
-                if buffer.starts_with(TRACE_HEADER) {
-                    start = TRACE_HEADER.len();
-                    self.header_bytes = TRACE_HEADER.len() as u64;
-                }
+                check_trace_header(&buffer)?;
+                start = TRACE_HEADER.len();
+                self.header_bytes = TRACE_HEADER.len() as u64;
                 header_checked = true;
             }
             loop {
@@ -297,6 +301,13 @@ impl TraceSizeAnalyzer {
                 match postcard::take_from_bytes::<TraceRow<'_>>(remaining) {
                     Ok((row, rest)) => {
                         let row_bytes = remaining.len() - rest.len();
+                        let row = match timestamps.decode(row) {
+                            Ok(row) => row,
+                            Err(err) => {
+                                let offset = self.uncompressed_size - (buffer.len() - start) as u64;
+                                bail!("Invalid trace row at uncompressed offset {offset}: {err}");
+                            }
+                        };
                         self.add_row(&row, row_bytes as u64);
                         start += row_bytes;
                     }
@@ -316,7 +327,7 @@ impl TraceSizeAnalyzer {
     }
 
     /// Accounts a single decoded row that took `bytes` bytes in the stream.
-    pub fn add_row(&mut self, row: &TraceRow<'_>, bytes: u64) {
+    pub fn add_row(&mut self, row: &TraceRow<'_, u64>, bytes: u64) {
         self.row_kinds[RowKind::of(row) as usize].add(bytes);
         match row {
             TraceRow::Start {
@@ -369,7 +380,7 @@ impl TraceSizeAnalyzer {
                 }
                 self.components.event_values += self.add_values(values);
             }
-            TraceRow::MemorySample { .. } => {}
+            TraceRow::MemorySample { .. } | TraceRow::TimestampBase { .. } => {}
         }
     }
 
@@ -887,15 +898,18 @@ mod tests {
     use std::borrow::Cow;
 
     use flate2::{Compression as GzLevel, write::GzEncoder};
-    use turbopack_trace_utils::tracing::{Allocations, TraceRow, TraceValue};
+    use turbopack_trace_utils::tracing::{
+        Allocations, DeltaEncodedTimestamp, TimestampEncoder, TraceRow, TraceValue,
+    };
 
     use crate::{
         Compression, NO_SPAN, RowKind, StringKind, TRACE_HEADER, TraceSizeAnalyzer, UNKNOWN_SPAN,
         allocations_size, value_size,
     };
 
-    fn sample_rows() -> Vec<TraceRow<'static>> {
+    fn sample_rows() -> Vec<TraceRow<'static, u64>> {
         vec![
+            TraceRow::TimestampBase { ts: 0 },
             TraceRow::Start {
                 ts: 1,
                 id: 1,
@@ -961,18 +975,21 @@ mod tests {
                 ts: 900,
                 memory: 1,
                 memory_pressure: 0,
+                memory_footprint: 1,
                 active_worker_threads: 1,
             },
             TraceRow::MemorySample {
                 ts: 950,
                 memory: 1 << 20,
                 memory_pressure: 100,
+                memory_footprint: 1 << 21,
                 active_worker_threads: 2,
             },
             TraceRow::MemorySample {
                 ts: 1000,
                 memory: 1 << 30,
                 memory_pressure: 200,
+                memory_footprint: 1 << 31,
                 active_worker_threads: 3,
             },
             // Rows of other threads can be written before the `Start` of their span
@@ -993,11 +1010,25 @@ mod tests {
         ]
     }
 
-    fn encode(rows: &[TraceRow<'_>]) -> (Vec<u8>, Vec<u64>) {
+    /// Serializes the rows with delta encoded timestamps, like the trace writer. The rows must
+    /// start with a [`TraceRow::TimestampBase`]. Returns the data and the size of each row.
+    fn encode(rows: &[TraceRow<'_, u64>]) -> (Vec<u8>, Vec<u64>) {
         let mut data = TRACE_HEADER.to_vec();
         let mut sizes = Vec::new();
+        let mut encoder = TimestampEncoder::default();
         for row in rows {
+            // A copy of the row, through its serialized form
             let bytes = postcard::to_stdvec(row).unwrap();
+            let row: TraceRow<'_, u64> = postcard::from_bytes(&bytes).unwrap();
+            let row: TraceRow<'_> = if let TraceRow::TimestampBase { ts } = row {
+                encoder.encode(ts);
+                TraceRow::TimestampBase { ts }
+            } else {
+                let (base, row) = encoder.encode_row(row);
+                assert!(base.is_none(), "missing base row");
+                row
+            };
+            let bytes = postcard::to_stdvec(&row).unwrap();
             sizes.push(bytes.len() as u64);
             data.extend_from_slice(&bytes);
         }
@@ -1108,20 +1139,20 @@ mod tests {
         let build = spans.iter().find(|s| s.name == "build").unwrap();
         assert_eq!(build.target, "next");
         assert_eq!(build.start.count, 2);
-        assert_eq!(build.start.bytes, sizes[0] + sizes[2]);
+        assert_eq!(build.start.bytes, sizes[1] + sizes[3]);
         // Enter, Event, Record, End, Exit, End
         assert_eq!(build.other.count, 6);
         assert_eq!(
             build.other.bytes,
-            sizes[1] + sizes[3..8].iter().sum::<u64>()
+            sizes[2] + sizes[4..9].iter().sum::<u64>()
         );
         let unknown = spans.iter().find(|s| s.name == UNKNOWN_SPAN).unwrap();
         assert_eq!(unknown.other.count, 1);
-        assert_eq!(unknown.other.bytes, sizes[8]);
+        assert_eq!(unknown.other.bytes, sizes[9]);
         let late = spans.iter().find(|s| s.name == "late").unwrap();
-        assert_eq!(late.start.bytes, sizes[13]);
+        assert_eq!(late.start.bytes, sizes[14]);
         assert_eq!(late.other.count, 1);
-        assert_eq!(late.other.bytes, sizes[12]);
+        assert_eq!(late.other.bytes, sizes[13]);
 
         let fields = analyzer.fields_by_size();
         let path = fields.iter().find(|f| f.key == "path").unwrap();
@@ -1189,15 +1220,24 @@ mod tests {
     }
 
     #[test]
-    fn reads_files_without_header() {
+    fn rejects_files_with_missing_or_unsupported_header() {
         let (data, _) = encode(&sample_rows());
-        let mut analyzer = TraceSizeAnalyzer::new();
-        analyzer
+        let err = TraceSizeAnalyzer::new()
             .analyze_reader(&data[TRACE_HEADER.len()..])
-            .unwrap();
-        assert_eq!(analyzer.header_bytes, 0);
-        assert_eq!(analyzer.row_count(), sample_rows().len() as u64);
-        assert_eq!(analyzer.row_bytes(), analyzer.uncompressed_size);
+            .unwrap_err();
+        assert!(err.to_string().contains("missing TRACEv1 header"), "{err}");
+
+        let mut old = b"TRACEv0".to_vec();
+        old.extend_from_slice(&data[TRACE_HEADER.len()..]);
+        let err = TraceSizeAnalyzer::new()
+            .analyze_reader(&old[..])
+            .unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "Unsupported trace file version: expected TRACEv1, found TRACEv0"
+        );
+
+        assert!(TraceSizeAnalyzer::new().analyze_reader(&b""[..]).is_err());
     }
 
     #[test]
@@ -1216,8 +1256,28 @@ mod tests {
     }
 
     #[test]
+    fn fails_on_timestamp_without_base() {
+        let mut data = TRACE_HEADER.to_vec();
+        let offset = data.len();
+        let row: TraceRow<'_> = TraceRow::End {
+            ts: DeltaEncodedTimestamp(4),
+            id: 1,
+        };
+        data.extend(postcard::to_stdvec(&row).unwrap());
+        let mut analyzer = TraceSizeAnalyzer::new();
+        let err = analyzer.analyze_reader(&data[..]).unwrap_err();
+        let err = err.to_string();
+        assert!(
+            err.contains(&format!("uncompressed offset {offset}")),
+            "{err}"
+        );
+        assert!(err.contains("timestamp base"), "{err}");
+    }
+
+    #[test]
     fn attributes_reused_ids_and_events_without_span() {
-        let rows = vec![
+        let rows: Vec<TraceRow<'_, u64>> = vec![
+            TraceRow::TimestampBase { ts: 0 },
             TraceRow::Start {
                 ts: 1,
                 id: 5,
@@ -1252,9 +1312,9 @@ mod tests {
         analyzer.analyze_reader(&data[..]).unwrap();
         let spans = analyzer.spans_by_size();
         let span = |name: &str| *spans.iter().find(|s| s.name == name).unwrap();
-        assert_eq!(span("a").other.bytes, sizes[1]);
-        assert_eq!(span("b").other.bytes, sizes[3]);
-        assert_eq!(span(NO_SPAN).other.bytes, sizes[4]);
+        assert_eq!(span("a").other.bytes, sizes[2]);
+        assert_eq!(span("b").other.bytes, sizes[4]);
+        assert_eq!(span(NO_SPAN).other.bytes, sizes[5]);
         assert!(spans.iter().all(|s| s.name != UNKNOWN_SPAN));
     }
 

@@ -1804,6 +1804,137 @@ mod tests {
         Ok(())
     }
 
+    /// Deterministic, incompressible bytes, so that blocks keep their size on disk.
+    #[cfg(all(feature = "mmap", unix))]
+    fn noise(seed: u64, len: usize) -> Vec<u8> {
+        let mut state = seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1;
+        (0..len)
+            .map(|_| {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                state as u8
+            })
+            .collect()
+    }
+
+    /// Small values in multi-page blocks plus a few medium values.
+    #[cfg(all(feature = "mmap", unix))]
+    fn will_need_entries() -> Vec<TestEntry> {
+        let mut entries: Vec<TestEntry> = (0..300)
+            .map(|i| TestEntry::small(format!("key-{i:04}").as_bytes(), &noise(i, 300)))
+            .chain((0..3).map(|i| {
+                TestEntry::medium(format!("med-{i}").as_bytes(), &noise(1000 + i, 20_000))
+            }))
+            .collect();
+        sort_entries(&mut entries);
+        entries
+    }
+
+    /// Lookup mappings carry `MADV_RANDOM` (`rr` in `VmFlags`) and no `MADV_SEQUENTIAL` (`sr`).
+    #[cfg(all(feature = "mmap", target_os = "linux", not(miri)))]
+    #[test]
+    fn lookup_mmap_has_random_advice() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let entries = will_need_entries();
+        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        let sst = open_sst(dir.path(), 1, &meta)?;
+        let path = dir.path().join("00000001.sst").canonicalize()?;
+        let path = path.to_str().unwrap();
+
+        let smaps = std::fs::read_to_string("/proc/self/smaps")?;
+        let mut lines = smaps.lines();
+        lines
+            .find(|line| line.ends_with(path))
+            .expect("SST mapping not found in /proc/self/smaps");
+        let flags = lines
+            .find_map(|line| line.strip_prefix("VmFlags:"))
+            .expect("VmFlags line not found");
+        let flags: Vec<&str> = flags.split_whitespace().collect();
+        assert!(flags.contains(&"rr"), "expected MADV_RANDOM, got {flags:?}");
+        assert!(
+            !flags.contains(&"sr"),
+            "unexpected MADV_SEQUENTIAL, got {flags:?}"
+        );
+        drop(sst);
+        Ok(())
+    }
+
+    /// `MADV_WILLNEED` covers only multi-page blocks: key and small value blocks on their first
+    /// read, medium value blocks on every read. The block-offset table and the index block are read
+    /// with `pread` at open, so they are never hinted.
+    #[cfg(all(feature = "mmap", unix))]
+    #[test]
+    fn will_need_hints_multi_page_blocks_on_first_read() -> Result<()> {
+        use std::ops::Range;
+
+        use crate::static_sorted_file::will_need_log;
+
+        // SAFETY: `sysconf` has no preconditions.
+        let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize;
+        let multi_page =
+            |range: &Range<usize>| range.start / page_size != (range.end - 1) / page_size;
+
+        let dir = tempfile::tempdir()?;
+        let entries = will_need_entries();
+        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        will_need_log::take();
+
+        // Open: nothing, since the table and the index block are read with `pread`.
+        let sst = open_sst(dir.path(), 1, &meta)?;
+        let opened = will_need_log::take();
+        assert!(opened.is_empty(), "{opened:?}");
+
+        // First pass: each multi-page key and small value block is hinted once.
+        let kc = make_cache();
+        let vc = make_cache();
+        let small = || {
+            entries
+                .iter()
+                .filter(|e| matches!(e.value_kind, TestValueKind::Small(_)))
+        };
+        for entry in small() {
+            assert_lookup(&sst, entry, &kc, &vc)?;
+        }
+        let first = will_need_log::take();
+        assert!(!first.is_empty(), "no multi-page block was hinted");
+        assert!(first.iter().all(multi_page), "{first:?}");
+        let mut unique = first.clone();
+        unique.sort_by_key(|range| range.start);
+        unique.dedup();
+        assert_eq!(
+            unique.len(),
+            first.len(),
+            "a block was hinted twice: {first:?}"
+        );
+
+        // Second pass, with empty caches: every block is verified already, so no hints.
+        let kc = make_cache();
+        let vc = make_cache();
+        for entry in small() {
+            assert_lookup(&sst, entry, &kc, &vc)?;
+        }
+        assert_eq!(will_need_log::take(), Vec::<Range<usize>>::new());
+
+        // Medium value blocks are hinted on every read.
+        let medium = entries
+            .iter()
+            .find(|e| matches!(e.value_kind, TestValueKind::Medium(_)))
+            .unwrap();
+        assert_lookup(&sst, medium, &kc, &vc)?;
+        let first_read = will_need_log::take();
+        assert_lookup(&sst, medium, &kc, &vc)?;
+        let second_read = will_need_log::take();
+        let value_block = second_read
+            .last()
+            .expect("medium value block was not hinted")
+            .clone();
+        assert!(multi_page(&value_block));
+        assert!(value_block.len() > 20_000, "{value_block:?}");
+        assert_eq!(first_read.last(), Some(&value_block));
+        Ok(())
+    }
+
     #[test]
     fn many_medium_values() -> Result<()> {
         let dir = tempfile::tempdir()?;

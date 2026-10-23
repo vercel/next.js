@@ -11,9 +11,9 @@ and TLS / multi-instance ops knobs.
 
 It covers **both** Next.js cache handler interfaces:
 
-| Interface | Used by | Handler file |
-| --- | --- | --- |
-| `cacheHandler` (singular) | ISR (`/isr`), on-demand revalidation | `cache-handler.js` |
+| Interface                       | Used by                                                                                     | Handler file                  |
+| ------------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------- |
+| `cacheHandler` (singular)       | ISR (`/isr`), on-demand revalidation                                                        | `cache-handler.js`            |
 | `cacheHandlers.remote` (plural) | `'use cache: remote'` (`/cet`, `/gmt`, `/use-cache`), `cacheComponents: true` (Next.js 16+) | `cache-components-handler.js` |
 
 The plain `'use cache'` directive uses the default in-memory handler. This
@@ -116,18 +116,18 @@ DEBUG_CACHE_HANDLER=true npm start
 
 ## Environment Variables
 
-| Variable | Required | Description |
-| --- | --- | --- |
-| `REDIS_URL` | Recommended | Redis connection URL, e.g. `redis://localhost:6379` |
-| `REDISHOST` | If no `REDIS_URL` | Redis host (with `REDISPORT`) |
-| `REDISPORT` | If no `REDIS_URL` | Redis port |
-| `VERCEL_URL` | Optional | Used as a key prefix for multi-tenant / deploy isolation |
-| `VERCEL_ENV` | Optional | `production` → Redis DB 0; anything else → DB 1 |
-| `KEY_PREFIX` | Optional | Explicit cache key prefix |
-| `DEBUG_CACHE_HANDLER` | Optional | Set to `true` for debug logging |
-| `SKIP_KEYSPACE_CONFIG_CHECK` | Optional | Set to `true` to skip the `notify-keyspace-events` check |
-| `KILL_CONTAINER_ON_ERROR_THRESHOLD` | Optional | Exit after N Redis errors (for container restarts) |
-| `REDIS_COMMAND_TIMEOUT_MS` | Optional | Timeout for Redis GET (default: 500ms) |
+| Variable                            | Required          | Description                                              |
+| ----------------------------------- | ----------------- | -------------------------------------------------------- |
+| `REDIS_URL`                         | Recommended       | Redis connection URL, e.g. `redis://localhost:6379`      |
+| `REDISHOST`                         | If no `REDIS_URL` | Redis host (with `REDISPORT`)                            |
+| `REDISPORT`                         | If no `REDIS_URL` | Redis port                                               |
+| `VERCEL_URL`                        | Optional          | Used as a key prefix for multi-tenant / deploy isolation |
+| `VERCEL_ENV`                        | Optional          | `production` → Redis DB 0; anything else → DB 1          |
+| `KEY_PREFIX`                        | Optional          | Explicit cache key prefix                                |
+| `DEBUG_CACHE_HANDLER`               | Optional          | Set to `true` for debug logging                          |
+| `SKIP_KEYSPACE_CONFIG_CHECK`        | Optional          | Set to `true` to skip the `notify-keyspace-events` check |
+| `KILL_CONTAINER_ON_ERROR_THRESHOLD` | Optional          | Exit after N Redis errors (for container restarts)       |
+| `REDIS_COMMAND_TIMEOUT_MS`          | Optional          | Timeout for Redis GET (default: 500ms)                   |
 
 ## Development and Production Considerations
 

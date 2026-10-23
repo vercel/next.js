@@ -125,6 +125,15 @@ pub trait TurboTasksCallApi: Sync + Send {
 pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn invalidate(&self, task: TaskId);
     fn invalidate_with_reason(&self, task: TaskId, reason: StaticOrArc<dyn InvalidationReason>);
+    /// Invalidates all `tasks` as one batch. `tasks` must not contain duplicates. The backend may
+    /// split large batches into chunks that are invalidated in parallel.
+    fn invalidate_many(&self, tasks: &[TaskId]);
+    /// Like [`TurboTasksApi::invalidate_many`], recording all `reasons` once for the whole batch.
+    fn invalidate_many_with_reasons(
+        &self,
+        tasks: &[TaskId],
+        reasons: Vec<StaticOrArc<dyn InvalidationReason>>,
+    );
 
     fn invalidate_serialization(&self, task: TaskId);
 
@@ -1181,6 +1190,32 @@ impl<B: Backend + 'static> TurboTasks<B> {
         self.priority_runner.schedule(&self.pin(), task, priority);
     }
 
+    /// Schedules all `tasks`, like calling [`TurboTasks::schedule`] for each of them, but hands
+    /// them to the scheduler as one batch, so its queue is locked once instead of once per task.
+    #[track_caller]
+    pub fn schedule_many(&self, tasks: &[(TaskId, TaskPriority)]) {
+        if tasks.is_empty() {
+            return;
+        }
+        self.begin_foreground_jobs(tasks.len());
+        self.scheduled_tasks
+            .fetch_add(tasks.len(), Ordering::AcqRel);
+
+        let span = Span::current();
+        self.priority_runner.schedule_many(
+            &self.pin(),
+            tasks.iter().map(|&(task_id, priority)| {
+                (
+                    ScheduledTask::Task {
+                        task_id,
+                        span: span.clone(),
+                    },
+                    priority,
+                )
+            }),
+        );
+    }
+
     fn schedule_local_task(
         &self,
         ty: LocalTaskSpec,
@@ -1238,9 +1273,15 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     fn begin_foreground_job(&self) {
+        self.begin_foreground_jobs(1);
+    }
+
+    /// Begins `count` foreground jobs at once. `count` must not be zero.
+    fn begin_foreground_jobs(&self, count: usize) {
+        debug_assert!(count > 0);
         if self
             .currently_scheduled_foreground_jobs
-            .fetch_add(1, Ordering::AcqRel)
+            .fetch_add(count, Ordering::AcqRel)
             == 0
         {
             *self.start.lock().unwrap() = Some(Instant::now());
@@ -1841,6 +1882,33 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.backend.invalidate_task(task, self);
     }
 
+    #[instrument(level = "info", skip_all, name = "invalidate many", fields(count = tasks.len()))]
+    fn invalidate_many(&self, tasks: &[TaskId]) {
+        if tasks.is_empty() {
+            return;
+        }
+        self.backend.invalidate_tasks(tasks, self);
+    }
+
+    #[instrument(level = "info", skip_all, name = "invalidate many", fields(count = tasks.len()))]
+    fn invalidate_many_with_reasons(
+        &self,
+        tasks: &[TaskId],
+        reasons: Vec<StaticOrArc<dyn InvalidationReason>>,
+    ) {
+        if tasks.is_empty() {
+            return;
+        }
+        // Recorded once, before any task is invalidated.
+        {
+            let (_, reason_set) = &mut *self.aggregated_update.lock().unwrap();
+            for reason in reasons {
+                reason_set.insert(reason);
+            }
+        }
+        self.backend.invalidate_tasks(tasks, self);
+    }
+
     fn invalidate_serialization(&self, task: TaskId) {
         self.backend.invalidate_serialization(task, self);
     }
@@ -1946,17 +2014,15 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
     }
 
     fn unemit_collectibles(&self, trait_type: TraitTypeId, collectibles: &TaskCollectiblesMap) {
-        for (&collectible, &count) in collectibles {
-            if count > 0 {
-                self.backend.unemit_collectible(
-                    trait_type,
-                    collectible,
-                    count as u32,
-                    current_task("emitting collectible"),
-                    self,
-                );
-            }
+        if !collectibles.values().any(|&count| count > 0) {
+            return;
         }
+        self.backend.unemit_collectibles(
+            trait_type,
+            collectibles,
+            current_task("unemitting collectibles"),
+            self,
+        );
     }
 
     fn read_own_task_cell(&self, task: TaskId, index: CellId) -> Result<TypedCellContent> {
@@ -2218,6 +2284,20 @@ pub fn with_turbo_tasks<T>(func: impl FnOnce(&Arc<dyn TurboTasksApi>) -> T) -> T
 
 pub fn turbo_tasks_scope<T>(tt: Arc<dyn TurboTasksApi>, f: impl FnOnce() -> T) -> T {
     TURBO_TASKS.sync_scope(tt, f)
+}
+
+/// Like [`turbo_tasks_scope`], but runs `f` directly when `tt` is already the current turbo-tasks
+/// instance. Entering the scope again would be redundant, and panics while the current one is
+/// borrowed (e.g. inside [`with_turbo_tasks`]).
+pub(crate) fn ensure_turbo_tasks_scope<T>(tt: Arc<dyn TurboTasksApi>, f: impl FnOnce() -> T) -> T {
+    let is_current = TURBO_TASKS
+        .try_with(|current| std::ptr::addr_eq(Arc::as_ptr(current), Arc::as_ptr(&tt)))
+        .unwrap_or(false);
+    if is_current {
+        f()
+    } else {
+        TURBO_TASKS.sync_scope(tt, f)
+    }
 }
 
 pub fn turbo_tasks_future_scope<T>(

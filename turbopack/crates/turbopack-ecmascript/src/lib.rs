@@ -998,14 +998,16 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
 impl MergeableModule for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn is_mergeable(self: ResolvedVc<Self>) -> Result<Vc<bool>> {
-        if matches!(
+        if !matches!(
             &*self.get_exports().await?,
             EcmascriptExports::EsmExports(_)
         ) {
-            return Ok(Vc::cell(true));
+            return Ok(Vc::cell(false));
         }
 
-        Ok(Vc::cell(false))
+        // A direct `eval` can access module bindings by name, which breaks when merging
+        // renames them.
+        Ok(Vc::cell(!self.analyze().await?.has_direct_eval))
     }
 
     #[turbo_tasks::function]

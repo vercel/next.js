@@ -173,7 +173,7 @@ export function getResolveRoutes(
         : 'http'
 
     // When there are hostname and port we build an absolute URL
-    const initUrl = (config.experimental as any).trustHostHeader
+    const initUrl = config.experimental.trustHostHeader
       ? `https://${req.headers.host || 'localhost'}${req.url}`
       : opts.port
         ? `${protocol}://${formatHostname(opts.hostname || 'localhost')}:${

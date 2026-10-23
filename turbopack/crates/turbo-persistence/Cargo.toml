@@ -44,6 +44,9 @@ xxhash-rust = { workspace = true }
 lz4_flex = { workspace = true }
 zstd = { workspace = true }
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [dev-dependencies]
 criterion = { workspace = true }
 rand = { workspace = true }

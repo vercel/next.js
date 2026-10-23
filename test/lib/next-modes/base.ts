@@ -953,6 +953,9 @@ export class NextInstance {
                   process.env.TEST_FILE_PATH!
                 )
                 .replace(/\//g, '-')}`,
+              ...(process.env.NEXT_TEST_RUN_NUMBER
+                ? [`run-${process.env.NEXT_TEST_RUN_NUMBER}`]
+                : []),
               `next-trace`
             ),
             { recursive: true }
