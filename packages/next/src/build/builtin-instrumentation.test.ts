@@ -1,42 +1,30 @@
-import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'fs/promises'
-import { existsSync } from 'fs'
+import { mkdir, mkdtemp, realpath, rm, writeFile } from 'fs/promises'
 import * as os from 'os'
-import { dirname, join } from 'path'
-import * as Log from './output/log'
+import { join } from 'path'
 import { Bundler } from '../lib/bundler'
 import {
-  BUILTIN_INSTRUMENTATION_SOURCE,
-  TRACING_PACKAGES,
-  builtinInstrumentationFile,
-  decideInstrumentation,
-  resolveBuiltinInstrumentation,
+  decideInstrumentationInject,
+  resolveInstrumentationInject,
 } from './builtin-instrumentation'
 
-jest.mock('./output/log', () => ({
-  warnOnce: jest.fn(),
-}))
-
-const warnOnce = Log.warnOnce as jest.Mock
-
-describe('decideInstrumentation', () => {
+describe('decideInstrumentationInject', () => {
   it.each([
-    [true, undefined, false, { kind: 'builtin' }],
-    [true, '/app/instrumentation.ts', true, { kind: 'project' }],
+    ['./inject.js', undefined, false, { kind: 'inject' }],
+    ['./inject.js', '/app/instrumentation.ts', true, { kind: 'project' }],
     [
-      true,
+      './inject.js',
       '/app/instrumentation.ts',
       false,
       { kind: 'blocked', projectFile: '/app/instrumentation.ts' },
     ],
-    [false, undefined, false, { kind: 'off' }],
     [undefined, undefined, false, { kind: 'off' }],
     [undefined, '/app/instrumentation.ts', true, { kind: 'off' }],
   ] as const)(
-    'tracing: %s, project file: %s, compiled: %s',
-    (tracing, projectFile, activeBundlerCompilesProjectFile, expected) => {
+    'inject: %s, project file: %s, compiled: %s',
+    (inject, projectFile, activeBundlerCompilesProjectFile, expected) => {
       expect(
-        decideInstrumentation({
-          tracing,
+        decideInstrumentationInject({
+          inject,
           projectFile,
           activeBundlerCompilesProjectFile,
         })
@@ -45,147 +33,100 @@ describe('decideInstrumentation', () => {
   )
 })
 
-describe('resolveBuiltinInstrumentation', () => {
-  // <tmp>/outside/repo is outputFileTracingRoot, <tmp>/outside/repo/apps/web
-  // is the project.
-  let outside: string
+describe('resolveInstrumentationInject', () => {
   let root: string
-  let dir: string
 
   beforeEach(async () => {
-    warnOnce.mockClear()
-    outside = join(
-      await realpath(await mkdtemp(join(os.tmpdir(), 'next-builtin-instr-'))),
-      'outside'
-    )
-    root = join(outside, 'repo')
-    dir = join(root, 'apps', 'web')
-    await mkdir(join(dir, 'app'), { recursive: true })
-    for (const name of TRACING_PACKAGES) {
-      await writeFileDeep(
-        join(root, 'node_modules', name, 'package.json'),
-        JSON.stringify({ name, main: 'index.js' })
-      )
-      await writeFileDeep(join(root, 'node_modules', name, 'index.js'), '')
-    }
+    root = await mkdtemp(join(os.tmpdir(), 'instrumentation-inject-'))
   })
 
   afterEach(async () => {
-    await rm(dirname(outside), { recursive: true, force: true })
+    await rm(root, { recursive: true, force: true })
   })
 
-  function resolve(
-    options: { tracing?: boolean; bundler?: Bundler; dev?: boolean } = {}
-  ) {
-    const { bundler = Bundler.Webpack, dev = false } = options
-    return resolveBuiltinInstrumentation({
-      dir,
-      appDir: join(dir, 'app'),
+  it('resolves an inject specifier when no project file exists', async () => {
+    const inject = join(root, 'inject.js')
+    await writeFile(inject, 'export function register() {}\n')
+    const result = await resolveInstrumentationInject({
+      dir: root,
+      appDir: join(root, 'app'),
       pagesDir: undefined,
       config: {
-        tracing: 'tracing' in options ? options.tracing : true,
-        pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
+        instrumentationInject: [inject],
+        pageExtensions: ['ts', 'js'],
         outputFileTracingRoot: root,
       },
-      bundler,
-      dev,
+      bundler: Bundler.Webpack,
+      dev: false,
     })
-  }
+    expect(result?.file).toBe(await realpath(inject))
+    expect(result?.page).toBe('/instrumentation')
+  })
 
-  it('writes the built-in when no project file exists', async () => {
-    const builtin = await resolve()
-
-    expect(builtin).toEqual({
-      file: builtinInstrumentationFile(dir),
-      page: '/instrumentation',
+  it('does not inject over a parent instrumentation file inside the lookup root', async () => {
+    const repo = join(root, 'repo')
+    const app = join(repo, 'apps', 'web')
+    await mkdir(app, { recursive: true })
+    await writeFile(
+      join(repo, 'instrumentation.ts'),
+      'export function register() {}\n'
+    )
+    const inject = join(app, 'inject.js')
+    await writeFile(inject, 'export function register() {}\n')
+    const result = await resolveInstrumentationInject({
+      dir: app,
+      appDir: join(app, 'app'),
+      pagesDir: undefined,
+      config: {
+        instrumentationInject: [inject],
+        pageExtensions: ['ts', 'js'],
+        outputFileTracingRoot: repo,
+      },
+      bundler: Bundler.Turbopack,
+      dev: false,
     })
-    expect(await readFile(builtinInstrumentationFile(dir), 'utf8')).toBe(
-      BUILTIN_INSTRUMENTATION_SOURCE
-    )
-  })
-
-  it.each([
-    ['omitted', undefined],
-    ['false', false],
-  ])(
-    'is off and deletes the built-in when tracing is %s',
-    async (_, tracing) => {
-      await resolve()
-      expect(await resolve({ tracing })).toBeUndefined()
-      expect(existsSync(builtinInstrumentationFile(dir))).toBe(false)
-    }
-  )
-
-  it('uses the project file and deletes the built-in', async () => {
-    await resolve()
-    await writeFile(join(dir, 'instrumentation.ts'), '')
-
-    for (const bundler of [Bundler.Webpack, Bundler.Turbopack]) {
-      expect(await resolve({ bundler })).toBeUndefined()
-    }
-    expect(existsSync(builtinInstrumentationFile(dir))).toBe(false)
-    expect(warnOnce).not.toHaveBeenCalled()
-  })
-
-  it('never installs the built-in beside a parent file inside outputFileTracingRoot', async () => {
-    await writeFile(join(root, 'apps', 'instrumentation.ts'), '')
-
-    expect(await resolve({ bundler: Bundler.Turbopack })).toBeUndefined()
-    expect(warnOnce).not.toHaveBeenCalled()
-
-    expect(await resolve({ bundler: Bundler.Webpack })).toBeUndefined()
-    expect(warnOnce).toHaveBeenCalledWith(
-      expect.stringContaining('../instrumentation.ts exists, but webpack')
-    )
-  })
-
-  it('finds a project file at outputFileTracingRoot itself', async () => {
-    await mkdir(join(root, 'src'))
-    await writeFile(join(root, 'src', 'instrumentation.js'), '')
-
-    expect(await resolve({ bundler: Bundler.Turbopack })).toBeUndefined()
+    expect(result).toBeUndefined()
   })
 
   it('ignores a file above outputFileTracingRoot', async () => {
-    await writeFile(join(outside, 'instrumentation.ts'), '')
-
-    expect(await resolve({ bundler: Bundler.Turbopack })).toBeDefined()
-    expect(await resolve({ bundler: Bundler.Webpack })).toBeDefined()
-  })
-
-  it('follows which src/instrumentation webpack compiles in each mode', async () => {
-    await mkdir(join(dir, 'src'))
-    await writeFile(join(dir, 'src', 'instrumentation.ts'), '')
-
-    expect(await resolve({ dev: true })).toBeUndefined()
-    expect(warnOnce).not.toHaveBeenCalled()
-
-    expect(await resolve({ dev: false })).toBeUndefined()
-    expect(warnOnce).toHaveBeenCalledWith(
-      expect.stringContaining('src/instrumentation.ts exists, but webpack')
+    const outside = join(root, 'outside')
+    const repo = join(outside, 'repo')
+    await mkdir(repo, { recursive: true })
+    await writeFile(
+      join(outside, 'instrumentation.ts'),
+      'export function register() {}\n'
     )
-  })
-
-  it('throws when a tracing package is missing', async () => {
-    await rm(join(root, 'node_modules', '@vercel', 'otel'), {
-      recursive: true,
+    const inject = join(repo, 'inject.js')
+    await writeFile(inject, 'export function register() {}\n')
+    const result = await resolveInstrumentationInject({
+      dir: repo,
+      appDir: join(repo, 'app'),
+      pagesDir: undefined,
+      config: {
+        instrumentationInject: [inject],
+        pageExtensions: ['ts', 'js'],
+        outputFileTracingRoot: repo,
+      },
+      bundler: Bundler.Webpack,
+      dev: false,
     })
-
-    await expect(resolve()).rejects.toThrow(
-      '`tracing: true` needs @vercel/otel, @opentelemetry/api, and @opentelemetry/api-logs.\n' +
-        'Install them, or set `tracing: false`.'
-    )
+    expect(result?.file).toBe(await realpath(inject))
   })
 
-  it('does not check packages when a project file wins', async () => {
-    await rm(join(root, 'node_modules'), { recursive: true })
-    await writeFile(join(dir, 'instrumentation.ts'), '')
-
-    expect(await resolve()).toBeUndefined()
+  it('throws when the inject specifier does not resolve', async () => {
+    await expect(
+      resolveInstrumentationInject({
+        dir: root,
+        appDir: undefined,
+        pagesDir: undefined,
+        config: {
+          instrumentationInject: ['./missing-inject.js'],
+          pageExtensions: ['js'],
+          outputFileTracingRoot: root,
+        },
+        bundler: Bundler.Webpack,
+        dev: false,
+      })
+    ).rejects.toThrow('does not resolve from the project')
   })
 })
-
-async function writeFileDeep(file: string, content: string) {
-  await mkdir(dirname(file), { recursive: true })
-  await writeFile(file, content)
-}

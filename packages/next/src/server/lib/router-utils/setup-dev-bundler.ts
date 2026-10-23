@@ -124,7 +124,7 @@ import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading
 import { Lockfile, type DevServerInfo } from '../../../build/lockfile'
 import { deobfuscateText } from '../../../shared/lib/magic-identifier'
 import { RouteKind } from '../../route-kind'
-import { resolveBuiltinInstrumentation } from '../../../build/builtin-instrumentation'
+import { resolveInstrumentationInject } from '../../../build/builtin-instrumentation'
 import { Bundler } from '../../../lib/bundler'
 
 export type SetupOpts = {
@@ -258,7 +258,7 @@ async function startWatcher(
     logging: nextConfig.logging !== false,
   })
 
-  const builtinInstrumentation = await resolveBuiltinInstrumentation({
+  const instrumentationInject = await resolveInstrumentationInject({
     dir,
     appDir,
     pagesDir,
@@ -272,8 +272,8 @@ async function startWatcher(
   })
   // Turbopack reports instrumentation through its entrypoints
   // (turbopack-utils.ts). Webpack has no such list.
-  if (builtinInstrumentation && !opts.turbo) {
-    serverFields.actualInstrumentationHookFile = builtinInstrumentation.page
+  if (instrumentationInject && !opts.turbo) {
+    serverFields.actualInstrumentationHookFile = instrumentationInject.page
   }
 
   const hotReloader: NextJsHotReloaderInterface = opts.turbo
@@ -316,7 +316,7 @@ async function startWatcher(
           lockfile,
           onDevServerCleanup: opts.onDevServerCleanup,
           hasVulnerabilityInsight: opts.hasVulnerabilityInsight,
-          builtinInstrumentation,
+          builtinInstrumentation: instrumentationInject,
         })
       })()
 

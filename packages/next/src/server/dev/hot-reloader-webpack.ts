@@ -113,7 +113,7 @@ import { getFileLogger } from './browser-logs/file-logger'
 import { createAtomicManifestOutputFileSystem } from './atomic-manifest-output-fs'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { Lockfile } from '../../build/lockfile'
-import type { BuiltinInstrumentation } from '../../build/builtin-instrumentation'
+import type { InstrumentationInject } from '../../build/builtin-instrumentation'
 import {
   sendSerializedErrorsToClient,
   sendSerializedErrorsToClientForHtmlRequest,
@@ -268,7 +268,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private isSrcDir: boolean
   private cacheStatusesByRequestId = new Map<string, ServerCacheStatus>()
   private hasVulnerabilityInsight: Promise<boolean>
-  private builtinInstrumentation: BuiltinInstrumentation | undefined
+  private builtinInstrumentation: InstrumentationInject | undefined
 
   public serverStats: webpack.Stats | null
   public edgeServerStats: webpack.Stats | null
@@ -310,7 +310,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       lockfile: Lockfile | undefined
       onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
       hasVulnerabilityInsight: Promise<boolean>
-      builtinInstrumentation: BuiltinInstrumentation | undefined
+      builtinInstrumentation: InstrumentationInject | undefined
     }
   ) {
     this.hasAppRouterEntrypoints = false

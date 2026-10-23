@@ -148,7 +148,7 @@ import {
   pageToRoute,
 } from './utils'
 import type { DynamicManifestRoute, PageInfo, PageInfos } from './utils'
-import { resolveBuiltinInstrumentation } from './builtin-instrumentation'
+import { resolveInstrumentationInject } from './builtin-instrumentation'
 import type {
   FallbackRouteParam,
   PrerenderRouteMatcher,
@@ -1537,7 +1537,7 @@ export default async function build(
         )
       }
 
-      const builtinInstrumentation = await resolveBuiltinInstrumentation({
+      const instrumentationInject = await resolveInstrumentationInject({
         dir,
         appDir,
         pagesDir,
@@ -1547,7 +1547,7 @@ export default async function build(
       })
       const hasInstrumentationHook =
         Boolean(instrumentationHookFilePath) ||
-        builtinInstrumentation !== undefined
+        instrumentationInject !== undefined
       const hasMiddlewareFile = Boolean(middlewareFilePath)
       const hasProxyFile = Boolean(proxyFilePath)
 
@@ -1596,17 +1596,17 @@ export default async function build(
             appDirOnly,
           })
         )
-      if (builtinInstrumentation) {
+      if (instrumentationInject) {
         const existing = Object.keys(NextBuildContext.mappedRootPaths).find(
           isInstrumentationHookFile
         )
         if (existing) {
           throw new InvariantError(
-            `Built-in instrumentation was selected while ${existing} is mapped.`
+            `Injected instrumentation was selected while ${existing} is mapped.`
           )
         }
-        NextBuildContext.mappedRootPaths[builtinInstrumentation.page] =
-          builtinInstrumentation.file
+        NextBuildContext.mappedRootPaths[instrumentationInject.page] =
+          instrumentationInject.file
       }
 
       const {

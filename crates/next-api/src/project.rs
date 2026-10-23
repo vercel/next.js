@@ -367,10 +367,6 @@ pub struct ProjectOptions {
 
     /// Whether server-side HMR is enabled (disabled with `--no-server-fast-refresh`).
     pub server_hmr: bool,
-
-    /// The instrumentation module compiled when `tracing: true` and the project has no
-    /// instrumentation file. Owned by packages/next/src/build/builtin-instrumentation.ts.
-    pub builtin_instrumentation_source: RcStr,
 }
 
 /// The subset of [`ProjectOptions`] that may change without restarting the process. Used by
@@ -923,7 +919,6 @@ impl ProjectContainer {
         let deferred_entries;
         let is_persistent_caching_enabled;
         let server_hmr;
-        let builtin_instrumentation_source;
         let project_file_system;
         let output_file_system;
         let additional_roots;
@@ -959,7 +954,6 @@ impl ProjectContainer {
             deferred_entries = options.deferred_entries.clone().unwrap_or_default();
             is_persistent_caching_enabled = options.is_persistent_caching_enabled;
             server_hmr = options.server_hmr;
-            builtin_instrumentation_source = options.builtin_instrumentation_source.clone();
             project_file_system = file_systems.project_file_system;
             output_file_system = file_systems.output_file_system;
             additional_roots = self.additional_roots_state.get().iter().cloned().collect();
@@ -994,7 +988,6 @@ impl ProjectContainer {
             deferred_entries,
             is_persistent_caching_enabled,
             server_hmr,
-            builtin_instrumentation_source,
             project_file_system,
             output_file_system,
             additional_roots,
@@ -1101,9 +1094,6 @@ pub struct Project {
 
     /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     server_hmr: bool,
-
-    /// See [`ProjectOptions::builtin_instrumentation_source`].
-    builtin_instrumentation_source: RcStr,
 
     project_file_system: OperationVc<DiskFileSystem>,
     output_file_system: OperationVc<DiskFileSystem>,
@@ -2545,27 +2535,38 @@ impl Project {
         ))
     }
 
-    /// The source compiled into the instrumentation slot: the project file `find_instrumentation`
-    /// finds (including one in a parent directory), else the built-in when `tracing: true`, else
-    /// none. `entrypoints` and `instrumentation_endpoint` both read this, so they cannot disagree.
+    /// The source compiled into the instrumentation slot. A project file wins, including one
+    /// in a parent directory. Otherwise the first `instrumentationInject` specifier is
+    /// re-exported from the project so the bundler resolves it there. `entrypoints` and
+    /// `instrumentation_endpoint` both read this.
     #[turbo_tasks::function]
     async fn instrumentation_source(self: Vc<Self>) -> Result<Vc<OptionSource>> {
         if let FindContextFileResult::Found(fs_path, _) = &*self.find_instrumentation().await? {
             let source = Vc::upcast::<Box<dyn Source>>(FileSource::new(fs_path.clone()));
             return Ok(Vc::cell(Some(source.to_resolved().await?)));
         }
-        if !*self.next_config().builtin_instrumentation_enabled().await? {
+        let inject = self.next_config().instrumentation_inject().await?;
+        if inject.is_empty() {
             return Ok(Vc::cell(None));
+        }
+        let mut source_text = String::new();
+        for (index, spec) in inject.iter().enumerate() {
+            let quoted =
+                serde_json::to_string(spec.as_str()).map_err(|err| anyhow::anyhow!(err))?;
+            if index == 0 {
+                source_text.push_str(&format!("export * from {quoted};\n"));
+            } else {
+                source_text.push_str(&format!("import {quoted};\n"));
+            }
         }
         // Not a convention file name, so discovery never treats it as a project file.
         let path = self
             .project_path()
             .await?
-            .join("instrumentation.builtin.js")?;
-        let content = File::from(self.await?.builtin_instrumentation_source.clone());
+            .join("instrumentation.inject.js")?;
         let source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(
             path,
-            AssetContent::file(FileContent::Content(content).cell()),
+            AssetContent::file(FileContent::Content(File::from(source_text)).cell()),
         ));
         Ok(Vc::cell(Some(source.to_resolved().await?)))
     }

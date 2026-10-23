@@ -1,22 +1,11 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 
-// `@vercel/otel` and its peer dependencies.
-const OTEL_DEPENDENCIES = {
-  '@vercel/otel': '2.1.3',
-  '@opentelemetry/api': '1.9.1',
-  '@opentelemetry/api-logs': '0.223.0',
-  '@opentelemetry/instrumentation': '0.223.0',
-  '@opentelemetry/resources': '2.12.0',
-  '@opentelemetry/sdk-logs': '0.223.0',
-  '@opentelemetry/sdk-metrics': '2.12.0',
-  '@opentelemetry/sdk-trace-base': '2.12.0',
-}
-
-function fixture(config: 'tracing' | 'omitted', extra = {}) {
+function fixture(config: 'inject' | 'omitted', extra = {}) {
   return {
     app: new FileRef(join(__dirname, 'app')),
     'middleware.ts': new FileRef(join(__dirname, 'middleware.ts')),
+    'inject.js': new FileRef(join(__dirname, 'inject.js')),
     'next.config.ts': new FileRef(
       join(__dirname, 'fixtures', config, 'next.config.ts')
     ),
@@ -34,22 +23,17 @@ async function probe(
 }
 
 describe('builtin-tracing', () => {
-  describe('tracing: true without an instrumentation file', () => {
+  describe('instrumentationInject without a project file', () => {
     const { next, isNextStart } = nextTestSetup({
-      files: fixture('tracing'),
-      dependencies: OTEL_DEPENDENCIES,
+      files: fixture('inject'),
     })
 
-    it('registers OpenTelemetry in the Node.js runtime', async () => {
-      expect(await probe(next, 'node')).toEqual({
-        recording: true,
-        activeSpanRecording: true,
-        userRegisterCount: 0,
-      })
+    it('runs the injected register in Node.js', async () => {
+      expect(await probe(next, 'node')).toEqual({ instrumentation: 'inject' })
     })
 
-    it('registers OpenTelemetry in the Edge runtime', async () => {
-      expect(await probe(next, 'edge')).toMatchObject({ recording: true })
+    it('runs the injected register in the Edge runtime', async () => {
+      expect(await probe(next, 'edge')).toEqual({ instrumentation: 'inject' })
     })
 
     if (isNextStart) {
@@ -59,48 +43,37 @@ describe('builtin-tracing', () => {
     }
   })
 
-  describe('tracing: true with an instrumentation file', () => {
+  describe('a project instrumentation file replaces the inject', () => {
     const { next, isNextDeploy } = nextTestSetup({
-      files: fixture('tracing', {
+      files: fixture('inject', {
         'instrumentation.ts': new FileRef(
           join(__dirname, 'fixtures', 'user-file', 'instrumentation.ts')
         ),
       }),
-      dependencies: OTEL_DEPENDENCIES,
     })
 
     it('runs only the project register', async () => {
-      // The project file registers no provider, so a recording span means the
-      // built-in also ran.
-      expect(await probe(next, 'node')).toEqual({
-        recording: false,
-        activeSpanRecording: false,
-        userRegisterCount: 1,
-      })
-      expect(await probe(next, 'edge')).toMatchObject({ recording: false })
+      expect(await probe(next, 'node')).toEqual({ instrumentation: 'user' })
+      expect(await probe(next, 'edge')).toEqual({ instrumentation: 'user' })
 
       if (!isNextDeploy) {
         const nodeRegisters = next.cliOutput.match(
           /\[user-instrumentation\] register nodejs/g
         )
         expect(nodeRegisters).toHaveLength(1)
+        expect(next.cliOutput).not.toContain('[inject-instrumentation]')
       }
     })
   })
 
-  describe('tracing omitted', () => {
+  describe('no inject and no project file', () => {
     const { next, isNextStart } = nextTestSetup({
       files: fixture('omitted'),
-      dependencies: OTEL_DEPENDENCIES,
     })
 
-    it('registers no provider', async () => {
-      expect(await probe(next, 'node')).toEqual({
-        recording: false,
-        activeSpanRecording: false,
-        userRegisterCount: 0,
-      })
-      expect(await probe(next, 'edge')).toMatchObject({ recording: false })
+    it('runs no instrumentation', async () => {
+      expect(await probe(next, 'node')).toEqual({ instrumentation: 'none' })
+      expect(await probe(next, 'edge')).toEqual({ instrumentation: 'none' })
     })
 
     if (isNextStart) {

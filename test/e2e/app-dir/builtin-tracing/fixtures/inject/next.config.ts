@@ -1,7 +1,7 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  tracing: true,
+  instrumentationInject: ['./inject.js'],
 }
 
 export default nextConfig

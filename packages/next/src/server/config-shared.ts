@@ -1925,13 +1925,20 @@ export interface NextConfig {
   instrumentationClientInject?: string[]
 
   /**
-   * Register OpenTelemetry with `@vercel/otel` when the project has no
-   * `instrumentation` file. A project `instrumentation` file always replaces it.
+   * Module specifiers compiled into the server `instrumentation` slot when the
+   * project has no `instrumentation` file. A project file replaces these
+   * entirely. The first entry is the instrumentation module. Later entries are
+   * imported for side effects only.
    *
-   * Omitted and `false` both leave it off, but stay distinct so a later upgrade
-   * can tell "never chose" from "chose off". Do not add this key to `defaultConfig`.
-   *
-   * Requires `@vercel/otel`, `@opentelemetry/api`, and `@opentelemetry/api-logs`.
+   * Set by a deployment adapter. Next.js does not install the module.
+   */
+  instrumentationInject?: string[]
+
+  /**
+   * Signal for a deployment platform that this app wants tracing on. Omitted
+   * and `false` stay distinct. This does not install instrumentation and does
+   * not import `@vercel/otel`. The adapter supplies that module through
+   * `instrumentationInject`. Do not add this key to `defaultConfig`.
    */
   tracing?: boolean
 

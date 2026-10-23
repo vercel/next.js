@@ -122,7 +122,6 @@ import { getRestartDevServerMiddleware } from '../../next-devtools/server/restar
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { DeferredEmit } from '../../shared/lib/turbopack/deferred-emit'
 import { getSupportedBrowsers } from '../../build/get-supported-browsers'
-import { BUILTIN_INSTRUMENTATION_SOURCE } from '../../build/builtin-instrumentation'
 import { printBuildErrors } from '../../build/print-build-errors'
 import { getStrictRouteMatchingDefaultWarning } from '../lib/router-utils/strict-route-matching-config'
 import { receiveBrowserLogsTurbopack } from './browser-logs/receive-logs'
@@ -545,7 +544,6 @@ export async function createHotReloaderTurbopack(
       ),
       nextVersion: process.env.__NEXT_VERSION as string,
       serverHmr: serverFastRefresh,
-      builtinInstrumentationSource: BUILTIN_INSTRUMENTATION_SOURCE,
     },
     {
       turbopackMemoryEviction:

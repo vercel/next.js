@@ -227,10 +227,6 @@ pub struct NapiProjectOptions {
 
     /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     pub server_hmr: Option<bool>,
-
-    /// The instrumentation module compiled when `tracing: true` and the project has no
-    /// instrumentation file.
-    pub builtin_instrumentation_source: RcStr,
 }
 
 /// The subset of [`NapiProjectOptions`] that may change without restarting the process. Used by
@@ -322,7 +318,6 @@ impl NapiProjectOptions {
             is_persistent_caching_enabled,
             next_version,
             server_hmr,
-            builtin_instrumentation_source,
         } = val;
         ProjectOptions {
             root_path,
@@ -355,7 +350,6 @@ impl NapiProjectOptions {
             is_persistent_caching_enabled,
             next_version,
             server_hmr: server_hmr.unwrap_or(false),
-            builtin_instrumentation_source,
         }
     }
 }

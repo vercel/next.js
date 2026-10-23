@@ -1,67 +1,44 @@
 import path from 'path'
-import { promises as fs } from 'fs'
 import type { NextConfigComplete } from '../server/config-shared'
 import { Bundler, bundlerName } from '../lib/bundler'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../lib/constants'
-import { getOxfordCommaList } from '../lib/oxford-comma-list'
 import * as Log from './output/log'
 
 /**
- * Packages `tracing: true` needs in the project. create-next-app installs the
- * same names (a test fails if they drift).
+ * The adapter-supplied module that fills the instrumentation slot when the
+ * project has no instrumentation file. The Vercel adapter sets this. Next.js
+ * does not import `@vercel/otel` and does not install it.
  */
-export const TRACING_PACKAGES = [
-  '@vercel/otel',
-  '@opentelemetry/api',
-  '@opentelemetry/api-logs',
-] as const
-
-/**
- * The only copy of the built-in instrumentation. Webpack compiles it from
- * `builtinInstrumentationFile(dir)`. Turbopack receives it through
- * `ProjectOptions.builtinInstrumentationSource`.
- */
-export const BUILTIN_INSTRUMENTATION_SOURCE = `import { registerOTel } from '@vercel/otel'
-
-export function register() {
-  registerOTel()
-}
-`
-
-/**
- * Always under the project, even with a custom `distDir`, so that
- * `@vercel/otel` resolves from the project and webpack's `codeCondition`
- * includes the file. `.mjs` because `.next/package.json` declares
- * `"type": "commonjs"`, which would make webpack parse a `.js` file here as a
- * script.
- */
-export function builtinInstrumentationFile(dir: string): string {
-  return path.join(dir, '.next', 'cache', 'builtin-instrumentation.mjs')
+export type InstrumentationInject = {
+  readonly file: string
+  readonly page: `/${typeof INSTRUMENTATION_HOOK_FILENAME}`
+  readonly specifier: string
 }
 
-export type InstrumentationDecision =
-  | { kind: 'builtin' }
-  | { kind: 'project' }
-  | { kind: 'blocked'; projectFile: string }
-  | { kind: 'off' }
-
 /**
- *   tracing    project file   active bundler compiles it   decision
- *   true       none           n/a                          builtin
- *   true       found          yes                          project
- *   true       found          no                           blocked
- *   not true   any            any                          off
+ *   inject specifier   project file   active bundler compiles it   result
+ *   set                none           n/a                          inject
+ *   set                found          yes                          project
+ *   set                found          no                           blocked
+ *   unset              any            any                          off
+ *
+ * A project file always wins, including one this bundler will not compile.
+ * Injecting over that miss would replace a file Turbopack compiles.
  */
-export function decideInstrumentation(facts: {
-  readonly tracing: boolean | undefined
+export function decideInstrumentationInject(facts: {
+  readonly inject: string | undefined
   readonly projectFile: string | undefined
   readonly activeBundlerCompilesProjectFile: boolean
-}): InstrumentationDecision {
-  if (facts.tracing !== true) {
+}):
+  | { kind: 'inject' }
+  | { kind: 'project' }
+  | { kind: 'blocked'; projectFile: string }
+  | { kind: 'off' } {
+  if (facts.inject === undefined) {
     return { kind: 'off' }
   }
   if (facts.projectFile === undefined) {
-    return { kind: 'builtin' }
+    return { kind: 'inject' }
   }
   if (facts.activeBundlerCompilesProjectFile) {
     return { kind: 'project' }
@@ -69,103 +46,89 @@ export function decideInstrumentation(facts: {
   return { kind: 'blocked', projectFile: facts.projectFile }
 }
 
-declare const builtinInstrumentationBrand: unique symbol
-
 /**
- * Held only when `tracing === true`, no project instrumentation file is in
- * Turbopack's lookup, the tracing packages resolve from the project, and
- * `file` holds `BUILTIN_INSTRUMENTATION_SOURCE`. Only
- * `resolveBuiltinInstrumentation` creates one.
- */
-export interface BuiltinInstrumentation {
-  readonly [builtinInstrumentationBrand]: true
-  readonly file: string
-  readonly page: `/${typeof INSTRUMENTATION_HOOK_FILENAME}`
-}
-
-/**
- * Decides once per build or dev server whether the built-in fills the
- * instrumentation slot. Writes the built-in file when it does and deletes it
- * when it does not.
+ * Resolves `instrumentationInject` when it should fill the slot.
  *
- * Throws when the built-in is selected and a tracing package is missing.
- * Warns when a project file blocks the built-in but the active bundler will
- * not compile that file.
+ * Throws when the specifier does not resolve from the project. The caller
+ * (the adapter) owns making that module resolvable. This does not look for
+ * `@vercel/otel`.
  */
-export async function resolveBuiltinInstrumentation(opts: {
+export async function resolveInstrumentationInject(opts: {
   readonly dir: string
   readonly appDir: string | undefined
   readonly pagesDir: string | undefined
   readonly config: Pick<
     NextConfigComplete,
-    'tracing' | 'pageExtensions' | 'outputFileTracingRoot'
+    'instrumentationInject' | 'pageExtensions' | 'outputFileTracingRoot'
   >
   readonly bundler: Bundler
   readonly dev: boolean
-}): Promise<BuiltinInstrumentation | undefined> {
-  const { dir, config, bundler } = opts
-  const file = builtinInstrumentationFile(dir)
-  const projectFile =
-    config.tracing === true
-      ? await findProjectInstrumentationFile(
-          dir,
-          config.outputFileTracingRoot,
-          config.pageExtensions
-        )
-      : undefined
-  const conventionDir = path.join((opts.pagesDir || opts.appDir) ?? dir, '..')
-
-  const decision = decideInstrumentation({
-    tracing: config.tracing,
+}): Promise<InstrumentationInject | undefined> {
+  const specifier = opts.config.instrumentationInject?.[0]
+  const projectFile = specifier
+    ? await findProjectInstrumentationFile(
+        opts.dir,
+        opts.config.outputFileTracingRoot,
+        opts.config.pageExtensions
+      )
+    : undefined
+  const conventionDir = path.join(
+    (opts.pagesDir || opts.appDir) ?? opts.dir,
+    '..'
+  )
+  const decision = decideInstrumentationInject({
+    inject: specifier,
     projectFile,
     activeBundlerCompilesProjectFile:
       projectFile !== undefined &&
-      (bundler === Bundler.Turbopack ||
+      (opts.bundler === Bundler.Turbopack ||
         webpackCompilesInstrumentationFile(
           projectFile,
           conventionDir,
-          dir,
+          opts.dir,
           opts.dev
         )),
   })
 
-  if (decision.kind !== 'builtin') {
-    await fs.rm(file, { force: true })
-    if (decision.kind === 'blocked') {
-      const blocking = path.relative(dir, decision.projectFile)
-      const expected = path.relative(
-        dir,
-        path.join(conventionDir, INSTRUMENTATION_HOOK_FILENAME)
-      )
-      Log.warnOnce(
-        `\`tracing: true\` is off because ${blocking} exists, but ${bundlerName(bundler)} will not compile it. ` +
-          `Move it to ${expected}.<ext>, or delete it to use the built-in tracing.`
-      )
-    }
+  if (decision.kind === 'blocked') {
+    const blocking = path.relative(opts.dir, decision.projectFile)
+    Log.warnOnce(
+      `\`instrumentationInject\` is not used because ${blocking} exists, but ${bundlerName(opts.bundler)} will not compile it. ` +
+        `That file replaces the injected instrumentation.`
+    )
+    return undefined
+  }
+  if (decision.kind !== 'inject' || specifier === undefined) {
     return undefined
   }
 
-  assertTracingPackagesResolve(dir)
-  await fs.mkdir(path.dirname(file), { recursive: true })
-  await fs.writeFile(file, BUILTIN_INSTRUMENTATION_SOURCE)
+  let file: string
+  try {
+    file = require.resolve(specifier, { paths: [opts.dir] })
+  } catch {
+    throw new Error(
+      `\`instrumentationInject\` entry ${JSON.stringify(specifier)} does not resolve from the project.\n` +
+        'The module must be resolvable from the project root. Next.js does not install it.'
+    )
+  }
   return {
     file,
     page: `/${INSTRUMENTATION_HOOK_FILENAME}`,
-  } as BuiltinInstrumentation
+    specifier,
+  }
 }
 
 /**
- * Mirrors `find_instrumentation` in crates/next-api/src/project.rs: at `dir`
- * and each parent up to and including Turbopack's root (config.ts sets
- * `turbopack.root` to `outputFileTracingRoot`), the first existing
- * `instrumentation.<ext>`, then `src/instrumentation.<ext>`. Every file either
- * webpack pipeline compiles is in this set.
+ * Mirrors `find_instrumentation`: at `dir` and each parent up to and including
+ * `outputFileTracingRoot`, root names before `src/` names. Stops at that root.
+ * `find_context_file` does not walk to the OS root.
  */
 async function findProjectInstrumentationFile(
   dir: string,
   lookupRoot: string,
   pageExtensions: readonly string[]
 ): Promise<string | undefined> {
+  const { promises: fs } = await import('fs')
   const names = [
     ...pageExtensions.map((ext) => `${INSTRUMENTATION_HOOK_FILENAME}.${ext}`),
     ...pageExtensions.map(
@@ -197,7 +160,7 @@ function isInside(file: string, root: string): boolean {
 
 // `next build` reads instrumentation only beside the `app` or `pages`
 // directory. `next dev` also reads `src/instrumentation` when that directory
-// is the project root (see `startWatcher` in setup-dev-bundler.ts).
+// is the project root.
 function webpackCompilesInstrumentationFile(
   file: string,
   conventionDir: string,
@@ -209,22 +172,4 @@ function webpackCompilesInstrumentationFile(
     fileDir === conventionDir ||
     (dev && conventionDir === dir && fileDir === path.join(dir, 'src'))
   )
-}
-
-function assertTracingPackagesResolve(dir: string): void {
-  const missing = TRACING_PACKAGES.filter((name) => {
-    try {
-      require.resolve(name, { paths: [dir] })
-      return false
-    } catch (err: any) {
-      // Installed, but its exports map has no entry for `require`.
-      return err?.code !== 'ERR_PACKAGE_PATH_NOT_EXPORTED'
-    }
-  })
-  if (missing.length > 0) {
-    throw new Error(
-      `\`tracing: true\` needs ${getOxfordCommaList([...TRACING_PACKAGES])}.\n` +
-        'Install them, or set `tracing: false`.'
-    )
-  }
 }

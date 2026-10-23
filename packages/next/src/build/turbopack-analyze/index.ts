@@ -11,7 +11,6 @@ import { trace } from '../../trace'
 import { normalizePath } from '../../lib/normalize-path'
 import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 import { printBuildErrors } from '../print-build-errors'
-import { BUILTIN_INSTRUMENTATION_SOURCE } from '../builtin-instrumentation'
 
 export type AnalyzeContext = {
   config: NextConfigComplete
@@ -93,7 +92,6 @@ export async function turbopackAnalyze(
       currentNodeJsVersion,
       isPersistentCachingEnabled: persistentCaching,
       nextVersion: process.env.__NEXT_VERSION as string,
-      builtinInstrumentationSource: BUILTIN_INSTRUMENTATION_SOURCE,
     },
     {
       turbopackMemoryEviction: config.experimental.turbopackMemoryEvictionMode,

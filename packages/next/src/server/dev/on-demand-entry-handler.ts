@@ -8,7 +8,7 @@ import type {
 } from '../../shared/lib/app-router-types'
 import type { CompilerNameValues } from '../../shared/lib/constants'
 import type { RouteDefinition } from '../route-definitions/route-definition'
-import type { BuiltinInstrumentation } from '../../build/builtin-instrumentation'
+import type { InstrumentationInject } from '../../build/builtin-instrumentation'
 
 import createDebug from 'next/dist/compiled/debug'
 import { EventEmitter } from 'events'
@@ -409,7 +409,7 @@ export async function findPagePathData(
   pagesDir: string | undefined,
   appDir: string | undefined,
   isGlobalNotFoundEnabled: boolean,
-  builtinInstrumentation?: BuiltinInstrumentation
+  builtinInstrumentation?: InstrumentationInject
 ): Promise<PagePathData> {
   const normalizedPagePath = tryToNormalizePagePath(page)
   let pagePath: string | null = null
@@ -570,7 +570,7 @@ export function onDemandEntryHandler({
   pagesDir?: string
   rootDir: string
   appDir?: string
-  builtinInstrumentation: BuiltinInstrumentation | undefined
+  builtinInstrumentation: InstrumentationInject | undefined
 }) {
   const hasAppDir = !!appDir
   let curInvalidator: Invalidator = getInvalidator(
