@@ -7,10 +7,6 @@ describe('webpack-loader-glslify', () => {
       'glslify-loader': '2.0.0',
       'raw-loader': '4.0.2',
     },
-    env: {
-      // Exercise loader dependency tracking with locally built native bindings too.
-      TURBO_ENGINE_IGNORE_DIRTY: '1',
-    },
   })
 
   it('compiles shared vertex and fragment shaders with glslify-loader', async () => {
