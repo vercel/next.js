@@ -510,11 +510,9 @@ function commonJsRequire(id) {
 }
 contextPrototype.r = commonJsRequire;
 /**
- * Remove fragments and query parameters since they are never part of the context map keys
+ * Remove fragments and query parameters.
  *
- * This matches how we parse patterns at resolving time.  Arguably we should only do this for
- * strings passed to `import` but the resolve does it for `import` and `require` and so we do
- * here as well.
+ * This matches how we parse patterns at resolving time.
  */ function parseRequest(request) {
     // Per the URI spec fragments can contain `?` characters, so we should trim it off first
     // https://datatracker.ietf.org/doc/html/rfc3986#section-3.5
@@ -528,29 +526,39 @@ contextPrototype.r = commonJsRequire;
     }
     return request;
 }
+const URL_CONTEXT_FALLBACK = {
+    module: ()=>'about:blank'
+};
 /**
- * `require.context` and require/import expression runtime.
- */ function moduleContext(map) {
-    function moduleContext(id) {
-        id = parseRequest(id);
+ * `require.context`, require/import expression and `new URL()` runtime.
+ *
+ * A `new URL()` context (`isUrl`) looks a request that doesn't exactly match a key up again
+ * without its query and fragment (e.g. a dynamic query that isn't part of a module key), and
+ * evaluates to `about:blank` when nothing matches.
+ */ function moduleContext(map, isUrl) {
+    function lookup(id) {
         if (hasOwnProperty.call(map, id)) {
-            return map[id].module();
+            return map[id];
+        }
+        if (isUrl) {
+            const parsedId = parseRequest(id);
+            if (hasOwnProperty.call(map, parsedId)) {
+                return map[parsedId];
+            }
+            return URL_CONTEXT_FALLBACK;
         }
         const e = new Error(`Cannot find module '${id}'`);
         e.code = 'MODULE_NOT_FOUND';
         throw e;
     }
+    function moduleContext(id) {
+        return lookup(id).module();
+    }
     moduleContext.keys = ()=>{
         return Object.keys(map);
     };
     moduleContext.resolve = (id)=>{
-        id = parseRequest(id);
-        if (hasOwnProperty.call(map, id)) {
-            return map[id].id();
-        }
-        const e = new Error(`Cannot find module '${id}'`);
-        e.code = 'MODULE_NOT_FOUND';
-        throw e;
+        return lookup(id).id();
     };
     moduleContext.import = async (id)=>{
         return await moduleContext(id);

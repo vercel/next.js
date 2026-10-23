@@ -83,7 +83,8 @@ contextPrototype.M = moduleFactories
 type ModuleContextMap = Record<ModuleId, ModuleContextEntry>
 
 interface ModuleContextEntry {
-  id: () => ModuleId
+  // Not present for `new URL()` contexts, which are never asked for module ids
+  id?: () => ModuleId
   module: () => any
 }
 
@@ -671,11 +672,9 @@ function commonJsRequire(
 contextPrototype.r = commonJsRequire
 
 /**
- * Remove fragments and query parameters since they are never part of the context map keys
+ * Remove fragments and query parameters.
  *
- * This matches how we parse patterns at resolving time.  Arguably we should only do this for
- * strings passed to `import` but the resolve does it for `import` and `require` and so we do
- * here as well.
+ * This matches how we parse patterns at resolving time.
  */
 function parseRequest(request: string): string {
   // Per the URI spec fragments can contain `?` characters, so we should trim it off first
@@ -692,19 +691,37 @@ function parseRequest(request: string): string {
 
   return request
 }
+
+const URL_CONTEXT_FALLBACK: ModuleContextEntry = {
+  module: () => 'about:blank',
+}
 /**
- * `require.context` and require/import expression runtime.
+ * `require.context`, require/import expression and `new URL()` runtime.
+ *
+ * A `new URL()` context (`isUrl`) looks a request that doesn't exactly match a key up again
+ * without its query and fragment (e.g. a dynamic query that isn't part of a module key), and
+ * evaluates to `about:blank` when nothing matches.
  */
-function moduleContext(map: ModuleContextMap): ModuleContext {
-  function moduleContext(id: string): Exports {
-    id = parseRequest(id)
+function moduleContext(map: ModuleContextMap, isUrl?: boolean): ModuleContext {
+  function lookup(id: string): ModuleContextEntry {
     if (hasOwnProperty.call(map, id)) {
-      return map[id].module()
+      return map[id]
+    }
+    if (isUrl) {
+      const parsedId = parseRequest(id)
+      if (hasOwnProperty.call(map, parsedId)) {
+        return map[parsedId]
+      }
+      return URL_CONTEXT_FALLBACK
     }
 
     const e = new Error(`Cannot find module '${id}'`)
     ;(e as any).code = 'MODULE_NOT_FOUND'
     throw e
+  }
+
+  function moduleContext(id: string): Exports {
+    return lookup(id).module()
   }
 
   moduleContext.keys = (): string[] => {
@@ -712,14 +729,7 @@ function moduleContext(map: ModuleContextMap): ModuleContext {
   }
 
   moduleContext.resolve = (id: string): ModuleId => {
-    id = parseRequest(id)
-    if (hasOwnProperty.call(map, id)) {
-      return map[id].id()
-    }
-
-    const e = new Error(`Cannot find module '${id}'`)
-    ;(e as any).code = 'MODULE_NOT_FOUND'
-    throw e
+    return lookup(id).id!()
   }
 
   moduleContext.import = async (id: string) => {

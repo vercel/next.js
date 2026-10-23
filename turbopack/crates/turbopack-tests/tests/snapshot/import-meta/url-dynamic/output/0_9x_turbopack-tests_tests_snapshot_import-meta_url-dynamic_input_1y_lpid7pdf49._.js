@@ -22,14 +22,12 @@ var __TURBOPACK__import$2e$meta__ = {
 const name = globalThis.assetName;
 const assetUrl = new __turbopack_context__.U(__turbopack_context__.f({
     "./assets/a.txt": {
-        id: ()=>"[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url-dynamic/input/assets/a.txt (static in ecmascript)",
         module: ()=>__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url-dynamic/input/assets/a.txt (static in ecmascript)")
     },
     "./assets/b.txt": {
-        id: ()=>"[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url-dynamic/input/assets/b.txt (static in ecmascript)",
         module: ()=>__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url-dynamic/input/assets/b.txt (static in ecmascript)")
     }
-})(`./assets/${name}`));
+}, true)(`./assets/${name}`));
 const staticUrl = new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url-dynamic/input/assets/a.txt (static in ecmascript)"));
 console.log(assetUrl, staticUrl);
 }),

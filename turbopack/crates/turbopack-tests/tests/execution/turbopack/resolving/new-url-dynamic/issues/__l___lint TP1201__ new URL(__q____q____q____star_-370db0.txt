@@ -1,0 +1,17 @@
+[92;4msuggestion - [analysis] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/new-url-dynamic/input/index.js:21:2  lint TP1201 new URL(???*0*, import.meta*1*["url"]) is very dynamic
+  
+      17 | let externalRequest = 'https://example.invalid/asset?v=1'
+      18 | const externalUrl = () => new URL(externalRequest, import.meta.url).toString()
+      19 | 
+      20 | const fullyDynamicUrl = (request) =>
+         +   v-------------------------------v
+      21 +   new URL(request, import.meta.url).toString()
+         +   ^-------------------------------^
+      22 | 
+      23 | const noMatchUrl = (name) =>
+      24 |   new URL(`./no-match/${track(name)}`, import.meta.url).toString()
+      25 | 
+  
+  - *0* arguments[0]
+    ⚠️  function calls are not analyzed yet
+  - *1* import.meta: The import.meta object

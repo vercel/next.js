@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::{
     common::util::take::Take,
@@ -7,14 +7,13 @@ use swc_core::{
 };
 use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat};
 use turbopack_core::{
-    chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
+    chunk::{ChunkingContext, ChunkingType},
     environment::Rendering,
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::{ReferenceType, UrlReferenceSubType},
     resolve::{
-        ExternalType, ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request,
-        url_resolve,
+        ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request, url_resolve,
     },
 };
 
@@ -22,14 +21,8 @@ use crate::{
     ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::{
-        esm::base::ReferencedAsset,
-        pattern_mapping::{PatternMapping, ResolveType, UrlModuleMode},
-    },
-    runtime_functions::{
-        TURBOPACK_RELATIVE_URL, TURBOPACK_REQUIRE, TURBOPACK_RESOLVE_MODULE_ID_PATH,
-    },
-    utils::module_id_to_lit,
+    references::pattern_mapping::{PatternMapping, ResolveType, UrlModuleMode},
+    runtime_functions::TURBOPACK_RELATIVE_URL,
 };
 
 /// Determines how to treat `new URL(...)` rewrites.
@@ -80,12 +73,6 @@ impl UrlAssetReference {
             error_mode,
             url_rewrite_behavior,
         }
-    }
-
-    pub(crate) fn get_referenced_asset(
-        self: Vc<Self>,
-    ) -> impl Future<Output = Result<ReferencedAsset>> {
-        ReferencedAsset::from_resolve_result(self.resolve_reference())
     }
 }
 
@@ -143,22 +130,29 @@ impl UrlAssetReferenceCodeGen {
     /// conditions. Generated code will point to the output path of the asset,
     /// as similar to the webpack's behavior. This is based on the
     /// configuration (UrlRewriteBehavior), and the current context
-    /// (rendering), lastly the asset's condition (if it's referenced /
-    /// external). The following table shows the behavior:
+    /// (rendering). The URL of the referenced asset (`<url>`) is created by
+    /// [`PatternMapping::create_url`]: for a request with a single result it's
+    /// a constant expression, otherwise (e.g. `new URL(`./${name}`, import.meta.url)`)
+    /// the asset is looked up at runtime from a request -> URL map. The
+    /// following table shows the behavior:
     /*
      * original call: `new URL(url, base);`
-    ┌───────────────────────────────┬─────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────┬───────────────────────┐
-    │  UrlRewriteBehavior\RefAsset  │                         ReferencedAsset::Some()                         │           ReferencedAsset::External            │ ReferencedAsset::None │
-    ├───────────────────────────────┼─────────────────────────────────────────────────────────────────────────┼────────────────────────────────────────────────┼───────────────────────┤
-    │ Relative                      │ __turbopack_relative_url__(__turbopack_require__(urlId))                │ __turbopack_relative_url__(url)                │ new URL(url, base)    │
-    │ Full(RenderingClient::Client) │ new URL(__turbopack_require__(urlId), location.origin)                  │ new URL(url, location.origin)                  │ new URL(url, base)    │
-    │ Full(RenderingClient::..)     │ new URL(__turbopack_resolve_module_id_path__(urlId))                    │ new URL(url, base)                             │ new URL(url, base)    │
-    │ None                          │ new URL(url, base)                                                      │ new URL(url, base)                             │ new URL(url, base)    │
-    └───────────────────────────────┴─────────────────────────────────────────────────────────────────────────┴────────────────────────────────────────────────┴───────────────────────┘
+    ┌───────────────────────────────┬──────────────────────────────────────┐
+    │  UrlRewriteBehavior           │ Rewritten call                       │
+    ├───────────────────────────────┼──────────────────────────────────────┤
+    │ Relative                      │ new __turbopack_relative_url__(<url>) │
+    │ Full(RenderingClient::Client) │ new URL(<url>, location.origin)      │
+    │ Full(RenderingClient::..)     │ new URL(<url>, base)                 │
+    │ None                          │ new URL(url, base)                   │
+    └───────────────────────────────┴──────────────────────────────────────┘
     */
-    /// When the request is dynamic (e.g. `new URL(`./${name}`, import.meta.url)`) or resolves to
-    /// multiple assets, the asset is instead picked at runtime from a request -> URL map (see
-    /// [`Self::dynamic_code_generation`]).
+    /// For modules, `<url>` is `__turbopack_require__(id)` (which exports the
+    /// asset path), except for `Full` in non-client rendering, where it is
+    /// `__turbopack_resolve_module_id_path__(id)` (the absolute path, which
+    /// makes the base irrelevant). URL externals evaluate to their request.
+    ///
+    /// A request without any constant parts (e.g. `new URL(variable,
+    /// import.meta.url)`) is left untouched.
     pub async fn code_generation(
         &self,
         trie: &AstPathTrie,
@@ -166,242 +160,32 @@ impl UrlAssetReferenceCodeGen {
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
 
-        if reference.url_rewrite_behavior != UrlRewriteBehavior::None
-            && let Some(code_generation) = self
-                .dynamic_code_generation(&reference, trie, chunking_context)
+        if reference.url_rewrite_behavior == UrlRewriteBehavior::None
+            || !reference
+                .request
+                .request_pattern()
                 .await?
+                .has_constant_parts()
         {
-            return Ok(code_generation);
-        }
-
-        let mut visitors = vec![];
-
-        match reference.url_rewrite_behavior {
-            UrlRewriteBehavior::Relative => {
-                let referenced_asset = self.reference.get_referenced_asset().await?;
-
-                // if the referenced url is in the module graph of turbopack, replace it into
-                // the chunk item will be emitted into output path to point the
-                // static asset path. for the `new URL()` call, replace it into
-                // pseudo url object `__turbopack_relative_url__`
-                // which is injected by turbopack's runtime to resolve into the relative path
-                // omitting the base.
-                match &referenced_asset {
-                    ReferencedAsset::Some(asset) => {
-                        // We rewrite the first `new URL()` arguments to be a require() of the chunk
-                        // item, which exports the static asset path to the linked file.
-                        let id = asset.chunk_item_id(chunking_context).await?;
-
-                        visitors.push(create_visitor!(trie, self.path, visit_mut_expr, |new_expr: &mut Expr| {
-                            let should_rewrite_to_relative = if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
-                                matches!(args.first(), Some(ExprOrSpread { .. }))
-                            } else {
-                                false
-                            };
-
-                            if should_rewrite_to_relative {
-                                *new_expr = quote!(
-                                    "new $turbopack_relative_url($turbopack_require($id))" as Expr,
-                                    turbopack_relative_url: Expr = TURBOPACK_RELATIVE_URL.into(),
-                                    turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
-                                    id: Expr = module_id_to_lit(&id),
-                                );
-                            }
-                        }));
-                    }
-                    ReferencedAsset::External(request, ExternalType::Url) => {
-                        let request = request.to_string();
-                        visitors.push(create_visitor!(trie, self.path, visit_mut_expr, |new_expr: &mut Expr| {
-                            let should_rewrite_to_relative = if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
-                                matches!(args.first(), Some(ExprOrSpread { .. }))
-                            } else {
-                                false
-                            };
-
-                            if should_rewrite_to_relative {
-                                *new_expr = quote!(
-                                    "new $turbopack_relative_url($id)" as Expr,
-                                    turbopack_relative_url: Expr = TURBOPACK_RELATIVE_URL.into(),
-                                    id: Expr = request.as_str().into(),
-                                );
-                            }
-                        }));
-                    }
-                    ReferencedAsset::External(request, ty) => {
-                        bail!(
-                            "Unsupported external type {:?} for URL reference with request: {:?}",
-                            ty,
-                            request
-                        )
-                    }
-                    ReferencedAsset::NonPlaceable(_)
-                    | ReferencedAsset::None
-                    | ReferencedAsset::Empty
-                    | ReferencedAsset::Unresolvable => {}
-                }
-            }
-            UrlRewriteBehavior::Full => {
-                let referenced_asset = self.reference.get_referenced_asset().await?;
-
-                // For rendering environments (CSR), we rewrite the `import.meta.url` to
-                // be a location.origin because it allows us to access files from the root of
-                // the dev server.
-                //
-                // By default for the remaining environments, turbopack's runtime have overridden
-                // `import.meta.url`.
-                let rewrite_url_base = match reference.rendering {
-                    Rendering::Client => Some(quote!("location.origin" as Expr)),
-                    Rendering::None | Rendering::Server => None,
-                };
-
-                match &referenced_asset {
-                    ReferencedAsset::Some(asset) => {
-                        // We rewrite the first `new URL()` arguments to be a require() of the
-                        // chunk item, which returns the asset path as its exports.
-                        let id = asset.chunk_item_id(chunking_context).await?;
-
-                        // If there's a rewrite to the base url, then the current rendering
-                        // environment should able to resolve the asset path
-                        // (asset_url) from the base. Wrap the module id
-                        // with __turbopack_require__ which returns the asset_url.
-                        //
-                        // Otherwise, the environment should provide an absolute path to the actual
-                        // output asset; delegate those calculation to the
-                        // runtime fn __turbopack_resolve_module_id_path__.
-                        let url_segment_resolver = if rewrite_url_base.is_some() {
-                            quote!(
-                                "$turbopack_require($id)" as Expr,
-                                turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
-                                id: Expr = module_id_to_lit(&id),
-                            )
-                        } else {
-                            quote!(
-                                "$turbopack_resolve_module_id_path($id)" as Expr,
-                                turbopack_resolve_module_id_path: Expr = TURBOPACK_RESOLVE_MODULE_ID_PATH.into(),
-                                id: Expr = module_id_to_lit(&id),
-                            )
-                        };
-
-                        visitors.push(create_visitor!(
-                            trie,
-                            self.path,
-                            visit_mut_expr,
-                            |new_expr: &mut Expr| {
-                                if let Expr::New(NewExpr {
-                                    args: Some(args), ..
-                                }) = new_expr
-                                {
-                                    if let Some(ExprOrSpread { expr, spread: None }) =
-                                        args.get_mut(0)
-                                    {
-                                        **expr = url_segment_resolver.clone();
-                                    }
-
-                                    if let Some(ExprOrSpread { expr, spread: None }) =
-                                        args.get_mut(1)
-                                    {
-                                        if let Some(rewrite) = &rewrite_url_base {
-                                            **expr = rewrite.clone();
-                                        } else {
-                                            // If rewrite for the base doesn't exists, means
-                                            // __turbopack_resolve_module_id_path__
-                                            // should resolve the full path correctly and there
-                                            // shouldn't be a base.
-                                            args.remove(1);
-                                        }
-                                    }
-                                }
-                            }
-                        ));
-                    }
-                    ReferencedAsset::External(request, ExternalType::Url) => {
-                        let request = request.to_string();
-                        visitors.push(create_visitor!(
-                            trie,
-                            self.path,
-                            visit_mut_expr,
-                            |new_expr: &mut Expr| {
-                                if let Expr::New(NewExpr {
-                                    args: Some(args), ..
-                                }) = new_expr
-                                {
-                                    if let Some(ExprOrSpread { expr, spread: None }) =
-                                        args.get_mut(0)
-                                    {
-                                        *expr = request.as_str().into()
-                                    }
-
-                                    if let Some(rewrite) = &rewrite_url_base
-                                        && let Some(ExprOrSpread { expr, spread: None }) =
-                                            args.get_mut(1)
-                                    {
-                                        **expr = rewrite.clone();
-                                    }
-                                }
-                            }
-                        ));
-                    }
-                    ReferencedAsset::External(request, ty) => {
-                        bail!(
-                            "Unsupported external type {:?} for URL reference with request: {:?}",
-                            ty,
-                            request
-                        )
-                    }
-                    ReferencedAsset::NonPlaceable(_)
-                    | ReferencedAsset::None
-                    | ReferencedAsset::Empty
-                    | ReferencedAsset::Unresolvable => {}
-                }
-            }
-            UrlRewriteBehavior::None => {
-                // Asked to not rewrite the URL, so we don't do anything.
-            }
-        };
-
-        Ok(CodeGeneration::visitors(visitors))
-    }
-
-    /// Rewrites a `new URL()` call whose request has dynamic parts or resolves to multiple
-    /// assets, so that the asset matching the request is looked up at runtime instead of always
-    /// using a single one (a request that matched nothing throws `MODULE_NOT_FOUND` at runtime).
-    /// Returns `None` for a constant request with at most one result, which is handled by
-    /// [`Self::code_generation`].
-    ///
-    /// The first argument becomes `__turbopack_module_context__(map)(url)`, which evaluates to
-    /// the same URL the corresponding single match would be rewritten to:
-    /// - `Relative`: `new __turbopack_relative_url__(<lookup>)`
-    /// - `Full` + client rendering: `new URL(<lookup>, location.origin)`
-    /// - `Full` otherwise: `new URL(<lookup>, base)`, where modules map to
-    ///   `__turbopack_resolve_module_id_path__(id)` (which is absolute, so the base only applies to
-    ///   URL externals).
-    async fn dynamic_code_generation(
-        &self,
-        reference: &UrlAssetReference,
-        trie: &AstPathTrie,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Option<CodeGeneration>> {
-        let resolve_result = self.reference.resolve_reference();
-        if !reference
-            .request
-            .request_pattern()
-            .await?
-            .has_dynamic_parts()
-            && resolve_result.await?.primary.len() <= 1
-        {
-            return Ok(None);
+            return Ok(CodeGeneration::empty());
         }
 
         let pattern_mapping = PatternMapping::resolve_request(
             *reference.request,
             *reference.origin,
             chunking_context,
-            resolve_result,
+            self.reference.resolve_reference(),
             ResolveType::ChunkItem,
             Some(Vc::upcast(*self.reference)),
         )
         .await?;
 
+        // For rendering environments (CSR), we rewrite the `import.meta.url` to
+        // be a location.origin because it allows us to access files from the root of
+        // the dev server.
+        //
+        // By default for the remaining environments, turbopack's runtime have overridden
+        // `import.meta.url`.
         let rewrite_url_base = match (reference.url_rewrite_behavior, reference.rendering) {
             (UrlRewriteBehavior::Full, Rendering::Client) => {
                 Some(quote!("location.origin" as Expr))
@@ -415,6 +199,9 @@ impl UrlAssetReferenceCodeGen {
             _ => UrlModuleMode::Require,
         };
         let relative = reference.url_rewrite_behavior == UrlRewriteBehavior::Relative;
+        // Keys of a relative request (`./…`) match the runtime request, other requests (e.g. a
+        // bare `assets/…`) are resolved relatively and need aliases without the leading `./`.
+        let bare_aliases = !matches!(&*reference.request.await?, Request::Relative { .. });
 
         let visitor = create_visitor!(trie, self.path, visit_mut_expr, |new_expr: &mut Expr| {
             let Expr::New(NewExpr {
@@ -426,16 +213,16 @@ impl UrlAssetReferenceCodeGen {
             let Some(ExprOrSpread { expr, spread: None }) = args.get_mut(0) else {
                 return;
             };
-            let lookup = pattern_mapping.create_url_lookup(*expr.take(), module_mode);
+            let url = pattern_mapping.create_url(*expr.take(), module_mode, bare_aliases);
             if relative {
                 *new_expr = quote!(
-                    "new $turbopack_relative_url($lookup)" as Expr,
+                    "new $turbopack_relative_url($url)" as Expr,
                     turbopack_relative_url: Expr = TURBOPACK_RELATIVE_URL.into(),
-                    lookup: Expr = lookup,
+                    url: Expr = url,
                 );
                 return;
             }
-            **expr = lookup;
+            **expr = url;
             if let Some(rewrite) = &rewrite_url_base
                 && let Some(ExprOrSpread { expr, spread: None }) = args.get_mut(1)
             {
@@ -443,6 +230,6 @@ impl UrlAssetReferenceCodeGen {
             }
         });
 
-        Ok(Some(CodeGeneration::visitors(vec![visitor])))
+        Ok(CodeGeneration::visitors(vec![visitor]))
     }
 }

@@ -381,8 +381,8 @@ impl ReferencedAsset {
 impl ReferencedAsset {
     pub async fn from_resolve_result(resolve_result: Vc<ModuleResolveResult>) -> Result<Self> {
         // Only the first matching result is used. Callers whose request can match multiple keyed
-        // results (e.g. a dynamic `new URL()`, see `UrlAssetReferenceCodeGen`) have to map them
-        // with `PatternMapping` instead.
+        // results (e.g. `new URL()`, see `UrlAssetReferenceCodeGen`) have to map them with
+        // `PatternMapping` instead.
         let result = resolve_result.await?;
         if result.is_unresolvable() {
             return Ok(ReferencedAsset::Unresolvable);

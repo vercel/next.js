@@ -149,8 +149,8 @@ use crate::{
         },
     },
     runtime_functions::{
-        TURBOPACK_EXPORTS, TURBOPACK_GLOBAL, TURBOPACK_REQUIRE_REAL, TURBOPACK_REQUIRE_STUB,
-        TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS,
+        TURBOPACK_EXPORTS, TURBOPACK_GLOBAL, TURBOPACK_REQUIRE, TURBOPACK_REQUIRE_REAL,
+        TURBOPACK_REQUIRE_STUB, TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS,
     },
     source_map::parse_source_map_comment,
     utils::{AstPathRange, js_value_to_pattern, module_value_to_well_known_object},
@@ -2297,6 +2297,25 @@ where
     }
 
     match func {
+        WellKnownFunctionKind::CreateRequire => {
+            let args = linked_args().await?;
+            // `createRequire(import.meta.url)` and `createRequire(new URL("<rel>",
+            // import.meta.url))` are statically analyzed (as `Require` and `RequireFrom`), so the
+            // calls on the returned require are rewritten to `__turbopack_require__`. Replace the
+            // `createRequire()` call with it as well, so its argument isn't evaluated at runtime.
+            if let [arg] = &args[..]
+                && (matches!(arg, JsValue::Url(_, JsValueUrlKind::Relative))
+                    || matches!(arg, JsValue::Member(_, obj, prop)
+                        if matches!(&**obj, JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta))
+                            && matches!(&**prop, JsValue::Constant(JsConstantValue::Str(prop)) if prop.as_str() == "url")))
+            {
+                analysis.add_code_gen(MemberReplacement::new(
+                    rcstr!("__turbopack_context__"),
+                    TURBOPACK_REQUIRE.shortcut.into(),
+                    analysis.intern_path(ast_path),
+                ));
+            }
+        }
         WellKnownFunctionKind::Import => {
             let args = linked_args().await?;
             let export_usage = match &attributes.export_names {

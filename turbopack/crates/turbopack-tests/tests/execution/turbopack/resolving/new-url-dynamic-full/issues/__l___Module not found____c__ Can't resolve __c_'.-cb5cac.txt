@@ -1,0 +1,21 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/new-url-dynamic-full/input/index.js:24:2  Module not found: Can't resolve './no-match/' <dynamic>
+  
+      20 | const fullyDynamicUrl = (request) =>
+      21 |   new URL(request, import.meta.url).toString()
+      22 | 
+      23 | const noMatchUrl = (name) =>
+         +   v---------------------------------------------------v
+      24 +   new URL(`./no-match/${track(name)}`, import.meta.url).toString()
+         +   ^---------------------------------------------------^
+      25 | 
+      26 | const expectAboutBlank = (fn) => {
+      27 |   const before = evaluations
+      28 |   expect(fn()).toBe('about:blank')
+  
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: relative './no-match/' <dynamic>
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/new-url-dynamic-full/input/index.js
+  | Type of request: url request
+  |

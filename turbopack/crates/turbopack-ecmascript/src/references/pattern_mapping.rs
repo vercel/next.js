@@ -271,14 +271,11 @@ pub(crate) enum UrlModuleMode {
 
 impl SinglePatternMapping {
     /// Creates an expression evaluating to the URL (the first `new URL()` argument) this mapping
-    /// points to. URL externals evaluate to their request, as with a single `new URL()` match.
-    fn create_url(&self, module_mode: UrlModuleMode) -> Expr {
+    /// points to. URL externals evaluate to their request, and anything that can't be resolved
+    /// to a URL evaluates to `about:blank`.
+    pub fn create_url(&self, module_mode: UrlModuleMode) -> Expr {
         match self {
-            Self::Invalid => quote!(
-                "(() => {throw new Error('could not resolve the new URL() request into an \
-                 asset');})()" as Expr
-            ),
-            Self::Unresolvable(request) => throw_module_not_found_expr(request),
+            Self::Invalid | Self::Unresolvable(_) => quote!("'about:blank'" as Expr),
             Self::Ignored => quote!("{}" as Expr),
             Self::Dropped => quote!("0" as Expr),
             Self::Module(module_id) | Self::ModuleLoader(module_id) => match module_mode {
@@ -294,10 +291,7 @@ impl SinglePatternMapping {
                 ),
             },
             Self::External(request, ExternalType::Url) => request.as_str().into(),
-            Self::External(request, ty) => throw_module_not_found_error_expr(
-                request,
-                &format!("Unsupported external type {ty:?} for URL reference"),
-            ),
+            Self::External(_, _) => quote!("'about:blank'" as Expr),
         }
     }
 }
@@ -305,7 +299,6 @@ impl SinglePatternMapping {
 enum ImportMode {
     Require,
     Import { import_externals: bool },
-    Url(UrlModuleMode),
 }
 
 fn create_context_map(
@@ -320,9 +313,48 @@ fn create_context_map(
                         "{id: () => $id, module: () => $module}",
                         id: Expr = v.create_id(Cow::Borrowed(key_expr)),
                         module: Expr = match import_mode {ImportMode::Require => v.create_require(Cow::Borrowed(key_expr)),
-                            ImportMode::Import {import_externals} => v.create_import(Cow::Borrowed(key_expr), import_externals),
-                            ImportMode::Url(module_mode) => v.create_url(module_mode),},
+                            ImportMode::Import {import_externals} => v.create_import(Cow::Borrowed(key_expr), import_externals),},
                     ),})))})
+        .collect();
+
+    Expr::Object(ObjectLit {
+        span: DUMMY_SP,
+        props,
+    })
+}
+
+/// Like [`create_context_map`], but for `new URL()`: entries only have a `module` (the URL), as
+/// a URL context is never asked for module ids.
+///
+/// A request without a leading `./` (e.g. `new URL(`assets/${name}`, import.meta.url)`) is
+/// resolved relatively, so its keys have a leading `./` that the runtime request doesn't have.
+/// With `bare_aliases`, each `./x` key therefore also gets an `x` alias, unless `x` is a key
+/// itself.
+fn create_url_context_map(
+    map: &FxIndexMap<RcStr, SinglePatternMapping>,
+    module_mode: UrlModuleMode,
+    bare_aliases: bool,
+) -> Expr {
+    let aliases = map.iter().filter_map(|(k, v)| {
+        if !bare_aliases {
+            return None;
+        }
+        let alias = k.strip_prefix("./")?;
+        (!map.contains_key(alias)).then_some((alias, v))
+    });
+    let props = map
+        .iter()
+        .map(|(k, v)| (k.as_str(), v))
+        .chain(aliases)
+        .map(|(k, v)| {
+            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                key: PropName::Str(k.into()),
+                value: quote_expr!(
+                    "{module: () => $module}",
+                    module: Expr = v.create_url(module_mode),
+                ),
+            })))
+        })
         .collect();
 
     Expr::Object(ObjectLit {
@@ -362,24 +394,29 @@ impl PatternMapping {
         }
     }
 
-    /// Creates an expression that looks up, at runtime, the URL (the first `new URL()` argument)
-    /// of the asset matching `key_expr`. It throws `MODULE_NOT_FOUND` when nothing matches, and
-    /// `key_expr` is evaluated exactly once.
-    ///
-    /// Only used for dynamic or multi-result requests, so a [`PatternMapping::Single`] here means
-    /// that the request matched nothing and is mapped to an empty context.
-    pub fn create_url_lookup(&self, key_expr: Expr, module_mode: UrlModuleMode) -> Expr {
-        let empty = FxIndexMap::default();
-        let map = match self {
-            PatternMapping::Single(_) => &empty,
-            PatternMapping::Map(map) => map,
-        };
-        quote!(
-            "$turbopack_module_context($map)($key)" as Expr,
-            turbopack_module_context: Expr = TURBOPACK_MODULE_CONTEXT.into(),
-            map: Expr = create_context_map(map, &key_expr, ImportMode::Url(module_mode)),
-            key: Expr = key_expr
-        )
+    /// Creates an expression evaluating to the URL (the first `new URL()` argument) of the asset
+    /// matching `key_expr`. With multiple possible assets, it's looked up at runtime (with the
+    /// request's query and fragment ignored when there's no exact match), evaluating to
+    /// `about:blank` when nothing matches. `bare_aliases` must be set when the request can be
+    /// without a leading `./` at runtime (i.e. it isn't a relative request).
+    pub fn create_url(
+        &self,
+        key_expr: Expr,
+        module_mode: UrlModuleMode,
+        bare_aliases: bool,
+    ) -> Expr {
+        match self {
+            PatternMapping::Single(pm) => pm.create_url(module_mode),
+            PatternMapping::Map(map) => {
+                let map = create_url_context_map(map, module_mode, bare_aliases);
+
+                quote!("$turbopack_module_context($map, true)($key)" as Expr,
+                    turbopack_module_context: Expr = TURBOPACK_MODULE_CONTEXT.into(),
+                    map: Expr = map,
+                    key: Expr = key_expr
+                )
+            }
+        }
     }
 
     pub fn create_import(&self, key_expr: Expr, import_externals: bool) -> Expr {
@@ -551,12 +588,40 @@ impl PatternMapping {
             }
             _ => {
                 let primary = &result.primary;
+                // The query and fragment of the request (e.g. the `#frag` of
+                // `import('./' + name + '#frag')`) are split off when parsing and aren't part of
+                // the resolved request keys, but they are part of the request at runtime.
+                let key_suffix = match &*request.await? {
+                    Request::Raw {
+                        query, fragment, ..
+                    }
+                    | Request::Relative {
+                        query, fragment, ..
+                    }
+                    | Request::Module {
+                        query, fragment, ..
+                    }
+                    | Request::ServerRelative {
+                        query, fragment, ..
+                    }
+                    | Request::Windows {
+                        query, fragment, ..
+                    } => format!("{query}{fragment}"),
+                    _ => String::new(),
+                };
                 let mut set = HashSet::new();
                 let items: Vec<(RcStr, &ModuleResolveResultItem)> = primary
                     .iter()
                     .filter_map(|(k, v)| {
                         let request = k.request.as_ref()?;
-                        set.insert(request).then(|| (request.clone(), v))
+                        set.insert(request).then(|| {
+                            let key = if key_suffix.is_empty() {
+                                request.clone()
+                            } else {
+                                format!("{request}{key_suffix}").into()
+                            };
+                            (key, v)
+                        })
                     })
                     .collect();
                 let map = items
