@@ -46,6 +46,18 @@ describe('app dir - not-found - basic', () => {
     const nestedMarkup = markup(await nested.text())
     expect(nestedMarkup).toContain('Not Found (error-boundary/nested)')
     expect(nestedMarkup).toContain('Navbar')
+
+    const dynamicRes = await next.fetch('/dynamic/404')
+    expect(dynamicRes.status).toBe(404)
+    expect(markup(await dynamicRes.text())).toContain('dynamic/[id] not found')
+
+    const escalatedRes = await next.fetch(
+      '/dynamic-layout-without-not-found/404'
+    )
+    expect(escalatedRes.status).toBe(404)
+    const escalatedMarkup = markup(await escalatedRes.text())
+    expect(escalatedMarkup).toContain('Root Not Found')
+    expect(escalatedMarkup).toContain('Dynamic with Layout')
   })
 
   if (isNextStart) {

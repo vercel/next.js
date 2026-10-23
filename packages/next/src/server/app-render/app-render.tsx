@@ -1,5 +1,8 @@
 import type { ComponentType, ErrorInfo, JSX, ReactNode } from 'react'
-import type { PartialTransportData } from '../../shared/lib/rsc-transport'
+import type {
+  FullTransportNode,
+  PartialTransportData,
+} from '../../shared/lib/rsc-transport'
 import type { RenderOpts, PreloadCallbacks } from './types'
 import type {
   ActionResult,
@@ -2201,7 +2204,7 @@ function Preloads({ preloadCallbacks }: { preloadCallbacks: Function[] }) {
   return null
 }
 
-function nearestNotFoundLoaderTree(tree: LoaderTree): LoaderTree | null {
+export function nearestNotFoundLoaderTree(tree: LoaderTree): LoaderTree | null {
   const [segment, parallelRoutes, components, staticSiblings] = tree
   const children = parallelRoutes.children
   if (children) {
@@ -2221,7 +2224,7 @@ function nearestNotFoundLoaderTree(tree: LoaderTree): LoaderTree | null {
   }
   return [
     segment,
-    { children: [PAGE_SEGMENT_KEY, {}, { page: notFound }, null] },
+    { ...parallelRoutes, children: [PAGE_SEGMENT_KEY, {}, { page: notFound }, null] },
     components,
     staticSiblings,
   ]
