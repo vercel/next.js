@@ -1,5 +1,6 @@
 import { printSpanTree, type TreeSpan } from 'otel-span-tree'
 import {
+  collectSpanEventGroups,
   collectSpanEvents,
   mergeSpanEvents,
   parseSpanEvents,
@@ -326,18 +327,76 @@ describe('span event capture', () => {
     ).rejects.toThrow(/Spans ended more than once: \[render\][\s\S]*poll 1:/)
   })
 
-  it('passes the deadline to the reader and fails when the reader fails', async () => {
+  it('passes the deadline to the reader and retries failed reads', async () => {
     const deadlines: number[] = []
-    await expect(
-      collectSpanEvents(async (deadline) => {
-        deadlines.push(deadline)
-        throw new Error('vercel logs failed')
-      }, options)
-    ).rejects.toThrow(
-      /Reading the spans of trace\(s\)[\s\S]*vercel logs failed/
-    )
-    expect(deadlines).toHaveLength(1)
+    let reads = 0
+    const spans = await collectSpanEvents(async (deadline) => {
+      deadlines.push(deadline)
+      if (reads++ === 0) {
+        throw new Error('vercel logs failed (timed out)')
+      }
+      return [
+        event('start', 'mw', 'root', 1),
+        event('end', 'mw', 'root', 1, 2),
+        event('end', 'render', 'root', 3, 4),
+      ]
+        .map(line)
+        .join('\n')
+    }, options)
+    expect(spans.map((s) => s.id).sort()).toEqual(['mw', 'render'])
     expect(deadlines[0]).toBeGreaterThan(Date.now())
+    expect(new Set(deadlines).size).toBe(1)
+  })
+
+  it('fails with the read errors when reading keeps failing', async () => {
+    await expect(
+      collectSpanEvents(
+        async () => {
+          throw new Error('vercel logs failed (exit code 1): 504')
+        },
+        { ...options, timeoutMs: 100 }
+      )
+    ).rejects.toThrow(
+      /weren't completely captured[\s\S]*poll 1: reading failed: Error: vercel logs failed \(exit code 1\): 504/
+    )
+  })
+
+  it('fails a complete capture that no later poll confirms', async () => {
+    let reads = 0
+    const complete = [
+      event('start', 'mw', 'root', 1),
+      event('end', 'mw', 'root', 1, 2),
+      event('end', 'render', 'root', 3, 4),
+    ]
+    await expect(
+      collectSpanEvents(
+        async () => {
+          if (reads++ > 0) {
+            throw new Error('vercel logs failed (timed out)')
+          }
+          return complete.map(line).join('\n')
+        },
+        { ...options, timeoutMs: 100 }
+      )
+    ).rejects.toThrow(
+      /were captured, but no later poll confirmed[\s\S]*poll 2: reading failed/
+    )
+  })
+
+  it('fails a capture completed too close to the deadline to confirm', async () => {
+    await expect(
+      collectSpanEvents(
+        async () =>
+          [
+            event('start', 'mw', 'root', 1),
+            event('end', 'mw', 'root', 1, 2),
+            event('end', 'render', 'root', 3, 4),
+          ]
+            .map(line)
+            .join('\n'),
+        { ...options, timeoutMs: 50, settleMs: 1_000 }
+      )
+    ).rejects.toThrow(/were captured, but no later poll confirmed/)
   })
 
   it('fails with a diagnostic when a span never ends', async () => {
@@ -355,6 +414,138 @@ describe('span event capture', () => {
       )
     ).rejects.toThrow(
       /weren't completely captured[\s\S]*Missing expected spans: \[type-render\][\s\S]*haven't ended: \[render \(type-render\)\][\s\S]*\[error: not ended\][\s\S]*poll 1:/
+    )
+  })
+})
+
+describe('span event capture of several requests at once', () => {
+  const OTHER = 'f'.repeat(32)
+  const groups = [
+    { traceIds: [TRACE], expected: ['type-mw', 'type-render'] },
+    { traceIds: [OTHER], expected: ['type-other-mw'] },
+  ]
+  const options = { timeoutMs: 2_000, settleMs: 10, pollIntervalMs: 10 }
+
+  it('collects every request in one poll loop, with one read per poll', async () => {
+    const polls = [
+      [event('start', 'mw', 'root', 1), event('end', 'mw', 'root', 1, 2)],
+      [
+        event('start', 'mw', 'root', 1),
+        event('end', 'mw', 'root', 1, 2),
+        // The second request's spans and the first's render arrive later.
+        event('end', 'render', 'root', 3, 4),
+        event('end', 'other-mw', undefined, 5, 6, OTHER),
+      ],
+    ]
+    let reads = 0
+    const results = await collectSpanEventGroups(
+      async () =>
+        polls[Math.min(reads++, polls.length - 1)].map(line).join('\n'),
+      { ...options, groups }
+    )
+    expect(
+      results.map((result) =>
+        'spans' in result ? result.spans.map((s) => s.id).sort() : result
+      )
+    ).toEqual([['mw', 'render'], ['other-mw']])
+    // Incomplete, complete, and the settling poll.
+    expect(reads).toBe(3)
+  })
+
+  it('fails only the requests whose capture is incomplete', async () => {
+    const results = await collectSpanEventGroups(
+      async () =>
+        [event('start', 'mw', 'root', 1), event('end', 'mw', 'root', 1, 2)]
+          .concat(event('end', 'other-mw', undefined, 5, 6, OTHER))
+          .map(line)
+          .join('\n'),
+      { ...options, timeoutMs: 100, groups }
+    )
+    expect('error' in results[0] && String(results[0].error)).toMatch(
+      new RegExp(
+        `trace\\(s\\) ${TRACE} weren't completely captured[\\s\\S]*Missing expected spans: \\[type-render\\]`
+      )
+    )
+    expect('spans' in results[1] && results[1].spans.map((s) => s.id)).toEqual([
+      'other-mw',
+    ])
+  })
+
+  it('fails only the request with a span ended twice', async () => {
+    const results = await collectSpanEventGroups(
+      async () =>
+        [
+          event('start', 'mw', 'root', 1),
+          event('end', 'mw', 'root', 1, 2),
+          event('end', 'render', 'root', 3, 4),
+          event('end', 'render', 'root', 3, 5, TRACE, 'second-end'),
+          event('end', 'other-mw', undefined, 5, 6, OTHER),
+        ]
+          .map(line)
+          .join('\n'),
+      { ...options, groups }
+    )
+    expect('error' in results[0] && String(results[0].error)).toMatch(
+      /Spans ended more than once: \[render\]/
+    )
+    expect('spans' in results[1] && results[1].spans.map((s) => s.id)).toEqual([
+      'other-mw',
+    ])
+  })
+
+  it('still checks a settled request while others are collected', async () => {
+    const first = [
+      event('start', 'mw', 'root', 1),
+      event('end', 'mw', 'root', 1, 2),
+      event('end', 'render', 'root', 3, 4),
+    ]
+    // The first request settles (polls 1-2) while the second isn't complete.
+    // Then a second `end` event and a span that never ends arrive for it.
+    const late = [
+      event('end', 'render', 'root', 3, 5, TRACE, 'second-end'),
+      event('end', 'other-mw', undefined, 5, 6, OTHER),
+    ]
+    const lateStart = [
+      event('start', 'late', 'render', 3),
+      event('end', 'other-mw', undefined, 5, 6, OTHER),
+    ]
+    for (const [arrives, error] of [
+      [late, /Spans ended more than once: \[render\]/],
+      [lateStart, /weren't completely captured[\s\S]*haven't ended: \[late/],
+    ] as const) {
+      let reads = 0
+      const results = await collectSpanEventGroups(
+        async () =>
+          (reads++ < 3 ? first : [...first, ...arrives]).map(line).join('\n'),
+        { ...options, timeoutMs: 200, groups }
+      )
+      expect('error' in results[0] && String(results[0].error)).toMatch(error)
+      expect('spans' in results[1]).toBe(true)
+    }
+  })
+
+  it('logs every captured span event once', async () => {
+    const mw = [
+      event('start', 'mw', 'root', 1),
+      event('end', 'mw', 'root', 1, 2),
+    ]
+    const rest = [
+      event('end', 'render', 'root', 3, 4),
+      event('end', 'other-mw', undefined, 5, 6, OTHER),
+      // Not one of the collected traces.
+      event('end', 'unrelated', undefined, 5, 6, 'e'.repeat(32)),
+    ]
+    let reads = 0
+    const logged: string[] = []
+    await collectSpanEventGroups(
+      async () => (reads++ === 0 ? mw : [...mw, ...rest]).map(line).join('\n'),
+      { ...options, groups, log: (message) => logged.push(message) }
+    )
+    const events = logged.filter((message) =>
+      message.includes(SPAN_EVENT_MARKER)
+    )
+    expect(events).toEqual(
+      [...mw, ...rest.slice(0, 2)].map((e) => expect.stringContaining(line(e)))
     )
   })
 })

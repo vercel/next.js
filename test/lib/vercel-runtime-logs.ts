@@ -29,16 +29,54 @@ export interface ReadVercelRuntimeLogsOptions {
   flags?: string[]
   /** When reading must be done (a `Date.now()` timestamp), across all pages. */
   deadline: number
+  /**
+   * How long a single call may take at most (e.g. so one hanging call doesn't
+   * use up the whole deadline).
+   */
+  callTimeoutMs?: number
   /** How many pages to read at most. */
   maxPages?: number
+  /**
+   * Called with one line per call: its arguments (with any token redacted),
+   * page, exit status, duration and number of records.
+   */
+  log?: (message: string) => void
+}
+
+// The arguments of a call, for logging, with the value of `--token` redacted.
+function formatArgs(args: string[]) {
+  return args
+    .map((arg, i) =>
+      args[i - 1] === '--token'
+        ? '***'
+        : arg.startsWith('--token=')
+          ? '--token=***'
+          : arg
+    )
+    .join(' ')
+}
+
+// The number of log records in the output of a call (for logging).
+function countRecords(stdout: string) {
+  let count = 0
+  for (const line of stdout.split('\n')) {
+    try {
+      if (typeof JSON.parse(line)?.data?.message === 'string') {
+        count++
+      }
+    } catch {
+      // Not a record.
+    }
+  }
+  return count
 }
 
 /**
  * The messages of the deployment's runtime logs since `since`, of all its
  * functions (including middleware). Throws when the logs can't be read
- * completely: the command fails or doesn't finish before `deadline`, the
- * output isn't JSON, the logs have gaps, a message was truncated, or there
- * are more pages than `maxPages`.
+ * completely: the command fails or doesn't finish before `deadline` (or
+ * within `callTimeoutMs`), the output isn't JSON, the logs have gaps, a
+ * message was truncated, or there are more pages than `maxPages`.
  */
 export async function readVercelRuntimeLogs(
   run: RunVercelCli,
@@ -48,7 +86,9 @@ export async function readVercelRuntimeLogs(
     query,
     flags = [],
     deadline,
+    callTimeoutMs = Infinity,
     maxPages = 20,
+    log,
   }: ReadVercelRuntimeLogsOptions
 ): Promise<string[]> {
   const messages: string[] = []
@@ -71,7 +111,22 @@ export async function readVercelRuntimeLogs(
         `vercel logs didn't finish before the deadline (page ${page})`
       )
     }
-    const res = await run(args, remainingMs)
+    const startedAt = Date.now()
+    let res: VercelCliResult
+    try {
+      res = await run(args, Math.min(remainingMs, callTimeoutMs))
+    } catch (error) {
+      // E.g. the CLI couldn't be started. The error isn't logged: it may
+      // include the environment.
+      log?.(
+        `vercel ${formatArgs(args)}: page ${page}, failed to run in ${Date.now() - startedAt}ms`
+      )
+      throw error
+    }
+    const records = countRecords(res.stdout)
+    log?.(
+      `vercel ${formatArgs(args)}: page ${page}, ${res.timedOut ? 'timed out' : `exit code ${res.exitCode}`} in ${Date.now() - startedAt}ms, ${records} record(s)`
+    )
     if (res.timedOut || res.exitCode !== 0) {
       throw new Error(
         `vercel logs failed (${res.timedOut ? 'timed out' : `exit code ${res.exitCode}`}): ${res.stderr}\n${res.stdout}`

@@ -37,15 +37,23 @@ function runner(results: VercelCliResult[]) {
 
 const read = (
   run: (args: string[], timeoutMs: number) => Promise<VercelCliResult>,
-  options: { deadline?: number; maxPages?: number } = {}
+  options: {
+    deadline?: number
+    maxPages?: number
+    callTimeoutMs?: number
+    flags?: string[]
+    log?: (message: string) => void
+  } = {}
 ) =>
   readVercelRuntimeLogs(run, {
     deployment: DEPLOYMENT,
     since: SINCE,
     query: 'abc123',
-    flags: ['--scope', 'team'],
+    flags: options.flags ?? ['--scope', 'team'],
     deadline: options.deadline ?? Date.now() + 60_000,
     maxPages: options.maxPages,
+    callTimeoutMs: options.callTimeoutMs,
+    log: options.log,
   })
 
 describe('readVercelRuntimeLogs', () => {
@@ -82,6 +90,56 @@ describe('readVercelRuntimeLogs', () => {
     await expect(read(run, { deadline: Date.now() - 1 })).rejects.toThrow(
       /deadline/
     )
+  })
+
+  it('bounds every call by the per-call timeout', async () => {
+    const { run, calls } = runner([ok(summary('cursor-1')), ok(summary())])
+    await read(run, { deadline: Date.now() + 600_000, callTimeoutMs: 1_000 })
+    expect(calls.map((call) => call.timeoutMs)).toEqual([1_000, 1_000])
+  })
+
+  it('logs every call, without the token', async () => {
+    const { run } = runner([
+      ok(record('one'), record('two'), summary('cursor-1')),
+      { exitCode: 1, stdout: '', stderr: 'Events query failed' },
+    ])
+    const logged: string[] = []
+    await expect(
+      read(run, {
+        flags: ['--scope', 'team', '--token', 'secret-token'],
+        log: (message) => logged.push(message),
+      })
+    ).rejects.toThrow(/exit code 1/)
+    expect(logged).toEqual([
+      expect.stringMatching(
+        /^vercel logs --deployment https:\/\/app-123\.vercel\.app .*--scope team --token \*\*\*: page 1, exit code 0 in \d+ms, 2 record\(s\)$/
+      ),
+      expect.stringMatching(
+        /^vercel logs --next cursor-1 .*--token \*\*\*: page 2, exit code 1 in \d+ms, 0 record\(s\)$/
+      ),
+    ])
+    expect(logged.join('\n')).not.toContain('secret-token')
+  })
+
+  it('logs a call that fails to run, without its error', async () => {
+    const logged: string[] = []
+    await expect(
+      read(
+        async () => {
+          throw new Error('spawn vercel ENOENT (VERCEL_TOKEN=secret-token)')
+        },
+        {
+          flags: ['--token=secret-token'],
+          log: (message) => logged.push(message),
+        }
+      )
+    ).rejects.toThrow(/ENOENT/)
+    expect(logged).toEqual([
+      expect.stringMatching(
+        /^vercel logs --deployment .*--token=\*\*\*: page 1, failed to run in \d+ms$/
+      ),
+    ])
+    expect(logged.join('\n')).not.toContain('secret-token')
   })
 
   it.each([

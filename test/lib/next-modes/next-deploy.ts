@@ -1217,7 +1217,19 @@ export class NextDeployInstance extends NextInstance {
     const messages = await readVercelRuntimeLogs(
       (args, timeoutMs) =>
         execa('vercel', args, { cwd, env, reject: false, timeout: timeoutMs }),
-      { deployment: this._url, since, query, flags, deadline }
+      {
+        deployment: this._url,
+        since,
+        query,
+        flags,
+        deadline,
+        // A call can hang (e.g. while the logs backend is slow): give up on it
+        // and let the caller retry, instead of using up the whole deadline.
+        callTimeoutMs: 60_000,
+        // Every call is logged, so the test output shows how the logs were
+        // read (the token is in the environment, and redacted if in `flags`).
+        log: (message) => require('console').log(`[vercel-logs] ${message}`),
+      }
     )
     return messages.join('\n')
   }
