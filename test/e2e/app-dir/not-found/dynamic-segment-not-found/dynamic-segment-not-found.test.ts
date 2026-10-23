@@ -15,6 +15,8 @@ describe('app dir - not-found - dynamic segment notFound()', () => {
     // Must NOT be the empty error recovery shell
     expect(rawHtml).not.toContain('id="__next_error__"')
     expect(rawHtml).toMatch(/<html[^>]*\blang="en"/)
+    // Robots noindex meta tag must survive in initial server-rendered HTML for search crawlers
+    expect(rawHtml).toMatch(/<meta[^>]*name="robots"[^>]*content="noindex"/)
 
     // Content should be present in the initial server HTML (for crawlers and no-JS clients)
     const markup = rawHtml.replace(/<script\b[\s\S]*?<\/script>/g, '')
@@ -29,6 +31,7 @@ describe('app dir - not-found - dynamic segment notFound()', () => {
     const rawHtml = await res.text()
     expect(rawHtml).not.toContain('id="__next_error__"')
     expect(rawHtml).toMatch(/<html[^>]*\blang="en"/)
+    expect(rawHtml).toMatch(/<meta[^>]*name="robots"[^>]*content="noindex"/)
 
     const markup = rawHtml.replace(/<script\b[\s\S]*?<\/script>/g, '')
     expect(markup).toContain('Custom not-found copy')

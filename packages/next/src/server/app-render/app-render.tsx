@@ -2204,7 +2204,7 @@ function Preloads({ preloadCallbacks }: { preloadCallbacks: Function[] }) {
   return null
 }
 
-export function nearestNotFoundLoaderTree(tree: LoaderTree): LoaderTree | null {
+function nearestNotFoundLoaderTree(tree: LoaderTree): LoaderTree | null {
   const [segment, parallelRoutes, components, staticSiblings] = tree
   const children = parallelRoutes.children
   if (children) {
@@ -2212,6 +2212,9 @@ export function nearestNotFoundLoaderTree(tree: LoaderTree): LoaderTree | null {
     if (nested !== null) {
       return [
         segment,
+        // Preserve sibling parallel route slots so that layouts with parallel routes
+        // (e.g. @modal, @sidebar) retain their layout structure and slots
+        // when rendering the nearest not-found boundary inside the layout.
         { ...parallelRoutes, children: nested },
         components,
         staticSiblings,
@@ -2224,6 +2227,8 @@ export function nearestNotFoundLoaderTree(tree: LoaderTree): LoaderTree | null {
   }
   return [
     segment,
+    // Preserve sibling parallel route slots and swap the children slot for the
+    // nearest not-found component.
     { ...parallelRoutes, children: [PAGE_SEGMENT_KEY, {}, { page: notFound }, null] },
     components,
     staticSiblings,
@@ -2263,7 +2268,10 @@ async function notFoundTransportTree(
       isPrerendering,
       hintTree,
     })
-  } catch {
+  } catch (err) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Failed to construct server not-found boundary:', err)
+    }
     return null
   }
 }

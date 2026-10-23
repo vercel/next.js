@@ -9,5 +9,5 @@ export default async function Page({ params }) {
   if (slug !== 'known') {
     notFound()
   }
-  return <h1 id="known-item">Known item: {slug}</h1>
+  return <h1 id="known-item">{`Known item: ${slug}`}</h1>
 }
