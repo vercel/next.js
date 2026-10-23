@@ -1,7 +1,7 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  injectInstrumentation: ['./inject.js'],
+  injectInstrumentation: ['./.vercel/otel/instrumentation.js'],
 }
 
 export default nextConfig

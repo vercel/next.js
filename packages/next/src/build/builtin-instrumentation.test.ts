@@ -1,4 +1,5 @@
 import { mkdir, mkdtemp, realpath, rm, writeFile } from 'fs/promises'
+import { createRequire } from 'module'
 import * as os from 'os'
 import { join } from 'path'
 import { Bundler } from '../lib/bundler'
@@ -111,6 +112,56 @@ describe('resolveInstrumentationInject', () => {
       dev: false,
     })
     expect(result?.file).toBe(await realpath(inject))
+  })
+
+  it('resolves the adapter path and its private packages', async () => {
+    const otelDir = join(root, '.vercel', 'otel')
+    const pkgDir = join(otelDir, 'node_modules', '@vercel', 'otel')
+    const logsDir = join(otelDir, 'node_modules', '@opentelemetry', 'api-logs')
+    await mkdir(pkgDir, { recursive: true })
+    await mkdir(logsDir, { recursive: true })
+    const inject = join(otelDir, 'instrumentation.js')
+    await writeFile(
+      inject,
+      'import { registerOTel } from "@vercel/otel"\nexport function register() { registerOTel() }\n'
+    )
+    await writeFile(
+      join(pkgDir, 'package.json'),
+      JSON.stringify({ name: '@vercel/otel', main: 'index.js' })
+    )
+    await writeFile(
+      join(pkgDir, 'index.js'),
+      'export function registerOTel() {}\n'
+    )
+    await writeFile(
+      join(logsDir, 'package.json'),
+      JSON.stringify({ name: '@opentelemetry/api-logs', main: 'index.js' })
+    )
+    await writeFile(join(logsDir, 'index.js'), 'module.exports = {}\n')
+
+    const result = await resolveInstrumentationInject({
+      dir: root,
+      appDir: join(root, 'app'),
+      pagesDir: undefined,
+      config: {
+        injectInstrumentation: ['./.vercel/otel/instrumentation.js'],
+        pageExtensions: ['ts', 'js'],
+        outputFileTracingRoot: root,
+      },
+      bundler: Bundler.Webpack,
+      dev: false,
+    })
+    expect(result?.file).toBe(await realpath(inject))
+    expect(result?.specifier).toBe('./.vercel/otel/instrumentation.js')
+
+    const requireFromInject = createRequire(inject)
+    expect(requireFromInject.resolve('@vercel/otel')).toBe(
+      await realpath(join(pkgDir, 'index.js'))
+    )
+    expect(requireFromInject.resolve('@opentelemetry/api-logs')).toBe(
+      await realpath(join(logsDir, 'index.js'))
+    )
+    expect(() => requireFromInject.resolve('@opentelemetry/api')).toThrow()
   })
 
   it('throws when the inject specifier does not resolve', async () => {

@@ -4,6 +4,7 @@ import {
   TemplateMode,
   TemplateType,
 } from '../../../../packages/create-next-app/templates'
+
 export type ProjectSettings = {
   files: string[]
   deps: string[]
