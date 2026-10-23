@@ -562,39 +562,29 @@ async fn resolve_build_module_request(
 async fn build_module_requests_changed(
     requests: Vec<ResolvedBuildModuleRequest>,
 ) -> Result<Vc<Completion>> {
-    let prepared_requests = requests
+    requests
         .into_iter()
-        .map(async |request| {
-            // Build dependencies use Node's resolver, not application aliases or the tracer's
-            // TypeScript-first extension order. Cached package children bypass exports in
-            // webpack.
-            let mut options = node_cjs_resolve_options().owned().await?;
-            if request.bypass_exports {
-                options
-                    .into_package
-                    .retain(|option| !matches!(option, ResolveIntoPackage::ExportsField { .. }));
-            }
-            Ok::<_, anyhow::Error>((request, options))
-        })
-        .try_join()
-        .await?;
-
-    prepared_requests
-        .into_iter()
-        .map(|(request, options)| {
-            let options = options.cell();
-            async move {
-                let ResolvedBuildModuleRequest {
-                    lookup_path,
-                    request,
-                    expected_path,
-                    ..
-                } = request;
+        .map(
+            async |ResolvedBuildModuleRequest {
+                       lookup_path,
+                       request,
+                       expected_path,
+                       bypass_exports,
+                   }| {
+                // Build dependencies use Node's resolver, not application aliases or the tracer's
+                // TypeScript-first extension order. Cached package children bypass exports in
+                // webpack.
+                let mut options = node_cjs_resolve_options().owned().await?;
+                if bypass_exports {
+                    options.into_package.retain(|option| {
+                        !matches!(option, ResolveIntoPackage::ExportsField { .. })
+                    });
+                }
                 let result = resolve(
                     lookup_path,
                     ReferenceType::Undefined,
                     Request::parse(Pattern::Constant(request)),
-                    options,
+                    options.cell(),
                 )
                 .await?;
                 assert!(result.primary_sources().count() <= 1);
@@ -608,8 +598,8 @@ async fn build_module_requests_changed(
                     Completion::session_dependent().await?;
                 }
                 Ok::<_, anyhow::Error>(())
-            }
-        })
+            },
+        )
         .try_join()
         .await?;
 
