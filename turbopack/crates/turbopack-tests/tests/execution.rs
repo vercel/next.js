@@ -300,6 +300,9 @@ struct TestOptions {
     /// `max_chunk_size` of the ecmascript chunking config when `production_chunking` is enabled.
     #[serde(default)]
     max_chunk_size: usize,
+    /// Overrides `min_chunk_size` (default `2000`) when `production_chunking` is enabled.
+    #[serde(default)]
+    min_chunk_size: Option<usize>,
     #[serde(default)]
     global_module_ids: bool,
     /// Assign numeric module ids, as production builds do, instead of the
@@ -338,6 +341,7 @@ impl Default for TestOptions {
             minify: false,
             production_chunking: false,
             max_chunk_size: 0,
+            min_chunk_size: None,
             global_module_ids: false,
             numeric_module_ids: false,
             side_effect_free_packages: Vec::new(),
@@ -665,7 +669,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
-                    min_chunk_size: 2_000,
+                    min_chunk_size: options.min_chunk_size.unwrap_or(2_000),
                     max_chunk_count_per_group: 40,
                     max_merge_chunk_size: 200_000,
                     max_chunk_size: options.max_chunk_size,

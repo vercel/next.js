@@ -114,6 +114,10 @@ struct SnapshotOptions {
     /// Overrides `min_chunk_size` (default `2000`) when `production_chunking` is enabled.
     #[serde(default)]
     min_chunk_size: Option<usize>,
+    /// `request_cost` of the ecmascript chunking config when `production_chunking` is enabled.
+    /// A tiny request cost makes merging chunks of different chunk groups unbeneficial.
+    #[serde(default)]
+    request_cost: Option<u64>,
     /// Overrides `max_chunk_count_per_group` (default `40`) when `production_chunking` is enabled.
     #[serde(default)]
     max_chunk_count_per_group: Option<usize>,
@@ -172,6 +176,7 @@ impl Default for SnapshotOptions {
             production_chunking: false,
             max_chunk_size: 0,
             min_chunk_size: None,
+            request_cost: None,
             max_chunk_count_per_group: None,
             generate_component_chunks: false,
             min_component_chunk_size: 0,
@@ -594,6 +599,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                         Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                         ChunkingConfig {
                             min_chunk_size: options.min_chunk_size.unwrap_or(2_000),
+                            request_cost: options.request_cost,
                             max_chunk_count_per_group: options
                                 .max_chunk_count_per_group
                                 .unwrap_or(40),
@@ -646,6 +652,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                         Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                         ChunkingConfig {
                             min_chunk_size: options.min_chunk_size.unwrap_or(2_000),
+                            request_cost: options.request_cost,
                             max_chunk_count_per_group: options
                                 .max_chunk_count_per_group
                                 .unwrap_or(40),
