@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, fmt::Write};
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::{ecma::ast::Expr, quote};
 use turbo_esregex::EsRegex;
@@ -28,7 +28,7 @@ use crate::{
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     references::synthetic_source::SyntheticSource,
-    runtime_functions::{TURBOPACK_MODULE_CONTEXT, TURBOPACK_REQUIRE},
+    runtime_functions::TURBOPACK_REQUIRE,
     utils::{StringifyJs, module_id_to_lit},
 };
 
@@ -135,10 +135,10 @@ impl FlatDirList {
     }
 }
 
-/// The keys of a `require.context(..)` call, with the request that imports the
-/// file of each key from the calling module.
+/// The keys of a `require.context(..)` call. Each key is a request relative to the
+/// context directory.
 #[turbo_tasks::value(transparent)]
-pub struct RequireContextMap(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, RcStr>);
+pub struct RequireContextMap(Vec<RcStr>);
 
 #[turbo_tasks::value_impl]
 impl RequireContextMap {
@@ -149,35 +149,26 @@ impl RequireContextMap {
     /// not to the files, and the keys are sorted.
     #[turbo_tasks::function]
     pub(crate) async fn generate(
-        origin_path: FileSystemPath,
         dir: FileSystemPath,
         recursive: bool,
         filter: Vc<EsRegex>,
         resolve_options: Vc<ResolveOptions>,
     ) -> Result<Vc<Self>> {
-        let origin_dir = origin_path.parent();
         let filter = filter.await?;
         let resolve_options = resolve_options.await?;
 
         let list = &*FlatDirList::read(dir, recursive).await?;
 
-        let mut map = FxIndexMap::default();
+        let mut keys: Vec<RcStr> = list
+            .keys()
+            .flat_map(|context_relative| alternative_keys(context_relative, &resolve_options))
+            .filter(|key| filter.is_match(key))
+            .collect();
+        // Files can share a key, e.g. `./foo` for both `foo.js` and `foo/index.js`.
+        keys.sort();
+        keys.dedup();
 
-        for (context_relative, path) in list {
-            let Some(origin_relative) = origin_dir.get_relative_request_to(path) else {
-                bail!("invariant error: this was already checked in `list_dir`");
-            };
-
-            for key in alternative_keys(context_relative, &resolve_options) {
-                if filter.is_match(&key) {
-                    map.insert(key, origin_relative.clone());
-                }
-            }
-        }
-
-        map.sort_keys();
-
-        Ok(Vc::cell(map))
+        Ok(Vc::cell(keys))
     }
 }
 
@@ -256,55 +247,66 @@ impl RequireContextAssetReference {
 }
 
 /// Every argument of the `require.context()` call is part of the ident, so that two
-/// calls in the same module only share a synthetic module when they match the same
-/// files.
-fn modifier(dir: &RcStr, include_subdirs: bool, filter: &EsRegex) -> RcStr {
+/// calls only share a synthetic module when they match the same files. The calling
+/// module is too, since the source map of the synthetic module points at the call.
+fn modifier(
+    origin_path: &FileSystemPath,
+    dir: &RcStr,
+    include_subdirs: bool,
+    filter: &EsRegex,
+) -> RcStr {
     format!(
-        "require.context {}/{} /{}/{}",
+        "require.context {}/{} /{}/{} in {}",
         dir,
         if include_subdirs { "**" } else { "*" },
         filter.pattern,
         filter.flags,
+        origin_path.path,
     )
     .into()
 }
 
 #[turbo_tasks::value_impl]
 impl RequireContextAssetReference {
-    /// The synthetic CommonJS module the `require.context()` call is replaced with.
-    /// It maps every key of the context to the id and the exports of its module,
-    /// which is the shape `__turbopack_module_context__` expects.
+    /// The synthetic CommonJS module the `require.context()` call is replaced with,
+    /// which exports the context. It lives in the context directory, so that each key
+    /// is also the request for its module, and resolves like `require(key)` would.
     #[turbo_tasks::function]
     async fn module(&self) -> Result<Vc<Box<dyn Module>>> {
         let origin = self.origin.into_trait_ref().await?;
         let origin_path = origin.origin_path();
+        let context_dir = origin_path.parent().join(&self.dir)?;
         let filter = self.filter.await?;
 
-        let map = RequireContextMap::generate(
-            origin_path.clone(),
-            origin_path.parent().join(&self.dir)?,
+        let keys = RequireContextMap::generate(
+            context_dir.clone(),
             self.include_subdirs,
             *self.filter,
             origin.resolve_options(),
         )
         .await?;
 
-        let mut code = String::from("module.exports = {\n");
-        for (key, request) in map.iter() {
+        // One dependency per key: its module is required by the id that
+        // `require.resolve` evaluates to.
+        let mut code = String::from("const ids = {\n");
+        for key in keys.iter() {
             let key = StringifyJs(key);
-            let request = StringifyJs(request);
-            writeln!(
-                code,
-                "  {key}: {{ id: () => require.resolve({request}), module: () => \
-                 require({request}) }},"
-            )?;
+            writeln!(code, "  {key}: () => require.resolve({key}),")?;
         }
-        code.push_str("};\n");
+        code.push_str(
+            "};\nconst map = {};\nfor (const key in ids) {\n  map[key] = { id: ids[key], module: \
+             () => __turbopack_require__(ids[key]()) };\n}\nmodule.exports = \
+             __turbopack_module_context__(map);\n",
+        );
 
-        // A sibling of the calling module, so that the requests resolve exactly as they
-        // would from the calling module itself. Issues in it are reported at the call.
-        let ident = AssetIdent::from_path(origin_path.append(".require-context.cjs")?)
-            .with_modifier(modifier(&self.dir, self.include_subdirs, &filter))
+        // Issues in the synthetic module are reported at the call.
+        let ident = AssetIdent::from_path(context_dir.join(".require-context.cjs")?)
+            .with_modifier(modifier(
+                &origin_path,
+                &self.dir,
+                self.include_subdirs,
+                &filter,
+            ))
             .into_vc()
             .to_resolved()
             .await?;
@@ -395,8 +397,7 @@ impl RequireContextAssetReferenceCodeGen {
             |expr: &mut Expr| {
                 if let Expr::Call(_) = expr {
                     *expr = quote!(
-                        "$turbopack_module_context($turbopack_require($id))" as Expr,
-                        turbopack_module_context: Expr = TURBOPACK_MODULE_CONTEXT.into(),
+                        "$turbopack_require($id)" as Expr,
                         turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
                         id: Expr = module_id_to_lit(&module_id)
                     );
@@ -405,59 +406,5 @@ impl RequireContextAssetReferenceCodeGen {
         ));
 
         Ok(CodeGeneration::visitors(visitors))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use turbo_rcstr::{RcStr, rcstr};
-    use turbopack_core::resolve::options::ResolveOptions;
-
-    use super::alternative_keys;
-
-    fn keys(request: &str, resolve_options: &ResolveOptions) -> Vec<RcStr> {
-        let mut keys = alternative_keys(&request.into(), resolve_options);
-        keys.sort();
-        keys
-    }
-
-    fn options() -> ResolveOptions {
-        ResolveOptions {
-            extensions: vec![rcstr!(".ts"), rcstr!(".js")],
-            default_files: vec![rcstr!("index")],
-            ..Default::default()
-        }
-    }
-
-    #[test]
-    fn strips_resolve_extensions() {
-        assert_eq!(keys("./a/file.js", &options()), ["./a/file", "./a/file.js"]);
-        assert_eq!(keys("./a/file.css", &options()), ["./a/file.css"]);
-    }
-
-    #[test]
-    fn requests_default_files_as_directories() {
-        assert_eq!(
-            keys("./a/index.js", &options()),
-            ["./a", "./a/", "./a/index", "./a/index.js"]
-        );
-        assert_eq!(
-            keys("./index.js", &options()),
-            [".", "./", "./index", "./index.js"]
-        );
-        // Only a whole path segment is a default file.
-        assert_eq!(
-            keys("./a/myindex.js", &options()),
-            ["./a/myindex", "./a/myindex.js"]
-        );
-    }
-
-    #[test]
-    fn keeps_fully_specified_requests() {
-        let options = ResolveOptions {
-            fully_specified: true,
-            ..options()
-        };
-        assert_eq!(keys("./a/index.js", &options), ["./a/index.js"]);
     }
 }

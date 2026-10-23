@@ -4504,8 +4504,7 @@ async fn require_context_visitor<'a>(
     let dir = origin_path.parent().join(options.dir.as_str())?;
 
     let map = RequireContextMap::generate(
-        origin_path.clone(),
-        dir,
+        dir.clone(),
         options.include_subdirs,
         options.filter.cell(),
         origin.into_trait_ref().await?.resolve_options(),
@@ -4513,7 +4512,7 @@ async fn require_context_visitor<'a>(
 
     Ok(JsValue::WellKnownFunction(
         WellKnownFunctionKind::RequireContextRequire(Box::new(
-            RequireContextValue::from_context_map(map).await?,
+            RequireContextValue::from_context_map(map, &origin_path.parent(), &dir).await?,
         )),
     ))
 }
