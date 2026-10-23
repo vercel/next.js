@@ -544,19 +544,27 @@ mod tests {
     /// Serializes the rows like the trace writer does: with delta encoded timestamps and a
     /// [`TraceRow::TimestampBase`] row before the first one.
     fn encode(rows: &[TraceRow<'_, u64>]) -> Vec<u8> {
+        encode_rows(rows).concat()
+    }
+
+    /// Like [`encode`], but returns the bytes of each row separately. A
+    /// [`TraceRow::TimestampBase`] is part of the bytes of the row it precedes.
+    fn encode_rows(rows: &[TraceRow<'_, u64>]) -> Vec<Vec<u8>> {
         let mut encoder = TimestampEncoder::default();
-        let mut data = Vec::new();
-        for row in rows {
-            // A copy of the row, through its serialized form
-            let bytes = postcard::to_stdvec(row).unwrap();
-            let row: TraceRow<'_, u64> = postcard::from_bytes(&bytes).unwrap();
-            let (base, row) = encoder.encode_row(row);
-            if let Some(base) = base {
-                data.extend(postcard::to_stdvec(&base).unwrap());
-            }
-            data.extend(postcard::to_stdvec(&row).unwrap());
-        }
-        data
+        rows.iter()
+            .map(|row| {
+                // A copy of the row, through its serialized form
+                let bytes = postcard::to_stdvec(row).unwrap();
+                let row: TraceRow<'_, u64> = postcard::from_bytes(&bytes).unwrap();
+                let (base, row) = encoder.encode_row(row);
+                let mut data = Vec::new();
+                if let Some(base) = base {
+                    data.extend(postcard::to_stdvec(&base).unwrap());
+                }
+                data.extend(postcard::to_stdvec(&row).unwrap());
+                data
+            })
+            .collect()
     }
 
     /// Reads the rows (without header) and returns the self allocations, allocation counts and
@@ -585,7 +593,7 @@ mod tests {
             .collect()
     }
 
-    fn enter(ts: u64, id: u64, thread_id: u64) -> TraceRow<'static> {
+    fn enter(ts: u64, id: u64, thread_id: u64) -> TraceRow<'static, u64> {
         TraceRow::Enter {
             ts,
             id,
@@ -594,7 +602,7 @@ mod tests {
         }
     }
 
-    fn exit(ts: u64, id: u64, thread_id: u64) -> TraceRow<'static> {
+    fn exit(ts: u64, id: u64, thread_id: u64) -> TraceRow<'static, u64> {
         TraceRow::Exit {
             ts,
             id,
@@ -603,13 +611,7 @@ mod tests {
         }
     }
 
-    fn encode(rows: &[TraceRow<'_>]) -> Vec<u8> {
-        rows.iter()
-            .flat_map(|row| postcard::to_stdvec(row).unwrap())
-            .collect()
-    }
-
-    fn ingest(format: &mut TurbopackFormat, rows: &[TraceRow<'_>]) {
+    fn ingest(format: &mut TurbopackFormat, rows: &[TraceRow<'_, u64>]) {
         let data = encode(rows);
         assert_eq!(
             format
@@ -824,13 +826,16 @@ mod tests {
     fn live_trace_with_partial_exit_preserves_the_resumed_frame() {
         let mut format = TurbopackFormat::new(Arc::new(StoreContainer::new()));
         let mut reuse = TurbopackFormat::create_reused();
-        let prefix = encode(&[
+        // One trace, split before its last row
+        let rows = encode_rows(&[
             start(1, None, "span"),
             enter(10, 1, 1),
             enter(20, 1, 1),
             exit(30, 1, 1),
+            exit(40, 1, 1),
         ]);
-        let final_row = encode(&[exit(40, 1, 1)]);
+        let prefix = rows[..4].concat();
+        let final_row = rows[4].clone();
         let mut data = prefix.clone();
         data.extend_from_slice(&final_row[..final_row.len() - 1]);
         let consumed = format.read(&data, &mut reuse).unwrap();
