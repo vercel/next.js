@@ -301,6 +301,42 @@ impl Drop for WriteOperationGuard<'_> {
     }
 }
 
+/// [`TurboPersistence::batch_get`] looks up batches with more keys than this in parallel.
+///
+/// This is an initial value that has not been tuned yet. A batched lookup costs a few microseconds
+/// per key, mostly spent on decompression or page faults, so small batches don't benefit from the
+/// scheduling overhead.
+const PARALLEL_BATCH_GET_THRESHOLD: usize = 2048;
+
+/// The keys of one shard looked up by [`TurboPersistence::batch_get`].
+struct ShardBatchGet<'l> {
+    shard: u32,
+    /// The cells of the keys in this shard, sorted by key hash.
+    cells: &'l mut [(u64, usize, Option<LookupValue>)],
+    /// The value found for each cell.
+    values: &'l mut [Option<ArcBytes>],
+    counts: BatchGetCounts,
+}
+
+#[derive(Clone, Copy, Default)]
+struct BatchGetCounts {
+    not_found: usize,
+    deleted: usize,
+    result_size: usize,
+}
+
+impl std::ops::Add for BatchGetCounts {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        Self {
+            not_found: self.not_found + other.not_found,
+            deleted: self.deleted + other.deleted,
+            result_size: self.result_size + other.result_size,
+        }
+    }
+}
+
 /// TurboPersistence is a persistent key-value store. It is limited to a single writer at a time
 /// using a single write batch. It allows for concurrent reads.
 pub struct TurboPersistence<S: ParallelScheduler, const FAMILIES: usize> {
@@ -2339,7 +2375,15 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         Ok(output)
     }
 
-    pub fn batch_get<K: QueryKey>(
+    /// Looks up many keys of a [`FamilyKind::SingleValue`] family at once. The result has one entry
+    /// per key, in the order of `keys`.
+    ///
+    /// Batches with more than 2048 keys are looked up in parallel
+    /// using the database's [`ParallelScheduler`], with one work item per current shard of the
+    /// family. When SST files match the current shard boundaries, each work item reads a disjoint
+    /// set of SST files. After resharding, older SST files can span multiple current shards and
+    /// may be read by multiple work items.
+    pub fn batch_get<K: QueryKey + Sync>(
         &self,
         family: usize,
         keys: &[K],
@@ -2364,7 +2408,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             cells.push((hash, index, None));
         }
         cells.sort_by_key(|(hash, _, _)| *hash);
-        let inner = self.inner.read();
+        let inner_guard = self.inner.read();
+        let inner = &*inner_guard;
         let key_block_cache = self.key_block_cache();
         let value_block_cache = self.value_block_cache();
         debug_assert!(
@@ -2373,93 +2418,148 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 .all(|meta| meta.family() as usize == family),
             "meta file stored in the wrong family shard while querying family {family}"
         );
-        // Cells are sorted by hash, so the keys of each shard are contiguous. Each run of cells is
-        // only looked up in the SST files of its shard.
-        let shard_index = &inner.shard_indices[family];
-        let mut run_start = 0;
-        while run_start < cells.len() {
-            let shard = shard_index.bits().shard_of(cells[run_start].0);
-            let run_len = cells[run_start..]
-                .partition_point(|(hash, _, _)| shard_index.bits().shard_of(*hash) == shard);
-            let run = &mut cells[run_start..run_start + run_len];
-            run_start += run_len;
-            let mut empty_run_cells = run_len;
-            let shard_files = shard_index.shard(shard);
-            for (
-                range,
-                &MetaEntryIndex {
-                    meta_index,
-                    entry_index,
-                },
-            ) in shard_files.ranges.iter().zip(&shard_files.locations)
-            {
-                let _result = inner.meta_files_by_family[family][meta_index as usize]
-                    .batch_lookup_entry(
-                        entry_index,
-                        range,
-                        keys,
-                        run,
-                        &mut empty_run_cells,
-                        key_block_cache,
-                        value_block_cache,
-                    )?;
-                #[cfg(feature = "stats")]
-                self.record_batch_lookup_stats(_result);
-                if empty_run_cells == 0 {
-                    break;
-                }
+        // Cells are sorted by hash, so the keys of each shard are a contiguous run. Each run is
+        // only looked up in the SST files of its shard, and the values found are stored in
+        // `values` at the same position as their cell.
+        let shard_bits = inner.shard_indices[family].bits();
+        let mut values: Vec<Option<ArcBytes>> = vec![None; cells.len()];
+        let mut work = Vec::new();
+        let mut remaining_cells = &mut cells[..];
+        let mut remaining_values = &mut values[..];
+        while let Some(&(first_hash, _, _)) = remaining_cells.first() {
+            let shard = shard_bits.shard_of(first_hash);
+            let run_len =
+                remaining_cells.partition_point(|(hash, _, _)| shard_bits.shard_of(*hash) == shard);
+            let (run_cells, rest_cells) = remaining_cells.split_at_mut(run_len);
+            let (run_values, rest_values) = remaining_values.split_at_mut(run_len);
+            remaining_cells = rest_cells;
+            remaining_values = rest_values;
+            work.push(ShardBatchGet {
+                shard,
+                cells: run_cells,
+                values: run_values,
+                counts: BatchGetCounts::default(),
+            });
+        }
+        let lookup_shard = |shard_work: &mut ShardBatchGet<'_>| {
+            self.batch_get_shard(
+                inner,
+                family,
+                keys,
+                shard_work,
+                key_block_cache,
+                value_block_cache,
+            )
+        };
+        if keys.len() > PARALLEL_BATCH_GET_THRESHOLD && work.len() > 1 {
+            self.parallel_scheduler
+                .try_parallel_for_each_mut(&mut work, lookup_shard)?;
+        } else {
+            for shard_work in &mut work {
+                lookup_shard(shard_work)?;
             }
         }
-        let mut deleted = 0;
-        let mut not_found = 0;
-        let mut result_size = 0;
+        let counts = work
+            .iter()
+            .fold(BatchGetCounts::default(), |acc, shard_work| {
+                acc + shard_work.counts
+            });
+        drop(work);
         let mut results = vec![None; keys.len()];
-        for (hash, index, result) in cells {
-            if let Some(result) = result {
-                inner.accessed_key_hashes[family].insert(hash);
-                let result = match result {
-                    LookupValue::KeyDeleted => {
-                        #[cfg(feature = "stats")]
-                        self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
-                        deleted += 1;
-                        None
-                    }
-                    LookupValue::KeyValueDeleted { .. } => {
-                        // Key-value tombstones are only written to MultiValue families, and
-                        // `batch_get` rejects those above.
-                        bail!(
-                            "unexpected key-value tombstone in SingleValue family {}",
-                            self.config.family_configs[family].name
-                        )
-                    }
-                    LookupValue::Slice { value } => {
-                        #[cfg(feature = "stats")]
-                        self.stats.hits_small.fetch_add(1, Ordering::Relaxed);
-                        result_size += value.len();
-                        Some(value)
-                    }
-                    LookupValue::Blob { sequence_number } => {
-                        #[cfg(feature = "stats")]
-                        self.stats.hits_blob.fetch_add(1, Ordering::Relaxed);
-                        let blob = self.read_blob(
-                            sequence_number,
-                            self.config.family_configs[family].compression,
-                        )?;
-                        result_size += blob.len();
-                        Some(blob)
-                    }
-                };
-                results[index] = result;
-            } else {
+        for ((_, index, _), value) in cells.iter().zip(values) {
+            results[*index] = value;
+        }
+        span.record("not_found", counts.not_found);
+        span.record("deleted", counts.deleted);
+        span.record("result_size", counts.result_size);
+        Ok(results)
+    }
+
+    /// Looks up the cells of a single shard for [`Self::batch_get`] and materializes the values
+    /// found (including reading blobs) into `shard_work.values`.
+    fn batch_get_shard<K: QueryKey>(
+        &self,
+        inner: &Inner<FAMILIES>,
+        family: usize,
+        keys: &[K],
+        shard_work: &mut ShardBatchGet<'_>,
+        key_block_cache: &BlockCache,
+        value_block_cache: &BlockCache,
+    ) -> Result<()> {
+        let ShardBatchGet {
+            shard,
+            cells,
+            values,
+            counts,
+        } = shard_work;
+        let mut empty_cells = cells.len();
+        let shard_files = inner.shard_indices[family].shard(*shard);
+        for (
+            range,
+            &MetaEntryIndex {
+                meta_index,
+                entry_index,
+            },
+        ) in shard_files.ranges.iter().zip(&shard_files.locations)
+        {
+            let _result = inner.meta_files_by_family[family][meta_index as usize]
+                .batch_lookup_entry(
+                    entry_index,
+                    range,
+                    keys,
+                    cells,
+                    &mut empty_cells,
+                    key_block_cache,
+                    value_block_cache,
+                )?;
+            #[cfg(feature = "stats")]
+            self.record_batch_lookup_stats(_result);
+            if empty_cells == 0 {
+                break;
+            }
+        }
+        for ((hash, _, result), value) in cells.iter_mut().zip(values.iter_mut()) {
+            let Some(result) = result.take() else {
                 #[cfg(feature = "stats")]
                 self.stats.miss_global.fetch_add(1, Ordering::Relaxed);
-                not_found += 1;
-            }
+                counts.not_found += 1;
+                continue;
+            };
+            inner.accessed_key_hashes[family].insert(*hash);
+            *value = match result {
+                LookupValue::KeyDeleted => {
+                    #[cfg(feature = "stats")]
+                    self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
+                    counts.deleted += 1;
+                    None
+                }
+                LookupValue::KeyValueDeleted { .. } => {
+                    // Key-value tombstones are only written to MultiValue families, and
+                    // `batch_get` rejects those.
+                    bail!(
+                        "unexpected key-value tombstone in SingleValue family {}",
+                        self.config.family_configs[family].name
+                    )
+                }
+                LookupValue::Slice { value } => {
+                    #[cfg(feature = "stats")]
+                    self.stats.hits_small.fetch_add(1, Ordering::Relaxed);
+                    counts.result_size += value.len();
+                    Some(value)
+                }
+                LookupValue::Blob { sequence_number } => {
+                    #[cfg(feature = "stats")]
+                    self.stats.hits_blob.fetch_add(1, Ordering::Relaxed);
+                    let blob = self.read_blob(
+                        sequence_number,
+                        self.config.family_configs[family].compression,
+                    )?;
+                    counts.result_size += blob.len();
+                    Some(blob)
+                }
+            };
         }
-        span.record("not_found", not_found);
-        span.record("deleted", deleted);
-        span.record("result_size", result_size);
-        Ok(results)
+        Ok(())
     }
 
     #[cfg(feature = "stats")]

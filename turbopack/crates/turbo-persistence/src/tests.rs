@@ -3280,3 +3280,108 @@ fn commits_with_more_shards_than_collectors_split_files_at_shard_boundaries(
     }
     Ok(())
 }
+
+// Writes 10K keys including blob values and runs the parallel `batch_get` path on Rayon, which is
+// too slow under Miri.
+#[cfg(not(miri))]
+#[rstest]
+#[case::single_shard_mmap(false, true)]
+#[case::single_shard_file(false, false)]
+#[case::sharded_mmap(true, true)]
+#[case::sharded_file(true, false)]
+fn batch_get_large_batches(#[case] sharded: bool, #[case] mmap: bool) -> Result<()> {
+    const KEYS: u32 = 10_000;
+    let value_of = |key: u32, version: u8| -> Vec<u8> {
+        let len = match key % 1000 {
+            0 if key < 2000 => MAX_MEDIUM_VALUE_SIZE + 1, // blob
+            k if k.is_multiple_of(13) => MAX_SMALL_VALUE_SIZE + 1, // medium
+            k if k.is_multiple_of(2) => 4,                // inline
+            _ => 32,                                      // small
+        };
+        let mut value = vec![version; len];
+        value[..4].copy_from_slice(&key.to_le_bytes());
+        value
+    };
+    let expected = |key: u32| -> Option<Vec<u8>> {
+        if key >= KEYS || key.is_multiple_of(11) {
+            None
+        } else if key.is_multiple_of(7) {
+            Some(value_of(key, 2))
+        } else {
+            Some(value_of(key, 1))
+        }
+    };
+
+    let tempdir = tempfile::tempdir()?;
+    let mut config = config_with_mmap::<1>(mmap);
+    if sharded {
+        // Far less than the data, so the family keeps several shards across commits.
+        config.family_configs[0].initial_shard_bits = crate::shard::ShardBits::new(4);
+        config.target_shard_size = 16 * 1024;
+    }
+    let db = open_db_with_config::<1>(tempdir.path(), config)?;
+
+    let batch = db.write_batch()?;
+    for key in 0..KEYS {
+        batch.put(0, key.to_be_bytes().to_vec(), value_of(key, 1).into())?;
+    }
+    db.commit_write_batch(batch)?;
+    // A second commit adds a newer layer of SST files with overwrites and tombstones.
+    let batch = db.write_batch()?;
+    for key in 0..KEYS {
+        if key.is_multiple_of(11) {
+            batch.delete(0, key.to_be_bytes().to_vec())?;
+        } else if key.is_multiple_of(7) {
+            batch.put(0, key.to_be_bytes().to_vec(), value_of(key, 2).into())?;
+        }
+    }
+    db.commit_write_batch(batch)?;
+    // `meta_info` lists the newest meta file first.
+    let shard_count =
+        crate::shard::ShardBits::new(db.meta_info()?.first().unwrap().shard_bits).count();
+    if sharded {
+        assert!(shard_count > 1, "{shard_count} shards");
+    } else {
+        assert_eq!(shard_count, 1);
+    }
+
+    // Batches at and around the parallel threshold, and well above it. Keys are spread over the
+    // key space in a scrambled order, include misses (keys >= KEYS) and duplicates.
+    for batch_size in [2048usize, 2049, 6000] {
+        let extra_keys = [0u32, 0, 1000, KEYS];
+        let keys: Vec<Vec<u8>> = (0..(batch_size - extra_keys.len()) as u32)
+            .map(|i| {
+                (i.wrapping_mul(7919) % (KEYS + KEYS / 10))
+                    .to_be_bytes()
+                    .to_vec()
+            })
+            .chain(extra_keys.map(|key| key.to_be_bytes().to_vec()))
+            .collect();
+        assert_eq!(keys.len(), batch_size);
+        #[cfg(feature = "stats")]
+        let before = db.statistics();
+        let results = db.batch_get(0, &keys)?;
+        assert_eq!(results.len(), batch_size);
+        #[cfg(feature = "stats")]
+        {
+            let after = db.statistics();
+            assert_eq!(
+                (after.hits + after.misses) - (before.hits + before.misses),
+                batch_size as u64,
+                "every key of the batch is counted as exactly one hit or miss"
+            );
+        }
+        for (key, result) in keys.iter().zip(&results) {
+            let key_num = u32::from_be_bytes(key[..].try_into().unwrap());
+            assert_eq!(
+                result.as_deref(),
+                expected(key_num).as_deref(),
+                "batch_get mismatch for key {key_num} in a batch of {batch_size}"
+            );
+            assert_eq!(result.as_deref(), db.get(0, key)?.as_deref());
+        }
+    }
+
+    db.shutdown();
+    Ok(())
+}
