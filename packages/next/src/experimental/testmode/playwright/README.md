@@ -2,7 +2,7 @@
 
 ### Prerequisites
 
-You have a Next.js project.
+You have a Next.js App Router project.
 
 ### Update `next.config.js`
 
