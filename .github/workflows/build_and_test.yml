@@ -893,7 +893,7 @@ jobs:
             --timeout-minutes 30
 
   test-new-tests-deploy:
-    name: Test new and changed tests when deployed (${{ matrix.builder }}, ${{ matrix.group }})
+    name: Test new and changed tests when deployed (${{ matrix.cache-components && 'cache components, ' || '' }}${{ matrix.builder }}, ${{ matrix.group }})
     needs: ['optimize-ci', 'changes', 'wait-for-preview-tarball']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
@@ -905,6 +905,8 @@ jobs:
         # non-adapter builder (NEXT_ENABLE_ADAPTER=0), like the release deploy
         # tests do.
         builder: [adapter, non-adapter]
+        # Run without and with cache components (__NEXT_CACHE_COMPONENTS=true).
+        cache-components: [false, true]
 
     permissions:
       contents: read
@@ -915,49 +917,21 @@ jobs:
     with:
       # Keep Next.js related env variables in sync with additionalEnv in next-deploy.ts
       afterBuild: |
+        if [ "${{ matrix.cache-components }}" = "true" ]; then
+          export __NEXT_CACHE_COMPONENTS=true
+          export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
+          export NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json,test/cache-components-tests-manifest.json"
+        else
+          export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        fi
         export NEXT_ENABLE_ADAPTER=${{ matrix.builder == 'adapter' && '1' || '0' }}
         export NEXT_TEST_DEPLOY_TARGET_VERCEL=1
-        export NEXT_E2E_TEST_TIMEOUT=240000
-        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export IS_TURBOPACK_TEST=1
-        node scripts/test-new-tests.mjs \
-          --mode deploy \
-          --group ${{ matrix.group }}
-      stepName: "test-new-tests-deploy${{ matrix.builder == 'non-adapter' && '-non-adapter' || '' }}-${{matrix.group}}"
-
-    secrets: inherit
-
-  test-new-tests-deploy-cache-components:
-    name: Test new and changed tests when deployed (cache components, ${{ matrix.builder }}, ${{ matrix.group }})
-    needs: ['optimize-ci', 'changes', 'wait-for-preview-tarball']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1/5, 2/5, 3/5, 4/5, 5/5]
-        # See test-new-tests-deploy.
-        builder: [adapter, non-adapter]
-
-    permissions:
-      contents: read
-      # Minting GitHub OIDC tokens to read private preview builds. Dormant in
-      # this repo since builds here are public.
-      id-token: write
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      afterBuild: |
-        export __NEXT_CACHE_COMPONENTS=true
-        export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
-        export NEXT_ENABLE_ADAPTER=${{ matrix.builder == 'adapter' && '1' || '0' }}
-        export NEXT_TEST_DEPLOY_TARGET_VERCEL=1
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json,test/cache-components-tests-manifest.json"
         export NEXT_E2E_TEST_TIMEOUT=240000
         export IS_TURBOPACK_TEST=1
         node scripts/test-new-tests.mjs \
           --mode deploy \
           --group ${{ matrix.group }}
-      stepName: "test-new-tests-deploy-cache-components${{ matrix.builder == 'non-adapter' && '-non-adapter' || '' }}-${{matrix.group}}"
+      stepName: "test-new-tests-deploy${{ matrix.cache-components && '-cache-components' || '' }}${{ matrix.builder == 'non-adapter' && '-non-adapter' || '' }}-${{matrix.group}}"
 
     secrets: inherit
 
@@ -1281,7 +1255,6 @@ jobs:
       - test-new-tests-start
       - wait-for-preview-tarball
       - test-new-tests-deploy
-      - test-new-tests-deploy-cache-components
       - test-turbopack-production
       - test-unit-windows
       - test-dev-windows
