@@ -1,4 +1,3 @@
-import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
 
@@ -146,50 +145,6 @@ import stripAnsi from 'strip-ansi'
         // and the failure summary is printed last.
         expect(warningIndex).toBeGreaterThan(prerenderErrorIndex)
         expect(exportErrorIndex).toBeGreaterThan(warningIndex)
-      })
-    })
-
-    describe('with a fully dynamic alternative', () => {
-      const { next } = nextTestSetup({
-        files: __dirname,
-        skipStart: true,
-        overrideFiles: {
-          // Don't import ./join-cwd, which intentionally traces the whole project.
-          'app/page.js': `import { readNullishFallback, readDefaultParam, readBareDynamic } from './read-alternatives'
-
-          export default function Page() {
-            readNullishFallback()
-            readDefaultParam()
-            readBareDynamic()
-            return <h1>My Page</h1>
-          }`,
-        },
-      })
-
-      it('should ignore the dynamic alternative and trace only the known files', async () => {
-        const { exitCode } = await next.build()
-        expect(exitCode).toBe(0)
-
-        expect(next.cliOutput).not.toContain(
-          'Dynamic filesystem access causes tracing of the whole project'
-        )
-
-        const { files } = await next.readJSON(
-          '.next/server/app/page.js.nft.json'
-        )
-        const projectFiles = files
-          .map((file: string) => path.posix.join('.next/server/app', file))
-          // Only keep files inside the project directory, excluding the build
-          // output and dependencies.
-          .filter(
-            (file: string) =>
-              !file.startsWith('../') &&
-              !file.startsWith('.next/') &&
-              !file.startsWith('node_modules/')
-          )
-          .sort()
-
-        expect(projectFiles).toEqual(['manifest-a.json', 'manifest-b.json'])
       })
     })
 

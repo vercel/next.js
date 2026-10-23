@@ -9,10 +9,12 @@ describe('standalone mode - tracing-static-files', () => {
     skipStart: true,
   })
 
-  it('should trace process.cwd calls in node_modules', async () => {
-    let { exitCode } = await next.build()
-    expect(exitCode).toBe(0)
+  beforeAll(async () => {
+    const { exitCode } = await next.build()
+    if (exitCode !== 0) throw new Error(`Fixture build failed: ${exitCode}`)
+  })
 
+  it('should trace process.cwd calls in node_modules', async () => {
     let trace = await next.readJSON('.next/server/app/page.js.nft.json')
 
     // should trace process.cwd and relative calls relative to the root
@@ -37,5 +39,22 @@ describe('standalone mode - tracing-static-files', () => {
     // should not trace process.cwd or relative calls in node_modules (only relative to file)
     expect(trace.files).not.toContain('../../../app/static-from-pkg.txt')
     expect(trace.files).not.toContain('../../../foo/foo.txt')
+  })
+
+  it('should ignore fully dynamic alternatives of fs paths', async () => {
+    let trace = await next.readJSON('.next/server/app/page.js.nft.json')
+
+    if (process.env.IS_TURBOPACK_TEST) {
+      // `dynamic ?? path.join(process.cwd(), ...)` and a parameter defaulting to
+      // `path.join(process.cwd(), ...)` should still trace the known file
+      expect(trace.files).toContain('../../../data/static-from-app-nullish.txt')
+      expect(trace.files).toContain(
+        '../../../data/static-from-app-default-param.txt'
+      )
+    }
+
+    // the dynamic alternative should not cause the whole project to be traced
+    expect(trace.files).not.toContain('../../../data/unrelated.txt')
+    expect(trace.files).not.toContain('../../../next.config.js')
   })
 })
