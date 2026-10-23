@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { listClientChunks } from 'next-test-utils'
+import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import { join } from 'path'
 
 // `experimental.turbopackChunking` only affects Turbopack production builds, so
@@ -20,10 +21,14 @@ import { join } from 'path'
       )
       const { exitCode } = await next.build()
       expect(exitCode).toBe(0)
-      const chunks = await listClientChunks(join(next.testDir, '.next'))
-      return chunks.filter(
+      const distDir = join(next.testDir, '.next')
+      const clientChunks = (await listClientChunks(distDir)).filter(
         (name) => name.includes('chunks') && name.endsWith('.js')
       )
+      const serverChunks = (
+        await recursiveReadDir(join(distDir, 'server', 'chunks'))
+      ).filter((name) => name.endsWith('.js'))
+      return { clientChunks, serverChunks }
     }
 
     // Force the chunker to merge as much as possible into as few chunks as
@@ -41,53 +46,81 @@ import { join } from 'path'
       maxMergeChunkSize: 0,
     }
 
-    let mergeAllChunks: string[]
-    let noMergeChunks: string[]
-    let mergeAllWithComponentChunks: string[]
-    let mergeAllWithMaxChunkSizeChunks: string[]
+    type BuildOutput = Awaited<ReturnType<typeof buildWith>>
+    let mergeAllOutput: BuildOutput
+    let noMergeOutput: BuildOutput
+    let mergeAllWithComponentChunksOutput: BuildOutput
+    let mergeAllWithMaxChunkSizeOutput: BuildOutput
+    let mergeAllWithMaxServerChunkSizeOutput: BuildOutput
 
-    // Merge everything, but split chunks bigger than a small maximum size again.
+    // Merge everything, but split client chunks bigger than a small maximum size again.
     const mergeAllWithMaxChunkSize = {
       ...mergeAll,
       maxChunkSize: 20_000,
     }
 
+    // Merge everything, but split server chunks bigger than a small maximum size again.
+    const mergeAllWithMaxServerChunkSize = {
+      ...mergeAll,
+      maxServerChunkSize: 20_000,
+    }
+
     beforeAll(async () => {
-      mergeAllChunks = await buildWith(mergeAll)
-      noMergeChunks = await buildWith(noMerge)
-      mergeAllWithComponentChunks = await buildWith({
+      mergeAllOutput = await buildWith(mergeAll)
+      noMergeOutput = await buildWith(noMerge)
+      mergeAllWithComponentChunksOutput = await buildWith({
         ...mergeAll,
         generateComponentChunks: true,
         minComponentChunkSize: 0,
       })
-      mergeAllWithMaxChunkSizeChunks = await buildWith(mergeAllWithMaxChunkSize)
+      mergeAllWithMaxChunkSizeOutput = await buildWith(mergeAllWithMaxChunkSize)
+      mergeAllWithMaxServerChunkSizeOutput = await buildWith(
+        mergeAllWithMaxServerChunkSize
+      )
     })
 
     it('changes the client chunk output based on the size thresholds', () => {
       // Disabling merging produces strictly more client chunks than merging
       // everything, proving the size thresholds are wired through.
-      expect(noMergeChunks.length).toBeGreaterThan(mergeAllChunks.length)
+      expect(noMergeOutput.clientChunks.length).toBeGreaterThan(
+        mergeAllOutput.clientChunks.length
+      )
     })
 
     it('emits additional component chunks when generateComponentChunks is enabled', () => {
       // With the same merge settings, enabling component chunks emits extra
       // per-component chunks alongside the merged chunks.
-      expect(mergeAllWithComponentChunks.length).toBeGreaterThan(
-        mergeAllChunks.length
+      expect(
+        mergeAllWithComponentChunksOutput.clientChunks.length
+      ).toBeGreaterThan(mergeAllOutput.clientChunks.length)
+    })
+
+    it('splits client chunks bigger than maxChunkSize', () => {
+      // With the same merge settings, a small maxChunkSize splits the big merged chunks into
+      // more, smaller chunks.
+      expect(
+        mergeAllWithMaxChunkSizeOutput.clientChunks.length
+      ).toBeGreaterThan(mergeAllOutput.clientChunks.length)
+      // maxChunkSize only applies to client chunks.
+      expect(mergeAllWithMaxChunkSizeOutput.serverChunks).toEqual(
+        mergeAllOutput.serverChunks
       )
     })
 
-    it('splits chunks bigger than maxChunkSize', () => {
-      // With the same merge settings, a small maxChunkSize splits the big merged chunks into
-      // more, smaller chunks.
-      expect(mergeAllWithMaxChunkSizeChunks.length).toBeGreaterThan(
-        mergeAllChunks.length
+    it('splits server chunks bigger than maxServerChunkSize', () => {
+      expect(
+        mergeAllWithMaxServerChunkSizeOutput.serverChunks.length
+      ).toBeGreaterThan(mergeAllOutput.serverChunks.length)
+      // maxServerChunkSize only applies to server chunks.
+      expect(mergeAllWithMaxServerChunkSizeOutput.clientChunks).toEqual(
+        mergeAllOutput.clientChunks
       )
     })
 
     it.each([
       ['custom chunking', mergeAll],
       ['maxChunkSize', mergeAllWithMaxChunkSize],
+      ['maxServerChunkSize', mergeAllWithMaxServerChunkSize],
     ])('renders and navigates correctly with %s', async (_, chunking) => {
       await next.patchFile(
         'next.config.js',

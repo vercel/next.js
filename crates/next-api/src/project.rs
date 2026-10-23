@@ -1842,7 +1842,7 @@ impl Project {
                 .next_config()
                 .turbopack_chunking()
                 .await?
-                .max_chunk_size,
+                .max_server_chunk_size,
         };
         Ok(if client_assets {
             get_server_chunking_context_with_client_assets(options)
@@ -1888,7 +1888,7 @@ impl Project {
                 .next_config()
                 .turbopack_chunking()
                 .await?
-                .max_chunk_size,
+                .max_server_chunk_size,
         };
         Ok(if client_assets {
             get_edge_chunking_context_with_client_assets(options)
