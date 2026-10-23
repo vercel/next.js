@@ -2012,6 +2012,53 @@ fn count_blob_files(dir: &Path) -> usize {
         .count()
 }
 
+/// The blob CRC covers the header's uncompressed length, so corrupting only the length is reported
+/// as a checksum mismatch before it is used to size the decompression buffer.
+// Writes a production-size blob, which is too slow under Miri.
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn corrupt_blob_length_is_detected(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let blob_value = vec![42u8; MAX_MEDIUM_VALUE_SIZE + 1];
+    {
+        let db = open_db::<1>(path, mmap)?;
+        let batch = db.write_batch()?;
+        batch.put(0, vec![1u8], blob_value.clone().into())?;
+        db.commit_write_batch(batch)?;
+        db.shutdown();
+    }
+    let blob_path = fs::read_dir(path)?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .find(|p| p.extension().is_some_and(|ext| ext == "blob"))
+        .expect("a blob file");
+    let original = fs::read(&blob_path)?;
+    let length = u32::from_be_bytes(original[..4].try_into()?);
+    assert_eq!(length as usize, blob_value.len());
+
+    for corrupt_length in [length + 1, length - 1, 0, u32::MAX] {
+        let mut bytes = original.clone();
+        bytes[..4].copy_from_slice(&corrupt_length.to_be_bytes());
+        fs::write(&blob_path, &bytes)?;
+        let db = open_db::<1>(path, mmap)?;
+        let message = match db.get(0, &vec![1u8]) {
+            Ok(value) => panic!(
+                "length {corrupt_length}: read succeeded ({:?} bytes)",
+                value.map(|v| v.len())
+            ),
+            Err(err) => format!("{err:#}"),
+        };
+        assert!(
+            message.contains("checksum mismatch"),
+            "length {corrupt_length}: unexpected error: {message}"
+        );
+    }
+    Ok(())
+}
+
 /// Test that compaction deletes blob files when their entries are superseded
 /// by newer values (SingleValue family).
 // The first access-mode variant exceeded 20 minutes under Miri while processing the production-size
