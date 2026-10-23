@@ -1161,7 +1161,7 @@ impl EcmascriptChunkPlaceable for ImportMetaGlobAsset {
                 }
             } else {
                 // Lazy: thunk returning a Promise
-                let import_expr = pm.create_import(Cow::Borrowed(&key_expr), false);
+                let import_expr = pm.create_import(Cow::Borrowed(&key_expr));
                 if let Some(named) = &this.import {
                     // Wrap the promise with .then(m => m[named])
                     quote!(
