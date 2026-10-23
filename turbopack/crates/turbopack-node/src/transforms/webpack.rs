@@ -33,7 +33,7 @@ use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     module::Module,
     module_graph::{
-        ModuleGraph, SingleModuleGraph,
+        ModuleGraph, ModuleGraphOptions, SingleModuleGraph,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
     },
     output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
@@ -467,8 +467,7 @@ impl WebpackLoadersProcessedAsset {
             let module_graph = ModuleGraph::from_graphs(
                 vec![SingleModuleGraph::new_with_entries(
                     entries.graph_entries().to_resolved().await?,
-                    false,
-                    false,
+                    ModuleGraphOptions::default(),
                 )],
                 None,
             )
@@ -974,8 +973,7 @@ impl EvaluateContext for WebpackLoaderContext {
                         modules: vec![module],
                         heuristics: EntryHeuristics::default(),
                     },
-                    false,
-                    false,
+                    ModuleGraphOptions::default(),
                 );
                 let import_module_graph = ModuleGraph::from_graphs(vec![single_graph], None)
                     .connect()
