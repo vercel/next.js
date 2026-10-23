@@ -2971,9 +2971,6 @@ async fn resolve_into_package(
     let options_value = options.await?;
     let mut results = Vec::new();
 
-    let is_root_match = path.is_match("") || path.is_match("/");
-    let could_match_others = path.could_match_others("");
-
     let mut export_path_request = path.clone();
     export_path_request.push_front(rcstr!(".").into());
     for resolve_into_package in options_value.into_package.iter() {
@@ -3013,15 +3010,22 @@ async fn resolve_into_package(
         }
     }
 
-    // apply main field(s) or fallback to index.js if there's no subpath
-    if is_root_match {
-        results.push(resolve_into_folder(
-            package_path.clone(),
-            options.with_fully_specified(false),
-        ));
+    // Apply main field(s) or fall back to index.js for each matching package root.
+    // Keep the trailing slash in the request key: `package` and `package/` may
+    // resolve to the same source, but they are different requests.
+    if path.is_match("") || path.is_match("/") {
+        let root_result =
+            resolve_into_folder(package_path.clone(), options.with_fully_specified(false));
+        if path.is_match("") {
+            results.push(root_result);
+        }
+        if path.is_match("/") {
+            results.push(root_result.with_request(rcstr!("./")));
+        }
     }
 
-    if could_match_others {
+    // The slash-only root is already handled above; only resolve deeper subpaths here.
+    if path.could_match_others("/") {
         let mut new_pat = path.clone();
         new_pat.push_front(rcstr!(".").into());
 
@@ -3906,6 +3910,108 @@ mod tests {
             expected: vec![("./Component", "Component.tsx")],
         })
         .await;
+    }
+
+    #[rstest::rstest]
+    #[case::main(rcstr!("package").into(), r#"{"main":"./main.js"}"#, vec![("package", "main.js")])]
+    #[case::main_trailing_slash(rcstr!("package/").into(), r#"{"main":"./main.js"}"#, vec![("package/", "main.js")])]
+    #[case::index(rcstr!("package").into(), "{}", vec![("package", "index.js")])]
+    #[case::index_trailing_slash(rcstr!("package/").into(), "{}", vec![("package/", "index.js")])]
+    #[case::exports(rcstr!("package").into(), r#"{"exports":"./main.js"}"#, vec![("package", "main.js")])]
+    #[case::exports_trailing_slash(rcstr!("package/").into(), r#"{"exports":"./main.js"}"#, vec![])]
+    #[case::exports_subpath(rcstr!("package/subpath.js").into(), r#"{"exports":{"./subpath.js":"./main.js"}}"#, vec![("package/subpath.js", "main.js")])]
+    #[case::dynamic_subpath(
+        Pattern::concat([rcstr!("package/").into(), Pattern::Dynamic, rcstr!(".js").into()]),
+        r#"{"main":"./main.js"}"#,
+        vec![("package/index.js", "index.js"), ("package/main.js", "main.js"), ("package/subpath.js", "subpath.js")]
+    )]
+    #[case::dynamic_trailing_slash(
+        Pattern::concat([rcstr!("package/").into(), Pattern::Dynamic]),
+        r#"{"main":"./main.js"}"#,
+        vec![
+            ("package/", "main.js"),
+            ("package/index", "index.js"), ("package/index.js", "index.js"),
+            ("package/main", "main.js"), ("package/main.js", "main.js"),
+            ("package/package", "package.json"), ("package/package.json", "package.json"),
+            ("package/subpath", "subpath.js"), ("package/subpath.js", "subpath.js")
+        ]
+    )]
+    #[case::dynamic_roots(
+        Pattern::Alternatives(vec![
+            rcstr!("package").into(),
+            Pattern::concat([rcstr!("package/").into(), Pattern::Dynamic]),
+        ]),
+        r#"{"main":"./main.js"}"#,
+        vec![
+            ("package", "main.js"), ("package/", "main.js"),
+            ("package/index", "index.js"), ("package/index.js", "index.js"),
+            ("package/main", "main.js"), ("package/main.js", "main.js"),
+            ("package/package", "package.json"), ("package/package.json", "package.json"),
+            ("package/subpath", "subpath.js"), ("package/subpath.js", "subpath.js")
+        ]
+    )]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_package_root_request_keys(
+        #[case] pattern: Pattern,
+        #[case] package_json: &str,
+        #[case] expected: Vec<(&str, &str)>,
+    ) {
+        let scratch = tempfile::tempdir().unwrap();
+        let package_path = scratch.path().join("node_modules/package");
+        create_dir_all(&package_path).unwrap();
+        std::fs::write(package_path.join("package.json"), package_json).unwrap();
+        for name in ["main.js", "index.js", "subpath.js"] {
+            std::fs::write(package_path.join(name), "").unwrap();
+        }
+
+        let path = RcStr::from(scratch.path().to_str().unwrap());
+        let mut expected: Vec<(String, String)> = expected
+            .into_iter()
+            .map(|(key, file)| (key.to_string(), format!("node_modules/package/{file}")))
+            .collect();
+        expected.sort();
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+
+        #[turbo_tasks::value(transparent)]
+        struct PackageRequestOutput(Vec<(String, String)>);
+
+        #[turbo_tasks::function(operation, root)]
+        async fn resolve_package_request_operation(
+            path: RcStr,
+            pattern: Pattern,
+        ) -> Result<Vc<PackageRequestOutput>> {
+            let fs = DiskFileSystem::new(rcstr!("temp"), Vc::cell(path));
+            let lookup_path = fs.root().owned().await?;
+            let result = resolve(
+                lookup_path,
+                ReferenceType::CommonJs(Default::default()),
+                Request::parse(pattern),
+                node_cjs_resolve_options(),
+            )
+            .await?;
+            let mut entries = Vec::new();
+            for (key, item) in &result.primary {
+                let ResolveResultItem::Source(source) = item else {
+                    panic!("expected a source, got {item:?}");
+                };
+                entries.push((key.to_string(), source.ident().await?.path.path.to_string()));
+            }
+            entries.sort();
+            Ok(Vc::cell(entries))
+        }
+
+        tt.run_once(async move {
+            let result = resolve_package_request_operation(path, pattern)
+                .read_strongly_consistent()
+                .await?;
+            assert_eq!(&*result, &expected);
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
     }
 
     /// Parameters for resolve_relative_request_test
