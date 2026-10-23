@@ -5,25 +5,16 @@ import type {
   SpanProcessor,
 } from '@opentelemetry/sdk-trace-base'
 
-// Records every span started in this process with its parent, using only
-// public OpenTelemetry APIs (`onStart`'s parent context), so the app can report
-// the spans of a request itself. This works in the Node.js and Edge runtimes
-// and when deployed, where no collector is reachable.
+// Writes a lifecycle event for every span started and ended in this process to
+// the console, using only public OpenTelemetry APIs, so the test can collect the
+// finished spans of a request (with their times) after the response: from the
+// server output when self-hosted, and from the runtime logs when deployed
+// (where no collector is reachable). See `test/lib/otel-span-capture.ts` for
+// the format (`SpanEvent`). This works in the Node.js and Edge runtimes.
 
-export interface RecordedSpan {
-  id: string
-  parentId: string | undefined
-  traceId: string
-  name: string
-  /** The `next.span_type` attribute. */
-  type: string | undefined
-  /** The span's `PRINTED_ATTRIBUTES` that are set, when reported. */
-  attributes?: Record<string, string | number | boolean>
-}
+const SPAN_EVENT_MARKER = '[otel-span]'
 
-// Attributes shown in the span trees, set by Next.js at different points of a
-// request (some of them only once the request span ends, so they're only
-// shown if they were set when the spans were reported).
+// Attributes shown in the span trees, as they are when the span ends.
 const PRINTED_ATTRIBUTES = [
   'http.target',
   'http.route',
@@ -31,134 +22,117 @@ const PRINTED_ATTRIBUTES = [
   'http.status_code',
 ]
 
-interface Entry {
-  span: SdkSpan
-  parentId: string | undefined
+const MAX_REMEMBERED_SPANS = 10_000
+
+interface Store {
+  // The parent of each span started here, from `onStart`'s parent context.
+  parents: Map<string, string | undefined>
+  // The traces of the `instrumentation.ts` lifecycle spans ended here.
+  lifecycleTraceIds: Set<string>
+  // For unique event IDs.
+  processId: string
+  events: number
 }
 
-const MAX_RECORDED_SPANS = 10_000
-
-function getRecordedSpans(): Map<string, Entry> {
-  const store = globalThis as typeof globalThis & {
-    __otelTestRecordedSpans?: Map<string, Entry>
+function getStore(): Store {
+  const global = globalThis as typeof globalThis & {
+    __otelTestSpanRecorder?: Store
   }
-  store.__otelTestRecordedSpans ??= new Map()
-  return store.__otelTestRecordedSpans
+  global.__otelTestSpanRecorder ??= {
+    parents: new Map(),
+    lifecycleTraceIds: new Set(),
+    processId: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`,
+    events: 0,
+  }
+  return global.__otelTestSpanRecorder
+}
+
+// An `HrTime` (`[seconds, nanoseconds]`) in microseconds since the epoch.
+function toMicroseconds([seconds, nanoseconds]: [number, number]) {
+  return seconds * 1_000_000 + Math.floor(nanoseconds / 1_000)
+}
+
+function getType(span: { attributes: ReadableSpan['attributes'] }) {
+  const type = span.attributes['next.span_type']
+  return typeof type === 'string' ? type : undefined
+}
+
+function write(event: Record<string, unknown>) {
+  const store = getStore()
+  // Unique per event written, so the test can tell redeliveries of a log line
+  // from distinct events (e.g. a span ended twice).
+  const eventId = `${store.processId}-${store.events++}`
+  console.log(`${SPAN_EVENT_MARKER} ${JSON.stringify({ eventId, ...event })}`)
 }
 
 export const spanRecorder: SpanProcessor = {
   onStart(span: SdkSpan, parentContext: Context) {
-    const spans = getRecordedSpans()
-    if (spans.size >= MAX_RECORDED_SPANS) {
+    const { traceId, spanId } = span.spanContext()
+    const parentId = trace.getSpanContext(parentContext)?.spanId
+    const { parents } = getStore()
+    if (parents.size >= MAX_REMEMBERED_SPANS) {
       // Drop the oldest entry (Map iterates in insertion order).
-      spans.delete(spans.keys().next().value!)
+      parents.delete(parents.keys().next().value!)
     }
-    spans.set(span.spanContext().spanId, {
-      span,
-      parentId: trace.getSpanContext(parentContext)?.spanId,
+    parents.set(spanId, parentId)
+    write({
+      event: 'start',
+      traceId,
+      id: spanId,
+      parentId,
+      name: span.name,
+      type: getType(span),
+      startTime: toMicroseconds(span.startTime),
     })
   },
-  onEnd(_span: ReadableSpan) {},
+  onEnd(span: ReadableSpan) {
+    const { traceId, spanId } = span.spanContext()
+    const store = getStore()
+    const parentId = store.parents.has(spanId)
+      ? store.parents.get(spanId)
+      : span.parentSpanContext?.spanId
+    store.parents.delete(spanId)
+    const type = getType(span)
+    if (type?.startsWith('Instrumentation.')) {
+      store.lifecycleTraceIds.add(traceId)
+    }
+    const attributes: Record<string, string | number | boolean> = {}
+    for (const key of PRINTED_ATTRIBUTES) {
+      const value = span.attributes[key]
+      if (
+        typeof value === 'string' ||
+        typeof value === 'number' ||
+        typeof value === 'boolean'
+      ) {
+        attributes[key] = value
+      }
+    }
+    write({
+      event: 'end',
+      traceId,
+      id: spanId,
+      parentId,
+      name: span.name,
+      type,
+      attributes: Object.keys(attributes).length > 0 ? attributes : undefined,
+      startTime: toMicroseconds(span.startTime),
+      endTime: toMicroseconds(span.endTime),
+      status: span.status.code,
+    })
+  },
   forceFlush: () => Promise.resolve(),
   shutdown: () => Promise.resolve(),
 }
 
-// Read when reported, so spans renamed after they started (e.g. a request
-// span named after its route) show their current name.
-function toRecordedSpan({ span, parentId }: Entry): RecordedSpan {
-  const type = span.attributes['next.span_type']
-  const attributes: Record<string, string | number | boolean> = {}
-  for (const key of PRINTED_ATTRIBUTES) {
-    const value = span.attributes[key]
-    if (
-      typeof value === 'string' ||
-      typeof value === 'number' ||
-      typeof value === 'boolean'
-    ) {
-      attributes[key] = value
-    }
-  }
-  return {
-    id: span.spanContext().spanId,
-    parentId,
-    traceId: span.spanContext().traceId,
-    name: span.name,
-    type: typeof type === 'string' ? type : undefined,
-    attributes: Object.keys(attributes).length > 0 ? attributes : undefined,
-  }
-}
-
-/** The given span and its ancestors, as far as they were started here. */
-function getChain(spanId: string | undefined) {
-  const spans = getRecordedSpans()
-  const chain: RecordedSpan[] = []
-  let entry = spanId ? spans.get(spanId) : undefined
-  while (entry) {
-    chain.push(toRecordedSpan(entry))
-    entry = entry.parentId ? spans.get(entry.parentId) : undefined
-  }
-  return chain
-}
-
-/** The spans started here so far below the given span (not the span itself). */
-function getDescendants(spanId: string) {
-  return [...getRecordedSpans().values()]
-    .filter(({ parentId }) =>
-      getChain(parentId).some((span) => span.id === spanId)
-    )
-    .map(toRecordedSpan)
+/** The trace of the active span, for the test to collect its spans. */
+export function getActiveTraceId() {
+  return trace.getActiveSpan()?.spanContext().traceId
 }
 
 /**
- * The middleware's spans: its active span, that span's ancestors, and the
- * descendants started so far of the topmost of them (e.g. spans started next
- * to the middleware span in the root inserted by the middleware adapter).
+ * The traces of the `instrumentation.ts` lifecycle spans (`Instrumentation.*`)
+ * that ended in this process.
  */
-export function getMiddlewareSpans() {
-  const chain = getChain(trace.getActiveSpan()?.spanContext().spanId)
-  if (chain.length === 0) {
-    return chain
-  }
-  const ids = new Set(chain.map((span) => span.id))
-  return [
-    ...chain,
-    ...getDescendants(chain[chain.length - 1].id).filter(
-      (span) => !ids.has(span.id)
-    ),
-  ]
-}
-
-/**
- * The `instrumentation.ts` lifecycle spans (`Instrumentation.*`) started in
- * this process, with their ancestors as far as they were started here.
- */
-export function getInstrumentationLifecycleSpans() {
-  const spans = new Map<string, RecordedSpan>()
-  for (const [id, { span }] of getRecordedSpans()) {
-    if (
-      String(span.attributes['next.span_type']).startsWith('Instrumentation.')
-    ) {
-      for (const recorded of getChain(id)) {
-        spans.set(recorded.id, recorded)
-      }
-    }
-  }
-  return [...spans.values()]
-}
-
-/**
- * The render's spans: its request span (the nearest `BaseServer.handleRequest`
- * ancestor of the active span), that span's ancestors, and the request span's
- * descendants started so far.
- */
-export function getRenderSpans() {
-  const chain = getChain(trace.getActiveSpan()?.spanContext().spanId)
-  const index = chain.findIndex(
-    (span) => span.type === 'BaseServer.handleRequest'
-  )
-  if (index === -1) {
-    return chain
-  }
-  const requestSpanId = chain[index].id
-  return [...chain.slice(index), ...getDescendants(requestSpanId)]
+export function getInstrumentationTraceIds() {
+  return [...getStore().lifecycleTraceIds]
 }
