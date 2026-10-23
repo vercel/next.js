@@ -77,17 +77,21 @@ For lazy interaction features, duplicate packages, server-rendered display work 
 
 ### Unexpected client dependencies
 
-The size ranking misses small modules intended for the server that end up in client code. In both modes, read [Client dependencies](references/client-dependencies.md) and use a streaming analysis script to:
+Size ranking can miss small server-owned modules in client code. Before scanning in either mode, read [Client dependencies](references/client-dependencies.md) for graph joins, generated Server Action identities and tracing. Stream the export to check every emitted client module, including async outputs.
 
-1. **Discover:** inspect emitted client modules, starting with sources also emitted on the server, then checking the remaining client modules, including async outputs.
-2. **Validate:** establish intended server ownership from source, callers or project documentation and confirm the relevant contents survive in emitted client code. Apply this test to every category. Record intentional client uses as suppressed matches and missing evidence as unverified matches.
-3. **Trace:** find the preferred client import chain, affected routes, loading conditions and attributed compressed bytes for each validated finding.
+Before editing, save a **Client-dependency scan** table in the report: one row per match and every client-imported Server Action, with **Source + client importer**, **Emitted identity**, **Routes**, **Compressed bytes** and **Disposition + evidence**. Reconcile source Action imports against emitted references, including generated identities; verify whether implementation contents survive. A filename search or byte ranking alone cannot complete this table.
 
-**Done:** the paired pass accounts for every target, or records why it was skipped or blocked. Every candidate has a completed checklist, exact source/importer, proposed edit and named behavior checks. Every emitted client module in scope is checked, with coverage gaps recorded. Each source match is a heuristic finding, suppressed with a reason or unverified with an evidence gap. Audit mode ends after the report.
+Use three dispositions: **possible leak** requires server-only ownership evidence and surviving client contents; **suppressed** covers intentional client content and verified reference-only Action stubs; **unverified** names the missing evidence. Public form schemas, help text and editable prompts stay suppressed even under `server/` or `prompts` paths. Record coverage gaps (unsupported outputs, missing roots or mappings), explicitly stating when none were found.
+
+**Done:** the community/min-cut pass accounts for every target or records its skip reason or blocker. Every size candidate has a completed checklist, exact source/importer, proposed edit and behavior checks. Every client-dependency match is a heuristic finding, suppressed with a reason or unverified with an evidence gap. Audit mode ends after the report.
 
 ## 5. Verify one change — fix mode only
 
+Classify each proposed edit as a size optimization or boundary remediation before applying it. A request to reduce browser JavaScript authorizes size edits, including in public prompt modules and finding importers. Removing private client state/payloads, relocating policy or adding `server-only` needs separate explicit approval; leave those findings unresolved for the owner even if the UI would remain unchanged.
+
 Make one small, cohesive change. Capture/export an after snapshot with a new name and compare the **same analysis scope, output class and metric** with the baseline. For whole-app analysis, account for changes across all routes, including shared dependencies. Run relevant behavior tests and type-check; use [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) when verifying the edit in the running app, and install it first if unavailable (`npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop`).
+
+If no relevant tests exist, create and run focused smoke tests. Test production imports or rendered UI, not copied implementations. Exercise interactive flows through a browser or executable component tests, including input handling, timing and deferred actions. For debounced search, check case-insensitive results and the existing delay; for editable lazy features, trigger loading and edit the result. Record commands/actions and observed results. Source inspection, type-checking and successful builds alone do not verify behavior.
 
 **Done:** retain the change only when the scoped metric improves and the intended behavior passes its checks. Revert a change that fails either condition. If checks are blocked, report the unverified edit and blocker rather than accepting it. Record the accepted after snapshot as the next baseline before another edit.
 
@@ -95,6 +99,8 @@ Make one small, cohesive change. Capture/export an after snapshot with a new nam
 
 Audit reports candidates; fix reports accepted edits and any reverted or unverified attempts. Include snapshot names, scoped attribution/deltas, exact source/importer, behavior-check results and blockers. For a graph cut, include its route/render conditions, roots/target and unknowns. Distinguish source facts, build evidence, heuristics and separately observed runtime facts.
 
-Add a separate **Possible server-only leaks** section that marks every finding as heuristic and gives each one the same five labeled lines: **Module**, **Routes**, **Chain**, **Heuristics** and **Compressed bytes**. Include ownership evidence for every finding on the Heuristics line. Where you couldn't get a value, write the reason on that line instead. In fix mode, distinguish unresolved boundary concerns from accepted size edits, even when they involve the same file. If the pass found nothing, say that.
+Add a **Possible server-only leaks** section with five labeled lines per heuristic finding: **Module**, **Routes**, **Chain**, **Heuristics** (including ownership evidence) and **Compressed bytes**. Explain missing values on their lines. Keep unresolved boundary concerns separate from accepted size edits, including those in the same file. State when no leaks were found.
 
-**Done:** every scoped candidate, leak finding or attempted edit is accounted for, with evidence or a stated gap.
+Use the scan table to populate **Suppressed matches** and **Evidence gaps**. Keep public form content and verified Action stubs outside the leak section, along with naming concerns. Include the coverage statement even when no gaps were found.
+
+**Done:** every scoped candidate, leak finding, client-imported Action and attempted edit is accounted for, with evidence or a stated gap.
