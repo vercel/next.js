@@ -1,14 +1,15 @@
 /* global describe, it */
-import { shallow } from "enzyme";
-import React from "react";
+import { render } from "@testing-library/react";
 import expect from "expect.js";
 
 import App from "../pages/index.js";
 
-describe("With Enzyme", () => {
+describe("With React Testing Library", () => {
   it('App shows "Hello world!"', () => {
-    const app = shallow(<App />);
+    const app = render(<App />);
 
-    expect(app.find("p").text()).to.equal("Hello World!");
+    expect(app.container.querySelector("p")?.textContent).to.equal(
+      "Hello World!",
+    );
   });
 });
