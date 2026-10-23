@@ -170,6 +170,7 @@ next-taskless = { path = "crates/next-taskless" }
 # Turbopack
 auto-hash-map = { path = "turbopack/crates/turbo-tasks-auto-hash-map" }
 turbo-bincode = { path = "turbopack/crates/turbo-bincode" }
+turbo-bitset = { path = "turbopack/crates/turbo-bitset" }
 turbo-dyn-eq-hash = { path = "turbopack/crates/turbo-dyn-eq-hash" }
 turbo-esregex = { path = "turbopack/crates/turbo-esregex" }
 turbo-frozenmap = { path = "turbopack/crates/turbo-frozenmap" }

@@ -9063,6 +9063,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "turbo-bitset"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "codspeed-criterion-compat",
+ "fixedbitset",
+ "roaring",
+ "rustc-hash 2.1.1",
+ "shrink-to-fit",
+]
+
+[[package]]
 name = "turbo-dyn-eq-hash"
 version = "0.0.1"
 
