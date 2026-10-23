@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/max_chunk_size_component_chunks/input/pages/p3.js"],"sourcesContent":["import { y } from '../shared/y.js'\nimport { z } from '../shared/z.js'\n\nexport const p3 = [y, z]\n"],"names":["p3"],"mappings":";;;;AAAA;AACA;;;AAEO,MAAMA,KAAK;IAAC,iOAAC;IAAE,iOAAC;CAAC"}}]
-}

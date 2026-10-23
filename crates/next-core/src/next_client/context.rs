@@ -47,7 +47,9 @@ use crate::{
         runtime_entry::{RuntimeEntries, RuntimeEntry},
         transforms::get_next_client_transforms_rules,
     },
-    next_config::{ChunkingConfigOptionNames, NextConfig, warn_on_adjusted_chunking_config},
+    next_config::{
+        CLIENT_CHUNKING_CONFIG_OPTION_NAMES, NextConfig, warn_on_adjusted_chunking_config,
+    },
     next_import_map::{
         get_next_client_fallback_import_map, get_next_client_import_map,
         get_next_client_resolved_map,
@@ -648,12 +650,7 @@ pub async fn get_client_chunking_context(
         };
         warn_on_adjusted_chunking_config(
             &ecmascript_chunking_config,
-            &ChunkingConfigOptionNames {
-                chunks: "client",
-                max_chunk_size: "maxChunkSize",
-                min_chunk_size: Some("minChunkSize"),
-                max_merge_chunk_size: Some("maxMergeChunkSize"),
-            },
+            &CLIENT_CHUNKING_CONFIG_OPTION_NAMES,
             root_path.clone(),
         );
         builder = builder

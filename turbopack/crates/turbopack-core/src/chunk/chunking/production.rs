@@ -3,7 +3,7 @@ use std::{borrow::Cow, collections::BinaryHeap, hash::BuildHasherDefault, mem::t
 use anyhow::{Context, Result, bail};
 use roaring::RoaringBitmap;
 use rustc_hash::{FxHashMap, FxHasher};
-use smallvec::SmallVec;
+use smallvec::{SmallVec, smallvec};
 use tracing::{Instrument, field::Empty};
 use turbo_prehash::BuildHasherExt;
 use turbo_rcstr::RcStr;
@@ -672,16 +672,16 @@ async fn group_remained_candidates<'l>(
     remained: Vec<MergeCandidate<'l>>,
     min_chunk_size: usize,
     max_chunk_size: usize,
-) -> Result<Vec<Vec<MergeCandidate<'l>>>> {
+) -> Result<SmallVec<[Vec<MergeCandidate<'l>>; 1]>> {
     let total_size = remained
         .iter()
         .map(|candidate| candidate.size)
         .sum::<usize>();
     if remained.is_empty() {
-        return Ok(Vec::new());
+        return Ok(SmallVec::new());
     }
     if max_chunk_size == 0 || total_size <= max_chunk_size {
-        return Ok(vec![remained]);
+        return Ok(smallvec![remained]);
     }
     let keyed = remained
         .into_iter()
