@@ -9,9 +9,9 @@
 //! simple loop over machine words. That makes unions and subset checks fast when the bits span a
 //! limited range, at the cost of using one bit of memory per index in that range.
 //!
-//! The bincode encoding (see the `encode` module) stores either the trimmed bytes of the range or
-//! the delta-encoded list of bits, whichever is smaller, so sparse sets stay compact when
-//! persisted.
+//! The bincode encoding (see the `encode` module) stores either the trimmed bytes of the range or,
+//! if that is clearly smaller, the delta-encoded list of bits, so sparse sets stay compact when
+//! persisted while dense ones are copied in bulk.
 
 mod encode;
 
@@ -488,8 +488,16 @@ fn or_blocks(blocks: &mut [usize], other: &[usize]) {
 impl Extend<u32> for Bitset {
     fn extend<T: IntoIterator<Item = u32>>(&mut self, iter: T) {
         // Buffer the first bits on the stack, so that small inputs don't need a temporary `Vec` to
-        // determine their range.
+        // determine their range. If the iterator guarantees more bits than fit, collect them into
+        // a `Vec` right away.
         let mut iter = iter.into_iter();
+        let lower_bound = iter.size_hint().0;
+        if lower_bound > EXTEND_STACK_BITS {
+            let mut bits = Vec::with_capacity(lower_bound);
+            bits.extend(iter);
+            self.extend_from_slice(&bits);
+            return;
+        }
         let mut buffer = [0; EXTEND_STACK_BITS];
         let mut len = 0;
         for bit in iter.by_ref() {

@@ -20,6 +20,9 @@ fixedbitset = { workspace = true }
 # `RoaringBitmap`.
 roaring = { workspace = true, features = ["serde"] }
 rustc-hash = { workspace = true }
+# The benchmarks and the `sizes` example encode, decode and hash like Turbopack does.
+turbo-bincode = { workspace = true }
+turbo-tasks-hash = { workspace = true }
 
 [[bench]]
 name = "mod"

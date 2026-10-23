@@ -9072,6 +9072,8 @@ dependencies = [
  "roaring",
  "rustc-hash 2.1.1",
  "shrink-to-fit",
+ "turbo-bincode",
+ "turbo-tasks-hash",
 ]
 
 [[package]]
