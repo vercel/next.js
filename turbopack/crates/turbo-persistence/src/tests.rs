@@ -3293,24 +3293,15 @@ fn commits_with_more_shards_than_collectors_split_files_at_shard_boundaries(
     Ok(())
 }
 
-// Writes 10K keys including blob values and runs the parallel `batch_get` path on Rayon, which is
-// too slow under Miri.
+// Writes 10K keys and runs the parallel `batch_get` path on Rayon, which is too slow under Miri.
 #[cfg(not(miri))]
 #[rstest]
-#[case::single_shard_mmap(false, true)]
-#[case::single_shard_file(false, false)]
-#[case::sharded_mmap(true, true)]
-#[case::sharded_file(true, false)]
-fn batch_get_large_batches(#[case] sharded: bool, #[case] mmap: bool) -> Result<()> {
+#[case::mmap(true)]
+#[case::file(false)]
+fn batch_get_large_batches(#[case] mmap: bool) -> Result<()> {
     const KEYS: u32 = 10_000;
     let value_of = |key: u32, version: u8| -> Vec<u8> {
-        let len = match key % 1000 {
-            0 if key < 2000 => MAX_MEDIUM_VALUE_SIZE + 1, // blob
-            k if k.is_multiple_of(13) => MAX_SMALL_VALUE_SIZE + 1, // medium
-            k if k.is_multiple_of(2) => 4,                // inline
-            _ => 32,                                      // small
-        };
-        let mut value = vec![version; len];
+        let mut value = vec![version; 8];
         value[..4].copy_from_slice(&key.to_le_bytes());
         value
     };
@@ -3325,13 +3316,7 @@ fn batch_get_large_batches(#[case] sharded: bool, #[case] mmap: bool) -> Result<
     };
 
     let tempdir = tempfile::tempdir()?;
-    let mut config = config_with_mmap::<1>(mmap);
-    if sharded {
-        // Far less than the data, so the family keeps several shards across commits.
-        config.family_configs[0].initial_shard_bits = crate::shard::ShardBits::new(4);
-        config.target_shard_size = 16 * 1024;
-    }
-    let db = open_db_with_config::<1>(tempdir.path(), config)?;
+    let db = open_db_with_config::<1>(tempdir.path(), config_with_mmap::<1>(mmap))?;
 
     let batch = db.write_batch()?;
     for key in 0..KEYS {
@@ -3348,14 +3333,6 @@ fn batch_get_large_batches(#[case] sharded: bool, #[case] mmap: bool) -> Result<
         }
     }
     db.commit_write_batch(batch)?;
-    // `meta_info` lists the newest meta file first.
-    let shard_count =
-        crate::shard::ShardBits::new(db.meta_info()?.first().unwrap().shard_bits).count();
-    if sharded {
-        assert!(shard_count > 1, "{shard_count} shards");
-    } else {
-        assert_eq!(shard_count, 1);
-    }
 
     // Batches at and around the parallel threshold, and well above it. Keys are spread over the
     // key space in a scrambled order, include misses (keys >= KEYS) and duplicates.

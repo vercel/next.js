@@ -1,6 +1,5 @@
 use std::{
     borrow::Cow,
-    cell::UnsafeCell,
     collections::HashSet,
     fmt::Display,
     hash::BuildHasherDefault,
@@ -37,8 +36,10 @@ use crate::{AccessMode, mmap_helper::advise_mmap_for_persistence};
 use crate::{
     DbConfig, FamilyKind, QueryKey,
     arc_bytes::ArcBytes,
+    chunk_bit_set::ChunkBitSet,
     compaction::selector::{Compactable, MergeJob, plan_compaction},
     compression::{Compression, checksum_block, decompress_into_arc},
+    concurrent_slice::ConcurrentSlice,
     constants::{
         DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE, KEY_BLOCK_CACHE_SIZE,
         MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE, VALUE_BLOCK_CACHE_SIZE,
@@ -314,8 +315,8 @@ const PARALLEL_BATCH_GET_THRESHOLD: usize = 2048;
 ///
 /// Shards are sized for disk IO and compaction, so a shard can hold far more keys of a batch than
 /// one task should look up. Chunks of keys that are adjacent in hash order tend to share key and
-/// value blocks of the same SST files.
-const MAX_BATCH_GET_CHUNK_LEN: usize = 256;
+/// value blocks of the same SST files. The found keys of a chunk are tracked in a [`ChunkBitSet`].
+const MAX_BATCH_GET_CHUNK_LEN: usize = ChunkBitSet::CAPACITY;
 
 /// A chunk of keys looked up by [`TurboPersistence::batch_get`]. All keys belong to the same shard.
 struct BatchGetChunk<'l> {
@@ -348,80 +349,6 @@ fn batch_get_chunks(cells: &[(u64, u32)], shard_bits: ShardBits) -> Vec<BatchGet
         }
     }
     chunks
-}
-
-/// The positions of the keys of a [`BatchGetChunk`] that have been found already, stored inline
-/// as a bitset.
-pub(crate) struct ChunkBitSet([u64; MAX_BATCH_GET_CHUNK_LEN / 64]);
-
-const _: () = assert!(
-    MAX_BATCH_GET_CHUNK_LEN.is_multiple_of(64),
-    "`ChunkBitSet` stores the positions of a chunk in whole words"
-);
-
-impl ChunkBitSet {
-    /// The number of positions the set can hold.
-    pub(crate) const CAPACITY: usize = MAX_BATCH_GET_CHUNK_LEN;
-
-    pub(crate) const fn new() -> Self {
-        Self([0; MAX_BATCH_GET_CHUNK_LEN / 64])
-    }
-
-    /// Returns whether `position` is in the set. Panics if `position >= Self::CAPACITY`.
-    #[inline]
-    pub(crate) fn contains(&self, position: usize) -> bool {
-        self.0[position / 64] & (1 << (position % 64)) != 0
-    }
-
-    /// Adds `position` to the set. Panics if `position >= Self::CAPACITY`.
-    #[inline]
-    pub(crate) fn insert(&mut self, position: usize) {
-        self.0[position / 64] |= 1 << (position % 64);
-    }
-}
-
-/// A mutably borrowed slice whose elements can be written from multiple threads, as long as each
-/// element is written at most once while the slice is shared.
-///
-/// Distinct elements are distinct memory locations, so writes from different threads to different
-/// elements never race or tear, even when `T` is a single byte. This is the same guarantee that
-/// makes sending the halves of `split_at_mut` to different threads sound. The elements are wrapped
-/// in [`UnsafeCell`] because they are mutated through a shared reference.
-struct ConcurrentSlice<'l, T> {
-    data: &'l [UnsafeCell<T>],
-}
-
-// SAFETY: Through a shared `ConcurrentSlice`, other threads move `T` values into the slice and drop
-// the values they replace, which requires `T: Send`. It never hands out references to elements, so
-// it doesn't require `T: Sync`. Callers of `write` guarantee that no element is accessed by two
-// threads.
-unsafe impl<T: Send> Send for ConcurrentSlice<'_, T> {}
-// SAFETY: See above.
-unsafe impl<T: Send> Sync for ConcurrentSlice<'_, T> {}
-
-impl<'l, T> ConcurrentSlice<'l, T> {
-    fn new(slice: &'l mut [T]) -> Self {
-        let len = slice.len();
-        // SAFETY: `UnsafeCell<T>` has the same memory layout as `T` (it is `#[repr(transparent)]`),
-        // and the pointer comes from a mutable borrow of `len` elements that lasts for `'l`, so no
-        // other access to the elements exists while `data` is alive.
-        let data =
-            unsafe { std::slice::from_raw_parts(slice.as_mut_ptr().cast::<UnsafeCell<T>>(), len) };
-        Self { data }
-    }
-
-    /// Replaces the element at `index` with `value`, dropping the previous value. Panics if
-    /// `index` is out of bounds.
-    ///
-    /// # Safety
-    ///
-    /// Each `index` must be written at most once while `self` is shared, so no two threads access
-    /// the same element.
-    unsafe fn write(&self, index: usize, value: T) {
-        let cell = &self.data[index];
-        // SAFETY: The caller guarantees that no other access to this element happens concurrently.
-        unsafe { *cell.get() = value };
-    }
 }
 
 #[derive(Clone, Copy, Default)]
@@ -2484,12 +2411,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// Looks up many keys of a [`FamilyKind::SingleValue`] family at once. The result has one entry
     /// per key, in the order of `keys`.
     ///
-    /// The keys are sorted by hash and split into chunks of at most 256 keys that don't cross a
-    /// shard boundary, so each chunk is only looked up in the SST files of its shard. Batches with
-    /// more than 2048 keys look up the chunks in parallel using the database's
-    /// [`ParallelScheduler`]. After resharding, older SST files can span multiple current shards
-    /// and may be read by chunks of different shards.
-    ///
     /// Panics if there are more than `u32::MAX` keys.
     pub fn batch_get<K: QueryKey + Sync>(
         &self,
@@ -2585,7 +2506,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         debug_assert!(cells.len() <= ChunkBitSet::CAPACITY);
         // Whether a key was found in a newer SST file already, by position in `cells`.
         let mut resolved = ChunkBitSet::new();
-        let mut unresolved = cells.len();
         let mut on_found = |position: usize, value: LookupValue| -> Result<()> {
             let (hash, index) = cells[position];
             inner.accessed_key_hashes[family].insert(hash);
@@ -2641,24 +2561,24 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     keys,
                     cells,
                     &mut resolved,
-                    &mut unresolved,
                     key_block_cache,
                     value_block_cache,
                     &mut on_found,
                 )?;
             #[cfg(feature = "stats")]
             self.record_batch_lookup_stats(_result);
-            if unresolved == 0 {
+            if resolved.len() == cells.len() {
                 break;
             }
         }
         // `on_found` borrows `counts`.
         drop(on_found);
+        let not_found = cells.len() - resolved.len();
         #[cfg(feature = "stats")]
         self.stats
             .miss_global
-            .fetch_add(unresolved as u64, Ordering::Relaxed);
-        counts.not_found += unresolved;
+            .fetch_add(not_found as u64, Ordering::Relaxed);
+        counts.not_found += not_found;
         Ok(())
     }
 
@@ -2989,75 +2909,5 @@ mod batch_get_chunks_tests {
     #[test]
     fn no_chunks_for_no_cells() {
         assert!(batch_get_chunks(&[], ShardBits::new(4)).is_empty());
-    }
-
-    #[test]
-    fn concurrent_slice_writes_from_multiple_threads() {
-        const LEN: usize = 64;
-        // The previous values are boxed, so leaking or double-dropping them is detected by Miri.
-        let mut values: Vec<Option<Box<usize>>> = vec![Some(Box::new(usize::MAX)); LEN];
-        let writer = ConcurrentSlice::new(&mut values);
-        std::thread::scope(|scope| {
-            for thread in 0..4 {
-                let writer = &writer;
-                scope.spawn(move || {
-                    for index in (thread..LEN).step_by(4) {
-                        // SAFETY: Each thread writes a distinct residue class of indices.
-                        unsafe { writer.write(index, Some(Box::new(index))) };
-                    }
-                });
-            }
-        });
-        for (index, value) in values.iter().enumerate() {
-            assert_eq!(value.as_deref(), Some(&index));
-        }
-    }
-
-    #[test]
-    fn concurrent_slice_writes_adjacent_bytes_from_multiple_threads() {
-        const LEN: usize = 64;
-        let mut values = [0u8; LEN];
-        let writer = ConcurrentSlice::new(&mut values);
-        std::thread::scope(|scope| {
-            for thread in 0..4 {
-                let writer = &writer;
-                scope.spawn(move || {
-                    // Adjacent bytes are written by different threads.
-                    for index in (thread..LEN).step_by(4) {
-                        // SAFETY: Each thread writes a distinct residue class of indices.
-                        unsafe { writer.write(index, index as u8 + 1) };
-                    }
-                });
-            }
-        });
-        for (index, &value) in values.iter().enumerate() {
-            assert_eq!(value, index as u8 + 1);
-        }
-    }
-
-    #[test]
-    #[should_panic]
-    fn concurrent_slice_write_out_of_bounds_panics() {
-        let mut values = [0u32; 4];
-        let writer = ConcurrentSlice::new(&mut values);
-        // SAFETY: No other write happens.
-        unsafe { writer.write(4, 1) };
-    }
-
-    #[test]
-    fn chunk_bit_set_inserts_positions() {
-        let mut set = ChunkBitSet::new();
-        assert!((0..ChunkBitSet::CAPACITY).all(|position| !set.contains(position)));
-        let inserted = [0, 1, 63, 64, 127, 128, 200, 255];
-        for position in inserted {
-            set.insert(position);
-        }
-        for position in 0..ChunkBitSet::CAPACITY {
-            assert_eq!(
-                set.contains(position),
-                inserted.contains(&position),
-                "{position}"
-            );
-        }
     }
 }
