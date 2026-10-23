@@ -86,7 +86,7 @@ The SST file contains only data without any header.
 
 - foreach block
   - 4 bytes block header (uncompressed length or sentinel)
-  - 4 bytes checksum (CRC32 of uncompressed block data)
+  - 4 bytes checksum (CRC32 of the 4 header bytes and the on-disk block data)
   - block data (compressed or uncompressed)
 - foreach block
   - 4 bytes end of block offset relative to start of all blocks
@@ -102,7 +102,7 @@ The 4-byte header distinguishes compressed from uncompressed storage:
 
 #### Block Checksum
 
-Each block stores a 4-byte CRC32 checksum (big-endian) computed on the **on-disk** block data (i.e. after compression). On read, the checksum is verified **before** decompression so that on-disk damage is caught before passing data to LZ4. A checksum mismatch returns an error indicating that the cached data is damaged.
+Each block stores a 4-byte CRC32 checksum (big-endian) computed over the 4-byte header (uncompressed length or sentinel, big-endian) followed by the **on-disk** block data (i.e. after compression). On read, the checksum is verified **before** decompression, so that on-disk damage to either the data or the header is caught before the header's length is used to size a buffer or the data is passed to the decompressor. A checksum mismatch returns an error indicating that the cached data is damaged. Compaction copies medium value blocks without decompressing or verifying them, keeping their header and checksum, so a damaged block stays detectable when the copy is read.
 
 #### Index Block
 
@@ -250,10 +250,10 @@ reordering entries within a block is a format violation rather than a free choic
 The plain value compressed with dynamic compression. Each blob file has an 8-byte header:
 
 - 4 bytes: uncompressed length (u32 big-endian)
-- 4 bytes: CRC32 checksum of the compressed data (u32 big-endian)
+- 4 bytes: CRC32 checksum of the uncompressed length bytes followed by the compressed data (u32 big-endian)
 - remaining bytes: value data compressed with the blob's key-family configuration
 
-The checksum is verified on the compressed data **before** decompression when the blob is read.
+The checksum is verified **before** decompression when the blob is read, so a damaged length is caught before it is used to size the decompression buffer.
 
 ## Reading
 
