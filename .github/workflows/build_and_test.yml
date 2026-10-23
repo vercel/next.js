@@ -314,7 +314,8 @@ jobs:
       needsRustJsInstall: 'yes'
       skipNativeBuild: 'yes'
       skipInstallBuild: 'yes'
-      afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit ${TURBO_ARGS}
+      # `test-cargo-unit-ci` enables the `ci` cargo features, which ignore tests that are flaky on CI runners.
+      afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit-ci ${TURBO_ARGS}
       stepName: 'test-cargo-unit'
       # Run on x86-64 instead of arm64/aarch64. The pnpm workspace in
       # turbopack/crates/turbopack-tracing/tests/node-file-trace pulls in a ton
