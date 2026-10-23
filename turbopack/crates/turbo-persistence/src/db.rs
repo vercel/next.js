@@ -310,12 +310,8 @@ impl Drop for WriteOperationGuard<'_> {
 /// scheduling overhead.
 const PARALLEL_BATCH_GET_THRESHOLD: usize = 2048;
 
-/// [`TurboPersistence::batch_get`] splits the keys of a shard into chunks of at most this many
-/// keys, which are the units of parallel work.
-///
-/// Shards are sized for disk IO and compaction, so a shard can hold far more keys of a batch than
-/// one task should look up. Chunks of keys that are adjacent in hash order tend to share key and
-/// value blocks of the same SST files. The found keys of a chunk are tracked in a [`ChunkBitSet`].
+/// The maximum number of keys in a chunk of [`TurboPersistence::batch_get`]. A chunk is the unit of
+/// parallel work and never crosses a shard boundary.
 const MAX_BATCH_GET_CHUNK_LEN: usize = ChunkBitSet::CAPACITY;
 
 /// A chunk of keys looked up by [`TurboPersistence::batch_get`]. All keys belong to the same shard.
@@ -351,11 +347,22 @@ fn batch_get_chunks(cells: &[(u64, u32)], shard_bits: ShardBits) -> Vec<BatchGet
     chunks
 }
 
+/// Counts of a [`TurboPersistence::batch_get`] chunk, summed over all chunks after the lookups.
 #[derive(Clone, Copy, Default)]
 struct BatchGetCounts {
     not_found: usize,
     deleted: usize,
     result_size: usize,
+    #[cfg(feature = "stats")]
+    hits_small: usize,
+    #[cfg(feature = "stats")]
+    hits_blob: usize,
+    #[cfg(feature = "stats")]
+    range_misses: usize,
+    #[cfg(feature = "stats")]
+    quick_filter_misses: usize,
+    #[cfg(feature = "stats")]
+    sst_misses: usize,
 }
 
 impl std::ops::Add for BatchGetCounts {
@@ -366,6 +373,16 @@ impl std::ops::Add for BatchGetCounts {
             not_found: self.not_found + other.not_found,
             deleted: self.deleted + other.deleted,
             result_size: self.result_size + other.result_size,
+            #[cfg(feature = "stats")]
+            hits_small: self.hits_small + other.hits_small,
+            #[cfg(feature = "stats")]
+            hits_blob: self.hits_blob + other.hits_blob,
+            #[cfg(feature = "stats")]
+            range_misses: self.range_misses + other.range_misses,
+            #[cfg(feature = "stats")]
+            quick_filter_misses: self.quick_filter_misses + other.quick_filter_misses,
+            #[cfg(feature = "stats")]
+            sst_misses: self.sst_misses + other.sst_misses,
         }
     }
 }
@@ -2466,7 +2483,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 value_block_cache,
             )
         };
-        if keys.len() > PARALLEL_BATCH_GET_THRESHOLD && chunks.len() > 1 {
+        if keys.len() > PARALLEL_BATCH_GET_THRESHOLD {
             self.parallel_scheduler
                 .try_parallel_for_each_task_mut(&mut chunks, lookup_chunk)?;
         } else {
@@ -2481,6 +2498,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         span.record("not_found", counts.not_found);
         span.record("deleted", counts.deleted);
         span.record("result_size", counts.result_size);
+        #[cfg(feature = "stats")]
+        self.record_batch_get_stats(counts);
         Ok(results)
     }
 
@@ -2511,8 +2530,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             inner.accessed_key_hashes[family].insert(hash);
             let value = match value {
                 LookupValue::KeyDeleted => {
-                    #[cfg(feature = "stats")]
-                    self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
                     counts.deleted += 1;
                     return Ok(());
                 }
@@ -2526,12 +2543,16 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 }
                 LookupValue::Slice { value } => {
                     #[cfg(feature = "stats")]
-                    self.stats.hits_small.fetch_add(1, Ordering::Relaxed);
+                    {
+                        counts.hits_small += 1;
+                    }
                     value
                 }
                 LookupValue::Blob { sequence_number } => {
                     #[cfg(feature = "stats")]
-                    self.stats.hits_blob.fetch_add(1, Ordering::Relaxed);
+                    {
+                        counts.hits_blob += 1;
+                    }
                     self.read_blob(
                         sequence_number,
                         self.config.family_configs[family].compression,
@@ -2546,6 +2567,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             Ok(())
         };
         let shard_files = inner.shard_indices[family].shard(*shard);
+        #[cfg(feature = "stats")]
+        let mut lookup_counts = crate::meta_file::MetaBatchLookupResult::default();
         for (
             range,
             &MetaEntryIndex {
@@ -2566,44 +2589,52 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     &mut on_found,
                 )?;
             #[cfg(feature = "stats")]
-            self.record_batch_lookup_stats(_result);
+            {
+                lookup_counts.range_misses += _result.range_misses;
+                lookup_counts.quick_filter_misses += _result.quick_filter_misses;
+                lookup_counts.sst_misses += _result.sst_misses;
+            }
             if resolved.len() == cells.len() {
                 break;
             }
         }
         // `on_found` borrows `counts`.
         drop(on_found);
-        let not_found = cells.len() - resolved.len();
+        counts.not_found += cells.len() - resolved.len();
         #[cfg(feature = "stats")]
-        self.stats
-            .miss_global
-            .fetch_add(not_found as u64, Ordering::Relaxed);
-        counts.not_found += not_found;
+        {
+            counts.range_misses += lookup_counts.range_misses;
+            counts.quick_filter_misses += lookup_counts.quick_filter_misses;
+            counts.sst_misses += lookup_counts.sst_misses;
+        }
         Ok(())
     }
 
+    /// Adds the counts of a whole [`Self::batch_get`] to the database statistics.
     #[cfg(feature = "stats")]
-    fn record_batch_lookup_stats(&self, result: crate::meta_file::MetaBatchLookupResult) {
-        let crate::meta_file::MetaBatchLookupResult {
+    fn record_batch_get_stats(&self, counts: BatchGetCounts) {
+        let BatchGetCounts {
+            not_found,
+            deleted,
+            result_size: _,
+            hits_small,
+            hits_blob,
             range_misses,
             quick_filter_misses,
             sst_misses,
-            hits: _,
-        } = result;
-        if range_misses > 0 {
-            self.stats
-                .miss_range
-                .fetch_add(range_misses as u64, Ordering::Relaxed);
-        }
-        if quick_filter_misses > 0 {
-            self.stats
-                .miss_amqf
-                .fetch_add(quick_filter_misses as u64, Ordering::Relaxed);
-        }
-        if sst_misses > 0 {
-            self.stats
-                .miss_key
-                .fetch_add(sst_misses as u64, Ordering::Relaxed);
+        } = counts;
+        for (stat, count) in [
+            (&self.stats.hits_deleted, deleted),
+            (&self.stats.hits_small, hits_small),
+            (&self.stats.hits_blob, hits_blob),
+            (&self.stats.miss_global, not_found),
+            (&self.stats.miss_range, range_misses),
+            (&self.stats.miss_amqf, quick_filter_misses),
+            (&self.stats.miss_key, sst_misses),
+        ] {
+            if count > 0 {
+                stat.fetch_add(count as u64, Ordering::Relaxed);
+            }
         }
     }
 
@@ -2881,6 +2912,7 @@ mod batch_get_chunks_tests {
                 not_found,
                 deleted,
                 result_size,
+                ..
             } = chunk.counts;
             assert_eq!((not_found, deleted, result_size), (0, 0, 0));
             for &(hash, _) in chunk.cells {

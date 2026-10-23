@@ -2,11 +2,6 @@ use std::cell::UnsafeCell;
 
 /// A mutably borrowed slice whose elements can be written from multiple threads, as long as each
 /// element is written at most once while the slice is shared.
-///
-/// Distinct elements are distinct memory locations, so writes from different threads to different
-/// elements never race or tear, even when `T` is a single byte. This is the same guarantee that
-/// makes sending the halves of `split_at_mut` to different threads sound. The elements are wrapped
-/// in [`UnsafeCell`] because they are mutated through a shared reference.
 pub(crate) struct ConcurrentSlice<'l, T> {
     data: &'l [UnsafeCell<T>],
 }
@@ -14,7 +9,9 @@ pub(crate) struct ConcurrentSlice<'l, T> {
 // SAFETY: Through a shared `ConcurrentSlice`, other threads move `T` values into the slice and drop
 // the values they replace, which requires `T: Send`. It never hands out references to elements, so
 // it doesn't require `T: Sync`. Callers of `write` guarantee that no element is accessed by two
-// threads.
+// threads. Distinct elements are distinct memory locations, so writes from different threads to
+// different elements never race or tear, even when `T` is a single byte. This is the same
+// guarantee that makes sending the halves of `split_at_mut` to different threads sound.
 unsafe impl<T: Send> Send for ConcurrentSlice<'_, T> {}
 // SAFETY: See above.
 unsafe impl<T: Send> Sync for ConcurrentSlice<'_, T> {}
