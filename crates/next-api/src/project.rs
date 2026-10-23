@@ -2536,7 +2536,7 @@ impl Project {
     }
 
     /// The source compiled into the instrumentation slot. A project file wins, including one
-    /// in a parent directory. Otherwise the first `instrumentationInject` specifier is
+    /// in a parent directory. Otherwise the first `injectInstrumentation` specifier is
     /// re-exported from the project so the bundler resolves it there. `entrypoints` and
     /// `instrumentation_endpoint` both read this.
     #[turbo_tasks::function]
@@ -2545,7 +2545,7 @@ impl Project {
             let source = Vc::upcast::<Box<dyn Source>>(FileSource::new(fs_path.clone()));
             return Ok(Vc::cell(Some(source.to_resolved().await?)));
         }
-        let inject = self.next_config().instrumentation_inject().await?;
+        let inject = self.next_config().inject_instrumentation().await?;
         if inject.is_empty() {
             return Ok(Vc::cell(None));
         }

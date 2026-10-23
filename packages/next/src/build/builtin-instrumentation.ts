@@ -47,7 +47,7 @@ export function decideInstrumentationInject(facts: {
 }
 
 /**
- * Resolves `instrumentationInject` when it should fill the slot.
+ * Resolves `injectInstrumentation` when it should fill the slot.
  *
  * Throws when the specifier does not resolve from the project. The caller
  * (the adapter) owns making that module resolvable. This does not look for
@@ -59,12 +59,12 @@ export async function resolveInstrumentationInject(opts: {
   readonly pagesDir: string | undefined
   readonly config: Pick<
     NextConfigComplete,
-    'instrumentationInject' | 'pageExtensions' | 'outputFileTracingRoot'
+    'injectInstrumentation' | 'pageExtensions' | 'outputFileTracingRoot'
   >
   readonly bundler: Bundler
   readonly dev: boolean
 }): Promise<InstrumentationInject | undefined> {
-  const specifier = opts.config.instrumentationInject?.[0]
+  const specifier = opts.config.injectInstrumentation?.[0]
   const projectFile = specifier
     ? await findProjectInstrumentationFile(
         opts.dir,
@@ -93,7 +93,7 @@ export async function resolveInstrumentationInject(opts: {
   if (decision.kind === 'blocked') {
     const blocking = path.relative(opts.dir, decision.projectFile)
     Log.warnOnce(
-      `\`instrumentationInject\` is not used because ${blocking} exists, but ${bundlerName(opts.bundler)} will not compile it. ` +
+      `\`injectInstrumentation\` is not used because ${blocking} exists, but ${bundlerName(opts.bundler)} will not compile it. ` +
         `That file replaces the injected instrumentation.`
     )
     return undefined
@@ -107,7 +107,7 @@ export async function resolveInstrumentationInject(opts: {
     file = require.resolve(specifier, { paths: [opts.dir] })
   } catch {
     throw new Error(
-      `\`instrumentationInject\` entry ${JSON.stringify(specifier)} does not resolve from the project.\n` +
+      `\`injectInstrumentation\` entry ${JSON.stringify(specifier)} does not resolve from the project.\n` +
         'The module must be resolvable from the project root. Next.js does not install it.'
     )
   }

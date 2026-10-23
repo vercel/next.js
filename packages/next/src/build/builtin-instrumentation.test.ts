@@ -52,7 +52,7 @@ describe('resolveInstrumentationInject', () => {
       appDir: join(root, 'app'),
       pagesDir: undefined,
       config: {
-        instrumentationInject: [inject],
+        injectInstrumentation: [inject],
         pageExtensions: ['ts', 'js'],
         outputFileTracingRoot: root,
       },
@@ -78,7 +78,7 @@ describe('resolveInstrumentationInject', () => {
       appDir: join(app, 'app'),
       pagesDir: undefined,
       config: {
-        instrumentationInject: [inject],
+        injectInstrumentation: [inject],
         pageExtensions: ['ts', 'js'],
         outputFileTracingRoot: repo,
       },
@@ -103,7 +103,7 @@ describe('resolveInstrumentationInject', () => {
       appDir: join(repo, 'app'),
       pagesDir: undefined,
       config: {
-        instrumentationInject: [inject],
+        injectInstrumentation: [inject],
         pageExtensions: ['ts', 'js'],
         outputFileTracingRoot: repo,
       },
@@ -120,7 +120,7 @@ describe('resolveInstrumentationInject', () => {
         appDir: undefined,
         pagesDir: undefined,
         config: {
-          instrumentationInject: ['./missing-inject.js'],
+          injectInstrumentation: ['./missing-inject.js'],
           pageExtensions: ['js'],
           outputFileTracingRoot: root,
         },

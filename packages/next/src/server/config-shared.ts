@@ -47,7 +47,6 @@ export type NextConfigComplete = Required<
     | 'modularizeImports'
     | 'allowedDevOrigins'
     | 'adapterPath'
-    | 'tracing'
   >
 > &
   // Don't apply `Required<>` for these properties. They really can be undefined in the finalized config.
@@ -60,7 +59,6 @@ export type NextConfigComplete = Required<
     | 'modularizeImports'
     | 'allowedDevOrigins'
     | 'adapterPath'
-    | 'tracing'
   > & {
     images: Required<ImageConfigComplete>
     typescript: TypeScriptConfig
@@ -1925,22 +1923,14 @@ export interface NextConfig {
   instrumentationClientInject?: string[]
 
   /**
-   * Module specifiers compiled into the server `instrumentation` slot when the
-   * project has no `instrumentation` file. A project file replaces these
+   * Paths or specifiers compiled into the server `instrumentation` slot when
+   * the project has no `instrumentation` file. A project file replaces these
    * entirely. The first entry is the instrumentation module. Later entries are
    * imported for side effects only.
    *
    * Set by a deployment adapter. Next.js does not install the module.
    */
-  instrumentationInject?: string[]
-
-  /**
-   * Signal for a deployment platform that this app wants tracing on. Omitted
-   * and `false` stay distinct. This does not install instrumentation and does
-   * not import `@vercel/otel`. The adapter supplies that module through
-   * `instrumentationInject`. Do not add this key to `defaultConfig`.
-   */
-  tracing?: boolean
+  injectInstrumentation?: string[]
 
   /** @see [Compression documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/compress) */
   compress?: boolean
@@ -2571,7 +2561,6 @@ export interface NextConfigRuntime {
   useFileSystemPublicRoutes: NextConfigComplete['useFileSystemPublicRoutes']
   logging?: NextConfigComplete['logging']
   adapterPath?: NextConfigComplete['adapterPath']
-  tracing?: NextConfigComplete['tracing']
   staticPageGenerationTimeout: NextConfigComplete['staticPageGenerationTimeout']
 
   experimental: Pick<
@@ -2732,7 +2721,6 @@ export function getNextConfigRuntime(
     // The full adapterPath might be non-deterministic across builds and doesn't
     // actually matter at runtime, so replace it with a placeholder if it's set.
     adapterPath: config.adapterPath ? '<omitted but set>' : undefined,
-    tracing: config.tracing,
     cacheMaxMemorySize: config.cacheMaxMemorySize,
     compress: config.compress,
     i18n: config.i18n,

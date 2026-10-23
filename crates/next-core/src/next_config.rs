@@ -110,9 +110,7 @@ pub struct NextConfig {
     instrumentation_client_inject: Option<Vec<RcStr>>,
     /// Server instrumentation module specifiers. Used only when the project has
     /// no instrumentation file. Next.js does not install the module.
-    instrumentation_inject: Option<Vec<RcStr>>,
-    /// Platform signal. Does not select the instrumentation module.
-    tracing: Option<bool>,
+    inject_instrumentation: Option<Vec<RcStr>>,
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
     react_production_profiling: Option<bool>,
     react_strict_mode: Option<bool>,
@@ -1695,8 +1693,8 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn instrumentation_inject(&self) -> Vc<Vec<RcStr>> {
-        Vc::cell(self.instrumentation_inject.clone().unwrap_or_default())
+    pub fn inject_instrumentation(&self) -> Vc<Vec<RcStr>> {
+        Vc::cell(self.inject_instrumentation.clone().unwrap_or_default())
     }
 
     #[turbo_tasks::function]

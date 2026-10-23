@@ -1,7 +1,7 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  instrumentationInject: ['./inject.js'],
+  injectInstrumentation: ['./inject.js'],
 }
 
 export default nextConfig

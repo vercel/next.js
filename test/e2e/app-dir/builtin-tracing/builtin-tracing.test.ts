@@ -23,7 +23,7 @@ async function probe(
 }
 
 describe('builtin-tracing', () => {
-  describe('instrumentationInject without a project file', () => {
+  describe('injectInstrumentation without a project file', () => {
     const { next, isNextStart } = nextTestSetup({
       files: fixture('inject'),
     })
