@@ -25,6 +25,18 @@ pub trait ParallelScheduler: Clone + Sync + Send {
         T: Send + Sync,
         E: Send + 'static;
 
+    /// Like [`ParallelScheduler::try_parallel_for_each_mut`], but `items` are already chunked by
+    /// the caller: every item runs as its own task, and implementations must not group items
+    /// into larger chunks.
+    fn try_parallel_for_each_task_mut<T, E>(
+        &self,
+        items: &mut [T],
+        f: impl (Fn(&mut T) -> Result<(), E>) + Send + Sync,
+    ) -> Result<(), E>
+    where
+        T: Send + Sync,
+        E: Send + 'static;
+
     fn try_parallel_for_each_owned<T, E>(
         &self,
         items: Vec<T>,
@@ -97,6 +109,21 @@ impl ParallelScheduler for SerialScheduler {
     ) -> Result<(), E>
     where
         T: Sync,
+        E: Send,
+    {
+        for item in items {
+            f(item)?;
+        }
+        Ok(())
+    }
+
+    fn try_parallel_for_each_task_mut<T, E>(
+        &self,
+        items: &mut [T],
+        f: impl (Fn(&mut T) -> Result<(), E>) + Send + Sync,
+    ) -> Result<(), E>
+    where
+        T: Send + Sync,
         E: Send,
     {
         for item in items {
