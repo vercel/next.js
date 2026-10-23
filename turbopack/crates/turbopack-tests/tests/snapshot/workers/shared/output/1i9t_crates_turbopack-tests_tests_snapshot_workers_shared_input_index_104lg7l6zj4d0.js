@@ -530,7 +530,22 @@ contextPrototype.r = commonJsRequire;
 }
 /**
  * `require.context` and require/import expression runtime.
- */ function moduleContext(map) {
+ */ function moduleContext(mapOrIds) {
+    let map;
+    if (Array.isArray(mapOrIds)) {
+        const parentModule = this.m;
+        map = {};
+        for(let i = 0; i < mapOrIds.length; i += 2){
+            const id = mapOrIds[i + 1];
+            map[mapOrIds[i]] = {
+                id: ()=>id,
+                // inlined require implementation, which gives an ignored module empty exports
+                module: ()=>id === undefined ? {} : getOrInstantiateModuleFromParent(id, parentModule).exports
+            };
+        }
+    } else {
+        map = mapOrIds;
+    }
     function moduleContext(id) {
         id = parseRequest(id);
         if (hasOwnProperty.call(map, id)) {
