@@ -676,17 +676,21 @@ export async function initialize(opts: {
           development.config.logging !== false &&
           requestStart !== undefined
         ) {
-          logRequests(
-            new NodeNextRequest(req),
-            new NodeNextResponse(res),
-            development.config.logging,
-            requestStart,
-            process.hrtime.bigint(),
-            getRequestMeta(req, 'devRequestTimingMiddlewareStart'),
-            getRequestMeta(req, 'devRequestTimingMiddlewareEnd'),
-            undefined,
-            undefined
-          )
+          try {
+            logRequests(
+              new NodeNextRequest(req),
+              new NodeNextResponse(res),
+              development.config.logging,
+              requestStart,
+              process.hrtime.bigint(),
+              getRequestMeta(req, 'devRequestTimingMiddlewareStart'),
+              getRequestMeta(req, 'devRequestTimingMiddlewareEnd'),
+              undefined, // No render-internals end for redirects.
+              undefined // No generate-params duration for redirects.
+            )
+          } catch (err) {
+            Log.error('Failed to log redirect request:', err)
+          }
         }
         return
       }

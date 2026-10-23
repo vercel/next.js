@@ -12,6 +12,11 @@ const nextConfig = {
         permanent: false,
       },
       { source: '/hello-redirect', destination: '/foo', permanent: false },
+      {
+        source: '/logging-error-redirect',
+        destination: '/foo',
+        permanent: false,
+      },
     ]
   },
   logging: {

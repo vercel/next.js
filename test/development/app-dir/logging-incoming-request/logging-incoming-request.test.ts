@@ -18,8 +18,33 @@ describe('logging-incoming-request', () => {
 
     await retry(() => {
       expect(cliOutput().split(`GET ${pathname} ${status} in `)).toHaveLength(2)
+      if (pathname === '/proxy-redirect') {
+        expect(cliOutput()).toContain('proxy.ts:')
+      }
     })
     expect(cliOutput()).not.toContain('GET /foo')
+  })
+
+  it('should preserve the redirect response when request logging throws', async () => {
+    const cliOutput = next.getCliOutputFromHere()
+    const response = await next.fetch('/logging-error-redirect', {
+      redirect: 'manual',
+    })
+
+    expect(response.status).toBe(307)
+    expect(response.headers.get('location')).toBe('/foo')
+    expect(await response.text()).toBe('/foo')
+
+    const subsequentResponse = await next.fetch('/foo')
+    expect(subsequentResponse.status).toBe(200)
+
+    await retry(() => {
+      expect(cliOutput()).toContain('Failed to log redirect request:')
+      expect(cliOutput()).toContain('Simulated request logging failure')
+      expect(cliOutput()).toContain('GET /foo 200')
+    })
+    expect(cliOutput()).not.toContain('ERR_HTTP_HEADERS_SENT')
+    expect(cliOutput()).not.toContain('ERR_STREAM_WRITE_AFTER_END')
   })
 
   it('should not log redirects matching an ignore pattern', async () => {
