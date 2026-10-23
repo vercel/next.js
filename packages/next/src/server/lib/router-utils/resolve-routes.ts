@@ -41,6 +41,7 @@ import {
 } from '../../../shared/lib/router/utils/prepare-destination'
 import type { TLSSocket } from 'tls'
 import {
+  ACTION_HEADER,
   NEXT_REWRITTEN_PATH_HEADER,
   NEXT_REWRITTEN_QUERY_HEADER,
   RSC_HEADER,
@@ -774,6 +775,16 @@ export function getResolveRoutes(
               if (isRedirectStatus) {
                 // Process as redirect: update parsedUrl and convert to relative URL
                 const rel = getRelativeURL(value, initUrl)
+                if (req.headers[ACTION_HEADER.toLowerCase()]) {
+                  resHeaders['x-action-redirect'] = `${rel};replace`
+                  delete resHeaders['location']
+                  return {
+                    parsedUrl,
+                    resHeaders,
+                    finished: true,
+                    statusCode: 200,
+                  }
+                }
                 resHeaders['location'] = rel
                 parsedUrl = parseUrl(rel)
 

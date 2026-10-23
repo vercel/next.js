@@ -16,6 +16,10 @@ export async function middleware(req) {
     )
   }
 
+  if (req.nextUrl.pathname.includes('middleware-redirect-action')) {
+    return NextResponse.redirect(new URL('/client/redirects', req.url))
+  }
+
   return NextResponse.next()
 }
 
