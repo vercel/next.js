@@ -606,7 +606,7 @@ impl<C: Comments> ServerActions<C> {
                                 }),
                             }),
                             action_id.clone(),
-                            arrow.span,
+                            PURE_SP,
                         ))),
                     }],
                     declare: Default::default(),
@@ -721,8 +721,6 @@ impl<C: Comments> ServerActions<C> {
             }
         }
 
-        let original_span = function.span;
-
         // Create the action export decl from the function
         // export const $$RSC_SERVER_ACTION_0 = async function action($$ACTION_CLOSURE_BOUND) {}
         self.hoisted_extra_items
@@ -745,7 +743,7 @@ impl<C: Comments> ServerActions<C> {
                                 }),
                             }),
                             action_id.clone(),
-                            original_span,
+                            PURE_SP,
                         ))),
                     }],
                     declare: Default::default(),
@@ -2394,7 +2392,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             self.unresolved_ctxt,
                         );
                         let mut wrapper =
-                            annotate_as_server_reference(wrapper, ref_id.clone(), ident.span);
+                            annotate_as_server_reference(wrapper, ref_id.clone(), PURE_SP);
 
                         // Only assign a name if the original ident is not a generated one.
                         if !ident.sym.starts_with("$$RSC_SERVER_") {
@@ -2470,6 +2468,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             )));
                     }
                 } else {
+                    // Registration of existing exports is a side effect, not a pure initializer.
                     self.annotations.push(Stmt::Expr(ExprStmt {
                         span: DUMMY_SP,
                         expr: Box::new(annotate_as_server_reference(
@@ -3017,6 +3016,7 @@ fn create_cache_wrapper(
     }));
 
     Expr::Call(CallExpr {
+        span: PURE_SP,
         callee: quote_ident!("$$reactCache__").as_callee(),
         args: vec![wrapper_fn_expr.as_arg()],
         ..Default::default()
@@ -3051,7 +3051,7 @@ fn create_and_hoist_cache_function(
         Some(&params),
         unresolved_ctxt,
     );
-    let mut wrapper_fn = annotate_as_server_reference(wrapper_fn, reference_id, original_span);
+    let mut wrapper_fn = annotate_as_server_reference(wrapper_fn, reference_id, PURE_SP);
     if let Some(name) = name {
         wrapper_fn = assign_name_to_expr(wrapper_fn, name, unresolved_ctxt);
     }
@@ -3123,12 +3123,13 @@ fn assign_name_to_expr(expr: Expr, name: &str, unresolved_ctxt: SyntaxContext) -
         action: Expr = expr,
         name: Expr = name.into(),
     )
+    .with_span(PURE_SP)
 }
 
-fn annotate_as_server_reference(expr: Expr, action_id: Atom, original_span: Span) -> Expr {
+fn annotate_as_server_reference(expr: Expr, action_id: Atom, span: Span) -> Expr {
     // registerServerReference(reference, id, null)
     Expr::Call(CallExpr {
-        span: original_span,
+        span,
         callee: quote_ident!("registerServerReference").as_callee(),
         args: vec![
             ExprOrSpread {

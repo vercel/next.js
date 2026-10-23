@@ -1,6 +1,6 @@
 import { registerServerReference } from "private-next-rsc-server-reference";
 /* __next_internal_action_entry_do_not_use__ {"406a88810ecce4a4e8b59d53b8327d7e98bbf251d7":{"name":"$$RSC_SERVER_ACTION_0"}} */ const noop = (action)=>action;
-export const $$RSC_SERVER_ACTION_0 = registerServerReference(async function(data) {
+export const $$RSC_SERVER_ACTION_0 = /*#__PURE__*/ registerServerReference(async function(data) {
     console.log(data);
 }, "406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null);
 // TODO: should use `log` as function name?

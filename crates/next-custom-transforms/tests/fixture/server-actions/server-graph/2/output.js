@@ -1,13 +1,13 @@
 import { registerServerReference } from "private-next-rsc-server-reference";
 /* __next_internal_action_entry_do_not_use__ {"0090b5db271335765a4b0eab01f044b381b5ebd5cd":{"name":"$$RSC_SERVER_ACTION_1"},"706a88810ecce4a4e8b59d53b8327d7e98bbf251d7":{"name":"$$RSC_SERVER_ACTION_0"}} */ import { validator } from 'auth';
 import { Button } from 'components';
-export const $$RSC_SERVER_ACTION_0 = registerServerReference(async function myAction(a, b, c) {
+export const $$RSC_SERVER_ACTION_0 = /*#__PURE__*/ registerServerReference(async function myAction(a, b, c) {
     console.log('a');
 }, "706a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null);
 var myAction = $$RSC_SERVER_ACTION_0;
 export default function Page() {
     return <Button action={myAction}>Delete</Button>;
 }
-export const $$RSC_SERVER_ACTION_1 = registerServerReference(async function() {}, "0090b5db271335765a4b0eab01f044b381b5ebd5cd", null);
+export const $$RSC_SERVER_ACTION_1 = /*#__PURE__*/ registerServerReference(async function() {}, "0090b5db271335765a4b0eab01f044b381b5ebd5cd", null);
 // TODO: should use `action` as function name?
 export const action = validator($$RSC_SERVER_ACTION_1);
