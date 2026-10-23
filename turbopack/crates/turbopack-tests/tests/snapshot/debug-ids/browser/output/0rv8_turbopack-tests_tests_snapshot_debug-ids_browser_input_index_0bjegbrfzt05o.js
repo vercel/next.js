@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="bdf2a5bb-33ac-1b9f-2ecf-28033b73cc7f")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="4ff4af83-4c36-49f6-a8dc-95a30d101c7a")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -756,15 +756,15 @@ function wrapDeps(deps) {
 }
 function asyncModule(body, hasAwait) {
     const module = this.m;
-    const queue = hasAwait ? Object.assign([], {
+    const queue = Object.assign([], {
         status: -1
-    }) : undefined;
+    });
     const depQueues = new Set();
     const { resolve, reject, promise: rawPromise } = createPromise();
     const promise = Object.assign(rawPromise, {
         [turbopackExports]: module.exports,
         [turbopackQueues]: (fn)=>{
-            queue && fn(queue);
+            fn(queue);
             depQueues.forEach(fn);
             promise['catch'](()=>{});
         }
@@ -789,7 +789,10 @@ function asyncModule(body, hasAwait) {
                 return d[turbopackExports];
             });
         const { promise, resolve } = createPromise();
-        const fn = Object.assign(()=>resolve(getResult), {
+        const fn = Object.assign(()=>{
+            queue.status = 0;
+            resolve(getResult);
+        }, {
             queueCount: 0
         });
         function fnQueue(q) {
@@ -813,7 +816,7 @@ function asyncModule(body, hasAwait) {
         resolveQueue(queue);
     }
     body(handleAsyncDependencies, asyncResult);
-    if (queue && queue.status === -1) {
+    if (hasAwait && queue.status === -1) {
         queue.status = 0;
     }
 }
@@ -2659,5 +2662,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=bdf2a5bb-33ac-1b9f-2ecf-28033b73cc7f
+//# debugId=4ff4af83-4c36-49f6-a8dc-95a30d101c7a
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map
