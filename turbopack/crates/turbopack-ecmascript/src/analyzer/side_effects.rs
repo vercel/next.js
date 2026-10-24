@@ -75,6 +75,9 @@ macro_rules! check_side_effects {
 /// 2. Don't perform I/O
 /// 3. Are deterministic (given the same inputs, produce the same outputs)
 ///
+/// Callback-taking built-ins are only pure when their callbacks are pure; callback
+/// invocation is checked separately from argument evaluation.
+///
 /// Note: Some of these can throw exceptions, but for tree-shaking purposes,
 /// we consider them pure as they don't have observable side effects beyond exceptions.
 static KNOWN_PURE_FUNCTIONS: phf::Map<&'static str, phf::Set<&'static str>> = phf_map! {
@@ -128,7 +131,8 @@ static KNOWN_PURE_GLOBAL_FUNCTIONS: phf::Set<&'static str> = phf_set! {
 /// Known pure constructors.
 ///
 /// These constructors create new objects without side effects (no global state modification).
-/// They are safe to eliminate if their result is unused.
+/// They are safe to eliminate if their result is unused and any invoked callbacks
+/// (such as a Promise executor) are pure.
 static KNOWN_PURE_CONSTRUCTORS: phf::Set<&'static str> = phf_set! {
     // Built-in collections
     "Set",
@@ -538,6 +542,8 @@ struct SideEffectVisitor<'a> {
     safe_assignment_constant_ids: HashSet<Id>,
     has_side_effects: bool,
     will_invoke_fn_exprs: bool,
+    /// Keep callback analysis unchanged inside spread-bearing argument lists.
+    skip_opaque_callbacks: bool,
     has_imports: bool,
 }
 
@@ -557,6 +563,7 @@ impl<'a> SideEffectVisitor<'a> {
             safe_assignment_constant_ids,
             has_side_effects: false,
             will_invoke_fn_exprs: false,
+            skip_opaque_callbacks: false,
             has_imports: false,
         }
     }
@@ -752,6 +759,54 @@ impl<'a> SideEffectVisitor<'a> {
             }
             _ => false,
         }
+    }
+
+    /// Callback positions for the built-ins recognized above. Other arguments are data,
+    /// not callbacks. Only use this after establishing that the callee is a known built-in.
+    fn builtin_callback_index(&self, callee: &Expr) -> Option<usize> {
+        let Expr::Member(member) = callee else {
+            return None;
+        };
+        let MemberProp::Ident(method) = &member.prop else {
+            return None;
+        };
+        match (unparen(&member.obj), method.sym.as_ref()) {
+            (Expr::Ident(obj), "from") if is_global(obj, "Array", self.unresolved_mark) => Some(1),
+            (
+                Expr::Array(_),
+                "map" | "filter" | "reduce" | "reduceRight" | "find" | "findIndex" | "findLast"
+                | "findLastIndex" | "some" | "every" | "flatMap",
+            ) => Some(0),
+            (Expr::Array(_), "toSorted") => Some(0),
+            (Expr::Lit(Lit::Str(_)), "replace" | "replaceAll") => Some(1),
+            _ => None,
+        }
+    }
+
+    /// Reading an opaque callback value is pure, but invoking it may not be.
+    /// Inline functions and other argument expressions retain their existing analysis.
+    fn has_opaque_callback(&self, args: &[ExprOrSpread], index: usize) -> bool {
+        if self.skip_opaque_callbacks || args.iter().any(|arg| arg.spread.is_some()) {
+            return false;
+        }
+        let Some(arg) = args.get(index) else {
+            return false;
+        };
+        match unparen(&arg.expr) {
+            Expr::Fn(_) | Expr::Arrow(_) | Expr::Lit(_) | Expr::Tpl(_) => false,
+            Expr::Ident(ident) if is_global(ident, "undefined", self.unresolved_mark) => false,
+            _ => true,
+        }
+    }
+
+    fn visit_builtin_args(&mut self, args: &[ExprOrSpread], is_pure_annotated: bool) {
+        let old_skip = self.skip_opaque_callbacks;
+        // Do not change analysis of spread-bearing calls or their argument subtrees.
+        self.skip_opaque_callbacks |= args.iter().any(|arg| arg.spread.is_some());
+        self.with_will_invoke_fn_exprs(!is_pure_annotated, |this| {
+            args.visit_children_with(this);
+        });
+        self.skip_opaque_callbacks = old_skip;
     }
 
     /// Check if an expression is a known pure constructor.
@@ -1027,12 +1082,14 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                     // Check the receiver
                     call.callee.visit_with(self);
 
-                    // Check all arguments
-                    // Known builtins may invoke callbacks, but a PURE annotation covers
-                    // those effects too. Argument evaluation must still be checked.
-                    self.with_will_invoke_fn_exprs(!is_pure_annotated, |this| {
-                        call.args.visit_children_with(this);
-                    });
+                    self.visit_builtin_args(&call.args, is_pure_annotated);
+                    if !is_pure_annotated
+                        && let Callee::Expr(callee) = &call.callee
+                        && let Some(index) = self.builtin_callback_index(callee)
+                        && self.has_opaque_callback(&call.args, index)
+                    {
+                        self.mark_side_effect();
+                    }
                 } else if self.is_require_or_import(&call.callee) {
                     self.has_imports = true;
                     // It would be weird to have a side effect in a require(...) statement, but not
@@ -1051,9 +1108,14 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                 if is_pure_annotated || self.is_known_pure_constructor(&new.callee) {
                     // The annotation only covers invocation, not callee or argument evaluation.
                     new.callee.visit_with(self);
-                    self.with_will_invoke_fn_exprs(!is_pure_annotated, |this| {
-                        new.args.visit_children_with(this);
-                    });
+                    let args = new.args.as_deref().unwrap_or_default();
+                    self.visit_builtin_args(args, is_pure_annotated);
+                    if !is_pure_annotated
+                        && matches!(&*new.callee, Expr::Ident(ident) if is_global(ident, "Promise", self.unresolved_mark))
+                        && self.has_opaque_callback(args, 0)
+                    {
+                        self.mark_side_effect();
+                    }
                 } else {
                     // Unknown constructor calls are considered to have side effects
                     self.mark_side_effect();
@@ -1500,6 +1562,158 @@ mod tests {
             test_pure_callee_call,
             "/*#__PURE__*/ new (/*#__PURE__*/ getConstructor())();"
         );
+    }
+
+    mod unknown_callback_tests {
+        use super::*;
+
+        side_effects!(
+            test_promise_executor_identifier,
+            "const executor = () => console.log('effect'); new Promise(executor);"
+        );
+        side_effects!(
+            test_promise_executor_member,
+            "new Promise(callbacks.executor);"
+        );
+        side_effects!(test_array_callback_identifier, "[1].map(callback);");
+        side_effects!(test_array_callback_member, "[1].filter(callbacks.filter);");
+        side_effects!(
+            test_array_callback_conditional,
+            "[1].map(flag ? first : second);"
+        );
+        side_effects!(test_array_from_mapper, "Array.from([1], callback);");
+        side_effects!(test_array_comparator, "[2, 1].toSorted(compare);");
+        side_effects!(test_string_replacer, "'hello'.replace('h', replacer);");
+        side_effects!(
+            test_string_replace_all_replacer,
+            "'hello'.replaceAll('l', replacer);"
+        );
+        side_effects!(
+            test_shadowed_optional_undefined,
+            "export {}; const undefined = callback; [1].toSorted(undefined);"
+        );
+        side_effects!(
+            test_shadowed_array,
+            "const Array = custom; Array.from([1], () => 1);"
+        );
+        side_effects!(
+            test_shadowed_promise,
+            "const Promise = custom; new Promise(() => {});"
+        );
+        side_effects!(
+            test_callback_parameter_default,
+            "[1].map((x = effect()) => x);"
+        );
+        side_effects!(
+            test_callback_destructuring_default,
+            "[1].map(({x = effect()}) => x);"
+        );
+        no_side_effects!(test_inline_callback, "[1].map(x => x + 1);");
+        no_side_effects!(test_inline_executor, "new Promise(() => {});");
+        no_side_effects!(test_non_callback_identifier, "Array.of(value);");
+        no_side_effects!(test_missing_callback, "[1].map();");
+        no_side_effects!(test_non_callable_callback, "[1].map(null);");
+        no_side_effects!(test_undefined_callback, "[1].map(undefined);");
+        no_side_effects!(test_missing_optional_mapper, "Array.from([1]);");
+        no_side_effects!(test_missing_comparator, "[2, 1].toSorted();");
+        no_side_effects!(test_undefined_comparator, "[2, 1].toSorted(undefined);");
+        no_side_effects!(test_undefined_mapper, "Array.from([1], undefined);");
+        no_side_effects!(test_string_literal_replacer, "'hello'.replace('h', 'H');");
+        no_side_effects!(
+            test_string_template_replacer,
+            "'hello'.replace('h', `${value}`);"
+        );
+        no_side_effects!(
+            test_pure_unknown_callback,
+            "/*#__PURE__*/ [1].map(callback);"
+        );
+        no_side_effects!(
+            test_pure_unknown_executor,
+            "/*#__PURE__*/ new Promise(executor);"
+        );
+
+        #[test]
+        fn test_nested_inline_callbacks() {
+            // Each callback body should be analyzed once, not twice at every nesting level.
+            let mut code = "1".to_string();
+            for _ in 0..32 {
+                code = format!("[1].map(() => ({code}))");
+            }
+            parse_and_check_for_side_effects(&code, ModuleSideEffects::SideEffectFree);
+        }
+
+        #[test]
+        fn test_all_array_callback_methods() {
+            for method in [
+                "map",
+                "filter",
+                "reduce",
+                "reduceRight",
+                "find",
+                "findIndex",
+                "findLast",
+                "findLastIndex",
+                "some",
+                "every",
+                "flatMap",
+            ] {
+                parse_and_check_for_side_effects(
+                    &format!("[1].{method}(callback);"),
+                    ModuleSideEffects::SideEffectful,
+                );
+            }
+        }
+
+        #[test]
+        fn test_non_callable_string_replacers() {
+            for replacer in ["1", "true", "null", "1n", "/x/", "undefined"] {
+                parse_and_check_for_side_effects(
+                    &format!("'hello'.replace('h', {replacer});"),
+                    ModuleSideEffects::SideEffectFree,
+                );
+            }
+        }
+    }
+
+    mod spread_preservation_tests {
+        use super::*;
+
+        #[test]
+        fn test_spread_calls_keep_existing_pure_classification() {
+            for code in [
+                "[1].map(...callbacks);",
+                "[1].map(callback, ...args);",
+                "Array.from(...args, () => 1);",
+                "[1].toSorted(...callbacks);",
+                "new Promise(...executors);",
+                "/*#__PURE__*/ [1].map(...callbacks);",
+                "Array.of(...values);",
+                "Array.of(...[() => [1].map(callback)]);",
+                "Array.of(...Array.from([1], callback));",
+                "/*#__PURE__*/ new C(...values);",
+                "/*#__PURE__*/ Array.of(...[() => effect()]);",
+                "Array.of(...[() => () => effect()]);",
+                "Array.of(...[/*#__PURE__*/ inner(() => effect())]);",
+            ] {
+                parse_and_check_for_side_effects(code, ModuleSideEffects::SideEffectFree);
+            }
+        }
+
+        #[test]
+        fn test_spread_calls_keep_existing_effectful_classification() {
+            for code in [
+                "[1].map(...getCallbacks());",
+                "new Promise(...getExecutors());",
+                "Array.of(...[() => effect()]);",
+                "new Array(...[() => effect()]);",
+                "Array.of(...Array.of(() => effect()));",
+                "Array.of(...[() => Array.of(() => effect())]);",
+                "/*#__PURE__*/ Array.of(...Array.of(() => effect()));",
+                "/*#__PURE__*/ new C(...Array.of(() => effect()));",
+            ] {
+                parse_and_check_for_side_effects(code, ModuleSideEffects::SideEffectful);
+            }
+        }
     }
 
     mod basic_tests {
