@@ -35,6 +35,19 @@ type FileSystemCacheContext = Omit<
   serverDistDir: string
 }
 
+/**
+ * Returns the last modified time of a response cache entry read from disk.
+ * Reproducible build tools (Bazel rules_js, OCI layer builders) normalize file
+ * mtimes to the Unix epoch. The incremental cache treats a lastModified of 0
+ * as unknown and substitutes the current time, so such an entry would never
+ * become stale. Treat an epoch mtime as the time this server started instead,
+ * so the entry is revalidated once its revalidate period has passed.
+ */
+function getResponseLastModified(mtime: Date): number {
+  const lastModified = mtime.getTime()
+  return lastModified === 0 ? performance.timeOrigin : lastModified
+}
+
 export default class FileSystemCache implements CacheHandler {
   private fs: FileSystemCacheContext['fs']
   private flushToDisk?: FileSystemCacheContext['flushToDisk']
@@ -225,7 +238,8 @@ export default class FileSystemCache implements CacheHandler {
           )
 
           data = {
-            lastModified: meta.routeCacheLastModified ?? mtime.getTime(),
+            lastModified:
+              meta.routeCacheLastModified ?? getResponseLastModified(mtime),
             value: {
               kind: CachedRouteKind.APP_ROUTE,
               body: fileData,
@@ -332,7 +346,8 @@ export default class FileSystemCache implements CacheHandler {
             }
 
             data = {
-              lastModified: meta.routeCacheLastModified ?? mtime.getTime(),
+              lastModified:
+                meta.routeCacheLastModified ?? getResponseLastModified(mtime),
               value: {
                 kind: CachedRouteKind.APP_PAGE,
                 html: fileData,
@@ -366,7 +381,8 @@ export default class FileSystemCache implements CacheHandler {
             }
 
             data = {
-              lastModified: meta.routeCacheLastModified ?? mtime.getTime(),
+              lastModified:
+                meta.routeCacheLastModified ?? getResponseLastModified(mtime),
               value: {
                 kind: CachedRouteKind.PAGES,
                 html: fileData,

@@ -262,6 +262,24 @@ describe('FileSystemCache route-scoped build seeds', () => {
     ).not.toHaveProperty('routeCacheLastModified')
   })
 
+  it('treats an epoch seed mtime as the server start time', async () => {
+    const { key } = await writeSeed({ modified: new Date(0) })
+
+    const first = await createCache().get(key, getContext)
+    expect(first?.value).toMatchObject({ html: 'build html' })
+    expect(first?.lastModified).toBe(performance.timeOrigin)
+
+    const scopedBase = join(serverDistDir, key)
+    expect(JSON.parse(await fs.readFile(`${scopedBase}.meta`, 'utf8'))).toEqual(
+      expect.objectContaining({
+        routeCacheLastModified: performance.timeOrigin,
+      })
+    )
+
+    const restarted = await createCache().get(key, getContext)
+    expect(restarted?.lastModified).toBe(performance.timeOrigin)
+  })
+
   it.each([
     ['/', '/'],
     ['/index', '/index'],
