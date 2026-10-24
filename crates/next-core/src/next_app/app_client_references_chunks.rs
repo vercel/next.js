@@ -11,7 +11,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         ModuleGraph,
-        chunk_group_info::{ChunkGroup, ChunkGroupInfo},
+        chunk_group_info::{ChunkGroup, ChunkGroupInfo, ChunkGroupKey},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
 };
@@ -80,13 +80,13 @@ struct ClientReferenceWithContext {
     server_component: Option<ResolvedVc<Box<dyn Module>>>,
 }
 
-/// Returns the graph-derived isolated merged groups (tagged `merge_tag`) that chunk `references`,
-/// with their entries as derived by the module graph.
+/// Returns the keys of the graph-derived isolated merged groups (tagged `merge_tag`) that chunk
+/// `references`. Chunking looks the groups up by key, so their entries come from the graph.
 async fn derived_isolated_merged_groups(
     chunk_group_info: Vc<ChunkGroupInfo>,
     references: &[ClientReferenceWithContext],
     merge_tag: &RcStr,
-) -> Result<SmallVec<[ChunkGroup; 1]>> {
+) -> Result<SmallVec<[ChunkGroupKey; 1]>> {
     let mut groups = FxIndexMap::default();
 
     for &ClientReferenceWithContext {
@@ -124,7 +124,7 @@ async fn derived_isolated_merged_groups(
                 found = true;
                 groups
                     .entry(group.index)
-                    .or_insert_with(|| group.chunk_group.clone());
+                    .or_insert_with(|| group.chunk_group.key());
             }
         }
         if !found {
