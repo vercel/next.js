@@ -83,11 +83,28 @@ contextPrototype.M = moduleFactories
 type ModuleContextMap = Record<ModuleId, ModuleContextEntry>
 
 /**
- * The keys of a context and their module ids, flattened: `[key, id, ...]`. Each
- * module is required by its id from the module that created the context. The id
- * is `undefined` for a module that is ignored (e.g. mapped to `false`).
+ * The keys of a context and their modules, flattened: `[key, module, ...]`. A module
+ * is given as:
+ * - its id, to be loaded according to the `ModuleContextMode` from the module that
+ *   created the context,
+ * - `undefined` when it is ignored (e.g. mapped to `false`), which gives empty
+ *   exports,
+ * - a function that returns it (or a promise of it when it is imported), for
+ *   anything else, e.g. a request that throws because it can't be resolved.
  */
-type ModuleContextIds = Array<string | ModuleId | undefined>
+type ModuleContextIds = Array<string | ModuleId | undefined | (() => any)>
+
+/**
+ * How the modules of a context given by their ids are loaded.
+ */
+const enum ModuleContextMode {
+  /** `require` the module. */
+  Require = 0,
+  /** `import()` the module, which is in the same chunk group. */
+  Import = 1,
+  /** `import()` the module through its async loader. The ids are of the loaders. */
+  AsyncLoader = 2,
+}
 
 interface ModuleContextEntry {
   id: () => ModuleId
@@ -702,27 +719,39 @@ function parseRequest(request: string): string {
 /**
  * `require.context` and require/import expression runtime.
  */
-function moduleContext(
+function moduleContextFactory(
   this: TurbopackBaseContext<Module>,
-  mapOrIds: ModuleContextMap | ModuleContextIds
+  ids: ModuleContextIds,
+  mode: ModuleContextMode = ModuleContextMode.Require
 ): ModuleContext {
-  let map: ModuleContextMap
-  if (Array.isArray(mapOrIds)) {
-    const parentModule = this.m
-    map = {}
-    for (let i = 0; i < mapOrIds.length; i += 2) {
-      const id = mapOrIds[i + 1] as ModuleId | undefined
-      map[mapOrIds[i] as string] = {
-        id: () => id as ModuleId,
+  const context = this
+  const parentModule = this.m
+  const map: ModuleContextMap = {}
+  for (let i = 0; i < ids.length; i += 2) {
+    const entry = ids[i + 1]
+    let id: () => ModuleId
+    let module: () => any
+    if (typeof entry === 'function') {
+      id = module = entry
+    } else {
+      id = () => entry as ModuleId
+      if (mode === ModuleContextMode.Require) {
         // inlined require implementation, which gives an ignored module empty exports
-        module: () =>
-          id === undefined
+        module = () =>
+          entry === undefined
             ? {}
-            : getOrInstantiateModuleFromParent(id, parentModule).exports,
+            : getOrInstantiateModuleFromParent(entry, parentModule).exports
+      } else if (entry === undefined) {
+        module = () => Promise.resolve({})
+      } else if (mode === ModuleContextMode.Import) {
+        // Like `import()`, the module is evaluated asynchronously.
+        module = () =>
+          Promise.resolve().then(() => esmImport.call(context, entry))
+      } else {
+        module = () => asyncLoader.call(context, entry)
       }
     }
-  } else {
-    map = mapOrIds
+    map[ids[i] as string] = { id, module }
   }
 
   function moduleContext(id: string): Exports {
@@ -757,7 +786,7 @@ function moduleContext(
 
   return moduleContext
 }
-contextPrototype.f = moduleContext
+contextPrototype.f = moduleContextFactory
 
 /**
  * Returns the path of a chunk defined by its data.
