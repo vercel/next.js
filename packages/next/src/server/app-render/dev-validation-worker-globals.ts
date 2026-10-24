@@ -132,7 +132,10 @@ export interface DevValidationInstallFields {
  * the main-thread snapshot plus the pool's install-time fields.
  */
 export type DevValidationWorkerMessage = DevValidationSnapshot &
-  DevValidationInstallFields
+  DevValidationInstallFields & {
+    /** Server chunks loaded by the app-page runtime during the main render. */
+    loadedServerChunks: string[]
+  }
 
 /**
  * The RSC-encoded `{ errors }` Flight chunks for the dev overlay,
