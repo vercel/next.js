@@ -47,6 +47,28 @@ type PrivateCacheEntry = {
   size: number
 }
 
+/**
+ * `streamToBuffer` is built on `Buffer.concat`, which allocates results smaller
+ * than half of `Buffer.poolSize` from Node's shared pool. Such a Buffer is a
+ * slice of a much larger slab ArrayBuffer, so storing it in a long-lived cache
+ * entry pins the whole slab while the LRU only counts `byteLength`. Copy small
+ * results into an exact-size allocation so the counted size matches the memory
+ * actually retained. Buffers that already own an exact-size backing store are
+ * returned as is, which avoids a second copy for large entries.
+ */
+function toExactSizeBuffer(buffer: Buffer): Buffer {
+  if (
+    buffer.byteOffset === 0 &&
+    buffer.buffer.byteLength === buffer.byteLength
+  ) {
+    return buffer
+  }
+
+  const exact = Buffer.allocUnsafeSlow(buffer.byteLength)
+  buffer.copy(exact)
+  return exact
+}
+
 export function createDefaultCacheHandler(maxSize: number): CacheHandler {
   // If the max size is 0, return a cache handler that doesn't cache anything,
   // this avoids an unnecessary LRUCache instance and potential memory
@@ -175,7 +197,7 @@ export function createDefaultCacheHandler(maxSize: number): CacheHandler {
           return
         }
 
-        const value = await streamToBuffer(entry.value)
+        const value = toExactSizeBuffer(await streamToBuffer(entry.value))
         const { value: _, ...entryMetadata } = entry
 
         memoryCache.set(cacheKey, {
