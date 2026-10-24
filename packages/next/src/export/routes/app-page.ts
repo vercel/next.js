@@ -62,6 +62,7 @@ export async function exportAppPage(
   fileWriter: MultiFileWriter,
   sharedContext: AppSharedContext,
   routeMatch: RouteMatch,
+  isRDCSeed: boolean,
   routeCache?: RouteCacheMetadata
 ): Promise<ExportRouteResult> {
   const afterRunner = new AfterRunner()
@@ -256,7 +257,8 @@ export async function exportAppPage(
     )
 
     let serializedRenderResumeDataCache: string | undefined
-    if (renderResumeDataCache) {
+    // Only a seed of a fallback shell sends its RDC back to the parent.
+    if (isRDCSeed && renderResumeDataCache) {
       serializedRenderResumeDataCache = await stringifyResumeDataCache(
         renderResumeDataCache,
         renderOpts.cacheComponents
