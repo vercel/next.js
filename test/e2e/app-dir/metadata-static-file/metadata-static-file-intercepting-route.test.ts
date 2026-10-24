@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 import {
   getCommonMetadataHeadTags,
   readFixtureBuffer,
@@ -44,6 +45,17 @@ describe('metadata-files-static-output-intercepting-route', () => {
     await browser.waitForCondition(
       'window.location.pathname === "/intercept-me"'
     )
+
+    // The URL is committed as soon as the intercepted page segment can render,
+    // but if the click lands while the segment prefetch is still in flight the
+    // head arrives later with the dynamic navigation response. Poll until the
+    // head has settled instead of asserting on the in-between state.
+    // Snapshot mismatches don't throw, so poll with plain matchers first.
+    await retry(async () => {
+      const { links, metas } = await getCommonMetadataHeadTags(browser)
+      expect(links).toHaveLength(4)
+      expect(metas).toHaveLength(10)
+    })
 
     expect(await getCommonMetadataHeadTags(browser)).toMatchInlineSnapshot(`
      {
