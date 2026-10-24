@@ -130,7 +130,7 @@ use crate::{
         exports::compute_ecmascript_module_exports,
     },
     side_effect_optimization::reference::EcmascriptModulePartReference,
-    swc_comments::{CowComments, ImmutableComments},
+    swc_comments::{CowComments, ImmutableComments, ReadOnlyComments},
     transform::{remove_directives, remove_shebang},
 };
 pub use crate::{
@@ -2152,7 +2152,21 @@ async fn process_parse_result(
                         ),
                     );
                 }
-                program.visit_mut_with(&mut swc_core::ecma::transforms::base::fixer::fixer(None));
+                // The fixer needs to see the comments: without them it drops the parentheses in
+                // `(/* @__PURE__ */ f())()`, which moves the PURE annotation onto the outer call
+                // when the code is printed (and re-parsed by the minifier), so the whole call
+                // would be removed as side-effect free.
+                {
+                    let parsed_comments: &ImmutableComments = match &comments {
+                        Either::Left(c) => c,
+                        Either::Right(c) => c,
+                    };
+                    let stores: [&dyn Comments; 2] = [parsed_comments, &extra_comments];
+                    let fixer_comments = ReadOnlyComments::new(&stores);
+                    program.visit_mut_with(&mut swc_core::ecma::transforms::base::fixer::fixer(
+                        Some(&fixer_comments),
+                    ));
+                }
 
                 // we need to remove any shebang before bundling as it's only valid as the first
                 // line in a js file (not in a chunk item wrapped in the runtime)
