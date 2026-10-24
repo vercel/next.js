@@ -1,0 +1,102 @@
+import path from 'path'
+import { nextTestSetup } from 'e2e-utils'
+
+const canaryPlugin = `
+module.exports = () => ({
+  postcssPlugin: 'postcss-canary',
+  Once(root, { Rule, Declaration }) {
+    root.append(
+      new Rule({ selector: '.postcss-canary' }).append(
+        new Declaration({ prop: 'color', value: 'red' })
+      )
+    )
+  },
+})
+module.exports.postcss = true
+`
+
+describe('PostCSS config as a build dependency', () => {
+  const { next, isTurbopack } = nextTestSetup({
+    files: {
+      'pages/_app.js': `
+        import '../global.css'
+
+        export default function App({ Component, pageProps }) {
+          return <Component {...pageProps} />
+        }
+      `,
+      'pages/index.js': `
+        export default function Page() {
+          return <p>hello world</p>
+        }
+      `,
+      'global.css': `.page { color: blue; }`,
+      'postcss-canary.js': canaryPlugin,
+      'postcss.config.js': `module.exports = { plugins: {} }`,
+    },
+    skipStart: true,
+  })
+
+  // Turbopack tracks the PostCSS config itself and writes CSS elsewhere.
+  if (isTurbopack) {
+    it.skip('only applies to webpack', () => {})
+    return
+  }
+
+  async function readBuiltCss() {
+    const files = await next.readFiles('.next/static/css', (file) =>
+      file.endsWith('.css')
+    )
+    return files.join('\n')
+  }
+
+  it('should rebuild CSS when only the PostCSS config changes', async () => {
+    expect((await next.build()).exitCode).toBe(0)
+    expect(await readBuiltCss()).not.toContain('.postcss-canary')
+
+    await next.patchFile(
+      'postcss.config.js',
+      `module.exports = { plugins: { [require.resolve('./postcss-canary.js')]: {} } }`
+    )
+
+    expect((await next.build()).exitCode).toBe(0)
+    expect(await readBuiltCss()).toContain('.postcss-canary')
+  })
+
+  it('should rebuild CSS when the PostCSS config is removed', async () => {
+    // Start from a cold cache that has the plugin's output in it.
+    await next.patchFile(
+      'postcss.config.js',
+      `module.exports = { plugins: { [require.resolve('./postcss-canary.js')]: {} } }`
+    )
+    await next.remove('.next/cache')
+    expect((await next.build()).exitCode).toBe(0)
+    expect(await readBuiltCss()).toContain('.postcss-canary')
+
+    await next.deleteFile('postcss.config.js')
+
+    expect((await next.build()).exitCode).toBe(0)
+    expect(await readBuiltCss()).not.toContain('.postcss-canary')
+  })
+
+  it('should rebuild CSS when a PostCSS config in package.json changes', async () => {
+    const setPackageJsonPlugins = (plugins: Record<string, object>) =>
+      next.patchFile('package.json', (content) =>
+        JSON.stringify(
+          { ...JSON.parse(content ?? '{}'), postcss: { plugins } },
+          null,
+          2
+        )
+      )
+
+    await setPackageJsonPlugins({})
+    expect((await next.build()).exitCode).toBe(0)
+    expect(await readBuiltCss()).not.toContain('.postcss-canary')
+
+    await setPackageJsonPlugins({
+      [path.join(next.testDir, 'postcss-canary.js')]: {},
+    })
+    expect((await next.build()).exitCode).toBe(0)
+    expect(await readBuiltCss()).toContain('.postcss-canary')
+  })
+})
