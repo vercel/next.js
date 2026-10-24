@@ -700,6 +700,7 @@ impl ReactServerComponentValidator {
                         "useServerInsertedHTML",
                         "ServerInsertedHTMLContext",
                         "unstable_isUnrecognizedActionError",
+                        "unstable_useRelativeHref",
                     ],
                 ),
                 (atom!("next/link").into(), vec!["useLinkStatus"]),
