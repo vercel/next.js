@@ -9622,6 +9622,7 @@ dependencies = [
  "data-encoding",
  "either",
  "erased-serde",
+ "fixedbitset",
  "indexmap 2.14.0",
  "itertools 0.10.5",
  "num-bigint",
