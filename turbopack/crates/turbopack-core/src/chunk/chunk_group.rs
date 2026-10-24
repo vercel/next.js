@@ -313,7 +313,7 @@ async fn chunk_group_content_operation(
     let chunk_group_info = module_graph.chunk_group_info();
     let chunk_group_indices = chunk_groups
         .iter()
-        .map(async |chunk_group| Ok(*chunk_group_info.get_index_of(chunk_group.key()).await?))
+        .map(async |chunk_group| chunk_group_info.get_index_of(chunk_group.key()).await)
         .try_join()
         .await?;
     let chunk_group_info = chunk_group_info.await?;
