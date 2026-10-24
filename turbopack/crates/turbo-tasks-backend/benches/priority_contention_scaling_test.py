@@ -201,11 +201,18 @@ class CsvTest(unittest.TestCase):
 
 
 # A fake bench executable: writes estimates for all variants into $CRITERION_HOME, or fails
-# with exit code 3 when it may run on more CPUs than $FAKE_MAX_CPUS.
+# with exit code 3 when it may use more CPUs (or workers, when the env vars set them) than
+# $FAKE_MAX_CPUS.
 FAKE_BENCH = f"""#!{sys.executable}
 import json, os, pathlib, sys
 assert sys.argv[1:] == ["--bench", "priority_contention", "--noplot"], sys.argv
-if len(os.sched_getaffinity(0)) > int(os.environ["FAKE_MAX_CPUS"]):
+workers = [os.environ.get(name) for name in {scaling.OVERRIDE_ENV_VARS!r}]
+if workers[0] is not None:
+    assert workers[0] == workers[1], workers
+    count = int(workers[0])
+else:
+    count = len(os.sched_getaffinity(0))
+if count > int(os.environ["FAKE_MAX_CPUS"]):
     sys.exit(3)
 root = pathlib.Path(os.environ["CRITERION_HOME"]) / {scaling.GROUP!r}
 for variant in {VARIANTS!r}:
@@ -219,7 +226,10 @@ for variant in {VARIANTS!r}:
 """
 
 
-@unittest.skipUnless(hasattr(os, "sched_getaffinity"), "needs Linux")
+def available_cpus() -> int:
+    return len(os.sched_getaffinity(0)) if scaling.can_pin_cpus() else os.cpu_count() or 1
+
+
 class MainTest(unittest.TestCase):
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
@@ -248,7 +258,7 @@ class MainTest(unittest.TestCase):
         self.assertFalse((self.tmp / "o.csv").exists())
 
     def test_rows_of_completed_runs_survive_a_failure(self):
-        if len(os.sched_getaffinity(0)) < 2:
+        if available_cpus() < 2:
             self.skipTest("needs 2 CPUs")
         output = self.tmp / "o.csv"
         with self.assertRaises(scaling.ScalingError):
@@ -279,6 +289,16 @@ class MainTest(unittest.TestCase):
         with self.assertRaises(scaling.ScalingError):
             self.run_main("--cpu-counts", "1", "--output", str(self.tmp / "same"),
                           "--work-dir", str(self.tmp / "same"), "--bench-binary", str(self.bench))
+
+    def test_worker_limit_without_affinity(self):
+        output = self.tmp / "o.csv"
+        with mock.patch.object(scaling, "can_pin_cpus", return_value=False):
+            with self.assertRaises(scaling.ScalingError):
+                self.run_main("--passes", "1", "--cpu-counts", "1,2", "--output", str(output),
+                              "--bench-binary", str(self.bench))
+        rows = output.read_text().splitlines()[1:]
+        self.assertEqual(len(rows), len(VARIANTS))
+        self.assertTrue(all(row.startswith("1,1,,workers,") for row in rows))
 
     def test_missing_executable(self):
         with self.assertRaises(scaling.ScalingError):
