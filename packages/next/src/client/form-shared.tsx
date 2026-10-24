@@ -52,6 +52,15 @@ export function createFormSubmitDestinationUrl(
   action: string,
   formElement: HTMLFormElement
 ) {
+  // The HTML form submission algorithm normalizes lone CR and LF characters
+  // to CRLF pairs when constructing the submission entry list, but the
+  // `FormData` constructor does not apply that normalization. Normalize here
+  // so a hydrated `<Form>` submits the same values as a native form.
+  // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#constructing-the-entry-list
+  const normalizeNewlines = (value: string): string =>
+    value.replace(/\r\n|\r|\n/g, (newline) =>
+      newline === '\r\n' ? newline : '\r\n'
+    )
   let targetUrl: URL
   try {
     // NOTE: It might be more correct to resolve URLs relative to `document.baseURI`,
@@ -95,7 +104,10 @@ export function createFormSubmitDestinationUrl(
       value = value.name
     }
 
-    targetUrl.searchParams.append(name, value)
+    targetUrl.searchParams.append(
+      normalizeNewlines(name),
+      normalizeNewlines(value)
+    )
   }
   return targetUrl
 }
