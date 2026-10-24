@@ -419,6 +419,8 @@ describe('app-dir action handling', () => {
     await retry(async () => {
       expect(await browser.elementByCss('h1').text()).toBe('my-not-found')
     })
+    // The not-found page is rendered inside the root layout
+    expect(await browser.elementByCss('#navigate-server').text()).toBe('Server')
   })
 
   it('should support notFound', async () => {
