@@ -88,6 +88,7 @@ export function getLayerAssets({
       createElement('script', {
         src: fullSrc,
         async: true,
+        crossOrigin: ctx.renderOpts.crossOrigin,
         key: `script-${scriptIndex}`,
         nonce: ctx.nonce,
       })
