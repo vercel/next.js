@@ -1,3 +1,8 @@
+import {
+  createPage,
+  pagesPageToRoute,
+  type Page,
+} from '../../../../shared/lib/route-types'
 import type webpack from 'webpack'
 import type { SizeLimit } from '../../../../types'
 import type { PagesRouteModuleOptions } from '../../../../server/route-modules/pages/module'
@@ -10,7 +15,7 @@ import { normalizePagePath } from '../../../../shared/lib/page-path/normalize-pa
 import { loadEntrypoint } from '../../../load-entrypoint'
 import type { PAGE_TYPES } from '../../../../lib/page-types'
 
-export type EdgeSSRLoaderQuery = {
+export type EdgeSSRLoaderQuery<ModulePage extends string = string> = {
   absolute500Path: string
   absoluteAppPath: string
   absoluteDocumentPath: string
@@ -18,7 +23,7 @@ export type EdgeSSRLoaderQuery = {
   absolutePagePath: string
   dev: boolean
   isServerComponent: boolean
-  page: string
+  page: ModulePage
   appDirLoader?: string
   pagesType: PAGE_TYPES
   sriEnabled: boolean
@@ -44,7 +49,7 @@ function swapDistFolderWithEsmDistFolder(path: string) {
   return path.replace('next/dist/pages', 'next/dist/esm/pages')
 }
 
-function getRouteModuleOptions(page: string) {
+function getRouteModuleOptions(page: Page) {
   const options: Omit<
     PagesRouteModuleOptions,
     'userland' | 'components' | 'distDir' | 'relativeProjectDir'
@@ -52,7 +57,9 @@ function getRouteModuleOptions(page: string) {
     definition: {
       kind: RouteKind.PAGES,
       page: normalizePagePath(page),
-      pathname: page,
+      // Pages-router discovery keys also identify URL patterns. The raw module
+      // page above has its separate file encoding from normalizePagePath.
+      pathname: pagesPageToRoute(page),
       // The following aren't used in production.
       bundlePath: '',
       filename: '',
@@ -101,129 +108,130 @@ function getCacheHandlersSetup(
   }
 }
 
-const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
-  async function edgeSSRLoader(this) {
-    const {
-      page,
-      absolutePagePath,
-      absoluteAppPath,
-      absoluteDocumentPath,
-      absolute500Path,
-      absoluteErrorPath,
-      isServerComponent,
-      appDirLoader: appDirLoaderBase64,
-      pagesType,
-      cacheHandler,
-      cacheHandlers: cacheHandlersStringified,
-      preferredRegion,
-      middlewareConfig: middlewareConfigBase64,
-    } = this.getOptions()
+const edgeSSRLoader: webpack.LoaderDefinitionFunction<
+  EdgeSSRLoaderQuery<Page>
+> = async function edgeSSRLoader(this) {
+  const {
+    page,
+    absolutePagePath,
+    absoluteAppPath,
+    absoluteDocumentPath,
+    absolute500Path,
+    absoluteErrorPath,
+    isServerComponent,
+    appDirLoader: appDirLoaderBase64,
+    pagesType,
+    cacheHandler,
+    cacheHandlers: cacheHandlersStringified,
+    preferredRegion,
+    middlewareConfig: middlewareConfigBase64,
+  } = this.getOptions()
 
-    const cacheHandlersSetup = getCacheHandlersSetup(
-      cacheHandlersStringified,
-      (handlerPath) =>
-        this.utils.contextify(this.context || this.rootContext, handlerPath)
-    )
-    const incrementalCacheHandler = cacheHandler
-      ? this.utils.contextify(this.context || this.rootContext, cacheHandler)
-      : null
+  const cacheHandlersSetup = getCacheHandlersSetup(
+    cacheHandlersStringified,
+    (handlerPath) =>
+      this.utils.contextify(this.context || this.rootContext, handlerPath)
+  )
+  const incrementalCacheHandler = cacheHandler
+    ? this.utils.contextify(this.context || this.rootContext, cacheHandler)
+    : null
 
-    const middlewareConfig: ProxyConfig = JSON.parse(
-      Buffer.from(middlewareConfigBase64, 'base64').toString()
-    )
+  const middlewareConfig: ProxyConfig = JSON.parse(
+    Buffer.from(middlewareConfigBase64, 'base64').toString()
+  )
 
-    const appDirLoader = Buffer.from(
-      appDirLoaderBase64 || '',
-      'base64'
-    ).toString()
-    const isAppDir = pagesType === 'app'
+  const appDirLoader = Buffer.from(
+    appDirLoaderBase64 || '',
+    'base64'
+  ).toString()
+  const isAppDir = pagesType === 'app'
 
-    const buildInfo = getModuleBuildInfo(this._module as any)
-    buildInfo.nextEdgeSSR = {
-      isServerComponent,
-      page: page,
-      isAppDir,
-    }
-    buildInfo.route = {
-      page,
-      absolutePagePath,
-      preferredRegion,
-      middlewareConfig,
-    }
-
-    const pagePath = this.utils.contextify(
-      this.context || this.rootContext,
-      absolutePagePath
-    )
-    const appPath = absoluteAppPath
-      ? this.utils.contextify(
-          this.context || this.rootContext,
-          swapDistFolderWithEsmDistFolder(absoluteAppPath)
-        )
-      : ''
-    const errorPath = absoluteErrorPath
-      ? this.utils.contextify(
-          this.context || this.rootContext,
-          swapDistFolderWithEsmDistFolder(absoluteErrorPath)
-        )
-      : ''
-    const documentPath = absoluteDocumentPath
-      ? this.utils.contextify(
-          this.context || this.rootContext,
-          swapDistFolderWithEsmDistFolder(absoluteDocumentPath)
-        )
-      : ''
-    const userland500Path = absolute500Path
-      ? this.utils.contextify(
-          this.context || this.rootContext,
-          swapDistFolderWithEsmDistFolder(absolute500Path)
-        )
-      : null
-
-    const stringifiedPagePath = JSON.stringify(pagePath)
-
-    const pageModPath = `${appDirLoader}${stringifiedPagePath.substring(
-      1,
-      stringifiedPagePath.length - 1
-    )}${isAppDir ? `?${WEBPACK_RESOURCE_QUERIES.edgeSSREntry}` : ''}`
-
-    if (isAppDir) {
-      return await loadEntrypoint(
-        'edge-ssr-app',
-        {
-          VAR_USERLAND: pageModPath,
-          VAR_PAGE: page,
-        },
-        cacheHandlersSetup,
-        {
-          incrementalCacheHandler,
-        }
-      )
-    } else {
-      return await loadEntrypoint(
-        'edge-ssr',
-        {
-          VAR_USERLAND: pageModPath,
-          VAR_DEFINITION_PATHNAME: page,
-          VAR_MODULE_DOCUMENT: documentPath,
-          VAR_MODULE_APP: appPath,
-          VAR_MODULE_GLOBAL_ERROR: errorPath,
-        },
-        {
-          pageRouteModuleOptions: JSON.stringify(getRouteModuleOptions(page)),
-          errorRouteModuleOptions: JSON.stringify(
-            getRouteModuleOptions('/_error')
-          ),
-          user500RouteModuleOptions: JSON.stringify(
-            getRouteModuleOptions('/500')
-          ),
-          ...(cacheHandlersSetup ?? {}),
-        },
-        {
-          userland500Page: userland500Path,
-          incrementalCacheHandler,
-        }
-      )
-    }
+  const buildInfo = getModuleBuildInfo(this._module as any)
+  buildInfo.nextEdgeSSR = {
+    isServerComponent,
+    page: page,
+    isAppDir,
   }
+  buildInfo.route = {
+    page,
+    absolutePagePath,
+    preferredRegion,
+    middlewareConfig,
+  }
+
+  const pagePath = this.utils.contextify(
+    this.context || this.rootContext,
+    absolutePagePath
+  )
+  const appPath = absoluteAppPath
+    ? this.utils.contextify(
+        this.context || this.rootContext,
+        swapDistFolderWithEsmDistFolder(absoluteAppPath)
+      )
+    : ''
+  const errorPath = absoluteErrorPath
+    ? this.utils.contextify(
+        this.context || this.rootContext,
+        swapDistFolderWithEsmDistFolder(absoluteErrorPath)
+      )
+    : ''
+  const documentPath = absoluteDocumentPath
+    ? this.utils.contextify(
+        this.context || this.rootContext,
+        swapDistFolderWithEsmDistFolder(absoluteDocumentPath)
+      )
+    : ''
+  const userland500Path = absolute500Path
+    ? this.utils.contextify(
+        this.context || this.rootContext,
+        swapDistFolderWithEsmDistFolder(absolute500Path)
+      )
+    : null
+
+  const stringifiedPagePath = JSON.stringify(pagePath)
+
+  const pageModPath = `${appDirLoader}${stringifiedPagePath.substring(
+    1,
+    stringifiedPagePath.length - 1
+  )}${isAppDir ? `?${WEBPACK_RESOURCE_QUERIES.edgeSSREntry}` : ''}`
+
+  if (isAppDir) {
+    return await loadEntrypoint(
+      'edge-ssr-app',
+      {
+        VAR_USERLAND: pageModPath,
+        VAR_PAGE: page,
+      },
+      cacheHandlersSetup,
+      {
+        incrementalCacheHandler,
+      }
+    )
+  } else {
+    return await loadEntrypoint(
+      'edge-ssr',
+      {
+        VAR_USERLAND: pageModPath,
+        VAR_DEFINITION_PATHNAME: page,
+        VAR_MODULE_DOCUMENT: documentPath,
+        VAR_MODULE_APP: appPath,
+        VAR_MODULE_GLOBAL_ERROR: errorPath,
+      },
+      {
+        pageRouteModuleOptions: JSON.stringify(getRouteModuleOptions(page)),
+        errorRouteModuleOptions: JSON.stringify(
+          getRouteModuleOptions(createPage('/_error'))
+        ),
+        user500RouteModuleOptions: JSON.stringify(
+          getRouteModuleOptions(createPage('/500'))
+        ),
+        ...(cacheHandlersSetup ?? {}),
+      },
+      {
+        userland500Page: userland500Path,
+        incrementalCacheHandler,
+      }
+    )
+  }
+}
 export default edgeSSRLoader

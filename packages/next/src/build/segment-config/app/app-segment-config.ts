@@ -175,7 +175,7 @@ const AppSegmentConfigSchema = z.object({
 /**
  * Parse the app segment config.
  * @param data - The data to parse.
- * @param route - The route of the app.
+ * @param route - The normalized URL route used in configuration diagnostics.
  * @returns The parsed app segment config.
  */
 export function parseAppSegmentConfig(

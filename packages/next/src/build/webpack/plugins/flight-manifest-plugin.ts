@@ -5,6 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+import { createPage } from '../../../shared/lib/route-types'
 import path from 'path'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
@@ -601,7 +602,11 @@ export class ClientReferenceManifestPlugin {
       const json = JSON.stringify(mergedManifest)
 
       const pagePath = pageName.replace(/%5F/g, '_')
-      const pageBundlePath = normalizePagePath(pagePath.slice('app'.length))
+      // Only app/page and app/route entrypoints reach this loop. Removing
+      // the bundle namespace recovers their raw App module identifier.
+      const pageBundlePath = normalizePagePath(
+        createPage(pagePath.slice('app'.length))
+      )
       compilation.emitAsset(
         'server/app' + pageBundlePath + '_' + CLIENT_REFERENCE_MANIFEST + '.js',
         new sources.RawSource(

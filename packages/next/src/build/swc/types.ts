@@ -205,6 +205,8 @@ export interface Instrumentation {
 }
 
 export interface RawEntrypoints {
+  // Native serialization delivers primitive URL-pattern keys. Role ingestion
+  // belongs to the build converter, not the public SWC transport declaration.
   routes: Map<string, Route>
   middleware?: Middleware
   instrumentation?: Instrumentation
@@ -567,14 +569,20 @@ export type AppRoute =
       endpoint: Endpoint
     }
 
-// pathname -> route
-export type PageEntrypoints = Map<string, PageRoute>
+// Pages-router page identifiers use the same spelling as their URL pathname.
+export type PageEntrypoints<ModulePage extends string = string> = Map<
+  ModulePage,
+  PageRoute
+>
 
 // originalName / page -> route
-export type AppEntrypoints = Map<string, AppRoute>
+export type AppEntrypoints<ModulePage extends string = string> = Map<
+  ModulePage,
+  AppRoute
+>
 
-export type Entrypoints = {
+export type Entrypoints<ModulePage extends string = string> = {
   global: GlobalEntrypoints
-  page: PageEntrypoints
-  app: AppEntrypoints
+  page: PageEntrypoints<ModulePage>
+  app: AppEntrypoints<ModulePage>
 }

@@ -1,47 +1,49 @@
+import { createPage, type Page } from '../../../shared/lib/route-types'
 import type webpack from 'webpack'
 import { getModuleBuildInfo } from './get-module-build-info'
 import { stringifyRequest } from '../stringify-request'
 import type { ProxyConfig } from '../../analysis/get-page-static-info'
 
-export type EdgeFunctionLoaderOptions = {
+export type EdgeFunctionLoaderOptions<ModulePage extends string = string> = {
   absolutePagePath: string
-  page: string
+  page: ModulePage
   rootDir: string
   preferredRegion: string | string[] | undefined
   middlewareConfig: string
   cacheHandler?: string
 }
 
-const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoaderOptions> =
-  function nextEdgeFunctionLoader(this) {
-    const {
-      absolutePagePath,
-      page,
-      rootDir,
-      preferredRegion,
-      middlewareConfig: middlewareConfigBase64,
-      cacheHandler,
-    }: EdgeFunctionLoaderOptions = this.getOptions()
-    const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
-    const stringifiedCacheHandlerPath = cacheHandler
-      ? stringifyRequest(this, cacheHandler)
-      : null
-    const buildInfo = getModuleBuildInfo(this._module as any)
-    const middlewareConfig: ProxyConfig = JSON.parse(
-      Buffer.from(middlewareConfigBase64, 'base64').toString()
-    )
-    buildInfo.route = {
-      page: page || '/',
-      absolutePagePath,
-      preferredRegion,
-      middlewareConfig,
-    }
-    buildInfo.nextEdgeApiFunction = {
-      page: page || '/',
-    }
-    buildInfo.rootDir = rootDir
+const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<
+  EdgeFunctionLoaderOptions<Page>
+> = function nextEdgeFunctionLoader(this) {
+  const {
+    absolutePagePath,
+    page,
+    rootDir,
+    preferredRegion,
+    middlewareConfig: middlewareConfigBase64,
+    cacheHandler,
+  }: EdgeFunctionLoaderOptions<Page> = this.getOptions()
+  const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
+  const stringifiedCacheHandlerPath = cacheHandler
+    ? stringifyRequest(this, cacheHandler)
+    : null
+  const buildInfo = getModuleBuildInfo(this._module as any)
+  const middlewareConfig: ProxyConfig = JSON.parse(
+    Buffer.from(middlewareConfigBase64, 'base64').toString()
+  )
+  buildInfo.route = {
+    page: page || createPage('/'),
+    absolutePagePath,
+    preferredRegion,
+    middlewareConfig,
+  }
+  buildInfo.nextEdgeApiFunction = {
+    page: page || createPage('/'),
+  }
+  buildInfo.rootDir = rootDir
 
-    return `
+  return `
         import 'next/dist/esm/server/web/globals'
         import { adapter } from 'next/dist/esm/server/web/adapter'
         import { IncrementalCache } from 'next/dist/esm/server/lib/incremental-cache'
@@ -68,6 +70,6 @@ const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoade
           })
         }
     `
-  }
+}
 
 export default nextEdgeFunctionLoader

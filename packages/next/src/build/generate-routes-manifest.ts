@@ -1,3 +1,4 @@
+import type { Route } from '../shared/lib/route-types'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { CustomRoutes } from '../lib/load-custom-routes'
 import {
@@ -25,8 +26,8 @@ import { sortPages } from '../shared/lib/router/utils/sortable-routes'
 
 export interface GenerateRoutesManifestOptions {
   pageKeys: {
-    pages: string[]
-    app?: string[]
+    pages: Route[]
+    app?: Route[]
   }
   config: NextConfigComplete
   redirects: CustomRoutes['redirects']
@@ -40,9 +41,9 @@ export interface GenerateRoutesManifestOptions {
 }
 
 export interface GenerateRoutesManifestResult {
-  routesManifest: RoutesManifest
-  dynamicRoutes: Array<DynamicManifestRoute>
-  sourcePages: Map<string, string>
+  routesManifest: RoutesManifest<Route>
+  dynamicRoutes: Array<DynamicManifestRoute<Route>>
+  sourcePages: Map<Route, Route>
 }
 
 /**
@@ -67,14 +68,15 @@ export function generateRoutesManifest(
   } = options
 
   const sortedRoutes = sortPages([...pageKeys.pages, ...(pageKeys.app ?? [])])
-  const staticRoutes: Array<ManifestRoute> = []
-  const dynamicRoutes: Array<DynamicManifestRoute> = []
+  const staticRoutes: Array<ManifestRoute<Route>> = []
+  const dynamicRoutes: Array<DynamicManifestRoute<Route>> = []
 
   /**
-   * A map of all the pages to their sourcePage value. This is only used for
+   * A map of URL route patterns to their normalized source URL route pattern.
+   * This is only used for
    * routes that have PPR enabled and clientSegmentEnabled is true.
    */
-  const sourcePages = new Map<string, string>()
+  const sourcePages = new Map<Route, Route>()
 
   for (const route of sortedRoutes) {
     if (isDynamicRoute(route)) {
@@ -94,7 +96,7 @@ export function generateRoutesManifest(
     }
   }
 
-  const routesManifest: RoutesManifest = {
+  const routesManifest: RoutesManifest<Route> = {
     version: 3,
     pages404: true,
     appType,

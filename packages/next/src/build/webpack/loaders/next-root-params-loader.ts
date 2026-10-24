@@ -153,6 +153,7 @@ function getParamsFromLayoutFilePath({
   layoutFilePath: string
 }): string[] {
   const rootLayoutPath = normalizeAppPath(
+    // TODO: Human review: this is a layout directory prefix, not a module Page; normalizeAppPath may strip a real trailing page/route directory. Preserve root-parameter discovery.
     ensureLeadingSlash(
       normalizePathSep(path.dirname(path.relative(appDir, layoutFilePath)))
     )

@@ -1,3 +1,5 @@
+import type { Route } from '../../route-types'
+
 class UrlNode {
   placeholder: boolean = true
   children: Map<string, UrlNode> = new Map()
@@ -204,6 +206,10 @@ class UrlNode {
 /**
  * @deprecated Use `sortSortableRoutes` or `sortPages` instead.
  */
+export function getSortedRoutes(normalizedPages: ReadonlyArray<Route>): Route[]
+export function getSortedRoutes(
+  normalizedPages: ReadonlyArray<string>
+): string[]
 export function getSortedRoutes(
   normalizedPages: ReadonlyArray<string>
 ): string[] {

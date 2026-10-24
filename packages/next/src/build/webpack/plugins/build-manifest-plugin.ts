@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../../shared/lib/route-types'
 import type { BloomFilter } from '../../../shared/lib/bloom-filter'
 import type { CustomRoutes } from '../../../lib/load-custom-routes'
 import devalue from 'next/dist/compiled/devalue'
@@ -22,10 +23,18 @@ import {
   normalizeRewritesForBuildManifest,
   processRoute,
   srcEmptySsgManifest,
-  type ClientBuildManifest,
 } from './build-manifest-plugin-utils'
 
 type DeepMutable<T> = { -readonly [P in keyof T]: DeepMutable<T[P]> }
+
+// Keep the branded producer view local: legacy readers use ClientBuildManifest's
+// string index signature, which must not force the client migration into this slice.
+type InternalClientBuildManifest = Record<Route, string[]> & {
+  sortedPages?: Route[]
+  __rewrites: CustomRoutes['rewrites']
+  __routerFilterStatic?: unknown
+  __routerFilterDynamic?: unknown
+}
 
 function buildNodejsLowPriorityPath(filename: string, buildId: string) {
   return `${CLIENT_STATIC_FILES_PATH}/${buildId}/${filename}`
@@ -54,13 +63,16 @@ export function generateClientManifest(
   )
 
   return genClientManifestSpan?.traceFn(() => {
-    const clientManifest: ClientBuildManifest = {
-      __rewrites: normalizeRewritesForBuildManifest(rewrites) as any,
-      __routerFilterStatic: clientRouterFilters?.staticFilter as any,
-      __routerFilterDynamic: clientRouterFilters?.dynamicFilter as any,
+    const clientManifest: InternalClientBuildManifest = {
+      __rewrites: normalizeRewritesForBuildManifest(rewrites),
+      __routerFilterStatic: clientRouterFilters?.staticFilter,
+      __routerFilterDynamic: clientRouterFilters?.dynamicFilter,
     }
     const appDependencies = new Set(assetMap.pages['/_app'])
-    const sortedPageKeys = getSortedRoutes(Object.keys(assetMap.pages))
+    // This is a pages-router manifest: its page keys have URL pathname spelling.
+    const sortedPageKeys = getSortedRoutes(
+      Object.keys(assetMap.pages) as Route[]
+    )
 
     sortedPageKeys.forEach((page) => {
       const dependencies = assetMap.pages[page]
@@ -218,13 +230,11 @@ export default class BuildManifestPlugin {
         )
       }
 
-      assetMap.pages = Object.keys(assetMap.pages)
-        .sort()
-        .reduce(
-          // eslint-disable-next-line
-          (a, c) => ((a[c] = assetMap.pages[c]), a),
-          {} as typeof assetMap.pages
-        )
+      assetMap.pages = (Object.keys(assetMap.pages) as Page[]).sort().reduce(
+        // eslint-disable-next-line
+        (a, c) => ((a[c] = assetMap.pages[c]), a),
+        {} as typeof assetMap.pages
+      )
 
       let buildManifestName = BUILD_MANIFEST
 

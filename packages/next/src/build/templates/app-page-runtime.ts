@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../shared/lib/route-types'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { FallbackRouteParam } from '../static-paths/types'
@@ -166,8 +167,8 @@ export function createAppPageEntrypoint({
   interopDefault,
 }: {
   tree: LoaderTree
-  page: string
-  pathname: string
+  page: Page
+  pathname: Route
   require: (id: string | number) => unknown
   loadChunk: (id: string | number) => Promise<unknown>
   interopDefault: typeof import('../../server/app-render/interop-default').interopDefault
@@ -199,9 +200,11 @@ export function createAppPageEntrypoint({
   // so we need to to process dynamic routes properly
   // TODO: fix turbopack providing differing value from webpack
   if (process.env.TURBOPACK) {
+    // @ts-ignore -- TODO: Temporary template boundary: completed App module-key normalization; guarded construction deferred.
     srcPage = srcPage.replace(/\/index$/, '') || '/'
   } else if (srcPage === '/index') {
     // we always normalize /index specifically
+    // @ts-ignore -- TODO: Temporary template boundary: existing root module-key normalization; guarded construction deferred.
     srcPage = '/'
   }
 

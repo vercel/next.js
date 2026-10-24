@@ -112,9 +112,9 @@ export function parseAppRouteSegment(segment: string): AppRouteSegment | null {
   }
 }
 
-export type AppRoute = {
+export type AppRoute<Path extends string = string> = {
   normalized: boolean
-  pathname: string
+  pathname: Path
   segments: AppRouteSegment[]
   dynamicSegments: DynamicAppRouteSegment[]
   interceptionMarker: InterceptionMarker | undefined
@@ -122,7 +122,10 @@ export type AppRoute = {
   interceptedRoute: AppRoute | undefined
 }
 
-export type NormalizedAppRoute = Omit<AppRoute, 'normalized' | 'segments'> & {
+export type NormalizedAppRoute<Path extends string = string> = Omit<
+  AppRoute<Path>,
+  'normalized' | 'segments'
+> & {
   normalized: true
   segments: NormalizedAppRouteSegment[]
 }
@@ -181,10 +184,10 @@ const OnlyRoutableSegments = /*   */ 0b00
 const AllowParallelSegments = /*  */ 0b01
 const AllowGroupSegments = /*     */ 0b10
 
-function parseAppRouteImpl(
-  pathname: string,
+function parseAppRouteImpl<Path extends string>(
+  pathname: Path,
   allowedTypes: number
-): AppRoute | NormalizedAppRoute {
+): AppRoute<Path> | NormalizedAppRoute<Path> {
   const pathnameSegments = pathname.split('/').filter(Boolean)
 
   // Build segments array with static and dynamic segments
@@ -255,7 +258,11 @@ function parseAppRouteImpl(
  * Parse an app route that has been fully normalized (no @slot or ()
  * group segments). Throws if either is present.
  */
+export function parseNormalizedAppRoute<Path extends string>(
+  pathname: Path
+): NormalizedAppRoute<Path>
 export function parseNormalizedAppRoute(pathname: string): NormalizedAppRoute {
+  // The parser retains pathname itself; only segment metadata is normalized.
   return parseAppRouteImpl(pathname, OnlyRoutableSegments) as NormalizedAppRoute
 }
 

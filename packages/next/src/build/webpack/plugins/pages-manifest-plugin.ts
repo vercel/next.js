@@ -1,3 +1,4 @@
+import { createPage, type Page } from '../../../shared/lib/route-types'
 import path from 'path'
 import fs from 'fs/promises'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
@@ -8,12 +9,14 @@ import {
 import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 
-export type PagesManifest = { [page: string]: string }
+// Untouched manifest consumers still use string keys. The producer opts into
+// Page keys after decoding its entrypoints; values remain file paths.
+export type PagesManifest<Key extends string = string> = Record<Key, string>
 
-export let edgeServerPages = {}
-export let nodeServerPages = {}
-export let edgeServerAppPaths = {}
-export let nodeServerAppPaths = {}
+export let edgeServerPages: PagesManifest = {}
+export let nodeServerPages: PagesManifest = {}
+export let edgeServerAppPaths: PagesManifest = {}
+export let nodeServerAppPaths: PagesManifest = {}
 
 // This plugin creates a pages-manifest.json from page entrypoints.
 // This is used for mapping paths like `/` to `.next/server/static/<buildid>/pages/index.js` when doing SSR
@@ -45,18 +48,20 @@ export default class PagesManifestPlugin
 
   async createAssets(compilation: any) {
     const entrypoints = compilation.entrypoints
-    const pages: PagesManifest = {}
-    const appPaths: PagesManifest = {}
+    const pages: PagesManifest<Page> = {}
+    const appPaths: PagesManifest<Page> = {}
 
     for (const entrypoint of entrypoints.values()) {
-      const pagePath = getRouteFromEntrypoint(
+      const parsedPagePath = getRouteFromEntrypoint(
         entrypoint.name,
         this.appDirEnabled
       )
 
-      if (!pagePath) {
+      if (!parsedPagePath) {
         continue
       }
+      // Entrypoint decoding produces a raw app or logical Pages module key.
+      const pagePath = createPage(parsedPagePath)
 
       const files = entrypoint
         .getFiles()
@@ -102,7 +107,7 @@ export default class PagesManifestPlugin
     // manifest path by merging existing manifest with new
     const writeMergedManifest = async (
       manifestPath: string,
-      entries: Record<string, string>
+      entries: PagesManifest
     ) => {
       await fs.mkdir(path.dirname(manifestPath), { recursive: true })
       await fs.writeFile(
