@@ -1,5 +1,4 @@
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_1xzb8pohmqk06._.js",
-(()=>{"use strict";return[
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/emotion/emotion/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -49,7 +48,6 @@ function jsxDEV() {
     return 'purposefully empty stub for @emotion/react/jsx-dev-runtime.js';
 }
 }),
-]})(),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@emotion/styled/index.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
 "purposefully empty stub";

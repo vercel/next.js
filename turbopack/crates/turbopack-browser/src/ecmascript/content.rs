@@ -119,12 +119,7 @@ impl EcmascriptBrowserChunkContent {
             r#"(globalThis[{chunk_loading_global}] || (globalThis[{chunk_loading_global}] = [])).push([{script_or_path},"#,
             chunk_loading_global = StringifyJs(&chunk_loading_global),
         )?;
-        write_module_factories(
-            &mut code,
-            &chunk_items,
-            strict_factory_mode,
-            supports_arrow_functions,
-        )?;
+        write_module_factories(&mut code, &chunk_items)?;
         write!(code, "\n]);")?;
 
         if let Some((_, suffix)) = strict_chunk_wrapper {

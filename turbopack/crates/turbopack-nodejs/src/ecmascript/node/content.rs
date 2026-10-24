@@ -78,12 +78,7 @@ impl EcmascriptNodeChunkContent {
             code += prefix;
         }
         write!(code, "module.exports = [")?;
-        write_module_factories(
-            &mut code,
-            &chunk_items,
-            strict_factory_mode,
-            supports_arrow_functions,
-        )?;
+        write_module_factories(&mut code, &chunk_items)?;
         write!(code, "\n];")?;
         if let Some((_, suffix)) = strict_chunk_wrapper {
             code += suffix;
