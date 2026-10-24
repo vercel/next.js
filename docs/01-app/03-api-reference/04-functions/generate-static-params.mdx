@@ -54,6 +54,7 @@ export default async function Page({ params }) {
 > **Good to know**:
 >
 > - You can use the [`dynamicParams`](/docs/app/api-reference/file-conventions/route-segment-config/dynamicParams) segment config option to control what happens when a dynamic segment is visited that was not generated with `generateStaticParams`.
+> - `dynamicParams` is not available when Cache Components is enabled.
 > - A dynamic route that uses [`ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation) must return at least one params object, and every object must include all dynamic parameters for the route. See the [`generateStaticParams` error guide](/docs/messages/generate-static-params#with-ensurestatic).
 > - You must return [an empty array from `generateStaticParams`](#all-paths-at-runtime) or utilize [`export const dynamic = 'force-static'`](/docs/app/guides/caching-without-cache-components#dynamic) in order to revalidate (ISR) [paths at runtime](#all-paths-at-runtime).
 > - During `next dev`, `generateStaticParams` will be called when you navigate to a route.
@@ -310,7 +311,10 @@ export const dynamic = 'force-static'
 
 When using [Cache Components](/docs/app/getting-started/caching) with dynamic routes, `generateStaticParams` must return **at least one param**. Empty arrays cause a [build error](/docs/messages/empty-generate-static-params). This allows Cache Components to validate your route doesn't incorrectly access `cookies()`, `headers()`, or `searchParams` at runtime.
 
-> **Good to know**: If you don't know the actual param values at build time, you can return a placeholder param (e.g., `[{ slug: '__placeholder__' }]`) for validation, then handle it in your page with `notFound()`. However, this prevents build time validation from working effectively and may cause runtime errors.
+> **Good to know**:
+>
+> - If you don't know the actual param values at build time, you can return a placeholder param (e.g., `[{ slug: '__placeholder__' }]`) for validation, then handle it in your page with `notFound()`. However, this prevents build time validation from working effectively and may cause runtime errors.
+> - `dynamicParams` is not available when Cache Components is enabled. Params not returned by `generateStaticParams` render on request. To reject them, call [`notFound()`](/docs/app/api-reference/functions/not-found) in the page when the requested resource does not exist.
 
 See the [dynamic routes section](/docs/app/api-reference/file-conventions/dynamic-routes#with-cache-components) for detailed walkthroughs, or [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) for prerendering a subset of routes and serving App Shells for the rest.
 
