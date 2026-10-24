@@ -50,6 +50,10 @@ describe('server-hmr', () => {
         expect(next.cliOutput.slice(outputLengthBeforePatch)).not.toContain(
           evaluationMarker
         )
+        // No previous pull's diff may stay subscribed after the request finishes.
+        expect(next.cliOutput.slice(outputLengthBeforePatch)).not.toContain(
+          'Diffing server HMR entry lazy-rebuild/page'
+        )
 
         const response = await next.fetch('/lazy-rebuild')
         expect(await response.text()).toContain('updated')
@@ -58,6 +62,32 @@ describe('server-hmr', () => {
             evaluationMarker
           )
         })
+        expect(next.cliOutput.slice(outputLengthBeforePatch)).toContain(
+          'Diffing server HMR entry lazy-rebuild/page'
+        )
+
+        // That completed pull must not remain a reactive root. The next edit
+        // should not re-run its old-baseline diff before another request.
+        const outputLengthAfterPull = next.cliOutput.length
+        await next.patchFile('app/lazy-rebuild/probe.js', (content) =>
+          content.replace(
+            "export const value = 'updated'",
+            "export const value = 'updated-again'"
+          )
+        )
+        await retry(async () => {
+          expect(next.cliOutput.slice(outputLengthAfterPull)).toContain(
+            'Compiled in'
+          )
+        })
+        expect(next.cliOutput.slice(outputLengthAfterPull)).not.toContain(
+          'Diffing server HMR entry lazy-rebuild/page'
+        )
+        const nextResponse = await next.fetch('/lazy-rebuild')
+        expect(await nextResponse.text()).toContain('updated-again')
+        expect(next.cliOutput.slice(outputLengthAfterPull)).toContain(
+          'Diffing server HMR entry lazy-rebuild/page'
+        )
       }
     )
 
