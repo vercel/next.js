@@ -2,6 +2,7 @@ use anyhow::{Result, bail};
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use either::Either;
+use smallvec::SmallVec;
 use strsim::jaro;
 use swc_core::{
     common::{BytePos, DUMMY_SP, Span, SyntaxContext, source_map::PURE_SP},
@@ -461,6 +462,10 @@ pub struct EsmAssetReferenceOptions {
     /// Explicit export-usage passthrough mode for syntax-driven forwarding. `Some(false)` forwards
     /// used names without exposing the target namespace's original property names.
     pub export_usage_passthrough: Option<bool>,
+    /// The exports under which the importing module exposes this namespace import, when that is
+    /// its only use (`export * as ns from '...'`, or `import * as ns from '...'` that is only
+    /// re-exported). The target's exports are then used exactly like those exports' members.
+    pub namespace_reexport_exports: Option<SmallVec<[RcStr; 1]>>,
     pub resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
 }
 
@@ -484,6 +489,8 @@ struct EsmReferenceExtras {
     /// Whether the importing module's used exports should be forwarded to the target. The boolean
     /// records whether this edge itself exposes the target namespace's original property names.
     export_usage_passthrough: Option<bool>,
+    /// See [`EsmAssetReferenceOptions::namespace_reexport_exports`].
+    namespace_reexport_exports: Option<SmallVec<[RcStr; 1]>>,
     /// A module to resolve to directly, bypassing resolution (from a matched inner asset).
     resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
 }
@@ -503,6 +510,7 @@ impl EsmReferenceExtras {
     fn new(
         annotations: Option<&ImportAnnotations>,
         export_usage_passthrough: Option<bool>,
+        namespace_reexport_exports: Option<SmallVec<[RcStr; 1]>>,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
     ) -> Option<Box<Self>> {
         let extras = EsmReferenceExtras {
@@ -517,6 +525,7 @@ impl EsmReferenceExtras {
                 export_usage_passthrough,
                 annotations.is_some_and(|a| a.export_usage_passthrough()),
             ),
+            namespace_reexport_exports,
             resolve_override,
         };
         (extras != EsmReferenceExtras::default()).then(|| Box::new(extras))
@@ -563,6 +572,7 @@ impl EsmAssetReference {
             import_externals,
             module_fragments_enabled,
             export_usage_passthrough,
+            namespace_reexport_exports,
             resolve_override,
         } = options;
 
@@ -590,6 +600,7 @@ impl EsmAssetReference {
             extras: EsmReferenceExtras::new(
                 annotations.as_ref(),
                 export_usage_passthrough,
+                namespace_reexport_exports,
                 resolve_override,
             ),
         })
@@ -762,10 +773,10 @@ impl ModuleReference for EsmAssetReference {
     }
 
     fn binding_usage(&self) -> BindingUsage {
-        let export_usage_passthrough = self
-            .extras
-            .as_deref()
-            .and_then(|extras| extras.export_usage_passthrough);
+        let extras = self.extras.as_deref();
+        let export_usage_passthrough = extras.and_then(|extras| extras.export_usage_passthrough);
+        let namespace_reexport_exports =
+            extras.and_then(|extras| extras.namespace_reexport_exports.as_ref());
         BindingUsage {
             import: self.import_usage.clone(),
             export: match (&self.export_name, export_usage_passthrough) {
@@ -775,21 +786,22 @@ impl ModuleReference for EsmAssetReference {
                 (_, Some(namespace_object_may_escape)) => ExportUsage::Passthrough {
                     namespace_object_may_escape,
                 },
-                (
-                    Some(
-                        ModulePart::Export(export_name)
-                        | ModulePart::PartialExport {
-                            export: export_name,
-                            ..
-                        },
-                    ),
-                    _,
-                ) => {
-                    // Until resolution proves a partial export is a namespace, it is still an
-                    // ordinary named read of the outer module. The synthesized namespace rename
-                    // reference records the member read on the resolved target.
+                (Some(ModulePart::Export(export_name)), _) => {
                     ExportUsage::Named(export_name.clone())
                 }
+                (Some(ModulePart::PartialExport { export, members }), _) => {
+                    // Until resolution proves a partial export is a namespace, it is still an
+                    // ordinary named read of the outer module, which only reads these members of
+                    // its value. The synthesized namespace rename reference records the member
+                    // reads on the resolved target.
+                    ExportUsage::named_members(export.clone(), members.clone())
+                }
+                (None, _) => match namespace_reexport_exports {
+                    Some(exports) => ExportUsage::NamespaceReexport {
+                        exports: exports.clone(),
+                    },
+                    None => ExportUsage::All,
+                },
                 _ => ExportUsage::All,
             },
         }
