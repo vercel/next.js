@@ -21,7 +21,6 @@ use std::{
     ops::{BitAnd, BitOrAssign, Sub},
 };
 
-use roaring::RoaringBitmap;
 use shrink_to_fit::ShrinkToFit;
 
 /// Number of bits per storage block.
@@ -302,62 +301,6 @@ impl Bitset {
     pub fn is_proper_superset(&self, other: &Self) -> bool {
         let (superset, strict) = self.superset_impl::<true>(other);
         superset && strict
-    }
-
-    /// Converts the set into a [`RoaringBitmap`] with the same bits.
-    ///
-    /// This builds every roaring container (a range of 2^16 bits) directly from the stored blocks
-    /// instead of inserting each bit, and produces the same container types as inserting the bits
-    /// one by one would, so the result is equal (and serializes identically) to an inserted one.
-    pub fn to_roaring(&self) -> RoaringBitmap {
-        /// The number of blocks per roaring container.
-        const CONTAINER_BLOCKS: usize = (1 << 16) / BLOCK_BITS;
-        /// Roaring stores a container with up to this many bits as a sorted array.
-        const ROARING_ARRAY_LIMIT: u32 = 4096;
-
-        let (first_block, blocks) = self.trimmed();
-        let end = first_block + blocks.len();
-        let mut result = RoaringBitmap::new();
-        let mut bytes = Vec::new();
-        let mut index = first_block;
-        while index < end {
-            let chunk_end = ((index / CONTAINER_BLOCKS + 1) * CONTAINER_BLOCKS).min(end);
-            let chunk = &blocks[index - first_block..chunk_end - first_block];
-            let count = chunk.iter().map(|b| b.count_ones()).sum::<u32>();
-            let part = if count == 0 {
-                None
-            } else if count == ROARING_ARRAY_LIMIT {
-                // `from_lsb0_bytes` stores exactly this many bits as a bitmap, but inserting them
-                // stores them as an array, so insert them instead.
-                let bits = Iter {
-                    blocks: chunk,
-                    block_index: index,
-                    current: 0,
-                };
-                Some(
-                    RoaringBitmap::from_sorted_iter(bits)
-                        .expect("the bits of an Bitset are iterated in ascending order"),
-                )
-            } else {
-                bytes.clear();
-                bytes.extend(chunk.iter().flat_map(|block| block.to_le_bytes()));
-                // A chunk is at most one container, so the range fits into `u32`.
-                Some(RoaringBitmap::from_lsb0_bytes(
-                    (index * BLOCK_BITS) as u32,
-                    &bytes,
-                ))
-            };
-            if let Some(part) = part {
-                if result.is_empty() {
-                    result = part;
-                } else {
-                    // The parts are in different containers, so this only adds containers.
-                    result |= part;
-                }
-            }
-            index = chunk_end;
-        }
-        result
     }
 
     /// The blocks of both sets over the range of block indices stored in both, and the index of
