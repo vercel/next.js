@@ -880,6 +880,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
     fn try_begin_snapshot_panics_while_a_snapshot_waits() {
         run_with_timeout("try_begin during a wait", Duration::from_secs(10), || {
             let coord = Arc::new(
