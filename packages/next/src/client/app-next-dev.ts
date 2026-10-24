@@ -17,11 +17,6 @@ appBootstrap(() => {
   try {
     hydrate(instrumentationModules)
   } finally {
-    renderAppDevOverlay(
-      getOwnerStack,
-      isRecoverableError,
-      enableCacheIndicator,
-      Boolean(process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR)
-    )
+    renderAppDevOverlay(getOwnerStack, isRecoverableError, enableCacheIndicator)
   }
 })
