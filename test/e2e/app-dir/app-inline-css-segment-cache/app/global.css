@@ -1,0 +1,8 @@
+p {
+  color: yellow;
+}
+
+/* A selector no minifier rewrites, to count copies of this stylesheet in output. */
+.inline-css-marker {
+  display: block;
+}
