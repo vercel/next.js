@@ -26,6 +26,12 @@
  * └─ middleware GET (Middleware.execute)
  * ```
  */
+/** A span's link to another span (not printed). */
+export interface SpanLink {
+  traceId: string
+  spanId: string
+}
+
 export interface TreeSpan {
   id: string
   parentId?: string
@@ -35,6 +41,8 @@ export interface TreeSpan {
   type?: string
   /** Attributes to print, in the given order. */
   attributes?: Record<string, string | number | boolean>
+  /** The span's links (not printed). */
+  links?: SpanLink[]
   /** Start time, in microseconds since the epoch. */
   startTime?: number
   /** End time, in microseconds since the epoch (when the span has ended). */

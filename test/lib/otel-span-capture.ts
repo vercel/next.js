@@ -12,7 +12,7 @@
  */
 import { setTimeout as sleep } from 'timers/promises'
 import type { NextInstance } from 'e2e-utils'
-import { printSpanTree, type TreeSpan } from 'otel-span-tree'
+import { printSpanTree, type SpanLink, type TreeSpan } from 'otel-span-tree'
 
 export const SPAN_EVENT_MARKER = '[otel-span]'
 
@@ -32,6 +32,8 @@ export interface SpanEvent {
   type?: string
   /** The printed attributes (`end` events). */
   attributes?: Record<string, string | number | boolean>
+  /** The span's links (`end` events). */
+  links?: SpanLink[]
   /** In microseconds since the epoch (an integer). */
   startTime: number
   /** In microseconds since the epoch (`end` events). */
@@ -126,6 +128,7 @@ export function mergeSpanEvents(
       name: end.name,
       type: end.type,
       attributes: end.attributes,
+      links: end.links,
       startTime: end.startTime,
       endTime: end.endTime,
       ended: true,
