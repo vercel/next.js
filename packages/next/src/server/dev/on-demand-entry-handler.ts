@@ -8,6 +8,7 @@ import type {
 } from '../../shared/lib/app-router-types'
 import type { CompilerNameValues } from '../../shared/lib/constants'
 import type { RouteDefinition } from '../route-definitions/route-definition'
+import type { InstrumentationInject } from '../../build/builtin-instrumentation'
 
 import createDebug from 'next/dist/compiled/debug'
 import { EventEmitter } from 'events'
@@ -389,13 +390,17 @@ interface PagePathData {
 /**
  * Attempts to find a page file path from the given pages absolute directory,
  * a page and allowed extensions. If the page can't be found it will throw an
- * error. It defaults the `/_error` page to Next.js internal error page.
+ * error. It defaults the `/_error` page to Next.js internal error page, and
+ * the instrumentation hook to `builtinInstrumentation` when no project file
+ * matches.
  *
  * @param rootDir Absolute path to the project root.
  * @param page The page normalized (it will be denormalized).
  * @param extensions Array of page extensions.
  * @param pagesDir Absolute path to the pages folder with trailing `/pages`.
  * @param appDir Absolute path to the app folder with trailing `/app`.
+ * @param builtinInstrumentation Fallback on a miss, so a project file created
+ * after startup still wins.
  */
 export async function findPagePathData(
   rootDir: string,
@@ -403,7 +408,8 @@ export async function findPagePathData(
   extensions: string[],
   pagesDir: string | undefined,
   appDir: string | undefined,
-  isGlobalNotFoundEnabled: boolean
+  isGlobalNotFoundEnabled: boolean,
+  builtinInstrumentation?: InstrumentationInject
 ): Promise<PagePathData> {
   const normalizedPagePath = tryToNormalizePagePath(page)
   let pagePath: string | null = null
@@ -418,6 +424,13 @@ export async function findPagePathData(
     )
 
     if (!pagePath) {
+      if (isInstrumentation && builtinInstrumentation) {
+        return {
+          filename: builtinInstrumentation.file,
+          bundlePath: builtinInstrumentation.page.slice(1),
+          page: builtinInstrumentation.page,
+        }
+      }
       throw new PageNotFoundError(normalizedPagePath)
     }
 
@@ -547,6 +560,7 @@ export function onDemandEntryHandler({
   pagesDir,
   rootDir,
   appDir,
+  builtinInstrumentation,
 }: {
   hotReloader: NextJsHotReloaderInterface
   maxInactiveAge: number
@@ -556,6 +570,7 @@ export function onDemandEntryHandler({
   pagesDir?: string
   rootDir: string
   appDir?: string
+  builtinInstrumentation: InstrumentationInject | undefined
 }) {
   const hasAppDir = !!appDir
   let curInvalidator: Invalidator = getInvalidator(
@@ -841,7 +856,8 @@ export function onDemandEntryHandler({
           nextConfig.pageExtensions,
           pagesDir,
           appDir,
-          !!nextConfig.experimental.globalNotFound
+          !!nextConfig.experimental.globalNotFound,
+          builtinInstrumentation
         )
       }
 

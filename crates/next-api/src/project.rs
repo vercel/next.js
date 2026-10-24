@@ -50,8 +50,8 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
-    DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, FileContent, FileSystem, FileSystemPath,
-    VirtualFileSystem, invalidation,
+    DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, File, FileContent, FileSystem,
+    FileSystemPath, VirtualFileSystem, invalidation,
 };
 use turbo_unix_path::join_path;
 use turbopack::{
@@ -60,6 +60,7 @@ use turbopack::{
 };
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME,
+    asset::AssetContent,
     changed::content_changed,
     chunk::{
         ChunkingContext, EvaluatableAssets, UnusedReferences,
@@ -89,9 +90,11 @@ use turbopack_core::{
     reference::all_assets_from_entries,
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{FindContextFileResult, find_context_file},
+    source::{OptionSource, Source},
     version::{
         NotFoundVersion, OptionVersionedContent, Update, Version, VersionState, VersionedContent,
     },
+    virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::async_chunk::proxy::{
     activation_key_from_chunk_path, lazy_compilation_state,
@@ -2193,8 +2196,7 @@ impl Project {
             None
         };
 
-        let instrumentation = self.find_instrumentation();
-        let instrumentation = if let FindContextFileResult::Found(..) = *instrumentation.await? {
+        let instrumentation = if self.instrumentation_source().await?.is_some() {
             Some(Instrumentation {
                 node_js: self.instrumentation_endpoint(false).to_resolved().await?,
                 edge: self.instrumentation_endpoint(true).to_resolved().await?,
@@ -2533,16 +2535,51 @@ impl Project {
         ))
     }
 
+    /// The source compiled into the instrumentation slot. A project file wins, including one
+    /// in a parent directory. Otherwise the first `injectInstrumentation` specifier is
+    /// re-exported from the project so the bundler resolves it there. `entrypoints` and
+    /// `instrumentation_endpoint` both read this.
+    #[turbo_tasks::function]
+    async fn instrumentation_source(self: Vc<Self>) -> Result<Vc<OptionSource>> {
+        if let FindContextFileResult::Found(fs_path, _) = &*self.find_instrumentation().await? {
+            let source = Vc::upcast::<Box<dyn Source>>(FileSource::new(fs_path.clone()));
+            return Ok(Vc::cell(Some(source.to_resolved().await?)));
+        }
+        let inject = self.next_config().inject_instrumentation().await?;
+        if inject.is_empty() {
+            return Ok(Vc::cell(None));
+        }
+        let mut source_text = String::new();
+        for (index, spec) in inject.iter().enumerate() {
+            let quoted =
+                serde_json::to_string(spec.as_str()).map_err(|err| anyhow::anyhow!(err))?;
+            if index == 0 {
+                source_text.push_str(&format!("export * from {quoted};\n"));
+            } else {
+                source_text.push_str(&format!("import {quoted};\n"));
+            }
+        }
+        // Not a convention file name, so discovery never treats it as a project file.
+        let path = self
+            .project_path()
+            .await?
+            .join("instrumentation.inject.js")?;
+        let source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(
+            path,
+            AssetContent::file(FileContent::Content(File::from(source_text)).cell()),
+        ));
+        Ok(Vc::cell(Some(source.to_resolved().await?)))
+    }
+
     #[turbo_tasks::function]
     async fn instrumentation_endpoint(
         self: Vc<Self>,
         is_edge: bool,
     ) -> Result<Vc<Box<dyn Endpoint>>> {
-        let instrumentation = self.find_instrumentation();
-        let FindContextFileResult::Found(fs_path, _) = &*instrumentation.await? else {
+        let Some(source) = *self.instrumentation_source().await? else {
             return Ok(Vc::upcast(EmptyEndpoint::new(self)));
         };
-        let source = Vc::upcast(FileSource::new(fs_path.clone()));
+        let source = *source;
         let app_dir = find_app_dir(self.project_path().owned().await?)
             .owned()
             .await?;

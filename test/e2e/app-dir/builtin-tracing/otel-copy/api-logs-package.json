@@ -1,0 +1,5 @@
+{
+  "name": "@opentelemetry/api-logs",
+  "type": "module",
+  "main": "./index.js"
+}

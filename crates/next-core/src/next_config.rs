@@ -108,6 +108,9 @@ pub struct NextConfig {
     images: ImageConfig,
     page_extensions: Vec<RcStr>,
     instrumentation_client_inject: Option<Vec<RcStr>>,
+    /// Server instrumentation module specifiers. Used only when the project has
+    /// no instrumentation file. Next.js does not install the module.
+    inject_instrumentation: Option<Vec<RcStr>>,
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
     react_production_profiling: Option<bool>,
     react_strict_mode: Option<bool>,
@@ -1687,6 +1690,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn enable_react_production_profiling(&self) -> Vc<bool> {
         Vc::cell(self.react_production_profiling.unwrap_or_default())
+    }
+
+    #[turbo_tasks::function]
+    pub fn inject_instrumentation(&self) -> Vc<Vec<RcStr>> {
+        Vc::cell(self.inject_instrumentation.clone().unwrap_or_default())
     }
 
     #[turbo_tasks::function]
