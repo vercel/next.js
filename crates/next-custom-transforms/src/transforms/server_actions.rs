@@ -27,7 +27,7 @@ use swc_core::{
     ecma::{
         ast::*,
         codegen::{self, Emitter, text_writer::JsWriter},
-        utils::{ExprFactory, prepend_stmts, private_ident, quote_ident},
+        utils::{ExprFactory, IsDirective, prepend_stmts, private_ident, quote_ident},
         visit::{VisitMut, VisitMutWith, noop_visit_mut_type, visit_mut_pass},
     },
     quote,
@@ -133,6 +133,9 @@ enum ServerActionsErrorKind {
     UnknownCacheKind {
         span: Span,
         cache_kind: RcStr,
+    },
+    UseClientDirectiveInFunctionBody {
+        span: Span,
     },
     UseCacheWithoutCacheComponents {
         span: Span,
@@ -410,6 +413,20 @@ impl<C: Comments> ServerActions<C> {
         })
     }
 
+    /// Creates a visitor that checks the directives of a function body.
+    fn directive_visitor(&self) -> DirectiveVisitor<'_> {
+        DirectiveVisitor {
+            config: &self.config,
+            directive: None,
+            has_file_directive: self.file_directive.is_some(),
+            is_allowed_position: true,
+            nested: false,
+            check_only: false,
+            location: DirectiveLocation::FunctionBody,
+            use_cache_telemetry_tracker: self.use_cache_telemetry_tracker.clone(),
+        }
+    }
+
     // Check if the function or arrow function is an action or cache function,
     // and remove any server function directive.
     fn get_directive_for_function(
@@ -421,14 +438,7 @@ impl<C: Comments> ServerActions<C> {
         // Even if it's a file-level action or cache module, the function body
         // might still have directives that override the module-level annotations.
         if let Some(body) = maybe_body {
-            let directive_visitor = &mut DirectiveVisitor {
-                config: &self.config,
-                directive: None,
-                has_file_directive: self.file_directive.is_some(),
-                is_allowed_position: true,
-                location: DirectiveLocation::FunctionBody,
-                use_cache_telemetry_tracker: self.use_cache_telemetry_tracker.clone(),
-            };
+            let directive_visitor = &mut self.directive_visitor();
 
             body.stmts.retain(|stmt| {
                 let has_directive = directive_visitor.visit_stmt(stmt);
@@ -456,6 +466,8 @@ impl<C: Comments> ServerActions<C> {
             directive: None,
             has_file_directive: false,
             is_allowed_position: true,
+            nested: false,
+            check_only: false,
             location: DirectiveLocation::Module,
             use_cache_telemetry_tracker: self.use_cache_telemetry_tracker.clone(),
         };
@@ -1682,6 +1694,36 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 n.visit_mut_children_with(self);
             }
         }
+    }
+
+    fn visit_mut_constructor(&mut self, n: &mut Constructor) {
+        // Constructors cannot be server actions or cache functions, so their
+        // body is only checked for directives that are silently ignored,
+        // without consuming anything.
+        if let Some(body) = &n.body {
+            let mut visitor = self.directive_visitor();
+            visitor.check_only = true;
+            for stmt in &body.stmts {
+                visitor.visit_stmt(stmt);
+            }
+        }
+        n.visit_mut_children_with(self);
+    }
+
+    fn visit_mut_static_block(&mut self, n: &mut StaticBlock) {
+        // Static blocks are not functions and have no directive prologue: any
+        // directive inside them is silently ignored.
+        let mut visitor = self.directive_visitor();
+        visitor.nested = true;
+        visitor.location = if self.in_module_level {
+            DirectiveLocation::Module
+        } else {
+            DirectiveLocation::FunctionBody
+        };
+        for stmt in &n.body.stmts {
+            visitor.visit_stmt(stmt);
+        }
+        n.visit_mut_children_with(self);
     }
 
     fn visit_mut_call_expr(&mut self, n: &mut CallExpr) {
@@ -3299,20 +3341,21 @@ fn has_body_directive(maybe_body: &Option<FunctionBody>) -> (bool, bool) {
 
     if let Some(body) = maybe_body {
         for stmt in body.stmts.iter() {
-            match stmt {
-                Stmt::Expr(ExprStmt {
-                    expr: Expr::Lit(Lit::Str(Str { value, .. })),
-                    ..
-                }) => {
-                    if value == "use server" {
-                        is_action_fn = true;
-                        break;
-                    } else if value == "use cache" || value.starts_with("use cache: ") {
-                        is_cache_fn = true;
-                        break;
-                    }
+            // Only bare string literal statements can be directives.
+            if !stmt.directive_continue() {
+                break;
+            }
+
+            if let Stmt::Expr(ExprStmt { expr, .. }) = stmt
+                && let Expr::Lit(Lit::Str(Str { value, .. })) = &**expr
+            {
+                if value == "use server" {
+                    is_action_fn = true;
+                    break;
+                } else if value == "use cache" || value.starts_with("use cache: ") {
+                    is_cache_fn = true;
+                    break;
                 }
-                _ => break,
             }
         }
     }
@@ -3426,6 +3469,17 @@ struct DirectiveVisitor<'a> {
     directive: Option<Directive>,
     has_file_directive: bool,
     is_allowed_position: bool,
+    /// Whether the statement being visited is inside a nested statement
+    /// container (a block, `if`/`else` branch, loop body, `try`/`catch`,
+    /// `switch` case, label or class static block) rather than at the top
+    /// level of the module or function body. Directives are silently ignored
+    /// there, so they are reported instead of consumed.
+    nested: bool,
+    /// Whether to only report directives that are silently ignored, without
+    /// consuming directives or validating `"use server"`/`"use cache"`. Used
+    /// for bodies that cannot be server actions or cache functions, like
+    /// class constructors.
+    check_only: bool,
     use_cache_telemetry_tracker: Rc<RefCell<FxHashMap<String, usize>>>,
 }
 
@@ -3443,7 +3497,30 @@ impl DirectiveVisitor<'_> {
                 expr: Expr::Lit(Lit::Str(Str { value, span, .. })),
                 ..
             }) => {
-                if value == "use server" {
+                if self.nested {
+                    // A directive inside a nested statement container is silently
+                    // ignored, so report it.
+                    self.emit_nested_directive_error(value, *span);
+                } else if self.check_only {
+                    // This body cannot contain server actions or cache functions;
+                    // "use server"/"use cache" have no meaning here. Only "use
+                    // client" is invalid, since it's never allowed in a function.
+                    if value == "use client" {
+                        emit_error(ServerActionsErrorKind::UseClientDirectiveInFunctionBody {
+                            span: *span,
+                        });
+                    }
+                } else if value == "use client" {
+                    // "use client" is only valid at the top of a module. Inside a
+                    // function body it is silently ignored, so error instead.
+                    // At the module level the directive is handled (and validated)
+                    // by the React Server Components transform; never consume it here.
+                    if in_fn_body {
+                        emit_error(ServerActionsErrorKind::UseClientDirectiveInFunctionBody {
+                            span: *span,
+                        });
+                    }
+                } else if value == "use server" {
                     if in_fn_body && !allow_inline {
                         emit_error(ServerActionsErrorKind::InlineUseServerInClientComponent {
                             span: *span,
@@ -3582,36 +3659,41 @@ impl DirectiveVisitor<'_> {
                 span,
                 ..
             }) => {
-                // Match `("use server")`.
-                if value == "use server"
-                    || detect_similar_strings(&value.to_string_lossy(), "use server")
-                {
-                    if self.is_allowed_position {
-                        emit_error(ServerActionsErrorKind::WrappedDirective {
-                            span: *span,
-                            directive: "use server".to_string(),
-                        });
-                    } else {
-                        emit_error(ServerActionsErrorKind::MisplacedWrappedDirective {
-                            span: *span,
-                            directive: "use server".to_string(),
-                            location: self.location.clone(),
-                        });
-                    }
-                } else if value == "use cache"
-                    || detect_similar_strings(&value.to_string_lossy(), "use cache")
-                {
-                    if self.is_allowed_position {
-                        emit_error(ServerActionsErrorKind::WrappedDirective {
-                            span: *span,
-                            directive: "use cache".to_string(),
-                        });
-                    } else {
-                        emit_error(ServerActionsErrorKind::MisplacedWrappedDirective {
-                            span: *span,
-                            directive: "use cache".to_string(),
-                            location: self.location.clone(),
-                        });
+                // Match `("use server")`. Parenthesized strings are not
+                // directives, but at the top of a module or function body they
+                // are likely to be a mistake, so they are reported. In nested
+                // positions they are ordinary expressions and ignored.
+                if !self.nested && !self.check_only {
+                    if value == "use server"
+                        || detect_similar_strings(&value.to_string_lossy(), "use server")
+                    {
+                        if self.is_allowed_position {
+                            emit_error(ServerActionsErrorKind::WrappedDirective {
+                                span: *span,
+                                directive: "use server".to_string(),
+                            });
+                        } else {
+                            emit_error(ServerActionsErrorKind::MisplacedWrappedDirective {
+                                span: *span,
+                                directive: "use server".to_string(),
+                                location: self.location.clone(),
+                            });
+                        }
+                    } else if value == "use cache"
+                        || detect_similar_strings(&value.to_string_lossy(), "use cache")
+                    {
+                        if self.is_allowed_position {
+                            emit_error(ServerActionsErrorKind::WrappedDirective {
+                                span: *span,
+                                directive: "use cache".to_string(),
+                            });
+                        } else {
+                            emit_error(ServerActionsErrorKind::MisplacedWrappedDirective {
+                                span: *span,
+                                directive: "use cache".to_string(),
+                                location: self.location.clone(),
+                            });
+                        }
                     }
                 }
             }
@@ -3621,7 +3703,103 @@ impl DirectiveVisitor<'_> {
             }
         };
 
+        // Check statements nested inside this statement's containers.
+        self.visit_nested_stmts(stmt);
+
         false
+    }
+
+    /// Emits an error for a directive statement inside a nested statement
+    /// container, where it is silently ignored.
+    fn emit_nested_directive_error(&self, value: &Wtf8Atom, span: Span) {
+        if value == "use client" {
+            if matches!(self.location, DirectiveLocation::FunctionBody) {
+                // "use client" cannot be used inside a function at all.
+                emit_error(ServerActionsErrorKind::UseClientDirectiveInFunctionBody { span });
+            } else {
+                emit_error(ServerActionsErrorKind::MisplacedDirective {
+                    span,
+                    directive: "use client".to_string(),
+                    location: self.location.clone(),
+                });
+            }
+        } else if value == "use server" || value == "use cache" || value.starts_with("use cache: ")
+        {
+            emit_error(ServerActionsErrorKind::MisplacedDirective {
+                span,
+                directive: value.to_string_lossy().into_owned(),
+                location: self.location.clone(),
+            });
+        }
+    }
+
+    /// Recursively checks statements inside nested statement containers
+    /// (blocks, `if`/`else` branches, loops, `try`/`catch`/`finally`, `switch`
+    /// cases and labels), where directives are silently ignored. Function
+    /// boundaries are not crossed: nested functions are checked separately
+    /// with their own directive prologue.
+    fn visit_nested_stmts(&mut self, stmt: &Stmt) {
+        let nested = replace(&mut self.nested, true);
+
+        match stmt {
+            Stmt::Block(block) => {
+                for stmt in &block.stmts {
+                    self.visit_stmt(stmt);
+                }
+            }
+            Stmt::If(if_stmt) => {
+                self.visit_stmt(&if_stmt.cons);
+                if let Some(alt) = &if_stmt.alt {
+                    self.visit_stmt(alt);
+                }
+            }
+            Stmt::Try(try_stmt) => {
+                for stmt in &try_stmt.block.stmts {
+                    self.visit_stmt(stmt);
+                }
+                if let Some(handler) = &try_stmt.handler {
+                    for stmt in &handler.body.stmts {
+                        self.visit_stmt(stmt);
+                    }
+                }
+                if let Some(finalizer) = &try_stmt.finalizer {
+                    for stmt in &finalizer.stmts {
+                        self.visit_stmt(stmt);
+                    }
+                }
+            }
+            Stmt::Switch(switch_stmt) => {
+                for case in &switch_stmt.cases {
+                    for stmt in &case.cons {
+                        self.visit_stmt(stmt);
+                    }
+                }
+            }
+            Stmt::Labeled(labeled_stmt) => {
+                self.visit_stmt(&labeled_stmt.body);
+            }
+            Stmt::For(for_stmt) => {
+                self.visit_stmt(&for_stmt.body);
+            }
+            Stmt::ForIn(for_in_stmt) => {
+                self.visit_stmt(&for_in_stmt.body);
+            }
+            Stmt::ForOf(for_of_stmt) => {
+                self.visit_stmt(&for_of_stmt.body);
+            }
+            Stmt::While(while_stmt) => {
+                self.visit_stmt(&while_stmt.body);
+            }
+            Stmt::DoWhile(do_while_stmt) => {
+                self.visit_stmt(&do_while_stmt.body);
+            }
+            Stmt::With(with_stmt) => {
+                self.visit_stmt(&with_stmt.body);
+            }
+            _ => {}
+        }
+
+        self.nested = nested;
     }
 
     // Increment telemetry counter tracking usage of "use cache" directives
@@ -3883,13 +4061,26 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
             location,
         } => (
             span,
-            formatdoc! {
-                r#"
-                    The "{directive}" directive must be at the top of the {location}.
-                "#,
-                location = match location {
-                    DirectiveLocation::Module => "file",
-                    DirectiveLocation::FunctionBody => "function body",
+            // "use server" and "use cache" are also allowed at the top of a
+            // function body, so point that out instead of only mentioning the
+            // top of the file.
+            if matches!(location, DirectiveLocation::Module)
+                && (directive == "use server" || directive.starts_with("use cache"))
+            {
+                formatdoc! {
+                    r#"
+                        The "{directive}" directive must be at the top of the file or the top of a function body.
+                    "#
+                }
+            } else {
+                formatdoc! {
+                    r#"
+                        The "{directive}" directive must be at the top of the {location}.
+                    "#,
+                    location = match location {
+                        DirectiveLocation::Module => "file",
+                        DirectiveLocation::FunctionBody => "function body",
+                    }
                 }
             },
         ),
@@ -3938,6 +4129,16 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
             formatdoc! {
                 r#"
                     Unknown cache kind "{cache_kind}". Please configure a cache handler for this kind in the `cacheHandlers` object in your Next.js config.
+                "#
+            },
+        ),
+        ServerActionsErrorKind::UseClientDirectiveInFunctionBody { span } => (
+            span,
+            formatdoc! {
+                r#"
+                    The "use client" directive must be placed at the top of the file, before any other statements. It cannot be used inside a function.
+
+                    Read more: https://nextjs.org/docs/app/api-reference/directives/use-client
                 "#
             },
         ),
