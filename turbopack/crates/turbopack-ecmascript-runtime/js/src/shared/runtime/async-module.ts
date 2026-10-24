@@ -121,7 +121,7 @@ function asyncModule(
   hasAwait: boolean
 ) {
   const module = this.m
-  const queue: AsyncQueue | undefined = hasAwait
+  let queue: AsyncQueue | undefined = hasAwait
     ? Object.assign([], { status: QueueStatus.Unknown })
     : undefined
 
@@ -164,9 +164,15 @@ function asyncModule(
 
     const { promise, resolve } = createPromise<() => Exports[]>()
 
-    const fn: AsyncQueueFn = Object.assign(() => resolve(getResult), {
-      queueCount: 0,
-    })
+    const fn: AsyncQueueFn = Object.assign(
+      () => {
+        if (!queue) {
+          queue = Object.assign([], { status: QueueStatus.Unresolved })
+        }
+        resolve(getResult)
+      },
+      { queueCount: 0 }
+    )
 
     function fnQueue(q: AsyncQueue) {
       if (q !== queue && !depQueues.has(q)) {
@@ -191,6 +197,9 @@ function asyncModule(
     }
 
     resolveQueue(queue)
+    if (!hasAwait) {
+      queue = undefined
+    }
   }
 
   body(handleAsyncDependencies, asyncResult)
