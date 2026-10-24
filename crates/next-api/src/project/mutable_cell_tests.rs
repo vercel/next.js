@@ -163,6 +163,7 @@ async fn initialization_publishes_filesystem_cells_and_preserves_old_snapshots()
                 .await
                 .unwrap_err();
             assert!(error.to_string().contains("initialized with initialize()"));
+            assert!(old_options.ptr_eq(&held.options_state.get_untracked()?));
 
             assert!(
                 ProjectContainer::initialize(operation, initial)
@@ -250,6 +251,30 @@ async fn actual_updates_invalidate_tracked_readers_not_held_or_untracked_snapsho
             let tracked_runs = READER_RUNS[0].load(Ordering::SeqCst);
             let untracked_runs = READER_RUNS[1].load(Ordering::SeqCst);
             assert!(tracked_runs > 0 && untracked_runs > 0);
+            for partial in [
+                PartialProjectOptions::default(),
+                PartialProjectOptions {
+                    build_id: Some(rcstr!("initial")),
+                    ..Default::default()
+                },
+            ] {
+                container.update(partial).await?;
+                assert!(old.ptr_eq(&held.options_state.get_untracked()?));
+                assert_eq!(
+                    *read_build_id(container, true)
+                        .read_strongly_consistent()
+                        .await?,
+                    "initial"
+                );
+                assert_eq!(
+                    *project_build_id(container)
+                        .read_strongly_consistent()
+                        .await?,
+                    "initial"
+                );
+                assert_eq!(READER_RUNS[0].load(Ordering::SeqCst), tracked_runs);
+                assert_eq!(READER_RUNS[1].load(Ordering::SeqCst), untracked_runs);
+            }
             container
                 .update(PartialProjectOptions {
                     build_id: Some(rcstr!("updated")),
@@ -288,6 +313,32 @@ async fn actual_updates_invalidate_tracked_readers_not_held_or_untracked_snapsho
             // again, whereas the untracked reader must never rerun because of this write.
             assert!(READER_RUNS[0].load(Ordering::SeqCst) > tracked_runs);
             assert_eq!(READER_RUNS[1].load(Ordering::SeqCst), untracked_runs);
+            let changed = held.options_state.get_untracked()?;
+            let changed_runs = READER_RUNS[0].load(Ordering::SeqCst);
+            for partial in [
+                PartialProjectOptions::default(),
+                PartialProjectOptions {
+                    build_id: Some(rcstr!("updated")),
+                    ..Default::default()
+                },
+            ] {
+                container.update(partial).await?;
+                assert!(changed.ptr_eq(&held.options_state.get_untracked()?));
+                assert_eq!(
+                    *read_build_id(container, true)
+                        .read_strongly_consistent()
+                        .await?,
+                    "updated"
+                );
+                assert_eq!(
+                    *project_build_id(container)
+                        .read_strongly_consistent()
+                        .await?,
+                    "updated"
+                );
+                assert_eq!(READER_RUNS[0].load(Ordering::SeqCst), changed_runs);
+                assert_eq!(READER_RUNS[1].load(Ordering::SeqCst), untracked_runs);
+            }
             anyhow::Ok(())
         }),
     )
