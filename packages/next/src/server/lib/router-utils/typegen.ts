@@ -546,8 +546,9 @@ export function generateValidatorFile(
     routesManifest.filePathToRoute
   )
 
-  const hasAppRouteHandlers =
-    Object.keys(routesManifest.appRouteHandlerRoutes).length > 0
+  // Base this on actual route.ts validations, not discovered app routes:
+  // metadata routes can be present in the manifest without being route handlers.
+  const hasAppRouteHandlers = appRouteHandlerValidations.length > 0
 
   // Build type definitions based on what's actually used
   let typeDefinitions = ''
@@ -793,8 +794,9 @@ export function generateValidatorFileStrict(
     routesManifest.filePathToRoute
   )
 
-  const hasAppRouteHandlers =
-    Object.keys(routesManifest.appRouteHandlerRoutes).length > 0
+  // Base this on actual route.ts validations, not discovered app routes:
+  // metadata routes can be present in the manifest without being route handlers.
+  const hasAppRouteHandlers = appRouteHandlerValidations.length > 0
 
   // Build type definitions based on what's actually used
   let typeDefinitions = ''
