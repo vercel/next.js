@@ -24,6 +24,8 @@ describe('minimal-mode-response-cache', () => {
   })
 
   const { next } = nextTestSetup({
+    // Webpack and Rspack standalone tracing do not support the global virtual store.
+    pnpmGlobalVirtualStore: !!process.env.IS_TURBOPACK_TEST,
     files: new FileRef(join(__dirname, 'app')),
   })
 

@@ -77,6 +77,8 @@ async function readNormalizedNFT(next, name) {
     describe('with output:standalone', () => {
       const { next } = nextTestSetup({
         files: __dirname,
+        // snapshots the top-level `files` list, which excludes the virtual store
+        pnpmGlobalVirtualStore: false,
         dependencies: {
           typescript: '5.9.2',
         },
@@ -389,6 +391,8 @@ async function readNormalizedNFT(next, name) {
     describe('default mode', () => {
       const { next } = nextTestSetup({
         files: __dirname,
+        // snapshots the top-level `files` list, which excludes the virtual store
+        pnpmGlobalVirtualStore: false,
         dependencies: {
           typescript: '5.9.2',
         },
@@ -519,6 +523,8 @@ async function readNormalizedNFT(next, name) {
     describe('with adapters', () => {
       const { next } = nextTestSetup({
         files: __dirname,
+        // snapshots the top-level `files` list, which excludes the virtual store
+        pnpmGlobalVirtualStore: false,
         dependencies: {
           typescript: '5.9.2',
         },
@@ -721,6 +727,8 @@ async function readNormalizedNFT(next, name) {
     describe('with adapters and output:standalone', () => {
       const { next } = nextTestSetup({
         files: __dirname,
+        // snapshots the top-level `files` list, which excludes the virtual store
+        pnpmGlobalVirtualStore: false,
         dependencies: {
           typescript: '5.9.2',
         },
