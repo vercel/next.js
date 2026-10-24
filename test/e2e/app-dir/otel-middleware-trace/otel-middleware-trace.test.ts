@@ -960,6 +960,22 @@ describe.each(VARIANTS)(
           "[trace A] GET (BaseServer.handleRequest) {http.target=/rewrite-external, http.status_code=200}
           └─ middleware GET (Middleware.execute) {http.target=/rewrite-external}"
         `)
+        } else if (
+          [
+            'deploy, middleware',
+            'deploy, proxy',
+            'deploy (no adapter), middleware',
+            'deploy (no adapter), proxy',
+            'deploy, cache components, middleware',
+            'deploy, cache components, proxy',
+            'deploy (no adapter), cache components, middleware',
+            'deploy (no adapter), cache components, proxy',
+          ].includes(env)
+        ) {
+          expect(tree).toMatchInlineSnapshot(`
+            "[trace A] GET (Next.request) {http.target=/rewrite-external}
+            └─ middleware GET (Middleware.execute) {http.target=/rewrite-external}"
+          `)
         } else {
           // Not observed yet (filled from CI).
           expect(tree).toMatchInlineSnapshot()
@@ -1020,6 +1036,23 @@ describe.each(VARIANTS)(
           │     └─ load route module (LoadComponents.loadRouteModule)
           └─ middleware GET (Middleware.execute) {http.target=/rewrite-static}"
         `)
+        } else if (
+          [
+            'deploy, middleware',
+            'deploy, proxy',
+            'deploy (no adapter), middleware',
+            'deploy (no adapter), proxy',
+            'deploy, cache components, middleware',
+            'deploy, cache components, proxy',
+            'deploy (no adapter), cache components, middleware',
+            'deploy (no adapter), cache components, proxy',
+          ].includes(env)
+        ) {
+          // Served from the cache without invoking a function: no render spans.
+          expect(tree).toMatchInlineSnapshot(`
+            "[trace A] GET (Next.request) {http.target=/rewrite-static}
+            └─ middleware GET (Middleware.execute) {http.target=/rewrite-static}"
+          `)
         } else {
           // Not observed yet (filled from CI).
           expect(tree).toMatchInlineSnapshot()
@@ -1103,6 +1136,24 @@ describe.each(VARIANTS)(
           │     └─ load route module (LoadComponents.loadRouteModule)
           └─ middleware GET (Middleware.execute) {http.target=/rewrite-isr}"
         `)
+        } else if (
+          [
+            'deploy, middleware',
+            'deploy, proxy',
+            'deploy (no adapter), middleware',
+            'deploy (no adapter), proxy',
+            'deploy, cache components, middleware',
+            'deploy, cache components, proxy',
+            'deploy (no adapter), cache components, middleware',
+            'deploy (no adapter), cache components, proxy',
+          ].includes(env)
+        ) {
+          // Served from the ISR cache without invoking a function: no render
+          // spans.
+          expect(tree).toMatchInlineSnapshot(`
+            "[trace A] GET (Next.request) {http.target=/rewrite-isr}
+            └─ middleware GET (Middleware.execute) {http.target=/rewrite-isr}"
+          `)
         } else {
           // Not observed yet (filled from CI).
           expect(tree).toMatchInlineSnapshot()
