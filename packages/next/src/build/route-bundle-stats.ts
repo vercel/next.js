@@ -1,5 +1,5 @@
 import path from 'path'
-import { promises as fs, statSync } from 'fs'
+import { promises as fs, readFileSync, statSync } from 'fs'
 import {
   APP_PATHS_MANIFEST,
   CLIENT_REFERENCE_MANIFEST,
@@ -7,6 +7,7 @@ import {
 } from '../shared/lib/constants'
 import type { BuildManifest } from '../server/get-page-files'
 import { filterAndSortList } from './utils'
+import { evalClientReferenceManifestSource } from '../server/load-manifest.external'
 
 const ROUTE_BUNDLE_STATS_FILE = 'route-bundle-stats.json'
 
@@ -67,9 +68,10 @@ function buildRouteToAppPathsMap(
   return routeToAppPaths
 }
 
-// Reads the manfiest file and gets the entry JS files. The manifest file is
-// a JavaScript file that sets a global variable (__RSC_MANIFEST). We require()
-// it with a save/restore of the global
+// Reads the manifest file and gets the entry JS files. The manifest file is
+// a JavaScript file that sets a global variable (__RSC_MANIFEST). It is
+// loaded with `evalClientReferenceManifestSource`, which parses the generated
+// shapes as JSON where possible instead of require()-ing the file.
 function readEntryJSFiles(
   distDir: string,
   pagePath: string,
@@ -82,14 +84,11 @@ function readEntryJSFiles(
     `${pagePath}_${CLIENT_REFERENCE_MANIFEST}.js`
   )
   try {
-    const g = global as Record<string, unknown>
-    const prev = g.__RSC_MANIFEST
-    g.__RSC_MANIFEST = undefined
-    require(manifestFile)
-    const rscManifest = g.__RSC_MANIFEST as
+    const rscManifest = evalClientReferenceManifestSource(
+      readFileSync(manifestFile, 'utf8')
+    ).__RSC_MANIFEST as
       | Record<string, { entryJSFiles?: Record<string, string[]> }>
       | undefined
-    g.__RSC_MANIFEST = prev
 
     // The key in __RSC_MANIFEST is the app path (e.g. /blog/[slug]/page)
     const manifestEntry = rscManifest?.[pagePath] ?? rscManifest?.[appRoute]
