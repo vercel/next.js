@@ -47,7 +47,7 @@ import {
   NEXT_RESUME_HEADER,
   NEXT_RESUME_STATE_LENGTH_HEADER,
 } from '../../lib/constants'
-import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
+import type { ServerActionRequestMetadata } from '../lib/server-action-request-meta'
 import { isCsrfOriginAllowed } from './csrf-protection'
 import { warn } from '../../build/output/log'
 import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
@@ -73,7 +73,6 @@ import { synchronizeMutableCookies } from '../async-storage/request-store'
 import type { TemporaryReferenceSet } from 'react-server-dom-webpack/server'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { executeRevalidates } from '../revalidation-utils'
 import { addRequestMeta, getRequestMeta } from '../request-meta'
 import { setCacheBustingSearchParamWithHash } from '../../client/components/router-reducer/set-cache-busting-search-param'
 import {
@@ -609,12 +608,14 @@ function getRevalidationWaitUntil(
     return undefined
   }
 
-  const revalidatesPromise = executeRevalidates(workStore)
+  const revalidatesPromise =
+    workStore.afterContext.executeRevalidations(workStore)
   return revalidatesPromise === false ? undefined : revalidatesPromise
 }
 
 export async function handleAction({
   req,
+  serverActionRequestMetadata,
   res,
   ComponentMod,
   generateFlight,
@@ -625,6 +626,7 @@ export async function handleAction({
   metadata,
 }: {
   req: BaseNextRequest
+  serverActionRequestMetadata: ServerActionRequestMetadata
   res: BaseNextResponse
   ComponentMod: AppPageModule
   generateFlight: GenerateFlight
@@ -644,7 +646,7 @@ export async function handleAction({
     isFetchAction,
     isURLEncodedAction,
     isPossibleServerAction,
-  } = getServerActionRequestMetadata(req)
+  } = serverActionRequestMetadata
 
   const handleUnrecognizedAction = (
     err: unknown,
@@ -1509,7 +1511,7 @@ async function executeActionAndPrepareForRender<
       // If the action called revalidateTag/revalidatePath, then that might
       // affect data used by the subsequent render, so we need to make sure all
       // revalidations are applied before that.
-      await executeRevalidates(workStore)
+      await workStore.afterContext.executeRevalidations(workStore)
     }
   }
 }

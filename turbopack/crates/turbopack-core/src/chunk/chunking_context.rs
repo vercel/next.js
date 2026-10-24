@@ -2,6 +2,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
+use smallvec::{SmallVec, smallvec};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Upcast, Vc, turbobail};
 use turbo_tasks_fs::FileSystemPath;
@@ -15,6 +16,7 @@ use crate::{
     },
     environment::{ChunkLoading, Environment},
     ident::AssetIdent,
+    json::RcJsonRawValue,
     module::Module,
     module_graph::{
         ModuleGraph, binding_usage_info::ModuleExportUsage, chunk_group_info::ChunkGroup,
@@ -118,7 +120,7 @@ pub struct ChunkGroupResult {
     pub referenced_assets: ResolvedVc<OutputAssets>,
     pub references: ResolvedVc<OutputAssetsReferences>,
     pub availability_info: AvailabilityInfo,
-    pub chunk_group_bootstrap_params: Option<RcStr>,
+    pub chunk_group_bootstrap_params: Option<RcJsonRawValue>,
 }
 
 impl ChunkGroupResult {
@@ -473,17 +475,21 @@ pub trait ChunkingContext {
         chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
     ) -> Vc<Box<dyn OutputAsset>>;
 
+    /// Chunks `chunk_groups` together as one chunk group, in a single task.
+    ///
+    /// The modules of all groups are collected once each and chunked together, and the resulting
+    /// availability includes every group. `chunk_groups` must not be empty.
     #[turbo_tasks::function]
     fn chunk_group(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: ChunkGroup,
+        chunk_groups: SmallVec<[ChunkGroup; 1]>,
         module_graph: Vc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Vc<ChunkGroupResult>;
 
-    /// Like [`Self::chunk_group`], but additionally produces an evaluate chunk
-    /// (and, in dev, a chunk-list register chunk) that bootstraps and runs
+    /// Like [`Self::chunk_group`] for a single `chunk_group`, but additionally produces an
+    /// evaluate chunk (and, in dev, a chunk-list register chunk) that bootstraps and runs
     /// `chunk_group`'s entries.
     ///
     /// `extra_chunks` are not part of this chunk group's module graph, but they
@@ -648,7 +654,12 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
     ) -> Vc<ChunkGroupResult> {
-        self.chunk_group(ident, chunk_group, module_graph, AvailabilityInfo::root())
+        self.chunk_group(
+            ident,
+            smallvec![chunk_group],
+            module_graph,
+            AvailabilityInfo::root(),
+        )
     }
 
     fn root_chunk_group_assets(
@@ -866,6 +877,11 @@ fn chunk_group_assets(
     availability_info: AvailabilityInfo,
 ) -> Vc<OutputAssetsWithReferenced> {
     chunking_context
-        .chunk_group(ident, chunk_group, module_graph, availability_info)
+        .chunk_group(
+            ident,
+            smallvec![chunk_group],
+            module_graph,
+            availability_info,
+        )
         .output_assets_with_referenced()
 }

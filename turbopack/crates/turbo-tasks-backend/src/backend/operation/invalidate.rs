@@ -5,7 +5,6 @@ use turbo_tasks::{TaskExecutionReason, TaskId, TaskPriority, event::EventDescrip
 
 use crate::{
     backend::{
-        TaskDataCategory,
         operation::{
             ExecuteContext, TaskGuard,
             aggregation_update::{
@@ -17,44 +16,48 @@ use crate::{
     data::{Dirtyness, InProgressState, InProgressStateInner},
 };
 
+/// Invalidates `task_ids`. Callers must not pass duplicate ids (the bulk task access expects
+/// unique ids, and deduplicating here would cost every invalidation).
 pub fn invalidate(
-    task_ids: SmallVec<[TaskId; 4]>,
+    task_ids: impl IntoIterator<Item = TaskId>,
     #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
     mut ctx: ExecuteContext<'_>,
 ) {
+    // Debug builds collect the ids to check they are unique. Release builds stream them.
+    #[cfg(debug_assertions)]
+    let task_ids = {
+        let task_ids: Vec<TaskId> = task_ids.into_iter().collect();
+        debug_assert!(
+            task_ids.len() <= 1
+                || task_ids.iter().collect::<rustc_hash::FxHashSet<_>>().len() == task_ids.len(),
+            "invalidate() must not be called with duplicate task ids: {task_ids:?}"
+        );
+        task_ids
+    };
+    let task_ids = task_ids.into_iter();
     let mut queue = AggregationUpdateQueue::new();
-    for task_id in task_ids {
-        try_make_task_dirty(
-            task_id,
+    // The tasks to schedule are collected and handed to the scheduler as one batch, which takes
+    // the scheduler's queue lock once instead of once per task.
+    let mut to_schedule: SmallVec<[_; 4]> = SmallVec::with_capacity(task_ids.size_hint().0);
+    // Tasks that no longer exist are skipped, there is nothing to invalidate. Tasks that are not
+    // resident are restored from persistent storage in batches.
+    ctx.for_each_try_task_all(task_ids, "invalidate", |mut task, ctx| {
+        if let Some(parent_priority) = make_task_dirty_without_scheduling(
+            &mut task,
+            true,
             #[cfg(feature = "task_dirty_cause")]
             cause.clone(),
             &mut queue,
-            &mut ctx,
-        );
-    }
+            ctx,
+        ) {
+            to_schedule.push((
+                task.id(),
+                ctx.schedule_task_priority(&task, parent_priority),
+            ));
+        }
+    });
+    ctx.schedule_tasks(&to_schedule);
     queue.execute(&mut ctx);
-}
-
-/// Marks a task dirty, doing nothing if it no longer exists.
-///
-/// Intended for invalidation usecases.
-pub fn try_make_task_dirty(
-    task_id: TaskId,
-    #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
-    queue: &mut AggregationUpdateQueue,
-    ctx: &mut ExecuteContext<'_>,
-) {
-    let Some(mut task) = ctx.try_task(task_id, TaskDataCategory::All) else {
-        return;
-    };
-    make_task_dirty_internal(
-        &mut task,
-        true,
-        #[cfg(feature = "task_dirty_cause")]
-        cause,
-        queue,
-        ctx,
-    );
 }
 
 /// Requires the guard to be allocated with [TaskDataCategory::All]
@@ -65,6 +68,31 @@ pub fn make_task_dirty_internal(
     queue: &mut AggregationUpdateQueue,
     ctx: &mut ExecuteContext<'_>,
 ) {
+    if let Some(parent_priority) = make_task_dirty_without_scheduling(
+        task,
+        make_stale,
+        #[cfg(feature = "task_dirty_cause")]
+        cause,
+        queue,
+        ctx,
+    ) {
+        ctx.schedule_task(task, parent_priority);
+    }
+}
+
+/// Like [`make_task_dirty_internal`], but instead of scheduling the task it returns the parent
+/// priority to schedule it with (see [`ExecuteContext::schedule_task`]). The task is already marked
+/// as scheduled when this returns `Some`, so the caller must schedule it.
+///
+/// Requires the guard to be allocated with [TaskDataCategory::All]
+#[must_use]
+pub(super) fn make_task_dirty_without_scheduling(
+    task: &mut TaskGuard<'_>,
+    make_stale: bool,
+    #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
+    queue: &mut AggregationUpdateQueue,
+    ctx: &mut ExecuteContext<'_>,
+) -> Option<TaskPriority> {
     // There must be no way to invalidate immutable tasks. If there would be a way the task is not
     // immutable.
     #[cfg(any(debug_assertions, feature = "verify_immutable"))]
@@ -133,7 +161,7 @@ pub fn make_task_dirty_internal(
                     cause,
                 });
             }
-            return;
+            return None;
         }
         Some(Dirtyness::SessionDependent) => {
             task.set_dirty(Dirtyness::Dirty {
@@ -157,7 +185,7 @@ pub fn make_task_dirty_internal(
                 )
                 .entered();
                 // already dirty
-                return;
+                return None;
             }
         }
         None => {
@@ -213,7 +241,8 @@ pub fn make_task_dirty_internal(
     if should_schedule {
         let description = EventDescription::new(|| task.get_task_desc_fn());
         if task.add_scheduled(TaskExecutionReason::Invalidated, description) {
-            ctx.schedule_task(&*task, parent_priority);
+            return Some(parent_priority);
         }
     }
+    None
 }

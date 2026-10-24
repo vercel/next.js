@@ -72,6 +72,10 @@ type Actions = {
       [name: string]: {
         moduleId: string | number
         async: boolean
+        // Root param dependencies collected from the cache module's graph. An
+        // empty list means none were found; absence means collection did not
+        // run.
+        rootParamDependencies?: readonly string[]
         durability?: {
           codeHash: string
           runtimeEnvVarsRead: string[]
@@ -795,8 +799,7 @@ export class FlightClientEntryPlugin {
       }
 
       if (isCSSMod(mod)) {
-        const sideEffectFree =
-          mod.factoryMeta && (mod.factoryMeta as any).sideEffectFree
+        const sideEffectFree = mod.factoryMeta && mod.factoryMeta.sideEffectFree
 
         if (sideEffectFree) {
           const unused = !compilation.moduleGraph

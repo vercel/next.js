@@ -7,7 +7,7 @@ mod util;
 
 use std::{env, fs::canonicalize, path::PathBuf};
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use serde::Deserialize;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
@@ -32,6 +32,7 @@ use turbopack::{
     },
 };
 use turbopack_core::{
+    asset::AssetContent,
     chunk::{ChunkingConfig, MangleType, MinifyType},
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
@@ -46,9 +47,15 @@ use turbopack_core::{
     },
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
-        ExternalTraced, ExternalType,
-        options::{ImportMap, ImportMapping},
+        ExternalTraced, ExternalType, ResolveResult,
+        options::{
+            ImportMap, ImportMapResult, ImportMapping, ImportMappingReplacement,
+            ReplacedImportMapping,
+        },
+        parse::Request,
+        pattern::Pattern,
     },
+    virtual_source::VirtualSource,
 };
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::chunk::EcmascriptChunkType;
@@ -434,6 +441,16 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
 
     let mut import_map = ImportMap::empty();
     import_map.insert_wildcard_alias(
+        rcstr!("generated-chain/"),
+        ImportMapping::Dynamic(ResolvedVc::upcast(
+            GeneratedChainReplacer {
+                dir: project_path.join("input/generated-chain")?,
+            }
+            .resolved_cell(),
+        ))
+        .resolved_cell(),
+    );
+    import_map.insert_wildcard_alias(
         rcstr!("esm-external/"),
         ImportMapping::External(
             Some(rcstr!("*")),
@@ -715,4 +732,80 @@ async fn snapshot_issues(
         .context("Unable to handle issues")?;
 
     Ok(())
+}
+
+/// Resolves `generated-chain/<kind>/<n>` to a generated module that loads
+/// `generated-chain/<kind>/<n - 1>`, so a test can build a module chain of any depth without
+/// fixture files. `<kind>` is `esm` (static `import`) or `cjs` (`require`), and `<n> = 0` is the
+/// leaf. Each module exports `depth`, the number of modules from it to the leaf, inclusive.
+///
+/// When the leaf evaluates, it stores the number of `module evaluation` frames on the stack in
+/// `globalThis.__generatedChainEvaluationFrames[kind]`, so a test can check that the chain was
+/// evaluated one module at a time instead of being merged into fewer modules.
+#[turbo_tasks::value]
+struct GeneratedChainReplacer {
+    /// The generated modules are placed in this directory, as `<kind>/<n>.js`, so their idents
+    /// and output chunks show where they come from.
+    dir: FileSystemPath,
+}
+
+#[turbo_tasks::value_impl]
+impl ImportMappingReplacement for GeneratedChainReplacer {
+    #[turbo_tasks::function]
+    async fn replace(&self, capture: Vc<Pattern>) -> Result<Vc<ReplacedImportMapping>> {
+        let capture = capture.await?;
+        let Some((kind, n)) = capture
+            .as_constant_string()
+            .and_then(|capture| capture.split_once('/'))
+        else {
+            bail!("expected `generated-chain/<kind>/<n>`, got `generated-chain/{capture:?}`");
+        };
+        let n: u32 = n
+            .parse()
+            .with_context(|| format!("invalid depth in `generated-chain/{kind}/{n}`"))?;
+        let code = match (kind, n) {
+            ("esm", 0) => format!("{}\nexport const depth = 1\n", leaf_prelude(kind)),
+            ("esm", n) => format!(
+                "import {{ depth as below }} from 'generated-chain/esm/{}'\nexport const depth = \
+                 below + 1\n",
+                n - 1
+            ),
+            ("cjs", 0) => format!("{}\nexports.depth = 1;\n", leaf_prelude(kind)),
+            ("cjs", n) => format!(
+                "exports.depth = require('generated-chain/cjs/{}').depth + 1;\n",
+                n - 1
+            ),
+            (kind, _) => bail!("unknown kind `{kind}` in `generated-chain/{kind}/{n}`"),
+        };
+
+        let source = VirtualSource::new(
+            self.dir.join(&format!("{kind}/{n}.js"))?,
+            AssetContent::file(FileContent::Content(code.into()).cell()),
+        )
+        .to_resolved()
+        .await?;
+        Ok(ReplacedImportMapping::Direct(
+            ResolveResult::source(ResolvedVc::upcast(source)).resolved_cell(),
+        )
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    fn result(&self, _lookup_path: FileSystemPath, _request: Vc<Request>) -> Vc<ImportMapResult> {
+        // `replace` always returns `Direct`, so this is never called.
+        ImportMapResult::NoEntry.cell()
+    }
+}
+
+/// Records how many `module evaluation` frames are on the stack when the leaf of a generated chain
+/// evaluates.
+fn leaf_prelude(kind: &str) -> String {
+    format!(
+        "const stackTraceLimit = Error.stackTraceLimit
+Error.stackTraceLimit = Infinity
+const frames = new Error().stack.split('\\n').filter((line) => line.includes('module evaluation'))
+Error.stackTraceLimit = stackTraceLimit
+globalThis.__generatedChainEvaluationFrames ??= {{}}
+globalThis.__generatedChainEvaluationFrames.{kind} = frames.length"
+    )
 }

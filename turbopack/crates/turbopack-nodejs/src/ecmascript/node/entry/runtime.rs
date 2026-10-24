@@ -22,7 +22,7 @@ use crate::NodeJsChunkingContext;
 #[turbo_tasks::value(shared)]
 #[derive(ValueToString)]
 #[value_to_string("Ecmascript Build Node Runtime Chunk")]
-pub(crate) struct EcmascriptBuildNodeRuntimeChunk {
+pub struct EcmascriptBuildNodeRuntimeChunk {
     chunking_context: ResolvedVc<NodeJsChunkingContext>,
     include_async_module_runtime: bool,
 }

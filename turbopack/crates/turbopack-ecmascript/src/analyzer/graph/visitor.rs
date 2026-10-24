@@ -1717,6 +1717,16 @@ impl VisitAstPath for Analyzer<'_, '_> {
         n: &'ast CallExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
+        // A direct eval (`eval(…)` or `(eval)(…)` calling the global `eval`) can access
+        // bindings in its lexical scope by name. Only parentheses are stripped: `(0, eval)(…)`
+        // is an indirect eval.
+        if let Callee::Expr(callee) = &n.callee
+            && let Expr::Ident(ident) = callee.unwrap_parens()
+            && is_global(ident, "eval", self.eval_context.unresolved_mark)
+        {
+            self.data.has_direct_eval = true;
+        }
+
         // `Object.defineProperty(exports, …)` is a CommonJS export write; recognize
         // it so unused entries drop (its `exports` argument is guarded below).
         let is_cjs_define_property = if self.cjs_exports_enabled()

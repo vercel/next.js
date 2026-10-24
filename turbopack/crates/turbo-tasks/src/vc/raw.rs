@@ -172,7 +172,7 @@ pub enum RawVcUnpacked {
     /// representation used by [`OperationVc`][crate::OperationVc].
     TaskOutput(TaskId),
     /// A pointer to a specific [`Vc::cell`][crate::Vc::cell] or `.cell()` call within a task. This
-    /// is the representation used by [`ResolvedVc`].
+    /// is the representation used by [`ResolvedVc`][crate::ResolvedVc].
     ///
     /// [`CellId`] contains the [`ValueTypeId`], which can be useful for efficient downcasting.
     TaskCell(TaskId, CellId),
@@ -637,7 +637,7 @@ impl Future for ResolveRawVcFuture {
                             }
                             Ok(Err(listener)) => (
                                 listener,
-                                Some(ScheduleKey::LocalTask(execution_id, local_task_id)),
+                                Some(ScheduleKey::current_local_task(execution_id, local_task_id)),
                             ),
                             Err(err) => return Poll::Ready(Err(err)),
                         }

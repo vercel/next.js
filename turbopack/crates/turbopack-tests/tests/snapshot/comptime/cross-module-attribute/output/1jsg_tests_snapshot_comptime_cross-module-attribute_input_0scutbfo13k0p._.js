@@ -39,7 +39,6 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$
 
 __turbopack_context__.s([
     "nonConstant",
-    0,
     ()=>nonConstant
 ]);
 const nonConstant = {
@@ -51,10 +50,8 @@ const nonConstant = {
 
 __turbopack_context__.s([
     "UPPER",
-    0,
     ()=>UPPER,
     "lower",
-    0,
     ()=>lower
 ]);
 const lower = 'lowercase';

@@ -7,6 +7,7 @@ import {
   check,
   retry,
   fetchViaHTTP,
+  expectDirectives,
   getBrowserBodyText,
   getRedboxHeader,
   normalizeRegEx,
@@ -821,28 +822,42 @@ const runTests = (
 
     it('should set default caching header', async () => {
       const resPage = await fetchViaHTTP(next.url, `/something`)
-      expect(resPage.headers.get('cache-control')).toBe(
-        'private, no-cache, no-store, max-age=0, must-revalidate'
-      )
+      expectDirectives(resPage.headers.get('cache-control'), [
+        'private',
+        'no-cache',
+        'no-store',
+        'max-age=0',
+        'must-revalidate',
+      ])
 
       const resData = await fetchViaHTTP(
         next.url,
         `/_next/data/${buildId}/something.json`
       )
-      expect(resData.headers.get('cache-control')).toBe(
-        'private, no-cache, no-store, max-age=0, must-revalidate'
-      )
+      expectDirectives(resData.headers.get('cache-control'), [
+        'private',
+        'no-cache',
+        'no-store',
+        'max-age=0',
+        'must-revalidate',
+      ])
     })
 
     it('should respect custom caching header', async () => {
       const resPage = await fetchViaHTTP(next.url, `/custom-cache`)
-      expect(resPage.headers.get('cache-control')).toBe('public, max-age=3600')
+      expectDirectives(resPage.headers.get('cache-control'), [
+        'public',
+        'max-age=3600',
+      ])
 
       const resData = await fetchViaHTTP(
         next.url,
         `/_next/data/${buildId}/custom-cache.json`
       )
-      expect(resData.headers.get('cache-control')).toBe('public, max-age=3600')
+      expectDirectives(resData.headers.get('cache-control'), [
+        'public',
+        'max-age=3600',
+      ])
     })
 
     it('should not show error for invalid JSON returned from getServerSideProps', async () => {

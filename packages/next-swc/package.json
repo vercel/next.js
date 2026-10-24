@@ -1,6 +1,6 @@
 {
   "name": "@next/swc",
-  "version": "16.4.0-canary.59",
+  "version": "16.5.0-canary.26",
   "private": true,
   "files": [
     "native/"
@@ -8,9 +8,9 @@
   "scripts": {
     "build-native-auto": "node maybe-build-native.mjs",
     "clean": "node ../../scripts/rm.mjs native",
-    "build-native": "napi build --platform -p next-napi-bindings --manifest-path ../../Cargo.toml --features image-extended --no-js -o native",
-    "build-native-release": "napi build --platform -p next-napi-bindings --manifest-path ../../Cargo.toml --release --features image-extended,tracing/release_max_level_trace --no-js -o native",
-    "build-native-release-with-assertions": "napi build --platform -p next-napi-bindings --manifest-path ../../Cargo.toml --profile release-with-assertions --features image-extended,tracing/release_max_level_trace --no-js -o native",
+    "build-native": "napi build --platform -p next-napi-bindings --manifest-path ../../Cargo.toml --no-js -o native",
+    "build-native-release": "napi build --platform -p next-napi-bindings --manifest-path ../../Cargo.toml --release --features tracing/release_max_level_trace --no-js -o native",
+    "build-native-release-with-assertions": "napi build --platform -p next-napi-bindings --manifest-path ../../Cargo.toml --profile release-with-assertions --features tracing/release_max_level_trace --no-js -o native",
     "build-native-wasi": "napi build --platform --target wasm32-wasip1-threads -p next-napi-bindings --manifest-path ../../Cargo.toml --no-default-features -o native",
     "build-wasm": "wasm-pack build ../../crates/wasm --scope=next",
     "cache-build-native": "[ -d native ] && echo $(ls native)",
@@ -20,6 +20,7 @@
     "rust-check-fmt": "cd ../..; cargo fmt -- --check",
     "rust-check-napi": "cargo check -p next-napi-bindings",
     "test-cargo-unit": "cargo nextest run --workspace --exclude next-napi-bindings --exclude turbo-tasks-macros --cargo-profile release-with-assertions --no-fail-fast && cargo test --workspace --doc --profile=release-with-assertions --no-fail-fast",
+    "test-cargo-unit-ci": "cargo nextest run --workspace --exclude next-napi-bindings --exclude turbo-tasks-macros --features turbo-tasks-fs/ci --cargo-profile release-with-assertions --no-fail-fast && cargo test --workspace --doc --features turbo-tasks-fs/ci --profile=release-with-assertions --no-fail-fast",
     "test-cargo-unit-miri": "MIRIFLAGS='-Zmiri-disable-isolation -Zmiri-permissive-provenance' cargo miri nextest run -p turbo-persistence -p turbo-rcstr -p turbo-tasks-malloc --no-default-features --features turbo-tasks-malloc/custom_allocator --no-fail-fast"
   },
   "napi": {

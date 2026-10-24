@@ -2,7 +2,7 @@ use anyhow::{Result, bail};
 use indoc::formatdoc;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
-use turbo_tasks_fs::FileSystem;
+use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkData, ChunkGroupType, ChunkableModule, ChunkingContext,
@@ -90,13 +90,8 @@ impl WorkerLoaderModule {
                     bail!("Worker module must be evaluatable");
                 };
 
-                let worker_path = chunking_context
-                    .chunk_path(
-                        None,
-                        this.inner.ident(),
-                        Some(rcstr!("[worker thread]")),
-                        rcstr!(".js"),
-                    )
+                let worker_path = self
+                    .node_worker_entry_path(chunking_context)
                     .owned()
                     .await?;
 
@@ -118,6 +113,21 @@ impl WorkerLoaderModule {
                 .cell()
             }
         })
+    }
+
+    /// Must remain the single source of truth for the path passed to `root_entry_chunk_group`
+    /// and referenced by the Node.js worker loader.
+    #[turbo_tasks::function]
+    fn node_worker_entry_path(
+        &self,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Vc<FileSystemPath> {
+        chunking_context.chunk_path(
+            None,
+            self.inner.ident(),
+            Some(rcstr!("[worker thread]")),
+            rcstr!(".js"),
+        )
     }
 
     #[turbo_tasks::function]
@@ -329,23 +339,14 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
                 }
             }
             WorkerType::NodeWorkerThread => {
+                // The entry path is an input to chunk generation, so obtaining it does not
+                // require generating the worker's chunks.
+                let entry_path = self.node_worker_entry_path(chunking_context).await?;
+
                 // For Node.js workers, export a function to create the worker.
                 // The function takes (WorkerConstructor, workerOptions) and calls createWorker
                 // with the worker path baked in.
-                let chunk_group = self.chunk_group(chunking_context, module_graph).await?;
-                let assets = chunk_group.assets.await?;
-
-                // The last asset is the evaluate chunk (entry point) for the worker.
-                // The evaluated_chunk_group adds regular chunks first, then pushes the
-                // evaluate chunk last. The evaluate chunk contains the bootstrap code that
-                // loads the runtime and other chunks. For Node.js workers, we need a single
-                // file path (not a blob URL like browser workers), so we use the evaluate
-                // chunk which serves as the entry point.
-                let Some(entry_asset) = assets.last() else {
-                    bail!("cannot find worker entry point asset");
-                };
-                let entry_path = entry_asset.path().await?;
-
+                //
                 // Get the filename of the worker entry chunk
                 // We use just the filename because both the loader module and the worker
                 // entry chunk are in the same directory (typically server/chunks/), so we
