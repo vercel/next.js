@@ -1318,6 +1318,16 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
     }
 
     #[turbo_tasks::function]
+    async fn worker_loader_chunk_item(
+        self: Vc<Self>,
+        _module: Vc<Box<dyn Module>>,
+        _module_graph: Vc<ModuleGraph>,
+        _availability_info: AvailabilityInfo,
+    ) -> Result<Vc<Box<dyn ChunkItem>>> {
+        bail!("worker_loader_chunk_item should not be called in UseCacheContentHashChunkingContext")
+    }
+
+    #[turbo_tasks::function]
     async fn module_export_usage(
         self: Vc<Self>,
         _module: ResolvedVc<Box<dyn Module>>,
