@@ -42,6 +42,11 @@ import {
   getTracer,
   type Span,
 } from './tracer'
+import {
+  addTraceStateEntry,
+  DEFERRED_REQUEST_SPAN_KEY,
+  encodeDeferredRequestSpan,
+} from './deferred-request-span'
 
 const customContextKey = createContextKey('next.tracer.test.custom-context')
 const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
@@ -278,6 +283,475 @@ describe('trace context with the W3C propagator', () => {
     expect(result).toStrictEqual({
       traceparent: `00-${TRACE_ID}-${SPAN_ID}-01`,
       tracestate: undefined,
+    })
+  })
+})
+
+// A minimal W3C `tracestate` (`@opentelemetry/core` isn't a dependency here).
+class TestTraceState {
+  constructor(private readonly entries: [string, string][] = []) {}
+  static parse(value: string | undefined) {
+    return new TestTraceState(
+      (value ?? '')
+        .split(',')
+        .map((member) => member.trim().split('=') as [string, string])
+        .filter(([key, entry]) => key && entry !== undefined)
+    )
+  }
+  get(key: string) {
+    return this.entries.find(([k]) => k === key)?.[1]
+  }
+  set(key: string, value: string) {
+    return new TestTraceState([[key, value], ...this.unset(key).entries])
+  }
+  unset(key: string) {
+    return new TestTraceState(this.entries.filter(([k]) => k !== key))
+  }
+  serialize() {
+    return this.entries.map(([k, v]) => `${k}=${v}`).join(',')
+  }
+}
+
+// A minimal W3C Trace Context propagator (`traceparent` and `tracestate`).
+class TraceContextPropagator extends TraceparentPropagator {
+  fields(): string[] {
+    return ['traceparent', 'tracestate']
+  }
+
+  inject(
+    injectedContext: Context,
+    carrier: unknown,
+    setter: TextMapSetter<unknown>
+  ): void {
+    super.inject(injectedContext, carrier, setter)
+    const traceState = trace.getSpanContext(injectedContext)?.traceState
+    if (traceState) {
+      setter.set(carrier, 'tracestate', traceState.serialize())
+    }
+  }
+
+  extract(
+    extractedContext: Context,
+    carrier: Record<string, string | undefined>,
+    mapGetter: TextMapGetter<Record<string, string | undefined>>
+  ): Context {
+    const extracted = super.extract(extractedContext, carrier, mapGetter)
+    const spanContext = trace.getSpanContext(extracted)
+    const tracestate = mapGetter.get(carrier, 'tracestate')
+    if (!spanContext || typeof tracestate !== 'string') {
+      return extracted
+    }
+    return trace.setSpanContext(extracted, {
+      ...spanContext,
+      traceState: TestTraceState.parse(tracestate),
+    })
+  }
+}
+
+describe('deferred request span', () => {
+  const INCOMING_TRACE_ID = '0af7651916cd43dd8448eb211c80319c'
+  const NOW = Date.now()
+
+  interface FakeSpan {
+    name: string
+    options: any
+    traceId: string
+    spanId: string
+    status?: { code: number }
+    endTime?: unknown
+    ended: number
+  }
+  let started: FakeSpan[]
+  let shouldSample: jest.Mock
+  let failStart: boolean
+
+  beforeEach(() => {
+    started = []
+    failStart = false
+    let counter = 0
+    shouldSample = jest.fn(() => ({ decision: 2 }))
+    // Mirrors `Tracer` of `@opentelemetry/sdk-trace`: the IDs come from
+    // `_idGenerator` (the trace ID only for root spans), `_sampler` decides.
+    const sdkTracer: any = {
+      _idGenerator: {
+        generateTraceId: () => `${++counter}`.padStart(32, 'a'),
+        generateSpanId: () => `${++counter}`.padStart(16, 'b'),
+      },
+      _sampler: { shouldSample },
+      startSpan(name: string, options: any = {}, ctx = context.active()) {
+        if (failStart) {
+          throw new Error('startSpan failed')
+        }
+        const spanId = sdkTracer._idGenerator.generateSpanId()
+        const parent = options.root ? undefined : trace.getSpanContext(ctx)
+        const traceId =
+          parent?.traceId ?? sdkTracer._idGenerator.generateTraceId()
+        const record: FakeSpan = { name, options, traceId, spanId, ended: 0 }
+        started.push(record)
+        return {
+          isRecording: () => true,
+          spanContext: () => ({ traceId, spanId, traceFlags: 1 }),
+          setStatus(status: { code: number }) {
+            record.status = status
+          },
+          end(endTime?: unknown) {
+            record.ended++
+            record.endTime = endTime
+          },
+        }
+      },
+    }
+    context.disable()
+    propagation.disable()
+    trace.disable()
+    context.setGlobalContextManager(new TestContextManager())
+    propagation.setGlobalPropagator(new TraceContextPropagator())
+    trace.setGlobalTracerProvider({ getTracer: () => sdkTracer })
+  })
+
+  afterEach(() => {
+    trace.disable()
+    propagation.disable()
+    context.disable()
+  })
+
+  const requestSpans = () =>
+    started.filter((span) => span.options.attributes?.['next.span_type'])
+
+  // The request headers of a render the middleware deferred its request span
+  // to (as the adapter forwards them). Every deferred span has its own span
+  // ID, since each is emitted at most once per process.
+  let deferredSpans = 0
+  function deferredHeaders(
+    {
+      startTime = NOW - 1_000,
+      spanId = `${++deferredSpans}`.padStart(16, 'c'),
+      bound = spanId,
+    }: { startTime?: number; spanId?: string; bound?: string } = {},
+    other = 'vendor=1'
+  ): Record<string, string | undefined> {
+    return {
+      traceparent: `00-${INCOMING_TRACE_ID}-${spanId}-01`,
+      tracestate: addTraceStateEntry(
+        other,
+        DEFERRED_REQUEST_SPAN_KEY,
+        encodeDeferredRequestSpan({
+          spanId: bound,
+          startTime,
+          name: 'GET',
+          attributes: { 'http.method': 'GET', 'http.target': '/page' },
+        })!
+      ),
+    }
+  }
+
+  describe('reserveRequestSpan', () => {
+    it('reserves the IDs and runs children under them without starting a span', () => {
+      const reserved = getTracer().reserveRequestSpan('GET', {
+        startTime: NOW - 5,
+        attributes: { 'http.method': 'GET', 'http.target': '/page' },
+      })!
+      expect(reserved).toBeDefined()
+      expect(started).toEqual([])
+      expect(shouldSample).toHaveBeenCalledTimes(1)
+
+      const parent = reserved.run(() => {
+        const span = trace.getSpan(context.active())
+        return { context: span?.spanContext(), recording: span?.isRecording() }
+      })
+      expect(parent).toEqual({
+        context: expect.objectContaining({
+          traceId: reserved.traceId,
+          spanId: reserved.spanId,
+          traceFlags: 1,
+        }),
+        recording: false,
+      })
+      expect(started).toEqual([])
+    })
+
+    it('emits the span with the reserved IDs once', () => {
+      const reserved = getTracer().reserveRequestSpan('GET', {
+        startTime: NOW - 5,
+        attributes: { 'http.method': 'GET', 'http.target': '/page' },
+      })!
+      reserved.emit({ failed: true, error: new Error('boom') })
+      reserved.emit()
+      expect(started).toEqual([
+        expect.objectContaining({
+          name: 'GET',
+          traceId: reserved.traceId,
+          spanId: reserved.spanId,
+          status: { code: SpanStatusCode.ERROR },
+          ended: 1,
+          options: expect.objectContaining({
+            root: true,
+            kind: SpanKind.SERVER,
+            startTime: NOW - 5,
+            attributes: expect.objectContaining({
+              'next.span_type': 'Next.request',
+              'http.target': '/page',
+            }),
+          }),
+        }),
+      ])
+    })
+
+    it('keeps an unsampled reservation without starting or emitting a span', () => {
+      shouldSample.mockReturnValue({ decision: 1 })
+      const reserved = getTracer().reserveRequestSpan('GET', {
+        attributes: {},
+      })!
+      expect(reserved).toBeDefined()
+      expect(reserved.sampled).toBe(false)
+      expect(shouldSample).toHaveBeenCalledTimes(1)
+      expect(
+        reserved.run(
+          () => trace.getSpan(context.active())?.spanContext().traceFlags
+        )
+      ).toBe(0)
+      reserved.emit()
+      expect(started).toEqual([])
+    })
+  })
+
+  describe('withPropagatedContext', () => {
+    it('emits the request span after the render with the incoming IDs', async () => {
+      const headers = deferredHeaders()
+      let seen: unknown
+      await getTracer().withPropagatedContext(
+        headers,
+        async () => {
+          seen = {
+            headers: { ...headers },
+            traceState: trace
+              .getSpanContext(context.active())
+              ?.traceState?.serialize(),
+          }
+          expect(requestSpans()).toEqual([])
+        },
+        getter
+      )
+      expect(seen).toEqual({
+        headers: expect.objectContaining({ tracestate: 'vendor=1' }),
+        traceState: 'vendor=1',
+      })
+      expect(requestSpans()).toEqual([
+        expect.objectContaining({
+          traceId: INCOMING_TRACE_ID,
+          spanId: headers.traceparent!.split('-')[2],
+          ended: 1,
+          options: expect.objectContaining({ startTime: NOW - 1_000 }),
+        }),
+      ])
+      expect(requestSpans()[0].status).toBeUndefined()
+    })
+
+    it('uses an earlier start of the render request span', async () => {
+      await getTracer().withPropagatedContext(
+        deferredHeaders(),
+        async () => {},
+        getter,
+        false,
+        { requestStartTime: NOW - 2_000 }
+      )
+      expect(requestSpans()[0].options.startTime).toBe(NOW - 2_000)
+    })
+
+    it('marks the span as failed when the render rejects, even with undefined', async () => {
+      await expect(
+        getTracer().withPropagatedContext(
+          deferredHeaders(),
+          () => Promise.reject(undefined),
+          getter
+        )
+      ).rejects.toBeUndefined()
+      expect(requestSpans()[0].status).toEqual({
+        code: SpanStatusCode.ERROR,
+      })
+      expect(() =>
+        getTracer().withPropagatedContext(
+          deferredHeaders(),
+          () => {
+            throw new Error('sync')
+          },
+          getter
+        )
+      ).toThrow('sync')
+      expect(requestSpans()[1]).toMatchObject({
+        status: { code: SpanStatusCode.ERROR },
+        ended: 1,
+      })
+    })
+
+    it('keeps the result and the error of the render when emitting fails', async () => {
+      failStart = true
+      await expect(
+        getTracer().withPropagatedContext(
+          deferredHeaders(),
+          async () => 'result',
+          getter
+        )
+      ).resolves.toBe('result')
+      const error = new Error('render failed')
+      await expect(
+        getTracer().withPropagatedContext(
+          deferredHeaders(),
+          () => Promise.reject(error),
+          getter
+        )
+      ).rejects.toBe(error)
+    })
+
+    it('emits once for nested renders, even with copied headers', async () => {
+      const headers = deferredHeaders()
+      const copy = { ...headers }
+      await getTracer().withPropagatedContext(
+        headers,
+        () =>
+          getTracer().withPropagatedContext(copy, async () => {}, getter, true),
+        getter
+      )
+      expect(requestSpans()).toHaveLength(1)
+    })
+
+    it('emits once for nested renders, even after many other requests', async () => {
+      const headers = deferredHeaders()
+      const copy = { ...headers }
+      await getTracer().withPropagatedContext(
+        headers,
+        async () => {
+          // Other requests, e.g. concurrent ones, emitting their own spans
+          // (synchronously: the test context manager isn't async-aware).
+          for (let i = 0; i < 1_001; i++) {
+            context.with(ROOT_CONTEXT, () =>
+              getTracer().withPropagatedContext(
+                deferredHeaders(),
+                () => {},
+                getter
+              )
+            )
+          }
+          await getTracer().withPropagatedContext(
+            copy,
+            async () => {},
+            getter,
+            true
+          )
+        },
+        getter
+      )
+      const spanId = headers.traceparent!.split('-')[2]
+      expect(
+        requestSpans().filter((span) => span.spanId === spanId)
+      ).toHaveLength(1)
+    })
+
+    it('ignores an entry bound to another span, removing it', async () => {
+      const headers = deferredHeaders({ bound: 'eeeeeeeeeeeeeeee' })
+      await getTracer().withPropagatedContext(headers, async () => {}, getter)
+      expect(requestSpans()).toEqual([])
+      expect(headers.tracestate).toBe('vendor=1')
+    })
+
+    it('removes the entry without emitting when a host span is active', async () => {
+      const headers = deferredHeaders()
+      const host = trace.wrapSpanContext({
+        traceId: '1'.repeat(32),
+        spanId: '1'.repeat(16),
+        traceFlags: 1,
+        traceState: TestTraceState.parse(headers.tracestate),
+      })
+      let activeState: string | undefined
+      await context.with(trace.setSpan(ROOT_CONTEXT, host), () =>
+        getTracer().withPropagatedContext(
+          headers,
+          async () => {
+            activeState = trace
+              .getSpanContext(context.active())
+              ?.traceState?.serialize()
+          },
+          getter
+        )
+      )
+      expect(requestSpans()).toEqual([])
+      expect(headers.tracestate).toBe('vendor=1')
+      expect(activeState).toBe('vendor=1')
+    })
+
+    it('removes the entry from a recording host span view, keeping updates to it', async () => {
+      const headers = deferredHeaders()
+      const setAttribute = jest.fn()
+      const hostContext = {
+        traceId: '1'.repeat(32),
+        spanId: '1'.repeat(16),
+        traceFlags: 1,
+        traceState: TestTraceState.parse(headers.tracestate),
+      }
+      const host: any = Object.assign(trace.wrapSpanContext(hostContext), {
+        isRecording: () => true,
+        setAttribute(key: string, value: unknown) {
+          setAttribute(key, value)
+          return host
+        },
+      })
+      let seen: { traceState?: string; recording?: boolean } = {}
+      await context.with(trace.setSpan(ROOT_CONTEXT, host), () =>
+        getTracer().withPropagatedContext(
+          headers,
+          async () => {
+            const active = trace.getSpan(context.active())!
+            active.setAttribute('key', 'value')
+            seen = {
+              traceState: active.spanContext().traceState?.serialize(),
+              recording: active.isRecording(),
+            }
+          },
+          getter
+        )
+      )
+      expect(seen).toEqual({ traceState: 'vendor=1', recording: true })
+      expect(setAttribute).toHaveBeenCalledWith('key', 'value')
+      expect(host.spanContext().traceState.serialize()).toContain(
+        'next-deferred'
+      )
+    })
+
+    it('removes the entry from the active context in force mode without a remote span', async () => {
+      const host = trace.wrapSpanContext({
+        traceId: '1'.repeat(32),
+        spanId: '1'.repeat(16),
+        traceFlags: 1,
+        traceState: TestTraceState.parse(deferredHeaders().tracestate),
+      })
+      let activeState: string | undefined
+      await context.with(trace.setSpan(ROOT_CONTEXT, host), () =>
+        getTracer().withPropagatedContext(
+          {},
+          async () => {
+            activeState = trace
+              .getSpanContext(context.active())
+              ?.traceState?.serialize()
+          },
+          getter,
+          true
+        )
+      )
+      expect(activeState).toBe('vendor=1')
+      expect(requestSpans()).toEqual([])
+    })
+
+    it('only removes the entry in middleware', async () => {
+      const headers = deferredHeaders({}, '')
+      await getTracer().withPropagatedContext(
+        headers,
+        async () => {},
+        getter,
+        false,
+        { deferredRequestSpan: 'strip' }
+      )
+      expect(requestSpans()).toEqual([])
+      expect(headers.tracestate).toBeUndefined()
     })
   })
 })

@@ -727,7 +727,10 @@ export abstract class RouteModule<
           }
         ),
       undefined,
-      !isWrappedByNextServer
+      !isWrappedByNextServer,
+      // A request span the middleware deferred to this render (see
+      // `deferred-request-span.ts`) covers the backdated request span too.
+      { requestStartTime: instrumentation?.startTime }
     )
   }
 
