@@ -34,25 +34,80 @@ thread_local! {
     );
 }
 
+enum DecompressionTarget<'a> {
+    Lz4(&'a mut [u8]),
+    Zstd(&'a mut [MaybeUninit<u8>]),
+}
+
+impl DecompressionTarget<'_> {
+    fn compression(&self) -> Compression {
+        match self {
+            DecompressionTarget::Lz4(_) => Compression::Lz4,
+            DecompressionTarget::Zstd(_) => Compression::Zstd3,
+        }
+    }
+}
+
+/// A Zstd output buffer that keeps its allocation uninitialized until the codec reports which
+/// prefix it wrote.
+#[cfg(not(miri))]
+struct ZstdUninitBuffer<'a> {
+    buffer: &'a mut [MaybeUninit<u8>],
+    initialized: usize,
+}
+
+#[cfg(not(miri))]
+impl<'a> ZstdUninitBuffer<'a> {
+    fn new(buffer: &'a mut [MaybeUninit<u8>]) -> Self {
+        Self {
+            buffer,
+            initialized: 0,
+        }
+    }
+}
+
+// Safety: `capacity` and `as_mut_ptr` describe the full writable allocation, while `as_slice`
+// exposes only the prefix that Zstd has reported initialized through `filled_until`.
+#[cfg(not(miri))]
+unsafe impl zstd::zstd_safe::WriteBuf for ZstdUninitBuffer<'_> {
+    fn as_slice(&self) -> &[u8] {
+        // Safety: `initialized` is updated only by `filled_until`, whose caller guarantees that
+        // this prefix was written, and it is always at most the allocation length.
+        unsafe { self.buffer[..self.initialized].assume_init_ref() }
+    }
+
+    fn capacity(&self) -> usize {
+        self.buffer.len()
+    }
+
+    fn as_mut_ptr(&mut self) -> *mut u8 {
+        self.buffer.as_mut_ptr().cast()
+    }
+
+    unsafe fn filled_until(&mut self, n: usize) {
+        assert!(n <= self.buffer.len());
+        self.initialized = n;
+    }
+}
+
 /// Decompresses `block` into `dest`, verifying the output length matches `expected_len`.
-fn decompress_block(
-    compression: Compression,
-    block: &[u8],
-    dest: &mut [u8],
-    expected_len: u32,
-) -> Result<()> {
+fn decompress_block(block: &[u8], dest: DecompressionTarget<'_>, expected_len: u32) -> Result<()> {
     debug_assert!(
         expected_len > 0,
         "decompress_block called with uncompressed_length=0; uncompressed blocks are served \
          directly from their backing"
     );
+    let compression = dest.compression();
     #[cfg(not(miri))]
     {
-        let bytes_written = match compression {
-            Compression::Lz4 => decompress_into(block, dest).map_err(anyhow::Error::from),
-            Compression::Zstd3 => ZSTD_DECOMPRESSOR.with_borrow_mut(|decompressor| {
+        let mut dest = dest;
+        let bytes_written = match &mut dest {
+            DecompressionTarget::Lz4(dest) => {
+                decompress_into(block, dest).map_err(anyhow::Error::from)
+            }
+            DecompressionTarget::Zstd(dest) => ZSTD_DECOMPRESSOR.with_borrow_mut(|decompressor| {
                 decompressor
-                    .decompress_to_buffer(block, dest)
+                    .decompress_to_buffer(block, &mut ZstdUninitBuffer::new(dest))
                     .map_err(anyhow::Error::from)
             }),
         }
@@ -78,7 +133,14 @@ fn decompress_block(
             block.len() == expected_len as usize,
             "Miri builds skip compression, so a compressed block cannot be read under Miri"
         );
-        dest.copy_from_slice(block);
+        match dest {
+            DecompressionTarget::Lz4(dest) => dest.copy_from_slice(block),
+            DecompressionTarget::Zstd(dest) => {
+                for (dest, &byte) in dest.iter_mut().zip(block) {
+                    dest.write(byte);
+                }
+            }
+        }
     }
     Ok(())
 }
@@ -92,15 +154,23 @@ pub(crate) fn decompress_into_arc(
     uncompressed_length: u32,
     block: &[u8],
 ) -> Result<Arc<[u8]>> {
-    // Allocate directly into an Arc to avoid a copy. The buffer is uninitialized;
-    // decompression will overwrite it completely (verified by decompress_block).
     let buffer: Arc<[MaybeUninit<u8>]> = Arc::new_uninit_slice(uncompressed_length as usize);
+    if compression == Compression::Zstd3 {
+        let mut buffer = buffer;
+        // We just created this Arc, so its refcount is 1 and `get_mut` always succeeds.
+        let dest = Arc::get_mut(&mut buffer).expect("Arc refcount should be 1");
+        decompress_block(block, DecompressionTarget::Zstd(dest), uncompressed_length)?;
+        // Safety: successful Zstd decompression reported that it initialized exactly the full
+        // allocation; `decompress_block` checked that before returning.
+        return Ok(unsafe { buffer.assume_init() });
+    }
+
     // Safety: decompression will fully initialize the buffer (verified by the length check in
     // decompress_block).
     let mut buffer = unsafe { buffer.assume_init() };
     // We just created this Arc so refcount is 1; get_mut always succeeds.
     let dest = Arc::get_mut(&mut buffer).expect("Arc refcount should be 1");
-    decompress_block(compression, block, dest, uncompressed_length)?;
+    decompress_block(block, DecompressionTarget::Lz4(dest), uncompressed_length)?;
     Ok(buffer)
 }
 
@@ -111,11 +181,20 @@ pub(crate) fn decompress_into_rc(
     block: &[u8],
 ) -> Result<Rc<[u8]>> {
     let buffer: Rc<[MaybeUninit<u8>]> = Rc::new_uninit_slice(uncompressed_length as usize);
+    if compression == Compression::Zstd3 {
+        let mut buffer = buffer;
+        let dest = Rc::get_mut(&mut buffer).expect("Rc refcount should be 1");
+        decompress_block(block, DecompressionTarget::Zstd(dest), uncompressed_length)?;
+        // Safety: successful Zstd decompression reported that it initialized exactly the full
+        // allocation; `decompress_block` checked that before returning.
+        return Ok(unsafe { buffer.assume_init() });
+    }
+
     // Safety: decompression will fully initialize the buffer (verified by the length check in
     // decompress_block).
     let mut buffer = unsafe { buffer.assume_init() };
     let dest = Rc::get_mut(&mut buffer).expect("Rc refcount should be 1");
-    decompress_block(compression, block, dest, uncompressed_length)?;
+    decompress_block(block, DecompressionTarget::Lz4(dest), uncompressed_length)?;
     Ok(buffer)
 }
 
@@ -210,5 +289,69 @@ mod tests {
             let output = decompress_into_arc(compression, input.len() as u32, &compressed).unwrap();
             assert_eq!(&*output, input);
         }
+    }
+
+    fn compress_zstd(input: &[u8]) -> Vec<u8> {
+        let mut compressor = Compressor::new(Compression::Zstd3).unwrap();
+        let mut compressed = Vec::new();
+        compressor
+            .compress_into_buffer(input, &mut compressed)
+            .unwrap();
+        compressed
+    }
+
+    #[test]
+    fn zstd_arc_and_rc_round_trip() {
+        let input = b"turbo persistence zstd round trip ".repeat(1024);
+        let compressed = compress_zstd(&input);
+
+        let arc = decompress_into_arc(Compression::Zstd3, input.len() as u32, &compressed).unwrap();
+        let rc = decompress_into_rc(Compression::Zstd3, input.len() as u32, &compressed).unwrap();
+
+        assert_eq!(&*arc, input);
+        assert_eq!(&*rc, input);
+    }
+
+    #[cfg(not(miri))]
+    fn assert_zstd_error_paths<T>(decompress: impl Fn(u32, &[u8]) -> Result<T>) {
+        let input = b"turbo persistence zstd error path ".repeat(128);
+        let compressed = compress_zstd(&input);
+
+        assert!(decompress(input.len() as u32, b"not a zstd frame").is_err());
+        assert!(
+            decompress(
+                input.len() as u32,
+                &compressed[..compressed.len().saturating_sub(1)]
+            )
+            .is_err()
+        );
+
+        let error = match decompress(input.len() as u32 + 1, &compressed) {
+            Ok(_) => panic!("larger expected length should fail"),
+            Err(error) => error,
+        };
+        assert!(
+            error
+                .to_string()
+                .contains("Decompressed length does not match expected length")
+        );
+
+        assert!(decompress(input.len() as u32 - 1, &compressed).is_err());
+    }
+
+    #[cfg(not(miri))]
+    #[test]
+    fn zstd_arc_rejects_malformed_or_mismatched_input() {
+        assert_zstd_error_paths(|expected_len, compressed| {
+            decompress_into_arc(Compression::Zstd3, expected_len, compressed)
+        });
+    }
+
+    #[cfg(not(miri))]
+    #[test]
+    fn zstd_rc_rejects_malformed_or_mismatched_input() {
+        assert_zstd_error_paths(|expected_len, compressed| {
+            decompress_into_rc(Compression::Zstd3, expected_len, compressed)
+        });
     }
 }
