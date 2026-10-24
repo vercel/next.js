@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { connection } from 'next/server'
-import { fetchRandomWithForceCache } from '../../../utils'
+import { fetchRandomWithForceCache, RDCInfo } from '../../../utils'
 
 async function DynamicComponent() {
   await connection()
@@ -25,6 +25,7 @@ export default async function Page() {
   const randomNumber = await getRandomNumber()
   return (
     <main>
+      {process.env.SHOW_RDC_INFO && <RDCInfo />}
       <p id="random-number">{randomNumber}</p>
       <Suspense>
         <DynamicComponent />
