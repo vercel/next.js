@@ -6,6 +6,7 @@ import {
   type HmrMessageSentToBrowser,
 } from './hot-reloader-types'
 import type { AnyStream } from '../app-render/stream-ops'
+import { ParkedEntries, releaseParkedStream } from './parked-entries'
 
 // Chunks are sent to the browser in batches to reduce overhead, flushing
 // synchronously once this many bytes have accumulated.
@@ -15,10 +16,13 @@ export interface ReactDebugChannelForBrowser {
   readonly readable: AnyStream
 }
 
-const reactDebugChannelsByHtmlRequestId = new Map<
-  string,
-  ReactDebugChannelForBrowser
->()
+// Debug channels of HTML requests whose HMR client hasn't connected yet. A
+// channel that isn't claimed in time is released, so that the debug chunks it
+// has buffered can be garbage collected.
+const reactDebugChannelsByHtmlRequestId =
+  new ParkedEntries<ReactDebugChannelForBrowser>((debugChannel) =>
+    releaseParkedStream(debugChannel.readable)
+  )
 
 /**
  * Reads the React debug channel and forwards its chunks to the browser through
@@ -100,13 +104,11 @@ export function connectReactDebugChannelForHtmlRequest(
   htmlRequestId: string,
   sendToClient: (message: HmrMessageSentToBrowser) => void
 ) {
-  const debugChannel = reactDebugChannelsByHtmlRequestId.get(htmlRequestId)
+  const debugChannel = reactDebugChannelsByHtmlRequestId.take(htmlRequestId)
 
   if (!debugChannel) {
     return
   }
-
-  reactDebugChannelsByHtmlRequestId.delete(htmlRequestId)
 
   connectReactDebugChannel(htmlRequestId, debugChannel, sendToClient)
 }
@@ -115,8 +117,6 @@ export function setReactDebugChannelForHtmlRequest(
   htmlRequestId: string,
   debugChannel: ReactDebugChannelForBrowser
 ) {
-  // TODO: Clean up after a timeout, in case the client never connects, e.g.
-  // when CURL'ing the page, or loading the page with JavaScript disabled etc.
   reactDebugChannelsByHtmlRequestId.set(htmlRequestId, debugChannel)
 }
 

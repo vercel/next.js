@@ -102,6 +102,7 @@ import {
   setReactDebugChannelForHtmlRequest,
   type ReactDebugChannelForBrowser,
 } from './debug-channel'
+import { ParkedEntries } from './parked-entries'
 import {
   getVersionInfo,
   matchNextPageBundleRequest,
@@ -265,7 +266,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private devtoolsFrontendUrl: string | undefined
   private reloadAfterInvalidation: boolean = false
   private isSrcDir: boolean
-  private cacheStatusesByRequestId = new Map<string, ServerCacheStatus>()
+  // Cache statuses of HTML requests whose HMR client hasn't connected yet.
+  private cacheStatusesByRequestId = new ParkedEntries<ServerCacheStatus>()
   private hasVulnerabilityInsight: Promise<boolean>
 
   public serverStats: webpack.Stats | null
@@ -668,13 +670,12 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         )
 
         if (enableCacheComponents) {
-          const status = this.cacheStatusesByRequestId.get(htmlRequestId)
+          const status = this.cacheStatusesByRequestId.take(htmlRequestId)
           if (status) {
             this.sendToClient(client, {
               type: HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR,
               state: status,
             })
-            this.cacheStatusesByRequestId.delete(htmlRequestId)
           }
         }
       }
