@@ -305,6 +305,35 @@ describe('accumulateMetadata', () => {
       })
     })
 
+    it('should convert video fields to arrays for video.tv_show and video.other', async () => {
+      for (const type of ['video.tv_show', 'video.other'] as const) {
+        const metadataItems: MetadataItems = [
+          [
+            {
+              openGraph: {
+                type,
+                actors: 'Actor 1',
+                directors: 'Director 1',
+                writers: 'Writer 1',
+                tags: 'Tag 1',
+              },
+            },
+            null,
+          ],
+        ]
+        const metadata = await accumulateMetadata(metadataItems)
+        expect(metadata).toMatchObject({
+          openGraph: {
+            type,
+            actors: ['Actor 1'],
+            directors: ['Director 1'],
+            writers: ['Writer 1'],
+            tags: ['Tag 1'],
+          },
+        })
+      }
+    })
+
     it('should fill twitter with partial existing openGraph metadata', async () => {
       const metadataItems: MetadataItems = [
         [
