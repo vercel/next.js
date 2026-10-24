@@ -41,5 +41,15 @@
     "agentFeedback": true,
     "publish": false,
     "timeout": 900
+  },
+  "agent-059-bundle-audit-server-leaks": {
+    "skills": ["next-bundle-optimizer"],
+    "publish": false,
+    "timeout": 1800
+  },
+  "agent-060-bundle-fix-server-leaks": {
+    "skills": ["next-bundle-optimizer"],
+    "publish": false,
+    "timeout": 2700
   }
 }
