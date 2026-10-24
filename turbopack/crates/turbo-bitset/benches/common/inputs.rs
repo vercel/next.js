@@ -13,6 +13,9 @@
 
 use std::collections::BTreeSet;
 
+pub use rand::rngs::SmallRng;
+use rand::{RngExt, SeedableRng};
+
 pub const UNIVERSES: [u32; 3] = [1_024, 16_384, 65_536];
 /// Sets with a fixed number of random bits.
 pub const BIT_COUNTS: [(&str, usize); 4] =
@@ -22,17 +25,9 @@ pub const BIT_COUNTS: [(&str, usize); 4] =
 pub const DENSITIES: [u32; 5] = [1, 10, 100, 500, 1_000];
 pub const MIN_DENSITY_BITS: u32 = 32;
 
-/// A small deterministic linear congruential generator, so the inputs are the same on every run.
-pub struct Lcg(pub u64);
-
-impl Lcg {
-    pub fn next(&mut self) -> u32 {
-        self.0 = self
-            .0
-            .wrapping_mul(6364136223846793005)
-            .wrapping_add(1442695040888963407);
-        (self.0 >> 33) as u32
-    }
+/// A deterministic random generator, so the inputs are the same on every run.
+pub fn rng(seed: u64) -> SmallRng {
+    SmallRng::seed_from_u64(seed)
 }
 
 /// One input: two sets of the same size, each with its bits in ascending order.
@@ -57,17 +52,17 @@ pub struct Input {
     pub probes: Vec<u32>,
 }
 
-fn random_bits(rng: &mut Lcg, universe: u32, density: u32) -> Vec<u32> {
+fn random_bits(rng: &mut SmallRng, universe: u32, density: u32) -> Vec<u32> {
     (0..universe)
-        .filter(|_| rng.next() % 1_000 < density)
+        .filter(|_| rng.random_range(0..1_000) < density)
         .collect()
 }
 
 /// `count` distinct random bits of the universe, ascending.
-fn random_count_bits(rng: &mut Lcg, universe: u32, count: usize) -> Vec<u32> {
+fn random_count_bits(rng: &mut SmallRng, universe: u32, count: usize) -> Vec<u32> {
     let mut bits = BTreeSet::new();
     while bits.len() < count {
-        bits.insert(rng.next() % universe);
+        bits.insert(rng.random_range(0..universe));
     }
     bits.into_iter().collect()
 }
@@ -83,7 +78,7 @@ enum Size {
 
 pub fn inputs() -> Vec<Input> {
     let mut inputs = Vec::new();
-    let mut rng = Lcg(42);
+    let mut rng = rng(42);
     for universe in UNIVERSES {
         let mut sizes = Vec::new();
         for (label, count) in BIT_COUNTS {
@@ -95,7 +90,7 @@ pub fn inputs() -> Vec<Input> {
             }
         }
         for (size, kind) in sizes {
-            let generate = |rng: &mut Lcg| match kind {
+            let generate = |rng: &mut SmallRng| match kind {
                 Size::Count(count) => random_count_bits(rng, universe, count),
                 Size::Density(density) => random_bits(rng, universe, density),
             };
@@ -107,9 +102,9 @@ pub fn inputs() -> Vec<Input> {
             let probes = (0..1_024)
                 .map(|i| {
                     if i % 2 == 0 && !bits.is_empty() {
-                        bits[rng.next() as usize % bits.len()]
+                        bits[rng.random_range(0..bits.len())]
                     } else {
-                        rng.next() % universe
+                        rng.random_range(0..universe)
                     }
                 })
                 .collect();

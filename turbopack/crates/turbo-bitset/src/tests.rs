@@ -34,16 +34,15 @@ fn header(bytes: &[u8]) -> i64 {
 }
 
 /// Checks that `set` round-trips through the standard and the fixed-int config, that the standard
-/// encoding has the size of the form chosen by the policy, and that the fixed-int config always
-/// uses the bitmap form.
+/// encoding is the reference encoding of the form chosen by the rule, and that the fixed-int config
+/// always uses the bitmap form.
 fn check_encoding(set: &Bitset, expected: &BTreeSet<u32>) {
     let bytes = encode(set);
     let decoded = decode(&bytes).unwrap();
     assert_eq!(&decoded, set);
     assert_eq!(decoded.iter().collect::<BTreeSet<_>>(), *expected);
-    let (size, list) = reference_size(expected);
-    assert_eq!(bytes.len(), size);
-    assert_eq!(header(&bytes) < 0, list);
+    assert_eq!(bytes, reference_encoding(expected, STANDARD));
+    assert_eq!(header(&bytes) < 0, reference_prefers_list(expected));
 
     let fixint = config::standard().with_fixed_int_encoding();
     let fixed_bytes = bincode::encode_to_vec(set, fixint).unwrap();
@@ -59,70 +58,40 @@ fn check_encoding(set: &Bitset, expected: &BTreeSet<u32>) {
         assert_eq!(fixed_bytes, reference_bitmap_encoding(&bits, fixint));
     }
 
-    // Big endian goes through the generic per-integer path.
+    // Big endian goes through the same rule with big-endian integers.
     let big_endian = config::standard().with_big_endian();
     let big_bytes = bincode::encode_to_vec(set, big_endian).unwrap();
-    assert_eq!(big_bytes.len(), bytes.len());
+    assert_eq!(big_bytes, reference_encoding(expected, big_endian));
     let (big_decoded, _): (Bitset, _) = bincode::decode_from_slice(&big_bytes, big_endian).unwrap();
     assert_eq!(&big_decoded, set);
 }
 
-/// Size of a bincode varint.
-fn varint_len(value: u64) -> usize {
-    if value <= 250 {
-        1
-    } else if value <= u16::MAX as u64 {
-        3
-    } else if value <= u32::MAX as u64 {
-        5
-    } else {
-        9
-    }
-}
-
-/// Size of a zigzag-encoded signed varint.
-fn signed_varint_len(value: i64) -> usize {
-    varint_len(if value < 0 {
-        value.unsigned_abs() * 2 - 1
-    } else {
-        value as u64 * 2
-    })
-}
-
-/// The sizes of the list and bitmap encodings of `bits` with the standard config, computed
-/// independently of the implementation. The list form is the header, the bitmap form's payload
-/// length, the first item and the differences.
-fn reference_sizes(bits: &BTreeSet<u32>) -> Option<(usize, usize)> {
+/// The payload length of the bitmap form of `bits` (`len`), or `None` for the empty set.
+fn reference_bitmap_len(bits: &BTreeSet<u32>) -> Option<u64> {
     let (Some(&first), Some(&last)) = (bits.first(), bits.last()) else {
         return None;
     };
-    let first_byte = first as u64 / 8;
-    let len = last as u64 / 8 - first_byte + 1;
-    let bitmap = signed_varint_len(len as i64) + varint_len(first_byte) + len as usize;
-    let mut list =
-        signed_varint_len(-(bits.len() as i64)) + varint_len(len) + varint_len(first as u64);
-    for (a, b) in bits.iter().zip(bits.iter().skip(1)) {
-        list += varint_len((b - a) as u64);
+    Some((last / 8 - first / 8 + 1) as u64)
+}
+
+/// Whether the encoder uses the list form for `bits` with varint integers: only if `5 * n < 4 *
+/// len`, with `n` the number of bits and `len` the bitmap form's payload length.
+fn reference_prefers_list(bits: &BTreeSet<u32>) -> bool {
+    reference_bitmap_len(bits).is_some_and(|len| 5 * (bits.len() as u64) < 4 * len)
+}
+
+/// The encoding of `bits` with the varint `config`, in the form chosen by the rule, produced
+/// through bincode's normal integer encoding.
+fn reference_encoding<C: config::Config>(bits: &BTreeSet<u32>, config: C) -> Vec<u8> {
+    if bits.is_empty() {
+        return bincode::encode_to_vec(0i64, config).unwrap();
     }
-    Some((list, bitmap))
-}
-
-/// Whether the encoder uses the list form for these sizes: only if the list is smaller than
-/// `ceil(0.8 * bitmap)`.
-fn reference_prefers_list(list: usize, bitmap: usize) -> bool {
-    list < (4 * bitmap).div_ceil(5)
-}
-
-/// The size of the encoding of `bits` with the standard config computed independently of the
-/// implementation, and whether it uses the list form.
-fn reference_size(bits: &BTreeSet<u32>) -> (usize, bool) {
-    let Some((list, bitmap)) = reference_sizes(bits) else {
-        return (1, false);
-    };
-    if reference_prefers_list(list, bitmap) {
-        (list, true)
+    let list = reference_prefers_list(bits);
+    let bits = bits.iter().copied().collect::<Vec<_>>();
+    if list {
+        reference_list_encoding(&bits, config)
     } else {
-        (bitmap, false)
+        reference_bitmap_encoding(&bits, config)
     }
 }
 
@@ -628,32 +597,40 @@ fn encoding_edge_cases() {
 }
 
 #[test]
-fn encoding_chooses_the_form_by_policy() {
-    // Two high bits far apart are much smaller as a list than as a bitmap.
-    let (set, expected) = from_bits(&[4_000_000_000, 4_000_100_000]);
-    assert_eq!(reference_size(&expected), (14, true));
-    assert_eq!(encode(&set).len(), 14);
-    // A single high bit has the same size in both forms, so it uses the bitmap.
-    let (set, expected) = from_bits(&[4_000_000_000]);
-    assert_eq!(reference_sizes(&expected), Some((7, 7)));
-    assert_eq!(reference_size(&expected), (7, false));
-    assert!(header(&encode(&set)) > 0);
-    // A full block is smaller as a bitmap.
-    let (set, expected) = from_bits(&(0..64).collect::<Vec<_>>());
-    assert_eq!(reference_size(&expected), (10, false));
-    assert_eq!(encode(&set).len(), 10);
-    // The sign of the header tells the form.
-    let list = encode(&from_bits(&[1, 300, 9_000]).0);
-    assert!(header(&list) < 0);
-    let bitmap = encode(&from_bits(&[1, 2, 3, 5, 8, 13]).0);
-    assert!(header(&bitmap) > 0);
+fn encoding_form_rule() {
+    // Uses the list form iff `5 * n < 4 * len` (`n` bits, `len` bytes of bitmap payload).
+    for (bits, list) in [
+        // Two high bits far apart: n = 2, len = 12,501.
+        (&[4_000_000_000, 4_000_100_000][..], true),
+        // A single bit has a 1-byte payload, so it always uses the bitmap.
+        (&[4_000_000_000], false),
+        (&[0], false),
+        // A full block: n = 64, len = 8.
+        (&(0..64).collect::<Vec<_>>(), false),
+        (&[1, 300, 9_000], true),
+        (&[1, 2, 3, 5, 8, 13], false),
+        // High bits close together: n = 2, len = 3. The bitmap would be about as small, but the
+        // rule only looks at `n` and `len`.
+        (&[1 << 31, (1 << 31) + 16], true),
+        // n = 3, len = 4: 15 < 16.
+        (&[0, 1, 31], true),
+        // n = 4, len = 5: 20 == 20, so the bitmap.
+        (&[0, 1, 2, 39], false),
+        // n = 4, len = 6: 20 < 24.
+        (&[0, 1, 2, 47], true),
+    ] {
+        let (set, expected) = from_bits(bits);
+        assert_eq!(reference_prefers_list(&expected), list, "{bits:?}");
+        assert_eq!(header(&encode(&set)) < 0, list, "{bits:?}");
+        check_encoding(&set, &expected);
+    }
     // A bitmap with a multi-byte header (whose first byte is the odd varint marker 251).
     let large_bitmap = encode(&(0..1_024).collect::<Bitset>());
     assert_eq!(large_bitmap[0], 251);
     assert!(header(&large_bitmap) > 0);
 
-    // Random sets use both forms, and always the one chosen by the policy (checked by
-    // `check_encoding`).
+    // Random sets use both forms, and always the one chosen by the rule (checked by
+    // `check_encoding`, which also checks that the fixed-int config uses the bitmap).
     let mut rng = Lcg(3);
     let (mut lists, mut bitmaps) = (0, 0);
     for round in 0..400 {
@@ -666,7 +643,7 @@ fn encoding_chooses_the_form_by_policy() {
         let (set, expected) = from_bits(&bits);
         check_encoding(&set, &expected);
         if !expected.is_empty() {
-            if reference_size(&expected).1 {
+            if reference_prefers_list(&expected) {
                 lists += 1;
             } else {
                 bitmaps += 1;
@@ -676,6 +653,116 @@ fn encoding_chooses_the_form_by_policy() {
     assert!(
         lists > 50 && bitmaps > 50,
         "lists: {lists}, bitmaps: {bitmaps}"
+    );
+}
+
+/// The sizes of an encoding's parts: the bytes of the list form's differences (after the first
+/// item), and the totals of both forms.
+struct FormSizes {
+    differences: usize,
+    list_total: usize,
+    bitmap_len: usize,
+    bitmap_total: usize,
+}
+
+fn form_sizes(bits: &[u32]) -> FormSizes {
+    let differences = bits
+        .windows(2)
+        .map(|pair| {
+            bincode::encode_to_vec(pair[1] - pair[0], STANDARD)
+                .unwrap()
+                .len()
+        })
+        .sum();
+    let bitmap_len = (*bits.last().unwrap() / 8 - bits[0] / 8 + 1) as usize;
+    FormSizes {
+        differences,
+        list_total: reference_list_encoding(bits, STANDARD).len(),
+        bitmap_len,
+        bitmap_total: reference_bitmap_encoding(bits, STANDARD).len(),
+    }
+}
+
+#[test]
+fn encoding_size_bounds() {
+    // Sets of different shapes: random dense and sparse ones, clusters of consecutive bits far
+    // apart, gaps just above the 1-byte varint limit (250), huge gaps, and bits up to `u32::MAX`.
+    let mut rng = Lcg(11);
+    let mut sets: Vec<Vec<u32>> = Vec::new();
+    for count in [1, 2, 3, 5, 10, 50, 200, 1_000, 3_000] {
+        for universe in [64, 1_000, 10_000, 100_000, 1 << 24] {
+            for base in [0, 1 << 31, u32::MAX - universe] {
+                sets.push((0..count).map(|_| base + rng.next() % universe).collect());
+            }
+        }
+    }
+    for clusters in [1, 2, 5, 20] {
+        for width in [1, 3, 16, 100] {
+            for gap in [300, 5_000, 70_000] {
+                sets.push(
+                    (0..clusters)
+                        .flat_map(|cluster| (0..width).map(move |i| cluster * gap + i))
+                        .collect(),
+                );
+            }
+        }
+    }
+    for count in [2, 10, 100, 1_000] {
+        sets.push((0..count).map(|i| i * 251).collect());
+        sets.push((0..count).map(|i| i * (251 + i % 10)).collect());
+        sets.push((0..count.min(60_000)).map(|i| i * 65_537).collect());
+        sets.push((0..count).map(|i| u32::MAX - i * 251).collect());
+    }
+
+    let (mut lists, mut bitmaps) = (0, 0);
+    for bits in sets {
+        let (set, expected) = from_bits(&bits);
+        let bits = expected.iter().copied().collect::<Vec<_>>();
+        let sizes = form_sizes(&bits);
+        let n = bits.len();
+        if reference_prefers_list(&expected) {
+            lists += 1;
+            assert!(
+                sizes.differences < sizes.bitmap_len,
+                "list differences {} >= bitmap payload {} for {n} bits",
+                sizes.differences,
+                sizes.bitmap_len
+            );
+            assert!(
+                sizes.list_total <= sizes.bitmap_total + 13,
+                "list {} > bitmap {} + 13 for {n} bits",
+                sizes.list_total,
+                sizes.bitmap_total
+            );
+        } else {
+            bitmaps += 1;
+            // Every list item takes at least one byte, so the list payload is at least `n`.
+            assert!(
+                4 * sizes.bitmap_len <= 5 * n,
+                "bitmap payload {} > 1.25 * {n}",
+                sizes.bitmap_len
+            );
+        }
+        // The chosen form is the reference encoding of that form, and both forms decode.
+        check_encoding(&set, &expected);
+        for bytes in [
+            reference_list_encoding(&bits, STANDARD),
+            reference_bitmap_encoding(&bits, STANDARD),
+        ] {
+            assert_eq!(decode(&bytes).unwrap(), set);
+        }
+        let fixint = config::standard().with_fixed_int_encoding();
+        for bytes in [
+            reference_list_encoding(&bits, fixint),
+            reference_bitmap_encoding(&bits, fixint),
+        ] {
+            let (decoded, _): (Bitset, _) = bincode::decode_from_slice(&bytes, fixint).unwrap();
+            assert_eq!(decoded, set);
+        }
+    }
+    assert!(
+        lists > 50 && bitmaps > 20,
+        "lists {lists}, bitmaps {bitmaps}"
     );
 }
 
@@ -835,7 +922,10 @@ fn encoding_matches_reference_wire_format() {
     ];
     for bits in lists {
         let expected = bits.iter().copied().collect::<BTreeSet<_>>();
-        assert!(reference_size(&expected).1, "{bits:?} should use list form");
+        assert!(
+            reference_prefers_list(&expected),
+            "{bits:?} should use list form"
+        );
         let set = bits.iter().copied().collect::<Bitset>();
         assert_eq!(
             encode(&set),
@@ -875,7 +965,7 @@ fn encoding_matches_reference_wire_format() {
     for bits in bitmaps {
         let expected = bits.iter().copied().collect::<BTreeSet<_>>();
         assert!(
-            !reference_size(&expected).1,
+            !reference_prefers_list(&expected),
             "{bits:?} should use bitmap form"
         );
         let set = bits.iter().copied().collect::<Bitset>();
@@ -907,41 +997,37 @@ fn encoding_matches_reference_wire_format() {
 }
 
 #[test]
-fn encoding_policy_boundaries() {
-    // Search a small deterministic space for sets just below and at the policy threshold
-    // `list < ceil(0.8 * bitmap)`, including equal sizes.
-    let (mut below, mut at, mut ties) = (0, 0, 0);
+fn encoding_rule_boundaries() {
+    // Search a small deterministic space for sets just below, at and just above the threshold
+    // `5 * n == 4 * len`.
+    let (mut below, mut at, mut above) = (0, 0, 0);
     for first in (0..3_000).step_by(7) {
         for count in 1..6u32 {
             for gap in 1..400 {
                 let bits = (0..count).map(|i| first + i * gap).collect::<Vec<_>>();
-                let expected = bits.iter().copied().collect::<BTreeSet<_>>();
-                let (list, bitmap) = reference_sizes(&expected).unwrap();
-                let threshold = (4 * bitmap).div_ceil(5);
+                let n = 5 * count as i64;
+                let len = 4 * (bits[bits.len() - 1] / 8 - first / 8 + 1) as i64;
                 let set = bits.iter().copied().collect::<Bitset>();
-                if list + 1 == threshold {
-                    below += 1;
-                    assert_eq!(
-                        encode(&set),
-                        reference_list_encoding(&bits, STANDARD),
-                        "below {bits:?}"
-                    );
-                } else if list == threshold || list == bitmap {
-                    if list == bitmap {
-                        ties += 1;
-                    } else {
-                        at += 1;
+                let expected = match n - len {
+                    -4..=-1 => {
+                        below += 1;
+                        reference_list_encoding(&bits, STANDARD)
                     }
-                    assert_eq!(
-                        encode(&set),
-                        reference_bitmap_encoding(&bits, STANDARD),
-                        "at {bits:?}"
-                    );
-                }
+                    0 => {
+                        at += 1;
+                        reference_bitmap_encoding(&bits, STANDARD)
+                    }
+                    1..=4 => {
+                        above += 1;
+                        reference_bitmap_encoding(&bits, STANDARD)
+                    }
+                    _ => continue,
+                };
+                assert_eq!(encode(&set), expected, "{bits:?}");
             }
         }
     }
-    assert!(below > 20 && at > 20 && ties > 20, "{below} {at} {ties}");
+    assert!(below > 20 && at > 20 && above > 20, "{below} {at} {above}");
 }
 
 #[test]

@@ -23,6 +23,7 @@ use std::{
 use bincode::Encode;
 use criterion::{BatchSize, BenchmarkId, Criterion, criterion_group, criterion_main};
 use fixedbitset::FixedBitSet;
+use rand::seq::SliceRandom;
 use roaring::RoaringBitmap;
 use rustc_hash::FxBuildHasher;
 use turbo_bincode::{
@@ -32,7 +33,7 @@ use turbo_bincode::{
 use turbo_bitset::Bitset;
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
-use self::inputs::{Input, Lcg, inputs};
+use self::inputs::{Input, inputs, rng};
 
 fn bitset(bits: &[u32]) -> Bitset {
     bits.iter().copied().collect()
@@ -632,11 +633,8 @@ pub fn bench(c: &mut Criterion) {
 
 /// The bits in a fixed pseudo-random order.
 fn shuffled(bits: &[u32]) -> Vec<u32> {
-    let mut rng = Lcg(7);
     let mut bits = bits.to_vec();
-    for i in (1..bits.len()).rev() {
-        bits.swap(i, rng.next() as usize % (i + 1));
-    }
+    bits.shuffle(&mut rng(7));
     bits
 }
 
