@@ -14,6 +14,7 @@
                             "assert",
                         ),
                         member: None,
+                        namespace_access: None,
                         ast_path: [
                             Program(
                                 Module,
@@ -276,6 +277,7 @@
             "assert",
         ),
         member: None,
+        namespace_access: None,
         ast_path: [
             Program(
                 Module,
@@ -434,6 +436,7 @@
             "assert",
         ),
         member: None,
+        namespace_access: None,
         ast_path: [
             Program(
                 Module,

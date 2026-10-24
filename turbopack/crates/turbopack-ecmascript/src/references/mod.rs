@@ -1420,6 +1420,7 @@ async fn analyze_ecmascript_module_internal(
                     esm_reference_index,
                     export,
                     member,
+                    namespace_access,
                     ast_path,
                     span: _,
                 } => {
@@ -1487,10 +1488,11 @@ async fn analyze_ecmascript_module_internal(
                                                 .resolved_cell()
                                         },
                                     );
-                                analysis.esm_bindings.add_keep_this(
+                                analysis.esm_bindings.add(
                                     named_reference,
                                     Some(export),
                                     analysis.intern_path(&ast_path),
+                                    namespace_access,
                                 );
                                 continue;
                             }
@@ -1518,15 +1520,19 @@ async fn analyze_ecmascript_module_internal(
                                     narrowed_reference,
                                     export,
                                     analysis.intern_path(&ast_path),
+                                    namespace_access,
                                 );
                                 continue;
                             }
                         }
 
                         analysis.add_esm_reference(esm_reference_index);
-                        analysis
-                            .esm_bindings
-                            .add(*r, export, analysis.intern_path(&ast_path));
+                        analysis.esm_bindings.add(
+                            *r,
+                            export,
+                            analysis.intern_path(&ast_path),
+                            namespace_access,
+                        );
                     }
                 }
                 Effect::TypeOf {
@@ -3885,6 +3891,7 @@ async fn handle_free_var_reference(
                 esm_reference,
                 export.clone(),
                 analysis.intern_path(ast_path),
+                None,
             );
         }
         FreeVarReference::InputRelative(kind) => {
