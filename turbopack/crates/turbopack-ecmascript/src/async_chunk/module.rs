@@ -65,23 +65,24 @@ impl AsyncLoaderModule {
         &self,
         module_graph: Vc<ModuleGraph>,
     ) -> Result<Vc<OutputAssetsWithReferenced>> {
-        if let Some(chunk_items) = self.availability_info.available_modules() {
-            let inner_module = ResolvedVc::upcast(self.inner);
-            let batches = module_graph
-                .module_batches(self.chunking_context.batching_config())
-                .await?;
-            let module_or_batch = batches.get_entry(inner_module).await?;
-            if let Some(chunkable_module_or_batch) =
-                ChunkableModuleOrBatch::from_module_or_batch(module_or_batch)
-                && *chunk_items.get(chunkable_module_or_batch.into()).await?
-            {
-                return Ok(OutputAssetsWithReferenced {
-                    assets: ResolvedVc::cell(vec![]),
-                    referenced_assets: ResolvedVc::cell(vec![]),
-                    references: ResolvedVc::cell(vec![]),
-                }
-                .cell());
+        let inner_module = ResolvedVc::upcast(self.inner);
+        let batches = module_graph
+            .module_batches(self.chunking_context.batching_config())
+            .await?;
+        let module_or_batch = batches.get_entry(inner_module).await?;
+        if let Some(chunkable_module_or_batch) =
+            ChunkableModuleOrBatch::from_module_or_batch(module_or_batch)
+            && self
+                .availability_info
+                .is_available(module_graph.to_resolved().await?, chunkable_module_or_batch)
+                .await?
+        {
+            return Ok(OutputAssetsWithReferenced {
+                assets: ResolvedVc::cell(vec![]),
+                referenced_assets: ResolvedVc::cell(vec![]),
+                references: ResolvedVc::cell(vec![]),
             }
+            .cell());
         }
         Ok(self.chunking_context.chunk_group_assets(
             self.inner.ident(),
