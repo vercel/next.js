@@ -15,7 +15,9 @@ import {
 import { NextURL } from './next-url'
 import { stripInternalSearchParams } from '../internal-utils'
 import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
+import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import {
+  ACTION_HEADER,
   FLIGHT_HEADERS,
   NEXT_REWRITTEN_PATH_HEADER,
   NEXT_REWRITTEN_QUERY_HEADER,
@@ -200,6 +202,7 @@ export async function adapter(
   const requestHeaders = fromNodeOutgoingHttpHeaders(params.request.headers)
   const isNextDataRequest = requestHeaders.has('x-nextjs-data')
   const isRSCRequest = isRSCRequestHeader(requestHeaders.get(RSC_HEADER))
+  const isServerAction = requestHeaders.has(ACTION_HEADER)
 
   if (isNextDataRequest && requestURL.pathname === '/index') {
     requestURL.pathname = '/'
@@ -596,6 +599,29 @@ export async function adapter(
         'x-nextjs-redirect',
         getRelativeURL(redirectURL.toString(), requestURL.toString())
       )
+    }
+
+    if (isServerAction) {
+      let redirectLocation = getRelativeURL(
+        redirectURL.toString(),
+        requestURL.toString()
+      )
+      const basePath =
+        (requestURL as NextURL).basePath ||
+        params.request.nextConfig?.basePath ||
+        ''
+      if (basePath) {
+        redirectLocation = removePathPrefix(redirectLocation, basePath)
+      }
+      response.headers.delete('Location')
+      response.headers.set(
+        'x-action-redirect',
+        `${redirectLocation};replace`
+      )
+      response = new Response(null, {
+        status: 200,
+        headers: response.headers,
+      })
     }
   }
 
