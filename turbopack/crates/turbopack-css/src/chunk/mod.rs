@@ -30,7 +30,7 @@ use turbopack_core::{
     reference_type::ImportContext,
     server_fs::ServerFileSystem,
     source_map::{
-        GenerateSourceMap,
+        GenerateSourceMap, SourceMapType, SourceMaps,
         structured::StructuredSourceMap,
         utils::{absolute_fileify_source_map, relative_fileify_source_map},
     },
@@ -72,7 +72,7 @@ impl CssChunk {
 
         let source_maps = *this
             .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
+            .source_map_generation_options()
             .await?;
 
         // CSS chunks never have debug IDs
@@ -98,29 +98,34 @@ impl CssChunk {
             let close = write_import_context(&mut body, content.import_context).await?;
 
             let chunking_context = self.chunking_context();
-            let source_map = match (
-                *chunking_context.source_map_source_type().await?,
-                &content.source_map,
-            ) {
-                (SourceMapSourceType::AbsoluteFileUri, Some(map)) => Some(
-                    absolute_fileify_source_map(map, chunking_context.root_path().owned().await?)
-                        .await?,
-                ),
-                (SourceMapSourceType::RelativeUri, Some(map)) => Some(
-                    relative_fileify_source_map(
-                        map,
-                        chunking_context.root_path().owned().await?,
-                        chunking_context
-                            .relative_path_from_chunk_root_to_project_root()
-                            .owned()
-                            .await?,
-                    )
-                    .await?,
-                ),
-                (_, map) => map.clone(),
-            };
-
-            body.push_source(&content.inner_code, source_map);
+            let source_maps = content
+                .source_maps
+                .clone()
+                .try_map_async(|map| async move {
+                    match *chunking_context.source_map_source_type().await? {
+                        SourceMapSourceType::AbsoluteFileUri => {
+                            absolute_fileify_source_map(
+                                &map,
+                                chunking_context.root_path().owned().await?,
+                            )
+                            .await
+                        }
+                        SourceMapSourceType::RelativeUri => {
+                            relative_fileify_source_map(
+                                &map,
+                                chunking_context.root_path().owned().await?,
+                                chunking_context
+                                    .relative_path_from_chunk_root_to_project_root()
+                                    .owned()
+                                    .await?,
+                            )
+                            .await
+                        }
+                        _ => Ok(map),
+                    }
+                })
+                .await?;
+            body.push_source(&content.inner_code, source_maps);
 
             if !close.is_empty() {
                 writeln!(body, "{close}")?;
@@ -143,7 +148,12 @@ impl CssChunk {
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let code = self.code().await?;
 
-        let rope = if code.has_source_map() {
+        let emitted_ty = *self
+            .await?
+            .chunking_context
+            .emitted_source_map_type()
+            .await?;
+        let rope = if emitted_ty.is_some_and(|ty| code.has_source_map_for(ty)) {
             use std::io::Write;
             let mut rope_builder = RopeBuilder::default();
             rope_builder.concat(code.source_code());
@@ -425,8 +435,8 @@ impl Asset for CssChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for CssChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
-        self.code().generate_source_map()
+    fn generate_source_map(self: Vc<Self>, ty: Vc<SourceMapType>) -> Vc<FileContent> {
+        self.code().generate_source_map(ty)
     }
 }
 
@@ -451,7 +461,7 @@ pub struct CssChunkItemContent {
     pub import_context: Option<ResolvedVc<ImportContext>>,
     pub imports: Vec<CssImport>,
     pub inner_code: Rope,
-    pub source_map: Option<StructuredSourceMap>,
+    pub source_maps: SourceMaps<StructuredSourceMap>,
 }
 
 #[turbo_tasks::value_trait]
