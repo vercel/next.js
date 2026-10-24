@@ -10,8 +10,9 @@ error[E0277]: can't compare `NoEquality` with `NoEquality`
 note: required by a bound in `MutableCell::<T>::set`
   --> $WORKSPACE/turbopack/crates/turbo-tasks/src/mutable_cell.rs
    |
+   | impl<T: VcValueType + Clone + OperationValue> MutableCell<T> {
+...
    |     pub fn set(&self, value: T) -> Result<()>
-   |            --- required by a bound in this associated function
    |     where
    |         T: PartialEq,
    |            ^^^^^^^^^ required by this bound in `MutableCell::<T>::set`
@@ -31,8 +32,9 @@ error[E0277]: can't compare `NoEquality` with `NoEquality`
 note: required by a bound in `MutableCell::<T>::update`
   --> $WORKSPACE/turbopack/crates/turbo-tasks/src/mutable_cell.rs
    |
+   | impl<T: VcValueType + Clone + OperationValue> MutableCell<T> {
+...
    |     pub fn update(&self, f: impl FnOnce(&mut T)) -> Result<()>
-   |            ------ required by a bound in this associated function
    |     where
    |         T: PartialEq,
    |            ^^^^^^^^^ required by this bound in `MutableCell::<T>::update`

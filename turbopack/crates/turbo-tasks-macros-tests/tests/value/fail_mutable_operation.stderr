@@ -26,5 +26,4 @@ note: required by a bound in `MutableCell::<T>::cell_private`
   |                               ^^^^^^^^^^^^^^ required by this bound in `MutableCell::<T>::cell_private`
 ...
   |     pub fn cell_private(value: T) -> Self {
-  |            ------------ required by a bound in this associated function
   = note: this error originates in the attribute macro `turbo_tasks::value` (in Nightly builds, run with -Z macro-backtrace for more info)
