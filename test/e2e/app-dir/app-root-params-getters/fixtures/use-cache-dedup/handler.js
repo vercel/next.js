@@ -2,6 +2,7 @@
 
 const defaultCacheHandler =
   require('next/dist/server/lib/cache-handlers/default.external').default
+const writeFailureState = require('./write-failure-state')
 const { EventEmitter, once } = require('node:events')
 const outerWrites = new EventEmitter()
 const pendingOuterWrites = once(outerWrites, 'complete')
@@ -20,6 +21,17 @@ module.exports = {
   ...defaultCacheHandler,
   async set(cacheKey, pendingEntry) {
     const { tags } = await pendingEntry
+    // Reject the English `set()` calls. The French request must still generate
+    // and store an entry with its own root parameter value.
+    if (tags.includes(`write-failure:${writeFailureState.id}`)) {
+      if (tags.includes('write-failure-language:en')) {
+        writeFailureState.failedWriteLanguages.push('en')
+        throw new Error('expected English cache write failure')
+      }
+      await defaultCacheHandler.set(cacheKey, pendingEntry)
+      writeFailureState.writtenLanguages.push('fr')
+      return
+    }
     const outer = tags.find(
       (tag) => tag === 'nested-outer-one' || tag === 'nested-outer-two'
     )
