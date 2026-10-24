@@ -18,6 +18,14 @@ import eslintignore from './.config/eslintignore.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+const appRenderRestrictedImports = [
+  {
+    group: ['**/server-action-request-meta'],
+    allowTypeImports: true,
+    message: 'Pass action classification through explicit render inputs.',
+  },
+]
+
 const compat = new FlatCompat({
   baseDirectory: __dirname,
   recommendedConfig: js.configs.recommended,
@@ -460,6 +468,10 @@ export default defineConfig([
   {
     files: ['packages/next/src/server/app-render/**/*.{ts,tsx}'],
     rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        { patterns: appRenderRestrictedImports },
+      ],
       'no-restricted-properties': [
         'error',
         {
@@ -491,16 +503,52 @@ export default defineConfig([
         {
           paths: [
             {
+              name: '../base-http',
+              importNames: ['BaseNextRequest', 'BaseNextResponse'],
+              message:
+                'Use render status and header capabilities instead of HTTP transport.',
+            },
+            {
               name: '../../client/components/app-router-headers',
               importNames: ['NEXT_URL'],
               message: 'Use the explicit route interception input instead.',
             },
           ],
           patterns: [
+            ...appRenderRestrictedImports,
+            {
+              group: ['**/base-http/**', '**/mock-request'],
+              message: 'Keep HTTP transport in the route adapter.',
+            },
             {
               group: ['**/request-meta'],
               allowTypeImports: true,
               message: 'Pass request metadata through explicit render inputs.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['packages/next/src/export/routes/app-page.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '../../server/base-http',
+              importNames: ['BaseNextRequest', 'BaseNextResponse'],
+              message:
+                'App export consumes prerender outputs without HTTP transport.',
+            },
+          ],
+          patterns: [
+            {
+              group: ['**/mock-request', '**/base-http/**'],
+              message:
+                'App export consumes prerender inputs and output metadata without HTTP mocks.',
             },
           ],
         },

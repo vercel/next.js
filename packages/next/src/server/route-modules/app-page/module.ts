@@ -39,11 +39,26 @@ import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
 import { SegmentPrefixRSCPathnameNormalizer } from '../../normalizers/request/segment-prefix-rsc'
 import type { UrlWithParsedQuery } from 'url'
 import type { IncomingHttpHeaders, IncomingMessage } from 'http'
+import {
+  handleAction,
+  type AppPageActionHandler,
+} from '../../app-render/action-handler'
 import { createDevResponseLifecycle } from '../../app-render/dev-response-lifecycle'
 import {
   applyAppPageRscRequestMetaFromHeaders,
   normalizeAppPageRequestUrl,
 } from './normalize-request-url'
+
+// Keep action transport in its own closure scope so ordinary renders' status,
+// header, and cookie callbacks cannot retain the request through a shared scope.
+function bindActionHandler(
+  req: BaseNextRequest,
+  res: BaseNextResponse,
+  serverActionRequestMetadata: ServerActionRequestMetadata
+): AppPageActionHandler {
+  return (input) =>
+    handleAction({ ...input, req, res, serverActionRequestMetadata })
+}
 
 let vendoredReactRSC
 let vendoredReactSSR
@@ -191,8 +206,27 @@ export class AppPageRouteModule extends RouteModule<
     context: AppPageRouteHandlerContext
   ): Promise<RenderResult> {
     return renderToHTMLOrFlight(
-      req,
-      res,
+      context.serverActionRequestMetadata.isPossibleServerAction
+        ? bindActionHandler(req, res, context.serverActionRequestMetadata)
+        : null,
+      {
+        get statusCode() {
+          return res.statusCode
+        },
+        set statusCode(value: number | undefined) {
+          res.statusCode = value
+        },
+      },
+      {
+        setHeader(name, value) {
+          res.setHeader(name, value)
+        },
+        appendHeader(name, value) {
+          for (const item of Array.isArray(value) ? value : [value]) {
+            res.appendHeader(name, item)
+          }
+        },
+      },
       context.requestUrl,
       context.requestHeaders,
       context.page,
@@ -209,16 +243,21 @@ export class AppPageRouteModule extends RouteModule<
       context.parsedRequestHeaders,
       context.serverActionRequestMetadata,
       context.stagedFallbackParams,
-      process.env.__NEXT_DEV_SERVER ? createDevResponseLifecycle(res) : null
+      process.env.__NEXT_DEV_SERVER ? createDevResponseLifecycle(res) : null,
+      context.renderOpts.onUpdateCookies ??
+        ((cookies) => {
+          res.setHeader('Set-Cookie', cookies)
+        })
     )
   }
 
-  public prerender(
+  public async prerender(
     res: BaseNextResponse,
     context: AppPageRouteHandlerContext
   ): Promise<PrerenderResult> {
-    return prerenderToHTMLOrFlight(
-      res,
+    const result = await prerenderToHTMLOrFlight(
+      res.statusCode,
+      res.getHeaders(),
       context.requestUrl,
       context.page,
       context.query,
@@ -229,6 +268,18 @@ export class AppPageRouteModule extends RouteModule<
       context.parsedRequestHeaders,
       context.serverActionRequestMetadata
     )
+    const metadata =
+      'error' in result ? result.result.metadata : result.metadata
+    res.statusCode =
+      'error' in result ? 500 : (result.metadata.statusCode ?? res.statusCode)
+    // Background revalidation records output independently of an ended response.
+    if (!res.sent) {
+      for (const [name, value] of Object.entries(metadata.headers ?? {})) {
+        if (value !== undefined)
+          res.setHeader(name, typeof value === 'number' ? String(value) : value)
+      }
+    }
+    return result
   }
 
   /**

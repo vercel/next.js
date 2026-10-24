@@ -12,7 +12,10 @@ export type ServerActionRequestMetadata = {
 }
 
 export function getServerActionRequestMetadata(
-  req: IncomingMessage | BaseNextRequest | NextRequest
+  req: Pick<
+    IncomingMessage | BaseNextRequest | NextRequest,
+    'headers' | 'method'
+  >
 ): ServerActionRequestMetadata {
   let actionId: string | null
   let contentType: string | null
@@ -54,7 +57,10 @@ export function getServerActionRequestMetadata(
 }
 
 export function getIsPossibleServerAction(
-  req: IncomingMessage | BaseNextRequest | NextRequest
+  req: Pick<
+    IncomingMessage | BaseNextRequest | NextRequest,
+    'headers' | 'method'
+  >
 ): boolean {
   return getServerActionRequestMetadata(req).isPossibleServerAction
 }
