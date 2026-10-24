@@ -115,7 +115,7 @@ function defaultLoader({
   width,
   quality,
 }: ImageLoaderPropsWithConfig): string {
-  if (!config.dangerouslyAllowSVG && src.split('?', 1)[0].endsWith('.svg')) {
+  if (!config.dangerouslyAllowSVG && src.split(/[?#]/, 1)[0].endsWith('.svg')) {
     // Special case to make svg serve as-is to avoid proxying
     // through the built-in Image Optimization API.
     return src
