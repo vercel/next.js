@@ -60,12 +60,6 @@ pub async fn create_worker(options: Arc<WorkerOptions>) -> anyhow::Result<u32> {
 
     {
         let pending = PENDING_CREATIONS.get_or_init(|| Mutex::new(VecDeque::new()));
-        // ensure pool entry exists for these options so scale ops can observe it
-        WORKER_POOL_OPERATION
-            .pools
-            .lock()
-            .entry(options.clone())
-            .or_default();
         pending.lock().push_back(tx);
     }
 

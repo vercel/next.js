@@ -8,14 +8,8 @@ use anyhow::Result;
 use bytes::Bytes;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use turbo_rcstr::RcStr;
-use turbo_tasks::Vc;
-use turbo_tasks_fs::{FileSystemPath, VirtualFileSystem};
 use turbo_tasks_testing::{Registration, register, run_once_without_cache_check};
-use turbopack_node::{
-    AssetsForSourceMapping,
-    evaluate::{EvaluatePool, Operation},
-};
+use turbopack_node::evaluate::{EvaluatePool, Operation};
 
 static REGISTRATION: Registration = register!();
 
@@ -35,24 +29,10 @@ async fn create_pool(worker: &str, concurrency: usize) -> Result<EvaluatePool> {
     {
         use turbopack_node::process_pool::ChildProcessPool;
 
-        let vfs = VirtualFileSystem::new();
-        let fs: Vc<Box<dyn turbo_tasks_fs::FileSystem>> = Vc::upcast(vfs);
-        let fs = fs.to_resolved().await?;
-        let root_path = FileSystemPath {
-            fs,
-            path: RcStr::default(),
-        };
-
-        let assets: Vc<AssetsForSourceMapping> = Vc::cell(Default::default());
-        let assets = assets.to_resolved().await?;
-
         Ok(ChildProcessPool::create(
             std::env::current_dir()?,
             test_worker(worker),
             FxHashMap::default(),
-            assets,
-            root_path.clone(),
-            root_path,
             concurrency,
             false,
         ))
@@ -83,7 +63,7 @@ async fn send_recv(op: &mut Box<dyn Operation>, msg: serde_json::Value) -> Echo 
 async fn test_pool_single_operation() {
     run_once_without_cache_check(&REGISTRATION, async {
         let pool = create_test_pool(2).await.unwrap();
-        let mut op = pool.operation().await.unwrap();
+        let mut op = pool.operation(false).await.unwrap();
 
         let msg = serde_json::json!({"hello": "world"});
         let resp = send_recv(&mut op, msg.clone()).await;
@@ -108,7 +88,7 @@ async fn test_pool_process_reuse() {
 
         // First operation — spawns a new process.
         let pid1 = {
-            let mut op = pool.operation().await.unwrap();
+            let mut op = pool.operation(false).await.unwrap();
             let resp = send_recv(&mut op, serde_json::json!({"round": 1})).await;
             resp.pid
             // op is dropped here, returning the process to the idle queue.
@@ -120,7 +100,7 @@ async fn test_pool_process_reuse() {
 
         // Second operation — should reuse the same process.
         let pid2 = {
-            let mut op = pool.operation().await.unwrap();
+            let mut op = pool.operation(false).await.unwrap();
             let resp = send_recv(&mut op, serde_json::json!({"round": 2})).await;
             resp.pid
         };
@@ -173,7 +153,7 @@ async fn test_pool_pre_warm() {
 
         // The first operation should pick up the pre-warmed idle process,
         // registering as a warm (not cold) operation.
-        let mut op = pool.operation().await.unwrap();
+        let mut op = pool.operation(false).await.unwrap();
         let resp = send_recv(&mut op, serde_json::json!({"pre_warmed": true})).await;
         assert_eq!(resp.echo, serde_json::json!({"pre_warmed": true}));
 
@@ -204,9 +184,9 @@ async fn test_pool_concurrent_operations() {
         let pid1;
         let pid2;
         {
-            let mut op1 = pool.operation().await.unwrap();
+            let mut op1 = pool.operation(false).await.unwrap();
             // op1 is still held, so the pool must spawn a second process.
-            let mut op2 = pool.operation().await.unwrap();
+            let mut op2 = pool.operation(false).await.unwrap();
             pid1 = send_recv(&mut op1, serde_json::json!({"warmup": 1}))
                 .await
                 .pid;
@@ -227,11 +207,11 @@ async fn test_pool_concurrent_operations() {
         // should each pick up one of the idle processes.
         let (r1, r2) = tokio::join!(
             async {
-                let mut op = pool.operation().await.unwrap();
+                let mut op = pool.operation(false).await.unwrap();
                 send_recv(&mut op, serde_json::json!({"task": "a"})).await
             },
             async {
-                let mut op = pool.operation().await.unwrap();
+                let mut op = pool.operation(false).await.unwrap();
                 send_recv(&mut op, serde_json::json!({"task": "b"})).await
             }
         );
@@ -298,6 +278,108 @@ async fn test_pool_pre_warm_failure() {
             "failed pre_warm should not leave phantom workers"
         );
         assert_eq!(stats.booting_workers, 0);
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_restart_retires_idle_and_in_flight_workers() {
+    run_once_without_cache_check(&REGISTRATION, async {
+        let pool = create_test_pool(2).await.unwrap();
+        let mut held = pool.operation(false).await.unwrap();
+        let held_pid = send_recv(&mut held, serde_json::json!("held")).await.pid;
+        let idle_pid = {
+            let mut op = pool.operation(false).await.unwrap();
+            send_recv(&mut op, serde_json::json!("idle")).await.pid
+        };
+        let fresh_pid = {
+            let mut op = pool.operation(true).await.unwrap();
+            let pid = send_recv(&mut op, serde_json::json!("fresh")).await.pid;
+            assert_ne!(pid, idle_pid, "retired idle process must not be acquired");
+            assert_ne!(pid, held_pid);
+            // An operation started before retirement is still allowed to finish.
+            assert_eq!(
+                send_recv(&mut held, serde_json::json!("finish")).await.pid,
+                held_pid
+            );
+            drop(held);
+            pid
+        };
+        let mut op = pool.operation(false).await.unwrap();
+        assert_eq!(
+            send_recv(&mut op, serde_json::json!("reuse")).await.pid,
+            fresh_pid
+        );
+        assert_eq!(
+            pool.stats().workers,
+            1,
+            "retired workers must not return to the pool"
+        );
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_restart_is_synchronous_and_preserves_concurrency_limit() {
+    run_once_without_cache_check(&REGISTRATION, async {
+        let pool = create_test_pool(1).await.unwrap();
+        let mut held = pool.operation(false).await.unwrap();
+        let old_pid = send_recv(&mut held, serde_json::json!(1)).await.pid;
+        // Retirement happens now, even though this acquisition has not yet been polled.
+        let fresh = pool.operation(true);
+        let waiter = pool.operation(false);
+        tokio::pin!(waiter);
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_millis(50), &mut waiter)
+                .await
+                .is_err()
+        );
+        drop(held);
+        let mut waiter = tokio::time::timeout(std::time::Duration::from_secs(10), waiter)
+            .await
+            .unwrap()
+            .unwrap();
+        let new_pid = send_recv(&mut waiter, serde_json::json!(2)).await.pid;
+        assert_ne!(
+            old_pid, new_pid,
+            "a waiter must not reuse a retired process"
+        );
+        drop(waiter);
+        let mut fresh = fresh.await.unwrap();
+        assert_eq!(
+            send_recv(&mut fresh, serde_json::json!(3)).await.pid,
+            new_pid
+        );
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_restart_during_prewarm() {
+    run_once_without_cache_check(&REGISTRATION, async {
+        let pool = create_test_pool(1).await.unwrap();
+        // pre_warm captures the old generation before operation(true) retires it, regardless of
+        // whether its spawned task has started running yet.
+        pool.pre_warm();
+        let mut op = pool.operation(true).await.unwrap();
+        let pid = send_recv(&mut op, serde_json::json!("new generation"))
+            .await
+            .pid;
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+        while pool.stats().bootup_count < 2
+            || pool.stats().booting_workers > 0
+            || pool.stats().workers > 1
+        {
+            assert!(tokio::time::Instant::now() < deadline);
+            tokio::task::yield_now().await;
+        }
+        drop(op);
+        let mut op = pool.operation(false).await.unwrap();
+        assert_eq!(
+            send_recv(&mut op, serde_json::json!("reuse")).await.pid,
+            pid
+        );
+        assert_eq!(pool.stats().workers, 1);
     })
     .await;
 }
