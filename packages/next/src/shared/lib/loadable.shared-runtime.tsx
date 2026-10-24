@@ -271,10 +271,23 @@ function flushInitializers(initializers: any, ids?: any): any {
   })
 }
 
-Loadable.preloadAll = () => {
-  return new Promise((resolveInitializers, reject) => {
-    flushInitializers(ALL_INITIALIZERS).then(resolveInitializers, reject)
-  })
+// Flushes still waiting on their loaders. `ALL_INITIALIZERS` is shared across
+// requests, so a concurrent render can find it already drained by another
+// render and must wait on that render's flush instead.
+const PENDING_PRELOADS = new Set<Promise<void>>()
+
+Loadable.preloadAll = (): Promise<void> => {
+  // The render that started a flush owns its failure; others only wait for it.
+  const concurrentPreloads = Array.from(PENDING_PRELOADS, (preload) =>
+    preload.catch(() => {})
+  )
+  const preload: Promise<void> = flushInitializers(ALL_INITIALIZERS)
+  PENDING_PRELOADS.add(preload)
+  const settle = () => {
+    PENDING_PRELOADS.delete(preload)
+  }
+  preload.then(settle, settle)
+  return Promise.all([preload, ...concurrentPreloads]).then(() => {})
 }
 
 Loadable.preloadReady = (ids: (string | number)[] = []): Promise<void> => {
