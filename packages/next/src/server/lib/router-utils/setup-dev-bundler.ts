@@ -182,6 +182,7 @@ async function verifyTypeScript(opts: SetupOpts) {
     strictRouteTypes: Boolean(opts.nextConfig.experimental.strictRouteTypes),
     shouldRunTypeCheck: false,
     tsconfigPath: opts.nextConfig.typescript.tsconfigPath,
+    compilerPackage: opts.nextConfig.typescript.compilerPackage,
     typedRoutes: Boolean(opts.nextConfig.typedRoutes),
     disableStaticImages: opts.nextConfig.images.disableStaticImages,
     hasAppDir: !!opts.appDir,
