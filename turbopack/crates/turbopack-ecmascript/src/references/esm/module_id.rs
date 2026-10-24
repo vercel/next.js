@@ -1,9 +1,7 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::quote;
-use turbo_tasks::{
-    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
-};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat};
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
     reference::ModuleReference,
@@ -68,9 +66,7 @@ impl IntoCodeGenReference for EsmModuleIdAssetReference {
     }
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct EsmModuleIdAssetReferenceCodeGen {
     path: AstPathId,
     reference: ResolvedVc<EsmModuleIdAssetReference>,

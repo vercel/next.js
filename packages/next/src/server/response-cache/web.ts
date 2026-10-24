@@ -85,6 +85,10 @@ export default class WebResponseCache {
     ;(async () => {
       try {
         const cacheEntry = await responseGenerator({ hasResolved })
+        if (cacheEntry !== null && 'error' in cacheEntry) {
+          throw cacheEntry.error
+        }
+
         const resolveValue =
           cacheEntry === null
             ? null

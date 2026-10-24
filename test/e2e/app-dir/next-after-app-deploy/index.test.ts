@@ -21,12 +21,10 @@ const REVALIDATION_RETRY_DURATION =
 const _describe = isNextDev ? describe.skip : describe
 
 _describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     env: { WAIT_BEFORE_REVALIDATING: WAIT_BEFORE_REVALIDATING + '' },
   })
-
-  if (skipped) return
   const pathPrefix = '/' + runtimeValue
 
   type PageInfo = {

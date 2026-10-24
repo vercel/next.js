@@ -1,10 +1,10 @@
 import { execSync } from 'child_process'
 import { nextTestSetup } from 'e2e-utils'
 
+// @force-gate !deploy
 describe('app-dir types', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
   })
 

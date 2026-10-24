@@ -3,13 +3,13 @@ use std::{env::current_dir, path::PathBuf};
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{Vc, trace::TraceRawVcs};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::{
     DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, FileSystem, canonicalize_to_rcstr,
 };
 
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
 pub enum EntryRequest {
     Relative(RcStr),
     Module(RcStr, RcStr),

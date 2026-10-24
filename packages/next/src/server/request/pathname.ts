@@ -45,19 +45,19 @@ export function createServerPathnameForMetadata(
         throw new InvariantError(
           'createServerPathnameForMetadata should not be called in cache contexts.'
         )
-      case 'generate-static-params':
+      case 'build-time-generator':
         throw new InvariantError(
-          'createServerPathnameForMetadata should not be called inside generateStaticParams.'
+          `createServerPathnameForMetadata should not be called inside ${workUnitStore.functionName}.`
         )
       case 'prerender-runtime': {
         // TODO(app-shells): whether or not this is included in the shell
         // should depend on whether this route has params.
         // if there's no params, it can be included.
         // for now, we defensively exclude it to match the earlier pessimistic
-        // behavior of always resolving in the runtime stage
+        // behavior of always resolving in the PrefetchRuntime stage
         // (i.e. assuming that we have non-static params in the pathname)
         const { stagedRendering } = workUnitStore
-        const pathnameStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+        const pathnameStage = RENDER_STAGES_BY_DATA_KIND.runtimeUrlData
         if (stagedRendering) {
           return stagedRendering.delayUntilStage(
             pathnameStage,
@@ -95,9 +95,7 @@ function createPrerenderPathname(
     case 'prerender': {
       const fallbackParams = prerenderStore.fallbackRouteParams
       if (fallbackParams && fallbackParams.size > 0) {
-        // The pathname only hangs when there are fallback params, and a
-        // concrete (ISR-upgraded) prerender resolves it — so this access is
-        // fallback-param data for the static-prefetch hint.
+        // The pathname depends on params, so we track it like a fallback params access.
         return makeFallbackParamsHangingPromise<string>(
           prerenderStore.renderSignal,
           workStore.route,

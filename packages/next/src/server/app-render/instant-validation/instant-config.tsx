@@ -27,11 +27,7 @@ import { InvariantError } from '../../../shared/lib/invariant-error'
  */
 export function isImplicitValidationSegment(segment: Segment): boolean {
   const key = typeof segment === 'string' ? segment : segment[0]
-  return (
-    key === PAGE_SEGMENT_KEY ||
-    key.startsWith(PAGE_SEGMENT_KEY) ||
-    key === DEFAULT_SEGMENT_KEY
-  )
+  return key === PAGE_SEGMENT_KEY || key === DEFAULT_SEGMENT_KEY
 }
 
 /**

@@ -10,7 +10,7 @@ use bincode::{
 };
 use regex::bytes::{Regex, RegexBuilder};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{Vc, trace::TraceRawVcs};
+use turbo_tasks::Vc;
 
 use crate::{FileSystemPath, globset::parse};
 
@@ -30,11 +30,10 @@ use crate::{FileSystemPath, globset::parse};
 #[derive(Debug, Clone)]
 pub struct Glob {
     glob: RcStr,
-    #[turbo_tasks(trace_ignore)]
     opts: GlobOptions,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     regex: Regex,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     directory_match_regex: Regex,
 }
 
@@ -71,7 +70,7 @@ impl<Context> Decode<Context> for Glob {
 impl_borrow_decode!(Glob);
 
 #[turbo_tasks::task_input]
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Default, TraceRawVcs, Debug, Encode, Decode)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Default, Debug, Encode, Decode)]
 pub struct GlobOptions {
     /// Whether the glob is a partial match.
     /// Allows glob to match any part of the given string(s).

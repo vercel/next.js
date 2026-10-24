@@ -1,6 +1,7 @@
 ---
 title: prefetch
-description: API reference for the prefetch route segment config.
+nav_title: prefetch config
+description: Configure how a route segment is prefetched during client navigation.
 related:
   title: Next Steps
   description: Learn how to use instant navigations in practice.
@@ -16,6 +17,7 @@ The `prefetch` route segment config controls how a segment is prefetched during 
 > - The `prefetch` export only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled.
 > - `prefetch` cannot be used when the segment is a Client Component.
 > - The meaningful values to set are `'partial'` and `'force-disabled'`. `'auto'` is the default and is equivalent to omitting the export; don't write `prefetch = 'auto'` explicitly.
+> - A `page` or `layout` that also calls the [`prefetch()`](/docs/app/api-reference/functions/prefetch) function needs to import it under another name, for example `import { prefetch as prefetchStage } from 'next/cache'`.
 
 ```tsx filename="layout.tsx | page.tsx" switcher
 export const prefetch = 'partial'
@@ -78,6 +80,6 @@ export const prefetch: Prefetch = 'partial'
 
 ## Version History
 
-| Version   | Changes                                              |
-| --------- | ---------------------------------------------------- |
-| `v16.x.x` | `prefetch` export introduced (Cache Components only) |
+| Version   | Changes                                                                              |
+| --------- | ------------------------------------------------------------------------------------ |
+| `v16.3.0` | `prefetch` export stabilized, replacing `unstable_prefetch` (Cache Components only). |

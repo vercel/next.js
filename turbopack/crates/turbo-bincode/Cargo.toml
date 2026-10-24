@@ -15,7 +15,6 @@ bincode = { workspace = true }
 either = { workspace = true }
 indexmap = { workspace = true }
 mime = { workspace = true }
-ringmap = { workspace = true }
 serde = { workspace = true }
 smallvec = { workspace = true }
 turbo-tasks-hash = { workspace = true }

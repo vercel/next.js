@@ -742,6 +742,10 @@ declare module 'next/dist/compiled/string-hash' {
   import m from 'string-hash'
   export = m
 }
+declare module 'next/dist/compiled/hash.js/sha256' {
+  import { sha256 } from 'hash.js'
+  export = sha256
+}
 declare module 'next/dist/compiled/ua-parser-js' {
   import m from 'ua-parser-js'
   export = m

@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, LazyLock, Mutex},
     thread,
-    time::Duration,
+    time::{Duration, SystemTime},
 };
 
 use anyhow::{Context, Result, anyhow, bail};
@@ -55,9 +55,8 @@ use turbo_tasks::{
     Effects, FxIndexSet, GcRoot, OperationValue, OperationVc, PrettyPrintError, ReadRef,
     ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi, UpdateInfo,
     Vc, mark_top_level_task,
-    message_queue::{CompilationEvent, Severity},
-    read_strongly_consistent_and_apply_effects, take_effects,
-    trace::TraceRawVcs,
+    message_queue::{CompilationEvent, Severity, TraceEvent},
+    read_strongly_consistent_and_apply_effects, take_effects, turbo_tasks,
     unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 use turbo_tasks_backend::{BackingStorageOptions, db_invalidation::invalidation_reasons};
@@ -79,7 +78,7 @@ use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, Issue, Resource
 use turbopack_trace_utils::{
     exit::{ExitHandler, ExitReceiver},
     filter_layer::FilterLayer,
-    raw_trace::RawTraceLayer,
+    raw_trace::{RawTraceLayer, RawTraceLayerOptions},
     trace_writer::TraceWriter,
 };
 use url::Url;
@@ -469,8 +468,11 @@ pub fn project_new<'env>(
         None,
         GzipFast,
         GzipBest,
+        /// zstd with the given compression level
+        Zstd(i32),
     }
     let mut compress = Compression::None;
+    let mut raw_trace_options = RawTraceLayerOptions::default();
     if let Some(mut trace) = trace {
         let trace_path_override = std::env::var_os("NEXT_TURBOPACK_TRACING_PATH")
             .filter(|v| !v.is_empty())
@@ -516,6 +518,22 @@ pub fn project_new<'env>(
                         compress = Compression::GzipBest;
                         return None;
                     }
+                    "zstd" => {
+                        compress = Compression::Zstd(3);
+                        return None;
+                    }
+                    "zstd-fast" => {
+                        compress = Compression::Zstd(1);
+                        return None;
+                    }
+                    "zstd-best" => {
+                        compress = Compression::Zstd(19);
+                        return None;
+                    }
+                    "no-memory" => {
+                        raw_trace_options.memory = false;
+                        return None;
+                    }
                     _ => Cow::Borrowed(item),
                 })
             })
@@ -558,8 +576,17 @@ pub fn project_new<'env>(
                 let trace_writer = GzEncoder::new(trace_writer, flate2::Compression::best());
                 TraceWriter::new(trace_writer)
             }
+            Compression::Zstd(level) => {
+                let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
+                // `auto_finish` completes the zstd frame when the trace writer drops it on exit.
+                let trace_writer = zstd::Encoder::new(trace_writer, level)
+                    .unwrap()
+                    .auto_finish();
+                TraceWriter::new(trace_writer)
+            }
         };
-        let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
+        let subscriber =
+            subscriber.with(RawTraceLayer::with_options(trace_writer, raw_trace_options));
 
         exit.on_exit(async move {
             tokio::task::spawn_blocking(move || drop(trace_writer_guard))
@@ -1102,7 +1129,7 @@ pub struct NapiDebugBuildPaths {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Clone, Copy, Debug, Eq, Hash, OperationValue, PartialEq, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Copy, Debug, Eq, Hash, OperationValue, PartialEq, Encode, Decode)]
 enum EntrypointsWritePhase {
     All,
     NonDeferred,
@@ -1136,7 +1163,7 @@ fn is_deferred_app_route(route: &str, deferred_entries: &[RcStr]) -> bool {
     })
 }
 
-#[derive(Clone, Debug, TraceRawVcs)]
+#[derive(Clone, Debug)]
 struct DeferredPhaseBuildPaths {
     non_deferred: DebugBuildPaths,
     all: DebugBuildPaths,
@@ -1620,11 +1647,22 @@ pub async fn all_entrypoints_write_to_disk_operation(
     app_dir_only: bool,
     write_phase: EntrypointsWritePhase,
 ) -> Result<Vc<Entrypoints>> {
+    let start = Instant::now();
+    let wall_start = SystemTime::now();
     // Compute all outputs for this phase but do not emit to disk yet.
     let output_assets_operation = output_assets_operation(project, app_dir_only, write_phase);
-    let _ = output_assets_operation.connect().await?;
+    let result = output_assets_operation
+        .connect()
+        .await
+        .map(|_| project.entrypoints());
 
-    Ok(project.entrypoints())
+    turbo_tasks().send_compilation_event(Arc::new(TraceEvent::new_with_duration(
+        "turbopack-write-entrypoints",
+        wall_start,
+        start.elapsed(),
+        serde_json::json!([]),
+    )));
+    result
 }
 
 #[turbo_tasks::function(operation)]
@@ -1681,16 +1719,29 @@ async fn emit_all_output_assets_once_with_issues_operation(
     app_dir_only: bool,
     has_deferred_entrypoints: bool,
 ) -> Result<Vc<OperationResult>> {
-    let entrypoints_operation = EntrypointsOperation::new(emit_all_output_assets_once_operation(
-        container,
-        app_dir_only,
-        has_deferred_entrypoints,
-    ));
-    let filter = container.project().issue_filter().await?;
-    let (_, issues, effects) =
-        strongly_consistent_catch_collectables(entrypoints_operation, &filter).await?;
+    let start = Instant::now();
+    let wall_start = SystemTime::now();
+    let result = async {
+        let entrypoints_operation =
+            EntrypointsOperation::new(emit_all_output_assets_once_operation(
+                container,
+                app_dir_only,
+                has_deferred_entrypoints,
+            ));
+        let filter = container.project().issue_filter().await?;
+        let (_, issues, effects) =
+            strongly_consistent_catch_collectables(entrypoints_operation, &filter).await?;
+        Ok(OperationResult { issues, effects }.cell())
+    }
+    .await;
 
-    Ok(OperationResult { issues, effects }.cell())
+    turbo_tasks().send_compilation_event(Arc::new(TraceEvent::new_with_duration(
+        "turbopack-emit",
+        wall_start,
+        start.elapsed(),
+        serde_json::json!([]),
+    )));
+    result
 }
 
 #[turbo_tasks::function(operation)]
@@ -2400,7 +2451,7 @@ pub fn project_compilation_events_subscribe(
 
 #[napi(object)]
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, Eq, Hash, OperationValue, PartialEq, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, Eq, Hash, OperationValue, PartialEq, Encode, Decode)]
 pub struct StackFrame {
     pub is_server: bool,
     pub is_ignored: Option<bool>,

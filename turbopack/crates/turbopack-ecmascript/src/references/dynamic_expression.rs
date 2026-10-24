@@ -1,7 +1,7 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::quote;
-use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat};
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
@@ -10,17 +10,13 @@ use crate::{
     create_visitor,
 };
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 enum DynamicExpressionType {
     Promise,
     Normal,
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode)]
 pub struct DynamicExpression {
     path: AstPathId,
     ty: DynamicExpressionType,

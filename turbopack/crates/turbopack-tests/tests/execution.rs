@@ -7,7 +7,7 @@ mod util;
 
 use std::{env, fs::canonicalize, path::PathBuf};
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use serde::Deserialize;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
@@ -15,7 +15,6 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Effects, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TurboTasks, Vc,
     debug::ValueDebugFormat, fxindexmap, read_strongly_consistent_and_apply_effects, take_effects,
-    trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::CommandLineProcessEnv;
@@ -26,12 +25,14 @@ use turbo_tasks_fs::{
 use turbo_unix_path::sys_to_unix;
 use turbopack::{
     ModuleAssetContext,
+    global_module_ids::get_global_module_id_strategy,
     module_options::{
         EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions,
         side_effect_free_packages_glob,
     },
 };
 use turbopack_core::{
+    asset::AssetContent,
     chunk::{ChunkingConfig, MangleType, MinifyType},
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
@@ -46,9 +47,15 @@ use turbopack_core::{
     },
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
-        ExternalTraced, ExternalType,
-        options::{ImportMap, ImportMapping},
+        ExternalTraced, ExternalType, ResolveResult,
+        options::{
+            ImportMap, ImportMapResult, ImportMapping, ImportMappingReplacement,
+            ReplacedImportMapping,
+        },
+        parse::Request,
+        pattern::Pattern,
     },
+    virtual_source::VirtualSource,
 };
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::chunk::EcmascriptChunkType;
@@ -80,7 +87,7 @@ struct RunTestResult {
 struct JsResult {
     uncaught_exceptions: Vec<String>,
     unhandled_rejections: Vec<String>,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     jest_result: JestRunResult,
 }
 
@@ -261,9 +268,7 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
     .await
 }
 
-#[derive(
-    PartialEq, Eq, Debug, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, Debug, Deserialize, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct TestOptions {
     #[serde(default = "default_true")]
@@ -283,6 +288,8 @@ struct TestOptions {
     #[serde(default = "default_true")]
     mangle_export_names: bool,
     #[serde(default = "default_true")]
+    mangle_via_materialized_namespace_object: bool,
+    #[serde(default = "default_true")]
     cross_module_constants: bool,
     #[serde(default)]
     cjs_scope_hoisting: bool,
@@ -290,6 +297,12 @@ struct TestOptions {
     minify: bool,
     #[serde(default)]
     production_chunking: bool,
+    #[serde(default)]
+    global_module_ids: bool,
+    /// Assign numeric module ids, as production builds do, instead of the
+    /// human-readable ident-based ids tests use by default.
+    #[serde(default)]
+    numeric_module_ids: bool,
     /// Packages that are assumed to be side effect free, unless they declare otherwise in their
     /// package.json.
     #[serde(default)]
@@ -315,11 +328,14 @@ impl Default for TestOptions {
             scope_hoisting: default_true(),
             cjs_tree_shaking: false,
             mangle_export_names: default_true(),
+            mangle_via_materialized_namespace_object: default_true(),
             cjs_scope_hoisting: false,
             cross_module_constants: true,
             infer_module_side_effects: default_true(),
             minify: false,
             production_chunking: false,
+            global_module_ids: false,
+            numeric_module_ids: false,
             side_effect_free_packages: Vec::new(),
             server_relative_root: default_true(),
         }
@@ -425,6 +441,16 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
 
     let mut import_map = ImportMap::empty();
     import_map.insert_wildcard_alias(
+        rcstr!("generated-chain/"),
+        ImportMapping::Dynamic(ResolvedVc::upcast(
+            GeneratedChainReplacer {
+                dir: project_path.join("input/generated-chain")?,
+            }
+            .resolved_cell(),
+        ))
+        .resolved_cell(),
+    );
+    import_map.insert_wildcard_alias(
         rcstr!("esm-external/"),
         ImportMapping::External(
             Some(rcstr!("*")),
@@ -483,6 +509,8 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 enable_exports_info_inlining: true,
                 cjs_tree_shaking: options.cjs_tree_shaking,
                 mangle_export_names: options.mangle_export_names,
+                mangle_via_materialized_namespace_object: options
+                    .mangle_via_materialized_namespace_object,
                 cjs_scope_hoisting: options.cjs_scope_hoisting,
                 cross_module_constants: options.cross_module_constants,
                 infer_module_side_effects: options.infer_module_side_effects,
@@ -606,6 +634,17 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         None
     });
 
+    // Production builds assign numeric module ids; the default ident-based ids are strings.
+    // Exercising both matters for code that keys off the module cache, since `ModuleId` is
+    // `string | number`.
+    if options.global_module_ids || options.numeric_module_ids {
+        builder = builder.module_id_strategy(
+            get_global_module_id_strategy(module_graph)
+                .to_resolved()
+                .await?,
+        );
+    }
+
     if options.remove_unused_imports {
         builder = builder.unused_references(
             binding_usage
@@ -693,4 +732,80 @@ async fn snapshot_issues(
         .context("Unable to handle issues")?;
 
     Ok(())
+}
+
+/// Resolves `generated-chain/<kind>/<n>` to a generated module that loads
+/// `generated-chain/<kind>/<n - 1>`, so a test can build a module chain of any depth without
+/// fixture files. `<kind>` is `esm` (static `import`) or `cjs` (`require`), and `<n> = 0` is the
+/// leaf. Each module exports `depth`, the number of modules from it to the leaf, inclusive.
+///
+/// When the leaf evaluates, it stores the number of `module evaluation` frames on the stack in
+/// `globalThis.__generatedChainEvaluationFrames[kind]`, so a test can check that the chain was
+/// evaluated one module at a time instead of being merged into fewer modules.
+#[turbo_tasks::value]
+struct GeneratedChainReplacer {
+    /// The generated modules are placed in this directory, as `<kind>/<n>.js`, so their idents
+    /// and output chunks show where they come from.
+    dir: FileSystemPath,
+}
+
+#[turbo_tasks::value_impl]
+impl ImportMappingReplacement for GeneratedChainReplacer {
+    #[turbo_tasks::function]
+    async fn replace(&self, capture: Vc<Pattern>) -> Result<Vc<ReplacedImportMapping>> {
+        let capture = capture.await?;
+        let Some((kind, n)) = capture
+            .as_constant_string()
+            .and_then(|capture| capture.split_once('/'))
+        else {
+            bail!("expected `generated-chain/<kind>/<n>`, got `generated-chain/{capture:?}`");
+        };
+        let n: u32 = n
+            .parse()
+            .with_context(|| format!("invalid depth in `generated-chain/{kind}/{n}`"))?;
+        let code = match (kind, n) {
+            ("esm", 0) => format!("{}\nexport const depth = 1\n", leaf_prelude(kind)),
+            ("esm", n) => format!(
+                "import {{ depth as below }} from 'generated-chain/esm/{}'\nexport const depth = \
+                 below + 1\n",
+                n - 1
+            ),
+            ("cjs", 0) => format!("{}\nexports.depth = 1;\n", leaf_prelude(kind)),
+            ("cjs", n) => format!(
+                "exports.depth = require('generated-chain/cjs/{}').depth + 1;\n",
+                n - 1
+            ),
+            (kind, _) => bail!("unknown kind `{kind}` in `generated-chain/{kind}/{n}`"),
+        };
+
+        let source = VirtualSource::new(
+            self.dir.join(&format!("{kind}/{n}.js"))?,
+            AssetContent::file(FileContent::Content(code.into()).cell()),
+        )
+        .to_resolved()
+        .await?;
+        Ok(ReplacedImportMapping::Direct(
+            ResolveResult::source(ResolvedVc::upcast(source)).resolved_cell(),
+        )
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    fn result(&self, _lookup_path: FileSystemPath, _request: Vc<Request>) -> Vc<ImportMapResult> {
+        // `replace` always returns `Direct`, so this is never called.
+        ImportMapResult::NoEntry.cell()
+    }
+}
+
+/// Records how many `module evaluation` frames are on the stack when the leaf of a generated chain
+/// evaluates.
+fn leaf_prelude(kind: &str) -> String {
+    format!(
+        "const stackTraceLimit = Error.stackTraceLimit
+Error.stackTraceLimit = Infinity
+const frames = new Error().stack.split('\\n').filter((line) => line.includes('module evaluation'))
+Error.stackTraceLimit = stackTraceLimit
+globalThis.__generatedChainEvaluationFrames ??= {{}}
+globalThis.__generatedChainEvaluationFrames.{kind} = frames.length"
+    )
 }

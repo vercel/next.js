@@ -14,7 +14,7 @@ use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use mime::Mime;
 use serde_json::Value;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc, ValueToString, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_hash::{
     DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash, hash_xxh3_hash64,
 };
@@ -92,7 +92,7 @@ impl From<File> for FileContent {
 /// [`FileContent`] uses `serialization = "hash"`, so only a hash is kept in the persistent cache.
 /// When reading the file content back from the cache, the hash is compared to detect changes, but
 /// the actual data is not available. `PersistedFileContent` provides the full data so that
-/// [`DiskFileSystem::write`] can retrieve it without re-reading from disk.
+/// `DiskFileSystem::write` can retrieve it without re-reading from disk.
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord)]
 pub enum PersistedFileContent {
@@ -166,9 +166,9 @@ pub(crate) enum FileComparison {
 /// The target of a symbolic link, as read from a filesystem.
 ///
 /// Every variant carries the `resolved` path the link points at, computed once by
-/// [`crate::FileSystem::read_link`], which is also what guarantees the target stays inside the
-/// filesystem root — a link whose target leaves the root is [`LinkContent::Invalid`] instead.
-#[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+/// [`crate::FileSystem::read_link`]. A link whose target cannot be resolved into its filesystem
+/// or another configured filesystem is [`LinkContent::Invalid`] instead.
+#[derive(Clone, Debug, Hash, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum LinkTarget {
     /// The link is an absolute path on disk.
     Absolute {
@@ -249,9 +249,7 @@ pub enum LinkContent {
 }
 
 /// The file type of the target of a newly written link. This value is only used on Windows.
-#[derive(
-    Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, NonLocalValue, DeterministicHash, Encode, Decode,
-)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, NonLocalValue, DeterministicHash, Encode, Decode)]
 pub enum WriteLinkTargetType {
     /// Represents a link to a file or a symbolic link that is not a junction point. This is likely
     /// to fail on Windows, where symbolic links are not enabled by default.
@@ -431,8 +429,8 @@ pub struct FileMeta {
     // Size of the file
     // len: u64,
     pub(crate) permissions: Permissions,
+    #[turbo_tasks(unsafe_ignore)]
     #[bincode(with = "turbo_bincode::mime_option")]
-    #[turbo_tasks(trace_ignore)]
     content_type: Option<Mime>,
 }
 
@@ -624,7 +622,7 @@ impl FileContent {
     /// Converts this [`FileContent`] into a [`PersistedFileContent`] by cloning.
     ///
     /// Use this in contexts where the full file content must be serialized to the persistent
-    /// task cache (e.g., in [`DiskFileSystem::write`]).
+    /// task cache (e.g., in `DiskFileSystem::write`).
     #[turbo_tasks::function]
     pub fn persist(&self) -> Vc<PersistedFileContent> {
         match self {
@@ -727,7 +725,7 @@ impl FileLine {
 
 #[turbo_tasks::value(shared, serialization = "skip")]
 pub enum FileLinesContent {
-    Lines(#[turbo_tasks(trace_ignore)] Vec<FileLine>),
+    Lines(#[turbo_tasks(unsafe_ignore)] Vec<FileLine>),
     Unparsable,
     NotFound,
 }

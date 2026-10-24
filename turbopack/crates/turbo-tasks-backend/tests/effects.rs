@@ -15,7 +15,6 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     ApplyError, CapturedEffect, Effect, EffectExt, EffectStateStorage, Effects, EffectsError,
     NonLocalValue, OperationValue, ReadRef, ResolvedVc, State, TurboTasks, Vc, take_effects,
-    trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
@@ -26,20 +25,17 @@ use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storag
 /// representing a separate producer task); they then share the same
 /// `EffectStateStorage`, mirroring how on disk two producers writing the
 /// same path contend on the same per-key state entry.
-#[derive(TraceRawVcs, NonLocalValue)]
+#[derive(NonLocalValue)]
 struct SharedState {
-    #[turbo_tasks(trace_ignore)]
     applies_by_key: Mutex<FxHashMap<RcStr, u64>>,
-    #[turbo_tasks(trace_ignore)]
     total_applies: AtomicU64,
     /// Counts captures that materialized content (i.e. those where
     /// `EffectStateStorage::matches_applied` returned false). Lets tests
     /// assert that capture skipped content materialization on re-runs.
-    #[turbo_tasks(trace_ignore)]
     captures_with_content: AtomicU64,
     /// Shared `EffectStateStorage` used by both `matches_applied` (in `capture`)
     /// and `run_apply` (in `apply`).
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     state_storage: EffectStateStorage,
 }
 
@@ -72,7 +68,7 @@ impl SharedState {
 struct TestEffect {
     key: RcStr,
     value_hash: u128,
-    #[turbo_tasks(trace_ignore, debug_ignore)]
+    #[turbo_tasks(debug_ignore)]
     shared: Arc<SharedState>,
 }
 
@@ -106,7 +102,7 @@ impl Effect for TestEffect {
 }
 
 // Post-capture effect — session-only plain struct.
-#[derive(TraceRawVcs, NonLocalValue)]
+#[derive(NonLocalValue)]
 struct TestEffectCaptured {
     key: RcStr,
     value_hash: u128,
@@ -148,13 +144,13 @@ impl CapturedEffect for TestEffectCaptured {
     }
 }
 
-#[derive(Debug, thiserror::Error, TraceRawVcs, NonLocalValue)]
+#[derive(Debug, thiserror::Error, NonLocalValue)]
 enum TestError {}
 
 /// Spec for what the producer should emit: a list of `(key, value_hash)`
 /// pairs. Stored inside `State<EmitSpec>` so mutating it invalidates the
 /// producer.
-#[derive(Clone, Default, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, OperationValue)]
+#[derive(Clone, Default, PartialEq, Eq, Debug, NonLocalValue, OperationValue)]
 struct EmitSpec {
     pairs: Vec<(RcStr, u128)>,
 }
@@ -173,14 +169,14 @@ struct EmitSpec {
 #[turbo_tasks::value(eq = "manual", serialization = "skip")]
 #[derive(Clone)]
 struct TestInput {
-    #[turbo_tasks(trace_ignore, debug_ignore)]
+    #[turbo_tasks(debug_ignore)]
     shared: Arc<SharedState>,
-    #[turbo_tasks(trace_ignore, debug_ignore)]
+    #[turbo_tasks(debug_ignore)]
     spec: Arc<State<EmitSpec>>,
     /// Side-channel `State` for invalidating the producer without changing
     /// `spec`. Lets tests simulate upstream input changes that don't affect
     /// emitted hashes (e.g. a comment edit that recompiles to identical bytes).
-    #[turbo_tasks(trace_ignore, debug_ignore)]
+    #[turbo_tasks(debug_ignore)]
     tick: Arc<State<u64>>,
 }
 

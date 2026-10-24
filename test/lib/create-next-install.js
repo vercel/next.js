@@ -3,12 +3,14 @@ const path = require('path')
 const execa = require('execa')
 const fs = require('fs-extra')
 const childProcess = require('child_process')
+const treeKill = require('tree-kill')
 const { randomBytes } = require('crypto')
 const { linkPackages } = require('./link-packed-packages')
+const lockfile = require('proper-lockfile')
 const yaml = require('js-yaml')
 const {
   getPnpmSecuritySettings,
-  mergePnpmSecuritySettingsIntoYaml,
+  mergeSettingsIntoYaml,
   getYarnSecuritySettings,
   mergeYarnSecuritySettingsIntoYaml,
 } = require('./pnpm-security-settings')
@@ -16,6 +18,87 @@ const {
 const PREFER_OFFLINE = process.env.NEXT_TEST_PREFER_OFFLINE === '1'
 const useRspack = process.env.NEXT_TEST_USE_RSPACK === '1'
 const ROOT_PACKAGE_MANAGER = require('../../package.json').packageManager
+const DEFAULT_INSTALL_TIMEOUT_MS = 5 * 60 * 1000
+const MAX_TIMER_DELAY_MS = 2_147_483_647
+
+function getInstallTimeoutMs() {
+  const value = Number(process.env.NEXT_TEST_INSTALL_TIMEOUT_MS)
+  return Number.isInteger(value) && value > 0 && value <= MAX_TIMER_DELAY_MS
+    ? value
+    : DEFAULT_INSTALL_TIMEOUT_MS
+}
+
+/**
+ * Runs a custom install command without blocking the event loop, so Jest can
+ * still enforce hook and test timeouts. When the install deadline fires, the
+ * whole process tree is killed before the returned promise rejects.
+ *
+ * @param {string} command
+ * @param {string} cwd
+ * @param {number} [timeoutMs]
+ */
+function runCustomInstall(command, cwd, timeoutMs = getInstallTimeoutMs()) {
+  return new Promise((resolve, reject) => {
+    let settled = false
+    /** @type {Error | null} */
+    let timeoutError = null
+    const child = childProcess.spawn(command, {
+      cwd,
+      shell: true,
+      stdio: ['ignore', 'inherit', 'inherit'],
+    })
+
+    const finish = (err) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      if (err) reject(err)
+      else resolve()
+    }
+
+    const timer = setTimeout(() => {
+      timeoutError = new Error(
+        `Custom install command timed out after ${timeoutMs}ms: ${command}`
+      )
+      if (child.pid === undefined) {
+        finish(timeoutError)
+        return
+      }
+      treeKill(child.pid, 'SIGKILL', (killErr) => {
+        if (killErr && timeoutError) {
+          timeoutError.message += ` (failed to kill process tree: ${killErr.message})`
+        }
+        finish(timeoutError)
+      })
+    }, timeoutMs)
+
+    child.once('error', finish)
+    child.once('exit', (code, signal) => {
+      // On timeout, wait for tree-kill to finish before rejecting so no
+      // descendants are left behind.
+      if (timeoutError) return
+      if (code === 0) {
+        finish()
+        return
+      }
+      finish(
+        new Error(
+          `Custom install command failed with ${
+            signal ? `signal ${signal}` : `code ${code}`
+          }: ${command}`
+        )
+      )
+    })
+  })
+}
+
+const PNPM_TEST_DIR_SETTINGS = {
+  // fixtures depend on packages with build scripts that they don't declare in `allowBuilds`: this
+  // will skip them (`allowBuilds` defaults to `false` for unlisted packages) instead of failing
+  strictDepBuilds: false,
+  // pnpm auto-installs before running scripts, we want to be explicit about this in tests
+  verifyDepsBeforeRun: false,
+}
 
 async function installDependencies(cwd, tmpDir) {
   const args = [
@@ -72,6 +155,10 @@ async function findConfigFile(fileName, installDir, isolationRoot) {
  * @returns {Promise<void>}
  */
 async function applyInstallSecuritySettings(installDir, isolationRoot) {
+  const pnpmSettings = {
+    ...getPnpmSecuritySettings(),
+    ...PNPM_TEST_DIR_SETTINGS,
+  }
   const workspaceFile = await findConfigFile(
     'pnpm-workspace.yaml',
     installDir,
@@ -80,14 +167,15 @@ async function applyInstallSecuritySettings(installDir, isolationRoot) {
   if (workspaceFile !== null) {
     await fs.writeFile(
       workspaceFile,
-      mergePnpmSecuritySettingsIntoYaml(
-        await fs.readFile(workspaceFile, 'utf8')
+      mergeSettingsIntoYaml(
+        await fs.readFile(workspaceFile, 'utf8'),
+        pnpmSettings
       )
     )
   } else {
     await fs.writeFile(
       path.join(installDir, 'pnpm-workspace.yaml'),
-      yaml.dump(getPnpmSecuritySettings())
+      yaml.dump(pnpmSettings)
     )
   }
 
@@ -154,14 +242,17 @@ async function lockfileResolvesLocalTarball(
   packageName,
   expectedTarballPath
 ) {
-  const lockfile = /** @type {Record<string, any>} */ (
-    yaml.load(
+  // pnpm 11+ prepends a separate YAML document that locks pnpm itself.
+  const lockfileDocuments = /** @type {Record<string, any>[]} */ (
+    yaml.loadAll(
       await fs.readFile(path.join(installDir, 'pnpm-lock.yaml'), 'utf8')
     )
   )
   const expectedRealpath = await fs.realpath(expectedTarballPath)
 
-  for (const [key, pkg] of Object.entries(lockfile.packages || {})) {
+  for (const [key, pkg] of lockfileDocuments.flatMap((lockfile) =>
+    Object.entries(lockfile?.packages || {})
+  )) {
     const tarball = pkg?.resolution?.tarball
     if (
       !key.startsWith(`${packageName}@file:`) ||
@@ -187,28 +278,42 @@ async function lockfileResolvesLocalTarball(
  * @returns {Promise<Map<string, string>>}
  */
 async function packPackages(parentSpan) {
-  const repositoryDirectory = path.join(__dirname, '../..')
-  await parentSpan.traceChild('turbo-run-pack').traceAsyncFn(() =>
-    execa(
-      'pnpm',
-      [
-        'turbo',
-        'run',
-        'pack-for-isolated-tests',
-        '--output-logs',
-        'new-only',
-        '--ui',
-        'stream',
-      ],
-      {
-        cwd: repositoryDirectory,
-        stdio: ['ignore', 'inherit', 'inherit'],
-      }
+  const repositoryDirectory = await fs.realpath(path.join(__dirname, '../..'))
+  const cacheDir = path.join(repositoryDirectory, '.turbo')
+  await fs.ensureDir(cacheDir)
+  // Serialize the entire Turbo invocation, including cache restoration, when
+  // multiple test runners start in parallel.
+  const release = await lockfile.lock(repositoryDirectory, {
+    lockfilePath: path.join(cacheDir, 'pack-for-isolated-tests.lock'),
+    stale: 10 * 60 * 1000,
+    update: 10 * 1000,
+    retries: { retries: 3600, factor: 1, minTimeout: 1000, maxTimeout: 1000 },
+  })
+  try {
+    await parentSpan.traceChild('turbo-run-pack').traceAsyncFn(() =>
+      execa(
+        'pnpm',
+        [
+          'turbo',
+          'run',
+          'pack-for-isolated-tests',
+          '--output-logs',
+          'new-only',
+          '--ui',
+          'stream',
+        ],
+        {
+          cwd: repositoryDirectory,
+          stdio: ['ignore', 'inherit', 'inherit'],
+        }
+      )
     )
-  )
-  return parentSpan
-    .traceChild('linkPackages')
-    .traceAsyncFn(() => linkPackages({ repoDir: repositoryDirectory }))
+    return await parentSpan
+      .traceChild('linkPackages')
+      .traceAsyncFn(() => linkPackages({ repoDir: repositoryDirectory }))
+  } finally {
+    await release()
+  }
 }
 
 /**
@@ -399,12 +504,9 @@ async function createNextInstall({
 
       if (installString !== null) {
         console.log('running install command', installString)
-        rootSpan.traceChild('run custom install').traceFn(() => {
-          childProcess.execSync(installString, {
-            cwd: installDir,
-            stdio: ['ignore', 'inherit', 'inherit'],
-          })
-        })
+        await rootSpan
+          .traceChild('run custom install')
+          .traceAsyncFn(() => runCustomInstall(installString, installDir))
       } else {
         await rootSpan
           .traceChild('run generic install command', combinedDependencies)
@@ -454,7 +556,9 @@ async function createNextInstall({
 }
 
 module.exports = {
+  PNPM_TEST_DIR_SETTINGS,
   createNextInstall,
   getPkgPaths: linkPackages,
   packPackages,
+  runCustomInstall,
 }

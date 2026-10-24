@@ -1,8 +1,7 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_tasks::{
-    FxIndexSet, JoinIterExt, OperationVc, ReadRef, ResolvedVc, ValueToString, Vc,
-    trace::TraceRawVcs, turbofmt,
+    FxIndexSet, JoinIterExt, OperationVc, ReadRef, ResolvedVc, ValueToString, Vc, turbofmt,
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
@@ -13,7 +12,7 @@ use crate::{
 };
 
 #[turbo_tasks::task_input]
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Encode, Decode)]
 pub enum AvailableModuleItem {
     Module(ResolvedVc<Box<dyn ChunkableModule>>),
     Batch(ResolvedVc<ModuleBatch>),

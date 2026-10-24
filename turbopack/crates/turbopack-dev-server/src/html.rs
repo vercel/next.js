@@ -2,7 +2,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use mime_guess::mime::TEXT_HTML_UTF_8;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
 use turbopack_core::{
@@ -18,7 +18,7 @@ use turbopack_core::{
 };
 
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, Eq, Hash, PartialEq, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Encode, Decode)]
 pub struct DevHtmlEntry {
     pub chunkable_module: ResolvedVc<Box<dyn ChunkableModule>>,
     pub module_graph: ResolvedVc<ModuleGraph>,
@@ -217,33 +217,7 @@ impl DevHtmlAssetContent {
 impl DevHtmlAssetContent {
     #[turbo_tasks::function]
     fn content(&self) -> Result<Vc<AssetContent>> {
-        let mut scripts = Vec::new();
-        let mut stylesheets = Vec::new();
-
-        for relative_path in &*self.chunk_paths {
-            if relative_path.ends_with(".js") {
-                scripts.push(format!("<script src=\"{relative_path}\"></script>"));
-            } else if relative_path.ends_with(".css") {
-                stylesheets.push(format!(
-                    "<link data-turbopack rel=\"stylesheet\" href=\"{relative_path}\">"
-                ));
-            } else {
-                anyhow::bail!("chunk with unknown asset type: {}", relative_path)
-            }
-        }
-
-        let body = match &self.body {
-            Some(body) => body.as_str(),
-            None => "",
-        };
-
-        let html: RcStr = format!(
-            "<!DOCTYPE html>\n<html>\n<head>\n{}\n</head>\n<body>\n{}\n{}\n</body>\n</html>",
-            stylesheets.join("\n"),
-            body,
-            scripts.join("\n"),
-        )
-        .into();
+        let html: RcStr = render_html(&self.chunk_paths, self.body.as_deref())?.into();
 
         Ok(AssetContent::file(
             FileContent::Content(File::from(html).with_content_type(TEXT_HTML_UTF_8)).cell(),
@@ -289,5 +263,82 @@ impl Version for DevHtmlAssetVersion {
         let hash = hasher.finish();
         let hash = encode_base64(hash);
         Vc::cell(hash.into())
+    }
+}
+
+/// Renders the HTML page that loads the given chunks.
+///
+/// All chunk tags go into `<head>`, where the runtime looks for the tags of
+/// already loaded chunks. Scripts are `async`: the runtime does not depend on
+/// the order in which chunks execute, but code in a chunk may run before
+/// `<body>` has been parsed.
+fn render_html(chunk_paths: &[RcStr], body: Option<&str>) -> Result<String> {
+    let mut scripts = Vec::new();
+    let mut stylesheets = Vec::new();
+
+    for relative_path in chunk_paths {
+        if relative_path.ends_with(".js") {
+            scripts.push(format!("<script async src=\"{relative_path}\"></script>"));
+        } else if relative_path.ends_with(".css") {
+            stylesheets.push(format!(
+                "<link data-turbopack rel=\"stylesheet\" href=\"{relative_path}\">"
+            ));
+        } else {
+            anyhow::bail!("chunk with unknown asset type: {}", relative_path)
+        }
+    }
+
+    Ok(format!(
+        "<!DOCTYPE html>\n<html>\n<head>\n{}\n</head>\n<body>\n{}\n</body>\n</html>",
+        stylesheets
+            .into_iter()
+            .chain(scripts)
+            .collect::<Vec<_>>()
+            .join("\n"),
+        body.unwrap_or_default(),
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use turbo_rcstr::rcstr;
+
+    use super::render_html;
+
+    #[test]
+    fn chunk_tags_are_in_head() {
+        let html = render_html(
+            &[
+                rcstr!("runtime.js"),
+                rcstr!("a.css"),
+                rcstr!("main.js"),
+                rcstr!("b.css"),
+            ],
+            Some("<div id=\"root\"></div>"),
+        )
+        .unwrap();
+
+        assert_eq!(
+            html,
+            "<!DOCTYPE html>\n<html>\n<head>\n<link data-turbopack rel=\"stylesheet\" \
+             href=\"a.css\">\n<link data-turbopack rel=\"stylesheet\" href=\"b.css\">\n<script \
+             async src=\"runtime.js\"></script>\n<script async \
+             src=\"main.js\"></script>\n</head>\n<body>\n<div id=\"root\"></div>\n</body>\n</html>"
+        );
+    }
+
+    #[test]
+    fn empty_body() {
+        let html = render_html(&[rcstr!("main.js")], None).unwrap();
+        assert_eq!(
+            html,
+            "<!DOCTYPE html>\n<html>\n<head>\n<script async \
+             src=\"main.js\"></script>\n</head>\n<body>\n\n</body>\n</html>"
+        );
+    }
+
+    #[test]
+    fn unknown_chunk_type() {
+        assert!(render_html(&[rcstr!("main.wasm")], None).is_err());
     }
 }
