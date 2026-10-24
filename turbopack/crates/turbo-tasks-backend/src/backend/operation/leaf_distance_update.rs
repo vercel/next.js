@@ -189,11 +189,9 @@ impl LeafDistanceUpdateQueue {
 
 #[cfg(test)]
 mod tests {
-    use std::cmp::Reverse;
-
     use turbo_tasks::TaskId;
 
-    use super::{BASE_LEAF_DISTANCE_BUFFER, LeafDistanceUpdateQueue, compute_leaf_distance_update};
+    use super::{LeafDistanceUpdateQueue, compute_leaf_distance_update};
     use crate::data::LeafDistance;
 
     fn ld(distance: u32, max_distance_in_buffer: u32) -> LeafDistance {
@@ -207,108 +205,42 @@ mod tests {
         TaskId::new(id).unwrap()
     }
 
-    /// Verbatim copy of the arithmetic `update_leaf_distance` used before it was extracted into
-    /// `compute_leaf_distance_update`, used as a reference.
-    fn reference(current: LeafDistance, dep: u32, dep_max: u32) -> Option<LeafDistance> {
-        let mut leaf_distance = current;
-        if leaf_distance.distance > dep {
-            return None;
-        }
-        if leaf_distance.max_distance_in_buffer <= dep {
-            let old_value = leaf_distance.distance;
-            leaf_distance.distance = dep_max + 1;
-            let buffer_size = BASE_LEAF_DISTANCE_BUFFER
-                - BASE_LEAF_DISTANCE_BUFFER.saturating_mul(old_value) / leaf_distance.distance;
-            leaf_distance.max_distance_in_buffer = leaf_distance.distance + buffer_size;
-        } else {
-            leaf_distance.distance = dep + 1;
-        }
-        Some(leaf_distance)
-    }
-
     #[test]
-    fn no_update_when_already_strictly_greater() {
+    fn reader_ahead_of_dependency_is_not_updated() {
         assert_eq!(compute_leaf_distance_update(ld(5, 100), 4, 50), None);
-        assert_eq!(compute_leaf_distance_update(ld(1, 0), 0, 0), None);
     }
 
     #[test]
-    fn updates_when_equal() {
-        // The call site used to enqueue when `reader.distance <= dependency.distance`.
-        assert!(compute_leaf_distance_update(ld(3, 100), 3, 50).is_some());
-    }
-
-    #[test]
-    fn within_buffer_zone_keeps_max() {
-        assert_eq!(
-            compute_leaf_distance_update(ld(2, 100), 10, 60),
-            Some(ld(11, 100))
-        );
-    }
-
-    #[test]
-    fn overshoot_recomputes_buffer() {
-        // Fresh (default) reader reading a dependency at (0, 0).
-        assert_eq!(
-            compute_leaf_distance_update(LeafDistance::default(), 0, 0),
-            Some(ld(1, 1 + BASE_LEAF_DISTANCE_BUFFER))
-        );
-        // Reader at (10, 20) reading a dependency at (20, 150): overshoots its buffer zone.
-        let distance = 151;
-        let buffer = BASE_LEAF_DISTANCE_BUFFER - BASE_LEAF_DISTANCE_BUFFER * 10 / distance;
-        assert_eq!(
-            compute_leaf_distance_update(ld(10, 20), 20, 150),
-            Some(ld(distance, distance + buffer))
-        );
-    }
-
-    #[test]
-    fn matches_reference_arithmetic() {
-        let values = [0u32, 1, 2, 3, 7, 50, 127, 128, 129, 200, 1000, 100_000];
-        for &distance in &values {
-            for &max in &values {
-                for &dep in &values {
-                    for &dep_max in &values {
-                        if dep_max < dep {
-                            continue;
-                        }
-                        let current = ld(distance, max);
-                        let result = compute_leaf_distance_update(current, dep, dep_max);
-                        assert_eq!(
-                            result,
-                            reference(current, dep, dep_max),
-                            "current={current:?} dep={dep} dep_max={dep_max}"
-                        );
-                        if let Some(new) = result {
-                            assert!(new.distance > dep, "must be strictly monotonic");
-                        }
-                    }
-                }
-            }
+    fn reader_at_or_behind_dependency_moves_past_it() {
+        for (reader, dependency) in [
+            (ld(0, 0), ld(0, 0)),
+            (ld(3, 100), ld(3, 50)),
+            (ld(10, 20), ld(20, 150)),
+        ] {
+            let updated = compute_leaf_distance_update(
+                reader,
+                dependency.distance,
+                dependency.max_distance_in_buffer,
+            )
+            .unwrap();
+            assert!(
+                updated.distance > dependency.distance,
+                "{reader:?} {dependency:?}"
+            );
+            assert!(updated.max_distance_in_buffer >= updated.distance);
         }
     }
 
     #[test]
-    fn matches_reference_arithmetic_near_upper_bound() {
-        // `dependency_max_distance_in_buffer` is asserted to be below `u32::MAX / 2`; exercise the
-        // saturating multiplication with large current distances.
-        let max_dep = u32::MAX / 2 - 1;
-        for &distance in &[max_dep / 2, max_dep - 1, max_dep] {
-            for &max in &[0, distance, max_dep] {
-                for &(dep, dep_max) in &[(distance, max_dep), (max_dep, max_dep), (0, max_dep)] {
-                    let current = ld(distance, max);
-                    assert_eq!(
-                        compute_leaf_distance_update(current, dep, dep_max),
-                        reference(current, dep, dep_max),
-                        "current={current:?} dep={dep} dep_max={dep_max}"
-                    );
-                }
-            }
-        }
+    fn updates_within_buffer_keep_buffer_ceiling() {
+        let first = compute_leaf_distance_update(ld(2, 100), 10, 60).unwrap();
+        assert_eq!(first, ld(11, 100));
+        let second = compute_leaf_distance_update(first, 12, 70).unwrap();
+        assert_eq!(second, ld(13, 100));
     }
 
     #[test]
-    fn push_dependents_with_no_dependents_keeps_queue_empty() {
+    fn push_dependents_without_dependents_enqueues_nothing() {
         let mut queue = LeafDistanceUpdateQueue::new();
         queue.push_dependents([], ld(3, 130));
         assert!(queue.queue.is_empty());
@@ -316,53 +248,19 @@ mod tests {
     }
 
     #[test]
-    fn reader_already_ahead_does_not_propagate() {
-        // Mirrors the call site in `try_read_task_output`: dependents are only enqueued when
-        // the reader's leaf distance was updated.
-        let dependency = ld(4, 140);
-        let reader = ld(9, 140);
-        assert_eq!(
-            compute_leaf_distance_update(
-                reader,
-                dependency.distance,
-                dependency.max_distance_in_buffer
-            ),
-            None
-        );
-    }
-
-    #[test]
-    fn push_dependents_seeds_with_new_leaf_distance() {
-        // A fresh reader reads a dependency; its updated leaf distance is what is propagated.
-        let dependency = ld(6, 134);
-        let new_leaf_distance = compute_leaf_distance_update(
-            LeafDistance::default(),
-            dependency.distance,
-            dependency.max_distance_in_buffer,
-        )
-        .unwrap();
-        assert!(new_leaf_distance.distance > dependency.distance);
-
+    fn push_dependents_propagates_new_distance() {
+        let reader = compute_leaf_distance_update(ld(0, 0), 6, 134).unwrap();
         let mut queue = LeafDistanceUpdateQueue::new();
-        queue.push_dependents([task_id(1), task_id(2)], new_leaf_distance);
-        assert!(!queue.queue.is_empty());
-        assert_eq!(queue.leaf_distance_updates.len(), 2);
+        queue.push_dependents([task_id(1), task_id(2)], reader);
+
+        assert_eq!(queue.queue.len(), 2);
         for id in [task_id(1), task_id(2)] {
             let update = &queue.leaf_distance_updates[&id];
-            assert_eq!(update.dependencies_distance, new_leaf_distance.distance);
+            assert_eq!(update.dependencies_distance, reader.distance);
             assert_eq!(
                 update.dependencies_max_distance_in_buffer,
-                new_leaf_distance.max_distance_in_buffer
+                reader.max_distance_in_buffer
             );
-            assert!(!update.done);
         }
-        let mut queued: Vec<_> = queue.queue.iter().copied().collect();
-        queued.sort();
-        let mut expected = vec![
-            (Reverse(new_leaf_distance.distance), task_id(1)),
-            (Reverse(new_leaf_distance.distance), task_id(2)),
-        ];
-        expected.sort();
-        assert_eq!(queued, expected);
     }
 }

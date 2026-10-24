@@ -922,8 +922,6 @@ impl TurboTasksBackend {
                 let reader = reader.unwrap();
                 if task.add_output_dependent(reader) {
                     // Ensure that dependent leaf distance is strictly monotonic increasing.
-                    // The reader is already locked, so update its leaf distance in place. Only
-                    // its own output dependents (if any) need to be updated via the queue.
                     let leaf_distance = task.get_leaf_distance().copied().unwrap_or_default();
                     if let Some(new_reader_leaf_distance) = compute_leaf_distance_update(
                         reader_task.get_leaf_distance().copied().unwrap_or_default(),
