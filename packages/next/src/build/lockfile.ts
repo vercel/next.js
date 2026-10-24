@@ -127,7 +127,13 @@ export class Lockfile {
       )
       return new Lockfile(bindings, undefined)
     } else {
-      const result = bindings.lockfileTryAcquireSync(path, content)
+      let result = bindings.lockfileTryAcquireSync(path, content)
+      if (result == null) {
+        return undefined
+      }
+      if (typeof (result as any).type !== 'string') {
+        result = { type: 'acquired', lockfile: result as any }
+      }
       if (result.type === 'error') {
         const error = new LockfileError(result.error)
         if (result.error.unsupported) {

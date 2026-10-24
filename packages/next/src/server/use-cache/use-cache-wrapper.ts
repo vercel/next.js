@@ -2923,13 +2923,17 @@ export async function cache(
           if (!cacheSignal) {
             // This is the final prerender (cacheSignal is null), which means
             // all caches should have been warmed during the prospective
-            // prerender. A cache miss here indicates that the cache key is
-            // non-deterministic (e.g. due to unstable array order in the
+            // prerender. When draft mode is enabled, the cache entry was
+            // deliberately not saved to the Resume Data Cache, so a miss is
+            // expected. Otherwise, a cache miss here indicates that the cache
+            // key is non-deterministic (e.g. due to unstable array order in the
             // arguments). Known dynamic keys (e.g. from fallback params) are
             // already handled by the early return above. We return a hanging
             // promise so this becomes a dynamic hole rather than generating a
             // broken cache entry that gets aborted.
-            console.warn(new UnexpectedCacheMissError(workStore.route))
+            if (!workStore.isDraftMode) {
+              console.warn(new UnexpectedCacheMissError(workStore.route))
+            }
             // This is an anomaly (non-deterministic cache key), so we can't
             // know whether a runtime prerender would resolve it.
             return makeUnknownRuntimeDataHangingPromise(
