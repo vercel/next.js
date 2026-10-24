@@ -279,9 +279,13 @@ export default function IndexPage(props) {
 
 ## Leveraging the `NEXT_LOCALE` cookie
 
-Next.js allows setting a `NEXT_LOCALE=the-locale` cookie, which takes priority over the accept-language header. This cookie can be set using a language switcher and then when a user comes back to the site it will leverage the locale specified in the cookie when redirecting from `/` to the correct locale location.
+When using [sub-path routing](#sub-path-routing), Next.js allows setting a `NEXT_LOCALE=the-locale` cookie, which takes priority over the accept-language header. This cookie can be set using a language switcher and then when a user comes back to the site it will leverage the locale specified in the cookie when redirecting from `/` to the correct locale location.
 
 For example, if a user prefers the locale `fr` in their accept-language header but a `NEXT_LOCALE=en` cookie is set the `en` locale when visiting `/` the user will be redirected to the `en` locale location until the cookie is removed or expired.
+
+The `NEXT_LOCALE` cookie follows the browser's [cookie domain rules](https://developer.mozilla.org/docs/Web/HTTP/Reference/Headers/Set-Cookie#domain). For example, a cookie set on `example.com` is not sent to `example.fr` and cannot be set for `example.fr` from `example.com`. Subdomains can share a cookie by setting its `Domain` attribute to a shared parent domain.
+
+When using [domain routing](#domain-routing), automatic domain redirects use the `Accept-Language` header to select the preferred domain. The `NEXT_LOCALE` cookie does not override that selection, even if it is set on the destination domain. For custom locale selection across domains, you can [disable automatic locale detection](#disabling-automatic-locale-detection) and implement your own routing logic.
 
 ## Search Engine Optimization
 
