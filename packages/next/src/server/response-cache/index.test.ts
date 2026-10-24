@@ -96,6 +96,57 @@ describe('ResponseCache', () => {
     )
   })
 
+  it.each([true, false, undefined])(
+    'preserves cache control when skipCacheWrite is %s',
+    async (skipCacheWrite) => {
+      const cache = new ResponseCache({ minimalMode: false, route: 'image' })
+      const incrementalCache = mockIncrementalCache()
+      const previous: ResponseCacheEntry = {
+        value: {
+          kind: CachedRouteKind.IMAGE,
+          buffer: Buffer.from('image'),
+          etag: 'etag',
+          upstreamEtag: 'upstream-etag',
+          extension: 'png',
+        },
+        cacheControl: { revalidate: 60, expire: undefined },
+      }
+      incrementalCache.get.mockResolvedValue(previous)
+      const result = await cache.get(
+        'image-key',
+        async ({ previousCacheEntry }) => {
+          expect(previousCacheEntry).toBe(previous)
+          return { ...previous, skipCacheWrite }
+        },
+        {
+          routeKind: RouteKind.IMAGE,
+          incrementalCache,
+          isOnDemandRevalidate: true,
+        }
+      )
+
+      expect(result).toMatchObject({
+        value: previous.value,
+        cacheControl: previous.cacheControl,
+        isMiss: false,
+      })
+      if (skipCacheWrite) {
+        expect(incrementalCache.set).not.toHaveBeenCalled()
+      } else {
+        expect(incrementalCache.set).toHaveBeenCalledTimes(1)
+        expect(incrementalCache.set).toHaveBeenCalledWith(
+          'image-key',
+          previous.value,
+          {
+            kind: IncrementalCacheKind.IMAGE,
+            isFallback: false,
+            cacheControl: previous.cacheControl,
+          }
+        )
+      }
+    }
+  )
+
   it.each(['throw', 'return'])(
     'keeps ownership when extending a previous entry after a %s failure',
     async (failureMode) => {

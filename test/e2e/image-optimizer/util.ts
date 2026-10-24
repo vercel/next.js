@@ -1273,7 +1273,7 @@ export function runTests(ctx: RunTestsCtx) {
     })
   }
 
-  it('should use cache and stale-while-revalidate when query is the same for internal image', async () => {
+  it('should revalidate internal images in dev and use stale-while-revalidate in production', async () => {
     if (
       ctx.nextConfigExperimental?.isrFlushToDisk === false ||
       ctx.nextConfigImages?.maximumDiskCacheSize === 0
@@ -1315,10 +1315,17 @@ export function runTests(ctx: RunTestsCtx) {
     expect(two.res.headers.get('Content-Disposition')).toBe(
       `${contentDispositionType}; filename="test.webp"`
     )
-    const json2 = await fsToJson(imagesDir)
-    expect(json2).toStrictEqual(json1)
+    if (isDev) {
+      // The stateful route returns a different source on every request. Dev
+      // must return the new output immediately, even before the TTL expires.
+      expect(two.res.headers.get('etag')).not.toBe(etagOne)
+      expect(two.buffer).not.toEqual(one.buffer)
+    } else {
+      const json2 = await fsToJson(imagesDir)
+      expect(json2).toStrictEqual(json1)
+    }
 
-    if (ctx.nextConfigImages?.minimumCacheTTL) {
+    if (!isDev && ctx.nextConfigImages?.minimumCacheTTL) {
       // Wait until expired so we can confirm image is regenerated
       await waitFor(ctx.nextConfigImages.minimumCacheTTL * 1000)
 
@@ -1409,8 +1416,12 @@ export function runTests(ctx: RunTestsCtx) {
       expect(res2.headers.get('Content-Disposition')).toBe(
         `${contentDispositionType}; filename="test.svg"`
       )
-      const json2 = await fsToJson(imagesDir)
-      expect(json2).toStrictEqual(json1)
+      expect(res2.headers.get('etag')).toBe(etagOne)
+      expect(await res2.arrayBuffer()).toEqual(await res1.arrayBuffer())
+      if (!isDev) {
+        const json2 = await fsToJson(imagesDir)
+        expect(json2).toStrictEqual(json1)
+      }
     })
   }
 
@@ -1447,8 +1458,12 @@ export function runTests(ctx: RunTestsCtx) {
     expect(res2.headers.get('Content-Disposition')).toBe(
       `${contentDispositionType}; filename="animated.gif"`
     )
-    const json2 = await fsToJson(imagesDir)
-    expect(json2).toStrictEqual(json1)
+    expect(res2.headers.get('etag')).toBe(res1.headers.get('etag'))
+    expect(await res2.arrayBuffer()).toEqual(await res1.arrayBuffer())
+    if (!isDev) {
+      const json2 = await fsToJson(imagesDir)
+      expect(json2).toStrictEqual(json1)
+    }
   })
 
   it('should set 304 status without body when etag matches if-none-match', async () => {
