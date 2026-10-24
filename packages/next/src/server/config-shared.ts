@@ -894,9 +894,8 @@ export interface ExperimentalConfig {
    * Minifying per factory spreads that work across the task pool, and lets each factory's
    * minified output be cached so an incremental build only re-minifies what changed.
    *
-   * The trade-off is marginally larger output: a factory cannot see the strict wrapper the chunk
-   * will place it in, and optimizations that require seeing every factory at once are not
-   * performed.
+   * The trade-off is marginally larger output: optimizations that require seeing every factory
+   * at once are not performed, and each factory's mangled names are chosen independently.
    */
   turbopackMinifyBeforeChunking?: boolean
 
