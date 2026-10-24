@@ -238,12 +238,10 @@ import {
 } from '../shared/lib/router/utils/sortable-routes'
 import { cp, mkdir } from 'fs/promises'
 import {
-  createRouteTypesManifest,
-  writeRouteTypesManifest,
-  writeValidatorFile,
-} from '../server/lib/router-utils/route-types-utils'
-import { writeCacheLifeTypes } from '../server/lib/router-utils/cache-life-type-utils'
-import { writeRootParamsTypes } from '../server/lib/router-utils/root-params-type-utils'
+  generateSharedTypes,
+  SHARED_TYPES_PRESERVED_ENTRIES,
+} from '../lib/typescript/shared-types'
+import { getSharedTypesDir } from '../lib/typescript/shared-types-dir'
 import { Lockfile } from './lockfile'
 import {
   buildPrefetchSegmentDataRoute,
@@ -1374,13 +1372,21 @@ export default async function build(
       }
 
       if (config.cleanDistDir && !isGenerateMode) {
+        // Keep the types shared with `next dev` and `next typegen` (and their
+        // lock) when they live in this `distDir`, so a running dev server
+        // doesn't lose them. They are regenerated below. Everything else in
+        // `types` (e.g. webpack type guards) is still removed.
+        const sharedTypesDir = getSharedTypesDir(dir, config)
+        const keep = new Set(['cache', 'dev', 'diagnostics', 'lock', 'trace'])
+        if (sharedTypesDir === path.join(distDir, 'types')) {
+          for (const entry of SHARED_TYPES_PRESERVED_ENTRIES) {
+            keep.add(path.join('types', entry))
+          }
+        }
         await nextBuildSpan
           .traceChild('clean')
           .traceAsyncFn(() =>
-            recursiveDeleteSyncWithAsyncRetries(
-              distDir,
-              new Set(['cache', 'dev', 'diagnostics', 'lock', 'trace'])
-            )
+            recursiveDeleteSyncWithAsyncRetries(distDir, keep)
           )
       }
 
@@ -1586,15 +1592,6 @@ export default async function build(
           })
         )
 
-      const {
-        pageRoutes,
-        pageApiRoutes,
-        appRoutes,
-        appRouteHandlers,
-        layoutRoutes,
-        slots,
-      } = discovery
-
       const pagesPageKeys = Object.keys(NextBuildContext.mappedPages)
 
       const conflictingAppPagePaths: [pagePath: string, appPath: string][] = []
@@ -1646,44 +1643,15 @@ export default async function build(
       await nextBuildSpan
         .traceChild('generate-route-types')
         .traceAsyncFn(async () => {
-          const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
-          const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
-          const cacheLifeFilePath = path.join(
-            distDir,
-            'types',
-            'cache-life.d.ts'
-          )
-          await mkdir(path.dirname(routeTypesFilePath), { recursive: true })
-
-          const routeTypesManifest = await createRouteTypesManifest({
+          // Generates the types shared with `next dev` and `next typegen`
+          // for every route, including those excluded by
+          // `--debug-build-paths`.
+          await generateSharedTypes({
             dir,
-            pageRoutes,
-            appRoutes,
-            appRouteHandlers,
-            pageApiRoutes,
-            layoutRoutes,
-            slots,
-            redirects: config.redirects,
-            rewrites: config.rewrites,
-            validatorFilePath,
+            config,
+            appDir,
+            pagesDir,
           })
-
-          await writeRouteTypesManifest(
-            routeTypesManifest,
-            routeTypesFilePath,
-            config
-          )
-          await writeValidatorFile(
-            routeTypesManifest,
-            validatorFilePath,
-            Boolean(config.experimental.strictRouteTypes)
-          )
-          writeCacheLifeTypes(config.cacheLife, cacheLifeFilePath)
-
-          await writeRootParamsTypes(
-            routeTypesManifest,
-            path.join(distDir, 'types', 'root-params.d.ts')
-          )
 
           // The TypeScript CLI type check includes every file in tsconfig,
           // so types left behind by a stopped `next dev` would fail it after
