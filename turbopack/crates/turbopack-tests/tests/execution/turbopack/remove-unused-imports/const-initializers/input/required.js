@@ -1,0 +1,1 @@
+globalThis.constInitializerEffects.push('require')

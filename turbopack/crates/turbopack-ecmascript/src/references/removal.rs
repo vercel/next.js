@@ -25,12 +25,14 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat};
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
     ast_path_trie::{AstPathId, AstPathTrie},
+    chunk::EcmascriptChunkPlaceable,
     code_gen::{AstModifier, CodeGen, CodeGeneration},
+    create_visitor,
     utils::AstPathRange,
 };
 
@@ -38,6 +40,59 @@ use crate::{
 pub struct RemovalCodeGen {
     comment_replacement: RcStr,
     range: AstPathRange,
+}
+
+/// Drops an initializer when none of the exports transitively using its binding are used.
+/// This must use the same liveness as import pruning, otherwise removed imports can leave
+/// executable references behind (for example in a PURE-annotated call).
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode)]
+pub struct UnusedPureInitializerCodeGen {
+    path: AstPathId,
+    used_by_exports: Vec<RcStr>,
+}
+
+impl UnusedPureInitializerCodeGen {
+    pub fn new(path: AstPathId, used_by_exports: Vec<RcStr>) -> Self {
+        Self {
+            path,
+            used_by_exports,
+        }
+    }
+
+    pub async fn code_generation(
+        &self,
+        _trie: &AstPathTrie,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    ) -> Result<CodeGeneration> {
+        let usage = chunking_context
+            .module_export_usage(*ResolvedVc::upcast(module))
+            .await?;
+        let usage = usage.export_usage.await?;
+        if self
+            .used_by_exports
+            .iter()
+            .any(|export| usage.is_export_used(export))
+        {
+            return Ok(CodeGeneration::empty());
+        }
+
+        Ok(CodeGeneration::visitors(vec![create_visitor!(
+            exact,
+            _trie,
+            self.path,
+            visit_mut_expr,
+            |expr: &mut Expr| {
+                *expr = *Expr::undefined(expr.span());
+            }
+        )]))
+    }
+}
+
+impl From<UnusedPureInitializerCodeGen> for CodeGen {
+    fn from(value: UnusedPureInitializerCodeGen) -> Self {
+        CodeGen::UnusedPureInitializerCodeGen(value)
+    }
 }
 
 struct UnreachableModifier {
