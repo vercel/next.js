@@ -19,7 +19,7 @@
 
 use std::{
     marker::PhantomData,
-    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
+    sync::atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering},
     thread,
     time::{Duration, Instant},
 };
@@ -30,9 +30,9 @@ use tracing::info_span;
 use turbo_tasks::parallel::available_parallelism;
 
 /// Blocks admission while a snapshot is in flight.
-const SNAPSHOT_RUNNING_BIT: usize = 1 << (usize::BITS - 1);
+const SNAPSHOT_RUNNING_BIT: u8 = 1 << 0;
 /// Marks a phase waiting for a zero-active boundary. Does not block admission.
-const SNAPSHOT_WAITING_BIT: usize = 1 << (usize::BITS - 2);
+const SNAPSHOT_WAITING_BIT: u8 = 1 << 1;
 /// Upper bound on the number of counter stripes.
 const MAX_STRIPES: usize = 512;
 /// How long a waiting phase first sleeps between attempts to close admission. Doubles after each
@@ -71,7 +71,7 @@ pub struct SnapshotCoordinator {
     active_operations: Box<[CachePadded<AtomicUsize>]>,
     /// [`SNAPSHOT_WAITING_BIT`] and [`SNAPSHOT_RUNNING_BIT`]. Written only by phases (under
     /// `state`), read by every operation.
-    flags: AtomicUsize,
+    flags: AtomicU8,
     operations_waiting: AtomicBool,
     state: Mutex<State>,
     /// Notified by [`SnapshotPhase::drop`]. Awaited by operations arriving during a snapshot.
@@ -88,25 +88,17 @@ impl Default for SnapshotCoordinator {
 
 impl SnapshotCoordinator {
     pub fn new() -> Self {
-        Self::new_with_custom_slow_settle_report_timeout(DEFAULT_SLOW_SETTLE_REPORT_TIME)
-    }
-    fn new_with_custom_slow_settle_report_timeout(slow_settle_report_timeout: Duration) -> Self {
-        // Oversize the stripes.  it is a small amount of ram and zero contention is the goal.
-        // Being too large makes waiting for settling slightly more expensive.
-        let stripes = (available_parallelism().map_or(1, |n| n.get()) * 2)
-            .next_power_of_two()
-            .min(MAX_STRIPES);
-        Self::new_with_stripes(slow_settle_report_timeout, stripes)
+        Self::new_with_options(DEFAULT_SLOW_SETTLE_REPORT_TIME, default_stripes())
     }
 
     /// `stripes` must be a power of two.
-    fn new_with_stripes(slow_settle_report_timeout: Duration, stripes: usize) -> Self {
+    fn new_with_options(slow_settle_report_timeout: Duration, stripes: usize) -> Self {
         debug_assert!(stripes.is_power_of_two());
         Self {
             active_operations: (0..stripes)
                 .map(|_| CachePadded::new(AtomicUsize::new(0)))
                 .collect(),
-            flags: AtomicUsize::new(0),
+            flags: AtomicU8::new(0),
             operations_waiting: AtomicBool::new(false),
             state: Mutex::new(State {
                 snapshot_requested: false,
@@ -121,13 +113,6 @@ impl SnapshotCoordinator {
         let id = thread::current_id().as_u64().get() as usize;
         // the stripe count is a power of two
         &self.active_operations[id & (self.active_operations.len() - 1)]
-    }
-
-    fn active_operations(&self) -> usize {
-        self.active_operations
-            .iter()
-            .map(|s| s.load(Ordering::SeqCst))
-            .sum()
     }
 
     /// Begin an operation. Returns a guard that decrements on drop.
@@ -182,31 +167,50 @@ impl SnapshotCoordinator {
         }
     }
 
-    /// Must be called under the state mutex: close admission if no operation is active (the running
-    /// bit stays set and `Ok` is returned), else leave `flags` at `keep` and return how many
-    /// operations were still active.
+    /// Sums the stripes: `Ok` if no operation is active, else how many were.
+    ///
+    /// Must be called under the state mutex with the running bit set. Admission is open
+    /// otherwise, and an operation can increment a stripe after it was summed, so a zero would
+    /// be stale before it is returned. The loads are `SeqCst` to pair with the increment in
+    /// [`begin_operation`](Self::begin_operation): either the sum sees the increment or the
+    /// operation sees the running bit.
+    fn check_drained_with_admission_closed(&self) -> Result<(), usize> {
+        let active: usize = self
+            .active_operations
+            .iter()
+            .map(|s| s.load(Ordering::SeqCst))
+            .sum();
+        if active == 0 { Ok(()) } else { Err(active) }
+    }
+
+    /// Must be called under the state mutex by a waiting phase: close admission if no operation is
+    /// active (the running bit stays set, the waiting bit is cleared and `Ok` is returned), else
+    /// reopen admission and return how many operations were still active.
     ///
     /// `grace` is how long to keep admission closed while re-scanning for zero. Under load, some
     /// thread almost always has an operation open, so a single scan rarely sees zero even though
     /// each operation is short. Holding admission closed briefly stops new operations from
     /// replacing the ones that finish, so the in-flight ones can drain.
-    fn try_close_admission(&self, keep: usize, grace: Duration) -> Result<(), usize> {
-        self.flags
-            .store(keep | SNAPSHOT_RUNNING_BIT, Ordering::SeqCst);
+    fn try_close_admission(&self, grace: Duration) -> Result<(), usize> {
+        self.flags.store(
+            SNAPSHOT_WAITING_BIT | SNAPSHOT_RUNNING_BIT,
+            Ordering::SeqCst,
+        );
         let deadline = Instant::now() + grace;
         loop {
-            let active = self.active_operations();
-            if active == 0 {
-                self.flags.store(SNAPSHOT_RUNNING_BIT, Ordering::SeqCst);
-                return Ok(());
+            match self.check_drained_with_admission_closed() {
+                Ok(()) => {
+                    self.flags.store(SNAPSHOT_RUNNING_BIT, Ordering::SeqCst);
+                    return Ok(());
+                }
+                Err(active) if grace.is_zero() || Instant::now() >= deadline => {
+                    // Operations are still active. Ones that saw the bit meanwhile are waiting for
+                    // the mutex; they will find no snapshot requested and retry.
+                    self.flags.store(SNAPSHOT_WAITING_BIT, Ordering::SeqCst);
+                    return Err(active);
+                }
+                Err(_) => std::hint::spin_loop(),
             }
-            if grace.is_zero() || Instant::now() >= deadline {
-                // Operations are still active. Ones that saw the bit meanwhile are waiting for
-                // the mutex; they will find no snapshot requested and retry.
-                self.flags.store(keep, Ordering::SeqCst);
-                return Err(active);
-            }
-            std::hint::spin_loop();
         }
     }
 
@@ -239,7 +243,7 @@ impl SnapshotCoordinator {
         // Fast path: nothing active, so no need to give up the Tokio worker. Otherwise the
         // attempt's count, taken with the running bit set, is the number of operations we wait
         // for; a sum taken with admission open is only a hint.
-        let first_attempt = self.try_close_admission(SNAPSHOT_WAITING_BIT, Duration::ZERO);
+        let first_attempt = self.try_close_admission(Duration::ZERO);
         let active_at_start = first_attempt.err().unwrap_or(0);
         let _span =
             info_span!("await operations settle", num_operations = active_at_start).entered();
@@ -270,7 +274,7 @@ impl SnapshotCoordinator {
                     // A single scan rarely finds zero when every thread keeps an operation open,
                     // so give in-flight operations a moment to finish. Admission is closed for
                     // at most 1/20 of the time we wait.
-                    match self.try_close_admission(SNAPSHOT_WAITING_BIT, poll_interval / 20) {
+                    match self.try_close_admission(poll_interval / 20) {
                         Ok(()) => break,
                         Err(active) => active_now = active,
                     }
@@ -307,13 +311,27 @@ impl SnapshotCoordinator {
         );
         // Without waiting there is no need to request a drain: either nothing is active and we
         // close admission immediately, or we give up and leave the flags clear.
-        self.try_close_admission(0, Duration::ZERO).ok()?;
+        self.flags.store(SNAPSHOT_RUNNING_BIT, Ordering::SeqCst);
+        if self.check_drained_with_admission_closed().is_err() {
+            // Operations that saw the bit meanwhile are waiting for the mutex; they will find no
+            // snapshot requested and retry.
+            self.flags.store(0, Ordering::SeqCst);
+            return None;
+        }
         // Operations that see the bit before this is set block on the state mutex we hold, then
         // observe the flag.
         state.snapshot_requested = true;
         drop(state);
         Some(SnapshotPhase { coord: self })
     }
+}
+
+/// Oversize the stripes: it is a small amount of RAM and zero contention is the goal. Being too
+/// large makes waiting for settling slightly more expensive.
+fn default_stripes() -> usize {
+    (available_parallelism().map_or(1, |n| n.get()) * 2)
+        .next_power_of_two()
+        .min(MAX_STRIPES)
 }
 
 /// Guard returned by [`SnapshotCoordinator::begin_operation`]. Decrements `active_operations` on
@@ -389,10 +407,29 @@ mod tests {
 
     use super::*;
 
+    /// What [`SnapshotCoordinator::observe`] saw.
+    #[derive(Debug, PartialEq, Eq)]
+    struct Observed {
+        flags: u8,
+        active_operations: usize,
+    }
+
+    impl Observed {
+        /// No phase in flight and no operation active.
+        const IDLE: Self = Self::new(0, 0);
+
+        const fn new(flags: u8, active_operations: usize) -> Self {
+            Self {
+                flags,
+                active_operations,
+            }
+        }
+    }
+
     impl SnapshotCoordinator {
         /// The phase flags, read under the state mutex: a waiting phase sets the running bit
         /// for the length of each attempt to close admission, but only while holding it.
-        fn settled_flags(&self) -> usize {
+        fn settled_flags(&self) -> u8 {
             let _state = self.state.lock();
             self.flags.load(Ordering::Acquire)
         }
@@ -401,9 +438,17 @@ mod tests {
             (self.settled_flags() & SNAPSHOT_RUNNING_BIT) != 0
         }
 
-        /// The phase flags plus the active operation count, as one word.
-        fn state_word(&self) -> usize {
-            self.settled_flags() | self.active_operations()
+        /// The phase flags and the active operation count. The count is only exact while no
+        /// other thread is beginning or ending an operation.
+        fn observe(&self) -> Observed {
+            Observed {
+                flags: self.settled_flags(),
+                active_operations: self
+                    .active_operations
+                    .iter()
+                    .map(|s| s.load(Ordering::SeqCst))
+                    .sum(),
+            }
         }
     }
 
@@ -423,9 +468,9 @@ mod tests {
     fn begin_operation_fast_path() {
         let coord = SnapshotCoordinator::new();
         let g = coord.begin_operation();
-        assert_eq!(coord.state_word(), 1);
+        assert_eq!(coord.observe(), Observed::new(0, 1));
         drop(g);
-        assert_eq!(coord.state_word(), 0);
+        assert_eq!(coord.observe(), Observed::IDLE);
     }
 
     #[test]
@@ -433,7 +478,7 @@ mod tests {
         let coord = SnapshotCoordinator::new();
         let phase = coord.begin_snapshot(|_| {});
         assert!(coord.snapshot_pending());
-        assert_eq!(coord.state_word(), SNAPSHOT_RUNNING_BIT);
+        assert_eq!(coord.observe(), Observed::new(SNAPSHOT_RUNNING_BIT, 0));
         drop(phase);
         assert!(!coord.snapshot_pending());
     }
@@ -457,7 +502,7 @@ mod tests {
         // New work must remain admitted while the existing operation is running.
         wait_for_snapshot_request(&coord);
         assert!(!coord.snapshot_pending());
-        assert_eq!(coord.state_word(), SNAPSHOT_WAITING_BIT | 1);
+        assert_eq!(coord.observe(), Observed::new(SNAPSHOT_WAITING_BIT, 1));
         assert_eq!(started_snapshot.load(Ordering::Acquire), 0);
 
         // Drop the operation — snapshotter should now proceed.
@@ -525,10 +570,10 @@ mod tests {
             // The add arrives after the snapshot was requested, but the active removal
             // depends on it. Closing admission before this point would deadlock.
             let add = coord.begin_operation();
-            assert_eq!(coord.state_word(), SNAPSHOT_WAITING_BIT | 2);
+            assert_eq!(coord.observe(), Observed::new(SNAPSHOT_WAITING_BIT, 2));
             done.store(true, Ordering::Release);
             drop(add);
-            assert_eq!(coord.state_word(), SNAPSHOT_WAITING_BIT | 1);
+            assert_eq!(coord.observe(), Observed::new(SNAPSHOT_WAITING_BIT, 1));
             drop(removal);
             snapshot.join().unwrap();
         });
@@ -637,7 +682,7 @@ mod tests {
             stop_progress.store(true, Ordering::Relaxed);
             let _ = progress.join();
 
-            assert_eq!(coord.state_word(), 0);
+            assert_eq!(coord.observe(), Observed::IDLE);
         });
     }
 
@@ -694,9 +739,9 @@ mod tests {
         }
         assert_eq!(counter.load(Ordering::Relaxed), 8 * 200);
         assert_eq!(
-            coord.state_word(),
-            0,
-            "in_progress_operations should be 0 after all ops and snapshots done"
+            coord.observe(),
+            Observed::IDLE,
+            "no operation or phase should remain after all ops and snapshots are done"
         );
     }
 
@@ -741,9 +786,10 @@ mod tests {
     fn slow_settle_is_reported() {
         const SLOW_SETTLE_TIME: Duration = Duration::from_millis(200);
         run_with_timeout("slow settle", Duration::from_secs(10), || {
-            let coord = Arc::new(
-                SnapshotCoordinator::new_with_custom_slow_settle_report_timeout(SLOW_SETTLE_TIME),
-            );
+            let coord = Arc::new(SnapshotCoordinator::new_with_options(
+                SLOW_SETTLE_TIME,
+                default_stripes(),
+            ));
             let op = coord.begin_operation();
             let reports = Arc::new(Mutex::new(Vec::new()));
             let snapshot = thread::spawn({
@@ -778,7 +824,7 @@ mod tests {
         let phase = coord.try_begin_snapshot().expect("no operation is active");
         assert!(coord.snapshot_pending());
         drop(phase);
-        assert_eq!(coord.state_word(), 0);
+        assert_eq!(coord.observe(), Observed::IDLE);
     }
 
     #[test]
@@ -787,14 +833,14 @@ mod tests {
         let op = coord.begin_operation();
         assert!(coord.try_begin_snapshot().is_none());
         // Giving up leaves no trace: only the active operation remains.
-        assert_eq!(coord.state_word(), 1);
+        assert_eq!(coord.observe(), Observed::new(0, 1));
         // Admission was never closed.
         drop(coord.begin_operation());
         drop(op);
-        assert_eq!(coord.state_word(), 0);
+        assert_eq!(coord.observe(), Observed::IDLE);
         // A later snapshot is unaffected by the abandoned one.
         drop(coord.begin_snapshot(|_| {}));
-        assert_eq!(coord.state_word(), 0);
+        assert_eq!(coord.observe(), Observed::IDLE);
     }
 
     #[test]
@@ -806,7 +852,7 @@ mod tests {
         // slow-settle report an hour away, a missed drain hangs instead of being rescued.
         run_with_timeout("shared stripes", Duration::from_secs(60), || {
             // two stripes and six operation threads: threads share stripes
-            let coord = SnapshotCoordinator::new_with_stripes(Duration::from_secs(3600), 2);
+            let coord = SnapshotCoordinator::new_with_options(Duration::from_secs(3600), 2);
             let closed = AtomicBool::new(false);
             let ops_done = AtomicUsize::new(0);
             let snapshot_lock = Mutex::new(());
@@ -862,7 +908,7 @@ mod tests {
             });
             // every operation has ended: a phase closes at once
             drop(coord.begin_snapshot(|_| {}));
-            assert_eq!(coord.state_word(), 0);
+            assert_eq!(coord.observe(), Observed::IDLE);
         });
     }
 
@@ -883,11 +929,10 @@ mod tests {
     #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
     fn try_begin_snapshot_panics_while_a_snapshot_waits() {
         run_with_timeout("try_begin during a wait", Duration::from_secs(10), || {
-            let coord = Arc::new(
-                SnapshotCoordinator::new_with_custom_slow_settle_report_timeout(
-                    Duration::from_secs(3600),
-                ),
-            );
+            let coord = Arc::new(SnapshotCoordinator::new_with_options(
+                Duration::from_secs(3600),
+                default_stripes(),
+            ));
             let op = coord.begin_operation();
             let snapshot = thread::spawn({
                 let coord = coord.clone();
@@ -904,7 +949,7 @@ mod tests {
             // the waiting phase is unaffected and closes once the operation ends
             drop(op);
             snapshot.join().unwrap();
-            assert_eq!(coord.state_word(), 0);
+            assert_eq!(coord.observe(), Observed::IDLE);
         });
     }
 
