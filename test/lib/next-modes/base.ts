@@ -26,7 +26,9 @@ import {
 import { Span } from 'next/dist/trace'
 import { normalizePagePath } from 'next/dist/shared/lib/page-path/normalize-page-path'
 import {
+  getRouteCacheBuildDirectory,
   getRouteCacheKey,
+  ROUTE_CACHE_DIRECTORY,
   type ResponseCacheOwner,
 } from 'next/dist/server/lib/route-cache-key'
 import webdriver from '../next-webdriver'
@@ -1052,13 +1054,31 @@ export class NextInstance {
     pathname = `/${pathname.replace(/^\/+/, '')}`
     // Build artifacts retain their historical layout. A caller supplies an
     // owner only when it is intentionally addressing a scoped runtime entry.
-    const cacheKey = route ? getRouteCacheKey(pathname, route) : undefined
+    if (route) {
+      const cacheKey = getRouteCacheKey(pathname, route)
+      // Adapter builds write scoped artifacts themselves. Entries written at
+      // runtime live in the directory of the build that wrote them.
+      const artifact = path.join(distDir, 'server', `${cacheKey}${extension}`)
+      if (existsSync(path.join(this.testDir, artifact))) {
+        return artifact
+      }
+      const buildId = readFileSync(
+        path.join(this.testDir, distDir, 'BUILD_ID'),
+        'utf8'
+      ).trim()
+      return path.join(
+        distDir,
+        'server',
+        ROUTE_CACHE_DIRECTORY,
+        getRouteCacheBuildDirectory(
+          buildId,
+          this.getSpawnOpts().env?.NEXT_DEPLOYMENT_ID ?? ''
+        ),
+        `${cacheKey.slice(ROUTE_CACHE_DIRECTORY.length + 1)}${extension}`
+      )
+    }
     const filename = normalizePagePath(pathname)
-    return path.join(
-      distDir,
-      'server',
-      `${cacheKey ?? `/${router}${filename}`}${extension}`
-    )
+    return path.join(distDir, 'server', `/${router}${filename}${extension}`)
   }
 
   public async readFile(filename: string) {
