@@ -17,6 +17,19 @@ describe('webpack-loader-module-type', () => {
     )
   })
 
+  it('should resolve asset URLs referenced from CSS', async () => {
+    const browser = await next.browser('/')
+    const backgroundImage = await browser
+      .elementByCss('#css-url')
+      .getComputedCss('background-image')
+    const assetUrl = /url\("([^"]+)"\)/.exec(backgroundImage)?.[1]
+
+    expect(assetUrl).toMatch(
+      /\/_next\/static\/(immutable\/)?media\/test\.[0-9a-z_-]+\.svg$/
+    )
+    expect((await fetch(assetUrl!)).status).toBe(200)
+  })
+
   itTurbopackOnly(
     'should load data file as bytes and return Uint8Array',
     async () => {
