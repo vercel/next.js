@@ -105,7 +105,7 @@ pub struct ValueType {
     pub(crate) raw_cell: RawCellFactoryFn,
 
     /// Explicitly mutable, first-value-wins task-owned cell storage.
-    pub stateful: bool,
+    pub mutable_cell: bool,
 
     traits: SyncUnsafeCell<ValueTypeTraits>,
 }
@@ -228,7 +228,7 @@ impl ValueType {
             persistence,
             evictability,
             raw_cell: <T::CellMode as VcCellMode<T>>::raw_cell,
-            stateful: <T::CellMode as VcCellMode<T>>::STATEFUL,
+            mutable_cell: <T::CellMode as VcCellMode<T>>::MUTABLE,
             traits: SyncUnsafeCell::new(ValueTypeTraits { traits: None }),
         }
     }

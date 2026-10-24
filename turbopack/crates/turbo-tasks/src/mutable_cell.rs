@@ -24,11 +24,11 @@ thread_local! {
 
 /// Reject reentrant task operations before they can acquire locks or snapshot admission.
 #[doc(hidden)]
-pub fn assert_not_in_stateful_update() {
+pub fn assert_not_in_mutable_update() {
     IN_UPDATE.with(|active| {
         assert!(
             !active.get(),
-            "turbo-tasks calls are forbidden inside StateCell::update"
+            "turbo-tasks calls are forbidden inside MutableCell::update"
         )
     });
 }
@@ -36,7 +36,7 @@ pub fn assert_not_in_stateful_update() {
 struct UpdateScope;
 impl UpdateScope {
     fn enter() -> Self {
-        assert_not_in_stateful_update();
+        assert_not_in_mutable_update();
         IN_UPDATE.with(|active| active.set(true));
         Self
     }
@@ -49,7 +49,7 @@ impl Drop for UpdateScope {
 
 /// An **experimental** identity-only handle to a mutable cell owned by one task.
 ///
-/// Only `#[turbo_tasks::value(cell = "stateful")]` values in persistent owner tasks
+/// Only `#[turbo_tasks::value(cell = "mutable")]` values in persistent owner tasks
 /// can construct these handles; transient/Once Tasks cannot own this prototype's state.
 /// Initialization is first-value-wins, including after persistence restore. Identity
 /// follows per-type construction order: use a fixed-layout creator. Reordering or
@@ -69,26 +69,26 @@ impl Drop for UpdateScope {
 #[derive(Serialize, Deserialize, Encode, Decode)]
 #[bincode(bounds = "T: VcValueType")]
 #[serde(bound = "")]
-pub struct StateCell<T: VcValueType> {
+pub struct MutableCell<T: VcValueType> {
     task: TaskId,
     cell: CellId,
     _t: PhantomData<T>,
 }
 
-impl<T: VcValueType + Clone + OperationValue> StateCell<T> {
-    /// Internal constructor used by the stateful value macro.
+impl<T: VcValueType + Clone + OperationValue> MutableCell<T> {
+    /// Internal constructor used by the mutable value macro.
     #[doc(hidden)]
     pub fn cell_private(value: T) -> Self {
-        assert_not_in_stateful_update();
-        ensure_stateful::<T>().expect("invalid stateful value declaration");
-        let task = current_task("constructing stateful cells");
+        assert_not_in_mutable_update();
+        ensure_mutable::<T>().expect("invalid mutable value declaration");
+        let task = current_task("constructing mutable cells");
         let cell = find_cell_by_type::<T>();
         let raw: crate::RawVc = cell.into();
         let (_, index) = raw.as_task_cell().expect("creator-owned cell");
         mark_stateful();
         crate::turbo_tasks()
-            .initialize_stateful_cell(task, index, SharedReference::new(triomphe::Arc::new(value)))
-            .expect("failed to initialize stateful cell");
+            .initialize_mutable_cell(task, index, SharedReference::new(triomphe::Arc::new(value)))
+            .expect("failed to initialize mutable cell");
         Self {
             task,
             cell: index,
@@ -108,25 +108,25 @@ impl<T: VcValueType + Clone + OperationValue> StateCell<T> {
     }
 
     fn read(&self, tracked: bool) -> Result<ReadRef<T>> {
-        assert_not_in_stateful_update();
+        assert_not_in_mutable_update();
         self.ensure_type()?;
         let tt = try_turbo_tasks()
-            .ok_or_else(|| anyhow!("StateCell access requires a turbo-tasks context"))?;
-        let reader = current_task_if_available("reading stateful cells");
+            .ok_or_else(|| anyhow!("MutableCell access requires a turbo-tasks context"))?;
+        let reader = current_task_if_available("reading mutable cells");
         let reference =
-            tt.read_stateful_cell(self.task, self.cell, if tracked { reader } else { None })?;
+            tt.read_mutable_cell(self.task, self.cell, if tracked { reader } else { None })?;
         Ok(ReadRef::new_arc(
             reference
                 .downcast::<T>()
-                .map_err(|_| anyhow!("stateful cell type mismatch"))?,
+                .map_err(|_| anyhow!("mutable cell type mismatch"))?,
         ))
     }
 
     fn ensure_type(&self) -> Result<()> {
-        ensure_stateful::<T>()?;
+        ensure_mutable::<T>()?;
         ensure!(
             self.cell.type_id() == T::get_value_type_id(),
-            "stateful cell handle type mismatch"
+            "mutable cell handle type mismatch"
         );
         Ok(())
     }
@@ -154,7 +154,7 @@ impl<T: VcValueType + Clone + OperationValue> StateCell<T> {
             let _scope = UpdateScope::enter();
             let mut value = old
                 .downcast_ref::<T>()
-                .ok_or_else(|| anyhow!("stateful cell type mismatch"))?
+                .ok_or_else(|| anyhow!("mutable cell type mismatch"))?
                 .clone();
             f.take().expect("called once")(&mut value);
             Ok(SharedReference::new(triomphe::Arc::new(value)))
@@ -162,61 +162,61 @@ impl<T: VcValueType + Clone + OperationValue> StateCell<T> {
     }
 
     fn replace(&self, f: &mut dyn FnMut(SharedReference) -> Result<SharedReference>) -> Result<()> {
-        assert_not_in_stateful_update();
+        assert_not_in_mutable_update();
         self.ensure_type()?;
         let tt = try_turbo_tasks()
-            .ok_or_else(|| anyhow!("StateCell access requires a turbo-tasks context"))?;
+            .ok_or_else(|| anyhow!("MutableCell access requires a turbo-tasks context"))?;
         ensure!(
-            current_task_if_available("writing stateful cells") != Some(self.task),
-            "the owner task cannot mutate its own StateCell"
+            current_task_if_available("writing mutable cells") != Some(self.task),
+            "the owner task cannot mutate its own MutableCell"
         );
-        tt.mutate_stateful_cell(self.task, self.cell, f)
+        tt.mutate_mutable_cell(self.task, self.cell, f)
     }
 }
 
-fn ensure_stateful<T: VcValueType>() -> Result<()> {
+fn ensure_mutable<T: VcValueType>() -> Result<()> {
     ensure!(
-        crate::registry::get_value_type(T::get_value_type_id()).stateful,
-        "not a stateful value type"
+        crate::registry::get_value_type(T::get_value_type_id()).mutable_cell,
+        "not a mutable value type"
     );
     Ok(())
 }
 
-impl<T: VcValueType> Copy for StateCell<T> {}
-impl<T: VcValueType> Clone for StateCell<T> {
+impl<T: VcValueType> Copy for MutableCell<T> {}
+impl<T: VcValueType> Clone for MutableCell<T> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl<T: VcValueType> PartialEq for StateCell<T> {
+impl<T: VcValueType> PartialEq for MutableCell<T> {
     fn eq(&self, other: &Self) -> bool {
         self.task == other.task && self.cell == other.cell
     }
 }
-impl<T: VcValueType> Eq for StateCell<T> {}
-impl<T: VcValueType> Hash for StateCell<T> {
+impl<T: VcValueType> Eq for MutableCell<T> {}
+impl<T: VcValueType> Hash for MutableCell<T> {
     fn hash<H: Hasher>(&self, h: &mut H) {
         self.task.hash(h);
         self.cell.hash(h);
     }
 }
-impl<T: VcValueType> fmt::Debug for StateCell<T> {
+impl<T: VcValueType> fmt::Debug for MutableCell<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("StateCell")
+        f.debug_struct("MutableCell")
             .field("task", &self.task)
             .field("cell", &self.cell)
             .finish()
     }
 }
-impl<T: VcValueType> ShrinkToFit for StateCell<T> {
+impl<T: VcValueType> ShrinkToFit for MutableCell<T> {
     fn shrink_to_fit(&mut self) {}
 }
-impl<T: VcValueType> TaskInput for StateCell<T> {
+impl<T: VcValueType> TaskInput for MutableCell<T> {
     fn is_transient(&self) -> bool {
         self.task.is_transient()
     }
 }
 // SAFETY: this handle contains only a task id and concrete cell id, never a local Vc
 // or a connected operation. Reading it explicitly establishes its dependency edge.
-unsafe impl<T: VcValueType> NonLocalValue for StateCell<T> {}
-unsafe impl<T: VcValueType + OperationValue> OperationValue for StateCell<T> {}
+unsafe impl<T: VcValueType> NonLocalValue for MutableCell<T> {}
+unsafe impl<T: VcValueType + OperationValue> OperationValue for MutableCell<T> {}
