@@ -134,10 +134,11 @@ impl TurboTasksBackend {
                 .ok_or_else(|| anyhow!("stateful cell owner was collected or is unavailable"))?;
             drop(owner);
             let reader = reader.filter(|r| *r != id && self.should_track_dependencies());
-            let Some((mut task, reader_task)) =
-                lock_task_and_optional_reader(&mut ctx, id, reader)
+            let Some((mut task, reader_task)) = lock_task_and_optional_reader(&mut ctx, id, reader)
             else {
-                return Err(anyhow!("stateful cell owner was collected or is unavailable"));
+                return Err(anyhow!(
+                    "stateful cell owner was collected or is unavailable"
+                ));
             };
             if let Some(reservation) = task.get_stateful_cell_operation_mut() {
                 reservation.waiting_accesses = reservation.waiting_accesses.saturating_add(1);
