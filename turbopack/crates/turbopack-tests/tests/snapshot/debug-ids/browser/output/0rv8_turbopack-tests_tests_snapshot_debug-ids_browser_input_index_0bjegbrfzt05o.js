@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="bdf2a5bb-33ac-1b9f-2ecf-28033b73cc7f")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="9e17dd0a-9516-fbbc-0772-d4aa268b4685")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -644,6 +644,25 @@ contextPrototype.U = relativeURL;
  * Utility function to ensure all variants of an enum are handled.
  */ function invariant(never, computeMessage) {
     throw new Error(`Invariant: ${computeMessage(never)}`);
+}
+/**
+ * Errors thrown because a module was required before any chunk had registered
+ * its factory. Such an error is a missing dependency (a link failure), not an
+ * error a module's own code threw, so the build runtimes do not keep it on the
+ * modules that were instantiating when it happened: a later require can
+ * instantiate them once the chunk with the factory has registered.
+ */ const factoryNotAvailableErrors = new WeakSet();
+/**
+ * Creates the error for a module whose factory is not available.
+ */ function factoryNotAvailableError(moduleId, sourceType, sourceData) {
+    const error = new Error(factoryNotAvailableMessage(moduleId, sourceType, sourceData));
+    factoryNotAvailableErrors.add(error);
+    return error;
+}
+/**
+ * Whether `error` is a missing module factory (see `factoryNotAvailableError`).
+ */ function isFactoryNotAvailableError(error) {
+    return error instanceof Error && factoryNotAvailableErrors.has(error);
 }
 /**
  * Constructs an error message for when a module factory is not available.
@@ -2659,5 +2678,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=bdf2a5bb-33ac-1b9f-2ecf-28033b73cc7f
+//# debugId=9e17dd0a-9516-fbbc-0772-d4aa268b4685
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map
