@@ -4,65 +4,15 @@ use crate::{
     backend::{
         TaskDataCategory,
         operation::{
-            ExecuteContext, TaskGuard,
+            ExecuteContext,
             aggregation_update::{
                 AggregationUpdateJob, AggregationUpdateQueue, get_aggregation_number, is_root_node,
             },
-            invalidate::make_task_dirty_internal,
         },
-        storage::SpecificTaskDataCategory,
         storage_schema::TaskStorageAccessors,
     },
     data::{InProgressState, InProgressStateInner},
 };
-
-/// Revive `task_id` if it was GC-soft-deleted, given a guard the caller already holds during the
-/// connect handshake.
-///
-/// GC destructively mutates tasks so mark resurrected tasks as dirty to get them re-scheduled.
-pub(super) fn resurrect_deleted<'e>(
-    guard: TaskGuard<'e>,
-    task_id: TaskId,
-    queue: &mut AggregationUpdateQueue,
-    ctx: &mut ExecuteContext<'e>,
-) -> TaskGuard<'e> {
-    if !guard.deleted() {
-        return guard;
-    }
-    #[cfg(debug_assertions)]
-    let category = guard.access();
-    drop(guard);
-
-    let mut task = ctx.task(task_id, TaskDataCategory::All);
-    // Double-check under the re-acquired guard: a concurrent connect may have already done this.
-    if task.deleted() {
-        task.set_deleted(false);
-
-        // The GC snapshot may already have persisted this task's tombstone before the reconnect
-        // acquired its guard. Treat the resurrected task as new so the next snapshot restores the
-        // task-type index deleted by that tombstone, and persist Data so the type used to verify
-        // the index entry is restored too. A resident deleted task always has its type: GC
-        // restores All before marking it deleted, and eviction removes deleted tasks as
-        // whole entries.
-        task.set_new_task(true);
-        let _ = task.track_modification(SpecificTaskDataCategory::Data, "gc_resurrected");
-
-        // Mark dirty so it is rescheduled. GC has already dropped its edges and data, so it needs
-        // to re-execute to bring them back.
-        make_task_dirty_internal(
-            &mut task,
-            /* make_stale */ true,
-            #[cfg(feature = "task_dirty_cause")]
-            turbo_tasks::TaskDirtyCause::Resurrected,
-            queue,
-            ctx,
-        );
-    }
-    // Conditionally downgrade from All->category so we don't hide incorrect access patterns.
-    #[cfg(debug_assertions)]
-    task.downgrade_access(category);
-    task
-}
 
 fn release_construction_ref(task_id: TaskId, ctx: &mut ExecuteContext<'_>) {
     let mut task = ctx.task(task_id, TaskDataCategory::Meta);
@@ -138,11 +88,7 @@ pub fn connect_child(
     } else {
         // First connect of this child: its id is minted but the storage entry may not exist
         // yet, and concurrent connects race to be the one that first touches it.
-        let child_task = ctx.task_or_create(child_task_id, TaskDataCategory::Meta);
-
-        // Revive the child if GC soft-deleted it. This can happen in a rare race between a
-        // cache hit on a task and snapshotting actually performing the delete.
-        let mut child_task = resurrect_deleted(child_task, child_task_id, &mut queue, &mut ctx);
+        let mut child_task = ctx.task_or_create(child_task_id, TaskDataCategory::Meta);
 
         let has_output = child_task.has_output();
         // An already constructed top-level task was made a root when it was first connected.

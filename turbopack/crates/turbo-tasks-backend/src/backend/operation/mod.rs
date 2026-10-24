@@ -183,6 +183,7 @@ impl<'e> ExecuteContext<'e> {
         }
     }
 
+    #[track_caller]
     fn open_task(
         &mut self,
         task_id: TaskId,
@@ -192,10 +193,19 @@ impl<'e> ExecuteContext<'e> {
         self.task_lock_counter.acquire();
 
         let mut task = self.backend.storage.access_entry_mut(task_id);
-        // Treat deleted tasks under AllowMissing as missing
-        if access == TaskAccess::AllowMissing && task.flags.deleted() {
-            self.task_lock_counter.release();
-            return None;
+        if task.flags.deleted() {
+            // Treat deleted tasks under AllowMissing as missing
+            if access == TaskAccess::AllowMissing {
+                self.task_lock_counter.release();
+                return None;
+            }
+            // Outside of GC nothing can reach a collected task through `task`/`task_or_create`:
+            // GC tears down every edge to it and removes it from `task_cache` while operations are
+            // excluded, and `task_by_type` skips it. GC itself opens tasks it is concurrently
+            // collecting, e.g. to scrub the reverse halves of their edges.
+            if self.gc_collectible.is_none() {
+                panic_deleted_task(task_id, access);
+            }
         }
         if task.flags.is_restored(category) {
             return Some(TaskGuard::new(
@@ -895,6 +905,15 @@ fn panic_missing_task(task_id: TaskId, reason: &str) -> ! {
     )
 }
 
+#[cold]
+#[track_caller]
+fn panic_deleted_task(task_id: TaskId, access: TaskAccess) -> ! {
+    panic!(
+        "task {task_id} ({access:?}): task was collected by GC — a stale reference to a collected \
+         task"
+    )
+}
+
 /// The priority a task is scheduled with: an already computed task is a re-computation of a
 /// (possibly deep) dependency, everything else starts at the initial priority.
 fn schedule_priority(task: &TaskGuard<'_>, parent_priority: TaskPriority) -> TaskPriority {
@@ -967,6 +986,7 @@ impl<'e> ExecuteContext<'e> {
     ///
     /// A transient task (or any task, without backing storage) is restored from creation and never
     /// evicted, so one that is not restored exists nowhere. See `ExecuteContext::open_task`.
+    #[track_caller]
     pub fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> TaskGuard<'e> {
         self.open_task(task_id, category, TaskAccess::MustExist)
             .expect("a MustExist open either yields a task or panics")
@@ -992,6 +1012,7 @@ impl<'e> ExecuteContext<'e> {
     /// This creates *storage for* an already-minted `TaskId`; it does not mint one. Compare
     /// `TurboTasksBackend::get_or_create_task`, which takes a function and arguments and returns a
     /// `TaskId` (reusing one if the task is already cached).
+    #[track_caller]
     pub fn task_or_create(&mut self, task_id: TaskId, category: TaskDataCategory) -> TaskGuard<'e> {
         self.open_task(task_id, category, TaskAccess::MaybeCreate)
             .expect("a MaybeCreate open always yields a task")
@@ -1227,7 +1248,13 @@ impl<'e> ExecuteContext<'e> {
         // Verify each candidate by comparing the stored persistent_task_type.
         // Only rarely is there more than one candidate, so no need for parallelization.
         for candidate_id in candidates {
-            let task = self.task(candidate_id, TaskDataCategory::Data);
+            // During a snapshotting it is possible to read a taskid for a deleted task.  Use
+            // try_task to handle that.  the deleted task must still be in memory and is about to be
+            // tombstoned.  Resolve the race by just treating it as absent here.
+
+            let Some(task) = self.try_task(candidate_id, TaskDataCategory::Data) else {
+                continue;
+            };
             if let Some(stored_type) = task.get_persistent_task_type()
                 && stored_type.eq_components(native_fn, this, arg)
             {
@@ -1350,7 +1377,7 @@ impl<'a> TaskGuard<'a> {
             // Small hack to work around check_access. Technically a 'deleted' flag is never
             // persisted so it cannot be recovered either.
             !self.task.flags.deleted(),
-            "{operation} on GC-deleted task {} — a resurrection path was missed",
+            "{operation} on GC-deleted task {} — a stale reference to a collected task",
             self.id()
         );
     }
@@ -1724,20 +1751,6 @@ impl<'a> TaskGuard<'a> {
 
     pub fn id(&self) -> TaskId {
         self.task_id
-    }
-
-    #[cfg(debug_assertions)]
-    pub fn access(&self) -> TaskDataCategory {
-        self.category
-    }
-    #[cfg(debug_assertions)]
-    pub fn downgrade_access(&mut self, access: TaskDataCategory) {
-        assert!(
-            self.category >= access,
-            "Cannot downgrade {:?} to {access:?}",
-            self.category
-        );
-        self.category = access;
     }
 
     pub fn invalidate_serialization(&mut self) {
@@ -2494,6 +2507,152 @@ mod restore_lookup_counts {
     /// (single-task lookups, batched lookups) since the last [`reset`].
     pub(super) fn get() -> (usize, usize) {
         COUNTS.with(Cell::get)
+    }
+}
+
+#[cfg(test)]
+mod task_by_type_tests {
+    use tempfile::TempDir;
+    use turbo_tasks::{
+        TaskId, TurboTasks,
+        backend::{CachedTaskType, CachedTaskTypeArc},
+        macro_helpers::{ArgMeta, NativeFunction, into_task_fn},
+    };
+
+    use super::*;
+    use crate::{
+        BackingStorageOptions,
+        backend::{BackendOptions, StorageMode},
+        backing_storage::compute_task_type_hash_from_components,
+        database::{
+            key_value_database::KeySpace, turbo::TurboKeyValueDatabase, write_batch::WriteBuffer,
+        },
+        kv_backing_storage::TurboBackingStorage,
+        utils::test_temp_dir::test_temp_dir,
+    };
+
+    fn test_fn() {}
+
+    // Hashing a task type for the type index needs the function's registry id, so register it.
+    turbo_tasks::register_function!(
+        TEST_FN = NativeFunction::new(
+            "test_fn",
+            "turbo-tasks-backend::task_by_type_tests::test_fn",
+            ArgMeta::new::<(i32,)>(),
+            &into_task_fn(test_fn),
+            false,
+            false,
+        )
+    );
+
+    const ARG: (i32,) = (7,);
+
+    fn persistent(id: u32) -> TaskId {
+        TaskId::new(id).unwrap()
+    }
+
+    fn task_type() -> CachedTaskTypeArc {
+        CachedTaskTypeArc::new(CachedTaskType {
+            native_fn: &TEST_FN,
+            this: None,
+            arg: Box::new(ARG),
+        })
+    }
+
+    /// A backend whose type index on disk names `candidates` for `test_fn(ARG)`, in order. No
+    /// task data is written, so a candidate that is not made resident is missing on disk.
+    fn backend(candidates: &[TaskId]) -> (Arc<TurboTasks<TurboTasksBackend>>, TempDir) {
+        let tempdir = test_temp_dir().unwrap();
+        let db = TurboKeyValueDatabase::new(
+            tempdir.path().to_path_buf(),
+            BackingStorageOptions {
+                is_ci: false,
+                // Disables background compaction, which needs a turbo-tasks context.
+                is_short_session: true,
+                skip_compaction: false,
+            },
+        )
+        .unwrap();
+        let hash = compute_task_type_hash_from_components(&TEST_FN, None, &ARG);
+        let batch = db.write_batch().unwrap();
+        for id in candidates {
+            batch
+                .put(
+                    KeySpace::TaskCache,
+                    WriteBuffer::Borrowed(&hash),
+                    WriteBuffer::Borrowed(&(**id).to_le_bytes()),
+                )
+                .unwrap();
+        }
+        batch.commit().unwrap();
+
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                // Restores from disk, but never writes.
+                storage_mode: Some(StorageMode::ReadOnly),
+                num_workers: Some(1),
+                small_preallocation: true,
+                ..Default::default()
+            },
+            TurboBackingStorage::new_in_memory(db),
+        ));
+        (tt, tempdir)
+    }
+
+    /// Makes `id` a fully restored, resident task of type `test_fn(ARG)`.
+    fn resident(tt: &TurboTasks<TurboTasksBackend>, id: TaskId, deleted: bool) {
+        let mut task = tt.backend().storage.access_mut(id);
+        task.flags.set_restored(TaskDataCategory::All);
+        task.set_persistent_task_type(task_type());
+        task.flags.set_deleted(deleted);
+    }
+
+    fn task_by_type(tt: &TurboTasks<TurboTasksBackend>) -> Option<TaskId> {
+        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        ctx.task_by_type(&TEST_FN, None, &ARG).map(|(id, _)| id)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn returns_live_candidate() {
+        let live = persistent(1);
+        let (tt, _tempdir) = backend(&[live]);
+        resident(&tt, live, false);
+        assert_eq!(task_by_type(&tt), Some(live));
+    }
+
+    /// GC removes a deleted task from `task_cache`, but the index names it until its tombstone
+    /// commits. Its id must not be handed out again, since eviction may drop it at any time.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn skips_deleted_candidate() {
+        let deleted = persistent(1);
+        let (tt, _tempdir) = backend(&[deleted]);
+        resident(&tt, deleted, true);
+        assert_eq!(task_by_type(&tt), None);
+    }
+
+    /// A candidate that eviction already dropped is missing from memory and disk. The lookup
+    /// returns nothing rather than panicking, and leaves no entry behind for the missing task.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn skips_missing_candidate() {
+        let missing = persistent(1);
+        let (tt, _tempdir) = backend(&[missing]);
+        assert_eq!(task_by_type(&tt), None);
+        assert!(
+            tt.backend().storage.with_task(missing, |_| ()).is_none(),
+            "the missing task must not leave an entry behind"
+        );
+    }
+
+    /// After a reconnect mints a replacement, the index names both the deleted task and its
+    /// replacement until the tombstone commits. The lookup must find the replacement.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn skips_deleted_candidate_for_its_replacement() {
+        let deleted = persistent(1);
+        let replacement = persistent(2);
+        let (tt, _tempdir) = backend(&[deleted, replacement]);
+        resident(&tt, deleted, true);
+        resident(&tt, replacement, false);
+        assert_eq!(task_by_type(&tt), Some(replacement));
     }
 }
 
