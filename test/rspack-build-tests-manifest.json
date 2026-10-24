@@ -1016,7 +1016,8 @@
   "test/e2e/app-dir/app-custom-cache-handler-errors/app-custom-cache-handler-errors.test.ts": {
     "passed": [
       "app-custom-cache-handler-errors - get throws surfaces the cache handler error",
-      "app-custom-cache-handler-errors - set throws renders the page successfully"
+      "app-custom-cache-handler-errors - lookup recovery retries a shared failed lookup and shares its successful fill while the write is pending",
+      "app-custom-cache-handler-errors - set throws logs the cache write error without failing the render"
     ],
     "failed": [],
     "pending": [],
@@ -1439,6 +1440,7 @@
       "app-root-param-getters - cache - at runtime should handle root param reads introduced after revalidation",
       "app-root-param-getters - cache - at runtime should resume with the same cached data that was prerendered",
       "app-root-param-getters - cache - at runtime should revalidate only the tagged root params",
+      "app-root-param-getters - cache dedup with root params persists a joining root value after the shared producer cache write fails",
       "app-root-param-getters - cache dedup with root params should dedupe same root params and isolate different root params",
       "app-root-param-getters - cache dedup with root params should dedupe same root params and isolate different root params for private caches",
       "app-root-param-getters - cache dedup with root params should key a joining outer cache by the root params read by its inner cache",
@@ -2958,7 +2960,7 @@
   "test/e2e/app-dir/cache-components-segment-configs/cache-components-segment-configs.test.ts": {
     "passed": [
       "cache-components-segment-configs it should error when using segment configs that aren't supported by cacheComponents",
-      "cache-components-segment-configs should propagate configurations from layouts to pages"
+      "cache-components-segment-configs layout propagation should propagate configurations from layouts to pages"
     ],
     "failed": [],
     "pending": [],
@@ -4595,6 +4597,7 @@
   },
   "test/e2e/app-dir/global-not-found/basic/global-not-found-basic.test.ts": {
     "passed": [
+      "global-not-found - basic should navigate from global-not-found to the app root layout",
       "global-not-found - basic should render global-not-found for 404",
       "global-not-found - basic should render not-found boundary when calling notFound() in a page",
       "global-not-found - basic should ssr global-not-found for 404"
@@ -6211,6 +6214,7 @@
       "after() in edge runtime runs in generateMetadata()",
       "after() in edge runtime runs in middleware",
       "after() in edge runtime runs in server actions",
+      "after() in edge runtime runs when route response validation fails",
       "after() in edge runtime uses waitUntil from request context if available in a page",
       "after() in edge runtime uses waitUntil from request context if available in a route handler",
       "after() in edge runtime uses waitUntil from request context if available in middleware",
@@ -6228,6 +6232,7 @@
       "after() in nodejs runtime runs in generateMetadata()",
       "after() in nodejs runtime runs in middleware",
       "after() in nodejs runtime runs in server actions",
+      "after() in nodejs runtime runs when route response validation fails",
       "after() in nodejs runtime uses waitUntil from request context if available in a page",
       "after() in nodejs runtime uses waitUntil from request context if available in a route handler",
       "after() in nodejs runtime uses waitUntil from request context if available in middleware"
@@ -8148,6 +8153,15 @@
   "test/e2e/app-dir/partial-prefetching-deep-propagation/partial-prefetching-deep-propagation.test.ts": {
     "passed": [
       "partial prefetching - deep subtree-hint propagation downgrades a prefetch={true} to a partial prefetch when a deeply nested segment opts in"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/partial-prefetching-inline-server-function/partial-prefetching-inline-server-function.test.ts": {
+    "passed": [
+      "partial prefetching with an inline server function terminates the HTML response of a partially prerendered page"
     ],
     "failed": [],
     "pending": [],
@@ -10718,6 +10732,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/streamed-cache-revalidation/streamed-cache-revalidation.test.ts": {
+    "passed": [
+      "streamed cache revalidation applies a tag invalidation queued during response streaming",
+      "streamed cache revalidation invalidates a cached value from a streamed action that skips rendering"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/sub-shell-generation-middleware/sub-shell-generation-middleware.test.ts": {
     "passed": [
       "middleware-static-rewrite should eventually result in a cache hit"
@@ -11109,6 +11133,8 @@
   "test/e2e/app-dir/use-cache-custom-handler/use-cache-custom-handler.test.ts": {
     "passed": [
       "use-cache-custom-handler calls neither refreshTags nor getExpiration if \"use cache\" is not used",
+      "use-cache-custom-handler currently shares a handler lookup across routes and serves old data after revalidatePath()",
+      "use-cache-custom-handler currently shares a pending fill without checking route-specific cache invalidation",
       "use-cache-custom-handler handles a failed handler preload without an unhandled rejection",
       "use-cache-custom-handler should call updateTags once per profile group",
       "use-cache-custom-handler should dedupe nested caches across different outer cache scopes, and still propagate cache life/tags correctly",
@@ -11299,8 +11325,20 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/use-cache-streaming-revalidation/use-cache-streaming-revalidation.test.ts": {
+    "passed": [
+      "use cache streaming revalidation completes stale regeneration started during a streaming flight response",
+      "use cache streaming revalidation completes stale regeneration started during a streaming html response"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/use-cache-swr/use-cache-swr.test.ts": {
     "passed": [
+      "use-cache-swr currently delays a direct stale read behind a nested foreground fill",
+      "use-cache-swr currently gives nested callers stale data after background revalidation completes",
       "use-cache-swr deduplicates background revalidations across concurrent requests",
       "use-cache-swr deduplicates background revalidations when a cache handler read returns stale data after revalidation completes",
       "use-cache-swr reuses the prospective prerender's stale value in the final runtime prerender after background revalidation completes",
@@ -11666,6 +11704,17 @@
       "webpack-loader-ts-transform should accept Typescript returned from Webpack loaders"
     ],
     "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/webpack-loader-utils/webpack-loader-utils.test.ts": {
+    "passed": [
+      "webpack-loader-utils runs style-loader pitching with the real loader context"
+    ],
+    "failed": [
+      "webpack-loader-utils exposes path and hash utilities to loaders"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -18717,6 +18766,7 @@
       "opentelemetry - middleware default edge runtime root context should trace middleware",
       "opentelemetry - middleware default nodejs runtime incoming context propagation should trace middleware",
       "opentelemetry - middleware default nodejs runtime root context should trace middleware",
+      "opentelemetry - middleware direct entrypoint rejecting the first request should still trace instrumentation registration, once",
       "opentelemetry - middleware direct entrypoints nodejs runtime incoming context propagation should trace middleware",
       "opentelemetry - middleware direct entrypoints nodejs runtime root context should trace middleware",
       "opentelemetry - middleware direct entrypoints nodejs runtime should trace instrumentation registration in the first middleware request",
@@ -19857,10 +19907,11 @@
       "Telemetry CLI production mode detect static 404 correctly for `next build`",
       "Telemetry CLI production mode detects correct cli session defaults",
       "Telemetry CLI production mode detects tests correctly for `next build`",
-      "Telemetry CLI production mode emits event when swc fails to load",
       "Telemetry CLI production mode logs completed `next build` with warnings"
     ],
-    "failed": [],
+    "failed": [
+      "Telemetry CLI production mode emits event when swc fails to load"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -22186,6 +22237,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/app-dir/streaming-revalidation-close/streaming-revalidation-close.test.ts": {
+    "passed": [
+      "streaming revalidation at response close keeps regeneration started after the HTML shell alive after the response ends"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/app-dir/subresource-integrity/subresource-integrity.test.ts": {
     "passed": [
       "Subresource Integrity with edge runtime does not include nonce when not enabled",
@@ -22441,6 +22501,16 @@
       "use-cache-cross-deployment with durableUseCacheEntries should still work when a client reference argument changes",
       "use-cache-cross-deployment with durableUseCacheEntries should still work when imported client reference changes"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/app-dir/use-cache-dedupe-prerender/use-cache-dedupe-prerender.test.ts": {
+    "passed": [
+      "use-cache-dedupe-prerender concurrent prerenders sharing the same short-lived cache currently omits cached work in a second prerender after the first prerender finishes",
+      "use-cache-dedupe-prerender direct and nested calls during static prerendering currently times out a nested cache when a direct short-lived warm-cache call starts the lookup first"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
