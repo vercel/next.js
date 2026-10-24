@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, btree_map::Entry},
+    collections::BinaryHeap,
     fmt::Debug,
     future::Future,
     hash::Hash,
@@ -14,8 +14,10 @@ use std::{
 };
 
 use arc_swap::ArcSwap;
+use arrayvec::ArrayVec;
 use concurrent_queue::ConcurrentQueue;
-use parking_lot::Mutex;
+use dashmap::Entry;
+use parking_lot::{Mutex, MutexGuard};
 use pin_project_lite::pin_project;
 
 use crate::FxDashMap;
@@ -48,106 +50,211 @@ pub trait Claimable {
     fn claim_key(&self) -> Self::Key;
 }
 
-/// The FIFO of the keys of all queued items with one priority.
-struct PriorityQueue<P, K> {
+/// How many keys a priority's [`SinglePriorityEntry::Plain`] entry holds before it is promoted to
+/// a [`SinglePriorityEntry::Concurrent`] one. Priorities that only ever get a few items then don't
+/// need a `ConcurrentQueue` allocation.
+const PLAIN_ENTRY_CAPACITY: usize = 4;
+
+/// The lock-free FIFO of the keys of all queued items with one priority.
+struct SinglePriorityQueue<P, K> {
     priority: P,
     keys: ConcurrentQueue<K>,
 }
 
-impl<P, K> PriorityQueue<P, K> {
-    fn new(priority: P) -> Arc<Self> {
+impl<P, K> SinglePriorityQueue<P, K> {
+    fn new(priority: P, keys: impl IntoIterator<Item = K>) -> Arc<Self> {
+        let queue = ConcurrentQueue::unbounded();
+        for key in keys {
+            // unbounded queue: push only fails if closed, and this one is new
+            let _ = queue.push(key);
+        }
         Arc::new(Self {
             priority,
-            keys: ConcurrentQueue::unbounded(),
+            keys: queue,
         })
     }
 }
 
-/// The [`PriorityQueue`]s of all priorities, by priority.
-type QueueMap<P, K> = BTreeMap<P, Arc<PriorityQueue<P, K>>>;
+/// The keys of all queued items with one priority, in FIFO order.
+enum SinglePriorityEntry<P, K> {
+    /// Up to [`PLAIN_ENTRY_CAPACITY`] keys, only accessed under the entry's map shard lock.
+    Plain(ArrayVec<K, PLAIN_ENTRY_CAPACITY>),
+    /// A lock-free queue, which can be pushed to (and, as `current`, popped from) without any
+    /// exclusive lock.
+    Concurrent(Arc<SinglePriorityQueue<P, K>>),
+}
+
+impl<P: Clone, K> SinglePriorityEntry<P, K> {
+    /// Creates the entry for `keys`. More keys than a `Plain` entry holds start out `Concurrent`.
+    fn new(priority: &P, keys: impl ExactSizeIterator<Item = K>) -> Self {
+        if keys.len() <= PLAIN_ENTRY_CAPACITY {
+            Self::Plain(keys.collect())
+        } else {
+            Self::Concurrent(SinglePriorityQueue::new(priority.clone(), keys))
+        }
+    }
+
+    /// Turns a `Plain` entry into a `Concurrent` one, keeping the FIFO order, and returns its
+    /// queue.
+    fn promote(&mut self, priority: &P) -> Arc<SinglePriorityQueue<P, K>> {
+        match self {
+            Self::Concurrent(queue) => queue.clone(),
+            Self::Plain(keys) => {
+                let queue = SinglePriorityQueue::new(priority.clone(), keys.drain(..));
+                *self = Self::Concurrent(queue.clone());
+                queue
+            }
+        }
+    }
+
+    /// Pops the oldest key.
+    fn pop(&mut self) -> Option<K> {
+        match self {
+            Self::Plain(keys) => keys.pop_at(0),
+            Self::Concurrent(queue) => queue.keys.pop().ok(),
+        }
+    }
+
+    #[cfg(test)]
+    fn is_empty(&self) -> bool {
+        match self {
+            Self::Plain(keys) => keys.is_empty(),
+            Self::Concurrent(queue) => queue.keys.is_empty(),
+        }
+    }
+}
+
+/// What [`Queue::push_to_map`] changed that has to be reflected in the `heap` (and `current`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EntryChange {
+    /// A new entry was created; its priority has to be added to the `heap`.
+    Created,
+    /// A `Plain` entry was promoted to `Concurrent`; if it is the highest priority, its queue has
+    /// to be published in `current`.
+    Promoted,
+}
 
 /// The queue of items that are not scheduled yet.
 ///
 /// The queue relies on there being far fewer distinct priorities queued at the same time than
-/// queued items. Every priority gets its own lock-free MPMC `ConcurrentQueue` of keys (a
-/// [`PriorityQueue`]), so its FIFO order is the priority order within that priority. The queues
-/// are sorted by priority in the `queues` map, which is only accessed under its mutex. The queue
-/// of the highest priority is also published in `current`, outside the mutex, so that the hot
-/// paths don't need the mutex:
+/// queued items. Every priority has its own [`SinglePriorityEntry`] of keys in the `entries` map,
+/// in FIFO order, which is the priority order within that priority. An entry starts out `Plain`
+/// (a few inline keys) and is promoted to a lock-free `ConcurrentQueue` (a
+/// [`SinglePriorityQueue`]) once it holds more than [`PLAIN_ENTRY_CAPACITY`] keys, or when a push
+/// makes it the highest priority. The priorities are sorted by the `heap`, under its mutex. The
+/// queue of the highest priority is also published in `current`, outside the mutex, so that the
+/// hot paths don't need the mutex:
 /// - A pop takes the next key from the `current` queue without locking. Only when that queue is
-///   empty, it locks `queues` to move on to the next lower priority (see [`Queue::pop_locked`]).
-/// - A push with the `current` priority pushes to the `current` queue without locking. Other
-///   priorities are pushed under the lock, which also publishes a new highest priority.
+///   empty, it locks the `heap` to move on to the next lower priority (see [`Queue::pop_locked`]).
+/// - A push with the `current` priority pushes to the `current` queue without locking.
+/// - A push to another priority that already has a `Concurrent` entry only takes a shared lock of
+///   the entry's map shard, and pushes lock-free. Pushes to a `Plain` entry take the shard lock
+///   exclusively. Only a push that creates a priority or promotes an entry takes the `heap` mutex
+///   (to register the priority, and to publish it if it is the highest one), after it released the
+///   shard lock. [`Queue::push_many`] takes it at most once for the whole batch.
 ///
-/// `queues` is never empty: it starts with an (empty) queue for `P::default()`, and the queue of
-/// the last remaining priority is never removed, even when it is empty. So `current` always has a
-/// queue, and pushing more items with its priority stays lock-free after the queue ran empty. In
-/// particular, when all items have the default priority (e.g. a from-scratch build), pushes and
-/// pops never take the mutex while there is work queued; only a pop that finds the queue empty
-/// takes it (to check for other priorities), which is when workers run out of work anyway.
+/// A `Plain` entry is only promoted by pushes, never by pops. When the highest priority is retired
+/// and the next one is `Plain`, `current` stays on the retired (closed and empty) queue, and every
+/// pop takes the mutex to pop from the `Plain` entry, until a `Concurrent` entry is published
+/// again (by a push promoting the highest priority's entry, or by retiring it). Lock-free pushes
+/// to the closed `current` queue fail and take the map path.
 ///
-/// Invariants, maintained under the `queues` lock: `current` is the map entry of the highest
-/// priority (the same `Arc`), and every queue in the map is open. A queue is only closed under the
-/// lock while it is the `current` one, and in the same critical section it is either removed from
-/// the map or replaced by a new queue. A push that finds its queue closed retries under the lock.
+/// The empty entry of the last remaining priority is kept if it is `Concurrent`, so `current`
+/// keeps a queue, and pushing more items with its priority stays lock-free after the queue ran
+/// empty. In particular, when all items have the default priority (e.g. a from-scratch build),
+/// pushes and pops never take the mutex while there is work queued; only a pop that finds the
+/// queue empty takes it (to check for other priorities), which is when workers run out of work
+/// anyway. An empty last `Plain` entry is removed, which leaves the `heap` and `entries` empty, as
+/// `current` is a closed queue already then.
 ///
-/// Items are stored by value in the `claimable` map, at most one per key, and the queues only hold
-/// their key. Pushing a key that is still queued replaces the queued item, which is then handed to
-/// [`Executor::discard`] instead of being executed. Claiming removes the item from the map. Either
-/// way the old queue entry stays behind as a tombstone that a pop skips. A pop only takes an item
-/// whose priority matches the queue entry's, so a stale entry never takes an item queued again
+/// Invariants:
+/// - Every priority in the `heap` has an entry, and appears once. An entry is only removed under
+///   the `heap` lock, while it is the highest priority. A new entry is added to the `heap` by the
+///   push that created it, right after it released the entry's shard lock (so there is a short
+///   window in which a new priority isn't in the `heap` yet).
+/// - `current` always is a `Concurrent` queue. If it is open, it is the entry of the highest
+///   priority (the same `Arc`). A queue is only closed under the `heap` lock and its entry's shard
+///   lock, while it is the highest priority, and in the same critical section the entry is either
+///   removed or replaced by a new queue. So every `Concurrent` entry in the map is open, and a push
+///   that finds its queue closed retries via the map.
+/// - `current` is only replaced while holding the `heap` lock.
+///
+/// Items are stored by value in the `claimable` map, at most one per key, and the entries only
+/// hold their key. Pushing a key that is still queued replaces the queued item, which is then
+/// handed to [`Executor::discard`] instead of being executed. Claiming removes the item from the
+/// map. Either way the old entry key stays behind as a tombstone that a pop skips. A pop only takes
+/// an item whose priority matches the entry's, so a stale key never takes an item queued again
 /// with another priority. With the *same* priority it may take it early, which only reorders
 /// equal-priority items; every queued item still executes at most once.
 ///
-/// Lock ordering: [`Queue::pop`] takes `claimable` shard locks while holding the `queues` mutex
-/// (to resolve popped keys). Nothing takes the `queues` mutex while holding a `claimable` shard
-/// lock: [`Queue::push`] finishes its `claimable` insert before it queues the key, and
-/// [`Queue::claim`] only touches `claimable`. So the order is always `queues`, then `claimable`.
+/// Lock ordering: `heap`, then `entries` shard, then `claimable` shard. [`Queue::pop_locked`]
+/// takes an `entries` shard lock while holding the `heap` mutex, and `claimable` shard locks (to
+/// resolve popped keys) while holding both. Pushes finish their `claimable` insert before they
+/// queue the key, and release the `entries` shard lock before they take the `heap` mutex.
+/// [`Queue::claim`] only touches `claimable`.
 struct Queue<P, T: Claimable> {
-    /// The queue of the highest priority in `queues`. Only replaced while holding the `queues`
-    /// lock.
-    current: ArcSwap<PriorityQueue<P, T::Key>>,
-    /// The queues of all priorities that have queued items, plus the queue of the highest
-    /// priority even if it is empty. Never empty.
+    /// The queue of the highest priority, or a closed queue while the highest priority's entry is
+    /// `Plain` (or there is no entry). Only replaced while holding the `heap` lock.
+    current: ArcSwap<SinglePriorityQueue<P, T::Key>>,
+    /// The priorities of all entries, to find the highest one.
     ///
-    /// Its lock may be held while taking `claimable` shard locks, never the other way around (see
-    /// the lock ordering on [`Queue`]).
-    queues: Mutex<QueueMap<P, T::Key>>,
+    /// Its lock may be held while taking `entries` and `claimable` shard locks, never the other
+    /// way around (see the lock ordering on [`Queue`]).
+    heap: Mutex<BinaryHeap<P>>,
+    /// The keys of the queued items, by priority.
+    entries: FxDashMap<P, SinglePriorityEntry<P, T::Key>>,
     /// The queued items with their priority, by claim key. An item is removed when it is popped or
     /// claimed, and replaced when another item with the same key is pushed.
     claimable: FxDashMap<T::Key, (P, T)>,
     /// How many items were ever pushed. Diagnostics only, see [`PriorityRunner::total_queued`].
     #[cfg(feature = "inline_execution_stats")]
     pushes: std::sync::atomic::AtomicU64,
+    /// How often the `heap` mutex was locked. Tests only.
+    #[cfg(test)]
+    heap_locks: AtomicUsize,
 }
 
-impl<P: Clone + Ord + Default, T: Claimable> Queue<P, T> {
+impl<P: Clone + Ord + Hash + Default, T: Claimable> Queue<P, T> {
     fn new() -> Self {
-        let initial = PriorityQueue::new(P::default());
+        let initial = SinglePriorityQueue::new(P::default(), []);
+        let entries = FxDashMap::default();
+        entries.insert(
+            initial.priority.clone(),
+            SinglePriorityEntry::Concurrent(initial.clone()),
+        );
         Self {
-            current: ArcSwap::new(initial.clone()),
-            queues: Mutex::new(BTreeMap::from([(initial.priority.clone(), initial)])),
+            heap: Mutex::new(BinaryHeap::from([initial.priority.clone()])),
+            current: ArcSwap::new(initial),
+            entries,
             claimable: FxDashMap::default(),
             #[cfg(feature = "inline_execution_stats")]
             pushes: std::sync::atomic::AtomicU64::new(0),
+            #[cfg(test)]
+            heap_locks: AtomicUsize::new(0),
         }
+    }
+
+    fn lock_heap(&self) -> MutexGuard<'_, BinaryHeap<P>> {
+        #[cfg(test)]
+        self.heap_locks.fetch_add(1, Ordering::Relaxed);
+        self.heap.lock()
     }
 
     /// Whether there is no queue entry left. This can be `false` while all remaining entries are
     /// tombstones of claimed items; popping is what cleans those up.
     #[cfg(test)]
     fn is_empty(&self) -> bool {
-        self.queues
-            .lock()
-            .values()
-            .all(|queue| queue.keys.is_empty())
+        let _heap = self.heap.lock();
+        self.entries.iter().all(|entry| entry.is_empty())
     }
 
-    /// The number of priorities that have a queue, including the queue of the highest priority
-    /// that is kept even when it is empty.
+    /// The number of priorities that have an entry, including the kept empty entry of the last
+    /// remaining priority.
     #[cfg(test)]
     fn queue_count(&self) -> usize {
-        self.queues.lock().len()
+        let heap = self.heap.lock();
+        debug_assert_eq!(heap.len(), self.entries.len());
+        heap.len()
     }
 
     /// Stores `task` in `claimable`. Returns the still-queued item with the same key that it
@@ -173,37 +280,85 @@ impl<P: Clone + Ord + Default, T: Claimable> Queue<P, T> {
         current.keys.push(key).map_err(|err| err.into_inner())
     }
 
-    /// Pushes `key` to the queue of `priority`, creating it if needed. Returns whether a queue was
-    /// created that has a higher priority than all others, in which case `current` has to be
-    /// updated.
-    fn push_locked(queues: &mut QueueMap<P, T::Key>, priority: P, key: T::Key) -> bool {
-        match queues.entry(priority) {
-            Entry::Occupied(entry) => {
-                // Queues in the map are never closed (see the invariants on `Queue`).
-                let result = entry.get().keys.push(key);
+    /// Pushes `keys` (all with the given priority, in FIFO order) to the priority's entry, creating
+    /// or promoting it if needed. Returns what changed that [`Queue::update_heap`] has to
+    /// reflect.
+    ///
+    /// Doesn't take the `heap` mutex. Pushing to an existing `Concurrent` entry only takes a shared
+    /// lock of its map shard.
+    fn push_to_map(&self, priority: &P, keys: &[T::Key]) -> Option<EntryChange> {
+        if let Some(entry) = self.entries.get(priority)
+            && let SinglePriorityEntry::Concurrent(queue) = &*entry
+        {
+            for &key in keys {
+                // A `Concurrent` entry in the map is never closed (see the invariants on
+                // `Queue`): closing it needs the shard lock exclusively, and removes or replaces
+                // the entry before releasing it.
+                let result = queue.keys.push(key);
                 debug_assert!(result.is_ok(), "queues in the map are never closed");
-                false
             }
+            return None;
+        }
+        match self.entries.entry(priority.clone()) {
+            Entry::Occupied(mut entry) => match entry.get_mut() {
+                SinglePriorityEntry::Concurrent(queue) => {
+                    for &key in keys {
+                        let result = queue.keys.push(key);
+                        debug_assert!(result.is_ok(), "queues in the map are never closed");
+                    }
+                    None
+                }
+                SinglePriorityEntry::Plain(plain) if plain.remaining_capacity() >= keys.len() => {
+                    plain.extend(keys.iter().copied());
+                    None
+                }
+                plain @ SinglePriorityEntry::Plain(_) => {
+                    let queue = plain.promote(priority);
+                    for &key in keys {
+                        // unbounded queue: push only fails if closed, and this one is new
+                        let _ = queue.keys.push(key);
+                    }
+                    Some(EntryChange::Promoted)
+                }
+            },
             Entry::Vacant(entry) => {
-                let queue = PriorityQueue::new(entry.key().clone());
-                // unbounded queue: push only fails if closed, and this one is new
-                let _ = queue.keys.push(key);
-                let priority = entry.key().clone();
-                entry.insert(queue);
-                // `queues` is never empty, so there is always a last entry.
-                queues
-                    .last_key_value()
-                    .is_some_and(|(max, _)| *max == priority)
+                entry.insert(SinglePriorityEntry::new(priority, keys.iter().copied()));
+                Some(EntryChange::Created)
             }
         }
     }
 
-    /// Publishes the queue of the highest priority in `current`.
-    fn publish_current(&self, queues: &QueueMap<P, T::Key>) {
-        let (_, queue) = queues
-            .last_key_value()
-            .expect("the queue map is never empty");
-        self.current.store(queue.clone());
+    /// Reflects the `changes` of [`Queue::push_to_map`] in the `heap`, under a single lock: adds
+    /// the priorities of created entries, and if one of the changed priorities is the highest one
+    /// now, promotes its entry (when it was just created as `Plain`) and publishes it in
+    /// `current`.
+    ///
+    /// A promoted entry may have been drained and retired by pops by the time this takes the
+    /// lock, so the `heap` may be empty, or no longer contain a changed priority.
+    fn update_heap(&self, changes: &[(P, EntryChange)]) {
+        let mut heap = self.lock_heap();
+        for (priority, change) in changes {
+            if *change == EntryChange::Created {
+                heap.push(priority.clone());
+            }
+        }
+        let Some(max) = heap.peek() else {
+            return;
+        };
+        if !changes.iter().any(|(priority, _)| priority == max) {
+            // The highest priority is unchanged, and so is `current`.
+            return;
+        }
+        // A push made this the highest priority, or promoted the highest priority's entry. Promote
+        // a `Plain` entry eagerly, so that pops find it lock-free in `current` (instead of a lower
+        // priority that could otherwise keep them busy). Storing it again if it is `current`
+        // already is harmless, and avoids another `current` load.
+        let queue = self
+            .entries
+            .get_mut(max)
+            .expect("every priority in the heap has an entry")
+            .promote(max);
+        self.current.store(queue);
     }
 
     /// Queues `task`. Returns the still-queued item with the same key that it replaced, if any:
@@ -211,18 +366,18 @@ impl<P: Clone + Ord + Default, T: Claimable> Queue<P, T> {
     #[must_use]
     fn push(&self, priority: P, task: T) -> Option<(P, T)> {
         let (key, replaced) = self.insert_claimable(&priority, task);
-        if let Err(key) = self.try_push_current(&priority, key) {
-            let mut queues = self.queues.lock();
-            if Self::push_locked(&mut queues, priority, key) {
-                self.publish_current(&queues);
-            }
+        if let Err(key) = self.try_push_current(&priority, key)
+            && let Some(change) = self.push_to_map(&priority, &[key])
+        {
+            self.update_heap(&[(priority, change)]);
         }
         replaced
     }
 
-    /// Queues all `items`, like calling [`Queue::push`] for each of them, but takes the `queues`
-    /// mutex at most once for the whole batch. Each still-queued item that one of the pushes
-    /// replaced is passed to `on_replaced`.
+    /// Queues all `items`, like calling [`Queue::push`] for each of them, but loads `current` only
+    /// once, pushes the keys of each priority with a single map lookup, and takes the `heap` mutex
+    /// at most once for the whole batch. Each still-queued item that one of the pushes replaced is
+    /// passed to `on_replaced`, in the order of `items`.
     ///
     /// `items` must report its exact length, which is used to size an allocation.
     fn push_many(
@@ -231,37 +386,56 @@ impl<P: Clone + Ord + Default, T: Claimable> Queue<P, T> {
         mut on_replaced: impl FnMut(P, T),
     ) {
         let mut items = items.into_iter();
-        // The keys that can't be pushed lock-free are collected first, so the mutex is only held
-        // for pushing them, not for the `claimable` inserts (which also keeps the lock ordering,
-        // see [`Queue`]). Only allocated once the first such key shows up, as batches of only
-        // `current` priority items don't need it.
-        let mut locked_items = Vec::new();
-        while let Some((priority, task)) = items.next() {
-            let (key, replaced) = self.insert_claimable(&priority, task);
-            if let Err(key) = self.try_push_current(&priority, key) {
-                if locked_items.is_empty() {
-                    // This item plus at most all remaining ones need the lock.
-                    locked_items.reserve(items.len() + 1);
+        // The keys that can't be pushed lock-free to `current` are collected first, so the map and
+        // heap are only touched for them after all `claimable` inserts (which also keeps the lock
+        // ordering, see [`Queue`]). Only allocated once the first such key shows up, as batches of
+        // only `current` priority items don't need it.
+        let mut other_items = Vec::new();
+        {
+            let current = self.current.load();
+            while let Some((priority, task)) = items.next() {
+                let (key, replaced) = self.insert_claimable(&priority, task);
+                // An unbounded queue only fails to push when it is closed (see
+                // `try_push_current`).
+                if current.priority != priority || current.keys.push(key).is_err() {
+                    if other_items.is_empty() {
+                        // This item plus at most all remaining ones go to the map.
+                        other_items.reserve(items.len() + 1);
+                    }
+                    other_items.push((priority, key));
                 }
-                locked_items.push((priority, key));
-            }
-            if let Some((priority, task)) = replaced {
-                on_replaced(priority, task);
+                if let Some((priority, task)) = replaced {
+                    on_replaced(priority, task);
+                }
             }
         }
-        if !locked_items.is_empty() {
-            let mut queues = self.queues.lock();
-            let mut new_max = false;
-            for (priority, key) in locked_items {
-                new_max |= Self::push_locked(&mut queues, priority, key);
+        if other_items.is_empty() {
+            return;
+        }
+        // Group the keys by priority, keeping their order within a priority (a stable sort), so
+        // each priority's entry is looked up and locked only once.
+        other_items.sort_by(|(a, _), (b, _)| a.cmp(b));
+        let keys: Vec<T::Key> = other_items.iter().map(|&(_, key)| key).collect();
+        let mut changes = Vec::new();
+        let mut start = 0;
+        while start < other_items.len() {
+            let priority = &other_items[start].0;
+            let end = start
+                + other_items[start..]
+                    .iter()
+                    .take_while(|(other, _)| other == priority)
+                    .count();
+            if let Some(change) = self.push_to_map(priority, &keys[start..end]) {
+                changes.push((priority.clone(), change));
             }
-            if new_max {
-                self.publish_current(&queues);
-            }
+            start = end;
+        }
+        if !changes.is_empty() {
+            self.update_heap(&changes);
         }
     }
 
-    /// Pops the highest priority item, skipping tombstones. The `queues` mutex is only taken when
+    /// Pops the highest priority item, skipping tombstones. The `heap` mutex is only taken when
     /// the `current` queue is empty.
     fn pop(&self) -> Option<(P, T)> {
         {
@@ -275,58 +449,83 @@ impl<P: Clone + Ord + Default, T: Claimable> Queue<P, T> {
         self.pop_locked()
     }
 
-    /// The slow path of [`Queue::pop`] once the `current` queue was found empty: moves on to the
-    /// next lower priority under the `queues` lock.
+    /// The slow path of [`Queue::pop`] once the `current` queue was found empty: pops from the
+    /// highest priority's entry under the `heap` lock, and moves on to the next lower priority
+    /// once it is empty.
     ///
-    /// This always works on the map's highest priority queue rather than on the queue the caller
-    /// loaded from `current`, which may be stale by now: another pop may have already moved on,
-    /// or a push may have published a higher priority.
+    /// This always works on the highest priority's entry rather than on the queue the caller
+    /// loaded from `current`, which may be stale by now: another pop may have already moved on, a
+    /// push may have published a higher priority, or the highest priority's entry is `Plain`.
     fn pop_locked(&self) -> Option<(P, T)> {
-        let mut queues = self.queues.lock();
+        let mut heap = self.lock_heap();
         loop {
-            let (_, queue) = queues
-                .last_key_value()
-                .expect("the queue map is never empty");
-            let queue = queue.clone();
-            // The queue may no longer be empty once the lock is held, e.g. a lock-free push
+            let priority = heap.peek()?.clone();
+            let Entry::Occupied(mut entry) = self.entries.entry(priority.clone()) else {
+                unreachable!("every priority in the heap has an entry");
+            };
+            // The entry may no longer be empty once the locks are held, e.g. a lock-free push
             // happened in the meantime.
-            while let Ok(key) = queue.keys.pop() {
-                if let Some(task) = self.take(&queue.priority, &key) {
-                    return Some((queue.priority.clone(), task));
+            while let Some(key) = entry.get_mut().pop() {
+                if let Some(task) = self.take(&priority, &key) {
+                    return Some((priority, task));
                 }
             }
-            if queues.len() == 1 {
-                // The last queue is kept (open and published) even when it is empty, so pushing
-                // its priority stays lock-free.
+            if let SinglePriorityEntry::Concurrent(queue) = entry.get()
+                && heap.len() == 1
+            {
+                // The empty last `Concurrent` entry is kept (open and published) even when it is
+                // empty, so pushing its priority stays lock-free.
+                if !Arc::ptr_eq(&self.current.load(), queue) {
+                    self.current.store(queue.clone());
+                }
                 return None;
             }
-            self.retire_current(&mut queues, &queue);
+            self.retire(&mut heap, entry);
         }
     }
 
-    /// Retires the `current` queue `queue`, which was found empty under the `queues` lock while
-    /// there are other queues left: closes it and either removes it, or replaces it with a new
-    /// queue for the keys that were pushed lock-free before it was closed. Then publishes the new
-    /// highest priority queue.
-    fn retire_current(&self, queues: &mut QueueMap<P, T::Key>, queue: &PriorityQueue<P, T::Key>) {
-        // Close the queue so lock-free pushes fail and retry under the lock (after we are done),
-        // instead of pushing to a queue that is no longer published.
-        queue.keys.close();
-        // A lock-free push may have succeeded between our last pop and the close. Its key keeps
-        // the queue's priority: move it to a new queue that replaces this one, instead of moving
-        // on to a lower priority while there are still items with this priority.
-        let mut fresh = None;
-        while let Ok(key) = queue.keys.pop() {
-            let fresh = fresh.get_or_insert_with(|| PriorityQueue::new(queue.priority.clone()));
-            // unbounded queue: push only fails if closed, and this one is new
-            let _ = fresh.keys.push(key);
+    /// Retires the highest priority's `entry`, which was found empty under the `heap` lock while
+    /// there are other priorities left (or it is `Plain`). A `Concurrent` entry's queue is closed,
+    /// and replaced by a new queue for the keys that were pushed lock-free before it was closed,
+    /// if any. Otherwise the entry is removed, and the next lower priority is published if its
+    /// entry is `Concurrent`.
+    fn retire(
+        &self,
+        heap: &mut BinaryHeap<P>,
+        mut entry: dashmap::OccupiedEntry<'_, P, SinglePriorityEntry<P, T::Key>>,
+    ) {
+        debug_assert!(heap.peek() == Some(entry.key()));
+        if let SinglePriorityEntry::Concurrent(queue) = entry.get() {
+            let queue = queue.clone();
+            // Close the queue so lock-free pushes fail and retry via the map (after we are done),
+            // instead of pushing to a queue that is no longer published.
+            queue.keys.close();
+            // A lock-free push to `current` may have succeeded between our last pop and the
+            // close. Its key keeps the queue's priority: move it to a new queue that replaces this
+            // one, instead of moving on to a lower priority while there are still items with this
+            // priority.
+            let mut leftover = std::iter::from_fn(|| queue.keys.pop().ok()).peekable();
+            if leftover.peek().is_some() {
+                let fresh = SinglePriorityQueue::new(queue.priority.clone(), leftover);
+                entry.insert(SinglePriorityEntry::Concurrent(fresh.clone()));
+                self.current.store(fresh);
+                return;
+            }
         }
-        if let Some(fresh) = fresh {
-            queues.insert(queue.priority.clone(), fresh);
-        } else {
-            queues.pop_last();
+        // The entry is empty (and closed, if it is `Concurrent`), so it is removed. An empty
+        // `Plain` entry is removed even if it is the last one: `current` is a closed queue already
+        // then.
+        entry.remove();
+        heap.pop();
+        // Publish the next lower priority if it is `Concurrent`. If it is `Plain`, `current` stays
+        // on the closed queue, and pops take the lock to pop from the `Plain` entry, until a push
+        // promotes it.
+        if let Some(next) = heap.peek()
+            && let Some(entry) = self.entries.get(next)
+            && let SinglePriorityEntry::Concurrent(queue) = &*entry
+        {
+            self.current.store(queue.clone());
         }
-        self.publish_current(queues);
     }
 
     /// Resolves a popped queue entry to its item, or `None` if it is a tombstone.
@@ -346,7 +545,7 @@ impl<P: Clone + Ord + Default, T: Claimable> Queue<P, T> {
 pub struct PriorityRunner<
     C: Send + Sync + 'static,
     T: Claimable + Send + Sync + 'static,
-    P: Clone + Ord + Default + Send + Sync + 'static,
+    P: Clone + Ord + Hash + Default + Send + Sync + 'static,
     E: Executor<C, T, P> + 'static,
 > {
     executor: E,
@@ -363,7 +562,7 @@ pub struct PriorityRunner<
 impl<
     C: Send + Sync + 'static,
     T: Claimable + Send + Sync + 'static,
-    P: Clone + Ord + Default + Send + Sync + 'static,
+    P: Clone + Ord + Hash + Default + Send + Sync + 'static,
     E: Executor<C, T, P> + 'static,
 > PriorityRunner<C, T, P, E>
 {
@@ -402,8 +601,10 @@ impl<
         // their write and their read: whichever fence comes first in the total order of `SeqCst`
         // fences, the other side's read observes the write before it. (It cannot rely on the
         // queue's own synchronization instead — a push may go lock-free to the `current` queue
-        // or under the lock to another queue, while a retiring worker's pop may only look at the
-        // `current` queue it loaded, so there is no single edge forcing the push to be observed.)
+        // or to another priority's entry (without the `heap` lock), while a retiring worker's pop
+        // may only look at the `current` queue it loaded, so there is no single edge forcing the
+        // push to be observed. A push that creates a priority adds it to the `heap` before it
+        // returns, so before the scheduler's fence.)
         //
         // [`claim`](Self::claim) takes work out of the queue without being a worker, but that only
         // ever leaves less work behind, so it cannot strand anything.
@@ -606,6 +807,7 @@ pin_project! {
         T: 'static,
         P: Clone,
         P: Ord,
+        P: Hash,
         P: Default,
         P: Send,
         P: Sync,
@@ -625,7 +827,7 @@ pin_project! {
 impl<
     C: Send + Sync + 'static,
     T: Claimable + Send + Sync + 'static,
-    P: Clone + Ord + Default + Send + Sync + 'static,
+    P: Clone + Ord + Hash + Default + Send + Sync + 'static,
     E: Executor<C, T, P> + 'static,
 > WorkerFuture<C, T, P, E>
 {
@@ -642,7 +844,7 @@ impl<
 impl<
     C: Send + Sync + 'static,
     T: Claimable + Send + Sync + 'static,
-    P: Clone + Ord + Default + Send + Sync + 'static,
+    P: Clone + Ord + Hash + Default + Send + Sync + 'static,
     E: Executor<C, T, P> + 'static,
 > Future for WorkerFuture<C, T, P, E>
 {
@@ -1543,8 +1745,11 @@ mod tests {
         // The drained queue is only retired by the next pop.
         assert_eq!(q.pop(), Some((3, 1)));
         assert_eq!(current(), 3);
+        // Priority 1 has a `Plain` entry, which pops don't promote: `current` stays on the
+        // retired, closed priority 3 queue, and the pop takes the lock.
         assert_eq!(q.pop(), Some((1, 2)));
-        assert_eq!(current(), 1);
+        assert_eq!(current(), 3);
+        assert!(q.current.load().keys.is_closed());
         assert_eq!(q.pop(), None);
         assert_eq!(current(), 0);
         assert_eq!(q.queue_count(), 1);
@@ -1552,8 +1757,8 @@ mod tests {
         assert_eq!(q.queue_count(), 1);
     }
 
-    /// The last remaining queue is kept, open and published, even when it is empty, so pushing
-    /// its priority keeps using it.
+    /// The empty last remaining `Concurrent` entry is kept, open and published, so pushing its
+    /// priority keeps using it lock-free.
     #[test]
     fn test_last_queue_is_kept_when_empty() {
         let q: Queue<u32, u32> = Queue::new();
@@ -1573,47 +1778,80 @@ mod tests {
         assert!(!kept.keys.is_closed());
     }
 
-    /// The kept last queue doesn't have to be the default priority's queue: the default queue is
-    /// retired like any other once a lower priority is the only one with work left.
+    /// An empty last remaining `Plain` entry is removed: the default priority's queue is retired
+    /// like any other once a lower (`Plain`) priority is the only one with work left, `current`
+    /// stays on that closed queue, and once the `Plain` entry is empty, there is no entry left.
+    /// The next push creates a new highest priority, which is promoted and published, so pushing
+    /// its priority is lock-free again.
     #[test]
-    fn test_last_queue_can_be_below_default_priority() {
+    fn test_empty_last_plain_entry_is_removed() {
         let q: Queue<i32, u32> = Queue::new();
         assert!(q.push(-1, 1).is_none());
-        assert_eq!(q.current.load().priority, 0);
+        let default_queue = q.current.load_full();
+        assert_eq!(default_queue.priority, 0);
         assert_eq!(q.pop(), Some((-1, 1)));
+        assert!(default_queue.keys.is_closed());
+        assert!(Arc::ptr_eq(&q.current.load_full(), &default_queue));
         assert_eq!(q.queue_count(), 1);
-        let kept = q.current.load_full();
-        assert_eq!(kept.priority, -1);
         assert_eq!(q.pop(), None);
-        assert!(Arc::ptr_eq(&q.current.load_full(), &kept));
-        assert!(!kept.keys.is_closed());
+        assert_eq!(q.queue_count(), 0);
+        assert!(q.is_empty());
+        assert_eq!(q.pop(), None);
 
-        // Its priority is pushed lock-free into the kept queue.
-        assert_eq!(q.try_push_current(&-1, 2), Ok(()));
-        assert_eq!(kept.keys.len(), 1);
+        assert!(q.push(-1, 2).is_none());
+        let current = q.current.load_full();
+        assert_eq!(current.priority, -1);
+        assert!(!current.keys.is_closed());
+        assert!(q.push(-1, 3).is_none());
+        assert_eq!(current.keys.len(), 2, "pushed lock-free to `current`");
+        assert_eq!(q.pop(), Some((-1, 2)));
+        assert_eq!(q.pop(), Some((-1, 3)));
+        assert_eq!(q.pop(), None);
+        assert_eq!(q.queue_count(), 1, "the `Concurrent` entry is kept");
     }
 
-    /// Runs `f` on another thread while this thread holds the `queues` lock, and asserts that it
+    /// Runs `f` on another thread while this thread holds the `heap` lock, and asserts that it
     /// finishes without the lock.
     fn assert_lock_free(runner: &TestRunner<u32>, f: impl FnOnce() + Send + 'static) {
-        let queues_guard = runner.queue.queues.lock();
+        assert_queue_lock_free(&runner.queue, f);
+    }
+
+    /// Runs `f` on another thread while this thread holds the `heap` lock of `queue`, and asserts
+    /// that it finishes without the lock.
+    fn assert_queue_lock_free<P: Send, T: Claimable>(
+        queue: &Queue<P, T>,
+        f: impl FnOnce() + Send + 'static,
+    ) {
+        let heap_guard = queue.heap.lock();
         let (sender, receiver) = std::sync::mpsc::channel();
         let thread = std::thread::spawn(move || {
             f();
             sender.send(()).unwrap();
         });
         let result = receiver.recv_timeout(Duration::from_secs(1));
-        drop(queues_guard);
+        drop(heap_guard);
         thread.join().unwrap();
-        assert_eq!(result, Ok(()), "must not take the queues lock");
+        assert_eq!(result, Ok(()), "must not take the heap lock");
     }
 
-    /// Pushing and popping items with the `current` priority doesn't take the `queues` lock, both
+    /// The highest priority's entry, while holding the `heap` lock like [`Queue::pop_locked`].
+    fn occupied_entry<P: Clone + Ord + Hash + Default, T: Claimable>(
+        queue: &Queue<P, T>,
+        priority: P,
+    ) -> dashmap::OccupiedEntry<'_, P, SinglePriorityEntry<P, T::Key>> {
+        let Entry::Occupied(entry) = queue.entries.entry(priority) else {
+            panic!("no entry");
+        };
+        entry
+    }
+
+    /// Pushing and popping items with the `current` priority doesn't take the `heap` lock, both
     /// for a non-default current priority and for the kept, empty default priority queue.
     #[test]
     fn test_current_priority_push_and_pop_are_lock_free() {
         let (runner, executed) = queueing_runner::<u32>();
-        // Make priority 5 the current one (this push takes the lock, as it creates the queue).
+        // Make priority 5 the current one (this push takes the heap lock, as it creates the
+        // priority).
         runner.schedule(&executed, 100, 5);
         assert_lock_free(&runner, {
             let runner = runner.clone();
@@ -1658,7 +1896,8 @@ mod tests {
 
         // A pop found the priority 5 queue empty and is about to retire it; a lock-free push
         // (`try_push_current`) lands in it before it is closed.
-        let mut queues = q.queues.lock();
+        let mut heap = q.heap.lock();
+        let entry = occupied_entry(&q, 5);
         let old = q.current.load_full();
         assert_eq!(old.priority, 5);
         assert!(q.push(5, 3).is_none());
@@ -1667,8 +1906,8 @@ mod tests {
             1,
             "the push went to the current queue lock-free"
         );
-        q.retire_current(&mut queues, &old);
-        drop(queues);
+        q.retire(&mut heap, entry);
+        drop(heap);
 
         assert!(old.keys.is_closed());
         let current = q.current.load_full();
@@ -1690,25 +1929,26 @@ mod tests {
         assert_eq!(q.queue_count(), 1);
     }
 
-    /// A push that finds the `current` queue closed (a pop is retiring it) retries under the lock
-    /// and ends up in the map's queue for its priority, so it isn't lost in the closed queue.
+    /// A push that finds the `current` queue closed (a pop is retiring it) retries via the map
+    /// and ends up in the entry for its priority, so it isn't lost in the closed queue.
     #[test]
-    fn test_push_to_closed_current_queue_retries_under_lock() {
+    fn test_push_to_closed_current_queue_retries_via_map() {
         let q: Queue<u32, u32> = Queue::new();
         assert!(q.push(0, 1).is_none());
         assert!(q.push(5, 2).is_none());
         assert_eq!(q.pop(), Some((5, 2)));
 
-        // A pop is retiring the priority 5 queue: it closed it while holding the lock.
-        let mut queues = q.queues.lock();
+        // A pop is retiring the priority 5 queue: it closed it while holding the locks.
+        let mut heap = q.heap.lock();
+        let entry = occupied_entry(&q, 5);
         let old = q.current.load_full();
         old.keys.close();
-        // A lock-free push now fails, so the push has to wait for the lock.
+        // A lock-free push now fails, so the push has to go via the map.
         assert_eq!(q.try_push_current(&5, 3), Err(3));
         // Finish retiring it, like `pop_locked` would.
-        q.retire_current(&mut queues, &old);
-        drop(queues);
-        // Once the push gets the lock, its key goes to the map's queue for its priority.
+        q.retire(&mut heap, entry);
+        drop(heap);
+        // Once the push gets the locks, its key goes to the map's entry for its priority.
         assert!(q.push(5, 3).is_none());
 
         assert_eq!(old.keys.len(), 0);
@@ -1737,6 +1977,252 @@ mod tests {
         assert_eq!(q.pop_locked(), Some((5, 3)));
         assert_eq!(q.pop(), Some((3, 2)));
         assert_eq!(q.pop(), Some((0, 4)));
+        assert_eq!(q.pop(), None);
+    }
+
+    fn entry_state<P: Clone + Ord + Hash + Default, T: Claimable>(
+        q: &Queue<P, T>,
+        priority: &P,
+    ) -> Option<(&'static str, usize)> {
+        q.entries.get(priority).map(|entry| match &*entry {
+            SinglePriorityEntry::Plain(keys) => ("plain", keys.len()),
+            SinglePriorityEntry::Concurrent(queue) => ("concurrent", queue.keys.len()),
+        })
+    }
+
+    /// A priority that isn't the highest one starts out with a `Plain` entry, which is promoted to
+    /// a `Concurrent` one by the push that overflows it, keeping the FIFO order.
+    #[test]
+    fn test_plain_entry_promoted_on_overflow() {
+        let q: Queue<u32, u32> = Queue::new();
+        assert!(q.push(9, 100).is_none());
+        for key in 1..=PLAIN_ENTRY_CAPACITY as u32 {
+            assert!(q.push(5, key).is_none());
+            assert_eq!(entry_state(&q, &5), Some(("plain", key as usize)));
+        }
+        assert!(q.push(5, 99).is_none());
+        assert_eq!(
+            entry_state(&q, &5),
+            Some(("concurrent", PLAIN_ENTRY_CAPACITY + 1))
+        );
+        assert_eq!(q.current.load().priority, 9);
+
+        let mut out = Vec::new();
+        while let Some(item) = q.pop() {
+            out.push(item);
+        }
+        let mut expected = vec![(9, 100)];
+        expected.extend((1..=PLAIN_ENTRY_CAPACITY as u32).map(|key| (5, key)));
+        expected.push((5, 99));
+        assert_eq!(out, expected);
+    }
+
+    /// When the highest priority is retired and the next one is `Plain`, pops don't promote it:
+    /// `current` stays on the retired, closed queue, and every pop takes the heap lock to pop from
+    /// the `Plain` entry. Once it is empty, it is retired as well.
+    #[test]
+    fn test_plain_max_is_popped_under_lock_without_promotion() {
+        let q: Queue<u32, u32> = Queue::new();
+        assert!(q.push(9, 100).is_none());
+        assert!(q.push(5, 1).is_none());
+        assert!(q.push(5, 2).is_none());
+        let retired = q.current.load_full();
+        assert_eq!(retired.priority, 9);
+        assert_eq!(q.pop(), Some((9, 100)));
+
+        for key in [1, 2] {
+            let locks = q.heap_locks.load(Ordering::Relaxed);
+            assert_eq!(q.pop(), Some((5, key)));
+            assert_eq!(q.heap_locks.load(Ordering::Relaxed), locks + 1);
+            assert!(Arc::ptr_eq(&q.current.load_full(), &retired));
+            assert!(retired.keys.is_closed());
+            assert_eq!(entry_state(&q, &5), Some(("plain", 2 - key as usize)));
+        }
+        assert_eq!(q.pop(), None);
+        assert_eq!(entry_state(&q, &5), None);
+        assert_eq!(q.current.load().priority, 0);
+        assert_eq!(q.queue_count(), 1);
+    }
+
+    /// A push that makes a new priority the highest one promotes its entry eagerly and publishes
+    /// it, so it is popped before the (non-empty) lower `current` priority.
+    #[test]
+    fn test_new_plain_max_is_promoted_eagerly() {
+        let q: Queue<u32, u32> = Queue::new();
+        for key in 1..=10 {
+            assert!(q.push(3, key).is_none());
+        }
+        assert_eq!(q.current.load().priority, 3);
+        assert!(q.push(7, 100).is_none());
+        assert_eq!(entry_state(&q, &7), Some(("concurrent", 1)));
+        let current = q.current.load_full();
+        assert_eq!(current.priority, 7);
+        assert!(!current.keys.is_closed());
+        assert_eq!(q.pop(), Some((7, 100)));
+        for key in 1..=10 {
+            assert_eq!(q.pop(), Some((3, key)));
+        }
+        assert_eq!(q.pop(), None);
+    }
+
+    /// Pushing to a lower priority that already has an entry doesn't take the `heap` lock, both
+    /// for a `Concurrent` and for a `Plain` entry.
+    #[test]
+    fn test_push_to_existing_lower_priority_is_heap_lock_free() {
+        let q: Arc<Queue<u32, u32>> = Arc::new(Queue::new());
+        assert!(q.push(9, 1).is_none());
+        for key in 10..=(10 + PLAIN_ENTRY_CAPACITY as u32) {
+            assert!(q.push(5, key).is_none());
+        }
+        assert_eq!(
+            entry_state(&q, &5),
+            Some(("concurrent", PLAIN_ENTRY_CAPACITY + 1))
+        );
+        assert!(q.push(6, 30).is_none());
+        assert_eq!(entry_state(&q, &6), Some(("plain", 1)));
+        assert_queue_lock_free(&q, {
+            let q = q.clone();
+            move || {
+                assert!(q.push(5, 20).is_none());
+                assert!(q.push(6, 31).is_none());
+                q.push_many([(5, 21), (6, 32)], |_, _| unreachable!());
+            }
+        });
+        assert_eq!(
+            entry_state(&q, &5),
+            Some(("concurrent", PLAIN_ENTRY_CAPACITY + 3))
+        );
+        assert_eq!(entry_state(&q, &6), Some(("plain", 3)));
+    }
+
+    /// `push_many` reports replaced items in input order, keeps the FIFO order within each
+    /// priority, and takes the `heap` lock at most once, also for a batch with several new
+    /// priorities.
+    #[test]
+    fn test_push_many_groups_by_priority() {
+        let q: Queue<u32, u32> = Queue::new();
+        assert!(q.push(9, 1).is_none());
+        assert!(q.push(4, 2).is_none());
+        let locks = q.heap_locks.load(Ordering::Relaxed);
+        let mut replaced = Vec::new();
+        q.push_many(
+            [
+                (5, 10),
+                (2, 1),
+                (7, 11),
+                (5, 12),
+                (6, 2),
+                (9, 13),
+                (7, 14),
+                (5, 15),
+            ],
+            |priority, task| replaced.push((priority, task)),
+        );
+        assert_eq!(q.heap_locks.load(Ordering::Relaxed), locks + 1);
+        assert_eq!(replaced, [(9, 1), (4, 2)]);
+
+        // A batch of priorities that all have an entry doesn't take the lock.
+        q.push_many([(9, 20), (5, 21), (9, 22)], |_, _| unreachable!());
+        assert_eq!(q.heap_locks.load(Ordering::Relaxed), locks + 1);
+
+        let mut out = Vec::new();
+        while let Some(item) = q.pop() {
+            out.push(item);
+        }
+        assert_eq!(
+            out,
+            [
+                (9, 13),
+                (9, 20),
+                (9, 22),
+                (7, 11),
+                (7, 14),
+                (6, 2),
+                (5, 10),
+                (5, 12),
+                (5, 15),
+                (5, 21),
+                (2, 1),
+            ]
+        );
+    }
+
+    /// A push promoted an entry, but before it takes the `heap` lock, pops drain and retire that
+    /// priority and all others, so the `heap` is empty. The delayed heap update must cope with
+    /// that, and the queue keeps working.
+    #[test]
+    fn test_delayed_promotion_after_heap_was_drained() {
+        let q: Queue<i32, u32> = Queue::new();
+        for key in 1..=PLAIN_ENTRY_CAPACITY as u32 {
+            assert!(q.push(-1, key).is_none());
+        }
+        assert!(q.push(-2, 100).is_none());
+        // The promoting push, up to (but not including) its heap update.
+        let (key, replaced) = q.insert_claimable(&-1, 5);
+        assert!(replaced.is_none());
+        assert_eq!(q.push_to_map(&-1, &[key]), Some(EntryChange::Promoted));
+
+        let mut out = Vec::new();
+        while let Some(item) = q.pop() {
+            out.push(item);
+        }
+        let mut expected: Vec<_> = (1..=5).map(|key| (-1, key)).collect();
+        expected.push((-2, 100));
+        assert_eq!(out, expected);
+        assert_eq!(q.queue_count(), 0);
+        let current = q.current.load_full();
+        assert!(current.keys.is_closed());
+
+        // The delayed heap update finds nothing to do.
+        q.update_heap(&[(-1, EntryChange::Promoted)]);
+        assert!(Arc::ptr_eq(&q.current.load_full(), &current));
+        assert_eq!(q.queue_count(), 0);
+
+        assert!(q.push(-1, 6).is_none());
+        assert_eq!(q.current.load().priority, -1);
+        assert_eq!(q.pop(), Some((-1, 6)));
+        assert_eq!(q.pop(), None);
+    }
+
+    /// A push creates an entry, and before it registers the priority in the `heap`, other pushes
+    /// overflow and promote that entry. The promoting pushes find the priority not in the `heap`
+    /// yet and leave `current` alone; the creating push then registers and publishes it.
+    #[test]
+    fn test_promotion_while_registration_is_pending() {
+        let q: Queue<u32, u32> = Queue::new();
+        // The creating push, up to (but not including) its heap update.
+        let (key, _) = q.insert_claimable(&5, 1);
+        assert_eq!(q.push_to_map(&5, &[key]), Some(EntryChange::Created));
+        for key in 2..=(PLAIN_ENTRY_CAPACITY as u32 + 1) {
+            assert!(q.push(5, key).is_none());
+        }
+        assert_eq!(
+            entry_state(&q, &5),
+            Some(("concurrent", PLAIN_ENTRY_CAPACITY + 1))
+        );
+        assert_eq!(q.current.load().priority, 0, "not registered yet");
+
+        q.update_heap(&[(5, EntryChange::Created)]);
+        assert_eq!(q.current.load().priority, 5);
+        assert_eq!(q.queue_count(), 2);
+        for key in 1..=(PLAIN_ENTRY_CAPACITY as u32 + 1) {
+            assert_eq!(q.pop(), Some((5, key)));
+        }
+        assert_eq!(q.pop(), None);
+        assert_eq!(q.queue_count(), 1);
+    }
+
+    /// A `push_many` batch that makes a new priority the highest one publishes it.
+    #[test]
+    fn test_push_many_publishes_new_max() {
+        let q: Queue<u32, u32> = Queue::new();
+        q.push_many([(3, 1), (8, 2), (5, 3)], |_, _| unreachable!());
+        assert_eq!(q.current.load().priority, 8);
+        assert_eq!(entry_state(&q, &8), Some(("concurrent", 1)));
+        assert_eq!(entry_state(&q, &5), Some(("plain", 1)));
+        assert_eq!(q.pop(), Some((8, 2)));
+        assert_eq!(q.pop(), Some((5, 3)));
+        assert_eq!(q.pop(), Some((3, 1)));
         assert_eq!(q.pop(), None);
     }
 
@@ -1770,14 +2256,23 @@ mod tests {
         }
     }
 
-    /// Producers and consumers race on few, constantly changing priorities, so queues are created,
-    /// pushed lock-free, closed and retired concurrently all the time. Every item must be popped
-    /// exactly once, and all queues except the last one must be gone afterwards.
+    /// Producers and consumers race on few, constantly changing priorities, so entries are
+    /// created, promoted, pushed lock-free, closed and retired concurrently all the time. Half of
+    /// the producers push short bursts (which mostly stay `Plain`) in batches. Every item must be
+    /// popped exactly once, and at most one empty `Concurrent` entry is left afterwards.
     #[test]
     fn test_concurrent_priority_churn_pops_every_item_once() {
         const PRODUCERS: u32 = 4;
         const CONSUMERS: usize = 4;
         const ITEMS: u32 = 20_000;
+        const BATCH: u32 = 7;
+        fn priority_of(task: u32) -> u32 {
+            let (producer, i) = (task / ITEMS, task % ITEMS);
+            // Bursts of the same priority, so many pushes hit the current queue, or a `Plain`
+            // entry for the short bursts.
+            let burst = if producer < PRODUCERS / 2 { 16 } else { 3 };
+            (i / burst) % 6
+        }
         let q: Arc<Queue<u32, u32>> = Arc::new(Queue::new());
         let done = Arc::new(AtomicUsize::new(0));
         let barrier = Arc::new(Barrier::new(PRODUCERS as usize + CONSUMERS));
@@ -1788,11 +2283,19 @@ mod tests {
                 let barrier = barrier.clone();
                 std::thread::spawn(move || {
                     barrier.wait();
-                    for i in 0..ITEMS {
-                        let task = producer * ITEMS + i;
-                        // Bursts of the same priority, so most pushes hit the current queue.
-                        let priority = (i / 16) % 4;
-                        assert!(q.push(priority, task).is_none());
+                    let tasks = producer * ITEMS..(producer + 1) * ITEMS;
+                    if producer < PRODUCERS / 2 {
+                        for task in tasks {
+                            assert!(q.push(priority_of(task), task).is_none());
+                        }
+                    } else {
+                        let tasks: Vec<_> = tasks.collect();
+                        for batch in tasks.chunks(BATCH as usize) {
+                            q.push_many(
+                                batch.iter().map(|&task| (priority_of(task), task)),
+                                |_, _| unreachable!(),
+                            );
+                        }
                     }
                     done.fetch_add(1, Ordering::Release);
                 })
@@ -1810,7 +2313,7 @@ mod tests {
                         let finished = done.load(Ordering::Acquire) == PRODUCERS as usize;
                         match q.pop() {
                             Some((priority, task)) => {
-                                assert_eq!(priority, ((task % ITEMS) / 16) % 4);
+                                assert_eq!(priority, priority_of(task));
                                 popped.push(task);
                             }
                             None if finished => break,
@@ -1833,9 +2336,13 @@ mod tests {
         assert!(q.is_empty());
         assert!(q.claimable.is_empty());
         assert_eq!(q.pop(), None);
-        assert_eq!(q.queue_count(), 1);
-        assert!(!q.current.load().keys.is_closed());
+        match q.queue_count() {
+            0 => assert!(q.current.load().keys.is_closed()),
+            1 => assert!(!q.current.load().keys.is_closed()),
+            count => panic!("{count} entries left"),
+        }
     }
+
     /// Claims find items in all priority queues, and claiming leaves the order of the remaining
     /// items intact.
     #[test]
