@@ -158,7 +158,10 @@ class Container extends React.Component<{
   }
 
   componentDidUpdate() {
-    this.scrollToHash()
+    const navType = window.performance?.getEntriesByType('navigation')[0]?.type
+    if (navType !== 'back_forward') {
+      this.scrollToHash()
+    }
   }
 
   scrollToHash() {
