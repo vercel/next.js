@@ -95,10 +95,15 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
     source.onmessage = handleMessage
   }
 
+  // Reconnect when the page becomes visible or the browser comes back online
+  // (e.g. after sleep/wake) and the socket is CLOSED. A socket that is still
+  // CONNECTING must be left alone: closing it would fire its disconnect
+  // handler, which schedules a reconnect that closes the new socket, and so on
+  // (e.g. when a prerendered page is activated while the handshake is pending).
   function handleVisibilityChange() {
     if (
       document.visibilityState === 'visible' &&
-      source.readyState !== WebSocket.OPEN
+      source.readyState === WebSocket.CLOSED
     ) {
       reconnections = 0
       clearTimeout(timer)
@@ -107,7 +112,7 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
   }
 
   function handleOnlineEvent() {
-    if (source.readyState !== WebSocket.OPEN) {
+    if (source.readyState === WebSocket.CLOSED) {
       reconnections = 0
       clearTimeout(timer)
       init()

@@ -105,4 +105,45 @@ export function runBasicHmrTest(nextConfig: {
 
     await reloadPromise
   })
+
+  it('should not replace the HMR socket when the page becomes visible while it is connecting', async () => {
+    let hmrSocketCount = 0
+    const browser = await next.browser(basePath + '/hmr/about', {
+      async beforePageLoad(page) {
+        page.on('websocket', (webSocket) => {
+          if (webSocket.url().includes('/_next/hmr')) {
+            hmrSocketCount++
+          }
+        })
+        // Fire `visibilitychange` while the HMR WebSocket is still connecting,
+        // as happens when a prerendered page is activated.
+        await page.addInitScript(`(() => {
+          const OriginalWebSocket = window.WebSocket
+          let fired = false
+          window.WebSocket = class extends OriginalWebSocket {
+            constructor(...args) {
+              super(...args)
+              if (!fired && String(args[0]).includes('/_next/hmr')) {
+                fired = true
+                queueMicrotask(() => {
+                  document.dispatchEvent(new Event('visibilitychange'))
+                })
+              }
+            }
+          }
+        })()`)
+      },
+    })
+
+    await retry(async () => {
+      expect(await browser.log()).toContainEqual({
+        source: 'log',
+        message: '[HMR] connected',
+      })
+    })
+    // A faulty client would replace the socket right away, and again after the
+    // one second reconnect delay.
+    await waitFor(2000)
+    expect(hmrSocketCount).toBe(1)
+  })
 }
