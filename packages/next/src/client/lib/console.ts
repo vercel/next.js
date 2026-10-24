@@ -29,8 +29,11 @@ function formatObject(arg: unknown, depth: number) {
         if (depth < 1) {
           for (let i = 0; i < keys.length; i++) {
             const key = keys[i]
-            const desc = Object.getOwnPropertyDescriptor(arg, 'key')
+            const desc = Object.getOwnPropertyDescriptor(arg, key)
             if (desc && !desc.get && !desc.set) {
+              if (result !== '{') {
+                result += ', '
+              }
               const jsonKey = JSON.stringify(key)
               if (jsonKey !== '"' + key + '"') {
                 result += jsonKey + ': '
