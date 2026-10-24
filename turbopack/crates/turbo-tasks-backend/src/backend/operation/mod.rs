@@ -25,6 +25,7 @@ use turbo_tasks::{
 };
 
 pub use self::aggregation_update::{AggregationUpdateQueue, ComputeDirtyAndCleanUpdate};
+pub(super) use self::update_cell::update_stateful_cell;
 use crate::{
     backend::{
         EventDescription, TaskDataCategory, TurboTasksBackend,

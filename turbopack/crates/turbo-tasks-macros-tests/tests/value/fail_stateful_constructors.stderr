@@ -1,0 +1,21 @@
+error[E0599]: no method named `cell` found for struct `Stateful` in the current scope
+  --> tests/value/fail_stateful_constructors.rs:10:35
+   |
+ 7 | struct Stateful { value: u32 }
+   | --------------- method `cell` not found for this struct
+...
+10 |     let _ = Stateful { value: 0 }.cell();
+   |                                   ^^^^ method not found in `Stateful`
+   |
+   = help: items from traits can only be used if the trait is implemented and in scope
+   = note: the following trait defines an item `cell`, perhaps you need to implement it:
+           candidate #1: `turbo_tasks::vc::cell_mode::VcCellMode`
+
+error[E0599]: no method named `resolved_cell` found for struct `Stateful` in the current scope
+  --> tests/value/fail_stateful_constructors.rs:11:35
+   |
+ 7 | struct Stateful { value: u32 }
+   | --------------- method `resolved_cell` not found for this struct
+...
+11 |     let _ = Stateful { value: 0 }.resolved_cell();
+   |                                   ^^^^^^^^^^^^^ method not found in `Stateful`
