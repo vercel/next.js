@@ -51,41 +51,45 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-cookies": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
-                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at CookiesReadingComponent (app/use-cache-cookies/page.tsx:22:18)
-                     at Page (app/use-cache-cookies/page.tsx:10:7)
-                   20 |   // in userland.
-                   21 |   try {
-                 > 22 |     await cookies()
-                      |                  ^
-                   23 |   } catch {}
-                   24 |
-                   25 |   return null
-                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-cookies" in your browser to investigate the error.
-                 Error occurred prerendering page "/use-cache-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
+               "Error: Route "/use-cache-cookies": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+               Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                   at CookiesReadingComponent (app/use-cache-cookies/page.tsx:22:18)
+                   at Page (app/use-cache-cookies/page.tsx:10:7)
+                 20 |   // in userland.
+                 21 |   try {
+               > 22 |     await cookies()
+                    |                  ^
+                 23 |   } catch {}
+                 24 |
+                 25 |   return null
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-cookies" in your browser to investigate the error.
+               Error occurred prerendering page "/use-cache-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
+               Error: Route "/use-cache-cookies": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+               Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
 
-                 > Export encountered errors on 1 path:
-                 	/use-cache-cookies/page: /use-cache-cookies"
-                `)
+               > Export encountered errors on 1 path:
+               	/use-cache-cookies/page: /use-cache-cookies"
+              `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-cookies": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
-                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at a (app/use-cache-cookies/page.tsx:22:11)
-                   20 |   // in userland.
-                   21 |   try {
-                 > 22 |     await cookies()
-                      |           ^
-                   23 |   } catch {}
-                   24 |
-                   25 |   return null
-                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-cookies" in your browser to investigate the error.
-                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                 Error occurred prerendering page "/use-cache-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /use-cache-cookies/page: /use-cache-cookies, exiting the build."
-                `)
+               "Error: Route "/use-cache-cookies": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+               Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                   at a (app/use-cache-cookies/page.tsx:22:11)
+                 20 |   // in userland.
+                 21 |   try {
+               > 22 |     await cookies()
+                    |           ^
+                 23 |   } catch {}
+                 24 |
+                 25 |   return null
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/use-cache-cookies" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Error occurred prerendering page "/use-cache-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
+               Error: Route "/use-cache-cookies": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+               Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+               Export encountered an error on /use-cache-cookies/page: /use-cache-cookies, exiting the build."
+              `)
             }
           } else {
             if (isDebugPrerender) {
@@ -103,6 +107,8 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
                  25 |   return null
                To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-cookies" in your browser to investigate the error.
                Error occurred prerendering page "/use-cache-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
+               Error: Route "/use-cache-cookies": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+               Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
 
                > Export encountered errors on 1 path:
                	/use-cache-cookies/page: /use-cache-cookies"
@@ -117,6 +123,8 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
                  - Start the app in development mode by running \`next dev\`, then open "/use-cache-cookies" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/use-cache-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
+               Error: Route "/use-cache-cookies": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+               Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                Export encountered an error on /use-cache-cookies/page: /use-cache-cookies, exiting the build."
               `)
             }
@@ -164,23 +172,25 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
           if (isDebugPrerender) {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
-                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at DraftModeEnablingComponent (app/use-cache-draft-mode/page.tsx:20:26)
-                     at Page (app/use-cache-draft-mode/page.tsx:9:7)
-                   18 |   // here to ensure that this error is shown even when it's caught in userland.
-                   19 |   try {
-                 > 20 |     ;(await draftMode()).enable()
-                      |                          ^
-                   21 |   } catch {}
-                   22 |
-                   23 |   return null
-                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-draft-mode" in your browser to investigate the error.
-                 Error occurred prerendering page "/use-cache-draft-mode". Read more: https://nextjs.org/docs/messages/prerender-error
+               "Error: Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
+               Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                   at DraftModeEnablingComponent (app/use-cache-draft-mode/page.tsx:20:26)
+                   at Page (app/use-cache-draft-mode/page.tsx:9:7)
+                 18 |   // here to ensure that this error is shown even when it's caught in userland.
+                 19 |   try {
+               > 20 |     ;(await draftMode()).enable()
+                    |                          ^
+                 21 |   } catch {}
+                 22 |
+                 23 |   return null
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-draft-mode" in your browser to investigate the error.
+               Error occurred prerendering page "/use-cache-draft-mode". Read more: https://nextjs.org/docs/messages/prerender-error
+               Error: Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
+               Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
 
-                 > Export encountered errors on 1 path:
-                 	/use-cache-draft-mode/page: /use-cache-draft-mode"
-                `)
+               > Export encountered errors on 1 path:
+               	/use-cache-draft-mode/page: /use-cache-draft-mode"
+              `)
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
@@ -196,30 +206,34 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
                  23 |   return null
                To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-draft-mode" in your browser to investigate the error.
                Error occurred prerendering page "/use-cache-draft-mode". Read more: https://nextjs.org/docs/messages/prerender-error
+               Error: Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
+               Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
 
                > Export encountered errors on 1 path:
-               \t/use-cache-draft-mode/page: /use-cache-draft-mode"
+               	/use-cache-draft-mode/page: /use-cache-draft-mode"
               `)
             }
           } else {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
-                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at a (app/use-cache-draft-mode/page.tsx:20:26)
-                   18 |   // here to ensure that this error is shown even when it's caught in userland.
-                   19 |   try {
-                 > 20 |     ;(await draftMode()).enable()
-                      |                          ^
-                   21 |   } catch {}
-                   22 |
-                   23 |   return null
-                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-draft-mode" in your browser to investigate the error.
-                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                 Error occurred prerendering page "/use-cache-draft-mode". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /use-cache-draft-mode/page: /use-cache-draft-mode, exiting the build."
-                `)
+               "Error: Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
+               Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                   at a (app/use-cache-draft-mode/page.tsx:20:26)
+                 18 |   // here to ensure that this error is shown even when it's caught in userland.
+                 19 |   try {
+               > 20 |     ;(await draftMode()).enable()
+                    |                          ^
+                 21 |   } catch {}
+                 22 |
+                 23 |   return null
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/use-cache-draft-mode" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Error occurred prerendering page "/use-cache-draft-mode". Read more: https://nextjs.org/docs/messages/prerender-error
+               Error: Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
+               Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+               Export encountered an error on /use-cache-draft-mode/page: /use-cache-draft-mode, exiting the build."
+              `)
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
@@ -229,6 +243,8 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
                  - Start the app in development mode by running \`next dev\`, then open "/use-cache-draft-mode" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/use-cache-draft-mode". Read more: https://nextjs.org/docs/messages/prerender-error
+               Error: Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
+               Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                Export encountered an error on /use-cache-draft-mode/page: /use-cache-draft-mode, exiting the build."
               `)
             }
@@ -276,41 +292,45 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-headers": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
-                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at HeadersReadingComponent (app/use-cache-headers/page.tsx:21:18)
-                     at Page (app/use-cache-headers/page.tsx:10:7)
-                   19 |   // to ensure that this error is shown even when it's caught in userland.
-                   20 |   try {
-                 > 21 |     await headers()
-                      |                  ^
-                   22 |   } catch {}
-                   23 |
-                   24 |   return null
-                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-headers" in your browser to investigate the error.
-                 Error occurred prerendering page "/use-cache-headers". Read more: https://nextjs.org/docs/messages/prerender-error
+               "Error: Route "/use-cache-headers": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+               Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                   at HeadersReadingComponent (app/use-cache-headers/page.tsx:21:18)
+                   at Page (app/use-cache-headers/page.tsx:10:7)
+                 19 |   // to ensure that this error is shown even when it's caught in userland.
+                 20 |   try {
+               > 21 |     await headers()
+                    |                  ^
+                 22 |   } catch {}
+                 23 |
+                 24 |   return null
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-headers" in your browser to investigate the error.
+               Error occurred prerendering page "/use-cache-headers". Read more: https://nextjs.org/docs/messages/prerender-error
+               Error: Route "/use-cache-headers": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+               Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
 
-                 > Export encountered errors on 1 path:
-                 	/use-cache-headers/page: /use-cache-headers"
-                `)
+               > Export encountered errors on 1 path:
+               	/use-cache-headers/page: /use-cache-headers"
+              `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-headers": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
-                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at a (app/use-cache-headers/page.tsx:21:11)
-                   19 |   // to ensure that this error is shown even when it's caught in userland.
-                   20 |   try {
-                 > 21 |     await headers()
-                      |           ^
-                   22 |   } catch {}
-                   23 |
-                   24 |   return null
-                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-headers" in your browser to investigate the error.
-                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                 Error occurred prerendering page "/use-cache-headers". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /use-cache-headers/page: /use-cache-headers, exiting the build."
-                `)
+               "Error: Route "/use-cache-headers": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+               Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                   at a (app/use-cache-headers/page.tsx:21:11)
+                 19 |   // to ensure that this error is shown even when it's caught in userland.
+                 20 |   try {
+               > 21 |     await headers()
+                    |           ^
+                 22 |   } catch {}
+                 23 |
+                 24 |   return null
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/use-cache-headers" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Error occurred prerendering page "/use-cache-headers". Read more: https://nextjs.org/docs/messages/prerender-error
+               Error: Route "/use-cache-headers": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+               Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+               Export encountered an error on /use-cache-headers/page: /use-cache-headers, exiting the build."
+              `)
             }
           } else {
             if (isDebugPrerender) {
@@ -328,6 +348,8 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
                  24 |   return null
                To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-headers" in your browser to investigate the error.
                Error occurred prerendering page "/use-cache-headers". Read more: https://nextjs.org/docs/messages/prerender-error
+               Error: Route "/use-cache-headers": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+               Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
 
                > Export encountered errors on 1 path:
                	/use-cache-headers/page: /use-cache-headers"
@@ -342,6 +364,8 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
                  - Start the app in development mode by running \`next dev\`, then open "/use-cache-headers" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/use-cache-headers". Read more: https://nextjs.org/docs/messages/prerender-error
+               Error: Route "/use-cache-headers": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+               Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                Export encountered an error on /use-cache-headers/page: /use-cache-headers, exiting the build."
               `)
             }
@@ -387,41 +411,45 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-connection": \`connection()\` can't be called inside \`"use cache"\` because cached functions may run during prerendering, without an incoming request. Call it outside the cached function.
-                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at ConnectionCallingComponent (app/use-cache-connection/page.tsx:21:21)
-                     at Page (app/use-cache-connection/page.tsx:10:7)
-                   19 |   // here to ensure that this error is shown even when it's caught in userland.
-                   20 |   try {
-                 > 21 |     await connection()
-                      |                     ^
-                   22 |   } catch {}
-                   23 |
-                   24 |   return null
-                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-connection" in your browser to investigate the error.
-                 Error occurred prerendering page "/use-cache-connection". Read more: https://nextjs.org/docs/messages/prerender-error
+               "Error: Route "/use-cache-connection": \`connection()\` can't be called inside \`"use cache"\` because cached functions may run during prerendering, without an incoming request. Call it outside the cached function.
+               Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                   at ConnectionCallingComponent (app/use-cache-connection/page.tsx:21:21)
+                   at Page (app/use-cache-connection/page.tsx:10:7)
+                 19 |   // here to ensure that this error is shown even when it's caught in userland.
+                 20 |   try {
+               > 21 |     await connection()
+                    |                     ^
+                 22 |   } catch {}
+                 23 |
+                 24 |   return null
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-connection" in your browser to investigate the error.
+               Error occurred prerendering page "/use-cache-connection". Read more: https://nextjs.org/docs/messages/prerender-error
+               Error: Route "/use-cache-connection": \`connection()\` can't be called inside \`"use cache"\` because cached functions may run during prerendering, without an incoming request. Call it outside the cached function.
+               Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
 
-                 > Export encountered errors on 1 path:
-                 	/use-cache-connection/page: /use-cache-connection"
-                `)
+               > Export encountered errors on 1 path:
+               	/use-cache-connection/page: /use-cache-connection"
+              `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-connection": \`connection()\` can't be called inside \`"use cache"\` because cached functions may run during prerendering, without an incoming request. Call it outside the cached function.
-                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at a (app/use-cache-connection/page.tsx:21:11)
-                   19 |   // here to ensure that this error is shown even when it's caught in userland.
-                   20 |   try {
-                 > 21 |     await connection()
-                      |           ^
-                   22 |   } catch {}
-                   23 |
-                   24 |   return null
-                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-connection" in your browser to investigate the error.
-                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                 Error occurred prerendering page "/use-cache-connection". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /use-cache-connection/page: /use-cache-connection, exiting the build."
-                `)
+               "Error: Route "/use-cache-connection": \`connection()\` can't be called inside \`"use cache"\` because cached functions may run during prerendering, without an incoming request. Call it outside the cached function.
+               Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                   at a (app/use-cache-connection/page.tsx:21:11)
+                 19 |   // here to ensure that this error is shown even when it's caught in userland.
+                 20 |   try {
+               > 21 |     await connection()
+                    |           ^
+                 22 |   } catch {}
+                 23 |
+                 24 |   return null
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/use-cache-connection" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Error occurred prerendering page "/use-cache-connection". Read more: https://nextjs.org/docs/messages/prerender-error
+               Error: Route "/use-cache-connection": \`connection()\` can't be called inside \`"use cache"\` because cached functions may run during prerendering, without an incoming request. Call it outside the cached function.
+               Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+               Export encountered an error on /use-cache-connection/page: /use-cache-connection, exiting the build."
+              `)
             }
           } else {
             if (isDebugPrerender) {
@@ -439,6 +467,8 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
                  24 |   return null
                To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-connection" in your browser to investigate the error.
                Error occurred prerendering page "/use-cache-connection". Read more: https://nextjs.org/docs/messages/prerender-error
+               Error: Route "/use-cache-connection": \`connection()\` can't be called inside \`"use cache"\` because cached functions may run during prerendering, without an incoming request. Call it outside the cached function.
+               Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
 
                > Export encountered errors on 1 path:
                	/use-cache-connection/page: /use-cache-connection"
@@ -453,6 +483,8 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
                  - Start the app in development mode by running \`next dev\`, then open "/use-cache-connection" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/use-cache-connection". Read more: https://nextjs.org/docs/messages/prerender-error
+               Error: Route "/use-cache-connection": \`connection()\` can't be called inside \`"use cache"\` because cached functions may run during prerendering, without an incoming request. Call it outside the cached function.
+               Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                Export encountered an error on /use-cache-connection/page: /use-cache-connection, exiting the build."
               `)
             }
@@ -517,6 +549,16 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
                    6 |   cacheLife({ expire: 299 }) // 1 second below the threshold of 5 minutes
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/fast" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-low-expire/fast". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-low-expire/fast": Next.js encountered uncached or runtime data during prerendering.
+
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+                 Ways to fix this:
+                   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [block] Set \`export const instant = false\` to allow a blocking route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
 
                  > Export encountered errors on 1 path:
                  	/use-cache-low-expire/fast/page: /use-cache-low-expire/fast"
@@ -540,6 +582,16 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/fast" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                  Error occurred prerendering page "/use-cache-low-expire/fast". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-low-expire/fast": Next.js encountered uncached or runtime data during prerendering.
+
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+                 Ways to fix this:
+                   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [block] Set \`export const instant = false\` to allow a blocking route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                  Export encountered an error on /use-cache-low-expire/fast/page: /use-cache-low-expire/fast, exiting the build."
                 `)
               }
@@ -634,6 +686,16 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                    6 |   cacheLife({ expire: 299 }) // 1 second below the threshold of 5 minutes
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/slow" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-low-expire/slow". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-low-expire/slow": Next.js encountered uncached or runtime data during prerendering.
+
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+                 Ways to fix this:
+                   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [block] Set \`export const instant = false\` to allow a blocking route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
 
                  > Export encountered errors on 1 path:
                  	/use-cache-low-expire/slow/page: /use-cache-low-expire/slow"
@@ -657,6 +719,16 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/slow" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                  Error occurred prerendering page "/use-cache-low-expire/slow". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-low-expire/slow": Next.js encountered uncached or runtime data during prerendering.
+
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+                 Ways to fix this:
+                   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [block] Set \`export const instant = false\` to allow a blocking route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                  Export encountered an error on /use-cache-low-expire/slow/page: /use-cache-low-expire/slow, exiting the build."
                 `)
               }
@@ -746,63 +818,67 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             if (isTurbopack) {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/nested": A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a longer \`expire\` or keep it dynamic with a short \`expire\`.
-                   Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
-                       at async Page (app/use-cache-low-expire/nested/page.tsx:20:14)
-                     18 |   let result: number | undefined
-                     19 |   try {
-                   > 20 |     result = await outerCache()
-                        |              ^
-                     21 |   } catch {}
-                     22 |
-                     23 |   return ( {
-                     [cause]: Nested dynamic "use cache": This "use cache" has a dynamic cache life that was propagated to its parent.
-                         at innerCache (app/use-cache-low-expire/nested/page.tsx:3:1)
-                         at outerCache (app/use-cache-low-expire/nested/page.tsx:14:10)
-                         at Page (<anonymous>)
-                       1 | import { cacheLife } from 'next/cache'
-                       2 |
-                     > 3 | async function innerCache() {
-                         | ^
-                       4 |   'use cache'
-                       5 |   cacheLife({ expire: 60 }) // 1 minute, under the 5 minute threshold
-                       6 |   return Math.random()
-                   }
-                   To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/nested" in your browser to investigate the error.
-                   Error occurred prerendering page "/use-cache-low-expire/nested". Read more: https://nextjs.org/docs/messages/prerender-error
+                 "Error: Route "/use-cache-low-expire/nested": A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a longer \`expire\` or keep it dynamic with a short \`expire\`.
+                 Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                     at async Page (app/use-cache-low-expire/nested/page.tsx:20:14)
+                   18 |   let result: number | undefined
+                   19 |   try {
+                 > 20 |     result = await outerCache()
+                      |              ^
+                   21 |   } catch {}
+                   22 |
+                   23 |   return ( {
+                   [cause]: Nested dynamic "use cache": This "use cache" has a dynamic cache life that was propagated to its parent.
+                       at innerCache (app/use-cache-low-expire/nested/page.tsx:3:1)
+                       at outerCache (app/use-cache-low-expire/nested/page.tsx:14:10)
+                       at Page (<anonymous>)
+                     1 | import { cacheLife } from 'next/cache'
+                     2 |
+                   > 3 | async function innerCache() {
+                       | ^
+                     4 |   'use cache'
+                     5 |   cacheLife({ expire: 60 }) // 1 minute, under the 5 minute threshold
+                     6 |   return Math.random()
+                 }
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/nested" in your browser to investigate the error.
+                 Error occurred prerendering page "/use-cache-low-expire/nested". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-low-expire/nested": A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a longer \`expire\` or keep it dynamic with a short \`expire\`.
+                 Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
 
-                   > Export encountered errors on 1 path:
-                   	/use-cache-low-expire/nested/page: /use-cache-low-expire/nested"
-                  `)
+                 > Export encountered errors on 1 path:
+                 	/use-cache-low-expire/nested/page: /use-cache-low-expire/nested"
+                `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/nested": A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a longer \`expire\` or keep it dynamic with a short \`expire\`.
-                   Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
-                       at async (app/use-cache-low-expire/nested/page.tsx:20:14)
-                     18 |   let result: number | undefined
-                     19 |   try {
-                   > 20 |     result = await outerCache()
-                        |              ^
-                     21 |   } catch {}
-                     22 |
-                     23 |   return ( {
-                     [cause]: Nested dynamic "use cache": This "use cache" has a dynamic cache life that was propagated to its parent.
-                         at <unknown> (app/use-cache-low-expire/nested/page.tsx:3:1)
-                         at a (app/use-cache-low-expire/nested/page.tsx:3:16)
-                       1 | import { cacheLife } from 'next/cache'
-                       2 |
-                     > 3 | async function innerCache() {
-                         | ^
-                       4 |   'use cache'
-                       5 |   cacheLife({ expire: 60 }) // 1 minute, under the 5 minute threshold
-                       6 |   return Math.random()
-                   }
-                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/nested" in your browser to investigate the error.
-                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                   Error occurred prerendering page "/use-cache-low-expire/nested". Read more: https://nextjs.org/docs/messages/prerender-error
-                   Export encountered an error on /use-cache-low-expire/nested/page: /use-cache-low-expire/nested, exiting the build."
-                  `)
+                 "Error: Route "/use-cache-low-expire/nested": A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a longer \`expire\` or keep it dynamic with a short \`expire\`.
+                 Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                     at async (app/use-cache-low-expire/nested/page.tsx:20:14)
+                   18 |   let result: number | undefined
+                   19 |   try {
+                 > 20 |     result = await outerCache()
+                      |              ^
+                   21 |   } catch {}
+                   22 |
+                   23 |   return ( {
+                   [cause]: Nested dynamic "use cache": This "use cache" has a dynamic cache life that was propagated to its parent.
+                       at <unknown> (app/use-cache-low-expire/nested/page.tsx:3:1)
+                       at a (app/use-cache-low-expire/nested/page.tsx:3:16)
+                     1 | import { cacheLife } from 'next/cache'
+                     2 |
+                   > 3 | async function innerCache() {
+                       | ^
+                     4 |   'use cache'
+                     5 |   cacheLife({ expire: 60 }) // 1 minute, under the 5 minute threshold
+                     6 |   return Math.random()
+                 }
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/nested" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/use-cache-low-expire/nested". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-low-expire/nested": A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a longer \`expire\` or keep it dynamic with a short \`expire\`.
+                 Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                 Export encountered an error on /use-cache-low-expire/nested/page: /use-cache-low-expire/nested, exiting the build."
+                `)
               }
             } else {
               if (isDebugPrerender) {
@@ -831,6 +907,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/nested" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-low-expire/nested". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-low-expire/nested": A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a longer \`expire\` or keep it dynamic with a short \`expire\`.
+                 Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
 
                  > Export encountered errors on 1 path:
                  	/use-cache-low-expire/nested/page: /use-cache-low-expire/nested"
@@ -849,6 +927,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/nested" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                  Error occurred prerendering page "/use-cache-low-expire/nested". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-low-expire/nested": A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a longer \`expire\` or keep it dynamic with a short \`expire\`.
+                 Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                  Export encountered an error on /use-cache-low-expire/nested/page: /use-cache-low-expire/nested, exiting the build."
                 `)
               }
@@ -914,6 +994,16 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                    6 |   cacheLife({ revalidate: 0 })
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/fast" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-revalidate-0/fast". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-revalidate-0/fast": Next.js encountered uncached or runtime data during prerendering.
+
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+                 Ways to fix this:
+                   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [block] Set \`export const instant = false\` to allow a blocking route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
 
                  > Export encountered errors on 1 path:
                  	/use-cache-revalidate-0/fast/page: /use-cache-revalidate-0/fast"
@@ -937,6 +1027,16 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/fast" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                  Error occurred prerendering page "/use-cache-revalidate-0/fast". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-revalidate-0/fast": Next.js encountered uncached or runtime data during prerendering.
+
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+                 Ways to fix this:
+                   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [block] Set \`export const instant = false\` to allow a blocking route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                  Export encountered an error on /use-cache-revalidate-0/fast/page: /use-cache-revalidate-0/fast, exiting the build."
                 `)
               }
@@ -1031,6 +1131,16 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                    6 |   cacheLife({ revalidate: 0 })
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/slow" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-revalidate-0/slow". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-revalidate-0/slow": Next.js encountered uncached or runtime data during prerendering.
+
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+                 Ways to fix this:
+                   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [block] Set \`export const instant = false\` to allow a blocking route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
 
                  > Export encountered errors on 1 path:
                  	/use-cache-revalidate-0/slow/page: /use-cache-revalidate-0/slow"
@@ -1054,6 +1164,16 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/slow" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                  Error occurred prerendering page "/use-cache-revalidate-0/slow". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-revalidate-0/slow": Next.js encountered uncached or runtime data during prerendering.
+
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+                 Ways to fix this:
+                   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [block] Set \`export const instant = false\` to allow a blocking route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                  Export encountered an error on /use-cache-revalidate-0/slow/page: /use-cache-revalidate-0/slow, exiting the build."
                 `)
               }
@@ -1143,63 +1263,67 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             if (isTurbopack) {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-revalidate-0/nested": A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a non-zero \`revalidate\` or keep it dynamic with \`revalidate: 0\`.
-                   Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
-                       at async Page (app/use-cache-revalidate-0/nested/page.tsx:20:14)
-                     18 |   let result: number | undefined
-                     19 |   try {
-                   > 20 |     result = await outerCache()
-                        |              ^
-                     21 |   } catch {}
-                     22 |
-                     23 |   return ( {
-                     [cause]: Nested dynamic "use cache": This "use cache" has a dynamic cache life that was propagated to its parent.
-                         at innerCache (app/use-cache-revalidate-0/nested/page.tsx:3:1)
-                         at outerCache (app/use-cache-revalidate-0/nested/page.tsx:14:10)
-                         at Page (<anonymous>)
-                       1 | import { cacheLife } from 'next/cache'
-                       2 |
-                     > 3 | async function innerCache() {
-                         | ^
-                       4 |   'use cache'
-                       5 |   cacheLife({ revalidate: 0 })
-                       6 |   return Math.random()
-                   }
-                   To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/nested" in your browser to investigate the error.
-                   Error occurred prerendering page "/use-cache-revalidate-0/nested". Read more: https://nextjs.org/docs/messages/prerender-error
+                 "Error: Route "/use-cache-revalidate-0/nested": A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a non-zero \`revalidate\` or keep it dynamic with \`revalidate: 0\`.
+                 Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                     at async Page (app/use-cache-revalidate-0/nested/page.tsx:20:14)
+                   18 |   let result: number | undefined
+                   19 |   try {
+                 > 20 |     result = await outerCache()
+                      |              ^
+                   21 |   } catch {}
+                   22 |
+                   23 |   return ( {
+                   [cause]: Nested dynamic "use cache": This "use cache" has a dynamic cache life that was propagated to its parent.
+                       at innerCache (app/use-cache-revalidate-0/nested/page.tsx:3:1)
+                       at outerCache (app/use-cache-revalidate-0/nested/page.tsx:14:10)
+                       at Page (<anonymous>)
+                     1 | import { cacheLife } from 'next/cache'
+                     2 |
+                   > 3 | async function innerCache() {
+                       | ^
+                     4 |   'use cache'
+                     5 |   cacheLife({ revalidate: 0 })
+                     6 |   return Math.random()
+                 }
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/nested" in your browser to investigate the error.
+                 Error occurred prerendering page "/use-cache-revalidate-0/nested". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-revalidate-0/nested": A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a non-zero \`revalidate\` or keep it dynamic with \`revalidate: 0\`.
+                 Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
 
-                   > Export encountered errors on 1 path:
-                   	/use-cache-revalidate-0/nested/page: /use-cache-revalidate-0/nested"
-                  `)
+                 > Export encountered errors on 1 path:
+                 	/use-cache-revalidate-0/nested/page: /use-cache-revalidate-0/nested"
+                `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-revalidate-0/nested": A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a non-zero \`revalidate\` or keep it dynamic with \`revalidate: 0\`.
-                   Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
-                       at async (app/use-cache-revalidate-0/nested/page.tsx:20:14)
-                     18 |   let result: number | undefined
-                     19 |   try {
-                   > 20 |     result = await outerCache()
-                        |              ^
-                     21 |   } catch {}
-                     22 |
-                     23 |   return ( {
-                     [cause]: Nested dynamic "use cache": This "use cache" has a dynamic cache life that was propagated to its parent.
-                         at <unknown> (app/use-cache-revalidate-0/nested/page.tsx:3:1)
-                         at a (app/use-cache-revalidate-0/nested/page.tsx:3:16)
-                       1 | import { cacheLife } from 'next/cache'
-                       2 |
-                     > 3 | async function innerCache() {
-                         | ^
-                       4 |   'use cache'
-                       5 |   cacheLife({ revalidate: 0 })
-                       6 |   return Math.random()
-                   }
-                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/nested" in your browser to investigate the error.
-                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                   Error occurred prerendering page "/use-cache-revalidate-0/nested". Read more: https://nextjs.org/docs/messages/prerender-error
-                   Export encountered an error on /use-cache-revalidate-0/nested/page: /use-cache-revalidate-0/nested, exiting the build."
-                  `)
+                 "Error: Route "/use-cache-revalidate-0/nested": A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a non-zero \`revalidate\` or keep it dynamic with \`revalidate: 0\`.
+                 Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                     at async (app/use-cache-revalidate-0/nested/page.tsx:20:14)
+                   18 |   let result: number | undefined
+                   19 |   try {
+                 > 20 |     result = await outerCache()
+                      |              ^
+                   21 |   } catch {}
+                   22 |
+                   23 |   return ( {
+                   [cause]: Nested dynamic "use cache": This "use cache" has a dynamic cache life that was propagated to its parent.
+                       at <unknown> (app/use-cache-revalidate-0/nested/page.tsx:3:1)
+                       at a (app/use-cache-revalidate-0/nested/page.tsx:3:16)
+                     1 | import { cacheLife } from 'next/cache'
+                     2 |
+                   > 3 | async function innerCache() {
+                       | ^
+                     4 |   'use cache'
+                     5 |   cacheLife({ revalidate: 0 })
+                     6 |   return Math.random()
+                 }
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/nested" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/use-cache-revalidate-0/nested". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-revalidate-0/nested": A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a non-zero \`revalidate\` or keep it dynamic with \`revalidate: 0\`.
+                 Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                 Export encountered an error on /use-cache-revalidate-0/nested/page: /use-cache-revalidate-0/nested, exiting the build."
+                `)
               }
             } else {
               if (isDebugPrerender) {
@@ -1228,6 +1352,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/nested" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-revalidate-0/nested". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-revalidate-0/nested": A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a non-zero \`revalidate\` or keep it dynamic with \`revalidate: 0\`.
+                 Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
 
                  > Export encountered errors on 1 path:
                  	/use-cache-revalidate-0/nested/page: /use-cache-revalidate-0/nested"
@@ -1246,6 +1372,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/nested" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                  Error occurred prerendering page "/use-cache-revalidate-0/nested". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-revalidate-0/nested": A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a non-zero \`revalidate\` or keep it dynamic with \`revalidate: 0\`.
+                 Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                  Export encountered an error on /use-cache-revalidate-0/nested/page: /use-cache-revalidate-0/nested, exiting the build."
                 `)
               }
@@ -1349,6 +1477,16 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                  4 |   params: Promise<{ slug: string }>
                To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-params/[slug]" in your browser to investigate the error.
                Error occurred prerendering page "/use-cache-params/[slug]". Read more: https://nextjs.org/docs/messages/prerender-error
+               Error: Route "/use-cache-params/[slug]": Next.js encountered uncached or runtime data during prerendering.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+               Ways to fix this:
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
 
                > Export encountered errors on 1 path:
                	/use-cache-params/[slug]/page: /use-cache-params/[slug]"
@@ -1372,6 +1510,16 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                  - Start the app in development mode by running \`next dev\`, then open "/use-cache-params/[slug]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/use-cache-params/[slug]". Read more: https://nextjs.org/docs/messages/prerender-error
+               Error: Route "/use-cache-params/[slug]": Next.js encountered uncached or runtime data during prerendering.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+               Ways to fix this:
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                Export encountered an error on /use-cache-params/[slug]/page: /use-cache-params/[slug], exiting the build."
               `)
             }
@@ -1571,33 +1719,37 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             if (isTurbopack) {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-cookies-third-party": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
-                   Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
-                       at Page (app/use-cache-cookies-third-party/page.tsx:10:7)
-                      8 |         which triggers an error.
-                      9 |       </p>
-                   > 10 |       <CachedCookiesReader />
-                        |       ^
-                     11 |     </>
-                     12 |   )
-                     13 | }
-                   To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-cookies-third-party" in your browser to investigate the error.
-                   Error occurred prerendering page "/use-cache-cookies-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
+                 "Error: Route "/use-cache-cookies-third-party": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                     at Page (app/use-cache-cookies-third-party/page.tsx:10:7)
+                    8 |         which triggers an error.
+                    9 |       </p>
+                 > 10 |       <CachedCookiesReader />
+                      |       ^
+                   11 |     </>
+                   12 |   )
+                   13 | }
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-cookies-third-party" in your browser to investigate the error.
+                 Error occurred prerendering page "/use-cache-cookies-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-cookies-third-party": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
 
-                   > Export encountered errors on 1 path:
-                   	/use-cache-cookies-third-party/page: /use-cache-cookies-third-party"
-                  `)
+                 > Export encountered errors on 1 path:
+                 	/use-cache-cookies-third-party/page: /use-cache-cookies-third-party"
+                `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-cookies-third-party": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
-                   Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
-                       at ignore-listed frames
-                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-cookies-third-party" in your browser to investigate the error.
-                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                   Error occurred prerendering page "/use-cache-cookies-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
-                   Export encountered an error on /use-cache-cookies-third-party/page: /use-cache-cookies-third-party, exiting the build."
-                  `)
+                 "Error: Route "/use-cache-cookies-third-party": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                     at ignore-listed frames
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-cookies-third-party" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/use-cache-cookies-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-cookies-third-party": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 Export encountered an error on /use-cache-cookies-third-party/page: /use-cache-cookies-third-party, exiting the build."
+                `)
               }
             } else {
               if (isDebugPrerender) {
@@ -1614,6 +1766,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                    13 | }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-cookies-third-party" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-cookies-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-cookies-third-party": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
 
                  > Export encountered errors on 1 path:
                  	/use-cache-cookies-third-party/page: /use-cache-cookies-third-party"
@@ -1628,6 +1782,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-cookies-third-party" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                  Error occurred prerendering page "/use-cache-cookies-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-cookies-third-party": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                  Export encountered an error on /use-cache-cookies-third-party/page: /use-cache-cookies-third-party, exiting the build."
                 `)
               }
@@ -1674,22 +1830,24 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             if (isDebugPrerender) {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
-                   Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
-                       at Page (app/use-cache-draft-mode-third-party/page.tsx:10:7)
-                      8 |         which triggers an error.
-                      9 |       </p>
-                   > 10 |       <CachedDraftModeEnabler />
-                        |       ^
-                     11 |     </>
-                     12 |   )
-                     13 | }
-                   To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-draft-mode-third-party" in your browser to investigate the error.
-                   Error occurred prerendering page "/use-cache-draft-mode-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
+                 "Error: Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                     at Page (app/use-cache-draft-mode-third-party/page.tsx:10:7)
+                    8 |         which triggers an error.
+                    9 |       </p>
+                 > 10 |       <CachedDraftModeEnabler />
+                      |       ^
+                   11 |     </>
+                   12 |   )
+                   13 | }
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-draft-mode-third-party" in your browser to investigate the error.
+                 Error occurred prerendering page "/use-cache-draft-mode-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
 
-                   > Export encountered errors on 1 path:
-                   	/use-cache-draft-mode-third-party/page: /use-cache-draft-mode-third-party"
-                  `)
+                 > Export encountered errors on 1 path:
+                 	/use-cache-draft-mode-third-party/page: /use-cache-draft-mode-third-party"
+                `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
@@ -1704,23 +1862,27 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                    13 | }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-draft-mode-third-party" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-draft-mode-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
 
                  > Export encountered errors on 1 path:
-                 \t/use-cache-draft-mode-third-party/page: /use-cache-draft-mode-third-party"
+                 	/use-cache-draft-mode-third-party/page: /use-cache-draft-mode-third-party"
                 `)
               }
             } else {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
-                   Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
-                       at ignore-listed frames
-                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-draft-mode-third-party" in your browser to investigate the error.
-                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                   Error occurred prerendering page "/use-cache-draft-mode-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
-                   Export encountered an error on /use-cache-draft-mode-third-party/page: /use-cache-draft-mode-third-party, exiting the build."
-                  `)
+                 "Error: Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                     at ignore-listed frames
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-draft-mode-third-party" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/use-cache-draft-mode-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 Export encountered an error on /use-cache-draft-mode-third-party/page: /use-cache-draft-mode-third-party, exiting the build."
+                `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
@@ -1730,6 +1892,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-draft-mode-third-party" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                  Error occurred prerendering page "/use-cache-draft-mode-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                  Export encountered an error on /use-cache-draft-mode-third-party/page: /use-cache-draft-mode-third-party, exiting the build."
                 `)
               }
@@ -1774,33 +1938,37 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             if (isTurbopack) {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-headers-third-party": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
-                   Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
-                       at Page (app/use-cache-headers-third-party/page.tsx:10:7)
-                      8 |         which triggers an error.
-                      9 |       </p>
-                   > 10 |       <CachedHeadersReader />
-                        |       ^
-                     11 |     </>
-                     12 |   )
-                     13 | }
-                   To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-headers-third-party" in your browser to investigate the error.
-                   Error occurred prerendering page "/use-cache-headers-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
+                 "Error: Route "/use-cache-headers-third-party": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                     at Page (app/use-cache-headers-third-party/page.tsx:10:7)
+                    8 |         which triggers an error.
+                    9 |       </p>
+                 > 10 |       <CachedHeadersReader />
+                      |       ^
+                   11 |     </>
+                   12 |   )
+                   13 | }
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-headers-third-party" in your browser to investigate the error.
+                 Error occurred prerendering page "/use-cache-headers-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-headers-third-party": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
 
-                   > Export encountered errors on 1 path:
-                   	/use-cache-headers-third-party/page: /use-cache-headers-third-party"
-                  `)
+                 > Export encountered errors on 1 path:
+                 	/use-cache-headers-third-party/page: /use-cache-headers-third-party"
+                `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-headers-third-party": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
-                   Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
-                       at ignore-listed frames
-                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-headers-third-party" in your browser to investigate the error.
-                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                   Error occurred prerendering page "/use-cache-headers-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
-                   Export encountered an error on /use-cache-headers-third-party/page: /use-cache-headers-third-party, exiting the build."
-                  `)
+                 "Error: Route "/use-cache-headers-third-party": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                     at ignore-listed frames
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-headers-third-party" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/use-cache-headers-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-headers-third-party": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 Export encountered an error on /use-cache-headers-third-party/page: /use-cache-headers-third-party, exiting the build."
+                `)
               }
             } else {
               if (isDebugPrerender) {
@@ -1817,6 +1985,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                    13 | }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-headers-third-party" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-headers-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-headers-third-party": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
 
                  > Export encountered errors on 1 path:
                  	/use-cache-headers-third-party/page: /use-cache-headers-third-party"
@@ -1831,6 +2001,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-headers-third-party" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                  Error occurred prerendering page "/use-cache-headers-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-headers-third-party": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                  Export encountered an error on /use-cache-headers-third-party/page: /use-cache-headers-third-party, exiting the build."
                 `)
               }
@@ -1877,33 +2049,37 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             if (isTurbopack) {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-connection-third-party": \`connection()\` can't be called inside \`"use cache"\` because cached functions may run during prerendering, without an incoming request. Call it outside the cached function.
-                   Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
-                       at Page (app/use-cache-connection-third-party/page.tsx:10:7)
-                      8 |         which triggers an error.
-                      9 |       </p>
-                   > 10 |       <CachedConnectionCaller />
-                        |       ^
-                     11 |     </>
-                     12 |   )
-                     13 | }
-                   To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-connection-third-party" in your browser to investigate the error.
-                   Error occurred prerendering page "/use-cache-connection-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
+                 "Error: Route "/use-cache-connection-third-party": \`connection()\` can't be called inside \`"use cache"\` because cached functions may run during prerendering, without an incoming request. Call it outside the cached function.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                     at Page (app/use-cache-connection-third-party/page.tsx:10:7)
+                    8 |         which triggers an error.
+                    9 |       </p>
+                 > 10 |       <CachedConnectionCaller />
+                      |       ^
+                   11 |     </>
+                   12 |   )
+                   13 | }
+                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-connection-third-party" in your browser to investigate the error.
+                 Error occurred prerendering page "/use-cache-connection-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-connection-third-party": \`connection()\` can't be called inside \`"use cache"\` because cached functions may run during prerendering, without an incoming request. Call it outside the cached function.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
 
-                   > Export encountered errors on 1 path:
-                   	/use-cache-connection-third-party/page: /use-cache-connection-third-party"
-                  `)
+                 > Export encountered errors on 1 path:
+                 	/use-cache-connection-third-party/page: /use-cache-connection-third-party"
+                `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-connection-third-party": \`connection()\` can't be called inside \`"use cache"\` because cached functions may run during prerendering, without an incoming request. Call it outside the cached function.
-                   Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
-                       at ignore-listed frames
-                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-connection-third-party" in your browser to investigate the error.
-                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                   Error occurred prerendering page "/use-cache-connection-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
-                   Export encountered an error on /use-cache-connection-third-party/page: /use-cache-connection-third-party, exiting the build."
-                  `)
+                 "Error: Route "/use-cache-connection-third-party": \`connection()\` can't be called inside \`"use cache"\` because cached functions may run during prerendering, without an incoming request. Call it outside the cached function.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                     at ignore-listed frames
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-connection-third-party" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/use-cache-connection-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-connection-third-party": \`connection()\` can't be called inside \`"use cache"\` because cached functions may run during prerendering, without an incoming request. Call it outside the cached function.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 Export encountered an error on /use-cache-connection-third-party/page: /use-cache-connection-third-party, exiting the build."
+                `)
               }
             } else {
               if (isDebugPrerender) {
@@ -1920,6 +2096,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                    13 | }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-connection-third-party" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-connection-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-connection-third-party": \`connection()\` can't be called inside \`"use cache"\` because cached functions may run during prerendering, without an incoming request. Call it outside the cached function.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
 
                  > Export encountered errors on 1 path:
                  	/use-cache-connection-third-party/page: /use-cache-connection-third-party"
@@ -1934,6 +2112,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-connection-third-party" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                  Error occurred prerendering page "/use-cache-connection-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Error: Route "/use-cache-connection-third-party": \`connection()\` can't be called inside \`"use cache"\` because cached functions may run during prerendering, without an incoming request. Call it outside the cached function.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                  Export encountered an error on /use-cache-connection-third-party/page: /use-cache-connection-third-party, exiting the build."
                 `)
               }
