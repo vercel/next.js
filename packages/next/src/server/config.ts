@@ -46,6 +46,7 @@ import type { ZodError } from 'next/dist/compiled/zod'
 import { hasNextSupport } from '../server/ci-info'
 import { transpileConfig } from '../build/next-config-ts/transpile-config'
 import { dset } from '../shared/lib/dset'
+import { cloneObject } from './lib/clone-object'
 import { normalizeZodErrors } from '../shared/lib/zod'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import { findDir } from '../lib/find-pages-dir'
@@ -369,6 +370,10 @@ function assignDefaultsAndValidate(
     delete (userConfig as any).exportTrailingSlash
   }
 
+  // Normalization below writes into nested objects such as `images`. Merge from
+  // a copy so those writes never reach the shared module-level defaults.
+  const defaults = cloneObject(defaultConfig)
+
   const config = Object.keys(userConfig).reduce<{ [key: string]: any }>(
     (currentConfig, key) => {
       const value = (userConfig as any)[key]
@@ -423,7 +428,7 @@ function assignDefaultsAndValidate(
         })
       }
 
-      const defaultValue = (defaultConfig as Record<string, unknown>)[key]
+      const defaultValue = (defaults as Record<string, unknown>)[key]
 
       if (
         !!value &&
@@ -450,10 +455,10 @@ function assignDefaultsAndValidate(
   ) as NextConfig & { configFileName: string }
 
   const result = {
-    ...defaultConfig,
+    ...defaults,
     ...config,
     experimental: {
-      ...defaultConfig.experimental,
+      ...defaults.experimental,
       ...config.experimental,
     },
   }
@@ -1879,11 +1884,15 @@ async function applyModifyConfig(
         Log.info(`Applying modifyConfig from ${adapterMod.name}`)
       }
 
-      config = await adapterMod.modifyConfig(config, {
-        phase,
-        nextVersion: process.env.__NEXT_VERSION as string,
-        projectDir: dir,
-      })
+      // Copy the result so finalizeConfig never writes into objects the
+      // adapter still holds a reference to.
+      config = cloneObject(
+        await adapterMod.modifyConfig(config, {
+          phase,
+          nextVersion: process.env.__NEXT_VERSION as string,
+          projectDir: dir,
+        })
+      )
     }
   }
   return config
@@ -2078,7 +2087,8 @@ async function loadConfigImpl(
           {
             configOrigin: 'server',
             configFileName,
-            ...customConfig,
+            // Copy so normalization never writes into the caller's objects.
+            ...cloneObject(customConfig),
           },
           silent,
           phase
@@ -2194,7 +2204,7 @@ async function loadConfigImpl(
     }
 
     // Clone a new userConfig each time to avoid mutating the original
-    const userConfig = cloneObject(loadedConfig) as NextConfig
+    const userConfig = cloneObject(loadedConfig)
 
     // Check deprecation warnings on the actual user config before merging with defaults
     checkDeprecations(userConfig, configFileName, silent, dir)
@@ -2363,7 +2373,7 @@ async function loadConfigImpl(
     }
   }
 
-  const clonedDefaultConfig = cloneObject(defaultConfig) as NextConfig
+  const clonedDefaultConfig = cloneObject(defaultConfig)
 
   enforceExperimentalFeatures(clonedDefaultConfig, {
     isDefaultConfig: true,
@@ -2615,55 +2625,6 @@ function setExperimentalFeatureForDebugPrerender<
       )
     }
   }
-}
-
-function cloneObject(obj: any): any {
-  // Primitives & null
-  if (obj === null || typeof obj !== 'object') {
-    return obj
-  }
-
-  // RegExp → clone via constructor
-  if (obj instanceof RegExp) {
-    return new RegExp(obj.source, obj.flags)
-  }
-
-  // Function → just reuse the function reference
-  if (typeof obj === 'function') {
-    return obj
-  }
-
-  // Arrays → map each element
-  if (Array.isArray(obj)) {
-    return obj.map(cloneObject)
-  }
-
-  // Detect non‑plain objects (class instances)
-  const proto = Object.getPrototypeOf(obj)
-  const isPlainObject = proto === Object.prototype || proto === null
-
-  // If it's not a plain object, just return the original
-  if (!isPlainObject) {
-    return obj
-  }
-
-  // Plain object → create a new object with the same prototype
-  // and copy all properties, cloning data properties and keeping
-  // accessor properties (getters/setters) as‑is.
-  const result = Object.create(proto)
-  for (const key of Reflect.ownKeys(obj)) {
-    const descriptor = Object.getOwnPropertyDescriptor(obj, key)
-
-    if (descriptor && (descriptor.get || descriptor.set)) {
-      // Accessor property → copy descriptor as‑is (get/set functions)
-      Object.defineProperty(result, key, descriptor)
-    } else {
-      // Data property → clone the value
-      result[key] = cloneObject(obj[key])
-    }
-  }
-
-  return result
 }
 
 async function validateConfigSchema(
