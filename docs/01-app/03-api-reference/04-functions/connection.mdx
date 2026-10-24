@@ -7,7 +7,7 @@ The `connection()` function allows you to indicate rendering should wait for an 
 
 It's useful when a component doesn't use [Request-time APIs](/docs/app/glossary#request-time-apis) like `cookies` or `headers`, but still needs to produce different output per request, such as `Math.random()` or `new Date()`.
 
-```ts filename="app/page.tsx" switcher
+```tsx filename="app/page.tsx" switcher
 import { connection } from 'next/server'
 
 export default async function Page() {
@@ -65,7 +65,7 @@ Now any component that calls `getVisitorCount()` will be excluded from prerender
 
 ### Type
 
-```jsx
+```ts
 function connection(): Promise<void>
 ```
 

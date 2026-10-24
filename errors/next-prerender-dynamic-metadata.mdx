@@ -22,7 +22,7 @@ If your metadata does not depend on any request data, then it may be possible fo
 
 Before:
 
-```jsx filename="app/.../page.tsx"
+```jsx filename="app/.../page.js"
 import { cms } from './cms'
 
 export async function generateMetadata() {
@@ -51,7 +51,7 @@ export default async function Page() {
 
 After:
 
-```jsx filename="app/.../page.tsx"
+```jsx filename="app/.../page.js"
 import { cms } from './cms'
 
 export async function generateMetadata() {
@@ -84,7 +84,7 @@ If your metadata requires Request data or depends on external data that is not c
 
 Before:
 
-```jsx filename="app/.../page.tsx"
+```jsx filename="app/.../page.js"
 import { cookies } from 'next/headers'
 import { getPersonalizedTitle } from './my-api'
 
@@ -106,7 +106,7 @@ export default function Page() {
 
 After:
 
-```jsx filename="app/.../page.tsx"
+```jsx filename="app/.../page.js"
 import { Suspense } from 'react'
 import { cookies } from 'next/headers'
 import { connection } from 'next/server'

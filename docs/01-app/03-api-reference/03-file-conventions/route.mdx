@@ -624,7 +624,8 @@ export async function GET() {
 
 ```js filename="app/rss.xml/route.js" switcher
 export async function GET() {
-  return new Response(`<?xml version="1.0" encoding="UTF-8" ?>
+  return new Response(
+    `<?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0">
 
 <channel>
@@ -633,7 +634,13 @@ export async function GET() {
   <description>The React Framework for the Web</description>
 </channel>
 
-</rss>`)
+</rss>`,
+    {
+      headers: {
+        'Content-Type': 'text/xml',
+      },
+    }
+  )
 }
 ```
 
