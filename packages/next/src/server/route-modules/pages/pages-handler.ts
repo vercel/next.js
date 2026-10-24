@@ -43,6 +43,7 @@ import { isBot } from '../../../shared/lib/router/utils/is-bot'
 import { addPathPrefix } from '../../../shared/lib/router/utils/add-path-prefix'
 import { removeTrailingSlash } from '../../../shared/lib/router/utils/remove-trailing-slash'
 import { isRouteCacheOwner } from '../../lib/route-cache-key'
+import { getIsPossibleServerAction } from '../../lib/server-action-request-meta'
 import type { PagesRouteModule } from './module.compiled'
 import type {
   GetServerSideProps,
@@ -221,9 +222,56 @@ export const getHandler = ({
     let isNextDataRequest =
       prepareResult.isNextDataRequest && (hasStaticProps || hasServerProps)
 
+    const method = req.method || 'GET'
+
     const is404Page = srcPage === '/404'
     const is500Page = srcPage === '/500'
     const isErrorPage = srcPage === '/_error'
+
+    // The guards below mirror the ones in `BaseServer` so that adapters that
+    // invoke this handler directly (without `NextServer`) get the same
+    // responses, before any data fetching or rendering happens.
+
+    // Ensure the 404 status when the 404 page is invoked directly.
+    if (is404Page && !isNextDataRequest) {
+      res.statusCode = 404
+    }
+
+    if (method !== 'GET' && method !== 'HEAD') {
+      // Static pages only support GET and HEAD.
+      const isStaticPage =
+        hasStaticProps ||
+        Boolean(req.headers['x-now-route-matches']) ||
+        (!routeModule.isDev && Boolean(prerenderManifest.routes[srcPage]))
+
+      if (
+        isStaticPage &&
+        !getIsPossibleServerAction(req) &&
+        typeof getRequestMeta(req, 'postponed') !== 'string' &&
+        !is404Page &&
+        !is500Page &&
+        !isErrorPage
+      ) {
+        res.statusCode = 405
+        res.setHeader('Allow', ['GET', 'HEAD'])
+        res.end('Method Not Allowed')
+        ctx.waitUntil?.(Promise.resolve())
+        return
+      }
+
+      // An OPTIONS request to a page handler is invalid. The 404 page (also
+      // when rendered through `_error`) is exempt.
+      if (
+        method === 'OPTIONS' &&
+        !is404Page &&
+        !(isErrorPage && res.statusCode === 404)
+      ) {
+        res.statusCode = 400
+        res.end()
+        ctx.waitUntil?.(Promise.resolve())
+        return
+      }
+    }
 
     if (!routeModule.isDev && !isDraftMode && hasStaticProps) {
       cacheKey = `${locale ? `/${locale}` : ''}${
@@ -294,8 +342,6 @@ export const getHandler = ({
     const isWrappedByNextServer = Boolean(
       routerServerContext?.isWrappedByNextServer
     )
-
-    const method = req.method || 'GET'
 
     const resolvedUrl = formatUrl({
       pathname: nextConfig.trailingSlash
