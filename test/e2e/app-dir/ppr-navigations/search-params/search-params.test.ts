@@ -1,8 +1,8 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
 
 // TODO(NAR-423): Migrate to Cache Components.
 describe.skip('search-params', () => {
-  if ((global as any).isNextDev) {
+  if (isNextDev) {
     test('ppr is disabled in dev', () => {})
     return
   }
