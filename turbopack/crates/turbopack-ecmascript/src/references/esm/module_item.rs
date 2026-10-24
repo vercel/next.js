@@ -10,7 +10,7 @@ use swc_core::{
     },
     quote,
 };
-use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat};
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
@@ -23,9 +23,7 @@ use crate::{
 /// Makes code changes to remove export/import declarations and places the
 /// expr/decl in a normal statement. Unnamed expr/decl will be named with the
 /// magic identifier "export default"
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode)]
 pub struct EsmModuleItem {
     pub path: AstPathId,
     pub supports_block_scoping: bool,

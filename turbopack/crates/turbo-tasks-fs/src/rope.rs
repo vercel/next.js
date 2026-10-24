@@ -40,7 +40,7 @@ pub struct Rope {
     length: usize,
 
     /// A shareable container holding the rope's bytes.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     data: InnerRope,
 }
 

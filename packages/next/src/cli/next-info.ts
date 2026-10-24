@@ -146,7 +146,7 @@ async function printInfo() {
     )
   }
 
-  const cpuCores = os.cpus().length
+  const cpuCores = os.availableParallelism()
   let relevantPackages = `  next: ${installedRelease}${stalenessWithTitle}
   eslint-config-next: ${getPackageVersion('eslint-config-next')}
   react: ${getPackageVersion('react')}
@@ -355,8 +355,10 @@ async function printVerboseInfo() {
             }
           }
 
-          const { header, javascriptHeap, sharedObjects } =
-            report as any as Record<string, any>
+          const { header, javascriptHeap, sharedObjects } = report as Record<
+            string,
+            any
+          >
           // Delete some fields potentially containing sensitive information.
           delete header?.cwd
           delete header?.commandLine
@@ -381,7 +383,7 @@ async function printVerboseInfo() {
       title: 'next-swc installation',
       scripts: {
         default: async () => {
-          const output = [] as any
+          const output = []
 
           // First, try to load next-swc via loadBindings.
           try {

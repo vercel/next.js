@@ -4,8 +4,15 @@ import path from 'path'
 import {
   AGENT_FEEDBACK_END_MARKER,
   AGENT_FEEDBACK_START_MARKER,
+  AGENT_RULES_START_MARKER,
+  AGENT_UPGRADE_START_MARKER,
+  AGENT_UPGRADE_END_MARKER,
+  hasCurrentAgentUpgrade,
+  removeAgentUpgradeFiles,
+  writeAgentUpgradeFiles,
   removeAgentFeedbackFiles,
   writeAgentFeedbackFiles,
+  writeAgentFiles,
 } from './generate-agent-files'
 
 const block = `${AGENT_FEEDBACK_START_MARKER}\nstale\n${AGENT_FEEDBACK_END_MARKER}`
@@ -51,7 +58,7 @@ describe('removeAgentFeedbackFiles', () => {
   it('preserves CRLF line endings around the removed block', () => {
     const crlfBlock = block.split('\n').join('\r\n')
     const filePath = write(
-      'CLAUDE.md',
+      'AGENTS.md',
       `# Team rules\r\n\r\n${crlfBlock}\r\n\r\nKeep this.\r\n`
     )
 
@@ -62,9 +69,9 @@ describe('removeAgentFeedbackFiles', () => {
   })
 
   it('deletes a file that held nothing but the managed block', () => {
-    const filePath = write('CLAUDE.md', `${block}\n`)
+    const filePath = write('AGENTS.md', `${block}\n`)
 
-    expect(removeAgentFeedbackFiles(dir).claudeMd).toBe('removed')
+    expect(removeAgentFeedbackFiles(dir).agentsMd).toBe('removed')
     expect(fs.existsSync(filePath)).toBe(false)
   })
 
@@ -79,7 +86,6 @@ describe('removeAgentFeedbackFiles', () => {
   it('reports skipped for files that do not exist', () => {
     expect(removeAgentFeedbackFiles(dir)).toEqual({
       agentsMd: 'skipped',
-      claudeMd: 'skipped',
     })
   })
 
@@ -92,5 +98,112 @@ describe('removeAgentFeedbackFiles', () => {
     )
     expect(removeAgentFeedbackFiles(dir).agentsMd).toBe('removed')
     expect(fs.readFileSync(filePath, 'utf-8')).toBe('# Team rules\n')
+  })
+})
+
+describe.each([
+  ['agent rules', writeAgentFiles, AGENT_RULES_START_MARKER],
+  ['agent feedback', writeAgentFeedbackFiles, AGENT_FEEDBACK_START_MARKER],
+  ['agent upgrade', writeAgentUpgradeFiles, AGENT_UPGRADE_START_MARKER],
+] as const)('%s file generation', (_name, writeFiles, marker) => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-files-'))
+  })
+
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('creates only AGENTS.md and remains idempotent', () => {
+    expect(writeFiles(dir)).toEqual({
+      agentsMd: 'created',
+    })
+    const content = fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8')
+    expect(content).toContain(marker)
+
+    expect(writeFiles(dir)).toEqual({
+      agentsMd: 'unchanged',
+    })
+    expect(fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8')).toBe(content)
+  })
+})
+
+describe('agent feedback block wording', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-files-'))
+  })
+
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('does not tell agents to ignore unverified changes', () => {
+    expect(writeAgentFeedbackFiles(dir).agentsMd).toBe('created')
+    const content = fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8')
+
+    expect(content).toContain(
+      'Verify changes before retaining them as feedback candidates.'
+    )
+    expect(content).not.toContain(
+      'Ignore routine debugging and unverified changes.'
+    )
+  })
+})
+
+// Turning off upgrade reminders must preserve documentation, feedback and user rules.
+describe('independent upgrade instructions', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-upgrade-files-'))
+  })
+
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('removes only upgrade instructions and restores them when enabled again', () => {
+    const filePath = path.join(dir, 'AGENTS.md')
+    fs.writeFileSync(filePath, '# Team rules\n')
+    writeAgentFiles(dir)
+    writeAgentFeedbackFiles(dir)
+    const baseline = fs.readFileSync(filePath, 'utf-8')
+
+    expect(baseline).toContain(AGENT_RULES_START_MARKER)
+    expect(baseline).toContain(AGENT_FEEDBACK_START_MARKER)
+    writeAgentUpgradeFiles(dir)
+    expect(hasCurrentAgentUpgrade(dir)).toBe(true)
+    expect(removeAgentUpgradeFiles(dir).agentsMd).toBe('removed')
+    expect(fs.readFileSync(filePath, 'utf-8')).toBe(baseline)
+    expect(hasCurrentAgentUpgrade(dir)).toBe(false)
+
+    writeAgentUpgradeFiles(dir)
+    expect(hasCurrentAgentUpgrade(dir)).toBe(true)
+    expect(writeAgentFiles(dir).agentsMd).toBe('unchanged')
+    expect(writeAgentFeedbackFiles(dir).agentsMd).toBe('unchanged')
+  })
+
+  it('removes an upgrade-only file and skips a missing file', () => {
+    const filePath = path.join(dir, 'AGENTS.md')
+    writeAgentUpgradeFiles(dir)
+    expect(removeAgentUpgradeFiles(dir).agentsMd).toBe('removed')
+    expect(fs.existsSync(filePath)).toBe(false)
+    expect(removeAgentUpgradeFiles(dir).agentsMd).toBe('skipped')
+  })
+
+  it('preserves CRLF user rules when removing the upgrade block', () => {
+    const filePath = path.join(dir, 'AGENTS.md')
+    fs.writeFileSync(
+      filePath,
+      `# Team rules\r\n\r\n${AGENT_UPGRADE_START_MARKER}\r\nstale\r\n${AGENT_UPGRADE_END_MARKER}\r\n\r\n# More\r\n`
+    )
+    expect(removeAgentUpgradeFiles(dir).agentsMd).toBe('removed')
+    expect(fs.readFileSync(filePath, 'utf-8')).toBe(
+      '# Team rules\r\n\r\n# More\r\n'
+    )
   })
 })

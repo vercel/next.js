@@ -5,6 +5,7 @@ import path from 'path'
 import loadConfig from '../server/config'
 import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
 import { getProjectDir } from '../lib/get-project-dir'
+import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependencies'
 import { printAndExit } from '../server/lib/utils'
 import { loadBindings } from '../build/swc'
 
@@ -15,6 +16,7 @@ const nextPostBuild = async (
   directory?: string
 ) => {
   const dir = getProjectDir(directory)
+  warnMissingReactDependencies(dir)
 
   if (!existsSync(dir)) {
     printAndExit(`> No such directory exists as the project root: ${dir}`)

@@ -20,7 +20,7 @@ export function cacheTag(...tags: string[]): void {
     case 'prerender-legacy':
     case 'request':
     case 'unstable-cache':
-    case 'generate-static-params':
+    case 'build-time-generator':
     case undefined:
       throw createCacheTagOutsideUseCacheError(
         workAsyncStorage.getStore()?.route

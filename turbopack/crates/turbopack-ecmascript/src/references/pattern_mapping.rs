@@ -14,7 +14,7 @@ use swc_core::{
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    debug::ValueDebugFormat, trace::TraceRawVcs,
+    debug::ValueDebugFormat,
 };
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkingContext, ModuleChunkItemIdExt, ModuleId},
@@ -42,7 +42,7 @@ use crate::{
     utils::module_id_to_lit,
 };
 
-#[derive(PartialEq, Eq, ValueDebugFormat, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub(crate) enum SinglePatternMapping {
     /// Invalid request.
     Invalid,
@@ -94,7 +94,7 @@ pub(crate) enum PatternMapping {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Encode, Decode)]
 pub(crate) enum ResolveType {
     AsyncChunkLoader,
     ChunkItem,
@@ -374,7 +374,9 @@ async fn to_single_pattern_mapping(
             ))
             .await;
         }
-        ModuleResolveResultItem::Empty | ModuleResolveResultItem::Custom(_) => {
+        // `false` alias — no backing asset, produces the same empty-stub code as Ignored.
+        ModuleResolveResultItem::Empty => return Ok(SinglePatternMapping::Ignored),
+        ModuleResolveResultItem::Custom(_) => {
             // TODO implement mapping
             CodeGenerationIssue {
                 severity: IssueSeverity::Bug,

@@ -21,9 +21,7 @@ describe('app dir - metadata static routes cache', () => {
   // runners (most often while collecting build traces). The first build and
   // start (with the original metadata files) therefore runs in `beforeAll`,
   // which gets the longer setup-hook budget, leaving the test body responsible
-  // for only the second build. Keeping the build out of the test body also
-  // makes it idempotent, so a `jest.retryTimes` retry recomputes the new hashes
-  // against a stable baseline.
+  // for only the second build.
   beforeAll(async () => {
     await next.start()
 

@@ -1,5 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check, retry } from 'next-test-utils'
+import { createRouterAct } from 'router-act'
+import type * as Playwright from 'playwright'
 
 describe('parallel-routes-revalidation', () => {
   const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
@@ -42,6 +44,43 @@ describe('parallel-routes-revalidation', () => {
       await check(() => browser.elementByCss('body').text(), /Current Data/)
     })
   }
+
+  it('refreshes a retained slot using its original URL after multiple navigations', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/retained-search/one?value=first', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+    const originalRender = await browser.elementById('retained-render').text()
+    expect(await browser.elementById('retained-value').text()).toBe('first')
+
+    for (const [page, value] of [
+      ['two', 'second'],
+      ['three', 'third'],
+    ]) {
+      await act(async () => {
+        await browser
+          .elementByCss(`a[href="/retained-search/${page}?value=${value}"]`)
+          .click()
+      })
+      expect(await browser.elementById('active-page').text()).toBe(page)
+      expect(await browser.elementById('retained-value').text()).toBe('first')
+      expect(await browser.elementById('retained-render').text()).toBe(
+        originalRender
+      )
+    }
+
+    await act(async () => {
+      await browser.elementById('refresh-button').click()
+    })
+    expect(await browser.elementById('retained-render').text()).not.toBe(
+      originalRender
+    )
+    expect(await browser.elementById('retained-value').text()).toBe('first')
+    expect(await browser.elementById('active-page').text()).toBe('three')
+    expect(new URL(await browser.url()).search).toBe('?value=third')
+  })
 
   it('should handle router.refresh() when called in a slot', async () => {
     const browser = await next.browser('/')

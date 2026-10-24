@@ -1331,7 +1331,6 @@ describe('instant-navigation-testing-api - blocking routes (dev only)', () => {
 
   const { next } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'blocking'),
-    skipDeployment: true,
   })
 
   // The cookie value must not commit while the instant lock is held; it only

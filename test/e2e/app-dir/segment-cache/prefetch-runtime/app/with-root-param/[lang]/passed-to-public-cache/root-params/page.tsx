@@ -2,15 +2,17 @@ import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind, uncachedIO } from '../../../../shared'
 import { connection } from 'next/server'
 import { lang } from 'next/root-params'
+import { ForceRuntimeShell } from '../../../../../components/force-runtime-shell'
+import { PrefetchContent } from '../../../../../components/prefetch-content'
 
 export const instant = {
   unstable_samples: [{ params: { lang: 'en' } }],
 }
-export const prefetch = 'partial'
 
 export default async function Page() {
   return (
     <main>
+      <ForceRuntimeShell />
       <DebugRenderKind />
       <p>
         This page uses root params (passed to a private cache) and some uncached
@@ -30,6 +32,7 @@ async function RuntimePrefetchable() {
   return (
     <div style={{ border: '1px solid blue', padding: '1em' }}>
       <div id="root-param-value">{`Lang: ${currentLang}`}</div>
+      <PrefetchContent text={`Lang (in prefetch): ${currentLang}`} />
       <Suspense fallback={<div style={{ color: 'grey' }}>Loading 2...</div>}>
         <Dynamic />
       </Suspense>

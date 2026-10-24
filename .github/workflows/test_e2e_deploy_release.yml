@@ -80,7 +80,7 @@ jobs:
 
       - name: Setup pnpm
         run: |
-          npm i -g corepack@0.31
+          npm i -g corepack@0.34.7
           corepack enable
 
       - id: nextPackageInfo
@@ -190,6 +190,7 @@ jobs:
         NEXT_TEST_MODE=deploy \
         IS_WEBPACK_TEST=1 \
         NEXT_ENABLE_ADAPTER=0 \
+        NEXT_TEST_DEPLOY_TARGET_VERCEL="${{ github.event.inputs.deployScriptPath == '' && '1' || '' }}" \
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
         NEXT_TEST_VERSION="${{ needs.setup.outputs.next-version }}" \
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
@@ -198,7 +199,6 @@ jobs:
         NEXT_TEST_DEPLOY_SCRIPT_PATH="${{ github.event.inputs.deployScriptPath || '' }}" \
         NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH="${{ github.event.inputs.deployLogsScriptPath || '' }}" \
         NEXT_TEST_CLEANUP_SCRIPT_PATH="${{ github.event.inputs.cleanupScriptPath || '' }}" \
-        NEXT_TEST_PREVIEW_BUILDS_BASE_URL="${{ vars.PREVIEW_BUILDS_BASE_URL }}" \
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 2 --type e2e
       testTimingsArtifact: 'test-timings'
       skipNativeBuild: 'yes'
@@ -241,6 +241,7 @@ jobs:
         NEXT_TEST_MODE=deploy \
         IS_TURBOPACK_TEST=1 \
         NEXT_ENABLE_ADAPTER=0 \
+        NEXT_TEST_DEPLOY_TARGET_VERCEL="${{ github.event.inputs.deployScriptPath == '' && '1' || '' }}" \
         NEXT_TEST_CONTINUE_ON_ERROR="${{ github.event.inputs.continueOnError || false }}" \
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
         NEXT_TEST_VERSION="${{ needs.setup.outputs.next-version }}" \
@@ -250,7 +251,6 @@ jobs:
         NEXT_TEST_DEPLOY_SCRIPT_PATH="${{ github.event.inputs.deployScriptPath || '' }}" \
         NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH="${{ github.event.inputs.deployLogsScriptPath || '' }}" \
         NEXT_TEST_CLEANUP_SCRIPT_PATH="${{ github.event.inputs.cleanupScriptPath || '' }}" \
-        NEXT_TEST_PREVIEW_BUILDS_BASE_URL="${{ vars.PREVIEW_BUILDS_BASE_URL }}" \
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 2 --type e2e
       testTimingsArtifact: 'test-timings'
       skipNativeBuild: 'yes'
@@ -294,12 +294,12 @@ jobs:
         NEXT_TEST_MODE=deploy \
         IS_TURBOPACK_TEST=1 \
         NEXT_ENABLE_ADAPTER=1 \
+        NEXT_TEST_DEPLOY_TARGET_VERCEL=1 \
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
         NEXT_TEST_VERSION="${{ needs.setup.outputs.next-version }}" \
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
         VERCEL_FORCE_BUILD_IN_HIVE="${{ github.event.inputs.forceBuildInHive || '' }}" \
         VERCEL_BUILD_CONTAINER_VERSION="${{ github.event.inputs.buildContainerVersion || '' }}" \
-        NEXT_TEST_PREVIEW_BUILDS_BASE_URL="${{ vars.PREVIEW_BUILDS_BASE_URL }}" \
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 2 --type e2e
       testTimingsArtifact: 'test-timings'
       skipNativeBuild: 'yes'
@@ -351,6 +351,10 @@ jobs:
         github.repository_owner == 'vercel' &&
         !startsWith(needs.setup.outputs.next-version, 'http')
       }}
+    permissions:
+      contents: read
+      # Minting a GitHub OIDC token to authenticate the results upload.
+      id-token: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -375,11 +379,6 @@ jobs:
 
       - name: Upload adapter test results
         run: |
-          if [ -z "${ADAPTER_TEST_RESULTS_SECRET:-}" ]; then
-            echo "ADAPTER_TEST_RESULTS_SECRET is not configured, skipping upload"
-            exit 0
-          fi
-
           if [ ! -d adapter-test-results ]; then
             echo "No adapter test artifact directory found, skipping upload"
             exit 0
@@ -391,8 +390,4 @@ jobs:
           fi
 
           node scripts/upload-adapter-test-results.mjs \
-            --results-root adapter-test-results \
-            --provider vercel \
-            --commit-sha "${{ github.sha }}"
-        env:
-          ADAPTER_TEST_RESULTS_SECRET: ${{ secrets.ADAPTER_TEST_RESULTS_SECRET }}
+            --results-root adapter-test-results

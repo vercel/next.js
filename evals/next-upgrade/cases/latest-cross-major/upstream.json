@@ -1,0 +1,8 @@
+{
+  "policy": "latest",
+  "target": "16.4.0",
+  "range": null,
+  "versions": ["13.5.11", "16.4.0"],
+  "severity": "high",
+  "syntheticTargets": false
+}

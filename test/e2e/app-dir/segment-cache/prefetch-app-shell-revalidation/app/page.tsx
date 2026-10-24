@@ -47,6 +47,44 @@ export default async function Page() {
           </LinkAccordion>
         </li>
       </ul>
+
+      <h2>First cookies only used in the prefetch, then also in the shell</h2>
+      <ul>
+        <li data-prefetch="auto">
+          <LinkAccordion href="/partial-conditional-cookies-in-both/first-prefetch-then-shell">
+            /partial-conditional-cookies-in-both/first-prefetch-then-shell (auto
+            prefetch)
+          </LinkAccordion>
+        </li>
+        <li data-prefetch="true">
+          <LinkAccordion
+            href="/partial-conditional-cookies-in-both/first-prefetch-then-shell"
+            prefetch={true}
+          >
+            /partial-conditional-cookies-in-both/first-prefetch-then-shell
+            (prefetch=true)
+          </LinkAccordion>
+        </li>
+      </ul>
+
+      <h2>First cookies used in the shell, then also in the prefetch</h2>
+      <ul>
+        <li data-prefetch="auto">
+          <LinkAccordion href="/partial-conditional-cookies-in-both/first-shell-then-prefetch">
+            /partial-conditional-cookies-in-both/first-shell-then-prefetch (auto
+            prefetch)
+          </LinkAccordion>
+        </li>
+        <li data-prefetch="true">
+          <LinkAccordion
+            href="/partial-conditional-cookies-in-both/first-shell-then-prefetch"
+            prefetch={true}
+          >
+            /partial-conditional-cookies-in-both/first-shell-then-prefetch
+            (prefetch=true)
+          </LinkAccordion>
+        </li>
+      </ul>
     </main>
   )
 }

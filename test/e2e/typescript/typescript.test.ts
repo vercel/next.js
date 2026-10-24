@@ -105,7 +105,6 @@ export default function EvilPage(): JSX.Element {
       dependencies: {
         sass: 'latest',
       },
-      skipDeployment: true,
     })
     if (skipped) return
 

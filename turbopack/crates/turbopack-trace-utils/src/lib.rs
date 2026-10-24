@@ -7,6 +7,7 @@ pub mod exit;
 pub mod filter_layer;
 mod flavor;
 pub mod raw_trace;
+pub mod tokio_workers;
 pub mod trace_writer;
 pub mod tracing;
 pub mod tracing_presets;

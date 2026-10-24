@@ -14,10 +14,6 @@ describe('Read-only source HMR', () => {
     skipStart: true,
     env: {
       __NEXT_TEST_WITH_DEVTOOL: '1',
-      // Events can be finicky in CI. This switches to a more reliable
-      // polling method.
-      CHOKIDAR_USEPOLLING: 'true',
-      CHOKIDAR_INTERVAL: '500',
     },
   })
 

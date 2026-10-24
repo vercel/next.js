@@ -74,7 +74,7 @@ export default function Layout({ children }) {
 }
 ```
 
-> Since the `useReportWebVitals` hook requires the `'use client'` directive, the most performant approach is to create a separate component that the root layout imports. This confines the client boundary exclusively to the `WebVitals` component.
+> Since the `useReportWebVitals` hook must be used in a Client Component, create a separate file for the `WebVitals` component with `'use client'` at the top, before any imports. Import this component into the root layout to keep the client boundary limited to this module and its imports.
 
 View the [API Reference](/docs/app/api-reference/functions/use-report-web-vitals) for more information.
 

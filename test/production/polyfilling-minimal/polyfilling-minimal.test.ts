@@ -1,13 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Polyfilling (minimal)', () => {
+  // This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+  // @force-gate !deploy
   describe('production mode', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     it('should compile successfully', async () => {
       const { exitCode, cliOutput } = await next.build()

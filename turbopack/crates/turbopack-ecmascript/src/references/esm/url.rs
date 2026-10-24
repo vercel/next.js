@@ -4,9 +4,7 @@ use swc_core::{
     ecma::ast::{Expr, ExprOrSpread, NewExpr},
     quote,
 };
-use turbo_tasks::{
-    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
-};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat};
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
     environment::Rendering,
@@ -34,7 +32,7 @@ use crate::{
 /// This allows to construct url depends on the different building context,
 /// e.g. SSR, CSR, or Node.js.
 #[turbo_tasks::task_input]
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Encode, Decode)]
 pub enum UrlRewriteBehavior {
     /// Omits base, resulting in a relative URL.
     Relative,
@@ -130,9 +128,7 @@ impl IntoCodeGenReference for UrlAssetReference {
     }
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct UrlAssetReferenceCodeGen {
     reference: ResolvedVc<UrlAssetReference>,
     path: AstPathId,
@@ -225,6 +221,7 @@ impl UrlAssetReferenceCodeGen {
                     }
                     ReferencedAsset::NonPlaceable(_)
                     | ReferencedAsset::None
+                    | ReferencedAsset::Empty
                     | ReferencedAsset::Unresolvable => {}
                 }
             }
@@ -338,6 +335,7 @@ impl UrlAssetReferenceCodeGen {
                     }
                     ReferencedAsset::NonPlaceable(_)
                     | ReferencedAsset::None
+                    | ReferencedAsset::Empty
                     | ReferencedAsset::Unresolvable => {}
                 }
             }

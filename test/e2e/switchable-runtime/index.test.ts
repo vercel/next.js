@@ -31,12 +31,6 @@ async function testRoute(appPort, url, { isStatic, isEdge }) {
 describe('Switchable runtime', () => {
   let context
 
-  if ((global as any).isNextDeploy) {
-    // TODO-APP: re-enable after Prerenders are handled on deploy
-    it('should skip for deploy temporarily', () => {})
-    return
-  }
-
   const { next } = nextTestSetup({
     files: new FileRef(__dirname),
   })

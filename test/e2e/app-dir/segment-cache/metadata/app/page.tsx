@@ -37,6 +37,22 @@ export default function Page() {
           </LinkAccordion>
         </li>
       </ul>
+      <hr />
+      <ul>
+        <li>
+          <LinkAccordion href="/page-with-per-tenant-head/en/acme">
+            Page with per-tenant head (en/acme)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion
+            prefetch={false}
+            href="/page-with-per-tenant-head/en/initech"
+          >
+            Page with per-tenant head (en/initech, prefetch=false)
+          </LinkAccordion>
+        </li>
+      </ul>
     </>
   )
 }

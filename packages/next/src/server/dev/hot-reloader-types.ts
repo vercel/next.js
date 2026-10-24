@@ -41,6 +41,7 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   CACHE_INDICATOR = 'cacheIndicator',
   DEV_INDICATOR = 'devIndicator',
   DEVTOOLS_CONFIG = 'devtoolsConfig',
+  VULNERABILITY_INSIGHT = 'vulnerabilityInsight',
   REQUEST_CURRENT_ERROR_STATE = 'requestCurrentErrorState',
   RUNTIME_ERRORS = 'runtimeErrors',
   REQUEST_PAGE_METADATA = 'requestPageMetadata',
@@ -88,6 +89,7 @@ export interface SyncMessage {
   errors: ReadonlyArray<CompilationError>
   warnings: ReadonlyArray<CompilationError>
   versionInfo: VersionInfo
+  hasVulnerabilityInsight: boolean
   updatedModules?: ReadonlyArray<string>
   debug?: DebugInfo
   devIndicator: DevIndicatorServerState
@@ -264,6 +266,11 @@ export interface RequestInsightsUpdateMessage {
   insight: RequestInsight
 }
 
+export interface VulnerabilityInsightMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.VULNERABILITY_INSIGHT
+  hasVulnerabilityInsight: boolean
+}
+
 export type HmrMessageSentToBrowser =
   | TurbopackMessage
   | TurbopackConnectedMessage
@@ -289,6 +296,7 @@ export type HmrMessageSentToBrowser =
   | RequestPageMetadataMessage
   | CacheIndicatorMessage
   | RequestInsightsUpdateMessage
+  | VulnerabilityInsightMessage
 
 export type BinaryHmrMessageSentToBrowser = Extract<
   HmrMessageSentToBrowser,
@@ -340,6 +348,8 @@ export interface NextJsHotReloaderInterface {
    * them for code that changed while the server was down.
    */
   getServerComponentsHmrRefreshHash(): string
+  /** The client HMR baseline, available only with Turbopack HMR. */
+  getClientHmrVersion?(): string
   setCacheStatus(status: ServerCacheStatus, htmlRequestId: string): void
   setReactDebugChannel(
     debugChannel: ReactDebugChannelForBrowser,
