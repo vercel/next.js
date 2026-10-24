@@ -1744,6 +1744,7 @@ impl Project {
             chunking_min_chunk_size: turbopack_chunking.min_chunk_size,
             chunking_max_chunk_count_per_group: turbopack_chunking.max_chunk_count_per_group,
             chunking_max_merge_chunk_size: turbopack_chunking.max_merge_chunk_size,
+            chunking_max_chunk_size: turbopack_chunking.max_chunk_size,
             chunking_min_component_chunk_size: turbopack_chunking.min_component_chunk_size,
             generate_component_chunks: self.next_config().turbopack_generate_component_chunks(),
         }))
@@ -1837,6 +1838,11 @@ impl Project {
                     .next_config()
                     .turbopack_lazy_dynamic_imports_ssr(*self.next_mode().await?)
                     .await?,
+            chunking_max_chunk_size: self
+                .next_config()
+                .turbopack_chunking()
+                .await?
+                .max_server_chunk_size,
         };
         Ok(if client_assets {
             get_server_chunking_context_with_client_assets(options)
@@ -1878,6 +1884,11 @@ impl Project {
             hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
             cross_origin: self.next_config().cross_origin(),
             style_groups_algorithm: self.next_config().css_chunking().owned().await?,
+            chunking_max_chunk_size: self
+                .next_config()
+                .turbopack_chunking()
+                .await?
+                .max_server_chunk_size,
         };
         Ok(if client_assets {
             get_edge_chunking_context_with_client_assets(options)

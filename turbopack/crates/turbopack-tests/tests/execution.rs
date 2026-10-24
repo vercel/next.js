@@ -297,6 +297,22 @@ struct TestOptions {
     minify: bool,
     #[serde(default)]
     production_chunking: bool,
+    /// `max_chunk_size` of the ecmascript chunking config when `production_chunking` is enabled.
+    #[serde(default)]
+    max_chunk_size: usize,
+    /// Overrides `min_chunk_size` (default `2000`) when `production_chunking` is enabled.
+    #[serde(default)]
+    min_chunk_size: Option<usize>,
+    /// Overrides `max_chunk_count_per_group` (default `40`) for production chunking.
+    #[serde(default)]
+    max_chunk_count_per_group: Option<usize>,
+    /// A tiny request cost makes merging different chunk groups unbeneficial.
+    #[serde(default)]
+    request_cost: Option<u64>,
+    #[serde(default)]
+    generate_component_chunks: bool,
+    #[serde(default)]
+    min_component_chunk_size: usize,
     #[serde(default)]
     global_module_ids: bool,
     /// Assign numeric module ids, as production builds do, instead of the
@@ -334,6 +350,12 @@ impl Default for TestOptions {
             infer_module_side_effects: default_true(),
             minify: false,
             production_chunking: false,
+            max_chunk_size: 0,
+            min_chunk_size: None,
+            max_chunk_count_per_group: None,
+            request_cost: None,
+            generate_component_chunks: false,
+            min_component_chunk_size: 0,
             global_module_ids: false,
             numeric_module_ids: false,
             side_effect_free_packages: Vec::new(),
@@ -661,9 +683,13 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
-                    min_chunk_size: 2_000,
-                    max_chunk_count_per_group: 40,
+                    min_chunk_size: options.min_chunk_size.unwrap_or(2_000),
+                    max_chunk_count_per_group: options.max_chunk_count_per_group.unwrap_or(40),
                     max_merge_chunk_size: 200_000,
+                    max_chunk_size: options.max_chunk_size,
+                    request_cost: options.request_cost,
+                    generate_component_chunks: options.generate_component_chunks,
+                    min_component_chunk_size: options.min_component_chunk_size,
                     ..Default::default()
                 },
             )

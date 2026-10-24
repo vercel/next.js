@@ -24,7 +24,7 @@ use turbopack::module_options::{
     WebpackRules, module_options_context::MdxTransformOptions,
 };
 use turbopack_core::{
-    chunk::{CrossOrigin, SourceMapsType},
+    chunk::{ChunkingConfig, CrossOrigin, SourceMapsType},
     issue::{
         IgnoreIssue, IgnoreIssuePattern, Issue, IssueExt, IssueSeverity, IssueStage, StyledString,
     },
@@ -927,6 +927,12 @@ const DEFAULT_REQUEST_COST: f32 = 20_000.0;
 /// Default `weightDistribution` for the graph algorithm.
 const DEFAULT_WEIGHT_DISTRIBUTION: f32 = 0.1;
 
+/// Default `experimental.turbopackChunking.maxChunkSize` (client JS), in bytes.
+const DEFAULT_MAX_CHUNK_SIZE: usize = 1_000_000;
+/// Default `experimental.turbopackChunking.maxServerChunkSize` (Node.js server and edge JS), in
+/// bytes.
+const DEFAULT_MAX_SERVER_CHUNK_SIZE: usize = 10_000_000;
+
 /// `experimental.turbopackChunking`: hints for Turbopack's production chunker.
 #[derive(
     Clone, Debug, Default, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
@@ -959,6 +965,16 @@ pub struct TurbopackChunkingConfig {
     /// Don't merge chunks bigger than this size, in bytes (default `200000`), with other
     /// chunks. This keeps code in big chunks from being duplicated across multiple chunks.
     max_merge_chunk_size: Option<usize>,
+    /// Best-effort maximum estimated size of a client JavaScript chunk, in bytes of
+    /// uncompressed, unminified code (default `1000000`). Chunks are never merged into bigger
+    /// chunks, and chunks that are bigger on their own are split deterministically into smaller
+    /// chunks, which may be smaller than `min_chunk_size` or exceed `max_chunk_count_per_group`.
+    /// Inconsistent values (smaller than 3 times `min_chunk_size`, or than `max_merge_chunk_size`)
+    /// are adjusted with a warning. `0` disables the limit.
+    max_chunk_size: Option<usize>,
+    /// Like `max_chunk_size`, but for Node.js server and edge JavaScript chunks (default
+    /// `10000000`). `0` disables the limit.
+    max_server_chunk_size: Option<usize>,
     /// Emit each merged production chunk's constituent component chunks alongside it, so the
     /// browser runtime can load only the chunks it doesn't already have (default `false`).
     generate_component_chunks: Option<bool>,
@@ -986,6 +1002,10 @@ pub struct TurbopackChunking {
     pub max_chunk_count_per_group: Option<usize>,
     /// Override for the client JS `max_merge_chunk_size`, or `None` to use the default.
     pub max_merge_chunk_size: Option<usize>,
+    /// Best-effort maximum client JS chunk size (default applied).
+    pub max_chunk_size: usize,
+    /// Best-effort maximum Node.js server and edge JS chunk size (default applied).
+    pub max_server_chunk_size: usize,
     /// Override for the client JS `min_component_chunk_size`, or `None` to use the default.
     pub min_component_chunk_size: Option<usize>,
     /// Whether to emit component chunks alongside merged chunks (default `false`).
@@ -1535,6 +1555,148 @@ fn turbopack_config_documentation_link() -> RcStr {
     )
 }
 
+/// How the size limits of a production JS chunking config map to Next.js config options, for
+/// [`warn_on_adjusted_chunking_config`].
+pub struct ChunkingConfigOptionNames {
+    /// The kind of chunks the config is for, e.g. `client`.
+    pub chunks: &'static str,
+    /// The option for `max_chunk_size`.
+    pub max_chunk_size: &'static str,
+    /// The option for `min_chunk_size`, or `None` when it is not configurable.
+    pub min_chunk_size: Option<&'static str>,
+    /// The option for `max_merge_chunk_size`, or `None` when it is not configurable.
+    pub max_merge_chunk_size: Option<&'static str>,
+}
+
+/// [`ChunkingConfigOptionNames`] of client chunks.
+pub const CLIENT_CHUNKING_CONFIG_OPTION_NAMES: ChunkingConfigOptionNames =
+    ChunkingConfigOptionNames {
+        chunks: "client",
+        max_chunk_size: "maxChunkSize",
+        min_chunk_size: Some("minChunkSize"),
+        max_merge_chunk_size: Some("maxMergeChunkSize"),
+    };
+
+/// [`ChunkingConfigOptionNames`] of Node.js server chunks.
+pub const SERVER_CHUNKING_CONFIG_OPTION_NAMES: ChunkingConfigOptionNames =
+    ChunkingConfigOptionNames {
+        chunks: "server",
+        max_chunk_size: "maxServerChunkSize",
+        min_chunk_size: None,
+        max_merge_chunk_size: None,
+    };
+
+/// [`ChunkingConfigOptionNames`] of edge server chunks.
+pub const EDGE_CHUNKING_CONFIG_OPTION_NAMES: ChunkingConfigOptionNames =
+    ChunkingConfigOptionNames {
+        chunks: "edge server",
+        max_chunk_size: "maxServerChunkSize",
+        min_chunk_size: None,
+        max_merge_chunk_size: None,
+    };
+
+/// Turbopack normalizes the size limits of a chunking config (see [`ChunkingConfig::normalized`]).
+/// Emits a warning when that adjusts the values of `config`, so that the user can fix the
+/// `experimental.turbopackChunking` options.
+pub fn warn_on_adjusted_chunking_config(
+    config: &ChunkingConfig,
+    names: &ChunkingConfigOptionNames,
+    file_path: FileSystemPath,
+) {
+    let normalized = config.normalized();
+    let option = |name: Option<&str>, fallback: &str| match name {
+        Some(name) => format!("`experimental.turbopackChunking.{name}`"),
+        None => fallback.to_string(),
+    };
+    let max_chunk_size = option(Some(names.max_chunk_size), "");
+    let mut adjustments = Vec::new();
+    if normalized.max_chunk_size != config.max_chunk_size {
+        adjustments.push(format!(
+            "{max_chunk_size} ({}) was increased to {} (3 times {} of {}).",
+            config.max_chunk_size,
+            normalized.max_chunk_size,
+            option(
+                names.min_chunk_size,
+                &format!("the minimum {} chunk size", names.chunks)
+            ),
+            config.min_chunk_size,
+        ));
+    }
+    if normalized.max_merge_chunk_size != config.max_merge_chunk_size {
+        adjustments.push(format!(
+            "{} ({}) was decreased to {}, the maximum chunk size from {max_chunk_size}.",
+            option(
+                names.max_merge_chunk_size,
+                &format!("The maximum merge size of {} chunks", names.chunks)
+            ),
+            if config.max_merge_chunk_size == 0 {
+                "unlimited".to_string()
+            } else {
+                config.max_merge_chunk_size.to_string()
+            },
+            normalized.max_merge_chunk_size,
+        ));
+    }
+    if adjustments.is_empty() {
+        return;
+    }
+    AdjustedChunkingConfigIssue {
+        file_path,
+        chunks: names.chunks.into(),
+        adjustments: adjustments.into_iter().map(RcStr::from).collect(),
+    }
+    .resolved_cell()
+    .emit();
+}
+
+#[turbo_tasks::value(shared)]
+struct AdjustedChunkingConfigIssue {
+    file_path: FileSystemPath,
+    chunks: RcStr,
+    adjustments: Vec<RcStr>,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for AdjustedChunkingConfigIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Warning
+    }
+
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Config
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(
+            format!(
+                "Inconsistent chunk size limits for {} chunks were adjusted",
+                self.chunks
+            )
+            .into(),
+        ))
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Stack(
+            std::iter::once(StyledString::Text(rcstr!(
+                "The maximum chunk size must be at least 3 times the minimum chunk size, and \
+                 chunks bigger than the maximum chunk size are never merged:"
+            )))
+            .chain(
+                self.adjustments
+                    .iter()
+                    .map(|adjustment| StyledString::Text(adjustment.clone())),
+            )
+            .collect(),
+        )))
+    }
+}
+
 #[turbo_tasks::value(shared)]
 struct InvalidLoaderRuleRenameAsIssue {
     glob: RcStr,
@@ -1973,6 +2135,12 @@ impl NextConfig {
             min_chunk_size: config.and_then(|c| c.min_chunk_size),
             max_chunk_count_per_group: config.and_then(|c| c.max_chunk_count_per_group),
             max_merge_chunk_size: config.and_then(|c| c.max_merge_chunk_size),
+            max_chunk_size: config
+                .and_then(|c| c.max_chunk_size)
+                .unwrap_or(DEFAULT_MAX_CHUNK_SIZE),
+            max_server_chunk_size: config
+                .and_then(|c| c.max_server_chunk_size)
+                .unwrap_or(DEFAULT_MAX_SERVER_CHUNK_SIZE),
             min_component_chunk_size: config.and_then(|c| c.min_component_chunk_size),
             generate_component_chunks: config
                 .and_then(|c| c.generate_component_chunks)
