@@ -1,13 +1,18 @@
+import { createLogger } from '../log'
 import { after } from 'next/server'
 import { draftMode } from 'next/headers'
 
-export function testDraftMode(/** @type {string} */ route) {
+export function testDraftMode(
+  /** @type {string} */ route,
+  /** @type {string | undefined} */ requestId
+) {
+  const log = createLogger(requestId, 3)
   after(async () => {
     const draft = await draftMode()
     try {
-      console.log(`[${route}] draft.isEnabled: ${draft.isEnabled}`)
+      log(`[${route}] draft.isEnabled: ${draft.isEnabled}`)
     } catch (err) {
-      console.error(err)
+      log(err)
     }
   })
 
@@ -16,7 +21,7 @@ export function testDraftMode(/** @type {string} */ route) {
     try {
       draft.enable()
     } catch (err) {
-      console.error(err)
+      log(err)
     }
   })
 
@@ -25,7 +30,7 @@ export function testDraftMode(/** @type {string} */ route) {
     try {
       draft.disable()
     } catch (err) {
-      console.error(err)
+      log(err)
     }
   })
 }
