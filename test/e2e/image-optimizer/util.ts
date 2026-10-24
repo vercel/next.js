@@ -2,6 +2,7 @@ import http from 'http'
 import fs from 'fs-extra'
 import { join } from 'path'
 import assert from 'assert'
+import { execFileSync } from 'child_process'
 import sizeOf from 'image-size'
 import {
   check,
@@ -16,6 +17,11 @@ import {
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 import isAnimated from 'next/dist/compiled/is-animated'
 import type { NextInstance } from '../../lib/next-modes/base'
+import {
+  nativeSharpBindingPackage,
+  nativeSharpLibvipsPackage,
+  workspaceSharpVersion,
+} from '../../lib/sharp-bindings'
 
 function toQueryString(query: Record<string, any> | null | undefined): string {
   if (!query) return ''
@@ -29,6 +35,11 @@ function toQueryString(query: Record<string, any> | null | undefined): string {
 type SetupTestsCtx = {
   nextConfigImages?: Partial<import('next').NextConfig['images']>
   nextConfigExperimental?: Partial<import('next').NextConfig['experimental']>
+  /**
+   * Install the app with the WebAssembly build of sharp (`@img/sharp-wasm32`)
+   * instead of the native binding, like `npm install --cpu=wasm32 sharp`.
+   */
+  sharpWasm?: boolean
 }
 
 type RunTestsCtx = {
@@ -37,6 +48,7 @@ type RunTestsCtx = {
   q: number
   nextConfigImages?: Partial<import('next').NextConfig['images']>
   nextConfigExperimental?: Partial<import('next').NextConfig['experimental']>
+  sharpWasm?: boolean
 }
 
 type NextFetchOptions = Parameters<NextInstance['fetch']>[1]
@@ -212,6 +224,32 @@ export function runTests(ctx: RunTestsCtx) {
   afterAll(async () => {
     slowImageServer.stop()
   })
+
+  if (ctx.sharpWasm) {
+    it('should load the WebAssembly sharp binding', async () => {
+      // `require('sharp')` the way next/dist/server/image-optimizer/transform
+      // does it, from the app's install and with the env the server gets.
+      const stdout = execFileSync(
+        process.execPath,
+        [
+          '-e',
+          `const { createRequire } = require('node:module')
+           const transform = require.resolve('next/dist/server/image-optimizer/transform.js')
+           const sharp = createRequire(transform)('sharp')
+           console.log(JSON.stringify(sharp.versions))`,
+        ],
+        {
+          cwd: next.testDir,
+          env: { ...process.env, NODE_PATH: '' },
+          encoding: 'utf8',
+        }
+      )
+      const versions = JSON.parse(stdout.trim().split('\n').pop())
+      // Only the versions reported by `@img/sharp-wasm32` include emscripten.
+      expect(versions).toHaveProperty('emscripten')
+      expect(versions.sharp).toBe(workspaceSharpVersion())
+    })
+  }
 
   if (domains.length > 0 && dangerouslyAllowLocalIP) {
     it('should normalize invalid status codes', async () => {
@@ -1757,18 +1795,49 @@ export function runTests(ctx: RunTestsCtx) {
   }
 }
 
+/**
+ * Installs the app so that `require('sharp')` from `next` loads the
+ * WebAssembly binding: the native binding packages are removed with pnpm
+ * overrides, `@img/sharp-wasm32` is added, and sharp is pinned to the same
+ * version so the two match. This is what the `npm install --cpu=wasm32 sharp`
+ * fallback suggested by Next.js produces.
+ */
+function sharpWasmInstallOptions() {
+  const version = workspaceSharpVersion()
+  return {
+    dependencies: { '@img/sharp-wasm32': version },
+    resolutions: {
+      sharp: version,
+      [nativeSharpBindingPackage()]: '-',
+      [nativeSharpLibvipsPackage()]: '-',
+    },
+    // The jest process is started through pnpm's `.bin` shim, which exports a
+    // NODE_PATH containing the repository's hoisted `node_modules/.pnpm/node_modules`.
+    // The native binding is resolvable from there, and sharp prefers it
+    // whenever it loads, so the server must not inherit that NODE_PATH.
+    env: { NODE_PATH: '' },
+  }
+}
+
 export const setupTests = (ctx: SetupTestsCtx) => {
   const maybeSkipTurbopackProd =
     shouldUseTurbopack() && !isNextDev ? describe.skip : describe
+  // Swapping the sharp binding needs an isolated install of `next`.
+  const maybeSkip =
+    ctx.sharpWasm && process.env.NEXT_SKIP_ISOLATE
+      ? describe.skip
+      : maybeSkipTurbopackProd
+  const installOptions = ctx.sharpWasm ? sharpWasmInstallOptions() : {}
 
   if (!ctx.nextConfigImages) {
-    maybeSkipTurbopackProd('w/o next.config.js', () => {
+    maybeSkip('w/o next.config.js', () => {
       const size = 384
       const { next } = nextTestSetup({
         files: join(__dirname, 'app'),
         nextConfig: ctx.nextConfigExperimental
           ? { experimental: ctx.nextConfigExperimental }
           : undefined,
+        ...installOptions,
       })
 
       runTests({
@@ -1776,11 +1845,12 @@ export const setupTests = (ctx: SetupTestsCtx) => {
         w: size,
         q: 75,
         nextConfigExperimental: ctx.nextConfigExperimental,
+        sharpWasm: ctx.sharpWasm,
       })
     })
   }
 
-  maybeSkipTurbopackProd('with next.config.js', () => {
+  maybeSkip('with next.config.js', () => {
     const w = isNextDev ? 400 : 399
     const mergedImages = {
       dangerouslyAllowLocalIP: true,
@@ -1806,6 +1876,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
           ? { experimental: ctx.nextConfigExperimental }
           : {}),
       },
+      ...installOptions,
     })
 
     runTests({
@@ -1814,6 +1885,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
       q: 100,
       nextConfigImages: mergedImages,
       nextConfigExperimental: ctx.nextConfigExperimental,
+      sharpWasm: ctx.sharpWasm,
     })
   })
 }
