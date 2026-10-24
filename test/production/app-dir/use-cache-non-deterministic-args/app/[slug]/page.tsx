@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { Suspense, cacheSignal } from 'react'
 import { setTimeout } from 'timers/promises'
-import { cookies } from 'next/headers'
+import { cookies, draftMode } from 'next/headers'
 
 // `'partial'` opts the route into Partial Prefetching (the two-phase Shell
 // then Speculative flow) and marks it as needing a runtime request pass. A full
@@ -34,6 +34,16 @@ async function getCachedValue(items: string[]) {
 }
 
 async function Content({ slug }: { slug: string }) {
+  if (slug === 'draft') {
+    await draftMode()
+    const value = await getCachedValue(['deterministic', 'arg'])
+    return (
+      <p id="cached">
+        {slug} {value}
+      </p>
+    )
+  }
+
   if (slug === 'known') {
     // Awaiting cookies() causes this to suspend during build-time prerendering
     // (cookies are not available at build time). During runtime prefetch,

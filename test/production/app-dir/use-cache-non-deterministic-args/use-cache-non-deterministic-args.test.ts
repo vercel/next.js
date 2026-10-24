@@ -49,4 +49,20 @@ describe('use-cache-non-deterministic-args', () => {
       'Unexpected cache miss after cache warming phase during prerendering'
     )
   })
+
+  it('should not warn about cache miss when draft mode is enabled (#100680)', async () => {
+    const browser = await next.browser('/api/draft')
+    const outputIndex = next.cliOutput.length
+
+    await browser.loadPage(new URL('/draft', next.url).href)
+    expect(await browser.elementById('cached').text()).toBe(
+      'draft deterministic,arg'
+    )
+
+    const output = next.cliOutput.slice(outputIndex)
+    expect(output).not.toContain('Connection closed')
+    expect(output).not.toContain(
+      'Unexpected cache miss after cache warming phase during prerendering'
+    )
+  })
 })
