@@ -62,6 +62,7 @@ The following options are available:
 | `--agent-feedback`                      | Prepare anonymized Next.js feedback for your review                   |
 | `--no-agent-feedback`                   | Do not prepare anonymized Next.js feedback for your review            |
 | `--yes`                                 | Use previous preferences or defaults for all options                  |
+| `--interactive`                         | Prompt for configuration options not explicitly specified             |
 
 ## Examples
 
@@ -112,6 +113,16 @@ Would you like to help improve Next.js by letting agents prepare anonymized feed
 ```
 
 After the prompts, `create-next-app` will create a folder with your project name and install the required dependencies.
+
+### Prompt for unspecified options
+
+Passing CLI flags uses recommended defaults for unspecified configuration options. Add `--interactive` to prompt for those options instead:
+
+```bash filename="Terminal"
+pnpm create next-app my-app --typescript --interactive
+```
+
+This selects TypeScript without prompting and prompts for the remaining configuration options. Saved preferences provide the initial prompt values. Configuration prompts remain disabled in CI or when `--yes` is specified.
 
 ### Linter Options
 

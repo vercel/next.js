@@ -29,6 +29,154 @@ describe('create-next-app prompts', () => {
     nextTgzFilename = resolveNextTgzFilename()
   })
 
+  it.each([
+    {
+      flags: ['--typescript'],
+      prompts: [
+        'Which linter',
+        'React Compiler',
+        'Tailwind CSS',
+        '`src/` directory',
+        'App Router',
+        'Cache Components',
+        'customize the import alias',
+        'include AGENTS.md',
+        'help improve Next.js',
+      ],
+      typescript: true,
+      reactCompiler: false,
+    },
+    {
+      flags: [
+        '--app',
+        '--no-src-dir',
+        '--no-eslint',
+        '--import-alias',
+        '@/*',
+        '--react-compiler',
+      ],
+      prompts: [
+        'TypeScript',
+        'Tailwind CSS',
+        'Cache Components',
+        'include AGENTS.md',
+        'help improve Next.js',
+      ],
+      typescript: false,
+      reactCompiler: true,
+    },
+    {
+      flags: [
+        '--js',
+        '--no-app',
+        '--no-tailwind',
+        '--no-linter',
+        '--no-src-dir',
+        '--no-react-compiler',
+        '--no-import-alias',
+        '--no-agents-md',
+        '--no-agent-feedback',
+      ],
+      prompts: [],
+      typescript: false,
+      reactCompiler: false,
+    },
+  ])(
+    'should prompt only for unspecified options with --interactive and $flags',
+    async ({ flags, prompts, typescript, reactCompiler }) => {
+      await useTempDir(async (cwd) => {
+        const projectName = 'interactive-flags'
+        const childProcess = createNextApp(
+          [
+            projectName,
+            ...flags,
+            '--interactive',
+            '--skip-install',
+            '--disable-git',
+          ],
+          { cwd },
+          nextTgzFilename
+        )
+        const exited = new Promise((resolve) => {
+          childProcess.on('close', resolve)
+        })
+        let output = ''
+        childProcess.stdout.on('data', (chunk) => {
+          output += stripAnsi(chunk.toString())
+        })
+
+        try {
+          for (const prompt of prompts) {
+            await retry(async () => {
+              expect(output).toContain(prompt)
+            })
+            childProcess.stdin.write(
+              prompt === 'Which linter'
+                ? '\u001b[B\u001b[B\n'
+                : prompt === 'App Router'
+                  ? '\n'
+                  : '\u001b[D\n'
+            )
+          }
+          expect(await exited).toBe(0)
+          expect(output).not.toContain('recommended Next.js defaults')
+          expect(output).not.toContain('Using defaults for unprovided options')
+          expect(output.includes('Would you like to use TypeScript?')).toBe(
+            !typescript && flags.includes('--app')
+          )
+          const pkg = JSON.parse(
+            readFileSync(join(cwd, projectName, 'package.json'), 'utf8')
+          )
+          expect(Boolean(pkg.devDependencies?.typescript)).toBe(typescript)
+          expect(Boolean(pkg.devDependencies?.tailwindcss)).toBe(false)
+          expect(
+            Boolean(pkg.devDependencies?.['babel-plugin-react-compiler'])
+          ).toBe(reactCompiler)
+          expect(pkg.devDependencies?.eslint).toBeUndefined()
+          projectFilesShouldExist({
+            cwd,
+            projectName,
+            files: [
+              typescript ? 'tsconfig.json' : 'jsconfig.json',
+              flags.includes('--no-app') ? 'pages' : 'app',
+            ],
+          })
+        } finally {
+          childProcess.kill()
+          await exited
+        }
+      })
+    }
+  )
+
+  it('should prompt directly with only --interactive', async () => {
+    await useTempDir(async (cwd) => {
+      const childProcess = createNextApp(
+        ['interactive-only', '--interactive'],
+        { cwd },
+        nextTgzFilename
+      )
+      const exited = new Promise((resolve) => {
+        childProcess.on('close', resolve)
+      })
+      let output = ''
+      childProcess.stdout.on('data', (chunk) => {
+        output += stripAnsi(chunk.toString())
+      })
+      try {
+        await retry(async () => {
+          expect(output).toContain('Would you like to use TypeScript?')
+        })
+        expect(output).not.toContain('recommended Next.js defaults')
+        childProcess.stdin.write('\u0003')
+        expect(await exited).toBe(1)
+      } finally {
+        childProcess.kill()
+        await exited
+      }
+    })
+  })
+
   it('should prompt user for choice if directory name is absent', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'no-dir-name'
