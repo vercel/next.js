@@ -707,7 +707,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [20, 22] # TODO: use env var like [env.NODE_MAINTENANCE_VERSION, env.NODE_LTS_VERSION]
+        node: [20, 22, 24] # TODO: use env var like [env.NODE_MAINTENANCE_VERSION, env.NODE_LTS_VERSION]
 
     permissions:
       contents: read
@@ -784,7 +784,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [20, 22] # TODO: use env var like [env.NODE_MAINTENANCE_VERSION, env.NODE_LTS_VERSION]
+        node: [20, 22, 24] # TODO: use env var like [env.NODE_MAINTENANCE_VERSION, env.NODE_LTS_VERSION]
 
     permissions:
       contents: read
