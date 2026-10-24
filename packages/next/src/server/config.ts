@@ -47,6 +47,7 @@ import { hasNextSupport } from '../server/ci-info'
 import { transpileConfig } from '../build/next-config-ts/transpile-config'
 import { dset } from '../shared/lib/dset'
 import { cloneObject } from './lib/clone-object'
+import { deepFreeze, deepFreezePlainValues } from '../shared/lib/deep-freeze'
 import { normalizeZodErrors } from '../shared/lib/zod'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import { findDir } from '../lib/find-pages-dir'
@@ -66,6 +67,17 @@ export { normalizeConfig } from './config-shared'
 import { verifyDistDir } from '../lib/dist-dir'
 import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 export type { DomainLocale, NextConfig } from './config-shared'
+
+// In tests, deeply freeze the shared defaults (this also covers
+// `imageConfigDefault`, which `defaultConfig.images` points to). A write to
+// them would leak into every later `loadConfig` in the process, so make it
+// throw instead. `defaultConfig` itself is already shallowly frozen, which
+// makes `deepFreeze` stop at the top level, so freeze what it contains.
+if (process.env.__NEXT_TEST_MODE) {
+  for (const value of Object.values(defaultConfig)) {
+    if (value && typeof value === 'object') deepFreeze(value)
+  }
+}
 
 const REACT_18_DEPRECATION_WARNING =
   'React 18 support is deprecated in Next.js 16 and will be removed in Next.js 17. Please upgrade to React 19. Learn more: https://nextjs.org/docs/messages/react-version'
@@ -1863,6 +1875,12 @@ function finalizeConfig(
       (config.outputHashSalt ?? '') + config.experimental.outputHashSalt
   }
 
+  // In tests, freeze the loaded config so that any later write throws where it
+  // happens instead of silently changing the config other code reads.
+  if (process.env.__NEXT_TEST_MODE) {
+    deepFreezePlainValues(config)
+  }
+
   return config
 }
 
@@ -2052,6 +2070,10 @@ async function loadConfigImpl(
     const standaloneConfig = JSON.parse(
       process.env.__NEXT_PRIVATE_STANDALONE_CONFIG
     )
+    // The standalone config is JSON written at build time, like the manifests.
+    if (process.env.__NEXT_TEST_MODE) {
+      deepFreeze(standaloneConfig)
+    }
 
     // Cache the standalone config
     configCache.set(cacheKey, {
