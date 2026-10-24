@@ -30,7 +30,6 @@ itertools = { workspace = true }
 num-bigint = "0.4"
 patricia_tree = { version = "0.10.1", features = ["serde"] }
 petgraph = { workspace = true, features = ["serde-1"] }
-roaring = { workspace = true, features = ["serde"] }
 ref-cast = "1.0.20"
 rustc-hash = { workspace = true }
 regex = { workspace = true }

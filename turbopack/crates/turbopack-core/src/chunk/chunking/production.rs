@@ -1,10 +1,10 @@
 use std::{borrow::Cow, collections::BinaryHeap, hash::BuildHasherDefault, mem::take};
 
 use anyhow::{Context, Result};
-use roaring::RoaringBitmap;
 use rustc_hash::{FxHashMap, FxHasher};
 use smallvec::SmallVec;
 use tracing::{Instrument, field::Empty};
+use turbo_bitset::Bitset;
 use turbo_prehash::BuildHasherExt;
 use turbo_tasks::{FxIndexMap, FxIndexSet, MappedReadRef, ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 
@@ -14,10 +14,7 @@ use crate::{
         ChunkingConfig,
         chunking::{ChunkItemOrBatchWithInfo, ComponentChunkItems, SplitContext, make_chunk},
     },
-    module_graph::{
-        ModuleGraph,
-        chunk_group_info::{ModuleToChunkGroups, RoaringBitmapWrapper},
-    },
+    module_graph::{ModuleGraph, chunk_group_info::ModuleToChunkGroups},
 };
 
 /// Default estimated cost of an additional request, in bytes (200 KB).
@@ -57,7 +54,7 @@ pub async fn make_production_chunks(
         let mut grouped_chunk_items = FxIndexMap::<_, GroupedChunkItems<'_>>::default();
 
         enum Prepared {
-            ChunkItem(MappedReadRef<ModuleToChunkGroups, RoaringBitmapWrapper>),
+            ChunkItem(MappedReadRef<ModuleToChunkGroups, Bitset>),
             Batch(ReadRef<ChunkItemBatchWithAsyncModuleInfo>),
             None,
         }
@@ -345,7 +342,7 @@ pub async fn make_production_chunks(
                             if let (Some(a), Some(b)) =
                                 (&candidate.chunk_groups, &other.chunk_groups)
                             {
-                                let o = &***a & &***b; // `o_groups` (Z)
+                                let o = &**a & &**b; // `o_groups` (Z)
 
                                 // if there is one chunk group in `o_groups` that is used by a
                                 // priority route, we should prioritise merging these two chunk
@@ -353,11 +350,11 @@ pub async fn make_production_chunks(
                                 is_priority_route = !o.is_disjoint(&heuristics.priority_routes);
 
                                 if has_clusters {
-                                    let x = &***a - &o; // a_rem groups: load only chunk A
-                                    let y = &***b - &o; // b_rem groups: load only chunk B
+                                    let x = &**a - &o; // a_rem groups: load only chunk A
+                                    let y = &**b - &o; // b_rem groups: load only chunk B
 
                                     // Map each cluster to the candidate groups it contains.
-                                    let mut cluster_groups: FxHashMap<u16, RoaringBitmap> =
+                                    let mut cluster_groups: FxHashMap<u16, Bitset> =
                                         FxHashMap::default();
                                     for set in [&x, &y, &o] {
                                         for index in set.iter() {
@@ -370,7 +367,7 @@ pub async fn make_production_chunks(
                                     // Groups sharing >= 1 cluster with `index`, deduped across
                                     // clusters (excluding `index` itself) so each pair counts once.
                                     let pairs_with = |index: u32| {
-                                        let mut p = RoaringBitmap::new();
+                                        let mut p = Bitset::new();
                                         for &c in &heuristics.clusters[index as usize] {
                                             if let Some(groups) = cluster_groups.get(&c) {
                                                 p |= groups;
@@ -641,7 +638,7 @@ struct ChunkCandidate<'l> {
     size: usize,
     chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
     batch_groups: SmallVec<[ResolvedVc<ChunkItemBatchGroup>; 1]>,
-    chunk_groups: Option<Cow<'l, RoaringBitmapWrapper>>,
+    chunk_groups: Option<Cow<'l, Bitset>>,
     /// Original groups this candidate covers; one per chunk, > 1 once merged.
     components: Vec<ChunkComponent<'l>>,
 }
@@ -670,7 +667,7 @@ struct MergeCandidate<'l> {
     size: usize,
     chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
     batch_groups: SmallVec<[ResolvedVc<ChunkItemBatchGroup>; 1]>,
-    chunk_groups: Option<Cow<'l, RoaringBitmapWrapper>>,
+    chunk_groups: Option<Cow<'l, Bitset>>,
     /// Original groups this candidate covers; one per chunk, > 1 once merged.
     components: Vec<ChunkComponent<'l>>,
 }
@@ -679,7 +676,7 @@ impl MergeCandidate<'_> {
     fn chunk_groups_len(&self) -> u64 {
         self.chunk_groups
             .as_ref()
-            .map_or(0, |chunk_groups| chunk_groups.len())
+            .map_or(0, |chunk_groups| chunk_groups.count_ones() as u64)
     }
 }
 
@@ -744,25 +741,22 @@ fn split_into_component_chunks<'l>(
     }
 }
 
-fn overlap(
-    chunk_groups: &Option<Cow<'_, RoaringBitmapWrapper>>,
-    chunk_groups2: &Option<Cow<'_, RoaringBitmapWrapper>>,
-) -> u64 {
+fn overlap(chunk_groups: &Option<Cow<'_, Bitset>>, chunk_groups2: &Option<Cow<'_, Bitset>>) -> u64 {
     if let (Some(chunk_groups), Some(chunk_groups2)) = (chunk_groups, chunk_groups2) {
-        chunk_groups.intersection_len(chunk_groups2)
+        chunk_groups.intersection_len(chunk_groups2) as u64
     } else {
         0
     }
 }
 
 fn merge_chunk_groups<'l>(
-    chunk_groups: &Option<Cow<'l, RoaringBitmapWrapper>>,
-    chunk_groups2: &Option<Cow<'l, RoaringBitmapWrapper>>,
-) -> Option<Cow<'l, RoaringBitmapWrapper>> {
+    chunk_groups: &Option<Cow<'l, Bitset>>,
+    chunk_groups2: &Option<Cow<'l, Bitset>>,
+) -> Option<Cow<'l, Bitset>> {
     if let (Some(chunk_groups), Some(chunk_groups2)) = (chunk_groups, chunk_groups2) {
-        let l = &**chunk_groups.as_ref();
-        let r = &**chunk_groups2.as_ref();
-        Some(Cow::Owned(RoaringBitmapWrapper(l & r)))
+        let l = chunk_groups.as_ref();
+        let r = chunk_groups2.as_ref();
+        Some(Cow::Owned(l & r))
     } else {
         None
     }

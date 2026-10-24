@@ -12,6 +12,7 @@ use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
+use turbo_bitset::Bitset;
 use turbo_prehash::BuildHasherExt;
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, JoinIterExt, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString,
@@ -23,7 +24,7 @@ use crate::{
     module::Module,
     module_graph::{
         GraphTraversalAction, ModuleGraph,
-        chunk_group_info::{ChunkGroupInfo, ChunkGroupKey, RoaringBitmapWrapper},
+        chunk_group_info::{ChunkGroupInfo, ChunkGroupKey},
         module_batch::{ModuleBatch, ModuleBatchGroup, ModuleOrBatch},
         traced_di_graph::{TracedDiGraph, iter_neighbors_rev},
     },
@@ -243,11 +244,11 @@ enum PreBatchItem {
 
 struct PreBatch {
     items: FxIndexSet<PreBatchItem>,
-    chunk_groups: RoaringBitmapWrapper,
+    chunk_groups: Bitset,
 }
 
 impl PreBatch {
-    fn new(chunk_groups: RoaringBitmapWrapper) -> Self {
+    fn new(chunk_groups: Bitset) -> Self {
         Self {
             items: FxIndexSet::default(),
             chunk_groups,
@@ -280,7 +281,7 @@ impl PreBatches {
     fn ensure_pre_batch_for_module(
         &mut self,
         module: ResolvedVc<Box<dyn Module>>,
-        module_chunk_groups: &FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>,
+        module_chunk_groups: &FxHashMap<ResolvedVc<Box<dyn Module>>, Bitset>,
         queue: &mut VecDeque<(ResolvedVc<Box<dyn Module>>, PreBatchIndex)>,
     ) -> Result<PreBatchIndex> {
         Ok(match self.entries.entry(module) {
@@ -302,7 +303,7 @@ impl PreBatches {
     async fn get_pre_batch_items(
         &mut self,
         entry: ResolvedVc<Box<dyn Module>>,
-        module_chunk_groups: &FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>,
+        module_chunk_groups: &FxHashMap<ResolvedVc<Box<dyn Module>>, Bitset>,
         module_graph: &ModuleGraph,
         queue: &mut VecDeque<(ResolvedVc<Box<dyn Module>>, PreBatchIndex)>,
     ) -> Result<Vec<PreBatchItem>> {
