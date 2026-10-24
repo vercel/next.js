@@ -6,6 +6,8 @@ version: experimental
 
 `staleTimes` is an experimental feature that enables caching of page segments in the [Client Cache](/docs/app/glossary#client-cache).
 
+> **Good to know:** Do not configure `staleTimes` when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled. Cache Components apps use [`use cache`](/docs/app/api-reference/directives/use-cache) with [`cacheLife`](/docs/app/api-reference/functions/cacheLife) to control client cache reuse.
+
 You can enable this experimental feature and provide custom revalidation times by setting the experimental `staleTimes` flag:
 
 ```js filename="next.config.js"
