@@ -1,4 +1,6 @@
 import { font } from './font'
+import Box from './Box'
+import LoadLazy from './LoadLazy'
 
 export default function Home() {
   return (
@@ -7,6 +9,8 @@ export default function Home() {
       <p id="with-font" className={font.className}>
         Text with custom font
       </p>
+      <Box />
+      <LoadLazy />
     </div>
   )
 }
