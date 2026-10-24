@@ -1,0 +1,31 @@
+[package]
+name = "turbo-bitset"
+version = "0.1.0"
+description = "A fast bitset over a bounded, block-aligned bit range"
+license = "MIT"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[dependencies]
+bincode = { workspace = true }
+roaring = { workspace = true }
+shrink-to-fit = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+fixedbitset = { workspace = true }
+# The benchmark inputs are drawn from a seeded generator.
+rand = { workspace = true }
+# The benchmarks and the `sizes` example also compare with the serde serialization of
+# `RoaringBitmap`.
+roaring = { workspace = true, features = ["serde"] }
+rustc-hash = { workspace = true }
+# The benchmarks and the `sizes` example encode, decode and hash like Turbopack does.
+turbo-bincode = { workspace = true }
+turbo-tasks-hash = { workspace = true }
+
+[[bench]]
+name = "mod"
+harness = false
