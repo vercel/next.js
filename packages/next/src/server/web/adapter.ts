@@ -548,7 +548,7 @@ export async function adapter(
    * In these cases, forwarding the `_rsc` parameter is essential so that the external server
    * can perform the correct RSC hash validation.
    */
-  if (response && rewrite && isRSCRequest && rscHash) {
+  if (response && rewrite && isRSCRequest && rscHash !== null) {
     const rewriteURL = new URL(rewrite)
     if (!rewriteURL.searchParams.has(NEXT_RSC_UNION_QUERY)) {
       rewriteURL.searchParams.set(NEXT_RSC_UNION_QUERY, rscHash)
