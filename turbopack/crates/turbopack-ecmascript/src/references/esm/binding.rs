@@ -1,9 +1,20 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use rustc_hash::FxHashMap;
-use swc_core::ecma::{
-    ast::{Expr, KeyValueProp, Prop, PropName, SimpleAssignTarget},
-    visit::fields::{CalleeField, PropField},
+use swc_core::{
+    atoms::atom,
+    base::SwcComments,
+    common::{
+        DUMMY_SP, Spanned,
+        comments::{Comment, CommentKind, Comments},
+    },
+    ecma::{
+        ast::{Expr, KeyValueProp, Prop, PropName, SimpleAssignTarget},
+        visit::fields::{
+            CalleeField, ExprField, MemberExprField, ParenExprField, PropField, TaggedTplField,
+            VarDeclaratorField,
+        },
+    },
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, Vc};
@@ -17,12 +28,14 @@ use crate::{
     references::esm::{
         EsmAssetReference,
         base::{ReferencedAsset, ReferencedAssetIdent},
+        export::is_export_no_side_effects,
     },
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode, Hash)]
 struct EsmBinding {
     export: Option<RcStr>,
+    namespace_member: Option<RcStr>,
     ast_path: AstPathId,
     keep_this: bool,
 }
@@ -50,6 +63,25 @@ impl EsmBindingsBuilder {
             .or_default()
             .push(EsmBinding {
                 export,
+                namespace_member: None,
+                ast_path,
+                keep_this: false,
+            });
+    }
+
+    pub fn add_with_namespace_member(
+        &mut self,
+        reference: ResolvedVc<EsmAssetReference>,
+        export: Option<RcStr>,
+        namespace_member: Option<RcStr>,
+        ast_path: AstPathId,
+    ) {
+        self.bindings
+            .entry(reference)
+            .or_default()
+            .push(EsmBinding {
+                export,
+                namespace_member,
                 ast_path,
                 keep_this: false,
             });
@@ -67,6 +99,7 @@ impl EsmBindingsBuilder {
             .or_default()
             .push(EsmBinding {
                 export,
+                namespace_member: None,
                 ast_path,
                 keep_this: true,
             });
@@ -95,6 +128,8 @@ impl EsmBindings {
         scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
         let mut visitors = vec![];
+        let generated_comments = SwcComments::default();
+        let mut has_no_side_effects = false;
 
         let unused_references = chunking_context.unused_references();
 
@@ -108,6 +143,7 @@ impl EsmBindings {
             let imported_module = reference.get_referenced_asset().await?;
 
             let mut exports_cache: FxHashMap<Option<RcStr>, _> = FxHashMap::default();
+            let mut purity_cache: FxHashMap<(RcStr, Option<RcStr>), bool> = FxHashMap::default();
             #[derive(Clone)]
             enum ImportedIdent {
                 Module(ReferencedAssetIdent),
@@ -118,10 +154,31 @@ impl EsmBindings {
             }
             for EsmBinding {
                 export,
+                namespace_member,
                 ast_path,
                 keep_this,
             } in bindings
             {
+                let no_side_effects = if let (ReferencedAsset::Some(module), Some(export)) =
+                    (&imported_module, export)
+                {
+                    match purity_cache.entry((export.clone(), namespace_member.clone())) {
+                        std::collections::hash_map::Entry::Vacant(entry) => {
+                            let pure = *is_export_no_side_effects(
+                                **module,
+                                export.clone(),
+                                namespace_member.clone(),
+                            )
+                            .await?;
+                            entry.insert(pure);
+                            pure
+                        }
+                        std::collections::hash_map::Entry::Occupied(entry) => *entry.get(),
+                    }
+                } else {
+                    false
+                };
+                has_no_side_effects |= no_side_effects;
                 let imported_ident = match &imported_module {
                     ReferencedAsset::None => ImportedIdent::None,
                     ReferencedAsset::Empty => {
@@ -196,13 +253,62 @@ impl EsmBindings {
                         // Any other expression can be replaced with the import accessor.
                         Some(swc_core::ecma::visit::AstParentKind::Expr(_)) => {
                             ast_path = trie.parent_or_root(ast_path);
-                            let in_call = !keep_this
-                                && matches!(
-                                    trie.get(ast_path),
-                                    Some(swc_core::ecma::visit::AstParentKind::Callee(
-                                        CalleeField::Expr
-                                    ))
+                            let is_invocation_of = |path| {
+                                let kind = trie.get(path);
+                                (
+                                    matches!(
+                                        kind,
+                                        Some(swc_core::ecma::visit::AstParentKind::Callee(
+                                            CalleeField::Expr
+                                        ))
+                                    ),
+                                    matches!(
+                                        kind,
+                                        Some(swc_core::ecma::visit::AstParentKind::TaggedTpl(
+                                            TaggedTplField::Tag
+                                        ))
+                                    ),
+                                )
+                            };
+                            // Only a directly replaced callee/tag may need a `this`-less accessor.
+                            let (direct_is_call, direct_is_tag) = is_invocation_of(ast_path);
+                            // Classify the enclosing use while replacing only the imported base.
+                            let mut usage_path = ast_path;
+                            if namespace_member.is_some() {
+                                usage_path = walk_up_through(
+                                    trie,
+                                    usage_path,
+                                    swc_core::ecma::visit::AstParentKind::MemberExpr(
+                                        MemberExprField::Obj,
+                                    ),
+                                    swc_core::ecma::visit::AstParentKind::Expr(ExprField::Member),
                                 );
+                            }
+                            loop {
+                                let next = walk_up_through(
+                                    trie,
+                                    usage_path,
+                                    swc_core::ecma::visit::AstParentKind::ParenExpr(
+                                        ParenExprField::Expr,
+                                    ),
+                                    swc_core::ecma::visit::AstParentKind::Expr(ExprField::Paren),
+                                );
+                                if next == usage_path {
+                                    break;
+                                }
+                                usage_path = next;
+                            }
+                            let (is_call, is_tag) = is_invocation_of(usage_path);
+                            let in_var_initializer = matches!(
+                                trie.get(usage_path),
+                                Some(swc_core::ecma::visit::AstParentKind::VarDeclarator(
+                                    VarDeclaratorField::Init
+                                ))
+                            );
+                            // Namespace members retain their object as the `this` receiver.
+                            let preserve_this = *keep_this || namespace_member.is_some();
+                            let in_invocation = !preserve_this && (direct_is_call || direct_is_tag);
+                            let generated_comments = generated_comments.clone();
 
                             visitors.push(create_visitor!(
                                 exact,
@@ -210,10 +316,25 @@ impl EsmBindings {
                                 ast_path,
                                 visit_mut_expr,
                                 |expr: &mut Expr| {
-                                    use swc_core::common::Spanned;
+                                    if no_side_effects && (is_call || is_tag || in_var_initializer)
+                                    {
+                                        generated_comments.add_leading(
+                                            expr.span().lo,
+                                            Comment {
+                                                kind: CommentKind::Block,
+                                                span: DUMMY_SP,
+                                                text: if is_call || is_tag {
+                                                    atom!("#__PURE__")
+                                                } else {
+                                                    atom!("#__NO_SIDE_EFFECTS__")
+                                                },
+                                            },
+                                        );
+                                    }
                                     match &imported_ident {
                                         ImportedIdent::Module(imported_ident) => {
-                                            *expr = imported_ident.as_expr(expr.span(), in_call);
+                                            *expr =
+                                                imported_ident.as_expr(expr.span(), in_invocation);
                                         }
                                         ImportedIdent::None => {
                                             *expr = *Expr::undefined(expr.span());
@@ -272,6 +393,28 @@ impl EsmBindings {
             }
         }
 
-        Ok(CodeGeneration::visitors(visitors))
+        Ok(if has_no_side_effects {
+            CodeGeneration::visitors_with_comments(visitors, generated_comments)
+        } else {
+            CodeGeneration::visitors(visitors)
+        })
+    }
+}
+
+/// Skip a known wrapper around a binding when classifying its use site.
+fn walk_up_through(
+    trie: &AstPathTrie,
+    path: AstPathId,
+    field: swc_core::ecma::visit::AstParentKind,
+    wrapper: swc_core::ecma::visit::AstParentKind,
+) -> AstPathId {
+    if trie.get(path) != Some(field) {
+        return path;
+    }
+    let parent = trie.parent_or_root(path);
+    if trie.get(parent) == Some(wrapper) {
+        trie.parent_or_root(parent)
+    } else {
+        parent
     }
 }
