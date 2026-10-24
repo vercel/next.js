@@ -11,10 +11,12 @@
 
 mod arc_bytes;
 pub(crate) mod be;
+mod chunk_bit_set;
 mod collector;
 mod collector_entry;
 mod compaction;
 mod compression;
+mod concurrent_slice;
 mod constants;
 mod db;
 mod key;
