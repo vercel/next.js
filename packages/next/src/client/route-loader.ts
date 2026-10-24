@@ -14,6 +14,8 @@ declare global {
     __BUILD_MANIFEST_CB?: Function
     __TURBOPACK_PAGE_BOOTSTRAP?: Record<string, unknown>
     __TURBOPACK_CHUNK_LOADING_GLOBAL?: string
+    // Route -> completion promise for legacy Turbopack page-loader stubs.
+    __TURBOPACK_PAGE_CHUNK_PROMISES__?: Map<string, Promise<unknown>>
     __SERVER_FILES_MANIFEST?: RequiredServerFilesManifest
     __MIDDLEWARE_MATCHERS?: ProxyMatcher[]
     __MIDDLEWARE_MATCHERS_CB?: Function
@@ -357,16 +359,52 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
           })
         }
 
+        // In Turbopack production, loading a route can start asynchronous
+        // JavaScript work after its loader script finishes. Delay the timeout
+        // until that known JavaScript work settles. Do not include CSS in this
+        // delay: stalled styles must still trigger the route timeout.
+        const turbopackChunkPromises = self.__TURBOPACK_PAGE_CHUNK_PROMISES__
+        let chunksLoaded: Promise<void> | undefined
+        let chunksLoadedResolve: (() => void) | undefined
+        if (turbopackChunkPromises) {
+          chunksLoaded = new Promise<void>((resolve) => {
+            chunksLoadedResolve = resolve
+          })
+        }
+
         return resolvePromiseWithTimeout(
           getFilesForRoute(assetPrefix, route)
             .then(({ scripts, css }) => {
-              return Promise.all([
-                entrypoints.has(route)
-                  ? []
-                  : Promise.all(scripts.map(maybeExecuteScript)).then((r) => {
+              const scriptsLoaded = entrypoints.has(route)
+                ? Promise.resolve([])
+                : Promise.all(scripts.map(maybeExecuteScript)).then(
+                    async (result) => {
+                      // The page-loader stub synchronously records its
+                      // non-CSS chunk promise before its script load event.
+                      // Shared-runtime routes also need bootstrap registration
+                      // to instantiate the entrypoint once those chunks load.
                       bootstrapRoute(route)
-                      return r
-                    }),
+                      const chunkPromise = turbopackChunkPromises?.get(route)
+                      if (chunkPromise) {
+                        turbopackChunkPromises?.delete(route)
+                        await chunkPromise
+                      }
+                      return result
+                    }
+                  )
+
+              // Use both handlers rather than a dangling `finally()` chain:
+              // the latter would create an unhandled rejected promise when a
+              // loader script fails.
+              if (chunksLoadedResolve) {
+                void scriptsLoaded.then(
+                  chunksLoadedResolve,
+                  chunksLoadedResolve
+                )
+              }
+
+              return Promise.all([
+                scriptsLoaded,
                 Promise.all(css.map(fetchStyleSheet)),
               ] as const)
             })
@@ -377,7 +415,9 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
               }))
             }),
           markAssetError(new Error(`Route did not complete loading: ${route}`)),
-          devBuildPromise
+          process.env.NODE_ENV === 'development'
+            ? devBuildPromise
+            : chunksLoaded
         )
           .then(({ entrypoint, styles }) => {
             const res: RouteLoaderEntry = Object.assign<
