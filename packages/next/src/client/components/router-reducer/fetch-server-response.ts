@@ -457,6 +457,24 @@ function decodeNavigationResponse<T>(
   // only a complete prerender has a shell we can use.
   responseChunks: Array<Uint8Array> | null
 ): Promise<T> & { _debugInfo?: Array<any> } {
+  let debugChannelReady: Promise<unknown> | undefined
+  if (process.env.__NEXT_DEV_SERVER && !process.env.TURBOPACK) {
+    // Navigating to a route that hasn't been compiled yet triggers a webpack
+    // rebuild, and the client applies the resulting hot update in parallel
+    // with this request. Don't let the Flight client process the response
+    // until that update has been applied. Otherwise, server logs that React
+    // replays during decoding (e.g. errors) reach the dev overlay before the
+    // Fast Refresh completes, and the refresh clears them again.
+    const { waitForWebpackRuntimeHotUpdate } =
+      require('../../dev/hot-reloader/app/hot-reloader-app') as typeof import('../../dev/hot-reloader/app/hot-reloader-app')
+    responsePromise = responsePromise.then(async (response) => {
+      await waitForWebpackRuntimeHotUpdate()
+      return response
+    })
+    // React also replays server logs from the debug channel, which it starts
+    // reading as soon as the decode starts, so hold that back as well.
+    debugChannelReady = responsePromise
+  }
   let closed = false
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
   let chunks: Array<Uint8Array> | null = null
@@ -547,6 +565,7 @@ function decodeNavigationResponse<T>(
   return createFromNextReadableStream<T>(stream, headers, {
     // Only a stream that closes on abort may end before the response does.
     allowPartialStream: signal !== undefined,
+    ...(process.env.__NEXT_DEV_SERVER ? { debugChannelReady } : undefined),
   }) as Promise<T> & { _debugInfo?: Array<any> }
 }
 
@@ -762,12 +781,77 @@ export async function createFetch(
 export function createFromNextReadableStream<T>(
   flightStream: ReadableStream<Uint8Array>,
   requestHeaders: RequestHeaders | undefined,
-  options?: { allowPartialStream?: boolean }
+  options?: {
+    allowPartialStream?: boolean
+    /**
+     * Dev only: when set, the debug channel isn't read until this settles.
+     * React starts reading the debug channel as soon as the decode starts,
+     * unlike `createFromFetch`, which waits for the response.
+     */
+    debugChannelReady?: Promise<unknown>
+  }
 ): Promise<T> {
+  let debugChannel = createDebugChannel && createDebugChannel(requestHeaders)
+  if (
+    process.env.__NEXT_DEV_SERVER &&
+    debugChannel?.readable &&
+    options?.debugChannelReady
+  ) {
+    debugChannel = {
+      ...debugChannel,
+      readable: delayReadableStream(
+        debugChannel.readable,
+        options.debugChannelReady
+      ),
+    }
+  }
   return createFromReadableStream(flightStream, {
     callServer,
     findSourceMapURL,
-    debugChannel: createDebugChannel && createDebugChannel(requestHeaders),
+    debugChannel,
     unstable_allowPartialStream: options?.allowPartialStream,
+  })
+}
+
+// Returns a stream that passes `stream` through, but doesn't read from it
+// until `ready` settles (whether it resolves or rejects).
+function delayReadableStream<R>(
+  stream: ReadableStream<R>,
+  ready: Promise<unknown>
+): ReadableStream<R> {
+  let reader: ReadableStreamDefaultReader<R> | null = null
+  let cancelled = false
+  return new ReadableStream<R>({
+    async pull(controller) {
+      if (reader === null) {
+        await ready.then(
+          () => {},
+          () => {}
+        )
+        if (cancelled) {
+          return
+        }
+        reader = stream.getReader()
+      }
+      try {
+        const { done, value } = await reader.read()
+        if (cancelled) {
+          return
+        }
+        if (done) {
+          controller.close()
+        } else {
+          controller.enqueue(value)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          controller.error(err)
+        }
+      }
+    },
+    cancel(reason) {
+      cancelled = true
+      return reader !== null ? reader.cancel(reason) : stream.cancel(reason)
+    },
   })
 }
