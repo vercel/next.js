@@ -20,4 +20,15 @@ fn check_api(value: MutableValue) -> anyhow::Result<()> {
     state.update(|value| value.value += 1)?;
     Ok(())
 }
+#[turbo_tasks::value(cell = "mutable", operation, eq = "manual")]
+#[derive(Clone)]
+struct NoEquality { value: u32 }
+
+fn check_read_without_equality(value: NoEquality) -> anyhow::Result<()> {
+    let cell = value.mutable_cell();
+    let _: ReadRef<NoEquality> = cell.get()?;
+    let _: ReadRef<NoEquality> = cell.get_untracked()?;
+    Ok(())
+}
+
 fn main() { assert_handle::<MutableCell<MutableValue>>(); }

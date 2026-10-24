@@ -118,7 +118,9 @@ async fn downstream(id: u32, state: MutableCell<Counter>, tracked: bool) -> Resu
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn tracked_untracked_and_immutable_snapshots() {
     let (tt, _dir) = create_tt("mutable_snapshots");
+    let tt_test = tt.clone();
     turbo_tasks::run_once(tt.clone(), async move {
+        let tt = tt_test;
         let state = create_counter(0)
             .read_strongly_consistent()
             .await?
@@ -154,28 +156,193 @@ async fn tracked_untracked_and_immutable_snapshots() {
         );
         assert_eq!(READER_RUNS[0].load(Ordering::SeqCst), expected_runs(2));
         assert_eq!(READER_RUNS[1].load(Ordering::SeqCst), expected_runs(1));
+        tt.backend().snapshot_and_evict_for_testing(&tt);
+        let owner = create_counter(0).task_id();
+        let before_noop = state.get_untracked()?;
+        assert!(!tt.backend().is_data_modified_for_testing(owner));
+        state.set(Counter { value: 1 })?;
         state.update(|_| {})?;
+        state.update(|value| {
+            value.value += 1;
+            value.value -= 1;
+        })?;
+        assert!(before_noop.ptr_eq(&state.get_untracked()?));
+        assert!(!tt.backend().is_data_modified_for_testing(owner));
         assert_eq!(
             *downstream(0, state, true)
                 .read_strongly_consistent()
                 .await?,
             2
         );
-        let equal_runs = READER_RUNS[0].load(Ordering::SeqCst);
-        assert!(
-            (expected_runs(2) + 1..=expected_runs(3)).contains(&equal_runs),
-            "equal-value commit must reexecute once (plus an optional verification rerun): \
-             {equal_runs}"
+        assert_eq!(
+            READER_RUNS[0].load(Ordering::SeqCst),
+            expected_runs(2),
+            "equal updates must neither replace storage nor invalidate readers"
         );
         assert_eq!(
             OWNER_RUNS[0].load(Ordering::SeqCst),
             expected_runs(1),
             "external mutation does not rerun its owner"
         );
+        state.update(|value| value.value += 1)?;
+        assert!(!before_noop.ptr_eq(&state.get_untracked()?));
+        assert!(tt.backend().is_data_modified_for_testing(owner));
+        assert_eq!(
+            *downstream(0, state, true)
+                .read_strongly_consistent()
+                .await?,
+            4
+        );
         anyhow::Ok(())
     })
     .await
     .unwrap();
+    tt.stop_and_wait().await;
+}
+
+#[turbo_tasks::value(cell = "mutable", operation, eq = "manual")]
+#[derive(Clone)]
+struct CustomEquality {
+    value: u32,
+    ignored: u32,
+}
+
+impl PartialEq for CustomEquality {
+    fn eq(&self, other: &Self) -> bool {
+        match other.ignored {
+            u32::MAX => panic!("deliberate equality panic"),
+            tag if tag == u32::MAX - 1 => {
+                let _ = Vc::<u32>::cell(1);
+            }
+            _ => {}
+        }
+        self.value == other.value
+    }
+}
+
+impl Drop for CustomEquality {
+    fn drop(&mut self) {
+        if self.ignored == u32::MAX - 2 {
+            // Rejected candidates must be dropped after the mutation callback.
+            // Calling the backend from their destructor is legal here.
+            let _ = Vc::<u32>::cell(1);
+        }
+    }
+}
+
+#[turbo_tasks::value]
+struct CustomEqualityHandle {
+    cell: MutableCell<CustomEquality>,
+}
+
+#[turbo_tasks::function(operation, root)]
+fn create_custom_equality() -> Vc<CustomEqualityHandle> {
+    CustomEqualityHandle {
+        cell: CustomEquality {
+            value: 0,
+            ignored: 0,
+        }
+        .mutable_cell(),
+    }
+    .cell()
+}
+
+static CUSTOM_EQUALITY_READS: AtomicU32 = AtomicU32::new(0);
+
+#[turbo_tasks::function(operation, root)]
+fn read_custom_equality(cell: MutableCell<CustomEquality>) -> Result<Vc<u32>> {
+    CUSTOM_EQUALITY_READS.fetch_add(1, Ordering::SeqCst);
+    Ok(Vc::cell(cell.get()?.value))
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn custom_equality_reentrancy_panic_and_candidate_drop_recovery() {
+    let (tt, _dir) = create_tt("mutable_custom_equality");
+    turbo_tasks::run_once(tt.clone(), async move {
+        let cell = create_custom_equality()
+            .read_strongly_consistent()
+            .await?
+            .cell;
+        let original = cell.get_untracked()?;
+        assert_eq!(
+            *read_custom_equality(cell)
+                .read_strongly_consistent()
+                .await?,
+            0
+        );
+        let reads = CUSTOM_EQUALITY_READS.load(Ordering::SeqCst);
+        cell.set(CustomEquality {
+            value: 0,
+            ignored: 1,
+        })?;
+        cell.update(|v| v.ignored = 2)?;
+        cell.set(CustomEquality {
+            value: 0,
+            ignored: u32::MAX - 2,
+        })?;
+        cell.update(|v| v.ignored = u32::MAX - 2)?;
+        assert!(original.ptr_eq(&cell.get_untracked()?));
+        assert_eq!(cell.get_untracked()?.ignored, 0);
+        assert_eq!(
+            *read_custom_equality(cell)
+                .read_strongly_consistent()
+                .await?,
+            0
+        );
+        assert_eq!(CUSTOM_EQUALITY_READS.load(Ordering::SeqCst), reads);
+        for tag in [u32::MAX, u32::MAX - 1] {
+            for update in [false, true] {
+                let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    if update {
+                        cell.update(|v| v.ignored = tag).unwrap();
+                    } else {
+                        cell.set(CustomEquality {
+                            value: 0,
+                            ignored: tag,
+                        })
+                        .unwrap();
+                    }
+                }));
+                assert!(panic.is_err(), "equality panic/reentrancy must fail fast");
+                assert!(original.ptr_eq(&cell.get_untracked()?));
+            }
+        }
+        let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            cell.update(|v| {
+                v.ignored = u32::MAX - 2;
+                panic!("candidate must drop after unwind releases reservation");
+            })
+            .unwrap();
+        }));
+        assert!(panic.is_err());
+        assert!(original.ptr_eq(&cell.get_untracked()?));
+        cell.set(CustomEquality {
+            value: 1,
+            ignored: 3,
+        })?;
+        assert_eq!(
+            *read_custom_equality(cell)
+                .read_strongly_consistent()
+                .await?,
+            1
+        );
+        assert!(CUSTOM_EQUALITY_READS.load(Ordering::SeqCst) > reads);
+        cell.update(|v| v.value += 1)?;
+        assert_eq!(
+            *read_custom_equality(cell)
+                .read_strongly_consistent()
+                .await?,
+            2
+        );
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap();
+    assert!(
+        tt.backend()
+            .snapshot_and_evict_for_testing(&tt)
+            .had_new_data
+    );
     tt.stop_and_wait().await;
 }
 

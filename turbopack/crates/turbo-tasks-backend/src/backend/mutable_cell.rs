@@ -173,7 +173,7 @@ impl TurboTasksBackend {
         &self,
         id: TaskId,
         cell: CellId,
-        update: &mut dyn FnMut(SharedReference) -> Result<SharedReference>,
+        update: &mut dyn FnMut(SharedReference) -> Result<Option<SharedReference>>,
         tt: &TurboTasks<Self>,
     ) -> Result<()> {
         check_type(cell)?;
@@ -189,7 +189,11 @@ impl TurboTasksBackend {
             .cloned()
             .ok_or_else(|| anyhow!("canonical mutable cell content is unavailable"))?;
         drop(task);
-        let content = update(old)?;
+        let Some(content) = update(old)? else {
+            // Comparison ran under writer exclusion, but outside shard locks.
+            // An equal value is not a payload mutation or a dependency event.
+            return Ok(());
+        };
         // The same owner reservation excludes initialization and completion, so
         // slot retirement cannot occur between validation and publication.
         let task = transaction.ctx.task(id, TaskDataCategory::All);
