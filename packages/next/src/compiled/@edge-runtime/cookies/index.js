@@ -84,9 +84,17 @@ function parseSetCookie(setCookie) {
       value2
     ])
   );
+  let cookieValue = value;
+  if (value !== undefined && value.includes("%")) {
+    try {
+      cookieValue = decodeURIComponent(value);
+    } catch {
+      cookieValue = value;
+    }
+  }
   const cookie = {
     name,
-    value: decodeURIComponent(value),
+    value: cookieValue,
     domain,
     ...expires && { expires: new Date(expires) },
     ...httponly && { httpOnly: true },
