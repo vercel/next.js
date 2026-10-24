@@ -35,11 +35,11 @@ pub use self::{
         BatchGroupCodeModuleIdsAndPaths, CodeModuleIdAndPath, CodeModuleIdsAndPaths,
         batch_group_code_module_ids_and_paths, item_code_module_ids_and_paths,
     },
-    content::EcmascriptChunkContent,
+    content::{ChunkMinification, EcmascriptChunkContent},
     content_entry::{EcmascriptChunkContentEntries, EcmascriptChunkContentEntry},
     data::EcmascriptChunkData,
     factory_group::{
-        StrictFactoryMode, strict_chunk_wrapper, strict_factory_mode, write_module_factories,
+        StrictFactoryMode, strict_chunk_prefix, strict_factory_mode, write_module_factories,
     },
     item::{
         EcmascriptChunkItem, EcmascriptChunkItemCode, EcmascriptChunkItemContent,

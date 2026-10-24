@@ -1,5 +1,4 @@
-(()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_reexport-registration_two-sources_input_0yi379fq8b8cq._.js",
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/two-sources/input/first.js [test] (ecmascript)", ((__turbopack_context__) => {
+"use strict";(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/1jsg_tests_snapshot_reexport-registration_two-sources_input_0yi379fq8b8cq._.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/two-sources/input/first.js [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([
@@ -10,8 +9,7 @@ __turbopack_context__.s([
 ]);
 const a = 'a-value';
 const b = 'b-value';
-}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/two-sources/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
+}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/two-sources/input/index.js [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([
@@ -29,8 +27,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 ;
 ;
 ;
-}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/two-sources/input/second.js [test] (ecmascript)", ((__turbopack_context__) => {
+}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/two-sources/input/second.js [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([
@@ -38,7 +35,6 @@ __turbopack_context__.s([
     ()=>c
 ]);
 const c = 'c-value';
-}),
-]);})()
+})]);
 
 //# sourceMappingURL=1jsg_tests_snapshot_reexport-registration_two-sources_input_0yi379fq8b8cq._.js.map

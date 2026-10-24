@@ -1,5 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_source_maps_input-source-map-merged_input_index_13tze6n0d8xk2.js",
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/input-source-map-merged/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/1jsg_tests_snapshot_source_maps_input-source-map-merged_input_index_13tze6n0d8xk2.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/input-source-map-merged/input/index.js [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([], "[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/input-source-map-merged/input/index.js [test] (ecmascript)");
@@ -12,7 +11,6 @@ function runExternalSourceMapped(fn) {
 }
 ;
 runExternalSourceMapped();
-}),
-]);
+})]);
 
 //# sourceMappingURL=1jsg_tests_snapshot_source_maps_input-source-map-merged_input_index_13tze6n0d8xk2.js.map
