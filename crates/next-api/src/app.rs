@@ -1228,7 +1228,10 @@ impl AppEndpoint {
                     },
                     matches!(ty, AppPageEndpointType::Html),
                 ),
-                AppEndpointType::Route { .. } => (false, false, EmitManifests::Minimal, true),
+                // SSR chunking is enabled so that client references reached from a Route Handler
+                // (e.g. one that renders a Flight payload) get entries in its client reference
+                // manifest, which is only written when an SSR chunking context exists.
+                AppEndpointType::Route { .. } => (false, true, EmitManifests::Minimal, true),
                 AppEndpointType::Metadata { metadata } => (
                     false,
                     false,
