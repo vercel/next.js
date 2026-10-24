@@ -1846,9 +1846,15 @@ function finalizeConfig(
     config.supportsImmutableAssets = false
   }
 
-  if (config.supportsImmutableAssets && config.output === 'standalone') {
-    // supportsImmutableAssets is designed to work with adapters. Disable it for output=standalone,
-    // which is currently using a non-adapter codepath.
+  if (
+    config.supportsImmutableAssets &&
+    config.output === 'standalone' &&
+    !config.adapterPath
+  ) {
+    // supportsImmutableAssets is designed to work with adapters: the adapter receives the
+    // immutable static files in onBuildComplete and deploys them. output=standalone without an
+    // adapter has nothing to do that, so disable it there. With an adapter, the build still calls
+    // onBuildComplete before it writes the standalone directory.
     // TODO remove again once output=standalone is using adapters.
     config.supportsImmutableAssets = false
   }
