@@ -658,6 +658,21 @@ mod tests {
         assert_eq!(value.is_string(), Some(true));
     }
 
+    #[test]
+    fn typeof_constant_in_condition() {
+        let arena = ThreadLocal::new();
+        let arena = arena.get_or_default();
+        let mut value = EvalContext::eval_single_expr_lit(
+            arena,
+            &rcstr!("typeof false === 'undefined' || false"),
+        )
+        .unwrap();
+
+        value.normalize(arena);
+
+        assert_eq!(value.is_truthy(), Some(false));
+    }
+
     #[rstest]
     #[case("1 && 'hello'")]
     #[case("'hello' || 'bye' || 2")]
