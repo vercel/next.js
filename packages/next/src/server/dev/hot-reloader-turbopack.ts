@@ -1166,10 +1166,12 @@ export async function createHotReloaderTurbopack(
     state.subscriptions.set(id, subscription)
 
     // Baseline capture and subscription setup are not atomic, so the first
-    // emission can be a real update. Ignore only the usual issues-only result.
+    // emission can be a real update (e.g. a partial Fast Refresh edit). Ignore
+    // baseline issues-only results and never forward a restart on initial
+    // subscription to prevent infinite reload loops.
     try {
       const initial = await subscription.next()
-      if (!initial.done && initial.value.value.type !== 'issues') {
+      if (!initial.done && initial.value.value.type === 'partial') {
         processIssues(state.clientIssues, key, initial.value, false, true)
         sendTurbopackMessage(initial.value.value)
       }
