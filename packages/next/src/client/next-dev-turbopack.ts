@@ -2,6 +2,7 @@
 import './register-deployment-id-global'
 import { initialize, version, router, emitter } from './'
 import initHMR from './dev/hot-middleware-client'
+import { createTurbopackSetPublicPath } from './turbopack-public-path'
 
 import { pageBootstrap } from './page-bootstrap'
 //@ts-expect-error requires "moduleResolution": "node16" in tsconfig.json and not .ts extension
@@ -17,7 +18,7 @@ window.next = {
   },
   emitter,
 }
-;(self as any).__next_set_public_path__ = () => {}
+;(self as any).__next_set_public_path__ = createTurbopackSetPublicPath()
 ;(self as any).__webpack_hash__ = ''
 
 // for the page loader
