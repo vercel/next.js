@@ -1,0 +1,22 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/new-url-ignore/input/index.js:32:9  Module not found: Can't resolve (<dynamic> | 'undefined')
+  
+      28 | }
+      29 | 
+      30 | // Never called: these only check that the hint names the matching magic comment.
+      31 | export function partiallyDynamicImport(options = {}) {
+         +          v------------------v
+      32 +   return import(options.path)
+         +          ^------------------^
+      33 | }
+      34 | 
+      35 | export function partiallyDynamicRequire(options = {}) {
+      36 |   return require(options.path)
+  
+  This request is too dynamic to resolve at build time. If it's only known at runtime, opt out of bundling with `import(/* turbopackIgnore: true */ path)`.
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: dynamic or module "'undefined'"
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/new-url-ignore/input/index.js
+  | Type of request: EcmaScript Modules request
+  |
