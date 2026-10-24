@@ -179,9 +179,11 @@ const transform = (
       trace: StackFrame[] | undefined
     }> = []
 
+    const escapedResource = resource.replace(/[?#]/g, (match) => '\0' + match)
+
     runLoaders(
       {
-        resource: resource + query,
+        resource: escapedResource + query,
         context: {
           version: 2,
           _module: {
