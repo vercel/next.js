@@ -382,6 +382,47 @@ describe('FileSystemCache route-scoped build seeds', () => {
     await expect(fs.stat(`${join(serverDistDir, key)}.html`)).rejects.toThrow()
   })
 
+  it('expires a seed written before a tag revalidation once its expire window has passed', async () => {
+    const { key } = await writeSeed({
+      headers: { 'x-next-cache-tags': 'expire-window-before' },
+      modified: new Date(Date.now() - 60_000),
+    })
+    const cache = createCache()
+    await cache.revalidateTag('expire-window-before', { expire: 0.1 })
+    await new Promise((resolve) => setTimeout(resolve, 150))
+
+    expect(await cache.get(key, getContext)).toBeNull()
+  })
+
+  it('serves a seed written after a tag revalidation once its expire window has passed', async () => {
+    const cache = createCache()
+    await cache.revalidateTag('expire-window-after', { expire: 0.1 })
+    // File modification times come from a coarser clock than Date.now().
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    const { key } = await writeSeed({
+      headers: { 'x-next-cache-tags': 'expire-window-after' },
+    })
+    await new Promise((resolve) => setTimeout(resolve, 150))
+
+    expect((await cache.get(key, getContext))?.value).toMatchObject({
+      html: 'build html',
+    })
+  })
+
+  it('expires a seed written between a tag revalidation with an expire window and an immediate one', async () => {
+    const cache = createCache()
+    await cache.revalidateTag('expire-window-between', { expire: 3600 })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    const { key } = await writeSeed({
+      headers: { 'x-next-cache-tags': 'expire-window-between' },
+    })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    await cache.revalidateTag('expire-window-between')
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    expect(await cache.get(key, getContext)).toBeNull()
+  })
+
   it('keeps serving the seed when promotion fails before publication', async () => {
     const { key } = await writeSeed()
     const scopedMeta = `${join(serverDistDir, key)}.meta`
