@@ -451,6 +451,44 @@ impl AggregatedDataUpdate {
         self
     }
 
+    /// Merges `other` into this update, so that applying the result has the same net effect as
+    /// applying both updates one after the other. Intermediate presence flips that cancel out
+    /// are skipped, as with [`AggregatedDataUpdate::optimize`].
+    ///
+    /// Both dirty container updates (if any) must be for the same dirty container. This holds for
+    /// the updates returned by [`AggregatedDataUpdate::apply`] on the same task, which always
+    /// use that task's id.
+    ///
+    /// Collectible entries are only concatenated. Call [`AggregatedDataUpdate::optimize`]
+    /// afterwards to combine them, ideally after releasing any task lock.
+    fn merge(&mut self, other: Self) {
+        let Self {
+            dirty_container_update,
+            collectibles_update,
+        } = other;
+        if let Some(other) = dirty_container_update {
+            match &mut self.dirty_container_update {
+                Some(update) => {
+                    debug_assert_eq!(
+                        update.task_id, other.task_id,
+                        "can only merge dirty container updates for the same dirty container"
+                    );
+                    update.dirty_count += other.dirty_count;
+                    update.current_session_clean_count += other.current_session_clean_count;
+                    if update.dirty_count == 0 && update.current_session_clean_count == 0 {
+                        self.dirty_container_update = None;
+                    }
+                }
+                None => self.dirty_container_update = Some(other),
+            }
+        }
+        if self.collectibles_update.is_empty() {
+            self.collectibles_update = collectibles_update;
+        } else {
+            self.collectibles_update.extend(collectibles_update);
+        }
+    }
+
     /// Inverts the update. This is used when the task is removed from an upper task.
     fn invert(mut self) -> Self {
         let Self {
@@ -2936,28 +2974,25 @@ impl AggregationUpdateQueue {
                     (!diff.is_empty()).then_some(diff)
                 })
                 .collect::<Vec<_>>();
-            let mut iter = diffs.into_iter();
-            if let Some(mut diff) = iter.next() {
+            if !diffs.is_empty() {
                 let upper_ids = get_uppers(&upper);
                 drop(upper);
-                // TODO merge AggregatedDataUpdate
-                for next_diff in iter {
-                    self.push(
-                        AggregatedDataUpdateJob {
-                            upper_ids: upper_ids.clone(),
-                            update: diff,
-                        }
-                        .into(),
-                    );
-                    diff = next_diff;
-                }
-                self.push(
-                    AggregatedDataUpdateJob {
-                        upper_ids,
-                        update: diff,
+                if !upper_ids.is_empty() {
+                    // Outside of the lock: merge the diffs into a single update for the uppers
+                    // of the upper, instead of enqueuing one job per diff.
+                    let needs_optimize = diffs.len() > 1;
+                    let mut iter = diffs.into_iter();
+                    let mut update = iter.next().unwrap();
+                    for diff in iter {
+                        update.merge(diff);
                     }
-                    .into(),
-                );
+                    if needs_optimize {
+                        update = update.optimize();
+                    }
+                    if !update.is_empty() {
+                        self.push(AggregatedDataUpdateJob { upper_ids, update }.into());
+                    }
+                }
             }
         }
         if !inner_tasks.is_empty() {
@@ -3825,5 +3860,84 @@ mod tests {
                 .is_empty()
         );
         assert!(AggregatedDataUpdate::new().optimize().is_empty());
+    }
+
+    fn merged(updates: impl IntoIterator<Item = AggregatedDataUpdate>) -> AggregatedDataUpdate {
+        let mut result = AggregatedDataUpdate::new();
+        for update in updates {
+            result.merge(update);
+        }
+        result.optimize()
+    }
+
+    fn dirty_counts(update: &AggregatedDataUpdate) -> Option<(TaskId, i32, i32)> {
+        update
+            .dirty_container_update
+            .map(|u| (u.task_id, u.dirty_count, u.current_session_clean_count))
+    }
+
+    #[test]
+    fn merge_sums_dirty_container_updates() {
+        let task_id = TaskId::new(5).unwrap();
+        let update = merged([
+            AggregatedDataUpdate::new().dirty_container_update(task_id, 1, 0),
+            AggregatedDataUpdate::new().dirty_container_update(task_id, 0, 1),
+        ]);
+        assert_eq!(dirty_counts(&update), Some((task_id, 1, 1)));
+
+        // Only one side has a dirty container update.
+        let update = merged([
+            AggregatedDataUpdate::new(),
+            AggregatedDataUpdate::new().dirty_container_update(task_id, -1, 0),
+            AggregatedDataUpdate::new(),
+        ]);
+        assert_eq!(dirty_counts(&update), Some((task_id, -1, 0)));
+    }
+
+    #[test]
+    fn merge_cancels_opposite_updates() {
+        let task_id = TaskId::new(5).unwrap();
+        let a = collectible(1);
+        let b = collectible(2);
+        let update = merged([
+            AggregatedDataUpdate::new()
+                .collectibles_update(vec![(a, 1)])
+                .dirty_container_update(task_id, 1, 1),
+            AggregatedDataUpdate::new()
+                .collectibles_update(vec![(a, -1), (b, 1)])
+                .dirty_container_update(task_id, -1, -1),
+        ]);
+        assert_eq!(dirty_counts(&update), None);
+        assert_eq!(real_collectibles(&update), [(b, 1)].into_iter().collect());
+
+        let update = merged([
+            AggregatedDataUpdate::new()
+                .collectibles_update(vec![(a, 1), (b, -1)])
+                .dirty_container_update(task_id, 1, 0),
+            AggregatedDataUpdate::new()
+                .collectibles_update(vec![(b, 1), (a, -1)])
+                .dirty_container_update(task_id, -1, 0),
+        ]);
+        assert!(update.is_empty());
+    }
+
+    #[test]
+    fn merge_sums_collectibles() {
+        let a = collectible(1);
+        let b = collectible(2);
+        let c = collectible(3);
+        let update = merged([
+            AggregatedDataUpdate::new().collectibles_update(vec![(a, 1), (b, 1)]),
+            AggregatedDataUpdate::new().collectibles_update(vec![(a, 1), (c, -1)]),
+            AggregatedDataUpdate::new().collectibles_update(vec![(b, -1)]),
+        ]);
+        assert_eq!(dirty_counts(&update), None);
+        assert_eq!(
+            real_collectibles(&update),
+            [(a, 2), (c, -1)].into_iter().collect()
+        );
+        assert_eq!(update.collectibles_update.len(), 2);
+
+        assert!(merged([AggregatedDataUpdate::new(), AggregatedDataUpdate::new()]).is_empty());
     }
 }
