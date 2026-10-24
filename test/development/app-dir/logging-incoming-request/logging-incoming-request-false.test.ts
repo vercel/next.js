@@ -1,34 +1,37 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
 
-describe('logging-incoming-request', () => {
-  const { next } = nextTestSetup({
-    files: __dirname,
-    overrideFiles: {
-      'next.config.js': `
+describe.each([false, { incomingRequests: false }])(
+  'logging-incoming-request with logging: %j',
+  (logging) => {
+    const { next } = nextTestSetup({
+      files: __dirname,
+      overrideFiles: {
+        'next.config.js': `
         module.exports = {
-          logging: {
-            incomingRequests: false
+          logging: ${JSON.stringify(logging)},
+          async redirects() {
+            return [{ source: '/redirect', destination: '/foo', permanent: false }]
           }
         }
       `,
-    },
-  })
-
-  it('should handle disabled request logging', async () => {
-    let response = await next.fetch('/foo')
-    expect(response.status).toBe(200)
-
-    response = await next.fetch('/hello')
-    expect(response.status).toBe(200)
-
-    // Wait for GET /foo to be logged
-    await retry(() => {
-      expect(next.cliOutput).not.toContain('GET /foo')
+      },
     })
 
-    // Verify no requests were logged
-    expect(next.cliOutput).not.toContain('GET /')
-    expect(next.cliOutput).not.toContain('GET /hello')
-  })
-})
+    it('should handle disabled request logging', async () => {
+      let response = await next.fetch('/foo')
+      expect(response.status).toBe(200)
+
+      response = await next.fetch('/hello')
+      expect(response.status).toBe(200)
+
+      response = await next.fetch('/redirect', { redirect: 'manual' })
+      expect(response.status).toBe(307)
+
+      // Collect all output before checking that request logging stayed disabled.
+      await next.stop()
+
+      // Verify no requests were logged
+      expect(next.cliOutput).not.toContain('GET /')
+    })
+  }
+)
