@@ -1,5 +1,4 @@
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1do3_crates_turbopack-tests_tests_snapshot_basic_use-strict_input_1wmp5yoyw-hht._.js",
-(()=>{"use strict";return[
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/use-strict/input/index.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 "use strict";
 
@@ -15,6 +14,12 @@ __turbopack_context__.A("[project]/turbopack/crates/turbopack-tests/tests/snapsh
 console.log('this is CJS', strictA, strictB, sloppy);
 module.exports = strictA + strictB + sloppy;
 }),
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/use-strict/input/non-strict.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
+
+module.exports = function() {
+    return this === globalThis ? 34 : 0;
+}();
+}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/use-strict/input/strict-a.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 "use strict";
 
@@ -28,13 +33,6 @@ __turbopack_context__.s([
     ()=>__TURBOPACK__default__export__
 ]);
 const __TURBOPACK__default__export__ = 200;
-}),
-]})(),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/use-strict/input/non-strict.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
-
-module.exports = function() {
-    return this === globalThis ? 34 : 0;
-}();
 }),
 ]);
 

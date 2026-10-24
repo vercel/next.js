@@ -38,9 +38,7 @@ pub use self::{
     content::EcmascriptChunkContent,
     content_entry::{EcmascriptChunkContentEntries, EcmascriptChunkContentEntry},
     data::EcmascriptChunkData,
-    factory_group::{
-        StrictFactoryMode, strict_chunk_wrapper, strict_factory_mode, write_module_factories,
-    },
+    factory_group::{chunk_has_strict_directive, write_module_factories},
     item::{
         EcmascriptChunkItem, EcmascriptChunkItemCode, EcmascriptChunkItemContent,
         EcmascriptChunkItemExt, EcmascriptChunkItemOptions, EcmascriptChunkItemWithAsyncInfo,

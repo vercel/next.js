@@ -1,4 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_imports_optional-comments_input_existing_mjs_0c500u0zw1qsb._.js",
+"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_imports_optional-comments_input_existing_mjs_0c500u0zw1qsb._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/optional-comments/input/existing.mjs [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
