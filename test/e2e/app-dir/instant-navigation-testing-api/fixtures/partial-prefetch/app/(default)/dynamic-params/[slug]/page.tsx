@@ -1,7 +1,5 @@
 import { Suspense } from 'react'
 
-// Intentionally no generateStaticParams — this exercises the fallback-shell
-// path for a dynamic route whose URL is not covered by static params.
 export default function UngeneratedParamsPage({
   params,
 }: {
@@ -9,10 +7,12 @@ export default function UngeneratedParamsPage({
 }) {
   return (
     <div>
-      <h1 data-testid="ungenerated-params-title">Ungenerated Params Page</h1>
+      <h1 data-testid="dynamic-params-title">
+        Ungenerated Params Runtime Page
+      </h1>
       <Suspense
         fallback={
-          <div data-testid="ungenerated-params-fallback">Loading params...</div>
+          <div data-testid="dynamic-params-fallback">Loading params...</div>
         }
       >
         <ParamContent params={params} />
