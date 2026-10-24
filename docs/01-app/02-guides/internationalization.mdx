@@ -22,29 +22,54 @@ It’s recommended to use the user’s language preferences in the browser to se
 
 For example, using the following libraries, you can look at an incoming `Request` to determine which locale to select, based on the `Headers`, locales you plan to support, and the default locale.
 
+```bash filename="Terminal"
+npm install @formatjs/intl-localematcher negotiator
+npm install --save-dev @types/negotiator
+```
+
 ```js filename="proxy.js"
-import { match } from '@formatjs/intl-localematcher'
+import { match as matchLocale } from '@formatjs/intl-localematcher'
 import Negotiator from 'negotiator'
+import type { NextRequest } from 'next/server'
 
-let headers = { 'accept-language': 'en-US,en;q=0.5' }
-let languages = new Negotiator({ headers }).languages()
-let locales = ['en-US', 'nl-NL', 'nl']
-let defaultLocale = 'en-US'
+const locales = ['en-US', 'nl-NL', 'nl']
+const defaultLocale = 'en-US'
 
-match(languages, locales, defaultLocale) // -> 'en-US'
+function getLocale(request: NextRequest): string {
+  // Negotiator expects plain object, so we need to transform headers
+  // Example of what headers look like: { 'accept-language': 'en-US,en;q=0.5' }
+  const negotiatorHeaders: Record<string, string> = {}
+  request.headers.forEach((value, key) => (negotiatorHeaders[key] = value))
+
+  const languages = new Negotiator({ headers: negotiatorHeaders }).languages(locales)
+  return matchLocale(languages, locales, defaultLocale)
+}
 ```
 
 Routing can be internationalized by either the sub-path (`/fr/products`) or domain (`my-site.fr/products`). With this information, you can now redirect the user based on the locale inside [Proxy](/docs/app/api-reference/file-conventions/proxy).
 
 ```js filename="proxy.js"
-import { NextResponse } from "next/server";
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { match as matchLocale } from '@formatjs/intl-localematcher'
+import Negotiator from 'negotiator'
 
-let locales = ['en-US', 'nl-NL', 'nl']
+const locales = ['en-US', 'nl-NL', 'nl']
+const defaultLocale = 'en-US'
 
-// Get the preferred locale, similar to the above or using a library
-function getLocale(request) { ... }
+function getLocale(request: NextRequest): string {
+  // To persist locale preference, check a cookie before negotiating:
+  // const savedLocale = request.cookies.get('locale')?.value
+  // if (savedLocale && locales.some((l) => l === savedLocale)) return savedLocale
 
-export function proxy(request) {
+  const negotiatorHeaders: Record<string, string> = {}
+  request.headers.forEach((value, key) => (negotiatorHeaders[key] = value))
+
+  const languages = new Negotiator({ headers: negotiatorHeaders }).languages(locales)
+  return matchLocale(languages, locales, defaultLocale)
+}
+
+export function proxy(request: NextRequest) {
   // Check if there is any supported locale in the pathname
   const { pathname } = request.nextUrl
   const pathnameHasLocale = locales.some(
@@ -58,7 +83,10 @@ export function proxy(request) {
   request.nextUrl.pathname = `/${locale}${pathname}`
   // e.g. incoming request is /products
   // The new URL is now /en-US/products
-  return NextResponse.redirect(request.nextUrl)
+  const response = NextResponse.redirect(request.nextUrl)
+  // To persist locale preference, save to cookie:
+  // response.cookies.set('locale', locale, { path: '/' })
+  return response
 }
 
 export const config = {
@@ -94,6 +122,26 @@ export default async function Page({ params }) {
 > **Good to know:** `PageProps` and `LayoutProps` are globally available TypeScript helpers that provide strong typing for route parameters. See [PageProps](/docs/app/api-reference/file-conventions/page#page-props-helper) and [LayoutProps](/docs/app/api-reference/file-conventions/layout#layout-props-helper) for more details.
 
 The root layout can also be nested in the new folder (e.g. `app/[lang]/layout.js`).
+
+### Alternate Language URLs
+
+To help search engines discover your language-specific URLs, you can declare alternate versions using the Metadata API:
+
+```tsx filename="app/[lang]/layout.tsx"
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  alternates: {
+    languages: {
+      'en-US': 'https://example.com/en-US',
+      'nl-NL': 'https://example.com/nl-NL',
+      'x-default': 'https://example.com/en-US',
+    },
+  },
+}
+```
+
+This generates `hreflang` tags that tell crawlers about available language variants. See [`alternates`](/docs/app/api-reference/functions/generate-metadata#alternates) for more options.
 
 ## Localization
 
