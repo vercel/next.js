@@ -217,6 +217,7 @@ import {
   parseRelativeUrl,
   type ParsedRelativeUrl,
 } from '../../shared/lib/router/utils/parse-relative-url'
+import { decodePathParams } from '../lib/router-utils/decode-path-params'
 import AppRouter from '../../client/components/app-router'
 import type { RequestErrorContext } from '../instrumentation/types'
 import { createInitialRouterState } from '../../client/components/router-reducer/create-initial-router-state'
@@ -224,7 +225,10 @@ import { createMutableActionQueue } from '../../client/components/app-router-ins
 import { getRevalidateReason } from '../instrumentation/utils'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import {
+  createOpaqueFallbackRouteParams,
   getFallbackRouteParams,
+  getStagedFallbackParams,
+  selectPrerenderedRoute,
   type OpaqueFallbackRouteParams,
 } from '../request/fallback-params'
 import {
@@ -8514,6 +8518,27 @@ async function validateInstantConfigInBuildWithSample(
     sample.searchParams
   )
 
+  const buildValidationMetadata =
+    outerCtx.renderOpts.buildValidationMetadata
+  const selectedPrerenderCandidate = selectPrerenderedRoute(
+    buildValidationMetadata?.candidates ?? [],
+    decodePathParams(sampleUrl.pathname)
+  )
+  let stagedFallbackParams = selectedPrerenderCandidate
+    ? getStagedFallbackParams(selectedPrerenderCandidate)
+    : null
+  if (buildValidationMetadata?.explicitFallbackRouteParams) {
+    stagedFallbackParams = new Map([
+      ...(stagedFallbackParams ?? []),
+      ...(createOpaqueFallbackRouteParams(
+        buildValidationMetadata.explicitFallbackRouteParams
+      ) ?? []),
+    ])
+  }
+  const stagedFallbackParamNames = stagedFallbackParams
+    ? new Set(stagedFallbackParams.keys())
+    : null
+
   const sampleParams = sample.params ?? {}
   let fallbackRouteParams: OpaqueFallbackRouteParams | null = null
   if (allPossibleFallbackRouteParams) {
@@ -8666,6 +8691,7 @@ async function validateInstantConfigInBuildWithSample(
         // This will be set when rendering
         resumeDataCache: null,
         stagedRendering: null,
+        stagedFallbackParams: stagedFallbackParamNames,
         asyncApiPromises: undefined,
       }
     }

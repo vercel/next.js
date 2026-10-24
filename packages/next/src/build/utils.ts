@@ -73,6 +73,7 @@ import { collectRootParamKeys } from './segment-config/app/collect-root-param-ke
 import { buildAppStaticPaths } from './static-paths/app'
 import { buildPagesStaticPaths } from './static-paths/pages'
 import type {
+  FallbackRouteParam,
   PrerenderRouteMatcher,
   PrerenderedRoute,
 } from './static-paths/types'
@@ -813,6 +814,7 @@ type PageIsStaticResult = {
   prerenderedRoutes: PrerenderedRoute[] | undefined
   prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined
   paramMatching: ParamMatching | undefined
+  explicitFallbackRouteParams: readonly FallbackRouteParam[] | undefined
   prerenderFallbackMode: FallbackMode | undefined
   rootParamKeys: readonly string[] | undefined
   isNextImageImported?: boolean
@@ -889,6 +891,7 @@ export async function isPageStatic({
       prerenderedRoutes: undefined,
       prerenderRouteMatchers: undefined,
       paramMatching: undefined,
+      explicitFallbackRouteParams: undefined,
       rootParamKeys: undefined,
       hasStaticProps: false,
       hasServerProps: false,
@@ -917,6 +920,9 @@ export async function isPageStatic({
       let prerenderedRoutes: PrerenderedRoute[] | undefined
       let prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined
       let paramMatching: ParamMatching | undefined
+      let explicitFallbackRouteParams:
+        | readonly FallbackRouteParam[]
+        | undefined
       let prerenderFallbackMode: FallbackMode | undefined
       let appConfig: AppSegmentConfig = {}
       let rootParamKeys: readonly string[] | undefined
@@ -1047,6 +1053,7 @@ export async function isPageStatic({
               prerenderedRoutes,
               prerenderRouteMatchers,
               paramMatching,
+              explicitFallbackRouteParams,
               fallbackMode: prerenderFallbackMode,
             } = await buildAppStaticPaths({
               dir,
@@ -1147,6 +1154,7 @@ export async function isPageStatic({
         prerenderedRoutes,
         prerenderRouteMatchers,
         paramMatching,
+        explicitFallbackRouteParams,
         rootParamKeys,
         hasStaticProps,
         hasServerProps,
