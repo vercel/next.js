@@ -25,7 +25,7 @@ use turbopack_core::{
     module_graph::{
         ModuleGraph,
         binding_usage_info::{BindingUsageInfo, ModuleExportUsage},
-        chunk_group_info::ChunkGroup,
+        chunk_group_info::ChunkGroupKey,
     },
     output::{OutputAsset, OutputAssets},
 };
@@ -566,18 +566,23 @@ impl ChunkingContext for NodeJsChunkingContext {
     async fn chunk_group(
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_groups: SmallVec<[ChunkGroup; 1]>,
+        chunk_groups: SmallVec<[ChunkGroupKey; 1]>,
         module_graph: ResolvedVc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!("chunking", name = display(ident.to_string().await?));
         async move {
+            let chunk_group_info = module_graph.chunk_group_info();
+            let mut groups = SmallVec::with_capacity(chunk_groups.len());
+            for key in chunk_groups {
+                groups.push(chunk_group_info.get_chunk_group(key).await?);
+            }
             let MakeChunkGroupResult {
                 chunks,
                 references,
                 availability_info,
             } = make_chunk_group(
-                chunk_groups,
+                groups,
                 module_graph,
                 ResolvedVc::upcast(self),
                 availability_info,
@@ -609,7 +614,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     pub async fn entry_chunk_group(
         self: ResolvedVc<Self>,
         path: FileSystemPath,
-        chunk_group: ChunkGroup,
+        chunk_group: ChunkGroupKey,
         module_graph: ResolvedVc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         extra_referenced_assets: Vc<OutputAssets>,
@@ -621,6 +626,10 @@ impl ChunkingContext for NodeJsChunkingContext {
             chunking_type = "entry",
         );
         async move {
+            let chunk_group = module_graph
+                .chunk_group_info()
+                .get_chunk_group(chunk_group)
+                .await?;
             let MakeChunkGroupResult {
                 chunks,
                 references,
@@ -693,7 +702,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     fn evaluated_chunk_group(
         self: Vc<Self>,
         _ident: Vc<AssetIdent>,
-        _chunk_group: ChunkGroup,
+        _chunk_group: ChunkGroupKey,
         _module_graph: Vc<ModuleGraph>,
         _extra_chunks: Vc<OutputAssets>,
         _availability_info: AvailabilityInfo,
