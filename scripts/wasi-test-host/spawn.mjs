@@ -52,13 +52,17 @@ export function nextThreadId(threadIds) {
  * main wasm thread is parked in `Atomics.wait`. All managers allocate IDs from the same shared
  * counter.
  *
- * @param {{ module: WebAssembly.Module, memory: WebAssembly.Memory, threadIds: Int32Array, args: string[], env: Record<string, string>, preopens: Record<string, string>, onError: (error: Error, threadId: number | undefined) => void, workerPath?: string, WorkerClass?: typeof Worker, ThreadManagerClass?: typeof ThreadManager }} context
+ * Every Worker shares `fdTable` (see ./fs.mjs) and is created with `trackUnmanagedFds: false`: host
+ * fds opened by one thread belong to the whole process, so a thread exiting must not close them.
+ *
+ * @param {{ module: WebAssembly.Module, memory: WebAssembly.Memory, threadIds: Int32Array, fdTable: SharedArrayBuffer, args: string[], env: Record<string, string>, preopens: Record<string, string>, onError: (error: Error, threadId: number | undefined) => void, workerPath?: string, WorkerClass?: typeof Worker, ThreadManagerClass?: typeof ThreadManager }} context
  */
 export function createThreadRuntime(context) {
   const {
     module,
     memory,
     threadIds,
+    fdTable,
     args,
     env,
     preopens,
@@ -82,7 +86,10 @@ export function createThreadRuntime(context) {
     reuseWorker: false,
     onCreateWorker: () =>
       new WorkerClass(workerPath, {
-        workerData: { threadIds, args, env, preopens },
+        workerData: { threadIds, fdTable, args, env, preopens },
+        // Guest fds outlive the thread that opened them; Node would otherwise close the host fds
+        // a Worker opened when it exits.
+        trackUnmanagedFds: false,
         // Inherit stdio so panics and test output from threads reach the terminal.
         stdout: false,
         stderr: false,

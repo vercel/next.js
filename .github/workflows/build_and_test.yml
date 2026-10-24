@@ -685,6 +685,9 @@ jobs:
         # compile is simply never built.
         cargo build -p next-napi-bindings --target wasm32-wasip1-threads
 
+        # The host's own tests (e.g. the fd table shared between threads); no wasm build needed.
+        node --test scripts/wasi-test-host/*.test.mjs
+
         # Run the crates whose tests can execute on wasm. This needs a host that supplies the
         # `env.read_custom_section` import turbo-tasks' link-time registries depend on; no stock
         # runtime provides it. See scripts/wasi-test-host/README.md, which also lists the platform

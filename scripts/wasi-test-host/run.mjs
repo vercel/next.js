@@ -15,6 +15,11 @@ import { tmpdir } from 'node:os'
 import process from 'node:process'
 
 import {
+  createPreview1Imports,
+  createSharedFdTableBuffer,
+  initializeSharedFdTable,
+} from './fs.mjs'
+import {
   createImportedMemory,
   createReadCustomSection,
   createWasiTestEnvironment,
@@ -44,7 +49,8 @@ const wasi = new WASI({
   version: 'preview1',
   args,
   env,
-  // The checkout remains available at `/`; `/tmp` maps to the host's actual temp directory.
+  // Filesystem imports come from the shared fd table (./fs.mjs), which opens these same preopens:
+  // the checkout at `/`, and `/tmp` mapped to the host's actual temp directory.
   preopens,
   returnOnExit: true,
 })
@@ -55,10 +61,18 @@ const wasi = new WASI({
  */
 const threadIds = new Int32Array(new SharedArrayBuffer(4))
 
+/**
+ * The guest fd table, shared by every thread so that a file opened on one thread is usable on all of
+ * them. It is populated once, here, before any thread exists. See ./fs.mjs.
+ */
+const fdTable = createSharedFdTableBuffer()
+initializeSharedFdTable(fdTable, preopens)
+
 const { threadSpawn } = createThreadRuntime({
   module,
   memory,
   threadIds,
+  fdTable,
   args,
   env,
   preopens,
@@ -71,7 +85,11 @@ const { threadSpawn } = createThreadRuntime({
 })
 
 const instance = await WebAssembly.instantiate(module, {
-  ...wasi.getImportObject(),
+  wasi_snapshot_preview1: createPreview1Imports({
+    buffer: fdTable,
+    memory,
+    wasi,
+  }),
   env: {
     memory,
     read_custom_section: createReadCustomSection(module, memory),
