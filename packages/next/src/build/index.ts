@@ -192,6 +192,7 @@ import { getStaticMetadataPrerenderPathname } from '../lib/metadata/get-metadata
 import { isStaticMetadataFile } from '../lib/metadata/is-metadata-route'
 import { createClientRouterFilter } from '../lib/create-client-router-filter'
 import { startTypeChecking } from './type-check'
+import { removeStaleDevTypes } from '../lib/typescript/remove-stale-dev-types'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
@@ -1683,6 +1684,16 @@ export default async function build(
             routeTypesManifest,
             path.join(distDir, 'types', 'root-params.d.ts')
           )
+
+          // The TypeScript CLI type check includes every file in tsconfig,
+          // so types left behind by a stopped `next dev` would fail it after
+          // routes are moved or deleted. `next dev` writes below the
+          // configured `distDir`, which can differ from the build output with
+          // `output: 'export'`.
+          await removeStaleDevTypes({
+            distDirRoot: path.join(dir, config.distDirRoot),
+            lockDistDir: Boolean(config.experimental.lockDistDir),
+          })
         })
 
       // Turbopack already handles conflicting app and page routes.
