@@ -258,10 +258,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private telemetry: Telemetry
   private resetFetch: () => void
   private lockfile: Lockfile | undefined
-  private versionInfo: VersionInfo = {
-    staleness: 'unknown',
-    installed: '0.0.0',
-  }
+  // Resolves once the npm registry responds. Never awaited during start-up so a
+  // slow registry cannot delay the dev server or the dev overlay.
+  private versionInfo!: Promise<VersionInfo>
   private devtoolsFrontendUrl: string | undefined
   private reloadAfterInvalidation: boolean = false
   private isSrcDir: boolean
@@ -877,7 +876,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     const startSpan = this.hotReloaderSpan.traceChild('start')
     startSpan.stop() // Stop immediately to create an artificial parent span
 
-    this.versionInfo = await this.tracedGetVersionInfo(startSpan)
+    this.versionInfo = this.tracedGetVersionInfo(startSpan)
 
     const inspectorURLRaw = inspector.url()
     if (inspectorURLRaw !== undefined) {

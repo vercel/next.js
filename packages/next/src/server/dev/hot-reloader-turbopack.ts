@@ -139,9 +139,11 @@ import {
   setReactDebugChannelForHtmlRequest,
 } from './debug-channel'
 import {
+  getPendingVersionInfo,
   getVersionInfo,
   matchNextPageBundleRequest,
 } from './hot-reloader-shared-utils'
+import type { VersionInfo } from './parse-version-info'
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
 import { formatCompilationIssues } from '../mcp/tools/utils/format-compilation-issues'
 import {
@@ -1486,16 +1488,31 @@ export async function createHotReloaderTurbopack(
     })
   })
 
-  let versionInfoCached: ReturnType<typeof getVersionInfo> | undefined
-  // This fetch, even though not awaited, is not kicked off eagerly because the first `fetch()` in
+  let resolvedVersionInfo: VersionInfo | undefined
+  let versionInfoRequested = false
+  // This fetch is not kicked off eagerly because the first `fetch()` in
   // Node.js adds roughly 20ms main-thread blocking to load the SSL certificate cache
   // We don't want that blocking time to be in the hot path for the `ready in` logging.
-  // Instead, the fetch is kicked off lazily when the first `getVersionInfoCached()` is called.
-  const getVersionInfoCached = (): ReturnType<typeof getVersionInfo> => {
-    if (!versionInfoCached) {
-      versionInfoCached = getVersionInfo()
-    }
-    return versionInfoCached
+  // Instead, `startVersionInfoRequest()` kicks it off lazily when the first HMR
+  // client connects. The registry request is never awaited: until it resolves,
+  // clients get a placeholder in `sync`, and every connected client receives
+  // the resolved info in a `versionInfo` message. Otherwise a slow registry
+  // would delay `sync`, and with it the whole dev overlay.
+  const startVersionInfoRequest = () => {
+    if (versionInfoRequested) return
+    versionInfoRequested = true
+    void getVersionInfo().then((versionInfo) => {
+      resolvedVersionInfo = versionInfo
+      for (const client of [
+        ...clientsWithoutHtmlRequestId,
+        ...clientsByHtmlRequestId.values(),
+      ]) {
+        sendToClient(client, {
+          type: HMR_MESSAGE_SENT_TO_BROWSER.VERSION_INFO,
+          versionInfo,
+        })
+      }
+    })
   }
 
   let devtoolsFrontendUrl: string | undefined
@@ -1810,34 +1827,38 @@ export async function createHotReloaderTurbopack(
         }
         sendToClient(client, turbopackConnectedMessage)
 
-        const errors: CompilationError[] = []
-
-        for (const entryIssues of currentEntryIssues.values()) {
-          for (const issue of entryIssues.values()) {
-            if (issue.severity !== 'warning') {
-              errors.push({
-                message: formatIssue(issue),
-              })
-            } else {
-              printNonFatalIssue(issue)
-            }
-          }
-        }
+        startVersionInfoRequest()
 
         if (devIndicatorServerState.disabledUntil < Date.now()) {
           devIndicatorServerState.disabledUntil = 0
         }
 
         ;(async function () {
-          const versionInfo = await getVersionInfoCached()
           const devToolsConfig = await getDevToolsConfig(distDir)
+
+          // Collect the issues only after the await so that `sync` reflects the
+          // current build state. Stale errors here would replace newer ones on
+          // the client.
+          const errors: CompilationError[] = []
+
+          for (const entryIssues of currentEntryIssues.values()) {
+            for (const issue of entryIssues.values()) {
+              if (issue.severity !== 'warning') {
+                errors.push({
+                  message: formatIssue(issue),
+                })
+              } else {
+                printNonFatalIssue(issue)
+              }
+            }
+          }
 
           const syncMessage: SyncMessage = {
             type: HMR_MESSAGE_SENT_TO_BROWSER.SYNC,
             errors,
             warnings: [],
             hash: '',
-            versionInfo,
+            versionInfo: resolvedVersionInfo ?? getPendingVersionInfo(),
             hasVulnerabilityInsight,
             debug: {
               devtoolsFrontendUrl,

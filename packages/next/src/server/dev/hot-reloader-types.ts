@@ -42,6 +42,7 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   DEV_INDICATOR = 'devIndicator',
   DEVTOOLS_CONFIG = 'devtoolsConfig',
   VULNERABILITY_INSIGHT = 'vulnerabilityInsight',
+  VERSION_INFO = 'versionInfo',
   REQUEST_CURRENT_ERROR_STATE = 'requestCurrentErrorState',
   RUNTIME_ERRORS = 'runtimeErrors',
   REQUEST_PAGE_METADATA = 'requestPageMetadata',
@@ -271,6 +272,17 @@ export interface VulnerabilityInsightMessage {
   hasVulnerabilityInsight: boolean
 }
 
+/**
+ * Sent when the version staleness info resolves after the client already
+ * received a placeholder in the `sync` message. The npm registry request
+ * behind it is never awaited before `sync`, so a slow registry cannot delay
+ * the dev overlay.
+ */
+export interface VersionInfoMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.VERSION_INFO
+  versionInfo: VersionInfo
+}
+
 export type HmrMessageSentToBrowser =
   | TurbopackMessage
   | TurbopackConnectedMessage
@@ -297,6 +309,7 @@ export type HmrMessageSentToBrowser =
   | CacheIndicatorMessage
   | RequestInsightsUpdateMessage
   | VulnerabilityInsightMessage
+  | VersionInfoMessage
 
 export type BinaryHmrMessageSentToBrowser = Extract<
   HmrMessageSentToBrowser,
