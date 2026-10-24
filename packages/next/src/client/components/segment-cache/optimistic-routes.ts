@@ -143,6 +143,14 @@ type KnownRoutePartBase = {
   // cache invalidation) and re-learned from a later response.
   hasDynamicRewrite: boolean
 
+  // True when discovery hit a rewrite-caused URL/route mismatch at this level,
+  // e.g. a proxy mapping /alpha to /de/alpha. The rewritten route is never
+  // stored as a pattern, but an unrewritten sibling of the same URL shape
+  // (/en resolving to /[locale]) still is, so later URLs of that shape would
+  // be predicted from it. Once set, matching skips this level's dynamic child
+  // and those URLs resolve via /_tree.
+  hasRewrittenURLPart: boolean
+
   // TODO: For prefix rewrite support. When true, this part may not appear in
   // the candidate URL because it was injected by a rewrite. Today, discovery
   // refuses to store a pattern for such routes (see the cache key comparison
@@ -211,6 +219,7 @@ function createEmptyPart(): KnownRoutePart {
     pattern: null,
     hasConflictingDynamicChildren: false,
     hasDynamicRewrite: false,
+    hasRewrittenURLPart: false,
   }
 }
 
@@ -412,6 +421,7 @@ function discoverKnownRoutePart(
       // match, the URL doesn't fit the route shape — the response was
       // rewrite-affected. Bail out.
       if (urlPart === null || urlPart !== segment) {
+        parentKnownRoutePart.hasRewrittenURLPart = true
         return handleMismatchDueToRewrite(
           existingEntry,
           now,
@@ -453,6 +463,7 @@ function discoverKnownRoutePart(
       // must consume at least one URL part at runtime. If discovery reached
       // this segment with no URL parts left to consume, the URL doesn't fit
       // the route shape — the response was rewrite-affected. Bail out.
+      parentKnownRoutePart.hasRewrittenURLPart = true
       return handleMismatchDueToRewrite(
         existingEntry,
         now,
@@ -474,6 +485,7 @@ function discoverKnownRoutePart(
     ) {
       // The route tree says this is a dynamic sibling, but the canonical URL
       // is a known static sibling. This is a mismatch.
+      parentKnownRoutePart.hasRewrittenURLPart = true
       return handleMismatchDueToRewrite(
         existingEntry,
         now,
@@ -503,6 +515,7 @@ function discoverKnownRoutePart(
           urlPart !== null &&
           canonicalizeURLPart(urlPart) !== paramCacheKey
         ) {
+          parentKnownRoutePart.hasRewrittenURLPart = true
           return handleMismatchDueToRewrite(
             existingEntry,
             now,
@@ -529,6 +542,7 @@ function discoverKnownRoutePart(
           .map(canonicalizeURLPart)
           .join('/')
         if (joinedRemainingParts !== paramCacheKey) {
+          parentKnownRoutePart.hasRewrittenURLPart = true
           return handleMismatchDueToRewrite(
             existingEntry,
             now,
@@ -677,6 +691,7 @@ function discoverKnownRoutePart(
   // left to consume, the route tree is shorter than the URL, which means
   // the URL doesn't match the route structure (likely a rewrite).
   if (nextPartIndex < pathnameParts.length) {
+    knownRoutePart.hasRewrittenURLPart = true
     return handleMismatchDueToRewrite(
       existingEntry,
       now,
@@ -920,8 +935,13 @@ function matchKnownRoutePart(
 
   // Try dynamic child. Skip it entirely if parallel route branches disagree
   // about the dynamic segment at this level — any pattern stored beneath it
-  // was learned under a conflicting model.
-  if (part.dynamicChild !== null && !part.hasConflictingDynamicChildren) {
+  // was learned under a conflicting model. Same when a rewrite was detected at
+  // this level, see hasRewrittenURLPart.
+  if (
+    part.dynamicChild !== null &&
+    !part.hasConflictingDynamicChildren &&
+    !part.hasRewrittenURLPart
+  ) {
     const dynamicPart = part.dynamicChild
     const paramName = part.dynamicChildParamName
     const paramType = part.dynamicChildParamType
