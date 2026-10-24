@@ -71,6 +71,9 @@ describe('turbopack additional roots', () => {
   it('handles absolute paths and an additional root in dependencies from a webpack loader', async () => {
     const browser = await next.browser('/loader')
     expect(await browser.elementByCss('#loader-value').text()).toBe('processed')
+    expect(await browser.elementByCss('#external-loader-value').text()).toBe(
+      'processed-external'
+    )
   })
 
   it('uses a placeholder for import.meta.url in an additional root', async () => {
@@ -93,6 +96,26 @@ describe('turbopack additional roots', () => {
   })
 
   if (isNextDev) {
+    it('tracks updates to a resource transformed by a loader in an additional root', async () => {
+      const browser = await next.browser('/loader')
+
+      await next.patchFile(
+        path.relative(
+          next.testDir,
+          path.join(externalRoot!, 'packages/linked/input.loader.js')
+        ),
+        (content) =>
+          content.replace('unprocessed-external', 'unprocessed-updated'),
+        async () => {
+          await retry(async () => {
+            expect(
+              await browser.elementByCss('#external-loader-value').text()
+            ).toBe('processed-updated')
+          })
+        }
+      )
+    })
+
     it('tracks updates in an additional root', async () => {
       const browser = await next.browser('/')
 
