@@ -34,7 +34,16 @@ def write_estimates(root: pathlib.Path, variant: str, median: float, content=Non
     path.write_text(content)
 
 
-VARIANTS = ["warm/32x2048", "initial/32x2048", "warm/128x512", "initial/128x512"]
+VARIANTS = [
+    "warm/32x2048",
+    "initial/32x2048",
+    "realistic_warm/32x2048",
+    "realistic_initial/32x2048",
+    "warm/128x512",
+    "initial/128x512",
+    "realistic_warm/128x512",
+    "realistic_initial/128x512",
+]
 
 
 class CpuCountsTest(unittest.TestCase):
@@ -119,21 +128,33 @@ class EstimatesTest(unittest.TestCase):
             self.assertEqual(warm["mean_ns"], 1000.5)
             self.assertEqual(warm["ci_confidence_level"], 0.95)
 
+    def test_expected_variants(self):
+        self.assertEqual(sorted(scaling.EXPECTED_VARIANTS), sorted(VARIANTS))
+
     def test_missing_variant(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
-            for variant in VARIANTS[:3]:
+            for variant in VARIANTS[:-1]:
                 write_estimates(root, variant, 1.0)
-            with self.assertRaises(scaling.ScalingError):
+            with self.assertRaisesRegex(scaling.ScalingError, "missing: \\['realistic_initial/128x512'\\]"):
+                scaling.read_estimates(root)
+
+    def test_unexpected_variant(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            for variant in VARIANTS:
+                write_estimates(root, variant, 1.0)
+            write_estimates(root, "other/32x2048", 1.0)
+            with self.assertRaisesRegex(scaling.ScalingError, "unexpected: \\['other/32x2048'\\]"):
                 scaling.read_estimates(root)
 
     def test_invalid_json(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
-            for variant in VARIANTS[:3]:
+            for variant in VARIANTS[:-1]:
                 write_estimates(root, variant, 1.0)
-            write_estimates(root, VARIANTS[3], 1.0, content="{not json")
-            with self.assertRaises(scaling.ScalingError):
+            write_estimates(root, VARIANTS[-1], 1.0, content="{not json")
+            with self.assertRaisesRegex(scaling.ScalingError, "invalid estimates"):
                 scaling.read_estimates(root)
 
     def test_implausible_values(self):
@@ -155,10 +176,10 @@ class EstimatesTest(unittest.TestCase):
             self.assertIsNotNone(scaling.validate_estimate(dict(good, **{key: value})), key)
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
-            for variant in VARIANTS[:3]:
+            for variant in VARIANTS[:-1]:
                 write_estimates(root, variant, 1000.0)
-            write_estimates(root, VARIANTS[3], -5.0)
-            with self.assertRaises(scaling.ScalingError):
+            write_estimates(root, VARIANTS[-1], -5.0)
+            with self.assertRaisesRegex(scaling.ScalingError, "invalid estimates"):
                 scaling.read_estimates(root)
 
 

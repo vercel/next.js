@@ -9,6 +9,7 @@ pub(crate) mod collectibles;
 pub(crate) mod gc;
 pub(crate) mod overhead;
 pub(crate) mod priority_contention;
+pub(crate) mod priority_contention_realistic;
 pub(crate) mod scope_stress;
 pub(crate) mod state_fan_out;
 pub(crate) mod stress;
