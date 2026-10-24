@@ -2047,7 +2047,7 @@ export async function fetchRouteOnCacheMiss(
       canonicalUrl,
       renderedSearch,
       supportsPerSegmentPrefetching,
-      false // hasDynamicRewrite
+      urlAfterRedirects.href !== url.href || canonicalUrl !== pathname + search // hasDynamicRewrite
     )
 
     if (!couldBeIntercepted) {
@@ -2236,11 +2236,20 @@ async function fetchAndWritePerSegmentPrefetchResponse(
   if (
     !response ||
     !response.ok ||
+    response.redirected ||
     // Theoretically this check should never fail, because we only issue
     // requests for segments once we've verified that the route supports PPR.
     !wasServedFromPerSegmentCache(response) ||
     !response.body
   ) {
+    if (response?.redirected && route.predictedFrom !== null) {
+      // The segment prefetch request was redirected. Because this route was
+      // predicted using optimistic pattern matching, the prediction that
+      // this URL shape behaves statically without rewrites/redirects was
+      // wrong. Mark the trie node so that URLs of this shape are never
+      // predicted again, falling back to server-resolved routes.
+      route.predictedFrom.hasDynamicRewrite = true
+    }
     // Server responded with an error or a miss — fetched but not usable.
     return null
   }
@@ -2374,6 +2383,13 @@ async function fetchAndWritePerSegmentPrefetchResponse(
   const renderedPathname = isOutputExportMode
     ? getPathnameFromRequestURL(url)
     : getRenderedPathname(response)
+
+  if (renderedPathname !== getPathnameFromRequestURL(url)) {
+    if (route.predictedFrom !== null) {
+      route.predictedFrom.hasDynamicRewrite = true
+    }
+    return null
+  }
 
   // Write the payloads into the cache. Each payload is decoded like any
   // other server response — a root-anchored tree plus an optional head, with
@@ -2670,9 +2686,24 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
 
   try {
     const response = await fetchPrefetchResponse(url, headers)
-    if (!response || !response.ok || !response.body) {
+    if (!response || !response.ok || response.redirected || !response.body) {
+      if (response?.redirected && route.predictedFrom !== null) {
+        route.predictedFrom.hasDynamicRewrite = true
+      }
       // Server responded with an error, or with a miss. We should still cache
       // the response, but we can try again after 10 seconds.
+      rejectSegmentEntriesIfStillPending(
+        spawnedEntries,
+        Date.now() + REJECTION_BACKOFF_MS
+      )
+      return null
+    }
+
+    const renderedPathname = getRenderedPathname(response)
+    if (renderedPathname !== getPathnameFromRequestURL(url)) {
+      if (route.predictedFrom !== null) {
+        route.predictedFrom.hasDynamicRewrite = true
+      }
       rejectSegmentEntriesIfStillPending(
         spawnedEntries,
         Date.now() + REJECTION_BACKOFF_MS

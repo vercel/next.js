@@ -109,4 +109,79 @@ describe('optimistic routing - redirect prefetch loop regression', () => {
     expect(await browser.elementById('changelog-page').text()).toBe('Changelog')
     expect(await browser.url()).toBe(`${next.url}/changelog`)
   })
+
+  it('does not loop when a per-segment prefetch of a predicted route is redirected', async () => {
+    let act: ReturnType<typeof createRouterAct>
+
+    const REDIRECTING_URL = '/docs/changelog'
+    const MAX_REQUESTS_TO_REDIRECTING_URL = 5
+    let requestsToRedirectingUrl = 0
+    let rejectOnLoop!: (error: Error) => void
+    const loopDetected = new Promise<never>((_, reject) => {
+      rejectOnLoop = reject
+    })
+    loopDetected.catch(() => {})
+
+    async function actExpectingNoLoop<T>(
+      scope: () => Promise<T> | T,
+      config?: Parameters<typeof act>[1]
+    ): Promise<unknown> {
+      const actPromise = act(scope, config)
+      actPromise.catch(() => {})
+      return Promise.race([actPromise, loopDetected])
+    }
+
+    const browser = await next.browser('/docs/alpha', {
+      beforePageLoad(page: Page) {
+        act = createRouterAct(page)
+        page.on('request', (request: Request) => {
+          if (new URL(request.url()).pathname !== REDIRECTING_URL) {
+            return
+          }
+          requestsToRedirectingUrl++
+          if (requestsToRedirectingUrl > MAX_REQUESTS_TO_REDIRECTING_URL) {
+            rejectOnLoop(
+              new Error(
+                `${REDIRECTING_URL} was requested more than ` +
+                  `${MAX_REQUESTS_TO_REDIRECTING_URL} times after a single ` +
+                  'prefetch. The URL redirects, so one attempt is enough to ' +
+                  'learn that; a client that keeps asking is looping.'
+              )
+            )
+          }
+        })
+      },
+    })
+
+    expect(await browser.elementById('docs-params').text()).toBe('docs/alpha')
+
+    // Reveal the sidebar links so the pattern is learned.
+    await actExpectingNoLoop(async () => {
+      for (const slug of ['beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta']) {
+        const toggle = await browser.elementByCss(
+          `input[data-link-accordion="/docs/${slug}"]`
+        )
+        await toggle.click()
+      }
+    }, 'no-requests')
+
+    // Reveal the link pointing to the redirecting URL. Because the route shape
+    // matches the learned pattern, the client predicts the route and issues a
+    // per-segment prefetch. The server responds with a redirect to /changelog.
+    // The client must not loop issuing segment prefetches endlessly.
+    await actExpectingNoLoop(async () => {
+      const toggle = await browser.elementByCss(
+        `input[data-link-accordion="${REDIRECTING_URL}"]`
+      )
+      await toggle.click()
+    })
+
+    // Click the link to navigate. Navigation lands on the redirect target.
+    await actExpectingNoLoop(async () => {
+      const link = await browser.elementByCss(`a[href="${REDIRECTING_URL}"]`)
+      await link.click()
+    })
+    expect(await browser.elementById('changelog-page').text()).toBe('Changelog')
+    expect(await browser.url()).toBe(`${next.url}/changelog`)
+  })
 })
