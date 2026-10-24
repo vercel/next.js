@@ -33,7 +33,17 @@ export function interpolateAs(
       if (optional) {
         replaced = `${!value ? '/' : ''}[${replaced}]`
       }
-      if (repeat && !Array.isArray(value)) value = [value]
+      if (repeat) {
+        if (Array.isArray(value)) {
+          value = value.flatMap((v) =>
+            typeof v === 'string' ? v.split('/') : v
+          )
+        } else if (typeof value === 'string') {
+          value = value.split('/')
+        } else {
+          value = [value]
+        }
+      }
 
       return (
         (optional || param in dynamicMatches) &&

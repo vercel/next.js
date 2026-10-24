@@ -1106,7 +1106,7 @@ export abstract class RouteModule<
           paramsResult.hasValidParams && params
             ? params
             : queryResult.hasValidParams
-              ? query
+              ? queryResult.params
               : {}
       }
 
