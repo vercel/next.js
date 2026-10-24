@@ -14,10 +14,15 @@ import {
 import { prerenderToNodeStream } from 'react-server-dom-webpack/static'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromNodeStream } from 'react-server-dom-webpack/client'
+import { transformImageFormat } from './image-format'
+import type { ImageResponseOptions } from './image-response'
 
 type OgModule = typeof import('next/dist/compiled/@vercel/og')
 
-type ImageResponseArgs = ConstructorParameters<OgModule['ImageResponse']>
+type ImageResponseArgs = [
+  element: ConstructorParameters<OgModule['ImageResponse']>[0],
+  options?: ImageResponseOptions,
+]
 
 function importOgModule(): Promise<OgModule> {
   // Cache Components is Node-only (rejected for the edge runtime at compile
@@ -384,13 +389,28 @@ async function renderImageResponseArrayBuffer(
   args: ImageResponseArgs
 ): Promise<ArrayBuffer> {
   const OGImageResponse = (await importOgModule()).ImageResponse
-  const imageResponse = new OGImageResponse(...args)
+  const imageResponse = new OGImageResponse(args[0], args[1])
 
   if (!imageResponse.body) {
     return new ArrayBuffer(0)
   }
 
-  return imageResponse.arrayBuffer()
+  const arrayBuffer = await imageResponse.arrayBuffer()
+  const options = args[1]
+  const format = options?.format
+
+  if (format && format !== 'png') {
+    const converted = await transformImageFormat(
+      arrayBuffer,
+      format,
+      options.quality
+    )
+    const uint8 = new Uint8Array(converted.byteLength)
+    uint8.set(converted)
+    return uint8.buffer
+  }
+
+  return arrayBuffer
 }
 
 const REACT_LAZY_TYPE = Symbol.for('react.lazy')
