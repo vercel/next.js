@@ -21,7 +21,6 @@ use turbopack_core::{
         chunk_id_strategy::ModuleIdStrategy,
         worker_type::WorkerType,
     },
-    context::AssetContext,
     environment::{ChunkLoading, Environment},
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
@@ -1230,7 +1229,6 @@ impl ChunkingContext for BrowserChunkingContext {
     async fn worker_loader_chunk_item(
         self: Vc<Self>,
         module: Vc<Box<dyn ChunkableModule>>,
-        asset_context: Vc<Box<dyn AssetContext>>,
         worker_type: WorkerType,
         module_graph: Vc<ModuleGraph>,
         availability_info: AvailabilityInfo,
@@ -1238,7 +1236,7 @@ impl ChunkingContext for BrowserChunkingContext {
         let chunking_context =
             ResolvedVc::upcast::<Box<dyn ChunkingContext>>(self.to_resolved().await?);
         Ok(
-            WorkerLoaderModule::new(module, worker_type, asset_context, availability_info)
+            WorkerLoaderModule::new(module, worker_type, availability_info)
                 .as_chunk_item(module_graph, *chunking_context),
         )
     }
