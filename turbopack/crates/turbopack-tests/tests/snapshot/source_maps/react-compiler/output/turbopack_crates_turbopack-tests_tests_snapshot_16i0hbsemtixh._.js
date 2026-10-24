@@ -1,5 +1,4 @@
-(()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_16i0hbsemtixh._.js",
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/react/compiler-runtime.js [test] (ecmascript)", ((__turbopack_context__) => {
+"use strict";(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_16i0hbsemtixh._.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/react/compiler-runtime.js [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([
@@ -9,8 +8,7 @@ __turbopack_context__.s([
 function c() {
     return 'purposefully empty stub for react/compiler-runtime.js';
 }
-}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/react/index.js [test] (ecmascript)", ((__turbopack_context__) => {
+}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/react/index.js [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([
@@ -25,8 +23,7 @@ function jsx() {
 function useState() {
     return 'purposefully empty stub for react/index.js';
 }
-}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/react/jsx-dev-runtime.js [test] (ecmascript)", ((__turbopack_context__) => {
+}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/react/jsx-dev-runtime.js [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([
@@ -36,8 +33,7 @@ __turbopack_context__.s([
 function jsxDEV() {
     return 'purposefully empty stub for react/jsx-dev-runtime.js';
 }
-}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/react-compiler/input/Component.jsx [test] (ecmascript)", ((__turbopack_context__) => {
+}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/react-compiler/input/Component.jsx [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([
@@ -104,15 +100,13 @@ function Counter(t0) {
     }
     return t4;
 }
-}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/react-compiler/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
+}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/react-compiler/input/index.js [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$source_maps$2f$react$2d$compiler$2f$input$2f$Component$2e$jsx__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/react-compiler/input/Component.jsx [test] (ecmascript)");
 ;
 console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$source_maps$2f$react$2d$compiler$2f$input$2f$Component$2e$jsx__$5b$test$5d$__$28$ecmascript$29$__["Counter"]);
-}),
-]);})()
+})]);
 
 //# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_16i0hbsemtixh._.js.map
