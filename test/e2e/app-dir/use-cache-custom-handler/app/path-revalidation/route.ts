@@ -13,7 +13,7 @@ export async function GET(request: Request) {
       writes: cacheSharingState.writes.filter(
         (tag) => tag === `observed-fill:${id}`
       ),
-      pausedLookupKeys: cacheSharingState.pausedLookupKeys.filter((key) =>
+      routeBLookupKeys: cacheSharingState.routeBLookupKeys.filter((key) =>
         key.includes(JSON.stringify(id))
       ),
     })

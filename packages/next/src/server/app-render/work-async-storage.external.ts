@@ -5,7 +5,7 @@ import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 import type { AfterContext } from '../after/after-context'
 import type { ResolvedCacheLifeProfiles } from '../config-shared'
-import type { SharedCacheResult } from '../use-cache/use-cache-wrapper'
+import type { WorkStoreCacheEntryState } from '../use-cache/use-cache-wrapper'
 import type { ValidationLevel } from '../config-shared'
 
 // Share the instance module in the next-shared layer
@@ -105,29 +105,12 @@ export interface WorkStore {
   clientComponentLoadTracker: ClientComponentLoadTracker | undefined
 
   /**
-   * Tracks pending `"use cache"` invocations within the current request scope,
-   * keyed by the serialized cache key (coarse key). Used for intra-request
-   * deduplication: when multiple components call the same cache function within
-   * a single request, only the first one runs (cache handler lookup +
-   * generation), and joiners tee its result stream.
-   * Root params are identical within a request, so the coarse key is sufficient.
+   * Coordinates handler lookup and cache fills independently for each
+   * serialized key. Private caches and custom handlers retain completed data.
+   * Built-in handlers release completed stream references and read the handler
+   * again.
    */
-  pendingCacheInvocations?: Map<string, Promise<SharedCacheResult>>
-
-  /**
-   * Invocations from this request that have already completed, keyed the same
-   * way as `pendingCacheInvocations`. Entries move here when their fill
-   * finishes rather than being dropped, so a later invocation of the same cache
-   * function reuses the entry instead of repeating the cache handler lookup
-   * and, on a miss, the work.
-   *
-   * Only populated for kinds where that saves something real: private caches,
-   * which have no cache handler in production, and kinds whose handler was
-   * supplied by the platform or by `cacheHandlers` config, whose reads may be
-   * remote. A built-in handler read is a map lookup, so retaining its entries
-   * would cost memory for nothing.
-   */
-  completedCacheInvocations?: Map<string, Promise<SharedCacheResult>>
+  cacheEntryStates?: Map<string, WorkStoreCacheEntryState>
 
   /**
    * Set by the dev-server's hang-detection probe worker (see

@@ -40,7 +40,7 @@ describe('use-cache-dedupe-prerender', () => {
   describe('direct and nested calls during static prerendering', () => {
     const fixture = setupFixture('context')
 
-    it('currently times out a nested cache when a direct short-lived warm-cache call starts the lookup first', async () => {
+    it('includes the long-lived outer cache in static HTML when the direct short-lived call starts the lookup first', async () => {
       const { next, dataService } = fixture
       // Pause the direct call's handler `get()` until `Outer()` calls the same
       // short-lived cached function.
@@ -50,13 +50,19 @@ describe('use-cache-dedupe-prerender', () => {
         await dataService.waitForRequest('join-ready')
         dataService.release('lookup:short-lived:shared')
         const result = await building
-        // The nested call shares the direct call's hanging promise. Its cache
-        // entry cannot complete, so the build reports a prerender timeout.
-        expect(result.exitCode).toBe(1)
-        expect(next.cliOutput).toContain(
-          'function took too long during prerendering'
+        // `Outer()` must complete even though the direct call returns a hanging
+        // promise. Its cache lifetime allows the result in the static HTML.
+        expect(result.exitCode).toBe(0)
+        expect(next.cliOutput).not.toContain(
+          'Unexpected cache miss after cache warming phase during prerendering'
         )
-        expect(next.cliOutput).toContain('Error occurred prerendering page "/"')
+        await next.start({ skipBuild: true })
+        const html = await next.render('/')
+        const [shell] = html.split('<!-- PPR_BOUNDARY_SENTINEL -->')
+        const $ = load(shell)
+        expect($('#outer').text()).toBe('short-lived shared')
+        expect($('#short-lived').length).toBe(0)
+        expect($('#short-pending').length).toBe(1)
       } finally {
         dataService.releaseAll()
         await building
@@ -67,7 +73,7 @@ describe('use-cache-dedupe-prerender', () => {
   describe('concurrent prerenders sharing the same short-lived cache', () => {
     const fixture = setupFixture('lifetime')
 
-    it('currently omits cached work in a second prerender after the first prerender finishes', async () => {
+    it('continues cached work in a second prerender after the first prerender finishes, when both share a pending short-lived cache call', async () => {
       const { next, dataService } = fixture
       // Keep the producer's `get()` pending until the consumer starts its
       // calls. Keep `readIndependent()` pending until the producer's `after()`
@@ -79,8 +85,8 @@ describe('use-cache-dedupe-prerender', () => {
         await dataService.waitForRequest('join-ready')
         dataService.release('lookup:short-lived:shared')
         await dataService.waitForRequest('producer-finished')
-        // Resolve the independent read after the producer's `after()` callback.
-        // The consumer currently skips `readCachedMessage()`.
+        // The consumer must still complete its cached message after the
+        // producer's `after()` callback.
         dataService.release('independent', 'independent value')
         const result = await building
         expect(result.exitCode).toBe(0)
@@ -91,9 +97,9 @@ describe('use-cache-dedupe-prerender', () => {
         const html = await next.render('/consumer')
         const [shell] = html.split('<!-- PPR_BOUNDARY_SENTINEL -->')
         const $ = load(shell)
-        expect($('#cached-message').text()).toBe('')
-        expect($('#consumer-pending').length).toBe(1)
-        expect(buildRequests).not.toContain('cached-message')
+        expect($('#cached-message').text()).toBe('message: independent value')
+        expect($('#consumer-pending').length).toBe(0)
+        expect(buildRequests).toContain('cached-message')
       } finally {
         dataService.releaseAll()
         await building
