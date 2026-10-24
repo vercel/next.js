@@ -1,5 +1,3 @@
-use std::sync::LazyLock;
-
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
@@ -24,8 +22,7 @@ impl NextServerUtilityModuleReference {
     }
 }
 
-pub static NEXT_SERVER_UTILITY_MERGE_TAG: LazyLock<RcStr> =
-    LazyLock::new(|| rcstr!("next-server-utility"));
+pub const NEXT_SERVER_UTILITY_MERGE_TAG: RcStr = rcstr!("next-server-utility");
 
 #[turbo_tasks::value_impl]
 impl ModuleReference for NextServerUtilityModuleReference {
@@ -37,7 +34,7 @@ impl ModuleReference for NextServerUtilityModuleReference {
     fn chunking_type(&self) -> Option<ChunkingType> {
         Some(ChunkingType::Shared {
             inherit_async: true,
-            merge_tag: Some(NEXT_SERVER_UTILITY_MERGE_TAG.clone()),
+            merge_tag: Some(NEXT_SERVER_UTILITY_MERGE_TAG),
         })
     }
 

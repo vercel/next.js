@@ -17,6 +17,7 @@ use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
     Vc, debug::ValueDebugFormat, turbofmt,
 };
+use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
 use crate::{
     chunk::ChunkingType,
@@ -80,17 +81,60 @@ impl Hash for RoaringBitmapWrapper {
     }
 }
 
+impl DeterministicHash for RoaringBitmapWrapper {
+    fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H) {
+        struct HasherWriter<'a, H: DeterministicHasher>(&'a mut H);
+        impl<H: DeterministicHasher> std::io::Write for HasherWriter<'_, H> {
+            fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+                self.0.write_bytes(buf);
+                Ok(buf.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        // The serialized form is stable across platforms, unlike the in-memory representation.
+        self.0.serialize_into(HasherWriter(state)).unwrap();
+    }
+}
+
 #[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct ModuleToChunkGroups(FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>);
 
 #[turbo_tasks::value]
+pub struct ChunkGroupWithIndex {
+    pub index: u32,
+    pub chunk_group: ChunkGroup,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct ChunkGroups(Vec<ChunkGroupWithIndex>);
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionChunkGroupWithIndex(Option<ChunkGroupWithIndex>);
+
+/// Maps each [`ChunkGroupKey`] to its index in [`ChunkGroupInfo::chunk_groups`], as a keyed cell so
+/// [`ChunkGroupInfo::get_index_of`] depends only on the key it looks up.
+///
+/// This duplicates [`ChunkGroupInfo::chunk_group_keys`], which stays for the index -> key
+/// direction. The `IndexSet` can't be the keyed cell: its `KeyedAccess` yields `()` rather than the
+/// index, and its `KeyedEq` ignores position, so an index that merely shifted would go unnoticed.
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct ChunkGroupKeyToIndex(FxHashMap<ChunkGroupKey, u32>);
+
+#[turbo_tasks::value]
 pub struct ChunkGroupInfo {
     pub module_chunk_groups: ResolvedVc<ModuleToChunkGroups>,
+    /// For each async module, the chunk groups that contain its async loader.
+    pub async_loader_chunk_groups: ResolvedVc<ModuleToChunkGroups>,
     #[bincode(with = "turbo_bincode::indexset")]
     pub chunk_groups: FxIndexSet<ChunkGroup>,
     #[turbo_tasks(unsafe_ignore)]
     #[bincode(with = "turbo_bincode::indexset")]
     pub chunk_group_keys: FxIndexSet<ChunkGroupKey>,
+    /// The same keys as `chunk_group_keys`, mapped to their index, in a keyed cell so a single
+    /// index lookup does not depend on the whole `ChunkGroupInfo`. See [`ChunkGroupKeyToIndex`].
+    pub chunk_group_indices: ResolvedVc<ChunkGroupKeyToIndex>,
     pub chunking_heuristics: ChunkingHeuristicsInfo,
 }
 
@@ -120,28 +164,100 @@ impl ChunkGroupInfo {
         *self.module_chunk_groups
     }
 
+    /// The keyed `ChunkGroupKey` -> index map. Read a single entry from it with [`Vc::get`] to
+    /// depend only on that key rather than on all of [`ChunkGroupInfo`].
+    #[turbo_tasks::function]
+    pub fn chunk_group_indices(&self) -> Vc<ChunkGroupKeyToIndex> {
+        *self.chunk_group_indices
+    }
+
+    /// Returns the exact chunk groups that contain `module`, as derived while traversing the module
+    /// graph.
+    #[turbo_tasks::function]
+    pub async fn get_chunk_groups_for_module(
+        &self,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<Vc<ChunkGroups>> {
+        let module_chunk_groups = self.module_chunk_groups.await?;
+        let Some(groups) = module_chunk_groups.get(&module) else {
+            return Ok(Vc::cell(Vec::new()));
+        };
+        Ok(Vc::cell(
+            groups
+                .iter()
+                .map(|index| ChunkGroupWithIndex {
+                    index,
+                    chunk_group: self.chunk_groups[index as usize].clone(),
+                })
+                .collect(),
+        ))
+    }
+
+    /// Returns the shared merged chunk group with `merge_tag` that `parent` is the parent of, if
+    /// the graph produced one.
+    ///
+    /// A merge tag collects everything reachable through the tagged shared references of one
+    /// parent group into a single group, so there is at most one such group per parent and tag.
+    #[turbo_tasks::function]
+    pub fn get_shared_merged_chunk_group(
+        &self,
+        parent: usize,
+        merge_tag: RcStr,
+    ) -> Vc<OptionChunkGroupWithIndex> {
+        let key = ChunkGroupKey::SharedMerged {
+            parent: ChunkGroupId::from(parent),
+            merge_tag,
+        };
+        Vc::cell(
+            self.chunk_group_keys
+                .get_index_of(&key)
+                .map(|index| ChunkGroupWithIndex {
+                    index: index as u32,
+                    chunk_group: self.chunk_groups[index].clone(),
+                }),
+        )
+    }
+}
+
+impl ChunkGroupInfo {
     /// Returns the index of the chunk group identified by `key` in
     /// [`ChunkGroupInfo::chunk_groups`].
-    #[turbo_tasks::function]
-    pub async fn get_index_of(&self, key: ChunkGroupKey) -> Result<Vc<usize>> {
-        if let Some(idx) = self.chunk_group_keys.get_index_of(&key) {
-            Ok(Vc::cell(idx))
+    ///
+    /// The lookup goes through the keyed [`ChunkGroupKeyToIndex`] cell, so the caller depends only
+    /// on the queried key: adding or changing an unrelated chunk group does not invalidate it.
+    ///
+    /// This is deliberately *not* a `turbo_tasks::function`. Making it one would create a separate
+    /// task per key argument, which is exactly the per-chunk-group overhead the keyed cell is meant
+    /// to avoid; the single argument-less [`ChunkGroupInfo::chunk_group_indices`] task is what
+    /// provides the caching.
+    pub async fn get_index_of(self: Vc<Self>, key: ChunkGroupKey) -> Result<usize> {
+        if let Some(idx) = self.chunk_group_indices().get(&key).await? {
+            Ok(*idx as usize)
+        } else if cfg!(debug_assertions) {
+            // Only taken on the failure path, so the happy path keeps its narrow dependency.
+            let this = self.await?;
+            bail!(
+                "Couldn't find chunk group index for {} in {}",
+                key.debug_str(&this.chunk_group_keys).await?,
+                this.chunk_groups
+                    .iter()
+                    .map(|c| c.debug_str(&this))
+                    .try_join()
+                    .await?
+                    .join(", ")
+            )
         } else {
-            if cfg!(debug_assertions) {
-                bail!(
-                    "Couldn't find chunk group index for {} in {}",
-                    key.debug_str(self.chunk_group_keys.clone()).await?,
-                    self.chunk_groups
-                        .iter()
-                        .map(|c| c.debug_str(self))
-                        .try_join()
-                        .await?
-                        .join(", ")
-                );
-            } else {
-                bail!("Couldn't find chunk group index")
-            }
+            bail!("Couldn't find chunk group index")
         }
+    }
+
+    /// Returns the registered chunk group identified by `key`.
+    ///
+    /// Chunking takes a [`ChunkGroupKey`] and resolves the group here, so a group's contents (e.g.
+    /// the entries of a merged group) always come from the module graph rather than the caller.
+    pub async fn get_chunk_group(self: Vc<Self>, key: ChunkGroupKey) -> Result<ChunkGroup> {
+        let index = self.get_index_of(key).await?;
+        Ok(self.await?.chunk_groups[index].clone())
     }
 }
 
@@ -397,9 +513,20 @@ pub enum ChunkGroupKey {
 }
 
 impl ChunkGroupKey {
-    pub async fn debug_str(
+    /// A stable identity of this chunk group, independent of the module graph it was discovered
+    /// in.
+    ///
+    /// The result contains only module idents and merge tags, never a [`ChunkGroupId`], which is
+    /// an index into one [`ChunkGroupInfo`] and denotes an unrelated chunk group in another: the
+    /// parent of a merged chunk group is resolved through `keys` and rendered recursively.
+    ///
+    /// [`crate::chunk::available_chunk_groups::AvailableChunkGroups::hash`] derives output file
+    /// names from this, so two chunk groups must render equally exactly when they are the same
+    /// chunk group. Changing the rendering renames assets; adding anything graph-local to it is a
+    /// correctness bug.
+    pub async fn ident_str(
         &self,
-        keys: impl std::ops::Index<usize, Output = Self>,
+        keys: &(impl std::ops::Index<usize, Output = Self> + ?Sized),
     ) -> Result<String> {
         Ok(match self {
             ChunkGroupKey::Entry(entries) => format!(
@@ -422,7 +549,7 @@ impl ChunkGroupKey {
             ChunkGroupKey::IsolatedMerged { parent, merge_tag } => {
                 format!(
                     "IsolatedMerged {{ parent: {}, merge_tag: {:?} }}",
-                    Box::pin(keys.index(parent.0 as usize).clone().debug_str(keys)).await?,
+                    Box::pin(keys.index(parent.0 as usize).ident_str(keys)).await?,
                     merge_tag
                 )
             }
@@ -440,11 +567,23 @@ impl ChunkGroupKey {
             ChunkGroupKey::SharedMerged { parent, merge_tag } => {
                 format!(
                     "SharedMerged {{ parent: {}, merge_tag: {:?} }}",
-                    Box::pin(keys.index(parent.0 as usize).clone().debug_str(keys)).await?,
+                    Box::pin(keys.index(parent.0 as usize).ident_str(keys)).await?,
                     merge_tag
                 )
             }
         })
+    }
+
+    /// How this chunk group is shown in debug output.
+    ///
+    /// Delegates to [`Self::ident_str`], which already renders the chunk group unambiguously.
+    /// Debug output is free to diverge from it, but note that `ident_str` must stay stable because
+    /// asset idents are derived from it -- change this wrapper rather than `ident_str` itself.
+    pub async fn debug_str(
+        &self,
+        keys: &(impl std::ops::Index<usize, Output = Self> + ?Sized),
+    ) -> Result<String> {
+        self.ident_str(keys).await
     }
 }
 
@@ -484,6 +623,10 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         // that module is part of.
         let mut module_chunk_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
             FxHashMap::default();
+        let mut async_loader_chunk_groups: FxHashMap<
+            ResolvedVc<Box<dyn Module>>,
+            RoaringBitmapWrapper,
+        > = FxHashMap::default();
 
         let module_count = graph
             .graphs
@@ -593,9 +736,19 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                 let chunk_groups = if let Some((parent, ref_data, _)) = parent_info {
                     match &ref_data.chunking_type {
                         ChunkingType::Parallel { .. } => ChunkGroupInheritance::Inherit(parent),
-                        ChunkingType::Async => ChunkGroupInheritance::ChunkGroup(Either::Left(
-                            std::iter::once(ChunkGroupKey::Async(node)),
-                        )),
+                        ChunkingType::Async => {
+                            // The async loader for `node` is emitted in every chunk group that
+                            // contains the referencing module, so availability checks for async
+                            // loaders can use the same bitmap intersection as regular modules.
+                            let parent_groups = module_chunk_groups
+                                .get(&parent)
+                                .context("Module chunk group not found")?;
+                            **async_loader_chunk_groups.entry(node).or_default() |=
+                                &**parent_groups;
+                            ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
+                                ChunkGroupKey::Async(node),
+                            )))
+                        }
                         ChunkingType::Isolated {
                             merge_tag: None, ..
                         } => ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
@@ -811,7 +964,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                 result.push(format!(
                     "  {:?}: {}",
                     i,
-                    key.debug_str(chunk_groups_map.keys()).await?
+                    key.debug_str(&chunk_groups_map.keys()).await?
                 ));
             }
             result.push("# Module buckets:".to_string());
@@ -889,7 +1042,15 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
 
         Ok(ChunkGroupInfo {
             module_chunk_groups: ResolvedVc::cell(module_chunk_groups),
+            async_loader_chunk_groups: ResolvedVc::cell(async_loader_chunk_groups),
             chunk_group_keys: chunk_groups_map.keys().cloned().collect(),
+            chunk_group_indices: ResolvedVc::cell(
+                chunk_groups_map
+                    .keys()
+                    .enumerate()
+                    .map(|(index, key)| (key.clone(), index as u32))
+                    .collect(),
+            ),
             chunking_heuristics: ChunkingHeuristicsInfo {
                 clusters: chunk_group_clusters,
                 priority_routes: chunk_group_priority_routes,
