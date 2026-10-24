@@ -32,17 +32,20 @@ function createWriterFromResponse(
   }
   res.on('drain', onDrain)
 
-  // If the finish event fires, it means we shouldn't block and wait for the
-  // drain event.
-  res.once('close', () => {
-    res.off('drain', onDrain)
-    drained.resolve()
-  })
-
   // Create a promise that will resolve once the response has finished. See
   // https://nodejs.org/api/http.html#event-finish_1
   const finished = createPromiseWithResolvers<void>()
   res.once('finish', () => {
+    finished.resolve()
+  })
+
+  // If the finish event fires, it means we shouldn't block and wait for the
+  // drain event. Close can also fire without finish when the socket is
+  // destroyed after end(); settle in that case too so WritableStream.close
+  // does not hang.
+  res.once('close', () => {
+    res.off('drain', onDrain)
+    drained.resolve()
     finished.resolve()
   })
 
