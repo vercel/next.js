@@ -335,13 +335,21 @@ pub struct StaticSortedFileMetaData {
 /// [`BlockOffsets::read`] checks that every block is at least [`BLOCK_HEADER_SIZE`] bytes long and
 /// ends at or before the start of the table, so [`BlockOffsets::block_range`] needs no further
 /// checks.
+///
+/// Public so tools that read SST files directly (such as `sst_inspect`) apply the same validation
+/// as the database.
 #[derive(Debug)]
-struct BlockOffsets(Box<[u32]>);
+pub struct BlockOffsets(Box<[u32]>);
 
 impl BlockOffsets {
     /// Reads the block-offset table of `file` (`file_len` bytes long) with one positional read,
     /// then decodes and validates it in place in a single pass.
-    fn read(file: &File, meta: &StaticSortedFileMetaData, file_len: usize) -> Result<Self> {
+    ///
+    /// Returns an error if the file is too short for a table of `meta.block_count` entries, if a
+    /// block is shorter than its [`BLOCK_HEADER_SIZE`]-byte header (including offsets that go
+    /// backwards), or if the blocks extend into the table. An empty table (`block_count == 0`) is
+    /// accepted; callers that need an index block must reject it themselves.
+    pub fn read(file: &File, meta: &StaticSortedFileMetaData, file_len: usize) -> Result<Self> {
         let block_count = meta.block_count as usize;
         let table_start = file_len
             .checked_sub(block_count * size_of::<u32>())
@@ -384,8 +392,9 @@ impl BlockOffsets {
     /// The byte range of block `block_index` in the file, header included.
     ///
     /// Only the index can be wrong here; everything else was checked by [`BlockOffsets::read`].
+    /// Returns an error if `block_index` is not less than the number of blocks.
     #[inline]
-    fn block_range(&self, block_index: u16) -> Result<Range<usize>> {
+    pub fn block_range(&self, block_index: u16) -> Result<Range<usize>> {
         let index = block_index as usize;
         let Some(&end) = self.0.get(index) else {
             bail!(
@@ -2054,5 +2063,107 @@ mod tests {
     fn block_offsets_reject_blocks_past_the_table() {
         let err = read_offsets(&[12, 40, 60], 52).unwrap_err();
         assert!(err.to_string().contains("past"), "{err:#}");
+    }
+
+    fn access_modes() -> Vec<AccessMode> {
+        vec![
+            #[cfg(feature = "mmap")]
+            AccessMode::Mmap,
+            AccessMode::File,
+        ]
+    }
+
+    /// Writes `data` followed by a block directory of `directory` offsets as `00000001.sst`, then
+    /// opens it for lookup in every access mode and for file-backed iteration. Each open must fail
+    /// with an error naming the file rather than panic.
+    ///
+    /// The `BlockOffsets` tests above cover the validation itself; these check that both openers
+    /// run it (and the index block checks) before touching the file's contents.
+    fn assert_open_fails(block_count: u16, data: &[u8], directory: &[u32], expected: &str) {
+        let dir = tempfile::tempdir().unwrap();
+        let mut bytes = data.to_vec();
+        for offset in directory {
+            bytes.extend_from_slice(&offset.to_be_bytes());
+        }
+        std::fs::write(dir.path().join("00000001.sst"), &bytes).unwrap();
+        let meta = StaticSortedFileMetaData {
+            sequence_number: 1,
+            block_count,
+        };
+        for access_mode in access_modes() {
+            let err = StaticSortedFile::open(dir.path(), meta, Compression::Lz4, access_mode)
+                .err()
+                .unwrap_or_else(|| {
+                    panic!("StaticSortedFile::open ({access_mode:?}) accepted a corrupt file")
+                });
+            let message = format!("{err:#}");
+            assert!(
+                message.contains("00000001.sst") && message.contains(expected),
+                "StaticSortedFile::open ({access_mode:?}) returned an unexpected error: {err:#}"
+            );
+        }
+        let err = StaticSortedFileIter::open(dir.path(), meta, Compression::Lz4)
+            .err()
+            .unwrap_or_else(|| panic!("StaticSortedFileIter::open accepted a corrupt file"));
+        let message = format!("{err:#}");
+        assert!(
+            message.contains("00000001.sst") && message.contains(expected),
+            "StaticSortedFileIter::open returned an unexpected error: {err:#}"
+        );
+    }
+
+    #[test]
+    fn open_rejects_empty_file() {
+        assert_open_fails(1, &[], &[], "too short");
+    }
+
+    #[test]
+    fn open_rejects_file_shorter_than_block_directory() {
+        assert_open_fails(4, &[0; 6], &[], "too short");
+    }
+
+    #[test]
+    fn open_rejects_zero_blocks() {
+        assert_open_fails(0, &[0; 16], &[], "has no blocks");
+    }
+
+    #[test]
+    fn open_rejects_index_block_past_end_of_file() {
+        assert_open_fails(
+            1,
+            &[0; 16],
+            &[1000],
+            "past the start of its block-offset table",
+        );
+    }
+
+    #[test]
+    fn open_rejects_index_block_overlapping_block_directory() {
+        // The directory starts at byte 16, but the index block claims to end at byte 20.
+        assert_open_fails(
+            2,
+            &[0; 16],
+            &[8, 20],
+            "past the start of its block-offset table",
+        );
+    }
+
+    #[test]
+    fn open_rejects_index_block_too_short_for_header() {
+        assert_open_fails(2, &[0; 16], &[10, 12], "shorter than its");
+    }
+
+    #[test]
+    fn open_rejects_index_block_ending_before_it_starts() {
+        assert_open_fails(2, &[0; 16], &[14, 4], "shorter than its");
+    }
+
+    #[test]
+    fn open_rejects_header_only_index_block() {
+        // A valid CRC of an empty uncompressed block must still be rejected by both readers before
+        // they read the index block type.
+        let mut data = 0_u32.to_be_bytes().to_vec();
+        data.extend_from_slice(&checksum_block(&[]).to_be_bytes());
+        assert_open_fails(1, &data, &[8], "not an index block");
     }
 }

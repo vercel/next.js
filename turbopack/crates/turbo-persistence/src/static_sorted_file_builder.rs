@@ -2432,6 +2432,89 @@ mod tests {
         assert_corruption_detected(dir.path(), 1, &meta, &entries);
     }
 
+    /// Overwriting the directory entry of any non-index block of a real SST with an offset
+    /// outside the data section must make lookup in every access mode and file-backed iteration
+    /// fail to open it, with the block-offset validation error rather than a panic or later error.
+    #[test]
+    fn corrupt_block_offsets_are_rejected_on_open() -> Result<()> {
+        let mut entries = vec![TestEntry::medium(b"medium", &vec![0xAB; 8192])];
+        for i in 0..64u32 {
+            entries.push(TestEntry::small(
+                format!("small-{i:04}").as_bytes(),
+                &[i as u8; 64],
+            ));
+        }
+        sort_entries(&mut entries);
+
+        let dir = tempfile::tempdir()?;
+        let written = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        let meta = StaticSortedFileMetaData {
+            sequence_number: 1,
+            block_count: written.block_count,
+        };
+        assert!(
+            meta.block_count >= 3,
+            "expected value, key and index blocks, got {} blocks",
+            meta.block_count
+        );
+        let path = dir.path().join("00000001.sst");
+        let original = std::fs::read(&path)?;
+        let directory_start = original.len() - usize::from(meta.block_count) * size_of::<u32>();
+        // Sanity check: the uncorrupted file reads back with the expected values.
+        let sst = open_sst(dir.path(), 1, &written)?;
+        let kc = make_cache();
+        let vc = make_cache();
+        for entry in &entries {
+            assert_lookup(&sst, entry, &kc, &vc)?;
+        }
+        // The caches can hold blocks that reference the mapping, so release them with the file
+        // before the file is rewritten below.
+        drop((sst, kc, vc));
+
+        let access_modes: &[crate::AccessMode] = &[
+            #[cfg(feature = "mmap")]
+            crate::AccessMode::Mmap,
+            crate::AccessMode::File,
+        ];
+        for block_index in 0..usize::from(meta.block_count) - 1 {
+            for bad_end in [u32::MAX, directory_start as u32 + 4] {
+                let mut bytes = original.clone();
+                let entry = directory_start + block_index * size_of::<u32>();
+                bytes[entry..entry + size_of::<u32>()].copy_from_slice(&bad_end.to_be_bytes());
+                std::fs::write(&path, &bytes)?;
+                for &access_mode in access_modes {
+                    let errors = [
+                        StaticSortedFile::open(dir.path(), meta, Compression::Lz4, access_mode)
+                            .err(),
+                        crate::static_sorted_file::StaticSortedFileIter::open(
+                            dir.path(),
+                            meta,
+                            Compression::Lz4,
+                        )
+                        .err(),
+                    ];
+                    for err in errors {
+                        let err = err.unwrap_or_else(|| {
+                            panic!(
+                                "block {block_index}, end {bad_end} ({access_mode:?}): a corrupt \
+                                 block offset was accepted"
+                            )
+                        });
+                        let message = format!("{err:#}");
+                        // Raising one block's end either makes the next block go backwards, or
+                        // (for the last data block) pushes the blocks past the table.
+                        assert!(
+                            message.contains("shorter than its")
+                                || message.contains("past the start of its block-offset table"),
+                            "block {block_index}, end {bad_end} ({access_mode:?}): {message}"
+                        );
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
     #[test]
     fn be_key_order_matches_byte_order() {
         let keys4: Vec<[u8; 4]> = vec![
