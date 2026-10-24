@@ -2286,20 +2286,6 @@ pub fn turbo_tasks_scope<T>(tt: Arc<dyn TurboTasksApi>, f: impl FnOnce() -> T) -
     TURBO_TASKS.sync_scope(tt, f)
 }
 
-/// Like [`turbo_tasks_scope`], but runs `f` directly when `tt` is already the current turbo-tasks
-/// instance. Entering the scope again would be redundant, and panics while the current one is
-/// borrowed (e.g. inside [`with_turbo_tasks`]).
-pub(crate) fn ensure_turbo_tasks_scope<T>(tt: Arc<dyn TurboTasksApi>, f: impl FnOnce() -> T) -> T {
-    let is_current = TURBO_TASKS
-        .try_with(|current| std::ptr::addr_eq(Arc::as_ptr(current), Arc::as_ptr(&tt)))
-        .unwrap_or(false);
-    if is_current {
-        f()
-    } else {
-        TURBO_TASKS.sync_scope(tt, f)
-    }
-}
-
 pub fn turbo_tasks_future_scope<T>(
     tt: Arc<dyn TurboTasksApi>,
     f: impl Future<Output = T>,

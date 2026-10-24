@@ -58,6 +58,8 @@ use turbo_tasks::{FunctionId, TaskDirtyCause};
 use turbo_tasks_malloc::TurboMalloc;
 
 use self::eviction::EvictionControl;
+#[cfg(test)]
+pub(crate) use self::storage::TrackOutcome;
 pub use self::{
     eviction::EvictionMode,
     storage::{EvictionCounts, SpecificTaskDataCategory, TaskDataCategory},
