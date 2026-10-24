@@ -43,6 +43,8 @@ const MATCHER = [
   '/direct',
   '/user-overrides',
   '/user-traceparent',
+  '/outgoing',
+  '/root-state',
 ]
 
 // The middleware entry file is generated per variant: `config` must be a
@@ -144,8 +146,11 @@ interface TracedResponse {
 // middleware span, the render's request span and (deployed, for middleware
 // without an incoming `traceparent`) the inserted `Next.request` root have
 // ended. Pass the incoming trace context and the one the middleware sets as
-// `known`, and `incoming` when the request has a `traceparent`. One-time spans
-// (see `isOneTimeSpan`) are omitted unless `includeOneTimeSpans` is set.
+// `known`, and `incoming` when the request has a `traceparent`. Pass
+// `uninvokedRender` when the request continues to a page served without a
+// function invocation when deployed (e.g. a static page): nothing emits the
+// deferred `Next.request` then. One-time spans (see `isOneTimeSpan`) are
+// omitted unless `includeOneTimeSpans` is set.
 async function traceRequest(
   res: Response,
   body: Body,
@@ -153,10 +158,12 @@ async function traceRequest(
     includeOneTimeSpans = false,
     known = [],
     incoming = false,
+    uninvokedRender = false,
   }: {
     includeOneTimeSpans?: boolean
     known?: KnownTraceContext[]
     incoming?: boolean
+    uninvokedRender?: boolean
   } = {}
 ): Promise<TracedRequest> {
   const text = await res.text()
@@ -171,7 +178,7 @@ async function traceRequest(
   if (middlewareTraceId) {
     traceIds.push(middlewareTraceId)
     expected.push('Middleware.execute')
-    if (isNextDeploy && !incoming) {
+    if (isNextDeploy && !incoming && !uninvokedRender) {
       expected.push('Next.request')
     }
   }
@@ -299,8 +306,9 @@ function useTraceTests(next: NextInstance) {
 }
 
 function expectNoInternalHeaders(res: Response) {
-  for (const key of res.headers.keys()) {
+  for (const [key, value] of res.headers) {
     expect(key).not.toMatch(/^x-middleware-(request-|override-headers)/)
+    expect(value).not.toContain('next-deferred')
   }
 }
 
@@ -479,7 +487,7 @@ describe.each(VARIANTS)(
         `)
         } else if (['deploy, middleware'].includes(env)) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/page} [error: doesn't cover descendants]
+            "[trace A] GET (Next.request) {http.target=/page}
             ├─ GET /page (BaseServer.handleRequest) {http.target=/page, http.route=/page, next.route=/page, http.status_code=200}
             │  ├─ load instrumentation module (Instrumentation.loadModule)
             │  ├─ NextNodeServer.clientComponentLoading
@@ -496,7 +504,7 @@ describe.each(VARIANTS)(
           `)
         } else if (['deploy, proxy'].includes(env)) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/page} [error: doesn't cover descendants]
+            "[trace A] GET (Next.request) {http.target=/page}
             ├─ GET /page (BaseServer.handleRequest) {http.target=/page, http.route=/page, next.route=/page, http.status_code=200}
             │  ├─ load instrumentation module (Instrumentation.loadModule)
             │  ├─ NextNodeServer.clientComponentLoading
@@ -515,7 +523,7 @@ describe.each(VARIANTS)(
           `)
         } else if (['deploy (no adapter), middleware'].includes(env)) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/page} [error: doesn't cover descendants]
+            "[trace A] GET (Next.request) {http.target=/page}
             ├─ GET /page (BaseServer.handleRequest) {http.target=/page, http.route=/page, next.route=/page, http.status_code=200}
             │  ├─ NextNodeServer.clientComponentLoading
             │  ├─ prepare route module (RouteModule.prepare)
@@ -532,7 +540,7 @@ describe.each(VARIANTS)(
           `)
         } else if (['deploy (no adapter), proxy'].includes(env)) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/page} [error: doesn't cover descendants]
+            "[trace A] GET (Next.request) {http.target=/page}
             ├─ GET /page (BaseServer.handleRequest) {http.target=/page, http.route=/page, next.route=/page, http.status_code=200}
             │  ├─ NextNodeServer.clientComponentLoading
             │  ├─ prepare route module (RouteModule.prepare)
@@ -551,7 +559,7 @@ describe.each(VARIANTS)(
           `)
         } else if (['deploy, cache components, middleware'].includes(env)) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/page} [error: doesn't cover descendants]
+            "[trace A] GET (Next.request) {http.target=/page}
             ├─ middleware GET (Middleware.execute) {http.target=/page}
             └─ POST /page (BaseServer.handleRequest) {http.target=/page, http.route=/page, next.route=/page, http.status_code=200}
                ├─ load instrumentation module (Instrumentation.loadModule)
@@ -568,7 +576,7 @@ describe.each(VARIANTS)(
           `)
         } else if (['deploy, cache components, proxy'].includes(env)) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/page} [error: doesn't cover descendants]
+            "[trace A] GET (Next.request) {http.target=/page}
             ├─ middleware GET (Middleware.execute) {http.target=/page}
             │  ├─ load instrumentation module (Instrumentation.loadModule)
             │  └─ register instrumentation (Instrumentation.register)
@@ -589,7 +597,7 @@ describe.each(VARIANTS)(
           ['deploy (no adapter), cache components, middleware'].includes(env)
         ) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/page} [error: doesn't cover descendants]
+            "[trace A] GET (Next.request) {http.target=/page}
             ├─ middleware GET (Middleware.execute) {http.target=/page}
             └─ POST /page (BaseServer.handleRequest) {http.target=/page, http.route=/page, next.route=/page, http.status_code=200}
                ├─ NextNodeServer.clientComponentLoading
@@ -608,7 +616,7 @@ describe.each(VARIANTS)(
           ['deploy (no adapter), cache components, proxy'].includes(env)
         ) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/page} [error: doesn't cover descendants]
+            "[trace A] GET (Next.request) {http.target=/page}
             ├─ middleware GET (Middleware.execute) {http.target=/page}
             │  ├─ load instrumentation module (Instrumentation.loadModule)
             │  └─ register instrumentation (Instrumentation.register)
@@ -674,7 +682,7 @@ describe.each(VARIANTS)(
           ].includes(env)
         ) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/route-handler} [error: doesn't cover descendants]
+            "[trace A] GET (Next.request) {http.target=/route-handler}
             ├─ GET /route-handler (BaseServer.handleRequest) {http.target=/route-handler, http.route=/route-handler, next.route=/route-handler, http.status_code=200}
             │  ├─ executing api route (app) /route-handler (AppRouteRouteHandlers.runHandler) {next.route=/route-handler}
             │  ├─ prepare route module (RouteModule.prepare)
@@ -690,7 +698,7 @@ describe.each(VARIANTS)(
           ].includes(env)
         ) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/route-handler} [error: doesn't cover descendants]
+            "[trace A] GET (Next.request) {http.target=/route-handler}
             ├─ GET /route-handler (BaseServer.handleRequest) {http.target=/route-handler, http.route=/route-handler, next.route=/route-handler, http.status_code=200}
             │  ├─ executing api route (app) /route-handler (AppRouteRouteHandlers.runHandler) {next.route=/route-handler}
             │  ├─ prepare route module (RouteModule.prepare)
@@ -787,7 +795,7 @@ describe.each(VARIANTS)(
         `)
         } else if (['deploy, middleware', 'deploy, proxy'].includes(env)) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/rewrite} [error: doesn't cover descendants]
+            "[trace A] GET (Next.request) {http.target=/rewrite}
             ├─ GET /page (BaseServer.handleRequest) {http.target=/rewrite, http.route=/page, next.route=/page, http.status_code=200}
             │  ├─ NextNodeServer.clientComponentLoading
             │  ├─ prepare route module (RouteModule.prepare)
@@ -807,7 +815,7 @@ describe.each(VARIANTS)(
           ].includes(env)
         ) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/rewrite} [error: doesn't cover descendants]
+            "[trace A] GET (Next.request) {http.target=/rewrite}
             ├─ GET /page (BaseServer.handleRequest) {http.target=/rewrite, http.route=/page, next.route=/page, http.status_code=200}
             │  ├─ NextNodeServer.clientComponentLoading
             │  ├─ prepare route module (RouteModule.prepare)
@@ -829,7 +837,7 @@ describe.each(VARIANTS)(
           ].includes(env)
         ) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/rewrite} [error: doesn't cover descendants]
+            "[trace A] GET (Next.request) {http.target=/rewrite}
             ├─ middleware GET (Middleware.execute) {http.target=/rewrite}
             └─ POST /page (BaseServer.handleRequest) {http.target=/rewrite, http.route=/page, next.route=/page, http.status_code=200}
                ├─ NextNodeServer.clientComponentLoading
@@ -849,7 +857,7 @@ describe.each(VARIANTS)(
           ].includes(env)
         ) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/rewrite} [error: doesn't cover descendants]
+            "[trace A] GET (Next.request) {http.target=/rewrite}
             ├─ middleware GET (Middleware.execute) {http.target=/rewrite}
             └─ POST /page (BaseServer.handleRequest) {http.target=/rewrite, http.route=/page, next.route=/page, http.status_code=200}
                ├─ NextNodeServer.clientComponentLoading
@@ -1029,10 +1037,14 @@ describe.each(VARIANTS)(
     )
 
     // The rewritten page is prerendered, so it is served from the cache
-    // (deployed, without invoking a function).
+    // (deployed, without invoking a function, so nothing emits the deferred
+    // `Next.request`: the middleware span's parent is never exported).
     traceTest(
       'traces a middleware rewrite to a static page',
-      async () => traceRequest(await next.fetch('/rewrite-static'), 'none'),
+      async () =>
+        traceRequest(await next.fetch('/rewrite-static'), 'none', {
+          uninvokedRender: true,
+        }),
       async ({ res, text, tree: getTree }) => {
         expect(res.status).toBe(200)
         expect(cheerio.load(text)('#marker').text()).toBe('static page')
@@ -1093,9 +1105,10 @@ describe.each(VARIANTS)(
             'deploy (no adapter), cache components, proxy',
           ].includes(env)
         ) {
-          // Served from the cache without invoking a function: no render spans.
+          // Served from the cache without invoking a function: no render
+          // spans, and nothing emits the deferred `Next.request`.
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/rewrite-static}
+            "[trace A] [remote]
             └─ middleware GET (Middleware.execute) {http.target=/rewrite-static}"
           `)
         } else {
@@ -1106,10 +1119,14 @@ describe.each(VARIANTS)(
     )
 
     // The rewritten page is prerendered with time-based revalidation, so it
-    // is served from the ISR cache (it never becomes stale during the test).
+    // is served from the ISR cache (it never becomes stale during the test;
+    // deployed, like the static page, without invoking a function).
     traceTest(
       'traces a middleware rewrite to an ISR page',
-      async () => traceRequest(await next.fetch('/rewrite-isr'), 'none'),
+      async () =>
+        traceRequest(await next.fetch('/rewrite-isr'), 'none', {
+          uninvokedRender: true,
+        }),
       async ({ res, text, tree: getTree }) => {
         expect(res.status).toBe(200)
         expect(cheerio.load(text)('#marker').text()).toBe('ISR page')
@@ -1190,9 +1207,9 @@ describe.each(VARIANTS)(
           ].includes(env)
         ) {
           // Served from the ISR cache without invoking a function: no render
-          // spans.
+          // spans, and nothing emits the deferred `Next.request`.
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/rewrite-isr}
+            "[trace A] [remote]
             └─ middleware GET (Middleware.execute) {http.target=/rewrite-isr}"
           `)
         } else {
@@ -1888,7 +1905,7 @@ describe.each(VARIANTS)(
           `)
         } else if (['deploy, middleware', 'deploy, proxy'].includes(env)) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/user-overrides} [error: doesn't cover descendants]
+            "[trace A] GET (Next.request) {http.target=/user-overrides}
             ├─ GET /headers-echo (BaseServer.handleRequest) {http.target=/user-overrides, http.route=/headers-echo, next.route=/headers-echo, http.status_code=200}
             │  ├─ NextNodeServer.clientComponentLoading
             │  ├─ prepare route module (RouteModule.prepare)
@@ -1908,7 +1925,7 @@ describe.each(VARIANTS)(
           ].includes(env)
         ) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/user-overrides} [error: doesn't cover descendants]
+            "[trace A] GET (Next.request) {http.target=/user-overrides}
             ├─ GET /headers-echo (BaseServer.handleRequest) {http.target=/user-overrides, http.route=/headers-echo, next.route=/headers-echo, http.status_code=200}
             │  ├─ NextNodeServer.clientComponentLoading
             │  ├─ prepare route module (RouteModule.prepare)
@@ -1930,7 +1947,7 @@ describe.each(VARIANTS)(
           ].includes(env)
         ) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/user-overrides} [error: doesn't cover descendants]
+            "[trace A] GET (Next.request) {http.target=/user-overrides}
             ├─ middleware GET (Middleware.execute) {http.target=/user-overrides}
             └─ POST /headers-echo (BaseServer.handleRequest) {http.target=/user-overrides, http.route=/headers-echo, next.route=/headers-echo, http.status_code=200}
                ├─ NextNodeServer.clientComponentLoading
@@ -1950,7 +1967,7 @@ describe.each(VARIANTS)(
           ].includes(env)
         ) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/user-overrides} [error: doesn't cover descendants]
+            "[trace A] GET (Next.request) {http.target=/user-overrides}
             ├─ middleware GET (Middleware.execute) {http.target=/user-overrides}
             └─ POST /headers-echo (BaseServer.handleRequest) {http.target=/user-overrides, http.route=/headers-echo, next.route=/headers-echo, http.status_code=200}
                ├─ NextNodeServer.clientComponentLoading
@@ -2215,7 +2232,7 @@ describe.each(VARIANTS)(
           ].includes(env)
         ) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/route-handler} [error: doesn't cover descendants]
+            "[trace A] GET (Next.request) {http.target=/route-handler}
             ├─ GET /route-handler (BaseServer.handleRequest) {http.target=/route-handler, http.route=/route-handler, next.route=/route-handler, http.status_code=200}
             │  ├─ executing api route (app) /route-handler (AppRouteRouteHandlers.runHandler) {next.route=/route-handler}
             │  ├─ load app route module (AppRouteRouteModule.loadUserland) {next.route=/route-handler}
@@ -2243,6 +2260,44 @@ describe.each(VARIANTS)(
         }
       }
     )
+
+    // The `next-deferred` tracestate entry deferring the middleware's request
+    // span to the render (when deployed) is only for the render: neither the
+    // middleware's nor the render's outgoing requests carry it, nor do the
+    // request headers the render sees.
+    it('does not forward the deferred request span beyond the render', async () => {
+      const res = await next.fetch('/outgoing')
+      expect(res.status).toBe(200)
+      expectNoInternalHeaders(res)
+      const $ = cheerio.load(await res.text())
+      const tracestates = {
+        middlewareOutgoing: res.headers.get('x-mw-outgoing-tracestate'),
+        renderOutgoing: $('#outgoing-tracestate').text(),
+        renderRequest: $('#request-tracestate').text(),
+      }
+      for (const tracestate of Object.values(tracestates)) {
+        // JSON: `null` or the header value.
+        expect(tracestate).toBeTruthy()
+        expect(tracestate).not.toContain('next-deferred')
+      }
+    })
+
+    // The middleware doesn't leave its request's root span open in the SDK
+    // (which keeps open root spans, e.g. `@vercel/otel`): when deployed, the
+    // request span the render emits is reserved, not started, in the
+    // middleware.
+    it('does not leave root spans open in the middleware', async () => {
+      for (const path of ['/page', '/rewrite', '/route-handler', '/direct']) {
+        const res = await next.fetch(path)
+        expect(res.status).toBe(200)
+        await res.text()
+      }
+      await retry(async () => {
+        const res = await next.fetch('/root-state')
+        expect(res.status).toBe(200)
+        expect(await res.json()).toEqual({ open: [] })
+      })
+    })
   }
 )
 
