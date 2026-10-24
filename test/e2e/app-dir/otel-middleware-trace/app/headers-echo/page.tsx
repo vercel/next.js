@@ -1,14 +1,12 @@
 import { headers } from 'next/headers'
 import { Suspense } from 'react'
-import { getRenderSpans } from '../../trace-recorder'
-import { markMetadataGenerated, metadataGenerated } from '../../metadata-ready'
+import { getActiveTraceId } from '../../trace-recorder'
 
 async function RequestInfo() {
   const requestHeaders = Object.fromEntries((await headers()).entries())
-  await metadataGenerated()
   return (
     <>
-      <pre id="spans">{JSON.stringify(getRenderSpans())}</pre>
+      <pre id="trace-id">{getActiveTraceId()}</pre>
       <pre id="headers">{JSON.stringify(requestHeaders)}</pre>
     </>
   )
@@ -22,7 +20,7 @@ export default function Page() {
   )
 }
 
+// Traced as a `generateMetadata` span in the render.
 export async function generateMetadata() {
-  markMetadataGenerated('page')
   return {}
 }

@@ -20,6 +20,8 @@
       "test-log": ["./test/lib/test-log"],
       "router-act": ["./test/lib/router-act"],
       "otel-span-tree": ["./test/lib/otel-span-tree"],
+      "otel-span-capture": ["./test/lib/otel-span-capture"],
+      "vercel-runtime-logs": ["./test/lib/vercel-runtime-logs"],
       "@next/playwright": ["./packages/next-playwright/src/index.ts"]
     }
   },
