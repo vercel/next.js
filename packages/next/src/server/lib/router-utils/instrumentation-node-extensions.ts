@@ -81,6 +81,16 @@ function extendTracerProviderForCacheComponents(): void {
         ? undefined
         : instrumentTracerForCacheComponents(tracer)
     }
+
+    // Instrumentations that resolve a tracer while register() is still running
+    // hold on to a concrete tracer that never passes through the patches above,
+    // so patch the tracer class of the registered provider as well.
+    const tracerPrototype = Object.getPrototypeOf(
+      provider.getDelegate().getTracer('next-cache-components')
+    )
+    if (tracerPrototype && tracerPrototype !== Object.prototype) {
+      instrumentTracerForCacheComponents(tracerPrototype)
+    }
   }
 }
 
@@ -89,19 +99,22 @@ function instrumentTracerForCacheComponents(tracer: Tracer): Tracer {
     return tracer
   }
   const originalStartSpan = tracer.startSpan
-  tracer.startSpan = (...startSpanArgs) => {
+  tracer.startSpan = function (this: Tracer, ...startSpanArgs) {
     return workUnitAsyncStorage.exit(() =>
-      originalStartSpan.apply(tracer, startSpanArgs)
+      originalStartSpan.apply(this, startSpanArgs)
     )
   }
 
   const originalStartActiveSpan = tracer.startActiveSpan
   // @ts-ignore TS doesn't recognize the overloads correctly
-  tracer.startActiveSpan = (...startActiveSpanArgs: any[]) => {
+  tracer.startActiveSpan = function (
+    this: Tracer,
+    ...startActiveSpanArgs: any[]
+  ) {
     const workUnitStore = workUnitAsyncStorage.getStore()
     if (!workUnitStore) {
       // @ts-ignore TS doesn't recognize the overloads correctly
-      return originalStartActiveSpan.apply(tracer, startActiveSpanArgs)
+      return originalStartActiveSpan.apply(this, startActiveSpanArgs)
     }
 
     let fnIdx: number = 0
@@ -137,7 +150,7 @@ function instrumentTracerForCacheComponents(tracer: Tracer): Tracer {
 
     return workUnitAsyncStorage.exit(() => {
       // @ts-ignore TS doesn't recognize the overloads correctly
-      return originalStartActiveSpan.apply(tracer, startActiveSpanArgs)
+      return originalStartActiveSpan.apply(this, startActiveSpanArgs)
     })
   }
 
