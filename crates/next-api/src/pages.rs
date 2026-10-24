@@ -1025,7 +1025,7 @@ impl PageEndpoint {
         let config =
             parse_segment_config_from_source(self.source(), ParseSegmentMode::Base).await?;
 
-        let runtime = config.runtime.unwrap_or(NextRuntime::NodeJs);
+        let runtime = config.entry.runtime.unwrap_or(NextRuntime::NodeJs);
 
         Ok(
             // `/_app` and `/_document` never get rendered directly so they don't need to be
@@ -1043,6 +1043,7 @@ impl PageEndpoint {
                     // they're included in the page bundle.
                     runtime: NextRuntime::NodeJs,
                     regions: config
+                        .entry
                         .preferred_region
                         .as_ref()
                         .map(NextSegmentRegion::to_vec),
@@ -1071,6 +1072,7 @@ impl PageEndpoint {
                     document_module: modules.document_module,
                     runtime,
                     regions: config
+                        .entry
                         .preferred_region
                         .as_ref()
                         .map(NextSegmentRegion::to_vec),

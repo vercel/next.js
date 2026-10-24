@@ -35,6 +35,7 @@ use turbopack_ecmascript::{
 
 use crate::{
     app_structure::AppPageLoaderTree,
+    next_app::AppPage,
     next_config::RouteHas,
     next_manifests::ProxyMatcher,
     util::{MiddlewareMatcherKind, NextRuntime},
@@ -99,17 +100,26 @@ impl NextSegmentRegion {
     }
 }
 
+/// Runtime and deployment configuration for an entry. For App Router pages, only the entry page
+/// and its ancestor layouts contribute these fields.
+#[derive(Debug, Default, Clone, PartialEq, Eq, NonLocalValue, Encode, Decode)]
+pub struct NextEntryConfig {
+    pub runtime: Option<NextRuntime>,
+    pub preferred_region: Option<NextSegmentRegion>,
+    pub max_duration: Option<u32>,
+}
+
+// Route segment configuration are inherited across the entire loader tree, including parallel
+// routes.
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Default, Clone)]
 pub struct NextSegmentConfig {
+    pub entry: NextEntryConfig,
     pub rsc: Option<NextSegmentRsc>,
     pub dynamic: Option<NextSegmentDynamic>,
     pub dynamic_params: Option<bool>,
     pub revalidate: Option<NextRevalidate>,
-    pub max_duration: Option<u32>,
     pub fetch_cache: Option<NextSegmentFetchCache>,
-    pub runtime: Option<NextRuntime>,
-    pub preferred_region: Option<NextSegmentRegion>,
     pub middleware_matcher: Option<Vec<MiddlewareMatcherKind>>,
     pub unstable_allow_dynamic: Option<Vec<RcStr>>,
 
@@ -145,20 +155,71 @@ impl ValueDefault for NextSegmentConfig {
     }
 }
 
+fn merge_parallel<T: PartialEq + Clone>(
+    a: &mut Option<T>,
+    b: &Option<T>,
+    name: &str,
+) -> Result<()> {
+    match (a.as_ref(), b) {
+        (Some(a), Some(b)) if *a != *b => {
+            bail!(
+                "Sibling segment configs have conflicting values for {}",
+                name
+            )
+        }
+        (None, Some(b)) => {
+            *a = Some(b.clone());
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+impl NextEntryConfig {
+    fn apply_parent_config(&mut self, parent: &Self) {
+        let Self {
+            runtime,
+            preferred_region,
+            max_duration,
+        } = parent;
+        self.runtime = self.runtime.or(*runtime);
+        self.preferred_region = self.preferred_region.take().or(preferred_region.clone());
+        self.max_duration = self.max_duration.or(*max_duration);
+    }
+
+    fn apply_parallel_config(&mut self, parallel_config: &Self) -> Result<()> {
+        let Self {
+            runtime,
+            preferred_region,
+            max_duration,
+        } = parallel_config;
+        merge_parallel(&mut self.runtime, runtime, "runtime")?;
+        merge_parallel(&mut self.max_duration, max_duration, "maxDuration")?;
+        match (self.preferred_region.as_ref(), &preferred_region) {
+            (Some(a), Some(b)) if a.to_vec() != b.to_vec() => {
+                bail!("Sibling segment configs have conflicting values for preferredRegion")
+            }
+            (None, Some(b)) => {
+                self.preferred_region = Some(b.clone());
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+}
+
 impl NextSegmentConfig {
     /// Applies the parent config to this config, setting any unset values to
-    /// the parent's values.
-    pub fn apply_parent_config(&mut self, parent: &Self) {
+    /// the parent's values. Entry config is inherited only when `is_ancestor` is true.
+    pub fn apply_parent_config(&mut self, parent: &Self, is_ancestor: bool) {
         let NextSegmentConfig {
+            entry,
             // A layout's RSC classification does not apply to its child page.
             rsc: _,
             dynamic,
             dynamic_params,
             revalidate,
-            max_duration,
             fetch_cache,
-            runtime,
-            preferred_region,
             // TODO what about these?
             instant: _,
             prefetch: _,
@@ -170,46 +231,25 @@ impl NextSegmentConfig {
             generate_sitemaps: _,
             generate_static_params: _,
         } = self;
+        if is_ancestor {
+            entry.apply_parent_config(&parent.entry);
+        }
         *dynamic = dynamic.or(parent.dynamic);
         *dynamic_params = dynamic_params.or(parent.dynamic_params);
         *revalidate = revalidate.or(parent.revalidate);
-        *max_duration = max_duration.or(parent.max_duration);
         *fetch_cache = fetch_cache.or(parent.fetch_cache);
-        *runtime = runtime.or(parent.runtime);
-        *preferred_region = preferred_region.take().or(parent.preferred_region.clone());
     }
 
     /// Applies a config from a parallel route to this config, returning an
     /// error if there are conflicting values.
     pub fn apply_parallel_config(&mut self, parallel_config: &Self) -> Result<()> {
-        fn merge_parallel<T: PartialEq + Clone>(
-            a: &mut Option<T>,
-            b: &Option<T>,
-            name: &str,
-        ) -> Result<()> {
-            match (a.as_ref(), b) {
-                (Some(a), Some(b)) if *a != *b => {
-                    bail!(
-                        "Sibling segment configs have conflicting values for {}",
-                        name
-                    )
-                }
-                (None, Some(b)) => {
-                    *a = Some(b.clone());
-                }
-                _ => {}
-            }
-            Ok(())
-        }
         let Self {
+            entry,
             rsc,
             dynamic,
             dynamic_params,
             revalidate,
-            max_duration,
             fetch_cache,
-            runtime,
-            preferred_region,
             // TODO what about these?
             instant: _,
             prefetch: _,
@@ -221,6 +261,7 @@ impl NextSegmentConfig {
             generate_sitemaps: _,
             generate_static_params: _,
         } = self;
+        entry.apply_parallel_config(&parallel_config.entry)?;
         // Carry the leaf page's RSC classification up through its loader-tree branch. Unlike route
         // segment config, classifications in different parallel branches are not conflicts.
         *rsc = (*rsc).or(parallel_config.rsc);
@@ -231,18 +272,7 @@ impl NextSegmentConfig {
             "dynamicParams",
         )?;
         merge_parallel(revalidate, &parallel_config.revalidate, "revalidate")?;
-        merge_parallel(max_duration, &parallel_config.max_duration, "maxDuration")?;
         merge_parallel(fetch_cache, &parallel_config.fetch_cache, "fetchCache")?;
-        merge_parallel(runtime, &parallel_config.runtime, "runtime")?;
-        match (preferred_region.as_ref(), &parallel_config.preferred_region) {
-            (Some(a), Some(b)) if a.to_vec() != b.to_vec() => {
-                bail!("Sibling segment configs have conflicting values for preferredRegion")
-            }
-            (None, Some(b)) => {
-                *preferred_region = Some(b.clone());
-            }
-            _ => {}
-        }
         Ok(())
     }
 
@@ -621,8 +651,8 @@ pub async fn parse_segment_config_from_source(
             }
             // Individual exports take precedence over legacy config fields, regardless of
             // export order. App Router ignores legacy config, so its fallback stays empty.
-            config.runtime = config.runtime.or(legacy_config.runtime);
-            config.max_duration = config.max_duration.or(legacy_config.max_duration);
+            config.entry.runtime = config.entry.runtime.or(legacy_config.runtime);
+            config.entry.max_duration = config.entry.max_duration.or(legacy_config.max_duration);
             anyhow::Ok(config)
         },
         |f, ctx| GLOBALS.set(globals, || f.poll(ctx)),
@@ -889,7 +919,7 @@ async fn parse_config_value(
                         .await?;
                     }
                     "regions" => {
-                        config.preferred_region = parse_preferred_region_from_js_value(
+                        config.entry.preferred_region = parse_preferred_region_from_js_value(
                             source, span, "config", "regions", value,
                         )
                         .await?;
@@ -1031,7 +1061,7 @@ async fn parse_config_value(
                 .await;
             };
 
-            config.max_duration = match parse_max_duration(&value) {
+            config.entry.max_duration = match parse_max_duration(&value) {
                 Ok(duration) => duration,
                 Err(error) => {
                     return invalid_config(
@@ -1115,7 +1145,7 @@ async fn parse_config_value(
                 .await;
             };
 
-            config.runtime = match serde_json::from_value(Value::String(val.to_string())) {
+            config.entry.runtime = match serde_json::from_value(Value::String(val.to_string())) {
                 Ok(runtime) => Some(runtime),
                 Err(err) => {
                     return invalid_config(
@@ -1146,7 +1176,7 @@ async fn parse_config_value(
                 return Ok(());
             }
 
-            config.preferred_region = parse_preferred_region_from_js_value(
+            config.entry.preferred_region = parse_preferred_region_from_js_value(
                 source,
                 span,
                 "preferredRegion",
@@ -1542,26 +1572,66 @@ async fn parse_route_matcher_from_js_value(
 
 /// A wrapper around [`parse_segment_config_from_source`] that merges route segment configuration
 /// information from all relevant files (page, layout, parallel routes, etc).
+/// Runtime and deployment configuration only inherit from the entry page and its ancestor layouts.
 #[turbo_tasks::function]
 pub async fn parse_segment_config_from_loader_tree(
     loader_tree: Vc<AppPageLoaderTree>,
+    page: AppPage,
 ) -> Result<Vc<NextSegmentConfig>> {
     let loader_tree = &*loader_tree.await?;
 
-    Ok(parse_segment_config_from_loader_tree_internal(loader_tree)
-        .await?
-        .cell())
+    Ok(
+        parse_segment_config_from_loader_tree_internal(loader_tree, &page)
+            .await?
+            .cell(),
+    )
 }
 
+// AppPageLoaderTree looks like this:
+//
+// app/                   modules.layout = root layout
+// └─ dashboard/          modules.layout = dashboard layout
+//    ├─ children         modules.page = dashboard/page.tsx
+//    └─ @sidebar/
+//       └─ children      modules.default = @sidebar/default.tsx
 async fn parse_segment_config_from_loader_tree_internal(
     loader_tree: &AppPageLoaderTree,
+    page: &AppPage,
 ) -> Result<NextSegmentConfig> {
-    let mut config = NextSegmentConfig::default();
+    let modules = &loader_tree.modules;
+    // Only layouts on the entry page's directory ancestry contribute runtime/deployment config,
+    // layouts in sibling parallel routes are excluded.
+    let is_ancestor = page.0.starts_with(&loader_tree.page.0);
+
+    let mut config = if let Some(leaf) = modules.page.as_ref().or(modules.default.as_ref()) {
+        let source = Vc::upcast(FileSource::new(leaf.clone()));
+        let mut config = parse_segment_config_from_source(source, ParseSegmentMode::App)
+            .owned()
+            .await?;
+        // A __PAGE__ leaf stores its directory's AppPage. Compare it with the entry's directory,
+        // excluding the final `page` segment; sibling pages and default leaves do not qualify.
+        let is_entry_page = modules.page.is_some()
+            && page
+                .0
+                .split_last()
+                .is_some_and(|(_, entry_directory)| loader_tree.page.0 == entry_directory);
+        if !is_entry_page {
+            config.entry = NextEntryConfig::default();
+        }
+        config
+    } else {
+        NextSegmentConfig::default()
+    };
 
     let parallel_configs = loader_tree
         .parallel_routes
         .values()
-        .map(|loader_tree| Box::pin(parse_segment_config_from_loader_tree_internal(loader_tree)))
+        .map(|loader_tree| {
+            Box::pin(parse_segment_config_from_loader_tree_internal(
+                loader_tree,
+                page,
+            ))
+        })
         .join()
         .await;
 
@@ -1569,19 +1639,10 @@ async fn parse_segment_config_from_loader_tree_internal(
         config.apply_parallel_config(&tree?)?;
     }
 
-    let modules = &loader_tree.modules;
-    for path in [
-        modules.page.clone(),
-        modules.default.clone(),
-        modules.layout.clone(),
-    ]
-    .into_iter()
-    .flatten()
-    {
+    if let Some(path) = &modules.layout {
         let source = Vc::upcast(FileSource::new(path.clone()));
-        config.apply_parent_config(
-            &*parse_segment_config_from_source(source, ParseSegmentMode::App).await?,
-        );
+        let parent_config = parse_segment_config_from_source(source, ParseSegmentMode::App).await?;
+        config.apply_parent_config(&parent_config, is_ancestor);
     }
 
     Ok(config)
