@@ -954,6 +954,12 @@ export function createPatchedFetcher(
                   method: clonedInit.method || 'GET',
                 })
               }
+              if (res.status >= 400) {
+                span?.setStatus({
+                  code: SpanStatusCode.ERROR,
+                  message: `HTTP ${res.status}`,
+                })
+              }
               if (
                 res.status === 200 &&
                 incrementalCache &&
