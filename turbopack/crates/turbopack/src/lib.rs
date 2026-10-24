@@ -435,7 +435,7 @@ async fn process_default(
     reference_type: ReferenceType,
     processed_rules: Vec<usize>,
 ) -> Result<Vc<ProcessResult>> {
-    let span = tracing::info_span!(
+    let span = tracing::trace_span!(
         "process module",
         name = %source.ident().to_string().await?,
         layer = Empty,
