@@ -21,13 +21,13 @@ const styles = cva({
 
 /**
  * Link with atomic recipe
- * @see https://panda-css.com/docs/concepts/recipes#atomic-recipe-or-cva
+ * @see https://panda-css.com/docs/recipes/atomic-recipe
  */
 export default function LinkWithAtomicRecipe() {
   return (
     <a
       className={styles({ size: "lg" })}
-      href="https://panda-css.com/docs/concepts/recipes#atomic-recipe-or-cva"
+      href="https://panda-css.com/docs/recipes/atomic-recipe"
       target="_blank"
       rel="noreferrer"
     >
