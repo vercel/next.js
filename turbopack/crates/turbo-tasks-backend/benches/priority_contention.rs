@@ -154,6 +154,8 @@ async fn set_and_read(
     Ok(elapsed)
 }
 
+/// To capture how this benchmark scales with the number of CPUs on a machine, run
+/// `priority_contention_scaling.py` next to this file; it writes the results to a CSV file.
 pub fn priority_contention(c: &mut Criterion) {
     let mut group = c.benchmark_group("turbo_tasks_backend_priority_contention");
     group.sample_size(20);
