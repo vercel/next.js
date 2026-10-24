@@ -1,0 +1,3 @@
+(()=>{"use strict";module.exports=["[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/ecmascript_minify_before_chunking/input/helper.js [test] (ecmascript)",t=>{function s(t){return 2*t}function e(){return"this should compress away"}t.s(["double",()=>s,"unusedExport",()=>e])},"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/ecmascript_minify_before_chunking/input/index.js [test] (ecmascript)",t=>{t.s([]),console.log((0,t.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/ecmascript_minify_before_chunking/input/helper.js [test] (ecmascript)").double)(21))}]})();
+
+//# sourceMappingURL=1jsg_tests_snapshot_basic_ecmascript_minify_before_chunking_input_0ha5_3_s63fqt._.js.map
