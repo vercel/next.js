@@ -1,9 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import expect from 'expect'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
-// @force-gate !deploy
 describe('cache-components', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,

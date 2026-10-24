@@ -11,16 +11,19 @@ export type LoadingModuleData =
   | [React.JSX.Element, React.ReactNode, React.ReactNode]
   | null
 
-import type { VaryParamsIterable } from './segment-cache/vary-params-decoding'
+import type {
+  VaryParams,
+  VaryParamsIterable,
+} from './segment-cache/vary-params-decoding'
 import type { FullTransportData, PartialTransportData } from './rsc-transport'
 
 /** viewport metadata node */
 export type HeadData = React.ReactNode
 
 /**
- * Cache node used in app-router / layout-router.
+ * Render state for a segment. Reuse this object while its data is unchanged;
+ * create a new one when a navigation replaces the segment's data.
  */
-
 export type CacheNode = {
   /**
    * When rsc is not null, it represents the RSC data for the
@@ -45,11 +48,14 @@ export type CacheNode = {
    */
   prefetchRsc: React.ReactNode
 
-  prefetchHead: HeadData | null
-
-  head: HeadData
-
-  slots: Record<string, CacheNode> | null
+  /**
+   * The source of the params `rsc` depends on, from the response that
+   * produced it. Null when unknown: the data came from the segment cache, or
+   * from a render that didn't track params, or `rsc` is still pending — it
+   * is set alongside `rsc` when the response arrives. A navigation that only
+   * changes params this output did not depend on can keep rendering it.
+   */
+  varyParams: VaryParams | null
 
   /**
    * A shared mutable ref that tracks whether this segment should be scrolled
@@ -164,9 +170,16 @@ export type FlightRouterState = [
   /**
    * Bitmask of PrefetchHint flags. Encodes route structure metadata:
    * root layout, loading boundaries, instant configs, and prefetch strategy
-   * hints. Only set when non-zero.
+   * hints. Only set when non-zero. JSON encodes an omitted slot as null when
+   * a later slot is present.
    */
-  prefetchHints?: number,
+  prefetchHints?: number | null,
+  /**
+   * The rendered search params of a page segment. An empty string means there
+   * are none. Only set on page nodes, and left out of request headers.
+   * TODO: Revisit this as part of the larger FlightRouterState refactor.
+   */
+  renderedSearch?: string,
 ]
 
 /**
@@ -183,7 +196,7 @@ export type CompressedRefreshState = [url: string, renderedSearch: string]
 
 export const enum PrefetchHint {
   // NOTE: The 0b00001 bit was previously HasRuntimePrefetch (prefetch:
-  // 'allow-runtime'). Partial Prefetching now implies runtime completeness
+  // 'allow-runtime'). Partial Prefetching allows using runtime requests
   // for every segment, so the bit was removed. Do not reuse it without
   // considering caches populated by older builds.
 
@@ -193,14 +206,15 @@ export const enum PrefetchHint {
   // `partialPrefetching` config). Propagates upward so the root segment
   // reflects the entire subtree.
   //
-  // Partial Prefetching segments require RUNTIME COMPLETENESS: a prefetch
-  // isn't considered done for such a segment until an entry at least as
-  // complete as a runtime response exists. This does NOT mean the segment
-  // lacks static data — the server emits static data unconditionally, and the
-  // scheduler may attempt a static prefetch first (per
-  // ShouldAttemptStaticPrefetch), issuing the runtime request only if the
-  // static response's own `needsRuntimeRequest` signal says it would
-  // return more.
+  // Partial Prefetching routes may use runtime requests for both shells
+  // and prefetches. They *may* be optimized to a use a static request
+  // if no runtime data was accessed during the prerender.
+  // However, If the route has `ensureStatic` configured to "shell", "prefetch",
+  // or "navigation", we *must* use static requests for the shell (and possibly the
+  // prefetch).
+  // Both of these cases are signalled to the scheduler via the
+  // `ShouldAttemptStatic{Shell,Prefetch}` hints and the `needsRuntimeRequest`
+  // promise.
   SubtreeHasPartialPrefetching = 0b00010,
   // This segment itself has a loading.tsx boundary.
   SegmentHasLoadingBoundary = 0b00100,
@@ -277,7 +291,18 @@ export const enum PrefetchHint {
   // navigations alike. (Routes missing from the manifest — see the #91407
   // fallbacks — simply never carry it.) Set on every node of the tree, but
   // does not propagate.
-  ShouldAttemptStaticPrefetch = 0b100000000000000,
+  ShouldAttemptStaticShell = 0b100000000000000,
+  ShouldAttemptStaticPrefetch = 0b1000000000000000,
+  ShouldAttemptStaticNavigation = 0b10000000000000000,
+
+  // This dynamic segment only accepts build-time parameter values. Kept on
+  // the affected node, without propagating or copying it to other segments.
+  // Until the client knows the allowed values, any such node prevents route
+  // prediction, even when the route's components never read the parameter.
+  IsClosedParam = 0b100000000000000000,
+  // A descendant segment (but not this one) has a closed parameter. Propagates
+  // upward so route prediction can check the root instead of walking the tree.
+  SubtreeHasClosedParams = 0b1000000000000000000,
 }
 
 /**
@@ -288,17 +313,22 @@ export const enum PrefetchHint {
  *
  * Static prefetching is disabled ONLY by `prefetch: 'force-disabled'`
  * (PrefetchDisabled). Notably, Partial Prefetching segments DO have static
- * data even though they require runtime completeness: the server emits it
- * unconditionally — it can't be gated on the ShouldAttemptStaticPrefetch
- * hint, because which segments carry static data must be deterministic
+ * data even though they can use runtime requests: the server emits it
+ * unconditionally — it can't be gated on the ShouldAttemptStatic{Shell,Prefetch}
+ * hints, because which segments carry static data must be deterministic
  * from build-time config. A runtime request may still be needed for the
  * segment, but the scheduler may attempt a static prefetch first (per the
- * ShouldAttemptStaticPrefetch hint) and skip the runtime request if the
+ * ShouldAttemptStatic{Shell,Prefetch} hints) and skip the runtime request if the
  * static response proves sufficient.
  *
  * Usage: `(hints & StaticPrefetchDisabled) !== 0`
  */
 export const StaticPrefetchDisabled = PrefetchHint.PrefetchDisabled
+
+export const StaticAttemptHints =
+  PrefetchHint.ShouldAttemptStaticShell |
+  PrefetchHint.ShouldAttemptStaticPrefetch |
+  PrefetchHint.ShouldAttemptStaticNavigation
 
 /**
  * The subset of PrefetchHint bits that propagate upward from a child segment to
@@ -309,7 +339,8 @@ export const StaticPrefetchDisabled = PrefetchHint.PrefetchDisabled
 export const SubtreePrefetchHints =
   PrefetchHint.SubtreeHasPartialPrefetching |
   PrefetchHint.SubtreeHasLoadingBoundary |
-  PrefetchHint.SubtreeHasInstantFalse
+  PrefetchHint.SubtreeHasInstantFalse |
+  PrefetchHint.SubtreeHasClosedParams
 
 /**
  * Folds a child segment's prefetch hints into its parent's, propagating the
@@ -344,13 +375,19 @@ export function propagateSubtreeBits(
   if (childHints & PrefetchHint.SubtreeHasInstantFalse) {
     parentHints |= PrefetchHint.SubtreeHasInstantFalse
   }
+  if (
+    childHints &
+    (PrefetchHint.IsClosedParam | PrefetchHint.SubtreeHasClosedParams)
+  ) {
+    parentHints |= PrefetchHint.SubtreeHasClosedParams
+  }
   return parentHints
 }
 
 /**
  * A path through the segment tree: a repeating sequence of segment and
  * parallel route key. Used by the client to address positions in the
- * CacheNode tree (see layout-router).
+ * render tree (see layout-router).
  */
 export type FlightSegmentPath =
   // Uses `any` as repeating pattern can't be typed.
@@ -423,20 +460,16 @@ export type InitialRSCPayload = {
    * Unlike an async iterable, a pending promise costs Flight no abort
    * listener on the render. Used when generating per-segment prefetch
    * responses (forwarded as each response's own `u`).
-   * The build-constant `PrefetchHint.ShouldAttemptStaticPrefetch` is
-   * tracked directly on the prerender store instead (its
-   * `shouldAttemptStaticPrefetch` cell) — it needs neither stream
-   * positioning nor this flag's param/non-param blindness. Only present
-   * for static prerenders when Cache Components is enabled.
+   * The build-time constant `PrefetchHint.ShouldAttemptStatic{Shell,Prefetch}`
+   * hint is tracked separately.
+   * Only present for static prerenders when Cache Components is enabled.
    */
   u?: Promise<boolean>
-  /** staticStageByteLength - Resolves when the static stage ends. */
-  l?: Promise<number>
   /**
-   * shellByteLength - Resolves when the shell stage ends.
-   * If it resolves to null, then the shell is the same as the main response.
-   * */
-  a?: Promise<number | null>
+   * stageByteLengths - Where each stage ends; see
+   * NavigationFlightResponse['a'].
+   */
+  a?: Promise<Array<number>>
   /** runtimePrefetchStream — Embedded runtime prefetch Flight stream. */
   p?: ReadableStream<Uint8Array>
   /**
@@ -500,59 +533,38 @@ type NavigationFlightResponseBase = {
    * Per-segment prefetch responses carry staleTime per node instead (see
    * TransportSegmentData). */
   s?: AsyncIterable<number>
-  /** staticStageByteLength - Resolves when the static stage ends. */
-  l?: Promise<number>
   /**
-   * shellByteLength - Resolves when the shell stage ends.
-   * If it resolves to null, then the shell is the same as the main response.
+   * stageByteLengths - Where each stage ends in the response, in bytes,
+   * indexed by AppStage: first the shell, then the prefetch stage. We only
+   * list a stage if a later stage added more bytes. Otherwise the stage ends
+   * at the end of the response, like the navigation stage always does.
+   * Absent if the response wasn't staged. Live renders only list the shell.
    *
-   * In a per-segment prefetch response this is the shell byte boundary the
-   * client uses for the shell double-decode: re-decoding the buffered
-   * response truncated at the offset yields the shell variant of every
-   * segment (param-dependent content reduced to still-pending references).
-   * `0` means no shell exists (the page wasn't produced by staged
-   * rendering) — never a valid offset, so it doubles as the "none"
-   * sentinel. The resolution row flushes past the boundary, so a truncated
-   * shell decode reads it as pending, which is harmless. The client's
-   * buffered read leans on the same fact from the other side: 0 read from
-   * an unfulfilled `a` implies a bug — see the shell-extraction comment in
-   * fetchAndWritePerSegmentPrefetchResponse (segment-cache/cache.ts).
+   * If you decode the response up to one of these offsets, you get the
+   * response as it was at the end of that stage. We use the shell's prefix
+   * as the shell for every segment. We only decode the prefetch stage's
+   * prefix to read its `u`, to find out whether anything up to that point
+   * read runtime data. A per-segment prefetch response lists its own
+   * offsets. The row that resolves this list always comes after every
+   * offset, so a prefix reads it as pending, which is fine.
    */
-  a?: Promise<number | null>
+  a?: Promise<Array<number>>
   /**
-   * needsRuntimeRequest — presence means the response carries a stage-scoped
-   * runtime-data verdict. Per-segment prefetch responses always emit one,
-   * and so does any prerendered page payload, which embeds the prerender's
-   * runtime-data probe — that covers navigation responses served from
-   * prerender output and the truncated initial payload alike. Live renders
-   * emit none. Only per-segment responses additionally promise-encode the
-   * head's partiality (see TransportSegmentData). The value is the page's
-   * runtime-data-access flag (the page payload's own `u`; per-segment
-   * responses forward it from the staged decode of the page data).
-   * Fulfilled `true` means a runtime prefetch would return more
-   * than this static response; pending or fulfilled `false` means it
-   * wouldn't. Promise-encoded so the answer rewinds with a truncated
-   * decode: the fulfillment row lands on the same side of the shell byte
-   * boundary (`a`) as the access it records. Tracking is page-global, so it
-   * lives on the response, not on each segment; per-segment granularity
-   * comes from combining it with each segment's partiality:
-   * needsRuntimeRequest(segment) = (settled true) && (isPartial pending).
-   * The derived value must never falsely claim that no runtime request is
-   * needed, so every fallback is conservative: pages that carry no `u`
-   * (legacy render paths) forward an already-resolved `true`. Unlike the
-   * build-constant prefetch hints, this is computed per render and may
-   * change between responses for the same build — it reflects THIS
-   * response.
+   * Whether rendering this response read runtime data, like cookies or
+   * headers. Per-segment prefetch responses always send it, and so do pages
+   * served from a Cache Components prerender. Live renders never do. `true`
+   * means a runtime request would return more than this response.
+   *
+   * It's a promise so it rewinds with the stages. The row that resolves it
+   * lands in the same stage as the access it records, so a decode cut off at
+   * an earlier stage (see `a`) reads it as pending, which counts as `false`.
+   * Segment responses for a page rendered without stages send it already
+   * resolved to `true`, so we never skip a runtime request we need.
+   *
+   * It's tracked for the whole page, not per segment, and it describes this
+   * response, not the build.
    */
   u?: Promise<boolean>
-  /**
-   * shellUsedSessionData — present only in runtime-shell prefetch
-   * responses: true if resolving session data unblocked new content in the
-   * shell. Only meaningful where there's a proper session shell.
-   * Promise-encoded so the answer rewinds with a truncated decode.
-   * Currently has no client consumer; emitted for forward compatibility.
-   */
-  w?: Promise<boolean>
   /**
    * isUpgradeableISRFallback — present (true) iff this is a per-segment
    * prefetch response generated from a fallback shell render (i.e. the page

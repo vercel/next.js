@@ -778,7 +778,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-low-expire/nested": A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a longer \`expire\` or keep it dynamic with a short \`expire\`.
                    Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
-                       at async k (app/use-cache-low-expire/nested/page.tsx:20:14)
+                       at async (app/use-cache-low-expire/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
                    > 20 |     result = await outerCache()
@@ -1175,7 +1175,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-revalidate-0/nested": A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a non-zero \`revalidate\` or keep it dynamic with \`revalidate: 0\`.
                    Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
-                       at async k (app/use-cache-revalidate-0/nested/page.tsx:20:14)
+                       at async (app/use-cache-revalidate-0/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
                    > 20 |     result = await outerCache()
@@ -1277,12 +1277,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
           // Regression test for NAR-491: after adding `generateStaticParams`
           // that covers the requested slug, the slug is no longer a fallback
           // param, so the blocking-route validation must clear. This requires
-          // the render to pick up the fresh `fallbackParams`. Because
+          // the render to pick up the fresh `stagedFallbackParams`. Because
           // `generateStaticParams` is recomputed in the background (the static
           // paths cache serves the previous result until then), the render
-          // triggered by the edit itself still uses the stale `fallbackParams`;
-          // a follow-up HMR update, sent once the recompute lands, is what
-          // syncs them.
+          // triggered by the edit itself still uses the stale
+          // `stagedFallbackParams`; a follow-up HMR update, sent once the
+          // recompute lands, is what syncs them.
           const browser = await next.browser('/use-cache-params/foo')
 
           await expect(browser).toDisplayCollapsedRedbox(`

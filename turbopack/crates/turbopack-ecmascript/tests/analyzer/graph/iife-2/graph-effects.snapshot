@@ -85,6 +85,7 @@
             ),
         ],
         span: 80..91,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "Object",
@@ -335,6 +336,7 @@
             ),
         ],
         span: 108..119,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -426,6 +428,7 @@
             ),
         ],
         span: 142..149,
+        in_truthiness_context: false,
     },
     Member {
         obj: FreeVar(
@@ -516,6 +519,7 @@
             ),
         ],
         span: 155..168,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "console",
@@ -615,175 +619,17 @@
             then: EffectsBlock {
                 effects: [],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                1,
-                            ),
-                        ),
-                        Stmt(
-                            Expr,
-                        ),
-                        ExprStmt(
-                            Expr,
-                        ),
-                        Expr(
-                            Call,
-                        ),
-                        CallExpr(
-                            Callee,
-                        ),
-                        Callee(
-                            Expr,
-                        ),
-                        Expr(
-                            Paren,
-                        ),
-                        ParenExpr(
-                            Expr,
-                        ),
-                        Expr(
-                            Fn,
-                        ),
-                        FnExpr(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            For,
-                        ),
-                        ForStmt(
-                            Body,
-                        ),
-                        Stmt(
-                            Block,
-                        ),
-                        BlockStmt(
-                            Stmts(
-                                1,
-                            ),
-                        ),
-                        Stmt(
-                            Expr,
-                        ),
-                        ExprStmt(
-                            Expr,
-                        ),
-                        Expr(
-                            Call,
-                        ),
-                        CallExpr(
-                            Args(
-                                2,
-                            ),
-                        ),
-                        ExprOrSpread(
-                            Expr,
-                        ),
-                        Expr(
-                            Cond,
-                        ),
-                        CondExpr(
-                            Cons,
-                        ),
-                    ],
+                    AstPathId(
+                        24,
+                    ),
                 ),
             },
             else: EffectsBlock {
                 effects: [],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                1,
-                            ),
-                        ),
-                        Stmt(
-                            Expr,
-                        ),
-                        ExprStmt(
-                            Expr,
-                        ),
-                        Expr(
-                            Call,
-                        ),
-                        CallExpr(
-                            Callee,
-                        ),
-                        Callee(
-                            Expr,
-                        ),
-                        Expr(
-                            Paren,
-                        ),
-                        ParenExpr(
-                            Expr,
-                        ),
-                        Expr(
-                            Fn,
-                        ),
-                        FnExpr(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            For,
-                        ),
-                        ForStmt(
-                            Body,
-                        ),
-                        Stmt(
-                            Block,
-                        ),
-                        BlockStmt(
-                            Stmts(
-                                1,
-                            ),
-                        ),
-                        Stmt(
-                            Expr,
-                        ),
-                        ExprStmt(
-                            Expr,
-                        ),
-                        Expr(
-                            Call,
-                        ),
-                        CallExpr(
-                            Args(
-                                2,
-                            ),
-                        ),
-                        ExprOrSpread(
-                            Expr,
-                        ),
-                        Expr(
-                            Cond,
-                        ),
-                        CondExpr(
-                            Alt,
-                        ),
-                    ],
+                    AstPathId(
+                        25,
+                    ),
                 ),
             },
         },
@@ -1081,6 +927,7 @@
             ),
         ],
         span: 208..219,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -1181,6 +1028,7 @@
             ),
         ],
         span: 224..238,
+        in_truthiness_context: false,
     },
     Conditional {
         condition: Variable(
@@ -1193,187 +1041,17 @@
             then: EffectsBlock {
                 effects: [],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                1,
-                            ),
-                        ),
-                        Stmt(
-                            Expr,
-                        ),
-                        ExprStmt(
-                            Expr,
-                        ),
-                        Expr(
-                            Call,
-                        ),
-                        CallExpr(
-                            Callee,
-                        ),
-                        Callee(
-                            Expr,
-                        ),
-                        Expr(
-                            Paren,
-                        ),
-                        ParenExpr(
-                            Expr,
-                        ),
-                        Expr(
-                            Fn,
-                        ),
-                        FnExpr(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            For,
-                        ),
-                        ForStmt(
-                            Body,
-                        ),
-                        Stmt(
-                            Block,
-                        ),
-                        BlockStmt(
-                            Stmts(
-                                2,
-                            ),
-                        ),
-                        Stmt(
-                            Expr,
-                        ),
-                        ExprStmt(
-                            Expr,
-                        ),
-                        Expr(
-                            Assign,
-                        ),
-                        AssignExpr(
-                            Right,
-                        ),
-                        Expr(
-                            Call,
-                        ),
-                        CallExpr(
-                            Args(
-                                1,
-                            ),
-                        ),
-                        ExprOrSpread(
-                            Expr,
-                        ),
-                        Expr(
-                            Cond,
-                        ),
-                        CondExpr(
-                            Cons,
-                        ),
-                    ],
+                    AstPathId(
+                        35,
+                    ),
                 ),
             },
             else: EffectsBlock {
                 effects: [],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                1,
-                            ),
-                        ),
-                        Stmt(
-                            Expr,
-                        ),
-                        ExprStmt(
-                            Expr,
-                        ),
-                        Expr(
-                            Call,
-                        ),
-                        CallExpr(
-                            Callee,
-                        ),
-                        Callee(
-                            Expr,
-                        ),
-                        Expr(
-                            Paren,
-                        ),
-                        ParenExpr(
-                            Expr,
-                        ),
-                        Expr(
-                            Fn,
-                        ),
-                        FnExpr(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            For,
-                        ),
-                        ForStmt(
-                            Body,
-                        ),
-                        Stmt(
-                            Block,
-                        ),
-                        BlockStmt(
-                            Stmts(
-                                2,
-                            ),
-                        ),
-                        Stmt(
-                            Expr,
-                        ),
-                        ExprStmt(
-                            Expr,
-                        ),
-                        Expr(
-                            Assign,
-                        ),
-                        AssignExpr(
-                            Right,
-                        ),
-                        Expr(
-                            Call,
-                        ),
-                        CallExpr(
-                            Args(
-                                1,
-                            ),
-                        ),
-                        ExprOrSpread(
-                            Expr,
-                        ),
-                        Expr(
-                            Cond,
-                        ),
-                        CondExpr(
-                            Alt,
-                        ),
-                    ],
+                    AstPathId(
+                        36,
+                    ),
                 ),
             },
         },
@@ -1572,6 +1250,7 @@
             ),
         ],
         span: 271..282,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(

@@ -288,6 +288,61 @@ impl<T> SelfTimeTree<T> {
         Timestamp::from_value(factor_times_1000 / 1000)
     }
 
+    /// Time-weighted average number of active self-time intervals per segment.
+    /// Enumerates the tree only once, using a difference array for intervals
+    /// that span whole segments instead of visiting each such segment.
+    pub fn lookup_range_concurrency_samples(
+        &self,
+        start: Timestamp,
+        end: Timestamp,
+        max_samples: usize,
+    ) -> Vec<f64> {
+        if start >= end || max_samples == 0 {
+            return Vec::new();
+        }
+        let duration = end - start;
+        let count = max_samples.min(usize::try_from(*duration).unwrap_or(usize::MAX));
+        let boundaries: Vec<u64> = (0..=count)
+            .map(|i| *start + (u128::from(*duration) * i as u128 / count as u128) as u64)
+            .collect();
+        let mut partial_ticks = vec![0u128; count];
+        let mut full_segment_deltas = vec![0i64; count + 1];
+
+        self.for_each_in_range(start, end, &mut |interval_start, interval_end, _| {
+            let from = (*interval_start).max(*start);
+            let to = (*interval_end).min(*end);
+            if from >= to {
+                // The tree also enumerates intervals that only touch a boundary.
+                return;
+            }
+            let first = boundaries.partition_point(|&boundary| boundary <= from) - 1;
+            let last = boundaries.partition_point(|&boundary| boundary < to) - 1;
+            if first == last {
+                partial_ticks[first] += u128::from(to - from);
+            } else {
+                partial_ticks[first] += u128::from(boundaries[first + 1] - from);
+                partial_ticks[last] += u128::from(to - boundaries[last]);
+                if first + 1 < last {
+                    full_segment_deltas[first + 1] += 1;
+                    full_segment_deltas[last] -= 1;
+                }
+            }
+        });
+
+        let mut full_count = 0i64;
+        (0..count)
+            .map(|i| {
+                full_count += full_segment_deltas[i];
+                debug_assert!(full_count >= 0);
+                let width = u128::from(boundaries[i + 1] - boundaries[i]);
+                let total_ticks = partial_ticks[i] + (full_count as u128) * width;
+                // Round the time-weighted average to hundredths before serializing.
+                let hundredths = total_ticks.saturating_mul(100).saturating_add(width / 2) / width;
+                hundredths as f64 / 100.0
+            })
+            .collect()
+    }
+
     pub fn for_each_in_range(
         &self,
         start: Timestamp,
@@ -456,6 +511,111 @@ mod tests {
         );
         print_tree(&tree, 0);
         assert_balanced(&tree);
+    }
+
+    #[test]
+    fn concurrency_samples_are_time_weighted_and_half_open() {
+        let mut tree = SelfTimeTree::new();
+        tree.insert(Timestamp::from_value(0), Timestamp::from_value(4), 0u32);
+        tree.insert(Timestamp::from_value(1), Timestamp::from_value(3), 1u32);
+        tree.insert(Timestamp::from_value(4), Timestamp::from_value(5), 2u32);
+        assert_eq!(
+            tree.lookup_range_concurrency_samples(
+                Timestamp::from_value(0),
+                Timestamp::from_value(4),
+                2,
+            ),
+            vec![1.5, 1.5]
+        );
+        assert_eq!(
+            tree.lookup_range_concurrency_samples(
+                Timestamp::from_value(0),
+                Timestamp::from_value(4),
+                4,
+            ),
+            vec![1.0, 2.0, 2.0, 1.0]
+        );
+    }
+
+    #[test]
+    fn concurrency_samples_cover_short_and_empty_ranges() {
+        let tree: SelfTimeTree<u32> = SelfTimeTree::new();
+        assert_eq!(
+            tree.lookup_range_concurrency_samples(
+                Timestamp::from_value(1),
+                Timestamp::from_value(4),
+                200,
+            ),
+            vec![0.0; 3]
+        );
+        assert!(
+            tree.lookup_range_concurrency_samples(Timestamp::ZERO, Timestamp::ZERO, 200)
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn concurrency_samples_round_and_handle_long_intervals() {
+        let mut tree = SelfTimeTree::new();
+        tree.insert(Timestamp::from_value(0), Timestamp::from_value(200), 0u32);
+        tree.insert(Timestamp::from_value(0), Timestamp::from_value(1), 1u32);
+        let samples = tree.lookup_range_concurrency_samples(
+            Timestamp::from_value(0),
+            Timestamp::from_value(200),
+            2,
+        );
+        assert_eq!(samples, vec![1.01, 1.0]);
+        assert_eq!(
+            tree.lookup_range_concurrency_samples(
+                Timestamp::from_value(0),
+                Timestamp::from_value(200),
+                200,
+            ),
+            std::iter::once(2.0)
+                .chain(std::iter::repeat_n(1.0, 199))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn concurrency_samples_match_naive_in_a_split_tree() {
+        let mut tree = SelfTimeTree::new();
+        let mut intervals = Vec::new();
+        for i in 0..500u64 {
+            let start = 60 + (i * 73) % 1100;
+            let end = start + 1 + (i * 31) % 150;
+            tree.insert(Timestamp::from_value(start), Timestamp::from_value(end), i);
+            intervals.push((start, end));
+        }
+        let start = 100u64;
+        let end = 1103u64;
+        let count = 200u64;
+        let actual = tree.lookup_range_concurrency_samples(
+            Timestamp::from_value(start),
+            Timestamp::from_value(end),
+            count as usize,
+        );
+        assert_eq!(actual.len(), count as usize);
+        for (i, &sample) in actual.iter().enumerate() {
+            let from = start + (end - start) * i as u64 / count;
+            let to = start + (end - start) * (i as u64 + 1) / count;
+            let overlapping_ticks: u64 = intervals
+                .iter()
+                .map(|&(s, e)| e.min(to).saturating_sub(s.max(from)))
+                .sum();
+            let expected =
+                ((overlapping_ticks * 100 + (to - from) / 2) / (to - from)) as f64 / 100.0;
+            assert_eq!(sample, expected, "segment {i}");
+        }
+    }
+
+    #[test]
+    fn concurrency_samples_handle_near_max_timestamp() {
+        let tree: SelfTimeTree<u32> = SelfTimeTree::new();
+        assert_eq!(
+            tree.lookup_range_concurrency_samples(Timestamp::ZERO, Timestamp::MAX, 200),
+            vec![0.0; 200]
+        );
     }
 
     #[test]

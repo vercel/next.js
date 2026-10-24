@@ -108,6 +108,27 @@ describe('config', () => {
     expect(disabledConfig.experimental.devMemoryThresholdRestart).toBe(false)
   })
 
+  it.each([undefined, true, false])(
+    'Should preserve imgOptMozjpeg=%s in the runtime config',
+    async (imgOptMozjpeg) => {
+      const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
+        customConfig: {
+          experimental: {
+            imgOptMozjpeg,
+            runtimeServerDeploymentId: true,
+          },
+        },
+      })
+      const { getNextConfigRuntime } = await import(
+        'next/dist/server/config-shared'
+      )
+      expect(config.experimental.imgOptMozjpeg).toBe(imgOptMozjpeg ?? true)
+      expect(getNextConfigRuntime(config).experimental.imgOptMozjpeg).toBe(
+        imgOptMozjpeg ?? true
+      )
+    }
+  )
+
   it('Should allow bundler-specific options during the test phase', async () => {
     const config = await loadConfig(PHASE_TEST, '<rootDir>-test-phase', {
       customConfig: {

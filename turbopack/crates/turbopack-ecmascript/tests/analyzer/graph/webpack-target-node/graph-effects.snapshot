@@ -77,6 +77,7 @@
             ),
         ],
         span: 46..56,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -156,6 +157,7 @@
             ),
         ],
         span: 66..77,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -235,6 +237,7 @@
             ),
         ],
         span: 89..104,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -357,6 +360,7 @@
             ),
         ],
         span: 259..280,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -604,6 +608,7 @@
             ),
         ],
         span: 327..348,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -1161,6 +1166,7 @@
             ),
         ],
         span: 828..861,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -1485,6 +1491,7 @@
             ),
         ],
         span: 965..985,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -1639,6 +1646,7 @@
             ),
         ],
         span: 965..975,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -2223,6 +2231,7 @@
             ),
         ],
         span: 1156..1177,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -2418,6 +2427,7 @@
             ),
         ],
         span: 1252..1273,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -2669,6 +2679,7 @@
             ),
         ],
         span: 1342..1356,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "module",

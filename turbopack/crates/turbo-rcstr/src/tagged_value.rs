@@ -37,10 +37,15 @@
 //! Reading the value back as an integer (`get_ptr`, `get_value`, `tag_byte`) only ever happens at
 //! run time, where pointer → integer is perfectly legal.
 
+#[cfg(not(any(target_pointer_width = "32", feature = "atom_size_128")))]
+use std::num::NonZeroUsize;
 use std::{num::NonZeroU8, os::raw::c_void, ptr::NonNull, slice};
 
 use self::raw_types::*;
 use crate::TAG_MASK;
+
+#[cfg(not(any(target_pointer_width = "32", target_pointer_width = "64")))]
+compile_error!("turbo-rcstr only supports 32-bit and 64-bit pointer widths");
 
 #[cfg(feature = "atom_size_128")]
 mod raw_types {
@@ -50,26 +55,20 @@ mod raw_types {
 
 /// The narrow-pointer arm: an 8-byte value built from a real pointer plus a byte payload, so that
 /// both constructors stay const-evaluable. See the module docs.
-#[cfg(all(
-    any(target_pointer_width = "32", target_pointer_width = "16"),
-    not(feature = "atom_size_128")
-))]
+#[cfg(all(target_pointer_width = "32", not(feature = "atom_size_128")))]
 mod raw_types {
     use std::ptr::NonNull;
 
     pub type RawTaggedValue = u64;
 
-    /// Padding that brings the value up to 8 bytes, sized so that there is none left over.
-    #[cfg(target_pointer_width = "32")]
+    /// Padding that brings the value up to 8 bytes without leaving any implicit padding.
     pub type Payload = [u8; 4];
-    #[cfg(target_pointer_width = "16")]
-    pub type Payload = [u8; 6];
 
     // Both layouts are declared unconditionally so that the layout assertions for *both* are
     // compiled on every target; only the alias below is conditional. Otherwise the big-endian
     // invariant would never be checked on a little-endian host.
     //
-    // `align(8)` is required, not cosmetic: a pointer field only forces 4-byte (or 2-byte)
+    // `align(8)` is required, not cosmetic: a pointer field only forces 4-byte
     // alignment, but the value is read back as a `u64` to extract the tag, and wasm traps on an
     // unaligned 64-bit load with `RuntimeError: operation does not support unaligned accesses`.
     // Aligning to the width of the integer view keeps that read legal without adding padding.
@@ -124,11 +123,7 @@ mod raw_types {
     );
 }
 
-#[cfg(not(any(
-    target_pointer_width = "32",
-    target_pointer_width = "16",
-    feature = "atom_size_128"
-)))]
+#[cfg(all(target_pointer_width = "64", not(feature = "atom_size_128")))]
 mod raw_types {
     pub type RawTaggedValue = usize;
     pub type RawTaggedNonZeroValue = std::ptr::NonNull<()>;
@@ -160,10 +155,7 @@ impl TaggedValue {
     pub const fn new_ptr<T>(value: NonNull<T>) -> Self {
         // A pointer → pointer cast, which const evaluation permits. See the module docs for why
         // the narrow-pointer arm cannot store a bare integer here.
-        #[cfg(all(
-            any(target_pointer_width = "32", target_pointer_width = "16"),
-            not(feature = "atom_size_128")
-        ))]
+        #[cfg(all(target_pointer_width = "32", not(feature = "atom_size_128")))]
         {
             #[cfg(target_endian = "little")]
             {
@@ -195,11 +187,7 @@ impl TaggedValue {
             }
         }
 
-        #[cfg(not(any(
-            target_pointer_width = "32",
-            target_pointer_width = "16",
-            feature = "atom_size_128"
-        )))]
+        #[cfg(all(target_pointer_width = "64", not(feature = "atom_size_128")))]
         {
             Self {
                 value: value.cast(),
@@ -209,20 +197,31 @@ impl TaggedValue {
 
     #[inline(always)]
     pub const fn new_tag(value: NonZeroU8) -> Self {
-        // An integer → pointer transmute, which const evaluation permits.
-        let value = value.get() as RawTaggedValue;
-        Self {
-            #[allow(clippy::transmute_int_to_non_zero)]
-            value: unsafe { std::mem::transmute::<RawTaggedValue, RawTaggedNonZeroValue>(value) },
+        #[cfg(not(any(target_pointer_width = "32", feature = "atom_size_128")))]
+        {
+            // A provenance-free integer → pointer conversion for the pointer representation.
+            Self {
+                value: NonNull::without_provenance(
+                    NonZeroUsize::new(value.get() as usize).unwrap(),
+                ),
+            }
+        }
+        #[cfg(any(target_pointer_width = "32", feature = "atom_size_128"))]
+        {
+            // An integer → pointer transmute, which const evaluation permits.
+            let value = value.get() as RawTaggedValue;
+            Self {
+                #[allow(clippy::transmute_int_to_non_zero)]
+                value: unsafe {
+                    std::mem::transmute::<RawTaggedValue, RawTaggedNonZeroValue>(value)
+                },
+            }
         }
     }
 
     #[inline(always)]
     pub fn get_ptr(&self) -> *const c_void {
-        #[cfg(all(
-            any(target_pointer_width = "32", target_pointer_width = "16"),
-            not(feature = "atom_size_128")
-        ))]
+        #[cfg(all(target_pointer_width = "32", not(feature = "atom_size_128")))]
         {
             // The tag lives in the low bits of the pointer itself (`DYNAMIC_TAG` sets one), so
             // mask it before use — otherwise a dynamic string's `Arc` is dereferenced two bytes
@@ -234,31 +233,33 @@ impl TaggedValue {
         {
             (self.value.get() as usize & !(TAG_MASK as usize)) as _
         }
-        #[cfg(not(any(
-            target_pointer_width = "32",
-            target_pointer_width = "16",
-            feature = "atom_size_128"
-        )))]
+        #[cfg(not(any(target_pointer_width = "32", feature = "atom_size_128")))]
         {
-            (self.value.as_ptr() as usize & !(TAG_MASK as usize)) as _
+            self.value
+                .as_ptr()
+                .map_addr(|addr| addr & !(TAG_MASK as usize))
+                .cast_const()
+                .cast()
         }
     }
 
     #[inline(always)]
     fn get_value(&self) -> RawTaggedValue {
-        #[cfg(all(
-            any(target_pointer_width = "32", target_pointer_width = "16"),
-            not(feature = "atom_size_128")
-        ))]
+        #[cfg(not(any(target_pointer_width = "32", feature = "atom_size_128")))]
+        {
+            // Read the pointer representation's address without exposing provenance.
+            self.value.addr().get()
+        }
+        #[cfg(all(target_pointer_width = "32", not(feature = "atom_size_128")))]
         {
             // The layout is guaranteed padding-free and 8-aligned above, so reading the whole
             // value as an integer is well defined. Again, run time only.
             unsafe { std::mem::transmute::<RawTaggedNonZeroValue, RawTaggedValue>(self.value) }
         }
-        #[cfg(not(all(
-            any(target_pointer_width = "32", target_pointer_width = "16"),
-            not(feature = "atom_size_128")
-        )))]
+        #[cfg(all(
+            any(target_pointer_width = "32", feature = "atom_size_128"),
+            not(all(target_pointer_width = "32", not(feature = "atom_size_128")))
+        ))]
         {
             unsafe {
                 std::mem::transmute::<Option<RawTaggedNonZeroValue>, RawTaggedValue>(Some(

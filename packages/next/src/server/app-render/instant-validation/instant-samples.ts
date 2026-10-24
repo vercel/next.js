@@ -45,7 +45,7 @@ function getExpectedSampleTracking(): InstantValidationSampleTracking {
       case 'prerender-client':
       case 'prerender':
       case 'prerender-runtime':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never

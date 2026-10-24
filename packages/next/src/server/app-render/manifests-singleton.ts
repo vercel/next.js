@@ -111,7 +111,7 @@ function isUseCacheStore(workUnitStore: WorkUnitStore | undefined): boolean {
     case 'prerender-legacy':
     case 'prerender-runtime':
     case 'validation-client':
-    case 'generate-static-params':
+    case 'build-time-generator':
       return false
     default:
       return workUnitStore satisfies never
@@ -375,7 +375,8 @@ function createServerModuleMap(): ServerModuleMap {
             async: boolean
             durability?: {
               codeHash: string
-              runtimeEnvVars: readonly string[]
+              runtimeEnvVarsRead: readonly string[]
+              runtimeEnvVarsExistence: readonly string[]
             }
           }
         | undefined

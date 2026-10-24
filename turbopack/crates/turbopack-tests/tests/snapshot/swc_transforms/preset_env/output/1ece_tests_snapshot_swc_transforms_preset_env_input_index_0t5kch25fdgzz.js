@@ -181,6 +181,9 @@ function _type_of(obj) {
  * nodejs build-base.ts). Browser production (build-base.ts) leaves it as `false` since it
  * uses plain Module objects.
  */ var createModuleWithDirectionFlag = false;
+/**
+ * Maps module IDs to the factory functions that instantiate them.
+ */ var moduleFactories = new Map();
 var REEXPORTED_OBJECTS = new WeakMap();
 /**
  * Constructs the `__turbopack_context__` object for a module.
@@ -196,21 +199,32 @@ var REEXPORTED_OBJECTS = new WeakMap();
     this.e = exports;
 }
 var contextPrototype = Context.prototype;
+contextPrototype.M = moduleFactories;
 var hasOwnProperty = Object.prototype.hasOwnProperty;
 var toStringTag = typeof Symbol !== 'undefined' && Symbol.toStringTag;
 function defineProp(obj, name, options) {
     if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options);
 }
+/**
+ * Returns the cached module for `id`, or `undefined` if it has not been
+ * instantiated yet. Rethrows the error if the module's factory threw.
+ */ function getCachedModule(moduleCache, id) {
+    var module = moduleCache.get(id);
+    if (module === null || module === void 0 ? void 0 : module.error) {
+        throw module.error;
+    }
+    return module;
+}
 function getOverwrittenModule(moduleCache, id) {
-    var module = moduleCache[id];
-    if (!module) {
+    var module = moduleCache.get(id);
+    if (module === undefined) {
         if (createModuleWithDirectionFlag) {
             // set in development modes for hmr support
             module = createModuleWithDirection(id);
         } else {
             module = createModuleObject(id);
         }
-        moduleCache[id] = module;
+        moduleCache.set(id, module);
     }
     return module;
 }
@@ -235,6 +249,9 @@ function createModuleWithDirection(id) {
     };
 }
 var BindingTag_Value = 0;
+/**
+ * Terminates a module's group of entries in an {@link EsmReexports} list.
+ */ var REEXPORT_GROUP_END = 0;
 /**
  * Adds the getters to the exports object.
  */ function esm(exports, bindings, dynamic) {
@@ -300,6 +317,118 @@ var BindingTag_Value = 0;
     esm(exports, bindings, dynamic);
 }
 contextPrototype.s = esmExport;
+/**
+ * Registers re-exports that all forward to properties of other modules.
+ *
+ * This is a compact spelling of the pattern
+ *
+ * ```js
+ * var ns = context.i(moduleId)
+ * context.s([exportName, () => ns[importedName], ...])
+ * ```
+ *
+ * The list is a flat sequence of groups. Each group starts with the source the exports come from,
+ * followed by that group's entries, and is terminated by the `0` sentinel (or the end of the list).
+ *
+ * The group head is either a **module id**, which is instantiated here:
+ *
+ * ```js
+ * context.S([
+ *   76061, 'default', 'f', 'named', 'A', 0,
+ *   29842, 'otherModule', 'f',
+ * ])
+ * ```
+ *
+ * or the **namespace value** of a module that has already been imported, which is used directly:
+ *
+ * ```js
+ * var ns1 = context.i(76061)
+ * context.S([ns1, 'default', 'f', 'named', 'A'])
+ * ```
+ *
+ * The producer picks the namespace form when it has generated the import anyway -- because some
+ * later import must not be reordered past it -- so nothing is instantiated twice. The two are told
+ * apart by type: a module id is always a string or number. A CommonJS function export produces a
+ * callable namespace value, so namespace heads can be functions as well as objects.
+ *
+ * Entries are `exportName, importedName` pairs, except when a group holds exactly one string. That
+ * string is then a comma-joined list of the same pairs, which saves the repeated quoting:
+ *
+ * ```js
+ * context.S([
+ *   76061, 'default,f,named,A', 0,
+ *   29842, 'otherModule,f',
+ * ])
+ * ```
+ *
+ * The producer picks that spelling independently for each group whose names contain no commas,
+ * since that group's names are recovered by splitting on them.
+ *
+ * Groups whose head is a module id are instantiated in list order, at the point where the call
+ * appears, so the producer must not merge such a group across an import of another module. The
+ * destination reuses a source data value or getter descriptor when one exists, falling back to a
+ * wrapper getter for dynamic/proxy/inherited properties.
+ *
+ * `id` names the module the exports belong to when this module was merged into a scope-hoisting
+ * group, exactly as it does for {@link EsmExport}.
+ *
+ * Only the source descriptor's payload (value or getter) is reused. {@link esm} still defines a
+ * fresh enumerable, non-configurable destination property, and no source setter is ever forwarded.
+ */ function esmReexport(list, id) {
+    var bindings = [];
+    var i = 0;
+    while(i < list.length){
+        var head = list[i++];
+        var start = i;
+        while(i < list.length && list[i] !== REEXPORT_GROUP_END)i++;
+        var end = i;
+        // Skip the sentinel, if this group was terminated by one rather than by the end of the list.
+        i++;
+        // Module ids are always strings or numbers. Other values are already-imported namespaces;
+        // notably, interop with a CommonJS function export produces a callable namespace function.
+        // `esmImport` may return a promise for an async module, but re-exports of async modules keep
+        // going through `context.s`, so the producer never routes them here and this stays synchronous.
+        var namespace = typeof head === 'string' || typeof head === 'number' ? esmImport.call(this, head) : head;
+        if (end - start === 1) {
+            var pairs = list[start].split(',');
+            for(var j = 0; j < pairs.length; j += 2){
+                appendReexportBinding(bindings, pairs[j], namespace, pairs[j + 1]);
+            }
+        } else {
+            for(var j1 = start; j1 < end; j1 += 2){
+                appendReexportBinding(bindings, list[j1], namespace, list[j1 + 1]);
+            }
+        }
+    }
+    esmExport.call(this, bindings, id);
+}
+contextPrototype.S = esmReexport;
+function appendReexportBinding(bindings, exportedName, namespace, importedName) {
+    var descriptor = Reflect.getOwnPropertyDescriptor(namespace, importedName);
+    if (descriptor) {
+        if ('value' in descriptor) {
+            // Code generation only routes immutable imported bindings through this helper, so a data
+            // descriptor is a constant export and can be captured once.
+            bindings.push(exportedName, BindingTag_Value, descriptor.value);
+            return;
+        }
+        if (descriptor.get) {
+            // Accessors remain live by reusing the source getter. `esmReexport` is only called by
+            // generated code: every group head is either produced by
+            // `this.i` or is the namespace variable from a generated `this.i` call. Every getter on such
+            // a namespace is receiver-independent: ESM bindings are compiler-generated arrow functions,
+            // and the CommonJS/dynamic-namespace paths create arrows in `createGetter` and
+            // `getOwnPropertyDescriptor`. The destination can therefore reuse the exact function instead
+            // of allocating another wrapper getter.
+            bindings.push(exportedName, descriptor.get);
+            return;
+        }
+    }
+    // Dynamic/proxy/inherited CommonJS edge cases may not expose a usable own descriptor.
+    bindings.push(exportedName, function() {
+        return namespace[importedName];
+    });
+}
 function ensureDynamicExports(module, exports) {
     var reexportedObjects = REEXPORTED_OBJECTS.get(module);
     if (!reexportedObjects) {
@@ -571,7 +700,7 @@ function esmImport(id) {
 }
 contextPrototype.i = esmImport;
 function asyncLoader(moduleId) {
-    var loader = this.r(moduleId);
+    var loader = getOrInstantiateModuleFromParent(moduleId, this.m).exports;
     return loader(esmImport.bind(this));
 }
 contextPrototype.A = asyncLoader;
@@ -655,14 +784,16 @@ contextPrototype.f = moduleContext;
  */ function getChunkPath(chunkData) {
     return typeof chunkData === 'string' ? chunkData : chunkData.path;
 }
-// Load the CompressedmoduleFactories of a chunk into the `moduleFactories` Map.
-// The CompressedModuleFactories format is
-// - 1 or more module ids
-// - a module factory function
-// So walking this is a little complex but the flat structure is also fast to
-// traverse, we can use `typeof` operators to distinguish the two cases.
-function installCompressedModuleFactories(chunkModules, offset, moduleFactories, newModuleId) {
+// Load the CompressedModuleFactories of a chunk into the `moduleFactories` Map.
+// The flat format alternates one or more module IDs with their factory function.
+// Strict factories can be prepended as a nested array.
+function installCompressedModuleFactories(chunkModules, offset, newModuleId) {
     var i = offset;
+    var strictFactories = chunkModules[i];
+    if (Array.isArray(strictFactories)) {
+        installCompressedModuleFactories(strictFactories, 0, newModuleId);
+        i++;
+    }
     while(i < chunkModules.length){
         var end = i + 1;
         // Find our factory function
@@ -701,7 +832,7 @@ function installCompressedModuleFactories(chunkModules, offset, moduleFactories,
                 newModuleId === null || newModuleId === void 0 ? void 0 : newModuleId(id1);
             }
         }
-        i = end + 1; // end is pointing at the last factory advance to the next id or the end of the array.
+        i = end + 1;
     }
 }
 /**
@@ -759,6 +890,14 @@ contextPrototype.U = relativeURL;
             });
     }
     return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`;
+}
+/**
+ * Returns a `file://` URL under a synthetic directory named after `root`
+ * (`ROOT` for the project root), for when the real filesystem path is unknown.
+ * The root name and path segments are percent-encoded so the result is always
+ * a valid file URI.
+ */ function placeholderFileUrl(modulePath, root) {
+    return `file:///${encodeURIComponent(root !== null && root !== void 0 ? root : 'ROOT')}/${modulePath.split('/').map(encodeURIComponent).join('/')}`;
 }
 /**
  * A stub function to make `require` available but non-functional in ESM.
@@ -956,8 +1095,6 @@ function _unsupported_iterable_to_array(o, minLen) {
 }
 var browserContextPrototype = Context.prototype;
 var RUNTIME_CHUNK_BASE_PATH = typeof TURBOPACK_CHUNK_BASE_PATH === 'string' ? TURBOPACK_CHUNK_BASE_PATH : CHUNK_BASE_PATH;
-var moduleFactories = new Map();
-contextPrototype.M = moduleFactories;
 var availableModules = new Map();
 var availableModuleChunks = new Map();
 // Registry mapping a merged chunk's path to its constituent component chunk paths.
@@ -1310,7 +1447,7 @@ function loadChunkPath(sourceType, sourceData, chunkPath) {
  * Returns an absolute url to an asset.
  */ function resolvePathFromModule(moduleId) {
     var _ref;
-    var exported = this.r(moduleId);
+    var exported = getOrInstantiateModuleFromParent(moduleId, this.m).exports;
     return (_ref = exported === null || exported === void 0 ? void 0 : exported.default) !== null && _ref !== void 0 ? _ref : exported;
 }
 browserContextPrototype.R = resolvePathFromModule;
@@ -1322,14 +1459,10 @@ browserContextPrototype.R = resolvePathFromModule;
 }
 browserContextPrototype.P = resolveAbsolutePath;
 /**
- * Returns a placeholder `file://` URL for the given module path. The browser
- * runtime intentionally does not expose the real filesystem path. Path
- * segments are percent-encoded so the result is always a valid file URI.
- */ function resolveFileUrl(modulePath) {
-    if (!modulePath) return 'file:///ROOT/';
-    return `file:///ROOT/${modulePath.split('/').map(encodeURIComponent).join('/')}`;
-}
-browserContextPrototype.F = resolveFileUrl;
+ * Returns a placeholder `file://` URL for the given module path, which is
+ * relative to the project root or the named `root`. The browser runtime
+ * intentionally does not expose the real filesystem path.
+ */ browserContextPrototype.F = placeholderFileUrl;
 /**
  * Exports a URL with the static suffix appended.
  */ function exportUrl(url, id) {
@@ -1422,21 +1555,15 @@ function isCss(chunkUrl) {
 }
 /// <reference path="./runtime-base.ts" />
 /// <reference path="./dummy.ts" />
-var moduleCache = {};
+var moduleCache = new Map();
 contextPrototype.c = moduleCache;
 /**
  * Gets or instantiates a runtime module.
  */ // @ts-ignore
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
-    var module = moduleCache[moduleId];
-    if (module) {
-        if (module.error) {
-            throw module.error;
-        }
-        return module;
-    }
-    return instantiateModule(moduleId, SourceType.Runtime, chunkPath);
+    var _getCachedModule;
+    return (_getCachedModule = getCachedModule(moduleCache, moduleId)) !== null && _getCachedModule !== void 0 ? _getCachedModule : instantiateModule(moduleId, SourceType.Runtime, chunkPath);
 }
 /**
  * Retrieves a module from the cache, or instantiate it if it is not cached.
@@ -1444,14 +1571,8 @@ function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
 // @ts-ignore
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 var getOrInstantiateModuleFromParent = function getOrInstantiateModuleFromParent(id, sourceModule) {
-    var module = moduleCache[id];
-    if (module) {
-        if (module.error) {
-            throw module.error;
-        }
-        return module;
-    }
-    return instantiateModule(id, SourceType.Parent, sourceModule.id);
+    var _getCachedModule;
+    return (_getCachedModule = getCachedModule(moduleCache, id)) !== null && _getCachedModule !== void 0 ? _getCachedModule : instantiateModule(id, SourceType.Parent, sourceModule.id);
 };
 function instantiateModule(id, sourceType, sourceData) {
     var moduleFactory = moduleFactories.get(id);
@@ -1463,7 +1584,7 @@ function instantiateModule(id, sourceType, sourceData) {
     }
     var module = createModuleObject(id);
     var exports = module.exports;
-    moduleCache[id] = module;
+    moduleCache.set(id, module);
     // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
     var context = new Context(module, exports);
     try {
@@ -1494,7 +1615,7 @@ function registerChunk(registration) {
         runtimeParams = registration[1];
     } else {
         runtimeParams = undefined;
-        installCompressedModuleFactories(registration, /* offset= */ 1, moduleFactories);
+        installCompressedModuleFactories(registration, /* offset= */ 1);
     }
     return BACKEND.registerChunk(chunk, runtimeParams);
 }
@@ -1643,6 +1764,64 @@ function getAssetSuffixFromScriptSrc() {
     var src = (_ref = (_document = document) === null || _document === void 0 ? void 0 : (_document_currentScript = _document.currentScript) === null || _document_currentScript === void 0 ? void 0 : (_document_currentScript_getAttribute = _document_currentScript.getAttribute) === null || _document_currentScript_getAttribute === void 0 ? void 0 : _document_currentScript_getAttribute.call(_document_currentScript, 'src')) !== null && _ref !== void 0 ? _ref : '';
     var qi = src.indexOf('?');
     return qi >= 0 ? src.slice(qi) : '';
+}
+/**
+ * Whether a `src` / `href` attribute value refers to `url`: either exactly, or
+ * with an additional query string (e.g. `?dpl=...`). Also matches the decoded
+ * form of `url`.
+ *
+ * TODO(PACK-2140): drop the decoded variant once all filenames are guaranteed
+ * to be escaped.
+ */ function matchesChunkUrl(value, url, decodedUrl) {
+    return value != null && (value === url || value.startsWith(url + '?') || value === decodedUrl || value.startsWith(decodedUrl + '?'));
+}
+// These lookups only search `<head>`: the runtime inserts its chunk tags there,
+// and chunk tags rendered into the HTML are expected there too. Tags in
+// `<body>` are deliberately ignored, so that the cost of a lookup does not grow
+// with the size of the page content. A chunk whose tag is only in `<body>` is
+// loaded again through a new tag in `<head>`, and unloading a chunk leaves its
+// `<body>` tags in place.
+//
+// They iterate the tag collection and compare attribute values as plain
+// strings. `querySelectorAll` with attribute selectors would need the URL to be
+// CSS-escaped.
+/**
+ * Returns all `<script>` elements in `<head>` whose `src` refers to `url`.
+ */ function findChunkScripts(url) {
+    var decodedUrl = decodeURI(url);
+    var scripts = document.head.getElementsByTagName('script');
+    var result = [];
+    for(var i = 0; i < scripts.length; i++){
+        var script = scripts[i];
+        if (matchesChunkUrl(script.getAttribute('src'), url, decodedUrl)) {
+            result.push(script);
+        }
+    }
+    return result;
+}
+/**
+ * Returns all `<link>` elements in `<head>` whose `href` refers to `url`.
+ * With `stylesheetsOnly`, only links whose `rel` is exactly `stylesheet`
+ * (ASCII case-insensitive) are returned.
+ */ function findChunkLinks(url) {
+    var stylesheetsOnly = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : false;
+    var decodedUrl = decodeURI(url);
+    var links = document.head.getElementsByTagName('link');
+    var result = [];
+    for(var i = 0; i < links.length; i++){
+        var _link_getAttribute;
+        var link = links[i];
+        if ((!stylesheetsOnly || ((_link_getAttribute = link.getAttribute('rel')) === null || _link_getAttribute === void 0 ? void 0 : _link_getAttribute.toLowerCase()) === 'stylesheet') && matchesChunkUrl(link.getAttribute('href'), url, decodedUrl)) {
+            result.push(link);
+        }
+    }
+    return result;
+}
+/**
+ * Returns all `<link rel=stylesheet>` elements in `<head>` whose `href`
+ * refers to `url`.
+ */ function findChunkStylesheets(url) {
+    return findChunkLinks(url, true);
 }
 var BACKEND;
 /**
@@ -1835,10 +2014,8 @@ var BACKEND;
                 throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`);
             }
         } else {
-            // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
-            var decodedChunkUrl = decodeURI(chunkUrl);
             if (isCss(chunkUrl)) {
-                var previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`);
+                var previousLinks = findChunkStylesheets(chunkUrl);
                 if (previousLinks.length > 0) {
                     // CSS chunks do not register themselves, and as such must be marked as
                     // loaded instantly.
@@ -1869,7 +2046,7 @@ var BACKEND;
                     document.head.appendChild(createLink());
                 }
             } else if (isJs(chunkUrl)) {
-                var previousScripts = document.querySelectorAll(`script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`);
+                var previousScripts = findChunkScripts(chunkUrl);
                 if (previousScripts.length > 0) {
                     var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
                     try {
@@ -1883,7 +2060,7 @@ var BACKEND;
                                 once: true
                             });
                         };
-                        for(var _iterator = Array.from(previousScripts)[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true)_loop();
+                        for(var _iterator = previousScripts[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true)_loop();
                     } catch (err) {
                         _didIteratorError = true;
                         _iteratorError = err;

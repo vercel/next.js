@@ -1,3 +1,13 @@
+export function onRequestError(error: unknown) {
+  if (
+    error instanceof Error &&
+    error.cause instanceof Error &&
+    error.cause.message === 'app route stream error'
+  ) {
+    console.log('[instrumentation] observed app route stream error')
+  }
+}
+
 export async function register() {
   const { register: registerForTest } = await import('./instrumentation-test')
 

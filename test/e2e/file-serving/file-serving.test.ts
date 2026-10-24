@@ -4,17 +4,17 @@ import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import { fetchViaRawHttp } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// Vercel's edge rejects malformed URLs (mixed-encoding traversal,
+// backslash, double-encoded, etc.) before they reach the runtime, and
+// `safeFetch` for those paths uses `localhost:0` which doesn't apply in
+// deploy mode. The traversal protection we want to test here is local to
+// Next.js's server.
+// @force-gate !deploy
 describe('file-serving', () => {
-  const { next, isNextDeploy, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    // Vercel's edge rejects malformed URLs (mixed-encoding traversal,
-    // backslash, double-encoded, etc.) before they reach the runtime, and
-    // `safeFetch` for those paths uses `localhost:0` which doesn't apply in
-    // deploy mode. The traversal protection we want to test here is local to
-    // Next.js's server.
-    skipDeployment: true,
   })
-  if (skipped) return
 
   // Helper to detect malformed URLs that can't be parsed by the URL constructor
   const isMalformedUrl = (path) => {
@@ -105,16 +105,11 @@ describe('file-serving', () => {
 
   // Vercel's deploy infrastructure only serves `public/` as static assets, not
   // a top-level `static/` directory, so this case is local-only.
-  ;(isNextDeploy ? it.skip : it)(
-    'should serve file with space correctly static/',
-    async () => {
-      const res = await next.fetch('/static/hello world.txt')
-      // eslint-disable-next-line jest/no-standalone-expect
-      expect(res.status).toBe(200)
-      // eslint-disable-next-line jest/no-standalone-expect
-      expect(await res.text()).toBe('hi')
-    }
-  )
+  it('should serve file with space correctly static/', async () => {
+    const res = await next.fetch('/static/hello world.txt')
+    expect(res.status).toBe(200)
+    expect(await res.text()).toBe('hi')
+  })
 
   it('should serve avif image with correct content-type', async () => {
     // vercel-icon-dark.avif is downloaded from https://vercel.com/design and transformed to avif on avif.io

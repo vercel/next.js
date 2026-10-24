@@ -19,11 +19,13 @@
       "test-data-service/*": ["./test/lib/test-data-service/*"],
       "test-log": ["./test/lib/test-log"],
       "router-act": ["./test/lib/router-act"],
+      "otel-span-tree": ["./test/lib/otel-span-tree"],
       "@next/playwright": ["./packages/next-playwright/src/index.ts"]
     }
   },
   "include": [
     "run-tests.js",
+    "evals/lib/**/*",
     "test/**/*.test.ts",
     "test/**/*.test.tsx",
     "test/**/*.util.ts",
@@ -33,7 +35,9 @@
     "scripts/**/*.cjs",
     "scripts/**/*.mjs",
     "scripts/**/*.ts",
-    "turbo/**/*.ts"
+    "turbo/**/*.ts",
+    "evals/next-upgrade/runner/**/*.ts",
+    "evals/next-upgrade/verifier/verify.ts"
   ],
   "exclude": ["scripts/minimal-server.js"]
 }

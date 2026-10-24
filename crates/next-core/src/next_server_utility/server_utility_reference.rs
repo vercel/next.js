@@ -3,7 +3,10 @@ use std::sync::LazyLock;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
-    chunk::ChunkingType, module::Module, reference::ModuleReference, resolve::ModuleResolveResult,
+    chunk::ChunkingType,
+    module::Module,
+    reference::ModuleReference,
+    resolve::{BindingUsage, ExportUsage, ImportUsage, ModuleResolveResult},
 };
 
 #[turbo_tasks::value]
@@ -36,5 +39,14 @@ impl ModuleReference for NextServerUtilityModuleReference {
             inherit_async: true,
             merge_tag: Some(NEXT_SERVER_UTILITY_MERGE_TAG.clone()),
         })
+    }
+
+    fn binding_usage(&self) -> BindingUsage {
+        BindingUsage {
+            import: ImportUsage::TopLevel,
+            export: ExportUsage::Passthrough {
+                namespace_object_may_escape: true,
+            },
+        }
     }
 }

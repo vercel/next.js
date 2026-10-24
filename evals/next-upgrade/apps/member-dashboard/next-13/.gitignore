@@ -1,0 +1,6 @@
+.next/
+*.tsbuildinfo
+__agent_eval__/
+eval-evidence/
+node_modules/
+next-env.d.ts

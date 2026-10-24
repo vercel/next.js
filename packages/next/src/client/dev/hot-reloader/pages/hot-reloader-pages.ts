@@ -254,9 +254,17 @@ function handleAvailableHash(hash: string) {
 
 export function handleStaticIndicator() {
   if (process.env.__NEXT_DEV_INDICATOR) {
-    const routeInfo = window.next.router.components[window.next.router.pathname]
+    const router = window.next.router
+    // The HMR socket connects (and the server sends the ISR manifest) before
+    // the router is created during hydration. The manifest is still stored in
+    // `isrManifest`, and the indicator is computed once the router is mounted
+    // (see `pages-dev-overlay-setup.tsx`).
+    if (!router) {
+      return
+    }
+    const routeInfo = router.components[router.pathname]
     const pageComponent = routeInfo?.Component
-    const appComponent = window.next.router.components['/_app']?.Component
+    const appComponent = router.components['/_app']?.Component
     const isDynamicPage =
       Boolean(pageComponent?.getInitialProps) || Boolean(routeInfo?.__N_SSP)
     const hasAppGetInitialProps =
@@ -290,6 +298,10 @@ function processMessage(message: HmrMessageSentToBrowser) {
       }
       break
     }
+    case HMR_MESSAGE_SENT_TO_BROWSER.VULNERABILITY_INSIGHT: {
+      dispatcher.onVulnerabilityInsight(message.hasVulnerabilityInsight)
+      break
+    }
     case HMR_MESSAGE_SENT_TO_BROWSER.BUILT:
     case HMR_MESSAGE_SENT_TO_BROWSER.SYNC: {
       dispatcher.buildingIndicatorHide()
@@ -301,6 +313,9 @@ function processMessage(message: HmrMessageSentToBrowser) {
       // Is undefined when it's a 'built' event
       if ('versionInfo' in message)
         dispatcher.onVersionInfo(message.versionInfo)
+      if ('hasVulnerabilityInsight' in message) {
+        dispatcher.onVulnerabilityInsight(message.hasVulnerabilityInsight)
+      }
       if ('devIndicator' in message)
         dispatcher.onDevIndicator(message.devIndicator)
       if ('devToolsConfig' in message)
@@ -401,6 +416,7 @@ function processMessage(message: HmrMessageSentToBrowser) {
       dispatcher.onDevToolsConfig(message.data)
       break
     case HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR:
+    case HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERRORS:
     case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE:
     case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK:
     case HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER:

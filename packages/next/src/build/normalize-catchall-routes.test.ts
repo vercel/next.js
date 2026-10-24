@@ -1,4 +1,7 @@
-import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
+import {
+  findIncompatibleParallelRouteSlots,
+  normalizeCatchAllRoutes,
+} from './normalize-catchall-routes'
 
 describe('normalizeCatchallRoutes', () => {
   it('should not add the catch-all to the interception route', () => {
@@ -221,6 +224,18 @@ describe('normalizeCatchallRoutes', () => {
   })
 
   describe('strictRouteMatching pruning', () => {
+    it('does not report pages when strict route matching is disabled', () => {
+      const appPaths = {
+        '/[...slug]': ['/[...slug]/page'],
+        '/foo': ['/@first/foo/page'],
+        '/bar': ['/@second/bar/page'],
+      }
+
+      const { unmatchedAppPages } = normalizeCatchAllRoutes(appPaths)
+
+      expect(unmatchedAppPages).toEqual([])
+    })
+
     it('does not require an implicit children slot with no routes', () => {
       const appPaths = {
         '/[...slug]': ['/@catchall/[...slug]/page'],
@@ -299,9 +314,16 @@ describe('normalizeCatchallRoutes', () => {
         '/bar': ['/@second/bar/page'],
       }
 
-      normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
+      const { unmatchedAppPages } = normalizeCatchAllRoutes(appPaths, {
+        strictRouteMatching: true,
+      })
 
       expect(appPaths).toEqual({})
+      expect(unmatchedAppPages).toEqual([
+        '/@first/foo/page',
+        '/@second/bar/page',
+        '/[...slug]/page',
+      ])
     })
 
     it('prunes an optional children catch-all when a named slot is missing', () => {
@@ -310,11 +332,14 @@ describe('normalizeCatchallRoutes', () => {
         '/specific': ['/specific/page', '/@slot/specific/page'],
       }
 
-      normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
+      const { unmatchedAppPages } = normalizeCatchAllRoutes(appPaths, {
+        strictRouteMatching: true,
+      })
 
       expect(appPaths).toEqual({
         '/specific': ['/specific/page', '/@slot/specific/page'],
       })
+      expect(unmatchedAppPages).toEqual(['/[[...slug]]/page'])
     })
 
     it('prunes a catch-all with an incomplete nested parallel route', () => {
@@ -502,9 +527,162 @@ describe('normalizeCatchallRoutes', () => {
         '/photo/specific': ['/@modal/(.)photo/@specific/specific/page'],
       }
 
-      normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
+      const { unmatchedAppPages } = normalizeCatchAllRoutes(appPaths, {
+        strictRouteMatching: true,
+      })
 
       expect(appPaths).toEqual({})
+      expect(unmatchedAppPages).toEqual([
+        '/@modal/(.)photo/@catchall/[...slug]/page',
+        '/@modal/(.)photo/@specific/specific/page',
+      ])
+    })
+
+    it('does not report a catch-all page used by more specific matchers', () => {
+      const appPaths = {
+        '/foo': ['/foo/page'],
+        '/bar': ['/bar/page'],
+        '/[...parts]': ['/@slot/[...parts]/page'],
+      }
+
+      const { unmatchedAppPages } = normalizeCatchAllRoutes(appPaths, {
+        strictRouteMatching: true,
+      })
+
+      expect(unmatchedAppPages).toEqual([])
+    })
+  })
+
+  describe('incompatible parallel route slots', () => {
+    it('reports incompatible static matchers and still prunes them', () => {
+      const appPaths = {
+        '/foo': ['/@left/foo/page'],
+        '/bar': ['/@right/bar/page'],
+      }
+
+      const { incompatibleParallelRouteSlots } = normalizeCatchAllRoutes(
+        appPaths,
+        { strictRouteMatching: true }
+      )
+
+      expect(incompatibleParallelRouteSlots).toEqual([
+        {
+          layoutPath: '/',
+          route: '/bar',
+          missingSlots: ['@left'],
+        },
+        {
+          layoutPath: '/',
+          route: '/foo',
+          missingSlots: ['@right'],
+        },
+      ])
+      expect(appPaths).toEqual({})
+    })
+
+    it('does not report a broad catch-all matcher that can be pruned', () => {
+      const appPaths = {
+        '/foo': ['/foo/page'],
+        '/[...parts]': ['/@slot/[...parts]/page'],
+      }
+
+      const { incompatibleParallelRouteSlots } = normalizeCatchAllRoutes(
+        appPaths,
+        { strictRouteMatching: true }
+      )
+
+      expect(incompatibleParallelRouteSlots).toEqual([])
+      expect(appPaths).toEqual({
+        '/foo': ['/foo/page', '/@slot/[...parts]/page'],
+      })
+    })
+
+    it('reports static pages in sibling slots that cannot render together', () => {
+      const incompatibleRoutes = findIncompatibleParallelRouteSlots({
+        '/foo': ['/@left/foo/page'],
+        '/bar': ['/@right/bar/page'],
+      })
+
+      expect(incompatibleRoutes).toEqual([
+        {
+          layoutPath: '/',
+          route: '/bar',
+          missingSlots: ['@left'],
+        },
+        {
+          layoutPath: '/',
+          route: '/foo',
+          missingSlots: ['@right'],
+        },
+      ])
+    })
+
+    it('reports an incompatible children route at the nested owner', () => {
+      const incompatibleRoutes = findIncompatibleParallelRouteSlots({
+        '/dashboard/foo': ['/dashboard/foo/page'],
+        '/dashboard/bar': ['/dashboard/@panel/bar/page'],
+      })
+
+      expect(incompatibleRoutes).toEqual([
+        {
+          layoutPath: '/dashboard',
+          route: '/dashboard/bar',
+          missingSlots: ['children'],
+        },
+        {
+          layoutPath: '/dashboard',
+          route: '/dashboard/foo',
+          missingSlots: ['@panel'],
+        },
+      ])
+    })
+
+    it('accepts explicit defaults for the missing sibling slots', () => {
+      const incompatibleRoutes = findIncompatibleParallelRouteSlots(
+        {
+          '/foo': ['/@left/foo/page'],
+          '/bar': ['/@right/bar/page'],
+        },
+        ['/@left/default', '/@right/default']
+      )
+
+      expect(incompatibleRoutes).toEqual([])
+    })
+
+    it('does not infer children from framework-owned defaults', () => {
+      const incompatibleRoutes = findIncompatibleParallelRouteSlots(
+        {
+          '/foo': ['/@left/foo/page'],
+          '/bar': ['/@right/bar/page'],
+          '/_not-found': ['/next/dist/builtin/global-not-found/page'],
+        },
+        ['/_global-error/page']
+      )
+
+      expect(incompatibleRoutes).toEqual([
+        {
+          layoutPath: '/',
+          route: '/bar',
+          missingSlots: ['@left'],
+        },
+        {
+          layoutPath: '/',
+          route: '/foo',
+          missingSlots: ['@right'],
+        },
+      ])
+    })
+
+    it('does not apply ordinary matching requirements to interception routes', () => {
+      const incompatibleRoutes = findIncompatibleParallelRouteSlots(
+        {
+          '/': ['/@content/page'],
+          '/photo/(.)[id]': ['/@modal/(.)photo/[id]/page'],
+        },
+        ['/@modal/default']
+      )
+
+      expect(incompatibleRoutes).toEqual([])
     })
   })
 })

@@ -43,6 +43,18 @@ export async function copy_docs(task, opts) {
       }
     })
     .target('dist/docs')
+
+  // The agent-feedback protocol is intentionally kept out of dist/docs so
+  // agents globbing the bundled docs don't read its instructions out of
+  // context. `next internal agent-feedback-instructions` prints it on demand.
+  await task
+    .source(join(__dirname, 'src/agent-feedback/protocol.md'))
+    .target('dist/agent-feedback')
+
+  // Keep upgrade workflow instructions outside the public docs bundle.
+  await task
+    .source(join(__dirname, 'src/lib/upgrade/*.md'))
+    .target('dist/lib/upgrade')
 }
 
 export async function copy_styled_jsx_assets(task, opts) {
@@ -1902,6 +1914,29 @@ export async function ncc_string_hash(task, opts) {
     .ncc({ packageName: 'string-hash', externals })
     .target('src/compiled/string-hash')
 }
+// Bundle only SHA-256, using browser entrypoints so this is safe in Edge.
+export async function ncc_hash_sha256(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('hash.js/lib/hash/sha/256')))
+    .ncc({
+      packageName: 'hash.js',
+      bundleName: 'hash.js/sha256',
+      externals,
+      mainFields: ['browser', 'main'],
+    })
+    .target('src/compiled/hash.js/sha256')
+
+  // hash.js publishes its license in the README rather than a LICENSE file.
+  const readme = await fs.readFile(require.resolve('hash.js/README.md'), 'utf8')
+  const license = readme.split('#### LICENSE\n')[1]
+  if (!license) {
+    throw new Error('Missing hash.js license')
+  }
+  await fs.writeFile(
+    join(__dirname, 'src/compiled/hash.js/sha256/LICENSE'),
+    `${license.trim()}\n`
+  )
+}
 externals['strip-ansi'] = 'next/dist/compiled/strip-ansi'
 externals['next/dist/compiled/strip-ansi'] = 'next/dist/compiled/strip-ansi'
 export async function ncc_strip_ansi(task, opts) {
@@ -2339,6 +2374,7 @@ export async function ncc(task, opts) {
         'ncc_source_map08',
         'ncc_serve_handler',
         'ncc_string_hash',
+        'ncc_hash_sha256',
         'ncc_strip_ansi',
         'ncc_superstruct',
         'ncc_zod',

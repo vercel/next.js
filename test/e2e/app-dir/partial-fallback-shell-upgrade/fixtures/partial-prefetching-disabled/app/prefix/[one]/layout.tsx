@@ -25,7 +25,11 @@ export default async function LayoutWrapper(props) {
   return (
     <Suspense
       fallback={
-        <div id="one-fallback" data-fallback>
+        <div
+          id="one-fallback"
+          data-fallback
+          data-rendered-at={performance.now()}
+        >
           loading one...
         </div>
       }

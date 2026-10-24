@@ -26,12 +26,17 @@ function formatProdErrorMessage(code) {
     " for the full message or use the non-minified dev environment for full errors and additional helpful warnings."
   );
 }
-var channel = new MessageChannel(),
+var hasOwnProperty = Object.prototype.hasOwnProperty,
+  channel = new MessageChannel(),
   taskQueue = [];
 channel.port1.onmessage = function () {
   var task = taskQueue.shift();
   task && task();
 };
+var supportsArrayBufferDetached = hasOwnProperty.call(
+  ArrayBuffer.prototype,
+  "detached"
+);
 function scheduleWork(callback) {
   taskQueue.push(callback);
   channel.port2.postMessage(null);
@@ -53,28 +58,28 @@ var LocalPromise = Promise,
   currentView = null,
   writtenBytes = 0;
 function writeChunk(destination, chunk) {
-  if (0 !== chunk.byteLength)
-    if (2048 < chunk.byteLength)
-      0 < writtenBytes &&
-        (destination.enqueue(
-          new Uint8Array(currentView.buffer, 0, writtenBytes)
-        ),
-        (currentView = new Uint8Array(2048)),
-        (writtenBytes = 0)),
-        destination.enqueue(chunk);
-    else {
-      var allowableBytes = currentView.length - writtenBytes;
-      allowableBytes < chunk.byteLength &&
-        (0 === allowableBytes
-          ? destination.enqueue(currentView)
-          : (currentView.set(chunk.subarray(0, allowableBytes), writtenBytes),
-            destination.enqueue(currentView),
-            (chunk = chunk.subarray(allowableBytes))),
-        (currentView = new Uint8Array(2048)),
-        (writtenBytes = 0));
-      currentView.set(chunk, writtenBytes);
-      writtenBytes += chunk.byteLength;
-    }
+  if (0 === chunk.byteLength) {
+    if (supportsArrayBufferDetached && chunk.buffer.detached)
+      throw Error(formatProdErrorMessage(612));
+  } else if (2048 < chunk.byteLength)
+    0 < writtenBytes &&
+      (destination.enqueue(new Uint8Array(currentView.buffer, 0, writtenBytes)),
+      (currentView = new Uint8Array(2048)),
+      (writtenBytes = 0)),
+      destination.enqueue(chunk);
+  else {
+    var allowableBytes = currentView.length - writtenBytes;
+    allowableBytes < chunk.byteLength &&
+      (0 === allowableBytes
+        ? destination.enqueue(currentView)
+        : (currentView.set(chunk.subarray(0, allowableBytes), writtenBytes),
+          destination.enqueue(currentView),
+          (chunk = chunk.subarray(allowableBytes))),
+      (currentView = new Uint8Array(2048)),
+      (writtenBytes = 0));
+    currentView.set(chunk, writtenBytes);
+    writtenBytes += chunk.byteLength;
+  }
 }
 function writeChunkAndReturn(destination, chunk) {
   writeChunk(destination, chunk);
@@ -809,8 +814,7 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
         "\n  " + str + "\n  " + objectOrArray)
       : "\n  " + str;
 }
-var hasOwnProperty = Object.prototype.hasOwnProperty,
-  ObjectPrototype$1 = Object.prototype,
+var ObjectPrototype$1 = Object.prototype,
   stringify = JSON.stringify,
   NEXT_TWO_CHUNKS_ARE_ATOMIC = Symbol(),
   TaintRegistryObjects = ReactSharedInternalsServer.TaintRegistryObjects,
@@ -1405,6 +1409,7 @@ function resolveModel(request, task, parent, parentPropertyName, value) {
   var jsonValue = value;
   null !== value &&
     "object" === typeof value &&
+    value.$$typeof !== SERVER_REFERENCE_TAG &&
     "function" === typeof value.toJSON &&
     (jsonValue = value.toJSON(parentPropertyName));
   serializedSize += parentPropertyName.length;
@@ -1612,6 +1617,27 @@ function outlineModelWithFormatContext(request, value, formatContext) {
   retryTask(request, value);
   return value.id;
 }
+function serializeServerReference(request, serverReference) {
+  var isObjectReference = "object" === typeof serverReference,
+    writtenServerReferences = request.writtenServerReferences,
+    existingId = writtenServerReferences.get(serverReference);
+  if (void 0 !== existingId)
+    return isObjectReference
+      ? "$H" + existingId.toString(16)
+      : "$h" + existingId.toString(16);
+  existingId = serverReference.$$id;
+  if (isObjectReference) existingId = { id: existingId };
+  else {
+    var boundArgs = serverReference.$$bound;
+    boundArgs = null === boundArgs ? null : Promise.resolve(boundArgs);
+    existingId = { id: existingId, bound: boundArgs };
+  }
+  request = outlineModelWithFormatContext(request, existingId, 0);
+  writtenServerReferences.set(serverReference, request);
+  return isObjectReference
+    ? "$H" + request.toString(16)
+    : "$h" + request.toString(16);
+}
 function serializeTypedArray(request, tag, typedArray) {
   request.pendingChunks++;
   var bufferId = request.nextChunkId++;
@@ -1745,6 +1771,8 @@ function renderModelDestructive(
         parentPropertyName,
         value
       );
+    if (value.$$typeof === SERVER_REFERENCE_TAG)
+      return serializeServerReference(request, value);
     if (
       void 0 !== request.temporaryReferences &&
       ((elementReference = request.temporaryReferences.get(value)),
@@ -1929,22 +1957,7 @@ function renderModelDestructive(
         value
       );
     if (value.$$typeof === SERVER_REFERENCE_TAG)
-      return (
-        (parentPropertyName = request.writtenServerReferences),
-        (parent = parentPropertyName.get(value)),
-        void 0 !== parent
-          ? (value = "$h" + parent.toString(16))
-          : ((parent = value.$$bound),
-            (parent = null === parent ? null : Promise.resolve(parent)),
-            (request = outlineModelWithFormatContext(
-              request,
-              { id: value.$$id, bound: parent },
-              0
-            )),
-            parentPropertyName.set(value, request),
-            (value = "$h" + request.toString(16))),
-        value
-      );
+      return serializeServerReference(request, value);
     if (
       void 0 !== request.temporaryReferences &&
       ((request = request.temporaryReferences.get(value)), void 0 !== request)
@@ -2123,12 +2136,28 @@ function emitTypedArrayChunk(request, id, tag, typedArray, debug) {
     void 0 !== tainted && throwTaintViolation(tainted.message);
   }
   debug ? request.pendingDebugChunks++ : request.pendingChunks++;
-  debug = new Uint8Array(
-    typedArray.buffer,
-    typedArray.byteOffset,
-    typedArray.byteLength
-  );
-  typedArray = 2048 < typedArray.byteLength ? debug.slice() : debug;
+  a: {
+    debug = new Uint8Array(
+      typedArray.buffer,
+      typedArray.byteOffset,
+      typedArray.byteLength
+    );
+    if (2048 < typedArray.byteLength) {
+      if (
+        0 !== typedArray.byteOffset ||
+        typedArray.byteLength !== typedArray.buffer.byteLength ||
+        typedArray.buffer.resizable
+      ) {
+        typedArray = debug.slice();
+        break a;
+      }
+      if (!supportsArrayBufferDetached) {
+        typedArray = debug.slice();
+        break a;
+      }
+    }
+    typedArray = debug;
+  }
   debug = typedArray.byteLength;
   id = id.toString(16) + ":" + tag + debug.toString(16) + ",";
   id = stringToChunk(id);
@@ -2156,41 +2185,52 @@ function emitChunk(request, task, value) {
     ? ((task = TaintRegistryValues.get(value)),
       void 0 !== task && throwTaintViolation(task.message),
       emitTextChunk(request, id, value, !1))
-    : value instanceof ArrayBuffer
-      ? emitTypedArrayChunk(request, id, "A", new Uint8Array(value), !1)
-      : value instanceof Int8Array
-        ? emitTypedArrayChunk(request, id, "O", value, !1)
-        : value instanceof Uint8Array
-          ? emitTypedArrayChunk(request, id, "o", value, !1)
-          : value instanceof Uint8ClampedArray
-            ? emitTypedArrayChunk(request, id, "U", value, !1)
-            : value instanceof Int16Array
-              ? emitTypedArrayChunk(request, id, "S", value, !1)
-              : value instanceof Uint16Array
-                ? emitTypedArrayChunk(request, id, "s", value, !1)
-                : value instanceof Int32Array
-                  ? emitTypedArrayChunk(request, id, "L", value, !1)
-                  : value instanceof Uint32Array
-                    ? emitTypedArrayChunk(request, id, "l", value, !1)
-                    : value instanceof Float32Array
-                      ? emitTypedArrayChunk(request, id, "G", value, !1)
-                      : value instanceof Float64Array
-                        ? emitTypedArrayChunk(request, id, "g", value, !1)
-                        : value instanceof BigInt64Array
-                          ? emitTypedArrayChunk(request, id, "M", value, !1)
-                          : value instanceof BigUint64Array
-                            ? emitTypedArrayChunk(request, id, "m", value, !1)
-                            : value instanceof DataView
-                              ? emitTypedArrayChunk(request, id, "V", value, !1)
-                              : ((value = resolveModel(
-                                  request,
-                                  task,
-                                  { "": value },
-                                  "",
-                                  value
-                                )),
-                                (value = stringify(value)),
-                                emitModelChunk(request, task.id, value));
+    : "object" === typeof value &&
+        null !== value &&
+        value.$$typeof === SERVER_REFERENCE_TAG
+      ? ((task = stringify(serializeServerReference(request, value))),
+        emitModelChunk(request, id, task))
+      : value instanceof ArrayBuffer
+        ? emitTypedArrayChunk(request, id, "A", new Uint8Array(value), !1)
+        : value instanceof Int8Array
+          ? emitTypedArrayChunk(request, id, "O", value, !1)
+          : value instanceof Uint8Array
+            ? emitTypedArrayChunk(request, id, "o", value, !1)
+            : value instanceof Uint8ClampedArray
+              ? emitTypedArrayChunk(request, id, "U", value, !1)
+              : value instanceof Int16Array
+                ? emitTypedArrayChunk(request, id, "S", value, !1)
+                : value instanceof Uint16Array
+                  ? emitTypedArrayChunk(request, id, "s", value, !1)
+                  : value instanceof Int32Array
+                    ? emitTypedArrayChunk(request, id, "L", value, !1)
+                    : value instanceof Uint32Array
+                      ? emitTypedArrayChunk(request, id, "l", value, !1)
+                      : value instanceof Float32Array
+                        ? emitTypedArrayChunk(request, id, "G", value, !1)
+                        : value instanceof Float64Array
+                          ? emitTypedArrayChunk(request, id, "g", value, !1)
+                          : value instanceof BigInt64Array
+                            ? emitTypedArrayChunk(request, id, "M", value, !1)
+                            : value instanceof BigUint64Array
+                              ? emitTypedArrayChunk(request, id, "m", value, !1)
+                              : value instanceof DataView
+                                ? emitTypedArrayChunk(
+                                    request,
+                                    id,
+                                    "V",
+                                    value,
+                                    !1
+                                  )
+                                : ((id = resolveModel(
+                                    request,
+                                    task,
+                                    { "": value },
+                                    "",
+                                    value
+                                  )),
+                                  (id = stringify(id)),
+                                  emitModelChunk(request, task.id, id));
 }
 function erroredTask(request, task, error) {
   task.status = 4;
@@ -2480,9 +2520,9 @@ function abort(request, reason) {
         onAllReady();
         flushCompletedChunks(request);
       }
-    } catch (error$35) {
-      logRecoverableError(request, error$35, null),
-        fatalError(request, error$35);
+    } catch (error$36) {
+      logRecoverableError(request, error$36, null),
+        fatalError(request, error$36);
     }
 }
 function resolveServerReference(bundlerConfig, id) {
@@ -2562,6 +2602,38 @@ __webpack_require__.u = function (chunkId) {
     ? flightChunk
     : webpackGetChunkFilename(chunkId);
 };
+function appendBackingEntry(backingStore, value, key) {
+  var prefix = backingStore.prefix;
+  if (key.startsWith(prefix)) {
+    switch (key[prefix.length]) {
+      case "_":
+        prefix = backingStore.referencedEntries;
+        null === prefix && (prefix = backingStore.referencedEntries = []);
+        prefix.push([key, value]);
+        return;
+      case "S":
+        "string" === typeof value &&
+          ((prefix = backingStore.streamChunks),
+          null === prefix && (prefix = backingStore.streamChunks = new Map()),
+          (backingStore = prefix.get(key)),
+          void 0 === backingStore
+            ? prefix.set(key, [value])
+            : backingStore.push(value));
+        return;
+    }
+    "string" === typeof value
+      ? ((prefix = backingStore.stringChunks),
+        null === prefix && (prefix = backingStore.stringChunks = new Map()),
+        prefix.set(key, value))
+      : ((prefix = backingStore.blobs),
+        null === prefix && (prefix = backingStore.blobs = new Map()),
+        prefix.set(key, value));
+  }
+}
+function getBackingBlob(backingStore, key) {
+  backingStore = backingStore.blobs;
+  return null === backingStore ? void 0 : backingStore.get(key);
+}
 var RESPONSE_SYMBOL = Symbol();
 function ReactPromise(status, value, reason) {
   this.status = status;
@@ -2720,85 +2792,113 @@ function resolveIteratorResultChunk(response, chunk, value, done) {
   );
 }
 function loadServerReference$1(response, metaData, parentObject, key) {
-  function reject(error) {
-    var rejectListeners = blockedPromise.reason,
-      erroredPromise = blockedPromise;
-    erroredPromise.status = "rejected";
-    erroredPromise.value = null;
-    erroredPromise.reason = error;
-    null !== rejectListeners && rejectChunk(response, rejectListeners, error);
-    rejectReference(response, handler, error);
-  }
   var id = metaData.id;
   if ("string" !== typeof id || "then" === key) return null;
-  var cachedPromise = metaData.$$promise;
-  if (void 0 !== cachedPromise) {
-    if ("fulfilled" === cachedPromise.status)
-      return (
-        (cachedPromise = cachedPromise.value),
-        "__proto__" === key ? null : (parentObject[key] = cachedPromise)
-      );
-    initializingHandler
-      ? ((id = initializingHandler), id.deps++)
-      : (id = initializingHandler =
-          { chunk: null, value: null, reason: null, deps: 1, errored: !1 });
-    cachedPromise.then(
-      resolveReference.bind(null, response, id, parentObject, key),
-      rejectReference.bind(null, response, id)
-    );
-    return null;
-  }
+  var cachedPromise = response._serverReferenceCache.get(metaData);
+  if (void 0 !== cachedPromise)
+    return readServerReference(response, cachedPromise, parentObject, key);
   var blockedPromise = new ReactPromise("blocked", null, null);
-  metaData.$$promise = blockedPromise;
+  response._serverReferenceCache.set(metaData, blockedPromise);
   var serverReference = resolveServerReference(response._bundlerConfig, id);
-  cachedPromise = metaData.bound;
-  if ((id = preloadModule(serverReference)))
-    cachedPromise instanceof ReactPromise &&
-      (id = Promise.all([id, cachedPromise]));
-  else if (cachedPromise instanceof ReactPromise)
-    id = Promise.resolve(cachedPromise);
+  id = metaData.bound;
+  if ((cachedPromise = preloadModule(serverReference)))
+    id instanceof ReactPromise &&
+      (cachedPromise = Promise.all([cachedPromise, id]));
+  else if (id instanceof ReactPromise) cachedPromise = Promise.resolve(id);
   else
     return (
-      (cachedPromise = requireModule(serverReference)),
-      (id = blockedPromise),
-      (id.status = "fulfilled"),
-      (id.value = cachedPromise),
-      (id.reason = null),
-      cachedPromise
+      (id = requireServerReference(response, serverReference)),
+      resolveServerReferenceChunk(response, blockedPromise, id),
+      readServerReference(response, blockedPromise, parentObject, key)
     );
-  if (initializingHandler) {
-    var handler = initializingHandler;
-    handler.deps++;
-  } else
-    handler = initializingHandler = {
-      chunk: null,
-      value: null,
-      reason: null,
-      deps: 1,
-      errored: !1
-    };
-  id.then(function () {
-    var resolvedValue = requireModule(serverReference);
-    if (metaData.bound) {
-      var promiseValue = metaData.bound.value;
-      promiseValue = isArrayImpl(promiseValue) ? promiseValue.slice(0) : [];
-      if (1e3 < promiseValue.length) {
-        reject(Error(formatProdErrorMessage(580, promiseValue.length, 1e3)));
+  cachedPromise.then(
+    function () {
+      try {
+        var value = requireServerReference(response, serverReference);
+        if (metaData.bound) {
+          var promiseValue = metaData.bound.value,
+            boundArgs = isArrayImpl(promiseValue) ? promiseValue.slice(0) : [];
+          if (1e3 < boundArgs.length)
+            throw Error(formatProdErrorMessage(580, boundArgs.length, 1e3));
+          boundArgs.unshift(null);
+          value = value.bind.apply(value, boundArgs);
+        }
+      } catch (error) {
+        triggerErrorOnChunk(response, blockedPromise, error);
         return;
       }
-      promiseValue.unshift(null);
-      resolvedValue = resolvedValue.bind.apply(resolvedValue, promiseValue);
+      resolveServerReferenceChunk(response, blockedPromise, value);
+    },
+    function (error) {
+      triggerErrorOnChunk(response, blockedPromise, error);
     }
-    promiseValue = blockedPromise.value;
-    var initializedPromise = blockedPromise;
-    initializedPromise.status = "fulfilled";
-    initializedPromise.value = resolvedValue;
-    initializedPromise.reason = null;
-    null !== promiseValue &&
-      wakeChunk(response, promiseValue, resolvedValue, initializedPromise);
-    resolveReference(response, handler, parentObject, key, resolvedValue);
-  }, reject);
-  return null;
+  );
+  return readServerReference(response, blockedPromise, parentObject, key);
+}
+function requireServerReference(response, reference) {
+  reference = requireModule(reference);
+  if ("object" === typeof reference && null !== reference) {
+    var serverReferenceObjects = response._serverReferenceObjects;
+    null === serverReferenceObjects &&
+      (serverReferenceObjects = response._serverReferenceObjects =
+        new WeakSet());
+    serverReferenceObjects.add(reference);
+  }
+  return reference;
+}
+function resolveServerReferenceChunk(response, chunk, value) {
+  var resolveListeners = chunk.value;
+  chunk.status = "fulfilled";
+  chunk.value = value;
+  chunk.reason = null;
+  null !== resolveListeners &&
+    wakeChunk(response, resolveListeners, value, chunk);
+}
+function readServerReference(response, chunk, parentObject, key) {
+  switch (chunk.status) {
+    case "fulfilled":
+      return chunk.value;
+    case "blocked":
+      return waitForReference(
+        response,
+        chunk,
+        parentObject,
+        key,
+        null,
+        createModel,
+        []
+      );
+    default:
+      throw chunk.reason;
+  }
+}
+function loadServerObjectReference(response, metaData, parentObject, key) {
+  function fulfill() {
+    try {
+      var value = requireServerReference(response, serverReference);
+      if ("object" !== typeof value || null === value)
+        throw Error(formatProdErrorMessage(611));
+    } catch (error) {
+      triggerErrorOnChunk(response, blockedPromise, error);
+      return;
+    }
+    resolveServerReferenceChunk(response, blockedPromise, value);
+  }
+  var id = metaData.id;
+  if ("string" !== typeof id) return null;
+  var cachedPromise = response._serverObjectReferenceCache.get(metaData);
+  if (void 0 !== cachedPromise)
+    return readServerReference(response, cachedPromise, parentObject, key);
+  var blockedPromise = new ReactPromise("blocked", null, null);
+  response._serverObjectReferenceCache.set(metaData, blockedPromise);
+  var serverReference = resolveServerReference(response._bundlerConfig, id);
+  metaData = preloadModule(serverReference);
+  null === metaData
+    ? fulfill()
+    : metaData.then(fulfill, function (error) {
+        triggerErrorOnChunk(response, blockedPromise, error);
+      });
+  return readServerReference(response, blockedPromise, parentObject, key);
 }
 function reviveModel(
   response,
@@ -2936,15 +3036,18 @@ function reportGlobalError(response, error) {
 function getChunk(response, id) {
   var chunks = response._chunks,
     chunk = chunks.get(id);
-  chunk ||
-    ((chunk = response._formData.data.get(response._prefix + id)),
-    (chunk =
+  if (!chunk) {
+    chunk = response._prefix;
+    var stringChunks = response._formData.stringChunks;
+    chunk = null === stringChunks ? void 0 : stringChunks.get(chunk + id);
+    chunk =
       "string" === typeof chunk
         ? createResolvedModelChunk(response, chunk, id)
         : response._closed
           ? createErroredChunk(response, response._closedReason)
-          : new ReactPromise("pending", null, null)),
-    chunks.set(id, chunk));
+          : new ReactPromise("pending", null, null);
+    chunks.set(id, chunk);
+  }
   return chunk;
 }
 function fulfillReference(response, reference, value, arrayRoot) {
@@ -2957,6 +3060,7 @@ function fulfillReference(response, reference, value, arrayRoot) {
     for (
       var localLength = 0,
         rootArrayContexts = response._rootArrayContexts,
+        serverReferenceObjects = response._serverReferenceObjects,
         i = 1;
       i < path.length;
       i++
@@ -2965,6 +3069,8 @@ function fulfillReference(response, reference, value, arrayRoot) {
       if (
         "object" !== typeof value ||
         null === value ||
+        (null !== serverReferenceObjects &&
+          serverReferenceObjects.has(value)) ||
         (getPrototypeOf(value) !== ObjectPrototype &&
           getPrototypeOf(value) !== ArrayPrototype) ||
         !hasOwnProperty.call(value, name)
@@ -2993,11 +3099,9 @@ function fulfillReference(response, reference, value, arrayRoot) {
     rejectReference(response, handler, error);
     return;
   }
-  resolveReference(response, handler, parentObject, key, resolvedValue);
-}
-function resolveReference(response, handler, parentObject, key, resolvedValue) {
-  "__proto__" !== key && (parentObject[key] = resolvedValue);
-  "" === key && null === handler.value && (handler.value = resolvedValue);
+  reference = resolvedValue;
+  "__proto__" !== key && (parentObject[key] = reference);
+  "" === key && null === handler.value && (handler.value = reference);
   handler.deps--;
   0 === handler.deps &&
     ((parentObject = handler.chunk),
@@ -3018,6 +3122,35 @@ function rejectReference(response, handler, error) {
     null !== handler &&
       "blocked" === handler.status &&
       triggerErrorOnChunk(response, handler, error));
+}
+function waitForReference(
+  response,
+  referencedChunk,
+  parentObject,
+  key,
+  arrayRoot,
+  map,
+  path
+) {
+  initializingHandler
+    ? ((response = initializingHandler), response.deps++)
+    : (response = initializingHandler =
+        { chunk: null, value: null, reason: null, deps: 1, errored: !1 });
+  parentObject = {
+    handler: response,
+    parentObject: parentObject,
+    key: key,
+    map: map,
+    path: path,
+    arrayRoot: arrayRoot
+  };
+  null === referencedChunk.value
+    ? (referencedChunk.value = [parentObject])
+    : referencedChunk.value.push(parentObject);
+  null === referencedChunk.reason
+    ? (referencedChunk.reason = [parentObject])
+    : referencedChunk.reason.push(parentObject);
+  return null;
 }
 function getOutlinedModel(
   response,
@@ -3043,6 +3176,7 @@ function getOutlinedModel(
       for (
         var localLength = 0,
           rootArrayContexts = response._rootArrayContexts,
+          serverReferenceObjects = response._serverReferenceObjects,
           i = 1;
         i < reference.length;
         i++
@@ -3051,6 +3185,7 @@ function getOutlinedModel(
         if (
           "object" !== typeof id ||
           null === id ||
+          (null !== serverReferenceObjects && serverReferenceObjects.has(id)) ||
           (getPrototypeOf(id) !== ObjectPrototype &&
             getPrototypeOf(id) !== ArrayPrototype) ||
           !hasOwnProperty.call(id, localLength)
@@ -3079,26 +3214,14 @@ function getOutlinedModel(
             bumpArrayCount(referenceArrayRoot, localLength, response));
       return parentObject;
     case "blocked":
-      return (
-        initializingHandler
-          ? ((response = initializingHandler), response.deps++)
-          : (response = initializingHandler =
-              { chunk: null, value: null, reason: null, deps: 1, errored: !1 }),
-        (referenceArrayRoot = {
-          handler: response,
-          parentObject: parentObject,
-          key: key,
-          map: map,
-          path: reference,
-          arrayRoot: referenceArrayRoot
-        }),
-        null === chunk.value
-          ? (chunk.value = [referenceArrayRoot])
-          : chunk.value.push(referenceArrayRoot),
-        null === chunk.reason
-          ? (chunk.reason = [referenceArrayRoot])
-          : chunk.reason.push(referenceArrayRoot),
-        null
+      return waitForReference(
+        response,
+        chunk,
+        parentObject,
+        key,
+        referenceArrayRoot,
+        map,
+        reference
       );
     case "pending":
       throw Error(formatProdErrorMessage(574));
@@ -3119,20 +3242,32 @@ function getOutlinedModel(
       );
   }
 }
+function isServerReferenceObject(response, value) {
+  response = response._serverReferenceObjects;
+  return (
+    null !== response &&
+    "object" === typeof value &&
+    null !== value &&
+    response.has(value)
+  );
+}
 function createMap(response, model) {
-  if (!isArrayImpl(model)) throw Error(formatProdErrorMessage(575));
+  if (!isArrayImpl(model) || isServerReferenceObject(response, model))
+    throw Error(formatProdErrorMessage(575));
   if (!0 === model.$$consumed) throw Error(formatProdErrorMessage(572));
   model.$$consumed = !0;
   return new Map(model);
 }
 function createSet(response, model) {
-  if (!isArrayImpl(model)) throw Error(formatProdErrorMessage(576));
+  if (!isArrayImpl(model) || isServerReferenceObject(response, model))
+    throw Error(formatProdErrorMessage(576));
   if (!0 === model.$$consumed) throw Error(formatProdErrorMessage(573));
   model.$$consumed = !0;
   return new Set(model);
 }
 function extractIterator(response, model) {
-  if (!isArrayImpl(model)) throw Error(formatProdErrorMessage(577));
+  if (!isArrayImpl(model) || isServerReferenceObject(response, model))
+    throw Error(formatProdErrorMessage(577));
   if (!0 === model.$$consumed) throw Error(formatProdErrorMessage(578));
   model.$$consumed = !0;
   return model[Symbol.iterator]();
@@ -3168,7 +3303,7 @@ function parseTypedArray(
     reference,
     createErroredChunk(response, Error(formatProdErrorMessage(568)))
   );
-  reference = response._formData.data.get(key).arrayBuffer();
+  reference = getBackingBlob(response._formData, key).arrayBuffer();
   if (initializingHandler) {
     var handler = initializingHandler;
     handler.deps++;
@@ -3212,13 +3347,15 @@ function resolveStream(response, id, stream, controller) {
   var chunks = response._chunks;
   stream = new ReactPromise("fulfilled", stream, controller);
   chunks.set(id, stream);
-  response = response._formData.data.getAll(response._prefix + id);
-  for (id = 0; id < response.length; id++)
-    (chunks = response[id]),
-      "string" === typeof chunks &&
-        ("C" === chunks[0]
+  chunks = response._prefix;
+  response = response._formData.streamChunks;
+  id = null === response ? void 0 : response.get(chunks + "S" + id);
+  if (void 0 !== id)
+    for (response = 0; response < id.length; response++)
+      (chunks = id[response]),
+        "C" === chunks[0]
           ? controller.close("C" === chunks ? '"$undefined"' : chunks.slice(1))
-          : controller.enqueueModel(chunks));
+          : controller.enqueueModel(chunks);
 }
 function parseReadableStream(response, reference, type) {
   function enqueue(value) {
@@ -3248,12 +3385,12 @@ function parseReadableStream(response, reference, type) {
               (previousBlockedChunk = chunk));
         } else {
           chunk = previousBlockedChunk;
-          var chunk$40 = new ReactPromise("pending", null, null);
-          chunk$40.then(enqueue, flightController.error);
-          previousBlockedChunk = chunk$40;
+          var chunk$39 = new ReactPromise("pending", null, null);
+          chunk$39.then(enqueue, flightController.error);
+          previousBlockedChunk = chunk$39;
           chunk.then(function () {
-            previousBlockedChunk === chunk$40 && (previousBlockedChunk = null);
-            resolveModelChunk(response, chunk$40, json, -1);
+            previousBlockedChunk === chunk$39 && (previousBlockedChunk = null);
+            resolveModelChunk(response, chunk$39, json, -1);
           });
         }
       },
@@ -3379,7 +3516,14 @@ function parseAsyncIterable(response, reference, iterator) {
   });
   return iterator;
 }
-function parseModelString(response, obj, key, value, reference, arrayRoot) {
+function parseModelString(
+  response,
+  obj,
+  key$jscomp$0,
+  value,
+  reference,
+  arrayRoot
+) {
   if ("$" === value[0]) {
     switch (value[1]) {
       case "$":
@@ -3397,9 +3541,21 @@ function parseModelString(response, obj, key, value, reference, arrayRoot) {
             response,
             arrayRoot,
             obj,
-            key,
+            key$jscomp$0,
             null,
             loadServerReference$1
+          )
+        );
+      case "H":
+        return (
+          (arrayRoot = value.slice(2)),
+          getOutlinedModel(
+            response,
+            arrayRoot,
+            obj,
+            key$jscomp$0,
+            null,
+            loadServerObjectReference
           )
         );
       case "T":
@@ -3412,43 +3568,55 @@ function parseModelString(response, obj, key, value, reference, arrayRoot) {
       case "Q":
         return (
           (arrayRoot = value.slice(2)),
-          getOutlinedModel(response, arrayRoot, obj, key, null, createMap)
+          getOutlinedModel(
+            response,
+            arrayRoot,
+            obj,
+            key$jscomp$0,
+            null,
+            createMap
+          )
         );
       case "W":
         return (
           (arrayRoot = value.slice(2)),
-          getOutlinedModel(response, arrayRoot, obj, key, null, createSet)
+          getOutlinedModel(
+            response,
+            arrayRoot,
+            obj,
+            key$jscomp$0,
+            null,
+            createSet
+          )
         );
       case "K":
-        key = value.slice(2);
-        obj = response._prefix + "_";
-        key = obj + key + "_";
-        arrayRoot = new FormData();
-        for (response = response._formData; ; ) {
-          value = response.keys;
-          null === value &&
-            ((value = response.keys = Array.from(response.data.keys())),
-            (response.keyPointer = 0));
-          value = value[response.keyPointer];
-          if (void 0 === value) break;
-          if (value.startsWith(key)) {
-            reference = response.data.getAll(value);
-            for (
-              var referencedFormDataKey = value.slice(key.length), i = 0;
-              i < reference.length;
-              i++
-            )
-              arrayRoot.append(referencedFormDataKey, reference[i]);
-            response.data.delete(value);
-            response.keyPointer++;
-          } else if (value.startsWith(obj)) break;
-          else response.keyPointer++;
+        obj = value.slice(2);
+        obj = response._prefix + "_" + obj + "_";
+        response = response._formData;
+        key$jscomp$0 = new FormData();
+        arrayRoot = response.referencedEntries;
+        if (null !== arrayRoot) {
+          for (value = response.keyPointer; value < arrayRoot.length; ) {
+            reference = arrayRoot[value];
+            var key = reference[0];
+            if (!key.startsWith(obj)) break;
+            key$jscomp$0.append(key.slice(obj.length), reference[1]);
+            value++;
+          }
+          response.keyPointer = value;
         }
-        return arrayRoot;
+        return key$jscomp$0;
       case "i":
         return (
           (arrayRoot = value.slice(2)),
-          getOutlinedModel(response, arrayRoot, obj, key, null, extractIterator)
+          getOutlinedModel(
+            response,
+            arrayRoot,
+            obj,
+            key$jscomp$0,
+            null,
+            extractIterator
+          )
         );
       case "I":
         return Infinity;
@@ -3473,7 +3641,7 @@ function parseModelString(response, obj, key, value, reference, arrayRoot) {
           ArrayBuffer,
           1,
           obj,
-          key,
+          key$jscomp$0,
           arrayRoot
         );
       case "O":
@@ -3483,7 +3651,7 @@ function parseModelString(response, obj, key, value, reference, arrayRoot) {
           Int8Array,
           1,
           obj,
-          key,
+          key$jscomp$0,
           arrayRoot
         );
       case "o":
@@ -3493,7 +3661,7 @@ function parseModelString(response, obj, key, value, reference, arrayRoot) {
           Uint8Array,
           1,
           obj,
-          key,
+          key$jscomp$0,
           arrayRoot
         );
       case "U":
@@ -3503,7 +3671,7 @@ function parseModelString(response, obj, key, value, reference, arrayRoot) {
           Uint8ClampedArray,
           1,
           obj,
-          key,
+          key$jscomp$0,
           arrayRoot
         );
       case "S":
@@ -3513,7 +3681,7 @@ function parseModelString(response, obj, key, value, reference, arrayRoot) {
           Int16Array,
           2,
           obj,
-          key,
+          key$jscomp$0,
           arrayRoot
         );
       case "s":
@@ -3523,7 +3691,7 @@ function parseModelString(response, obj, key, value, reference, arrayRoot) {
           Uint16Array,
           2,
           obj,
-          key,
+          key$jscomp$0,
           arrayRoot
         );
       case "L":
@@ -3533,7 +3701,7 @@ function parseModelString(response, obj, key, value, reference, arrayRoot) {
           Int32Array,
           4,
           obj,
-          key,
+          key$jscomp$0,
           arrayRoot
         );
       case "l":
@@ -3543,7 +3711,7 @@ function parseModelString(response, obj, key, value, reference, arrayRoot) {
           Uint32Array,
           4,
           obj,
-          key,
+          key$jscomp$0,
           arrayRoot
         );
       case "G":
@@ -3553,7 +3721,7 @@ function parseModelString(response, obj, key, value, reference, arrayRoot) {
           Float32Array,
           4,
           obj,
-          key,
+          key$jscomp$0,
           arrayRoot
         );
       case "g":
@@ -3563,7 +3731,7 @@ function parseModelString(response, obj, key, value, reference, arrayRoot) {
           Float64Array,
           8,
           obj,
-          key,
+          key$jscomp$0,
           arrayRoot
         );
       case "M":
@@ -3573,7 +3741,7 @@ function parseModelString(response, obj, key, value, reference, arrayRoot) {
           BigInt64Array,
           8,
           obj,
-          key,
+          key$jscomp$0,
           arrayRoot
         );
       case "m":
@@ -3583,7 +3751,7 @@ function parseModelString(response, obj, key, value, reference, arrayRoot) {
           BigUint64Array,
           8,
           obj,
-          key,
+          key$jscomp$0,
           arrayRoot
         );
       case "V":
@@ -3593,12 +3761,12 @@ function parseModelString(response, obj, key, value, reference, arrayRoot) {
           DataView,
           1,
           obj,
-          key,
+          key$jscomp$0,
           arrayRoot
         );
       case "B":
         obj = parseInt(value.slice(2), 16);
-        response = response._formData.data.get(response._prefix + obj);
+        response = getBackingBlob(response._formData, response._prefix + obj);
         if (!(response instanceof Blob))
           throw Error(formatProdErrorMessage(582));
         return response;
@@ -3612,7 +3780,14 @@ function parseModelString(response, obj, key, value, reference, arrayRoot) {
         return parseAsyncIterable(response, value, !0);
     }
     value = value.slice(1);
-    return getOutlinedModel(response, value, obj, key, arrayRoot, createModel);
+    return getOutlinedModel(
+      response,
+      value,
+      obj,
+      key$jscomp$0,
+      arrayRoot,
+      createModel
+    );
   }
   null !== arrayRoot && bumpArrayCount(arrayRoot, value.length, response);
   return value;
@@ -3624,15 +3799,27 @@ function createResponse(bundlerConfig, formFieldPrefix, temporaryReferences) {
         : new FormData(),
     arraySizeLimit =
       4 < arguments.length && void 0 !== arguments[4] ? arguments[4] : 1e6,
-    chunks = new Map();
+    chunks = new Map(),
+    backingStore = {
+      prefix: formFieldPrefix,
+      referencedEntries: null,
+      keyPointer: 0,
+      stringChunks: null,
+      streamChunks: null,
+      blobs: null
+    };
+  backingFormData.forEach(appendBackingEntry.bind(null, backingStore));
   return {
     _bundlerConfig: bundlerConfig,
     _prefix: formFieldPrefix,
-    _formData: { data: backingFormData, keyPointer: -1, keys: null },
+    _formData: backingStore,
     _chunks: chunks,
     _closed: !1,
     _closedReason: null,
     _temporaryReferences: temporaryReferences,
+    _serverReferenceObjects: null,
+    _serverReferenceCache: new WeakMap(),
+    _serverObjectReferenceCache: new WeakMap(),
     _rootArrayContexts: new WeakMap(),
     _arraySizeLimit: arraySizeLimit
   };

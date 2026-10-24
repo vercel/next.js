@@ -267,7 +267,7 @@ Event handlers can be used with the Script component to execute additional code 
 
 <AppOnly>
 
-These handlers will only work when `next/script` is imported and used inside of a [Client Component](/docs/app/getting-started/server-and-client-components) where `"use client"` is defined as the first line of code:
+These handlers will only work when `next/script` is imported and used inside of a [Client Component](/docs/app/getting-started/server-and-client-components). To create a client entry point, add `"use client"` at the top of the file, before any imports:
 
 ```tsx filename="app/page.tsx" switcher
 'use client'
@@ -313,7 +313,7 @@ Refer to the [`next/script`](/docs/app/api-reference/components/script#onload) A
 
 <PagesOnly>
 
-These handlers will only work when `next/script` is imported and used inside of a [Client Component](/docs/app/getting-started/server-and-client-components) where `"use client"` is defined as the first line of code:
+In the Pages Router, you can use these handlers in your components without adding the `"use client"` directive:
 
 ```tsx filename="pages/index.tsx" switcher
 import Script from 'next/script'

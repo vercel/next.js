@@ -44,25 +44,25 @@ describe('adapter dynamic routes (no root params)', () => {
       .toMatchInlineSnapshot(`
      "5 entries
 
-     /$shellPrefix/posts/[id]
-       ^[/]?/(?<shellPrefix>acme\\.one\\-two,three/de|acme\\.one\\-two,three/en)/posts/(?<nxtPid>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /$shellPrefix/posts/[id]$rscSuffix?nxtPid=$nxtPid
+     /$1/posts/[id]
+       ^[/]?/(acme\\.one\\-two,three/de|acme\\.one\\-two,three/en)/posts/(?<nxtPid>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /$1/posts/[id]$3?nxtPid=$nxtPid
 
      /acme.one-two,three/[locale]/posts/[id]
-       ^[/]?/acme\\.one\\-two,three/(?<nxtPlocale>[^/]+?)/posts/(?<nxtPid>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /acme.one-two,three/[locale]/posts/[id]$rscSuffix?nxtPlocale=$nxtPlocale&nxtPid=$nxtPid
+       ^[/]?/acme\\.one\\-two,three/(?<nxtPlocale>[^/]+?)/posts/(?<nxtPid>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /acme.one-two,three/[locale]/posts/[id]$3?nxtPlocale=$nxtPlocale&nxtPid=$nxtPid
 
      /sparse/en/posts/[id]
-       ^[/]?/sparse/en/posts/(?<nxtPid>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /sparse/en/posts/[id]$rscSuffix?nxtPid=$nxtPid
+       ^[/]?/sparse/en/posts/(?<nxtPid>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /sparse/en/posts/[id]$2?nxtPid=$nxtPid
 
      /sparse/[locale]/posts/[id]
-       ^[/]?/sparse/(?<nxtPlocale>[^/]+?)/posts/(?<nxtPid>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /sparse/[locale]/posts/[id]$rscSuffix?nxtPlocale=$nxtPlocale&nxtPid=$nxtPid
+       ^[/]?/sparse/(?<nxtPlocale>[^/]+?)/posts/(?<nxtPid>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /sparse/[locale]/posts/[id]$3?nxtPlocale=$nxtPlocale&nxtPid=$nxtPid
 
      /[team]/[locale]/posts/[id]
-       ^[/]?/(?<nxtPteam>[^/]+?)/(?<nxtPlocale>[^/]+?)/posts/(?<nxtPid>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /[team]/[locale]/posts/[id]$rscSuffix?nxtPteam=$nxtPteam&nxtPlocale=$nxtPlocale&nxtPid=$nxtPid"
+       ^[/]?/(?<nxtPteam>[^/]+?)/(?<nxtPlocale>[^/]+?)/posts/(?<nxtPid>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /[team]/[locale]/posts/[id]$4?nxtPteam=$nxtPteam&nxtPlocale=$nxtPlocale&nxtPid=$nxtPid"
     `)
   })
 })

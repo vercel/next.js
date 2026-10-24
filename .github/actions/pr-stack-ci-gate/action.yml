@@ -1,0 +1,5 @@
+name: 'PR Stack CI Gate'
+description: 'Delay expensive CI for branch-based stacked pull requests until prior CI succeeds.'
+runs:
+  using: 'node24'
+  main: 'dist/index.js'

@@ -3,9 +3,6 @@ import { nextTestSetup } from 'e2e-utils'
 const uuidRegExp =
   /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// Deployment platforms provide their own cache handlers.
-// @force-gate !deploy
 describe('use-cache-infinity-profile', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,

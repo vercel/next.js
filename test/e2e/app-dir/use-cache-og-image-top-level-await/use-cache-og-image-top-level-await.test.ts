@@ -1,9 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// The prerendered output can't be observed in a deployment, and without
-// it nothing distinguishes broken from fixed behavior.
-// @force-gate !deploy
 describe('use-cache-og-image-top-level-await', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,
@@ -12,7 +8,14 @@ describe('use-cache-og-image-top-level-await', () => {
 
   if (isNextStart) {
     beforeAll(async () => {
-      await next.build({ args: ['--experimental-build-mode', 'compile'] })
+      const result = await next.build({
+        args: ['--experimental-build-mode', 'compile'],
+      })
+      if (result.exitCode !== 0) {
+        throw new Error(
+          `Build exited with exit code ${result.exitCode}. CLI Output:\n\n${result.cliOutput}`
+        )
+      }
     })
 
     it('should prerender a page whose opengraph image uses a top-level await', async () => {

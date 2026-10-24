@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('edge-runtime uses edge-light import specifier for packages', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     packageJson: {
       scripts: {
@@ -13,12 +13,7 @@ describe('edge-runtime uses edge-light import specifier for packages', () => {
     installCommand: 'pnpm i',
     startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
     buildCommand: 'pnpm build',
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   // In case you need to test the response object
   it('pages/api endpoints import the correct module', async () => {

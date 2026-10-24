@@ -1,4 +1,3 @@
-import os from 'os'
 import path from 'path'
 import dns from 'dns'
 import execa from 'execa'
@@ -11,7 +10,101 @@ import { Span } from 'next/dist/trace'
 import { setTimeout } from 'timers/promises'
 import { FileRef } from '../e2e-utils'
 import { PROXY_HOST_MAP_ENV_KEY } from '../browsers/launch'
-import { packPackages } from '../create-next-install'
+import { packPackages, PNPM_TEST_DIR_SETTINGS } from '../create-next-install'
+import {
+  getPnpmSecuritySettings,
+  mergeSettingsIntoYaml,
+} from '../pnpm-security-settings'
+
+// Build-log polling bounds. See `fetchBuildLogsUntilComplete`.
+const BUILD_LOGS_INITIAL_RETRY_DELAY_MS = 2_000
+const BUILD_LOGS_MAX_RETRY_DELAY_MS = 10_000
+const BUILD_LOGS_INSPECT_TIMEOUT_MS = 30_000
+const BUILD_LOGS_MAX_POLL_MS = 180_000
+// Headroom left before the setup hook's jest timeout so the harness can fail
+// with its own diagnostic instead of an opaque hook timeout.
+const SETUP_HOOK_MARGIN_MS = 20_000
+
+const BUILD_LOG_MARKERS = [
+  'BUILD_ID',
+  'DEPLOYMENT_ID',
+  'NEXT_SUPPORTS_IMMUTABLE_ASSETS',
+] as const
+
+function hasBuildLogMarker(output: string, marker: string): boolean {
+  // Match `parseIdsFromCliOutput`, which rejects a blank value.
+  return !!output.match(new RegExp(`${marker}: (.+)`))?.[1]?.trim()
+}
+
+function hasAllBuildLogMarkers(output: string): boolean {
+  return BUILD_LOG_MARKERS.every((marker) => hasBuildLogMarker(output, marker))
+}
+
+// Lines `vercel inspect --logs` prints itself, as opposed to build-log lines.
+const VERCEL_CLI_OWN_LINE =
+  /^(?:Vercel CLI \d|Fetching deployment |status\s|>\s|Error:|WARN!|Warning:)/
+
+function stripAnsi(output: string): string {
+  // eslint-disable-next-line no-control-regex -- strip ANSI escape codes
+  return output.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '')
+}
+
+/**
+ * Whether `vercel inspect --logs` output contains any build-log lines, rather
+ * than only the CLI's own header and status lines (which it prints even when
+ * the log query returns nothing).
+ */
+function hasBuildLogLines(output: string): boolean {
+  return stripAnsi(output)
+    .split('\n')
+    .some((line) => {
+      const trimmed = line.trim()
+      return trimmed !== '' && !VERCEL_CLI_OWN_LINE.test(trimmed)
+    })
+}
+
+/**
+ * The jest timeout of the setup hook that runs `createNext`/`start()`, mirroring
+ * `setupTimeout` in `test/lib/e2e-utils/index.ts` (which imports this module,
+ * so it can't be imported from there).
+ */
+function getSetupHookTimeoutMs(): number {
+  const parsed = Number.parseInt(process.env.NEXT_E2E_TEST_TIMEOUT ?? '', 10)
+  if (!Number.isNaN(parsed)) return parsed
+  return (process.platform === 'win32' ? 240 : 120) * 1000
+}
+
+// `vercel deploy` retries for network errors that happen before the CLI
+// reports a deployment, e.g. `Error: fetch failed` while uploading.
+const DEPLOY_RETRY_DELAYS_MS = [5_000, 10_000]
+const DEPLOY_RETRY_MIN_REMAINING_MS = 60_000
+// An `Error:` line the CLI prints for a failed request.
+const TRANSIENT_NETWORK_ERROR_LINE =
+  /^Error: .*(?:fetch failed|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ECONNREFUSED|UND_ERR_SOCKET|UND_ERR_CONNECT_TIMEOUT|socket hang up)/m
+// Diagnostics that mean a retry can't help, even next to a network error.
+const NON_RETRYABLE_DEPLOY_ERROR =
+  /\b(?:Unauthorized|Forbidden|Not authorized|invalid token|Build failed)\b|Command ".*" exited/i
+// The `Inspect`/`Preview`/`Production` lines the CLI prints once a deployment
+// exists.
+const DEPLOYMENT_URL_LINE = /^\s*(?:Inspect|Preview|Production)\s+https?:\/\//m
+
+function isTransientPreUrlDeployFailure(result: {
+  exitCode: number
+  stdout: string
+  stderr: string
+}): boolean {
+  if (result.exitCode === 0) return false
+  try {
+    new URL(result.stdout.trim())
+    return false
+  } catch {}
+  const output = stripAnsi(`${result.stdout}\n${result.stderr}`)
+  return (
+    !DEPLOYMENT_URL_LINE.test(output) &&
+    !NON_RETRYABLE_DEPLOY_ERROR.test(output) &&
+    TRANSIENT_NETWORK_ERROR_LINE.test(output)
+  )
+}
 
 export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
@@ -20,6 +113,8 @@ export class NextDeployInstance extends NextInstance {
   private _supportsImmutableAssets: boolean = false
   private _writtenHostsLine: string | null = null
   private _restoreDnsLookup: (() => void) | null = null
+  private _startPromise: Promise<void> | undefined
+  private _npmrcAuthFile: string | undefined
 
   constructor(opts: NextInstanceOpts) {
     super(opts)
@@ -78,16 +173,19 @@ export class NextDeployInstance extends NextInstance {
       ...this.env,
     }
 
-    const deployRes = await execa(deployScriptPath, [], {
+    const deployment = execa(deployScriptPath, [], {
       cwd: this.testDir,
       env: scriptEnv,
       reject: false,
-      stderr: 'inherit',
     })
+    deployment.stderr?.pipe(process.stderr)
+    const deployRes = await deployment
 
     if (deployRes.exitCode !== 0) {
-      throw new Error(
-        `Custom deploy script failed: ${deployRes.stdout} ${deployRes.stderr} (${deployRes.exitCode})`
+      await this.throwDeploymentError(
+        deployRes,
+        () => this.fetchBuildLogsUsingCustomScript(),
+        'Custom deploy script failed'
       )
     }
 
@@ -109,6 +207,35 @@ export class NextDeployInstance extends NextInstance {
     }
 
     return { url }
+  }
+
+  private async throwDeploymentError(
+    result: { exitCode: number; stdout: string; stderr?: string },
+    fetchBuildLogs: () => Promise<string>,
+    message: string
+  ): Promise<never> {
+    this._cliOutput = result.stdout + (result.stderr || '')
+    const error = new Error(
+      `${message}: ${this._cliOutput} (${result.exitCode})`
+    )
+
+    try {
+      // Upload/authentication failures may not have a deployment URL. Retain
+      // their CLI output even when there are no remote build logs to fetch.
+      this._parsedUrl = new URL(result.stdout.trim())
+      this._url = this._parsedUrl.href
+      const buildLogs = await fetchBuildLogs()
+      // The deploy CLI may already replay build logs. Use one fetched transcript
+      // so assertions can count diagnostics without counting those replays.
+      // Keep the original CLI diagnostics in the error and as a fallback.
+      if (buildLogs.trim()) this._cliOutput = buildLogs
+    } catch (cause) {
+      error.cause = cause
+    }
+
+    // Preserve the instance and its logs for callers that catch start().
+    // Failed builds do not produce the successful-build ID markers.
+    throw error
   }
 
   private async fetchBuildLogsUsingCustomScript(): Promise<string> {
@@ -207,57 +334,141 @@ export class NextDeployInstance extends NextInstance {
   private async fetchBuildLogsUntilComplete(
     url: string,
     vercelEnv: NodeJS.ProcessEnv,
-    vercelFlags: string[]
+    vercelFlags: string[],
+    deployStartedAt: number
   ): Promise<string> {
     // The fixture's `post-build` script prints the BUILD_ID, DEPLOYMENT_ID and
-    // NEXT_SUPPORTS_IMMUTABLE_ASSETS markers (in that order) as the final lines
-    // of the build (see `base.ts`). A deployment can report `Ready` before that
-    // tail has propagated to the log query API, so `vercel inspect --logs` can
-    // return a truncated prefix that stops before the markers. Gate on the
-    // last-printed marker so a partial read can't slip into the parser, and
-    // re-query until it appears.
-    const maxAttempts = 20
-    const retryDelayMs = 3000
-    let output = ''
+    // NEXT_SUPPORTS_IMMUTABLE_ASSETS markers as the final lines of the build
+    // (see `base.ts`). A deployment can report `Ready` before those lines are
+    // available to `vercel inspect --logs`, which then returns a truncated
+    // transcript, or only its own header and status lines, and a single call
+    // can hang. Re-query with backoff and a per-call timeout until all markers
+    // appear, within a deadline that leaves headroom before the setup hook's
+    // jest timeout. The first attempt always runs.
+    const pollStartedAt = Date.now()
+    const deadline = Math.min(
+      deployStartedAt + getSetupHookTimeoutMs() - SETUP_HOOK_MARGIN_MS,
+      pollStartedAt + BUILD_LOGS_MAX_POLL_MS
+    )
+    let retryDelayMs = BUILD_LOGS_INITIAL_RETRY_DELAY_MS
+    // The most recent transcript that contained build-log lines. A later
+    // attempt that times out or comes back empty must not discard it.
+    let transcript = ''
+    let lastOutput = ''
+    let failure: string | undefined
+    let attempt = 0
 
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const buildLogs = await execa(
-        'vercel',
-        ['inspect', '--logs', url, ...vercelFlags],
-        {
-          env: vercelEnv,
-          reject: false,
-        }
-      )
-      if (buildLogs.exitCode !== 0) {
-        throw new Error(`Failed to get build output logs: ${buildLogs.stderr}`)
-      }
-      // Build logs are piped to stderr, so combine both streams.
-      output = buildLogs.stdout + buildLogs.stderr
+    for (;;) {
+      attempt++
+      const remainingMs = deadline - Date.now()
+      const timeout =
+        remainingMs > 0
+          ? Math.min(BUILD_LOGS_INSPECT_TIMEOUT_MS, remainingMs)
+          : BUILD_LOGS_INSPECT_TIMEOUT_MS
 
-      if (/NEXT_SUPPORTS_IMMUTABLE_ASSETS: (.+)/.test(output)) {
-        return output
-      }
-
-      if (attempt < maxAttempts) {
-        require('console').log(
-          `Build log markers not yet propagated for ${url} (attempt ${attempt}/${maxAttempts}); the build log tail likely hasn't propagated yet. Retrying in ${retryDelayMs}ms...`
+      failure = undefined
+      try {
+        const buildLogs = await execa(
+          'vercel',
+          ['inspect', '--logs', url, ...vercelFlags],
+          { env: vercelEnv, reject: false, timeout }
         )
-        await setTimeout(retryDelayMs)
+        // Build logs are piped to stderr, so combine both streams.
+        lastOutput = buildLogs.stdout + buildLogs.stderr
+        if (buildLogs.timedOut) {
+          failure = `timed out after ${timeout}ms`
+        } else if (buildLogs.exitCode !== 0) {
+          failure = `exited with ${buildLogs.exitCode}: ${buildLogs.stderr}`
+        }
+      } catch (error) {
+        lastOutput = ''
+        failure = `failed: ${error}`
+      }
+
+      if (failure === undefined && hasAllBuildLogMarkers(lastOutput)) {
+        require('console').log(
+          `Found build log markers for ${url} on attempt ${attempt} after ${Date.now() - pollStartedAt}ms`
+        )
+        return lastOutput
+      }
+      if (hasBuildLogLines(lastOutput)) {
+        transcript = lastOutput
+      }
+
+      // Only start another attempt if it can begin before the deadline.
+      if (Date.now() + retryDelayMs >= deadline) {
+        break
+      }
+      require('console').log(
+        `Build log markers not yet available for ${url} (attempt ${attempt}${failure ? `, vercel inspect ${failure}` : ''}). Retrying in ${retryDelayMs}ms...`
+      )
+      await setTimeout(retryDelayMs)
+      retryDelayMs = Math.min(retryDelayMs * 2, BUILD_LOGS_MAX_RETRY_DELAY_MS)
+      // The wait can overshoot; never start a retry after the deadline.
+      if (Date.now() >= deadline) {
+        break
       }
     }
 
-    // The markers never appeared within the retry window; return the last
-    // output so `parseIdsFromCliOutput` throws a descriptive error including it.
-    return output
+    // The markers never appeared within the deadline. Keep the best transcript
+    // for callers that catch start(), and say why it can't be parsed.
+    const output = transcript || lastOutput
+    this._cliOutput = output
+    const missingMarkers = BUILD_LOG_MARKERS.filter(
+      (marker) => !hasBuildLogMarker(output, marker)
+    )
+    const reason = !hasBuildLogLines(output)
+      ? '`vercel inspect --logs` returned no build-log lines, only its own output; the build logs are likely not available from Vercel yet'
+      : missingMarkers.length > 0
+        ? `the build logs are missing the ${missingMarkers.join(', ')} marker(s)`
+        : 'the vercel inspect call that printed the markers did not succeed'
+    throw new Error(
+      `Failed to get buildId from logs of ${url} after ${attempt} attempt(s) in ${Date.now() - pollStartedAt}ms: ${reason}.` +
+        (failure ? `\nThe last vercel inspect call ${failure}` : '') +
+        `\n${output}`
+    )
   }
 
   public async setup(parentSpan: Span) {
-    super.setup(parentSpan)
+    await super.setup(parentSpan)
     await super.createTestDir({ parentSpan, skipInstall: true })
 
     await this.writeMirrorNpmrcIfNecessary()
 
+    if (
+      !process.env.NEXT_TEST_DEPLOY_URL?.trim() &&
+      !process.env.NEXT_TEST_DEPLOY_SCRIPT_PATH?.trim() &&
+      !process.env.NEXT_TEST_VERSION
+    ) {
+      await this.prepareLocalPackages(parentSpan)
+    }
+
+    this.preparePnpmSettings()
+  }
+
+  private preparePnpmSettings(): void {
+    const workspacePath = path.join(this.testDir, 'pnpm-workspace.yaml')
+    const settings = {
+      ...getPnpmSecuritySettings(),
+      ...PNPM_TEST_DIR_SETTINGS,
+      // Our preview tarballs reference other packages from the same commit by
+      // URL. pnpm rejects those subdependencies even with explicit overrides.
+      ...(process.env.NEXT_TEST_VERSION && { blockExoticSubdeps: false }),
+    }
+    let workspace: string
+    if (fs.existsSync(workspacePath)) {
+      workspace = mergeSettingsIntoYaml(
+        fs.readFileSync(workspacePath, 'utf8'),
+        settings
+      )
+    } else {
+      workspace = dump(settings)
+    }
+    this.writeFixtureConfiguration(workspacePath, workspace)
+  }
+
+  private async deploy() {
+    const deployStartedAt = Date.now()
     const existingDeployUrl = process.env.NEXT_TEST_DEPLOY_URL?.trim()
     const customDeployScriptPath =
       process.env.NEXT_TEST_DEPLOY_SCRIPT_PATH?.trim()
@@ -294,12 +505,12 @@ export class NextDeployInstance extends NextInstance {
             reject: false,
           }
         )
+        this._cliOutput = buildLogs.stdout + buildLogs.stderr
         if (buildLogs.exitCode !== 0) {
           throw new Error(
             `Failed to get build output logs: ${buildLogs.stderr}`
           )
         }
-        this._cliOutput = buildLogs.stdout + buildLogs.stderr
       }
 
       this.parseIdsFromCliOutput()
@@ -328,10 +539,6 @@ export class NextDeployInstance extends NextInstance {
       this._cliOutput = await this.fetchBuildLogsUsingCustomScript()
       this.parseIdsFromCliOutput()
       return
-    }
-
-    if (!process.env.NEXT_TEST_VERSION) {
-      await this.prepareLocalPackages(parentSpan)
     }
 
     // Original Vercel CLI deployment logic
@@ -378,27 +585,25 @@ export class NextDeployInstance extends NextInstance {
     // the flag is enough to force plain-URL output for both link and deploy.
     vercelFlags.push('--non-interactive=false')
 
-    // If the token is available in the environment, use it as the token in the
-    // environment.
-    if (TEST_TOKEN) {
-      vercelEnv.TOKEN = TEST_TOKEN
+    if (process.env.RUNNER_DEBUG === '1') {
+      vercelFlags.push('--debug')
     }
 
-    // create auth file in CI
+    // If the token is available in the environment, use it as the token in the
+    // environment. The CLI reads `VERCEL_TOKEN` (since vercel@50.12.1) and then
+    // neither reads nor writes the shared `auth.json`, which keeps parallel
+    // test jobs from racing on a non-atomically written credentials file.
+    if (TEST_TOKEN) {
+      vercelEnv.VERCEL_TOKEN = TEST_TOKEN
+    }
+
+    // validate auth is configured in CI
     if (process.env.NEXT_TEST_JOB) {
       if (!TEST_TOKEN && !TEST_TEAM_NAME) {
         throw new Error(
           'Missing TEST_TOKEN and TEST_TEAM_NAME environment variables for CI'
         )
       }
-
-      const vcConfigDir = path.join(os.homedir(), '.vercel')
-      await fs.ensureDir(vcConfigDir)
-      await fs.writeFile(
-        path.join(vcConfigDir, 'auth.json'),
-        JSON.stringify({ token: TEST_TOKEN })
-      )
-      vercelFlags.push('--global-config', vcConfigDir)
     }
 
     require('console').log(`Linking project at ${this.testDir}`)
@@ -431,6 +636,9 @@ export class NextDeployInstance extends NextInstance {
       `VERCEL_CLI_VERSION=${process.env.VERCEL_CLI_VERSION || 'vercel@latest'}`
     )
 
+    // So that our `package.json#packageManager` field is respected when building on Vercel
+    additionalEnv.push(`ENABLE_EXPERIMENTAL_COREPACK=1`)
+
     // Route the build to a named hive, and to a specific build-container image.
     // The dispatcher reads the image version only for a build on a forced hive.
     // A version without a hive falls back to the default image and reports no
@@ -454,18 +662,6 @@ export class NextDeployInstance extends NextInstance {
       )
     }
 
-    // Add experimental feature flags
-
-    if (process.env.__NEXT_CACHE_COMPONENTS) {
-      additionalEnv.push(
-        `NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS=${process.env.__NEXT_CACHE_COMPONENTS}`
-      )
-    }
-    if (process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS) {
-      additionalEnv.push(
-        `NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS=${process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS}`
-      )
-    }
     if (process.env.IS_TURBOPACK_TEST) {
       additionalEnv.push(`IS_TURBOPACK_TEST=1`)
     }
@@ -478,39 +674,73 @@ export class NextDeployInstance extends NextInstance {
       additionalEnv.push(`NEXT_ENABLE_ADAPTER=0`)
     }
 
-    const deployRes = await execa(
-      'vercel',
-      [
-        'deploy',
-        '--build-env',
-        'NEXT_PRIVATE_TEST_MODE=e2e',
-        '--build-env',
-        'NEXT_TELEMETRY_DISABLED=1',
-        '--build-env',
-        'VERCEL_NEXT_BUNDLED_SERVER=1',
-        ...additionalEnv.flatMap((pair) => [
-          '--env',
-          pair,
-          '--build-env',
-          pair,
-        ]),
-        '--force',
-        ...vercelFlags,
-      ],
-      {
+    const deployArgs = [
+      'deploy',
+      '--build-env',
+      'NEXT_PRIVATE_TEST_MODE=e2e',
+      '--build-env',
+      'NEXT_TELEMETRY_DISABLED=1',
+      '--build-env',
+      'VERCEL_NEXT_BUNDLED_SERVER=1',
+      // See: https://pnpm.io/npmrc#environment-variables-in-auth-settings
+      ...(this._npmrcAuthFile
+        ? ['--build-env', `PNPM_CONFIG_NPMRC_AUTH_FILE=${this._npmrcAuthFile}`]
+        : []),
+      ...additionalEnv.flatMap((pair) => ['--env', pair, '--build-env', pair]),
+      '--force',
+      ...vercelFlags,
+    ]
+    const deployDeadline =
+      deployStartedAt + getSetupHookTimeoutMs() - SETUP_HOOK_MARGIN_MS
+    let deployRes: execa.ExecaReturnValue
+    for (let attempt = 1; ; attempt++) {
+      const deployment = execa('vercel', deployArgs, {
         cwd: this.testDir,
         env: vercelEnv,
         reject: false,
-        // This will print deployment information earlier to the console so we
-        // don't have to wait until the deployment is complete to get the
-        // inspect URL.
-        stderr: 'inherit',
+      })
+      // Keep showing deployment progress while also retaining failure output.
+      deployment.stderr?.pipe(process.stderr)
+      deployRes = await deployment
+
+      // Retry only network errors from before the CLI reported a deployment,
+      // and only while enough of the setup budget remains to build it.
+      const retryDelayMs = DEPLOY_RETRY_DELAYS_MS[attempt - 1]
+      if (
+        retryDelayMs === undefined ||
+        !isTransientPreUrlDeployFailure(deployRes) ||
+        deployDeadline - Date.now() - retryDelayMs <
+          DEPLOY_RETRY_MIN_REMAINING_MS
+      ) {
+        break
       }
-    )
+      // The request may have reached Vercel before the connection dropped, so
+      // a retry can leave an orphaned preview deployment behind.
+      require('console').log(
+        `vercel deploy failed with a transient network error before reporting a deployment (attempt ${attempt}/${DEPLOY_RETRY_DELAYS_MS.length + 1}); retrying in ${retryDelayMs}ms. A deployment may have been created anyway.\n${deployRes.stdout}${deployRes.stderr}`
+      )
+      await setTimeout(retryDelayMs)
+    }
 
     if (deployRes.exitCode !== 0) {
-      throw new Error(
-        `Failed to deploy project ${deployRes.stdout} ${deployRes.stderr} (${deployRes.exitCode})`
+      await this.throwDeploymentError(
+        deployRes,
+        async () => {
+          const logs = await execa(
+            'vercel',
+            ['inspect', '--logs', this._url, ...vercelFlags],
+            { env: vercelEnv, reject: false }
+          )
+          // inspect exits 1 for a failed deployment even when logs are returned.
+          if (logs.exitCode !== 0 && logs.exitCode !== 1) {
+            throw new Error(`Failed to get build output logs: ${logs.stderr}`)
+          }
+          return (logs.stdout + logs.stderr).replace(
+            /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z {2}/gm,
+            ''
+          )
+        },
+        'Failed to deploy project'
       )
     }
 
@@ -525,35 +755,22 @@ export class NextDeployInstance extends NextInstance {
 
     // Fetch the build logs to extract the build/deployment id markers that the
     // fixture's `post-build` script prints. The deployment can report `Ready`
-    // (and `vercel deploy` can return) before its full build-log tail has
-    // propagated to the log query API, so re-query until the markers appear
-    // rather than failing on the first incomplete read. TODO: Combine with
-    // runtime logs (via `vercel logs`)
+    // (and `vercel deploy` can return) before its build logs are available, so
+    // re-query until the markers appear rather than failing on the first
+    // incomplete read. TODO: Combine with runtime logs (via `vercel logs`)
     this._cliOutput = await this.fetchBuildLogsUntilComplete(
       this._url,
       vercelEnv,
-      vercelFlags
+      vercelFlags,
+      deployStartedAt
     )
 
     this.parseIdsFromCliOutput()
   }
 
-  private async writeFixtureConfiguration(
-    filePath: string,
-    contents: string
-  ): Promise<void> {
-    const temporaryDirectory = await fs.mkdtemp(
-      path.join(path.dirname(filePath), '.next-test-config-')
-    )
-    const temporaryPath = path.join(temporaryDirectory, path.basename(filePath))
-    try {
-      // Preserve permissions and replace links rather than their targets.
-      await fs.copyFile(filePath, temporaryPath, fs.constants.COPYFILE_EXCL)
-      await fs.writeFile(temporaryPath, contents)
-      await fs.rename(temporaryPath, filePath)
-    } finally {
-      await fs.remove(temporaryDirectory)
-    }
+  private writeFixtureConfiguration(filePath: string, contents: string): void {
+    fs.rmSync(filePath, { force: true })
+    fs.writeFileSync(filePath, contents)
   }
 
   /**
@@ -741,7 +958,7 @@ export class NextDeployInstance extends NextInstance {
       }
     }
 
-    await this.writeFixtureConfiguration(
+    this.writeFixtureConfiguration(
       packageJsonPath,
       JSON.stringify(packageJson, null, 2) + '\n'
     )
@@ -769,12 +986,11 @@ export class NextDeployInstance extends NextInstance {
           ...packageJson.pnpm.overrides,
           ...workspace.overrides,
         }
-        await this.writeFixtureConfiguration(filePath, dump(workspace))
+        this.writeFixtureConfiguration(filePath, dump(workspace))
       } else if (contents !== '') {
-        const separator = contents.endsWith('\n') ? '' : '\n'
-        await this.writeFixtureConfiguration(
+        this.writeFixtureConfiguration(
           filePath,
-          `${contents}${separator}!/${directoryName}\n!/${directoryName}/**\n`
+          `${contents}\n!/${directoryName}\n!/${directoryName}/**\n`
         )
         break
       }
@@ -784,26 +1000,25 @@ export class NextDeployInstance extends NextInstance {
     )
   }
 
-  // When preview builds are private, the deploy build installs Next.js
-  // artifacts from an auth-protected route and needs credentials. The build
-  // authenticates with the Vercel OIDC token that Vercel automatically
-  // provides to builds (vercel-packages accepts it for allowlisted teams), so
-  // we write an `.npmrc` referencing it. Referencing the environment variable
-  // instead of inlining a token keeps credentials out of the uploaded
-  // deployment source. Only written for private preview builds since public
-  // ones need no credentials and pnpm fails when an `.npmrc` references an
-  // unset environment variable.
-  // TODO: pnpm >= 10.34.2 no longer expands environment variables in
-  // repository .npmrc files (GHSA-3qhv-2rgh-x77r). An install command writing
-  // to the user-level pnpm config (like vercel/front does) did not work with
-  // `vercel deploy` and needs more investigation.
+  // Private preview builds authenticate with the remote build's Vercel OIDC
+  // token. pnpm only expands auth placeholders in trusted configuration, so
+  // pass a separate mirror auth file through PNPM_CONFIG_NPMRC_AUTH_FILE.
+  // https://pnpm.io/npmrc#environment-variables-in-auth-settings
+  // This keeps tokens out of uploaded source without trusting fixture .npmrc
+  // files. Public builds need no auth file or OIDC token.
   private async writeMirrorNpmrcIfNecessary(): Promise<void> {
     const baseUrlRaw = process.env.NEXT_TEST_PREVIEW_BUILDS_BASE_URL
     const access = process.env.PREVIEW_BUILDS_ACCESS
 
-    if (!baseUrlRaw || access !== 'private') {
+    if (access !== 'private') {
       require('console').log(
-        `Skipping .npmrc write for preview-builds mirror: missing base URL or preview builds are public`
+        `Skipping mirror auth file: preview builds are public`
+      )
+      return
+    }
+    if (!baseUrlRaw) {
+      require('console').warn(
+        `Skipping mirror auth file: PREVIEW_BUILDS_ACCESS=private but NEXT_TEST_PREVIEW_BUILDS_BASE_URL is not set, so the remote build cannot authenticate to the mirror`
       )
       return
     }
@@ -813,21 +1028,13 @@ export class NextDeployInstance extends NextInstance {
     // ensure a trailing slash so it matches requests to that registry path.
     const registryKey = `//${baseUrl.host}${baseUrl.pathname.replace(/\/?$/, '/')}`
 
-    require('console').log(
-      `Writing .npmrc for preview-builds mirror: ${registryKey}`
-    )
-    // Appended rather than written, because a fixture may ship its own `.npmrc`
-    // (several do) and overwriting it silently drops that configuration.
-    const npmrcPath = path.join(this.testDir, '.npmrc')
-    const existing = (await fs.pathExists(npmrcPath))
-      ? await fs.readFile(npmrcPath, 'utf8')
-      : ''
-    const separator = existing === '' || existing.endsWith('\n') ? '' : '\n'
-
+    require('console').log(`Writing mirror auth file: ${registryKey}`)
+    const authFile = '.next-test-auth.npmrc'
     await fs.writeFile(
-      npmrcPath,
-      `${existing}${separator}${registryKey}:_authToken=\${VERCEL_OIDC_TOKEN}\n`
+      path.join(this.testDir, authFile),
+      `${registryKey}:_authToken=\${VERCEL_OIDC_TOKEN}\n`
     )
+    this._npmrcAuthFile = authFile
   }
 
   /**
@@ -929,7 +1136,7 @@ export class NextDeployInstance extends NextInstance {
     // Run custom cleanup script if provided
     const customCleanupScriptPath =
       process.env.NEXT_TEST_CLEANUP_SCRIPT_PATH?.trim()
-    if (customCleanupScriptPath) {
+    if (customCleanupScriptPath && this._url) {
       await this.cleanupUsingCustomScript().catch((err) => {
         require('console').error(
           'Error running custom cleanup script, continuing with destroy:',
@@ -978,7 +1185,18 @@ export class NextDeployInstance extends NextInstance {
   }
 
   public async start() {
-    // no-op as the deployment is created during setup()
+    this.throwIfUnavailable()
+    if (!this._startPromise) {
+      this._cliOutput = ''
+      this._url = ''
+      // Reuse a ready deployment on subsequent calls, as start() did before
+      // deployment moved out of setup(). A failed attempt can be retried.
+      this._startPromise = this.deploy().catch((error) => {
+        this._startPromise = undefined
+        throw error
+      })
+    }
+    await this._startPromise
   }
 
   public async patchFile(

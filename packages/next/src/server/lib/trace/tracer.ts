@@ -67,11 +67,11 @@ export function isBubbledError(error: unknown): error is BubbledError {
   return error instanceof BubbledError
 }
 
-const closeSpanWithError = (
-  span: Span,
-  error?: Error,
-  endTime?: Parameters<Span['end']>[0]
-) => {
+/**
+ * Records `error` on `span` the way a span traced with `NextTracer.trace` that
+ * throws it does, without ending the span.
+ */
+export const recordSpanError = (span: Span, error?: Error) => {
   if (isBubbledError(error) && error.bubble) {
     span.setAttribute('next.bubble', true)
   } else {
@@ -81,6 +81,14 @@ const closeSpanWithError = (
     }
     span.setStatus({ code: SpanStatusCode.ERROR, message: error?.message })
   }
+}
+
+const closeSpanWithError = (
+  span: Span,
+  error?: Error,
+  endTime?: Parameters<Span['end']>[0]
+) => {
+  recordSpanError(span, error)
   span.end(endTime)
 }
 
@@ -179,6 +187,26 @@ interface NextTracer {
   getTracePropagationData(): ClientTraceDataEntry[]
 
   /**
+   * Returns the W3C trace context (`traceparent` / `tracestate`) of the
+   * currently active context, as produced by the configured propagator.
+   * Returns `undefined` when OpenTelemetry is not enabled, no span context is
+   * active, or the propagator doesn't produce a `traceparent`.
+   */
+  getTraceContextHeaders(): TraceContextHeaders | undefined
+
+  /**
+   * Whether OpenTelemetry is enabled: a tracer provider is registered, or a
+   * recording span is active.
+   */
+  isOpenTelemetryEnabled(): boolean
+
+  /**
+   * Whether the currently active context has a valid span context: an active
+   * span, or a remote parent extracted from incoming trace headers.
+   */
+  hasActiveSpanContext(): boolean
+
+  /**
    * Executes a function with the given span set as the active span in the context.
    * This allows child spans created within the function to automatically parent to this span.
    */
@@ -211,6 +239,11 @@ export interface ClientTraceDataEntry {
   value: string
 }
 
+export interface TraceContextHeaders {
+  traceparent: string
+  tracestate?: string
+}
+
 const clientTraceDataSetter: TextMapSetter<ClientTraceDataEntry[]> = {
   set(carrier, key, value) {
     carrier.push({
@@ -227,10 +260,10 @@ class NextTracerImpl implements NextTracer {
    * This should be lazily evaluated.
    */
   private getTracerInstance(): Tracer {
-    return trace.getTracer('next.js', '0.0.1')
+    return trace.getTracer('next.js', process.env.__NEXT_VERSION)
   }
 
-  private isOpenTelemetryEnabled(): boolean {
+  public isOpenTelemetryEnabled(): boolean {
     const activeSpan = trace.getSpan(context.active())
     if (activeSpan?.isRecording()) {
       return true
@@ -260,6 +293,30 @@ class NextTracerImpl implements NextTracer {
     return entries
   }
 
+  public getTraceContextHeaders(): TraceContextHeaders | undefined {
+    const activeContext = context.active()
+    if (
+      !trace.getSpanContext(activeContext) ||
+      !this.isOpenTelemetryEnabled()
+    ) {
+      return undefined
+    }
+
+    const carrier: Record<string, string> = {}
+    propagation.inject(activeContext, carrier)
+
+    const { traceparent, tracestate } = carrier
+    if (!traceparent) {
+      return undefined
+    }
+    return { traceparent, tracestate }
+  }
+
+  public hasActiveSpanContext(): boolean {
+    const spanContext = trace.getSpanContext(context.active())
+    return Boolean(spanContext && trace.isSpanContextValid(spanContext))
+  }
+
   public getActiveScopeSpan(): Span | undefined {
     const localSpanRecorder = getLocalSpanRecorder()
     const activeLocalSpan = localSpanRecorder?.getActiveLocalSpan()
@@ -275,19 +332,6 @@ class NextTracerImpl implements NextTracer {
       return activeSpan
     }
     return activeLocalSpan
-  }
-
-  /**
-   * Run `fn` with the active span cleared, so spans created inside become new
-   * roots (or parent to incoming propagated context). Used for in-process
-   * Node.js middleware so its span is a sibling of the request span, matching
-   * edge middleware which runs in a detached sandbox.
-   */
-  public runWithDetachedContext<T>(fn: () => T): T {
-    if (!NEXT_OTEL_PERFORMANCE_PREFIX && !this.isOpenTelemetryEnabled()) {
-      return fn()
-    }
-    return context.with(ROOT_CONTEXT, fn)
   }
 
   public withPropagatedContext<T, C>(

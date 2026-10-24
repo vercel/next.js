@@ -5,9 +5,7 @@ use swc_core::{
     ecma::ast::{Expr, IdentName, Invalid, MemberExpr, MemberProp},
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
-};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat};
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType},
     compile_time_info::CompileTimeDefineValue,
@@ -27,11 +25,11 @@ use turbopack_resolve::ecmascript::esm_resolve;
 
 use crate::{
     analyzer::imports::ImportAnnotations,
+    ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     collect_module::{COLLECT_LIST_EXPORT, EcmascriptCollectModule},
     create_visitor,
     references::{
-        AstPath,
         esm::{base::ReferencedAsset, mangle::generated_export_key},
         pattern_mapping::{PatternMapping, ResolveType},
         removal::RemovalCodeGen,
@@ -148,15 +146,17 @@ impl IntoCodeGenReference for EmitReference {
 
     fn into_code_gen_reference(
         self,
-        mut path: AstPath,
+        trie: &AstPathTrieBuilder,
+        path: AstPathId,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
-        path.0.pop();
+        // The reference is on the import specifier; the statement to remove is its parent.
+        let path = trie.parent_or_root(path);
         (
             ResolvedVc::upcast(reference),
             CodeGen::RemovalCodeGen(RemovalCodeGen::new(
                 rcstr!("TURBOPACK collect"),
-                AstPathRange::Exact(path.0),
+                AstPathRange::Exact(path),
             )),
         )
     }
@@ -225,10 +225,11 @@ impl IntoCodeGenReference for CollectReference {
 
     fn into_code_gen_reference(
         self,
-        mut path: AstPath,
+        trie: &AstPathTrieBuilder,
+        path: AstPathId,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
-        path.0.pop();
+        let path = trie.parent_or_root(path);
         (
             ResolvedVc::upcast(reference),
             CodeGen::CollectReferenceCodeGen(CollectReferenceCodeGen { reference, path }),
@@ -236,17 +237,16 @@ impl IntoCodeGenReference for CollectReference {
     }
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct CollectReferenceCodeGen {
     reference: ResolvedVc<CollectReference>,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl CollectReferenceCodeGen {
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
@@ -275,6 +275,7 @@ impl CollectReferenceCodeGen {
             };
 
         visitors.push(create_visitor!(
+            trie,
             self.path,
             visit_mut_expr,
             |expr: &mut Expr| {

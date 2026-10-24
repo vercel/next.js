@@ -1,9 +1,15 @@
 import { connection } from 'next/server'
 import { setTimeout } from 'timers/promises'
+import { ActionButton } from '../static/action-button'
 
 export default async function Page() {
   await connection()
   await setTimeout(100)
 
-  return <p>This is a dynamic app router page.</p>
+  return (
+    <>
+      <p>This is a dynamic app router page.</p>
+      <ActionButton />
+    </>
+  )
 }

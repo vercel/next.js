@@ -74,7 +74,7 @@ export function io(): Promise<void> {
       // simply return the value at cache-fill time.
       // ...
       // intentional fallthrough
-      case 'generate-static-params':
+      case 'build-time-generator':
       // generateStaticParams runs at build time. There is no prerender
       // to stall so we resolve immediately.
       // ...

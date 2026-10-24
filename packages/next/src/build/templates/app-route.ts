@@ -15,7 +15,6 @@ import {
 import {
   getTracer,
   type Span,
-  SpanKind,
   SpanStatusCode,
 } from '../../server/lib/trace/tracer'
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
@@ -35,6 +34,7 @@ import {
 import { getCacheControlHeader } from '../../server/lib/cache-control'
 import { INFINITE_CACHE, NEXT_CACHE_TAGS_HEADER } from '../../lib/constants'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
+import { isRouteCacheOwner } from '../../server/lib/route-cache-key'
 import {
   CachedRouteKind,
   type ResponseCacheEntry,
@@ -130,6 +130,47 @@ export async function handler(
   const multiZoneDraftMode = process.env
     .__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
 
+  // Registering `instrumentation.ts` usually installs the tracer provider, so
+  // do it before starting the request span. The span is started before
+  // `prepare`, so route module preparation is part of the request's trace.
+  // When this request triggers registration, the lifecycle spans of
+  // `instrumentation.ts` are emitted inside the request span.
+  const { instrumentation } = await routeModule.ensureInstrumentation(req, {
+    deferSpans: true,
+  })
+  return routeModule.traceRequest(
+    req,
+    {
+      tracer: getTracer(),
+      spanName: `${req.method || 'GET'} ${srcPage}`,
+      httpTarget: req.url,
+      instrumentation,
+    },
+    (requestSpan, requestRootSpan) =>
+      handleRequest(
+        req,
+        res,
+        ctx,
+        srcPage,
+        multiZoneDraftMode,
+        requestSpan,
+        requestRootSpan
+      )
+  )
+}
+
+async function handleRequest(
+  req: IncomingMessage,
+  res: ServerResponse,
+  ctx: {
+    waitUntil?: (prom: Promise<void>) => void
+    requestMeta?: RequestMeta
+  },
+  srcPage: string,
+  multiZoneDraftMode: boolean,
+  requestSpan: Span | undefined,
+  requestRootSpan: Span | undefined
+) {
   const prepareResult = await routeModule.prepare(req, res, {
     srcPage,
     multiZoneDraftMode,
@@ -161,9 +202,18 @@ export async function handler(
 
   const normalizedSrcPage = normalizeAppPath(srcPage)
 
+  // Only this route's prerenders can establish ISR or admit generated params.
+  const isPrerendered =
+    Boolean(prerenderManifest.routes[resolvedPathname]) &&
+    (routeModule.isDev ||
+      isRouteCacheOwner(
+        resolvedPathname,
+        routeModule.cacheOwner,
+        prerenderManifest.routes[resolvedPathname]
+      ))
+
   let isIsr = Boolean(
-    prerenderManifest.dynamicRoutes[normalizedSrcPage] ||
-      prerenderManifest.routes[resolvedPathname]
+    prerenderManifest.dynamicRoutes[normalizedSrcPage] || isPrerendered
   )
 
   const render404 = async () => {
@@ -177,7 +227,6 @@ export async function handler(
   }
 
   if (isIsr && !isDraftMode) {
-    const isPrerendered = Boolean(prerenderManifest.routes[resolvedPathname])
     const prerenderInfo = prerenderManifest.dynamicRoutes[normalizedSrcPage]
 
     if (prerenderInfo) {
@@ -211,7 +260,6 @@ export async function handler(
 
   const method = req.method || 'GET'
   const tracer = getTracer()
-  const activeSpan = tracer.getActiveScopeSpan()
   const isWrappedByNextServer = Boolean(
     routerServerContext?.isWrappedByNextServer
   )
@@ -249,23 +297,14 @@ export async function handler(
       cacheLifeProfiles: nextConfig.cacheLife,
       staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
       waitUntil: ctx.waitUntil,
-      onClose: (cb) => {
-        res.on('close', cb)
+      onClose: (callback) => {
+        if (res.closed) {
+          callback()
+        } else {
+          res.once('close', callback)
+        }
       },
       onAfterTaskError: undefined,
-      onInstrumentationRequestError: (
-        error,
-        _request,
-        errorContext,
-        silenceLog
-      ) =>
-        routeModule.onRequestError(
-          req,
-          error,
-          errorContext,
-          silenceLog,
-          routerServerContext
-        ),
     },
     sharedContext: {
       buildId,
@@ -302,7 +341,7 @@ export async function handler(
           ? await routeModule.handle(nextReq, context)
           : await routeModule.prerender(nextReq, context)
 
-      ;(req as any).fetchMetrics = (context.renderOpts as any).fetchMetrics
+      ;(req as any).fetchMetrics = context.renderOpts.fetchMetrics
       let pendingWaitUntil = context.renderOpts.pendingWaitUntil
 
       // Attempt using provided waitUntil if available
@@ -395,10 +434,7 @@ export async function handler(
     }
   }
 
-  const handleResponse = async (
-    currentSpan: Span | undefined,
-    parentSpan: Span | undefined
-  ) => {
+  const handleResponse = async (currentSpan: Span | undefined) => {
     try {
       const cacheEntry = await routeModule.handleResponse({
         req,
@@ -415,6 +451,10 @@ export async function handler(
         waitUntil: ctx.waitUntil,
         isMinimalMode,
       })
+
+      if (cacheEntry !== null && 'error' in cacheEntry) {
+        throw cacheEntry.error
+      }
 
       // we don't create a cacheEntry for ISR
       if (!isIsr) {
@@ -502,12 +542,31 @@ export async function handler(
       // If this is during static generation, throw the error again.
       if (isIsr) throw err
 
-      // Otherwise, send a 500 response.
-      await sendResponse(
-        nodeNextReq,
-        nodeNextRes,
-        new Response(null, { status: 500 })
-      )
+      // Otherwise, send a 500 response unless the original response has
+      // already committed. In that case, preserve its status code for
+      // telemetry while still recording the failure and terminating a response
+      // that the failed pipeline left open.
+      if (res.headersSent) {
+        if (currentSpan) {
+          const error =
+            err instanceof Error ? err : new Error('Unknown app route error')
+          currentSpan.recordException(error)
+          currentSpan.setStatus({
+            code: SpanStatusCode.ERROR,
+            message: error.message,
+          })
+          currentSpan.setAttribute('error.type', error.name)
+        }
+        if (!res.writableEnded && !res.destroyed) {
+          res.end()
+        }
+      } else {
+        await sendResponse(
+          nodeNextReq,
+          nodeNextRes,
+          new Response(null, { status: 500 })
+        )
+      }
       return
     } finally {
       ;(() => {
@@ -560,39 +619,22 @@ export async function handler(
         })
         currentSpan.updateName(name)
 
-        // Propagate http.route to the parent span if one exists (e.g.
-        // a platform-created HTTP span in adapter deployments).
-        if (parentSpan && parentSpan !== currentSpan) {
-          parentSpan.setAttribute('http.route', route)
-          parentSpan.updateName(name)
+        // Propagate http.route to the request's root span if it isn't the
+        // request span (e.g. a platform-created HTTP span in adapter
+        // deployments).
+        if (requestRootSpan && requestRootSpan !== currentSpan) {
+          requestRootSpan.setAttribute('http.route', route)
+          requestRootSpan.updateName(name)
         }
       })()
     }
   }
 
-  // TODO: activeSpan code path is for when wrapped by
-  // next-server can be removed when this is no longer used
-  if (isWrappedByNextServer && activeSpan) {
-    await handleResponse(activeSpan, undefined)
-  } else {
-    let parentSpan = tracer.getActiveScopeSpan()
-    await tracer.withPropagatedContext(
-      req.headers,
-      () =>
-        tracer.trace(
-          BaseServerSpan.handleRequest,
-          {
-            spanName: `${method} ${srcPage}`,
-            kind: SpanKind.SERVER,
-            attributes: {
-              'http.method': method,
-              'http.target': req.url,
-            },
-          },
-          (span) => handleResponse(span, parentSpan)
-        ),
-      undefined,
-      !isWrappedByNextServer
-    )
+  // When invoked directly, the request span was started before `prepare`;
+  // record the request target as normalized by it. next-server's request span
+  // already has it.
+  if (!isWrappedByNextServer && req.url !== undefined) {
+    requestSpan?.setAttribute('http.target', req.url)
   }
+  await handleResponse(requestSpan)
 }

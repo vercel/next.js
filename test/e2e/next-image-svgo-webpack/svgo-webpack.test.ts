@@ -3,7 +3,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('svgo-webpack loader', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     dependencies: {
       '@svgr/webpack': '8.1.0',
     },

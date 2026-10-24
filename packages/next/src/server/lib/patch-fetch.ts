@@ -9,7 +9,7 @@ import {
   recordRequestInsightFetch,
 } from './trace/request-insights'
 import { getRequestInsightsIdentity } from './trace/request-insights-identity'
-import { getTracer, SpanKind } from './trace/tracer'
+import { getTracer, SpanKind, SpanStatusCode } from './trace/tracer'
 import {
   CACHE_ONE_YEAR_SECONDS,
   INFINITE_CACHE,
@@ -20,6 +20,7 @@ import { markCurrentScopeAsDynamic } from '../app-render/dynamic-rendering'
 import { makeDynamicHangingPromise } from '../dynamic-rendering-utils'
 import type { FetchMetric } from '../base-http'
 import { createDedupeFetch } from './dedupe-fetch'
+import { NEXT_PATCH_SYMBOL } from './patch-fetch-symbol'
 import {
   getCacheSignal,
   type RevalidateStore,
@@ -72,7 +73,7 @@ function shouldProcessFetchConfigForWorkUnit(
       )
     case 'prerender-runtime':
     case 'validation-client':
-    case 'generate-static-params':
+    case 'build-time-generator':
       return false
     default:
       return workUnitStore satisfies never
@@ -86,8 +87,6 @@ type PatchedFetcher = Fetcher & {
   readonly __nextGetStaticStore: () => WorkAsyncStorage
   readonly _nextOriginalFetch: Fetcher
 }
-
-export const NEXT_PATCH_SYMBOL = Symbol.for('next-patch')
 
 function isFetchPatched() {
   return (globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] === true
@@ -185,6 +184,11 @@ function trackFetchMetric(
     'next.fetch.cache_status': metric.cacheStatus,
     'next.fetch.cache_reason': metric.cacheReason,
   })
+
+  if (span && metric.status >= 400) {
+    span.setStatus({ code: SpanStatusCode.ERROR })
+    span.setAttribute('error.type', String(metric.status))
+  }
 
   if (isRequestInsightsEnabled()) {
     const requestInsightsIdentity = getRequestInsightsIdentity()
@@ -473,7 +477,7 @@ export function createPatchedFetcher(
               break
             case 'request':
             case 'unstable-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               break
             default:
               workUnitStore satisfies never
@@ -512,7 +516,7 @@ export function createPatchedFetcher(
             case 'request':
             case 'cache':
             case 'private-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               break
             default:
               workUnitStore satisfies never
@@ -683,7 +687,7 @@ export function createPatchedFetcher(
             case 'cache':
             case 'private-cache':
             case 'unstable-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               break
             default:
               workUnitStore satisfies never
@@ -815,7 +819,7 @@ export function createPatchedFetcher(
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
-                case 'generate-static-params':
+                case 'build-time-generator':
                   break
                 default:
                   workUnitStore satisfies never
@@ -859,7 +863,7 @@ export function createPatchedFetcher(
             case 'prerender-runtime':
             case 'prerender-legacy':
             case 'unstable-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               break
             default:
               workUnitStore satisfies never
@@ -1013,7 +1017,7 @@ export function createPatchedFetcher(
                   case 'cache':
                   case 'private-cache':
                   case 'unstable-cache':
-                  case 'generate-static-params':
+                  case 'build-time-generator':
                   case undefined:
                     return createCachedDynamicResponse(
                       workStore,
@@ -1096,7 +1100,7 @@ export function createPatchedFetcher(
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
-                case 'generate-static-params':
+                case 'build-time-generator':
                   break
                 default:
                   workUnitStore satisfies never
@@ -1219,7 +1223,7 @@ export function createPatchedFetcher(
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
-                case 'generate-static-params':
+                case 'build-time-generator':
                   break
                 default:
                   workUnitStore satisfies never
@@ -1266,7 +1270,7 @@ export function createPatchedFetcher(
                   case 'private-cache':
                   case 'unstable-cache':
                   case 'prerender-legacy':
-                  case 'generate-static-params':
+                  case 'build-time-generator':
                     break
                   default:
                     workUnitStore satisfies never

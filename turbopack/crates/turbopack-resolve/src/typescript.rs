@@ -246,7 +246,7 @@ pub async fn tsconfig_resolve_options(
     let configs = read_tsconfigs(
         tsconfig.read(),
         ResolvedVc::upcast(FileSource::new(tsconfig.clone()).to_resolved().await?),
-        node_cjs_resolve_options(tsconfig.root().owned().await?),
+        node_cjs_resolve_options(),
     )
     .await?;
 
