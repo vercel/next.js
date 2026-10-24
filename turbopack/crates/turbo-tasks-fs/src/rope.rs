@@ -47,11 +47,11 @@ pub struct Rope {
 /// An Arc container for ropes. This indirection allows for easily sharing the
 /// contents between Ropes (and also RopeBuilders/RopeReaders).
 #[derive(Clone, Debug)]
-struct InnerRope(Arc<Vec<RopeElem>>);
+pub(crate) struct InnerRope(Arc<Vec<RopeElem>>);
 
 /// Differentiates the types of stored bytes in a rope.
 #[derive(Clone, Debug)]
-enum RopeElem {
+pub(crate) enum RopeElem {
     /// Local bytes are owned directly by this rope.
     Local(Bytes),
 
@@ -125,6 +125,19 @@ impl Rope {
 
     pub fn into_bytes(self) -> Bytes {
         self.data.into_bytes(self.length)
+    }
+
+    /// The rope's contents without its length. See [`crate::CellRope`].
+    pub(crate) fn into_inner(self) -> InnerRope {
+        self.data
+    }
+
+    /// Rebuilds a rope from contents taken with [`Rope::into_inner`].
+    pub(crate) fn from_inner(data: InnerRope) -> Self {
+        Rope {
+            length: data.len_bytes(),
+            data,
+        }
     }
 }
 
@@ -581,6 +594,18 @@ impl From<Vec<u8>> for Uncommitted {
 }
 
 impl InnerRope {
+    /// The number of bytes held. Ropes store their length next to the [`InnerRope`], so this
+    /// walks the elements and is only meant for callers that deliberately don't store it.
+    pub(crate) fn len_bytes(&self) -> usize {
+        self.0
+            .iter()
+            .map(|elem| match elem {
+                Local(bytes) => bytes.len(),
+                Shared(inner) => inner.len_bytes(),
+            })
+            .sum()
+    }
+
     /// Returns a String instance of all bytes.
     fn to_str(&self, len: usize) -> Result<Cow<'_, str>> {
         match &self[..] {
