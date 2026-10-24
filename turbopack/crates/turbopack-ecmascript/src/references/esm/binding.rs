@@ -5,19 +5,23 @@ use swc_core::ecma::{
     ast::{Expr, KeyValueProp, Prop, PropName, SimpleAssignTarget},
     visit::fields::{CalleeField, PropField},
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, Vc};
-use turbopack_core::chunk::ChunkingContext;
+use turbopack_core::{chunk::ChunkingContext, module::Module};
 
 use crate::{
     ScopeHoistingContext,
     ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::CodeGeneration,
     create_visitor,
-    references::esm::{
-        EsmAssetReference,
-        base::{ReferencedAsset, ReferencedAssetIdent},
+    references::{
+        esm::{
+            EsmAssetReference,
+            base::{ReferencedAsset, ReferencedAssetIdent},
+        },
+        removal::RemovalCodeGen,
     },
+    utils::AstPathRange,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode, Hash)]
@@ -27,18 +31,33 @@ struct EsmBinding {
     keep_this: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode, Hash)]
+struct PureInitializer {
+    ast_path: AstPathId,
+    used_by_exports: Vec<RcStr>,
+}
+
 #[derive(Default, Clone, Debug)]
 pub struct EsmBindingsBuilder {
     bindings: FxIndexMap<ResolvedVc<EsmAssetReference>, Vec<EsmBinding>>,
+    pure_initializers: Vec<PureInitializer>,
 }
 
 #[derive(Default, Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode, Hash)]
 pub struct EsmBindings {
     #[allow(clippy::type_complexity)]
     bindings: Box<[(ResolvedVc<EsmAssetReference>, Box<[EsmBinding]>)]>,
+    pure_initializers: Box<[PureInitializer]>,
 }
 
 impl EsmBindingsBuilder {
+    pub fn add_pure_initializer(&mut self, ast_path: AstPathId, used_by_exports: Vec<RcStr>) {
+        self.pure_initializers.push(PureInitializer {
+            ast_path,
+            used_by_exports,
+        });
+    }
+
     pub fn add(
         &mut self,
         reference: ResolvedVc<EsmAssetReference>,
@@ -73,7 +92,7 @@ impl EsmBindingsBuilder {
     }
 
     pub fn build(self) -> Option<EsmBindings> {
-        if self.bindings.is_empty() {
+        if self.bindings.is_empty() && self.pure_initializers.is_empty() {
             return None;
         }
 
@@ -83,11 +102,47 @@ impl EsmBindingsBuilder {
                 .into_iter()
                 .map(|(k, v)| (k, v.into_boxed_slice()))
                 .collect(),
+            pure_initializers: self.pure_initializers.into_boxed_slice(),
         })
     }
 }
 
 impl EsmBindings {
+    pub(crate) async fn pure_initializers_code_generation(
+        &self,
+        trie: &AstPathTrie,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        module: Vc<Box<dyn Module>>,
+    ) -> Result<Vec<CodeGeneration>> {
+        if self.pure_initializers.is_empty()
+            || chunking_context.unused_references().await?.is_empty()
+        {
+            return Ok(vec![]);
+        }
+
+        let module_usage = chunking_context.module_export_usage(module).await?;
+        let used_exports = module_usage.export_usage.await?;
+        let mut code_gens = vec![];
+        for initializer in &self.pure_initializers {
+            if initializer
+                .used_by_exports
+                .iter()
+                .any(|export| used_exports.is_export_used(export))
+            {
+                continue;
+            }
+            code_gens.push(
+                RemovalCodeGen::new(
+                    rcstr!("TURBOPACK unused pure initializer"),
+                    AstPathRange::Exact(initializer.ast_path),
+                )
+                .code_generation(trie, chunking_context)
+                .await?,
+            );
+        }
+        Ok(code_gens)
+    }
+
     pub async fn code_generation(
         &self,
         trie: &AstPathTrie,

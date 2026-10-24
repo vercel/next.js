@@ -118,7 +118,7 @@ use crate::{
         ecmascript_chunk_item,
         placeable::{SideEffectsDeclaration, get_side_effect_free_declaration},
     },
-    code_gen::{CodeGeneration, CodeGenerationHoistedStmt, CodeGens, ModifiableAst},
+    code_gen::{CodeGen, CodeGeneration, CodeGenerationHoistedStmt, CodeGens, ModifiableAst},
     directive::parse_module_turbopack_directives,
     merged_module::MergedEcmascriptModule,
     parse::{IdentCollector, ParseResult, generate_js_source_map, parse},
@@ -1192,6 +1192,22 @@ impl EcmascriptModuleContentOptions {
                 .await?;
 
             let code_generation = code_generation.await?;
+            let initializer_code_gens = code_generation
+                .code_gens
+                .iter()
+                .filter_map(|code_gen| match code_gen {
+                    CodeGen::EsmBindings(bindings) => Some(bindings),
+                    _ => None,
+                })
+                .map(|bindings| {
+                    bindings.pure_initializers_code_generation(
+                        &code_generation.ast_paths,
+                        **chunking_context,
+                        *ResolvedVc::upcast(*module),
+                    )
+                })
+                .try_join()
+                .await?;
             let code_gens = code_generation
                 .code_gens
                 .iter()
@@ -1213,6 +1229,7 @@ impl EcmascriptModuleContentOptions {
                     .chain(esm_code_gens)
                     .chain(additional_code_gens.into_iter().flatten())
                     .chain(code_gens)
+                    .chain(initializer_code_gens.into_iter().flatten())
                     .collect(),
                 code_generation,
             ))
