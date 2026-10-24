@@ -109,6 +109,7 @@ import {
   getRedirectStatusCodeFromError,
 } from '../../client/components/redirect'
 import { isRedirectError } from '../../client/components/redirect-error'
+import { isNextRouterError } from '../../client/components/is-next-router-error'
 import { getImplicitTags, type ImplicitTags } from '../lib/implicit-tags'
 import { AppRenderSpan, NextNodeServerSpan } from '../lib/trace/constants'
 import {
@@ -7921,7 +7922,11 @@ async function validateInstantConfigs(
                     )
                   }
                   return
-                } else if (!reactSignal.aborted) {
+                } else if (!reactSignal.aborted && !isNextRouterError(err)) {
+                  // Navigation signals thrown by `redirect()`, `notFound()`,
+                  // and friends interrupt the render on purpose. They're the
+                  // intended result of rendering this route, not an error that
+                  // prevented us from validating it, so they're not tracked.
                   const componentStack = errorInfo.componentStack
                   if (typeof componentStack === 'string') {
                     let errorForDisplay = err
