@@ -1536,10 +1536,12 @@ async function loadWasm(importPath = '') {
       location: NapiCodeFrameLocation,
       options?: NapiCodeFrameOptions
     ): string | undefined {
-      return rawBindings.codeFrameColumns(
-        Buffer.from(source),
-        location,
-        options
+      return (
+        rawBindings.codeFrameColumns(
+          Buffer.from(source),
+          removeUndefined(location),
+          removeUndefined(getCodeFrameOptions(options))
+        ) ?? undefined
       )
     },
     lockfileTryAcquire(_filePath: string, _content?: string | null) {
@@ -1821,6 +1823,42 @@ function getMdxOptions(options: any = {}) {
     development: options.development ?? false,
     jsx: options.jsx ?? false,
     mdxType: options.mdxType ?? 'commonMark',
+  }
+}
+
+/// Build a code frame options object with default values that
+/// can be parsed with serde_wasm_bindgen.
+function getCodeFrameOptions(options: NapiCodeFrameOptions = {}) {
+  let color: 'None' | 'Error' | 'Warning' | 'Info'
+  switch (options.color as unknown) {
+    case true:
+    case 0: // NapiCodeFrameColorMode.Error
+    case 'Error':
+      color = 'Error'
+      break
+    case 1: // NapiCodeFrameColorMode.Warning
+    case 'Warning':
+      color = 'Warning'
+      break
+    case 2: // NapiCodeFrameColorMode.Info
+    case 'Info':
+      color = 'Info'
+      break
+    case false:
+    case 'None':
+    case undefined:
+    default:
+      color = 'None'
+      break
+  }
+  return {
+    ...options,
+    linesAbove: options.linesAbove ?? 2,
+    linesBelow: options.linesBelow ?? 3,
+    maxWidth: options.maxWidth ?? 240,
+    color,
+    highlightCode: options.highlightCode ?? color !== 'None',
+    language: options.language === 'css' ? 'css' : 'javaScript',
   }
 }
 
