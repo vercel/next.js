@@ -12,6 +12,7 @@ use indexmap::map::Entry;
 use roaring::RoaringBitmap;
 use rustc_hash::FxHashMap;
 use tracing::Instrument;
+use turbo_bitset::Bitset;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
@@ -480,9 +481,10 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             FxIndexSet<ResolvedVc<Box<dyn Module>>>,
         > = FxIndexMap::default();
 
-        // For each module, the indices in the bitmap store which chunk groups in `chunk_groups_map`
-        // that module is part of.
-        let mut module_chunk_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
+        // For each module, the indices in the bitset store which chunk groups in `chunk_groups_map`
+        // that module is part of. The traversal works on fast `Bitset`s, which are converted
+        // into `RoaringBitmapWrapper`s for the result.
+        let mut module_chunk_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, Bitset> =
             FxHashMap::default();
 
         let module_count = graph
@@ -496,12 +498,12 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         let entries = graph.all_chunk_group_entries().collect::<Vec<_>>();
 
         // First, rank every module in reverse postorder (so that a module is visited after the
-        // modules importing it), and initialize `module_chunk_groups` with empty bitmaps. The ranks
+        // modules importing it), and initialize `module_chunk_groups` with empty bitsets. The ranks
         // from the entries of the graph are shared with other analyses of this graph.
         let module_rank = graph.entry_ranks()?;
         module_chunk_groups.reserve(module_rank.len());
         for module in module_rank.keys() {
-            module_chunk_groups.insert(*module, RoaringBitmapWrapper::default());
+            module_chunk_groups.insert(*module, Bitset::new());
         }
 
         // ----
@@ -581,10 +583,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             |parent_info: Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData, _)>,
              node: ResolvedVc<Box<dyn Module>>,
              _,
-             module_chunk_groups: &mut FxHashMap<
-                ResolvedVc<Box<dyn Module>>,
-                RoaringBitmapWrapper,
-            >|
+             module_chunk_groups: &mut FxHashMap<ResolvedVc<Box<dyn Module>>, Bitset>|
              -> Result<GraphTraversalAction> {
                 enum ChunkGroupInheritance<It: Iterator<Item = ChunkGroupKey>> {
                     Inherit(ResolvedVc<Box<dyn Module>>),
@@ -718,16 +717,15 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                             id
                         });
 
-                        let chunk_groups =
-                            RoaringBitmapWrapper(RoaringBitmap::from_iter(chunk_group_ids));
+                        let chunk_groups = Bitset::from_iter(chunk_group_ids);
 
                         // Assign chunk group to the target node (the entry of the chunk group)
                         let bitset = module_chunk_groups
                             .get_mut(&node)
                             .context("Module chunk group not found")?;
-                        if chunk_groups.is_proper_superset(bitset) {
+                        if !chunk_groups.is_subset(bitset) {
                             // Add bits from parent, and continue traversal because changed
-                            **bitset |= chunk_groups.into_inner();
+                            *bitset |= &chunk_groups;
 
                             GraphTraversalAction::Continue
                         } else {
@@ -752,13 +750,13 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                                 bail!("Module chunk groups not found");
                             };
 
-                            if current_chunk_groups.is_empty() {
+                            if current_chunk_groups.is_zero() {
                                 // Initial visit, clone instead of merging
                                 *current_chunk_groups = parent_chunk_groups.clone();
                                 GraphTraversalAction::Continue
-                            } else if parent_chunk_groups.is_proper_superset(current_chunk_groups) {
+                            } else if !parent_chunk_groups.is_subset(current_chunk_groups) {
                                 // Add bits from parent, and continue traversal because changed
-                                **current_chunk_groups |= &**parent_chunk_groups;
+                                *current_chunk_groups |= &*parent_chunk_groups;
                                 GraphTraversalAction::Continue
                             } else {
                                 // Unchanged, no need to forward to children
@@ -797,7 +795,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
 
             let mut buckets = BTreeMap::default();
             for (module, key) in &module_chunk_groups {
-                if !key.is_empty() {
+                if !key.is_zero() {
                     buckets
                         .entry(key.iter().collect::<Vec<_>>())
                         .or_insert(BTreeSet::new())
@@ -888,7 +886,14 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         let chunk_group_priority_routes = RoaringBitmapWrapper(priority_routes);
 
         Ok(ChunkGroupInfo {
-            module_chunk_groups: ResolvedVc::cell(module_chunk_groups),
+            module_chunk_groups: ResolvedVc::cell(
+                module_chunk_groups
+                    .into_iter()
+                    .map(|(module, chunk_groups)| {
+                        (module, RoaringBitmapWrapper(chunk_groups.to_roaring()))
+                    })
+                    .collect(),
+            ),
             chunk_group_keys: chunk_groups_map.keys().cloned().collect(),
             chunking_heuristics: ChunkingHeuristicsInfo {
                 clusters: chunk_group_clusters,

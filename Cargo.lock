@@ -9657,6 +9657,7 @@ dependencies = [
  "tokio",
  "tracing",
  "turbo-bincode",
+ "turbo-bitset",
  "turbo-esregex",
  "turbo-frozenmap",
  "turbo-prehash",
