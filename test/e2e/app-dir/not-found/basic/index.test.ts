@@ -33,6 +33,33 @@ describe('app dir - not-found - basic', () => {
     expect(res.status).toBe(404)
   })
 
+  it('should server render the nearest not-found boundary inside its layout', async () => {
+    const markup = (html: string) =>
+      html.replace(/<script\b[\s\S]*?<\/script>/g, '')
+
+    const root = await next.fetch('/shell-not-found')
+    expect(root.status).toBe(404)
+    expect(markup(await root.text())).toContain('Root Not Found')
+
+    const nested = await next.fetch('/error-boundary/nested/trigger-not-found')
+    expect(nested.status).toBe(404)
+    const nestedMarkup = markup(await nested.text())
+    expect(nestedMarkup).toContain('Not Found (error-boundary/nested)')
+    expect(nestedMarkup).toContain('Navbar')
+
+    const dynamicRes = await next.fetch('/dynamic/404')
+    expect(dynamicRes.status).toBe(404)
+    expect(markup(await dynamicRes.text())).toContain('dynamic/[id] not found')
+
+    const escalatedRes = await next.fetch(
+      '/dynamic-layout-without-not-found/404'
+    )
+    expect(escalatedRes.status).toBe(404)
+    const escalatedMarkup = markup(await escalatedRes.text())
+    expect(escalatedMarkup).toContain('Root Not Found')
+    expect(escalatedMarkup).not.toContain('Dynamic with Layout')
+  })
+
   if (isNextStart) {
     it('should include not found client reference manifest in the file trace', async () => {
       const fileTrace = JSON.parse(
