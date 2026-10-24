@@ -658,6 +658,19 @@
   },
   "test/development/app-dir/cache-components-dev-errors/cache-components-dev-errors.partial-prefetching.test.ts": {
     "passed": [
+      "Cache Components Dev Errors should clear segment errors after correcting them",
+      "Cache Components Dev Errors should display error when component accessed data without suspense boundary",
+      "Cache Components Dev Errors should not log unhandled rejections for persistently thrown top-level errors",
+      "Cache Components Dev Errors should not show a red box error on client navigations",
+      "Cache Components Dev Errors should show a red box error on the SSR render"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/cache-components-dev-errors/cache-components-dev-errors.test.ts": {
+    "passed": [
       "Cache Components Dev Errors should display error when component accessed data without suspense boundary",
       "Cache Components Dev Errors should not log unhandled rejections for persistently thrown top-level errors",
       "Cache Components Dev Errors should not show a red box error on client navigations",
@@ -666,19 +679,6 @@
     "failed": [
       "Cache Components Dev Errors should clear segment errors after correcting them"
     ],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/development/app-dir/cache-components-dev-errors/cache-components-dev-errors.test.ts": {
-    "passed": [
-      "Cache Components Dev Errors should clear segment errors after correcting them",
-      "Cache Components Dev Errors should display error when component accessed data without suspense boundary",
-      "Cache Components Dev Errors should not log unhandled rejections for persistently thrown top-level errors",
-      "Cache Components Dev Errors should not show a red box error on client navigations",
-      "Cache Components Dev Errors should show a red box error on the SSR render"
-    ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1538,11 +1538,17 @@
       "lazy-dynamic-imports activates a dynamic import over HTTP and keeps Fast Refresh working",
       "lazy-dynamic-imports activates a pattern import without colliding with its target",
       "lazy-dynamic-imports activates dynamic imports reached during server rendering",
+      "lazy-dynamic-imports compiles Pages API imports when reached",
+      "lazy-dynamic-imports compiles Pages SSR imports when reached",
       "lazy-dynamic-imports compiles an import.meta.glob match only when its thunk is called",
+      "lazy-dynamic-imports compiles route handler imports when reached",
       "lazy-dynamic-imports does not compile a server component dynamic import before it is reached",
       "lazy-dynamic-imports does not parse a dynamic import target before activation",
+      "lazy-dynamic-imports keeps proxy imports eager",
+      "lazy-dynamic-imports loads instrumentation dynamic imports during startup",
       "lazy-dynamic-imports parses a client next/dynamic target before it is rendered",
       "lazy-dynamic-imports preloads CSS for an SSR-rendered next/dynamic component",
+      "lazy-dynamic-imports preloads and applies CSS for a Pages next/dynamic component",
       "lazy-dynamic-imports preserves client and server references behind a lazy server component import",
       "lazy-dynamic-imports shares a proxy for repeated imports",
       "lazy-dynamic-imports supports different requests from one origin resolving to the same target",
@@ -1755,8 +1761,7 @@
       "runtime-error-events reports a custom boundary at /class",
       "runtime-error-events reports a custom boundary at /segment",
       "runtime-error-events reports event errors without a catching boundary",
-      "runtime-error-events reports rejection errors without a catching boundary",
-      "runtime-error-events reports the default boundary when the custom global fallback itself throws"
+      "runtime-error-events reports rejection errors without a catching boundary"
     ],
     "failed": [
       "runtime-error-events clears reported errors after an edit",
@@ -1767,13 +1772,14 @@
       "runtime-error-events promotes a logged error to fatal while preserving its boundary",
       "runtime-error-events reports Next root callback failures as fatal without a catching boundary",
       "runtime-error-events reports a non-Error App Router render failure",
+      "runtime-error-events reports the default boundary when the custom global fallback itself throws",
       "runtime-error-events republishes an unchanged empty snapshot on navigation",
       "runtime-error-events republishes current state after client navigation",
       "runtime-error-events retains boundary metadata when a previously logged Error is thrown"
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/development/app-dir/segment-explorer-globals/segment-explorer-globals.test.ts": {
     "passed": [
@@ -1881,15 +1887,16 @@
   },
   "test/development/app-dir/server-navigation-error/server-navigation-error.test.ts": {
     "passed": [
-      "server-navigation-error middleware should error on navigation API not-found",
-      "server-navigation-error middleware should error on navigation API redirect ",
       "server-navigation-error pages router should error on navigation API notFound",
       "server-navigation-error pages router should error on navigation API redirect"
     ],
-    "failed": [],
+    "failed": [
+      "server-navigation-error middleware should error on navigation API not-found",
+      "server-navigation-error middleware should error on navigation API redirect "
+    ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/development/app-dir/source-mapping/source-mapping.test.ts": {
     "passed": [],
@@ -4744,47 +4751,6 @@
   "test/e2e/app-dir/actions/app-action.test.ts": {
     "passed": [
       "app-dir action handling \"use server\" export values should error when exporting non async functions at build time",
-      "app-dir action handling should be possible to catch network errors",
-      "app-dir action handling should be possible to catch regular errors",
-      "app-dir action handling should error if server action arguments list is too long",
-      "app-dir action handling should forward action request to a worker that contains the action handler (edge)",
-      "app-dir action handling should forward action request to a worker that contains the action handler (node)",
-      "app-dir action handling should handle action correctly with middleware rewrite",
-      "app-dir action handling should handle actions executed in quick succession",
-      "app-dir action handling should handle basic actions correctly",
-      "app-dir action handling should invalidate the client router cache if the redirect action triggers a revalidation",
-      "app-dir action handling should keep action instances identical",
-      "app-dir action handling should not block navigation events while a server action is in flight",
-      "app-dir action handling should not block router.back() while a server action is in flight",
-      "app-dir action handling should not error when a forwarded action triggers a redirect (edge)",
-      "app-dir action handling should not error when a forwarded action triggers a redirect (node)",
-      "app-dir action handling should not log errors for non-action form POSTs",
-      "app-dir action handling should only submit action once when resubmitting an action after navigation",
-      "app-dir action handling should propagate errors from a `text/plain` response to an error boundary",
-      "app-dir action handling should push new route when redirecting",
-      "app-dir action handling should replace current route when redirecting with type set to replace",
-      "app-dir action handling should report errors with bad inputs correctly",
-      "app-dir action handling should reset the form state when the action redirects to a page that contains the same form",
-      "app-dir action handling should support .bind",
-      "app-dir action handling should support chained .bind",
-      "app-dir action handling should support formData and redirect",
-      "app-dir action handling should support headers and cookies",
-      "app-dir action handling should support headers in client imported actions",
-      "app-dir action handling should support hoc auth wrappers",
-      "app-dir action handling should support importing actions in client components",
-      "app-dir action handling should support importing the same action module instance in both server and action layers",
-      "app-dir action handling should support next/dynamic with ssr: false",
-      "app-dir action handling should support next/dynamic with ssr: false (edge)",
-      "app-dir action handling should support notFound",
-      "app-dir action handling should support notFound (javascript disabled)",
-      "app-dir action handling should support setting cookies in route handlers with the correct overrides",
-      "app-dir action handling should support setting cookies when redirecting (no javascript)",
-      "app-dir action handling should support setting cookies when redirecting (with javascript)",
-      "app-dir action handling should support uploading files",
-      "app-dir action handling should trigger a refresh for a server action that also dispatches a navigation event",
-      "app-dir action handling should trigger an error boundary for action responses with an invalid content-type"
-    ],
-    "failed": [
       "app-dir action handling Edge SSR should allow cookie and header async storages",
       "app-dir action handling Edge SSR should handle basic actions correctly",
       "app-dir action handling Edge SSR should handle calls to redirect() with a absolute URL in a single pass",
@@ -4823,16 +4789,56 @@
       "app-dir action handling request body decoding should correctly decode multi-byte characters in the request body (edge)",
       "app-dir action handling request body decoding should correctly decode multi-byte characters in the request body (node)",
       "app-dir action handling server actions render client components server component imported action should support importing client components from actions",
+      "app-dir action handling should be possible to catch network errors",
+      "app-dir action handling should be possible to catch regular errors",
       "app-dir action handling should bundle external libraries if they are on the action layer",
+      "app-dir action handling should error if server action arguments list is too long",
+      "app-dir action handling should forward action request to a worker that contains the action handler (edge)",
+      "app-dir action handling should forward action request to a worker that contains the action handler (node)",
+      "app-dir action handling should handle action correctly with middleware rewrite",
+      "app-dir action handling should handle actions executed in quick succession",
+      "app-dir action handling should handle basic actions correctly",
+      "app-dir action handling should invalidate the client router cache if the redirect action triggers a revalidation",
+      "app-dir action handling should keep action instances identical",
+      "app-dir action handling should not block navigation events while a server action is in flight",
+      "app-dir action handling should not block router.back() while a server action is in flight",
+      "app-dir action handling should not error when a forwarded action triggers a redirect (edge)",
+      "app-dir action handling should not error when a forwarded action triggers a redirect (node)",
+      "app-dir action handling should not log errors for non-action form POSTs",
+      "app-dir action handling should only submit action once when resubmitting an action after navigation",
+      "app-dir action handling should propagate errors from a `text/plain` response to an error boundary",
+      "app-dir action handling should push new route when redirecting",
+      "app-dir action handling should replace current route when redirecting with type set to replace",
+      "app-dir action handling should report errors with bad inputs correctly",
+      "app-dir action handling should reset the form state when the action redirects to a page that contains the same form",
+      "app-dir action handling should support .bind",
+      "app-dir action handling should support chained .bind",
+      "app-dir action handling should support formData and redirect",
+      "app-dir action handling should support headers and cookies",
+      "app-dir action handling should support headers in client imported actions",
+      "app-dir action handling should support hoc auth wrappers",
+      "app-dir action handling should support importing actions in client components",
+      "app-dir action handling should support importing the same action module instance in both server and action layers",
+      "app-dir action handling should support next/dynamic with ssr: false",
+      "app-dir action handling should support next/dynamic with ssr: false (edge)",
+      "app-dir action handling should support notFound",
+      "app-dir action handling should support notFound (javascript disabled)",
+      "app-dir action handling should support setting cookies in route handlers with the correct overrides",
+      "app-dir action handling should support setting cookies when redirecting (no javascript)",
+      "app-dir action handling should support setting cookies when redirecting (with javascript)",
+      "app-dir action handling should support uploading files",
+      "app-dir action handling should trigger a refresh for a server action that also dispatches a navigation event",
+      "app-dir action handling should trigger an error boundary for action responses with an invalid content-type",
       "app-dir action handling should work with interception routes"
     ],
+    "failed": [],
     "pending": [
       "app-dir action handling fetch actions should handle revalidateTag + redirect",
       "app-dir action handling server actions render client components client component imported action should support importing client components from actions",
       "app-dir action handling should reset the form state when the action redirects to itself"
     ],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/adapter-dynamic-metadata-runtime/adapter-dynamic-metadata-runtime.test.ts": {
     "passed": [
@@ -5100,10 +5106,12 @@
   "test/e2e/app-dir/app-custom-cache-handler-errors/app-custom-cache-handler-errors.test.ts": {
     "passed": [
       "app-custom-cache-handler-errors - get throws surfaces the cache handler error",
-      "app-custom-cache-handler-errors - set throws renders the page successfully"
+      "app-custom-cache-handler-errors - set throws logs the cache write error without failing the render"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "app-custom-cache-handler-errors - lookup recovery retries a shared failed lookup and shares its successful fill while the write is pending"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -5488,6 +5496,7 @@
       "app-root-param-getters - cache - at runtime should error when using root params in \"use cache\" nested inside unstable_cache - dev",
       "app-root-param-getters - cache - at runtime should error when using root params within `unstable_cache` - dev",
       "app-root-param-getters - cache - at runtime should revalidate only the tagged root params",
+      "app-root-param-getters - cache dedup with root params persists a joining root value after the shared producer cache write fails",
       "app-root-param-getters - cache dedup with root params should dedupe same root params and isolate different root params",
       "app-root-param-getters - cache dedup with root params should dedupe same root params and isolate different root params for private caches",
       "app-root-param-getters - cache dedup with root params should key a joining outer cache by the root params read by its inner cache",
@@ -6656,7 +6665,7 @@
     "passed": [],
     "failed": [
       "cache-components-segment-configs it should error when using segment configs that aren't supported by cacheComponents",
-      "cache-components-segment-configs should propagate configurations from layouts to pages"
+      "cache-components-segment-configs layout propagation should propagate configurations from layouts to pages"
     ],
     "pending": [],
     "flakey": [],
@@ -8265,6 +8274,7 @@
   },
   "test/e2e/app-dir/global-not-found/basic/global-not-found-basic.test.ts": {
     "passed": [
+      "global-not-found - basic should navigate from global-not-found to the app root layout",
       "global-not-found - basic should render global-not-found for 404",
       "global-not-found - basic should render not-found boundary when calling notFound() in a page",
       "global-not-found - basic should ssr global-not-found for 404"
@@ -10357,6 +10367,7 @@
       "after() in edge runtime runs in generateMetadata()",
       "after() in edge runtime runs in middleware",
       "after() in edge runtime runs in server actions",
+      "after() in edge runtime runs when route response validation fails",
       "after() in edge runtime uses waitUntil from request context if available in a page",
       "after() in edge runtime uses waitUntil from request context if available in a route handler",
       "after() in edge runtime uses waitUntil from request context if available in middleware",
@@ -10374,6 +10385,7 @@
       "after() in nodejs runtime runs in generateMetadata()",
       "after() in nodejs runtime runs in middleware",
       "after() in nodejs runtime runs in server actions",
+      "after() in nodejs runtime runs when route response validation fails",
       "after() in nodejs runtime uses waitUntil from request context if available in a page",
       "after() in nodejs runtime uses waitUntil from request context if available in a route handler",
       "after() in nodejs runtime uses waitUntil from request context if available in middleware"
@@ -12267,6 +12279,15 @@
   "test/e2e/app-dir/partial-prefetching-deep-propagation/partial-prefetching-deep-propagation.test.ts": {
     "passed": [
       "partial prefetching - deep subtree-hint propagation is skipped in dev mode"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/partial-prefetching-inline-server-function/partial-prefetching-inline-server-function.test.ts": {
+    "passed": [
+      "partial prefetching with an inline server function terminates the HTML response of a partially prerendered page"
     ],
     "failed": [],
     "pending": [],
@@ -14414,6 +14435,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/streamed-cache-revalidation/streamed-cache-revalidation.test.ts": {
+    "passed": [
+      "streamed cache revalidation applies a tag invalidation queued during response streaming",
+      "streamed cache revalidation invalidates a cached value from a streamed action that skips rendering"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/sub-shell-generation-middleware/sub-shell-generation-middleware.test.ts": {
     "passed": [],
     "failed": [],
@@ -14781,7 +14812,10 @@
       "use-cache-custom-handler uses the custom handler for the first request during startup"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "use-cache-custom-handler currently shares a handler lookup across routes and serves old data after revalidatePath()",
+      "use-cache-custom-handler currently shares a pending fill without checking route-specific cache invalidation"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -14967,9 +15001,21 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/use-cache-streaming-revalidation/use-cache-streaming-revalidation.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "use cache streaming revalidation completes stale regeneration started during a streaming flight response",
+      "use cache streaming revalidation completes stale regeneration started during a streaming html response"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/use-cache-swr/use-cache-swr.test.ts": {
     "passed": [
       "use-cache-swr completes dev validation with stale cached data without reporting uncached data while revalidation is pending",
+      "use-cache-swr currently delays a direct stale read behind a nested foreground fill",
+      "use-cache-swr currently gives nested callers stale data after background revalidation completes",
       "use-cache-swr deduplicates background revalidations across concurrent requests",
       "use-cache-swr deduplicates background revalidations when a cache handler read returns stale data after revalidation completes",
       "use-cache-swr should not start another regeneration for a read during a background cache write",
@@ -15317,6 +15363,17 @@
       "webpack-loader-ts-transform should accept Typescript returned from Webpack loaders"
     ],
     "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/webpack-loader-utils/webpack-loader-utils.test.ts": {
+    "passed": [
+      "webpack-loader-utils runs style-loader pitching with the real loader context"
+    ],
+    "failed": [
+      "webpack-loader-utils exposes path and hash utilities to loaders"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -22360,7 +22417,9 @@
     "failed": [
       "opentelemetry with custom server should set attributes correctly on handleRequest span"
     ],
-    "pending": [],
+    "pending": [
+      "opentelemetry - middleware direct entrypoint rejecting the first request should still trace instrumentation registration, once"
+    ],
     "flakey": [],
     "runtimeError": false
   },
