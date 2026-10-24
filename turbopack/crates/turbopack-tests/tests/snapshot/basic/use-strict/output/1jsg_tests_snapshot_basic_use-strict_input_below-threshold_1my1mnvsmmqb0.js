@@ -1,4 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_basic_use-strict_input_below-threshold_1my1mnvsmmqb0.js",
+"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_basic_use-strict_input_below-threshold_1my1mnvsmmqb0.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/use-strict/input/below-threshold.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 

@@ -1,4 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_imports_resolve_error_esm_input_index_1c8ndk9tak0l5.js",
+"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_imports_resolve_error_esm_input_index_1c8ndk9tak0l5.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/resolve_error_esm/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
