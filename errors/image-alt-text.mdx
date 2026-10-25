@@ -1,0 +1,47 @@
+---
+title: Missing alt on next/image
+---
+
+> Enforce `alt` prop on `<Image />` components imported from `next/image`.
+
+## Why This Error Occurred
+
+An `<Image />` component imported from `next/image` (or `next/legacy/image`) was rendered without an `alt` prop, or with `alt={undefined}` or `alt={null}`.
+
+Screen readers and search engines use `alt` to describe the image. Without it, assistive technology may read out the file name instead.
+
+The rule follows the import, so it also checks aliased imports such as `import NextImage from 'next/image'`, and it ignores components named `Image` that come from other packages.
+
+## Possible Ways to Fix It
+
+Add an `alt` prop that describes the image:
+
+```jsx filename="app/page.js"
+import Image from 'next/image'
+
+export default function Page() {
+  return (
+    <Image
+      src="/profile.png"
+      alt="Picture of the author"
+      width={500}
+      height={500}
+    />
+  )
+}
+```
+
+If the image is purely decorative, use an empty string:
+
+```jsx filename="app/page.js"
+import Image from 'next/image'
+
+export default function Page() {
+  return <Image src="/divider.png" alt="" width={800} height={8} />
+}
+```
+
+## Useful Links
+
+- [`next/image` `alt` prop](/docs/app/api-reference/components/image#alt)
+- [`jsx-a11y/alt-text`](https://github.com/jsx-eslint/eslint-plugin-jsx-a11y/blob/main/docs/rules/alt-text.md)
