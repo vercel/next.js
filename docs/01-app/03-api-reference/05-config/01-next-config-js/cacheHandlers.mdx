@@ -270,25 +270,39 @@ Called when tags are revalidated or expired.
 updateTags(tags: string[], durations?: { expire?: number }): Promise<void>
 ```
 
-| Parameter   | Type                  | Description                              |
-| ----------- | --------------------- | ---------------------------------------- |
-| `tags`      | `string[]`            | Array of tags to update.                 |
-| `durations` | `{ expire?: number }` | Optional expiration duration in seconds. |
+| Parameter   | Type                  | Description                                                                     |
+| ----------- | --------------------- | ------------------------------------------------------------------------------- |
+| `tags`      | `string[]`            | Array of tags to update.                                                        |
+| `durations` | `{ expire?: number }` | Present for profile-based revalidation; carries the profile's `expire` seconds. |
 
 Your handler should update its internal state to mark these tags as invalidated.
 
+Whether `durations` is present tells you which kind of invalidation this is:
+
+- **Absent**: invalidate immediately. Entries carrying these tags should not be served again. `updateTag()` and a single-argument `revalidateTag()` take this path, and the caller expects its own next read to miss.
+- **Present**: the tags go stale now, but entries carrying them may still be served while they refresh in the background, until `durations.expire` seconds have passed. `revalidateTag(tag, 'max')` takes this path.
+
 Returns `Promise<void>`.
 
-When tags are revalidated, your handler should invalidate all cache entries that have any of those tags. Iterate through your cache and remove entries whose tags match the provided list.
+Your handler should record when each tag was invalidated. [`get()`](#get) compares those times against an entry's `timestamp`, and [`getExpiration()`](#getexpiration) does the same for [soft tags](#soft-tags). Soft tags are not stored in an entry's `tags`, so deleting the entries that carry a tag does not cover [`revalidatePath()`](/docs/app/api-reference/functions/revalidatePath).
 
 ```js
 const cacheHandler = {
   async updateTags(tags, durations) {
-    // Invalidate all cache entries with matching tags
-    for (const [key, entry] of cache.entries()) {
-      if (entry.tags.some((tag) => tags.includes(tag))) {
-        cache.delete(key)
+    const now = Date.now()
+    for (const tag of tags) {
+      const timestamps = tagTimestamps.get(tag) ?? {}
+      if (durations) {
+        // Serve while refreshing, and expire after `durations.expire` seconds
+        timestamps.stale = now
+        if (durations.expire !== undefined) {
+          timestamps.expired = now + durations.expire * 1000
+        }
+      } else {
+        // Expire immediately
+        timestamps.expired = now
       }
+      tagTimestamps.set(tag, timestamps)
     }
   },
 }
@@ -370,14 +384,18 @@ Cache operations should be implemented defensively:
 
 ## Examples
 
-### Basic in-memory cache handler
+The examples below show how a handler meets the API contract. They leave out the eviction, error handling, and multi-instance coordination that a production handler must add. The [`cache-handler-redis` example](https://github.com/vercel/next.js/tree/canary/examples/cache-handler-redis) is a fuller Redis implementation of both cache APIs, and its README lists community handlers that cover more cases.
 
-Here's a minimal implementation using a `Map` for storage. This example demonstrates the core concepts, but for a production-ready implementation with LRU eviction, error handling, and tag management, see the [default cache handler](https://github.com/vercel/next.js/blob/canary/packages/next/src/server/lib/cache-handlers/default.ts).
+### In-memory handler for learning and debugging
+
+This handler keeps entries in a `Map`, which makes it a place to log or inspect what Next.js stores and how tags invalidate it. It runs per process and has no eviction. The [built-in handler](https://github.com/vercel/next.js/blob/canary/packages/next/src/server/lib/cache-handlers/default.ts) is also in memory, and adds a size-bounded LRU and error handling.
 
 ```js filename="cache-handlers/memory-handler.js"
 // Entries hold the serialized bytes, never the stream they arrived on
 const cache = new Map()
 const pendingSets = new Map()
+// Tag invalidation times in milliseconds: { stale, expired }
+const tagTimestamps = new Map()
 
 function streamFromBytes(bytes) {
   return new ReadableStream({
@@ -402,10 +420,21 @@ module.exports = {
     }
 
     // No age check: Next.js compares `timestamp` against `expire` itself.
+    // Soft tags are checked by Next.js through `getExpiration()`.
     // This `Map` also has no eviction, which a real handler needs.
+    let revalidate = entry.revalidate
+    for (const tag of entry.tags) {
+      const { stale = 0, expired = 0 } = tagTimestamps.get(tag) ?? {}
+      if (expired > entry.timestamp && expired <= Date.now()) {
+        return undefined
+      }
+      if (stale > entry.timestamp) {
+        revalidate = -1
+      }
+    }
 
     // Every hit gets its own stream over the stored bytes
-    return { ...entry, value: streamFromBytes(entry.value) }
+    return { ...entry, revalidate, value: streamFromBytes(entry.value) }
   },
 
   async set(cacheKey, pendingEntry) {
@@ -434,20 +463,31 @@ module.exports = {
   },
 
   async refreshTags() {
-    // No-op for in-memory cache
+    // Tag state lives in this process, so there is nothing to sync
   },
 
   async getExpiration(tags) {
-    // Return 0 to indicate no tags have been revalidated
-    return 0
+    return Math.max(
+      ...tags.map((tag) => tagTimestamps.get(tag)?.expired ?? 0),
+      0
+    )
   },
 
   async updateTags(tags, durations) {
-    // Implement tag-based invalidation
-    for (const [key, entry] of cache.entries()) {
-      if (entry.tags.some((tag) => tags.includes(tag))) {
-        cache.delete(key)
+    const now = Date.now()
+    for (const tag of tags) {
+      const timestamps = tagTimestamps.get(tag) ?? {}
+      if (durations) {
+        // Serve while refreshing, and expire after `durations.expire` seconds
+        timestamps.stale = now
+        if (durations.expire !== undefined) {
+          timestamps.expired = now + durations.expire * 1000
+        }
+      } else {
+        // Expire immediately
+        timestamps.expired = now
       }
+      tagTimestamps.set(tag, timestamps)
     }
   },
 }
@@ -455,7 +495,7 @@ module.exports = {
 
 ### External storage pattern
 
-For durable storage like Redis or a database, you'll need to serialize the cache entries. Here's a simple Redis example:
+A handler backed by Redis or a database must serialize each entry. Drain the stream in `set()`, and rebuild one from the stored bytes in `get()`:
 
 ```js filename="cache-handlers/redis-handler.js"
 const { createClient } = require('redis')
@@ -518,25 +558,17 @@ module.exports = {
         expire: entry.expire,
         revalidate: entry.revalidate,
       }),
-      { EX: entry.expire } // Use Redis TTL for automatic expiration
+      // `EX` needs a positive integer.
+      // By definition `expire: Infinity` ("never expire")
+      // maps to no TTL at all, so omit `EX` and let Redis persist the key.
+      Number.isFinite(entry.expire)
+        ? { EX: Math.max(1, Math.ceil(entry.expire)) }
+        : {}
     )
   },
 
-  async refreshTags() {
-    // No-op for basic Redis implementation
-    // Could sync with external tag service if needed
-  },
-
-  async getExpiration(tags) {
-    // Return 0 to indicate no tags have been revalidated
-    // Could query Redis for tag expiration timestamps if tracking them
-    return 0
-  },
-
-  async updateTags(tags, durations) {
-    // Implement tag-based invalidation if needed
-    // Could iterate over keys with matching tags and delete them
-  },
+  // refreshTags(), getExpiration(), and updateTags() also need shared state.
+  // See Distributed Tag Coordination for that half of the handler.
 }
 ```
 

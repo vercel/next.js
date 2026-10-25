@@ -706,7 +706,7 @@ impl RcStrInterning {
         }
     }
 
-    /// Intern the [`Display`](std::fmt::Display) output of a value.
+    /// Intern the [`Display`] output of a value.
     pub fn intern_display(&mut self, v: &impl std::fmt::Display) -> RcStr {
         self.intern_owned(v.to_string())
     }

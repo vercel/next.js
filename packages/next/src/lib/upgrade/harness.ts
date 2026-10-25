@@ -278,6 +278,12 @@ function launchHarness(
       args.push('--effort', effort)
     }
   }
+
+  // Package installs and upgrade verification need network access in the sandbox.
+  if (harness.name === 'codex') {
+    args.push('-c', 'sandbox_workspace_write.network_access=true')
+  }
+
   args.push(...permissionArgs)
   args.push(prompt)
   return runChildProcess(

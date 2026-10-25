@@ -60,19 +60,14 @@ impl ChunkPart {
     }
 }
 
-#[turbo_tasks::value(transparent)]
-#[derive(Debug)]
-pub struct ChunkParts(Vec<ChunkPart>);
-
-#[turbo_tasks::function]
-pub async fn split_traced_file_into_parts(path: FileSystemPath) -> Result<Vc<ChunkParts>> {
+pub async fn split_traced_file_into_parts(path: FileSystemPath) -> Result<Vec<ChunkPart>> {
     let source = FileSource::new(path.clone());
     let content = source.content().await?;
     let AssetContent::File(file_content) = &*content else {
-        return Ok(Vc::cell(vec![]));
+        return Ok(vec![]);
     };
     let FileContent::Content(content) = &*file_content.await? else {
-        return Ok(Vc::cell(vec![]));
+        return Ok(vec![]);
     };
     let content = content.content();
     let lines_vc = file_content.lines().to_resolved().await?;
@@ -80,16 +75,15 @@ pub async fn split_traced_file_into_parts(path: FileSystemPath) -> Result<Vc<Chu
     self_mapped(path.to_string_ref().await?, content, lines_vc).await
 }
 
-#[turbo_tasks::function]
 pub async fn split_output_asset_into_parts(
     asset: Vc<Box<dyn OutputAsset>>,
-) -> Result<Vc<ChunkParts>> {
+) -> Result<Vec<ChunkPart>> {
     let content = asset.content().await?;
     let AssetContent::File(file_content) = &*content else {
-        return Ok(Vc::cell(vec![]));
+        return Ok(vec![]);
     };
     let FileContent::Content(content) = &*file_content.await? else {
-        return Ok(Vc::cell(vec![]));
+        return Ok(vec![]);
     };
     let content = content.content();
     let lines_vc = file_content.lines().to_resolved().await?;
@@ -397,37 +391,37 @@ pub async fn split_output_asset_into_parts(
         }
     }
 
-    Ok(Vc::cell(chunk_parts.into_values().collect()))
+    Ok(chunk_parts.into_values().collect())
 }
 
 pub async fn self_mapped(
     path: RcStr,
     content: &Rope,
     lines: ResolvedVc<FileLinesContent>,
-) -> Result<Vc<ChunkParts>> {
+) -> Result<Vec<ChunkPart>> {
     let len = content.len().try_into().unwrap_or(u32::MAX);
-    Ok(Vc::cell(vec![ChunkPart {
+    Ok(vec![ChunkPart {
         source: path,
         real_size: len,
         unaccounted_size: 0,
         ranges: vec![],
         lines,
-    }]))
+    }])
 }
 
 async fn unaccounted(
     asset: Vc<Box<dyn OutputAsset>>,
     content: &Rope,
     lines: ResolvedVc<FileLinesContent>,
-) -> Result<Vc<ChunkParts>> {
+) -> Result<Vec<ChunkPart>> {
     let len = content.len().try_into().unwrap_or(u32::MAX);
-    Ok(Vc::cell(vec![ChunkPart {
+    Ok(vec![ChunkPart {
         source: asset.path().to_string().owned().await?,
         real_size: 0,
         unaccounted_size: len,
         ranges: vec![],
         lines,
-    }]))
+    }])
 }
 
 fn append_content_between(

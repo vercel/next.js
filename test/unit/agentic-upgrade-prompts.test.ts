@@ -18,6 +18,10 @@ import { getProjectDir } from 'next/dist/lib/get-project-dir'
 import { getHarnessModels } from 'next/dist/lib/upgrade/model-discovery'
 import { handoffUpgrade } from 'next/dist/lib/upgrade/harness'
 import { prepareUpgrade } from 'next/dist/lib/upgrade/prepare-upgrade'
+import {
+  queryReleaseMetadata,
+  readReleaseAgePolicy,
+} from 'next/dist/lib/upgrade/release-age'
 import loadConfig from 'next/dist/server/config'
 import { normalizeConfig } from 'next/dist/server/config-shared'
 import { PHASE_PRODUCTION_BUILD } from 'next/dist/shared/lib/constants'
@@ -70,6 +74,10 @@ jest.mock('next/dist/lib/upgrade/model-discovery', () => ({
 }))
 jest.mock('next/dist/lib/upgrade/prepare-upgrade', () => ({
   prepareUpgrade: jest.fn(),
+}))
+jest.mock('next/dist/lib/upgrade/release-age', () => ({
+  readReleaseAgePolicy: jest.fn(),
+  queryReleaseMetadata: jest.fn(),
 }))
 jest.mock('next/dist/server/config', () => ({
   __esModule: true,
@@ -166,6 +174,7 @@ describe('agentic upgrade prompts', () => {
 
   beforeEach(() => {
     jest.resetAllMocks()
+    jest.mocked(readReleaseAgePolicy).mockResolvedValue(null)
     jest.mocked(Telemetry).mockImplementation(
       () =>
         ({
@@ -398,6 +407,51 @@ describe('agentic upgrade prompts', () => {
     }
   )
 
+  it('delegates to the age-eligible canary instead of the latest tag', async () => {
+    delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+    const selected = '16.6.0-canary.9'
+    const tag = '16.6.0-canary.13'
+    jest.mocked(readReleaseAgePolicy).mockResolvedValue({
+      packageManagerVersion: '12.9.1',
+      publishedBefore: Date.parse('2026-10-14T00:00:00Z'),
+      isExcluded: () => false,
+    })
+    jest.mocked(queryReleaseMetadata).mockResolvedValue(
+      JSON.stringify({
+        'dist-tags': { canary: tag },
+        versions: [tag, selected],
+        time: {
+          [tag]: '2026-10-15T23:00:00Z',
+          [selected]: '2026-10-13T00:00:00Z',
+        },
+      })
+    )
+    crossSpawn.mockImplementation(() => {
+      const child = new EventEmitter()
+      process.nextTick(() => child.emit('close', 0))
+      return child
+    })
+
+    await spawnNextUpgrade(
+      '/workspace/app',
+      { revision: 'latest', verbose: false, agent: 'latest' },
+      null
+    )
+
+    expect(crossSpawn).toHaveBeenCalledTimes(1)
+    expect(crossSpawn).toHaveBeenCalledWith(
+      'npx',
+      [`next@${selected}`, 'upgrade', '/workspace/app', '--agent=latest'],
+      expect.objectContaining({
+        env: expect.objectContaining({
+          __NEXT_UPGRADE_EXPECTED_CLI_VERSION: selected,
+        }),
+      })
+    )
+    expect(global.fetch).not.toHaveBeenCalled()
+    expect(prepareUpgrade).not.toHaveBeenCalled()
+  })
+
   it.each([
     ['HTTP error', () => Promise.resolve(new Response('', { status: 503 }))],
     ['network error', () => Promise.reject(new TypeError('fetch failed'))],
@@ -587,7 +641,11 @@ describe('agentic upgrade prompts', () => {
         [
           ...flags,
           ...(agent === 'codex'
-            ? ['--approve-for-me']
+            ? [
+                '-c',
+                'sandbox_workspace_write.network_access=true',
+                '--approve-for-me',
+              ]
             : ['--permission-mode', 'auto']),
           'In-place prompt',
         ],
@@ -672,7 +730,14 @@ describe('agentic upgrade prompts', () => {
     expect(Log.bootstrap).toHaveBeenCalledWith('  ❯ Model default')
     expect(crossSpawn).toHaveBeenCalledWith(
       expectedHarnessPath('codex'),
-      ['--model', 'gpt-5.6-terra', '--approve-for-me', 'Upgrade prompt'],
+      [
+        '--model',
+        'gpt-5.6-terra',
+        '-c',
+        'sandbox_workspace_write.network_access=true',
+        '--approve-for-me',
+        'Upgrade prompt',
+      ],
       { cwd: '/workspace/app', stdio: 'inherit' }
     )
   })
@@ -764,7 +829,11 @@ describe('agentic upgrade prompts', () => {
         expectedHarnessPath(agent),
         [
           ...(agent === 'codex'
-            ? ['--approve-for-me']
+            ? [
+                '-c',
+                'sandbox_workspace_write.network_access=true',
+                '--approve-for-me',
+              ]
             : ['--permission-mode', 'auto']),
           'Upgrade prompt',
         ],
@@ -937,11 +1006,22 @@ describe('agentic upgrade prompts', () => {
   })
 
   it.each([
-    ['codex', 'yes', ['--approve-for-me']],
+    [
+      'codex',
+      'yes',
+      ['-c', 'sandbox_workspace_write.network_access=true', '--approve-for-me'],
+    ],
     [
       'codex',
       'no',
-      ['--sandbox', 'workspace-write', '--ask-for-approval', 'on-request'],
+      [
+        '-c',
+        'sandbox_workspace_write.network_access=true',
+        '--sandbox',
+        'workspace-write',
+        '--ask-for-approval',
+        'on-request',
+      ],
     ],
     ['claude', 'yes', ['--permission-mode', 'auto']],
     ['claude', 'no', ['--permission-mode', 'manual']],
@@ -1024,6 +1104,8 @@ describe('agentic upgrade prompts', () => {
         'gpt-5.6-terra',
         '-c',
         'model_reasoning_effort=high',
+        '-c',
+        'sandbox_workspace_write.network_access=true',
         '--sandbox',
         'workspace-write',
         '--ask-for-approval',
@@ -1166,6 +1248,8 @@ describe('agentic upgrade prompts', () => {
         'gpt-6-astra',
         '-c',
         'model_reasoning_effort=ultra',
+        '-c',
+        'sandbox_workspace_write.network_access=true',
         '--approve-for-me',
         'Upgrade prompt',
       ],
@@ -1296,6 +1380,8 @@ describe('agentic upgrade prompts', () => {
         'gpt-5.6-terra',
         '-c',
         'model_reasoning_effort=max',
+        '-c',
+        'sandbox_workspace_write.network_access=true',
         '--sandbox',
         'workspace-write',
         '--ask-for-approval',
@@ -1351,6 +1437,8 @@ describe('agentic upgrade prompts', () => {
         'gpt-5.6-terra',
         '-c',
         'model_reasoning_effort=high',
+        '-c',
+        'sandbox_workspace_write.network_access=true',
         '--approve-for-me',
         'Worktree prompt',
       ],

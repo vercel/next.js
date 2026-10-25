@@ -3,6 +3,7 @@ import { join } from 'path'
 import {
   writeAgentFeedbackFiles,
   writeAgentFiles,
+  writeAgentUpgradeFiles,
 } from 'next/dist/server/lib/generate-agent-files'
 import {
   resolveNextTgzFilename,
@@ -200,6 +201,10 @@ describe('create-next-app', () => {
       )
       expect(agentsMd).toContain('<!-- BEGIN:nextjs-agent-rules -->')
       expect(agentsMd).not.toContain('nextjs-agent-feedback')
+      expect(agentsMd).toContain('<!-- BEGIN:nextjs-agent-upgrade -->')
+      expect(writeAgentUpgradeFiles(join(cwd, projectName)).agentsMd).toBe(
+        'unchanged'
+      )
     })
   })
 
@@ -242,6 +247,8 @@ describe('create-next-app', () => {
       // file must match byte-for-byte or the initial commit is immediately dirty.
       expect(writeAgentFiles(projectDir).agentsMd).toBe('unchanged')
       expect(writeAgentFeedbackFiles(projectDir).agentsMd).toBe('unchanged')
+      expect(agentsMd).toContain('<!-- BEGIN:nextjs-agent-upgrade -->')
+      expect(writeAgentUpgradeFiles(projectDir).agentsMd).toBe('unchanged')
     })
   })
 

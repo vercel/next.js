@@ -18,9 +18,6 @@ const getAttrs = (elems: Cheerio) =>
     .sort((a, b) => (a.href < b.href ? -1 : 1))
 
 describe('app dir - next/font', () => {
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely mutates files in the isolated local fixture after setup.
-  // @force-gate !deploy
   describe('app dir - next-font', () => {
     const { next, isNextDev: isDev } = nextTestSetup({
       files: {
@@ -28,9 +25,6 @@ describe('app dir - next/font', () => {
         fonts: new FileRef(join(__dirname, 'fonts')),
         node_modules: new FileRef(join(__dirname, 'node_modules')),
         'next.config.js': new FileRef(join(__dirname, 'next.config.js')),
-      },
-      dependencies: {
-        '@next/font': 'workspace:*',
       },
     })
 

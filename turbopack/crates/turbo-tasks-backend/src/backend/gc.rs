@@ -106,7 +106,7 @@ impl GcBudget<'_> {
     }
 }
 
-/// Counters describing what one [`TurboTasksBackend::gc_collect`] pass did. Reported only; GC
+/// Counters describing what one `TurboTasksBackend::gc_collect` pass did. Reported only; GC
 /// never reads them back.
 #[derive(Default)]
 pub struct GcStats {
@@ -120,7 +120,7 @@ pub struct GcStats {
     pub aged_out_roots: usize,
 }
 
-/// What one [`TurboTasksBackend::gc_collect`] pass produced, as opposed to the [`GcStats`] it
+/// What one `TurboTasksBackend::gc_collect` pass produced, as opposed to the [`GcStats`] it
 /// reports. The two collections are consumed before `gc_collect` returns; `interrupted` outlives
 /// it, since the caller uses it to decide whether to abandon the persistence loop.
 #[derive(Default)]
@@ -302,7 +302,7 @@ impl TurboTasksBackend {
             let mut ctx = ExecuteContext::new_for_gc(self, turbo_tasks, phase, &noop_collector);
             let mut queue = AggregationUpdateQueue::new();
             queue.extend_balance_edges(deferred, &mut ctx);
-            while !queue.process(&mut ctx) {}
+            queue.execute(&mut ctx);
         }
 
         // Collect all active roots

@@ -44,12 +44,12 @@ false (a passing body then fails as stale). `@force-gate` **skips** instead of
 running — for a body that isn't worth attempting, giving up the tripwire in
 exchange.
 
-| directive | condition | when false | when true |
-| --- | --- | --- | --- |
-| `// @gate <cond>` | static or lazy | assert-fail (invert; stale if it passes) | run |
-| `// @force-gate <cond>` (static) | static | real Jest skip (`○ skipped`) at collection | run |
-| `// @force-gate <cond>` (lazy, per-test) | lazy | force-pass the test (skip the body) | run |
-| `// @force-gate <cond>` (lazy, on a `describe`) | lazy | skip the **build** and force-pass the suite | build + run |
+| directive                                       | condition      | when false                                  | when true   |
+| ----------------------------------------------- | -------------- | ------------------------------------------- | ----------- |
+| `// @gate <cond>`                               | static or lazy | assert-fail (invert; stale if it passes)    | run         |
+| `// @force-gate <cond>` (static)                | static         | real Jest skip (`○ skipped`) at collection  | run         |
+| `// @force-gate <cond>` (lazy, per-test)        | lazy           | force-pass the test (skip the body)         | run         |
+| `// @force-gate <cond>` (lazy, on a `describe`) | lazy           | skip the **build** and force-pass the suite | build + run |
 
 A **static** `@force-gate` (mode/bundler) is decided while tests are collected,
 so it's a real `○ skipped`. A **lazy** `@force-gate` (resolved-config) can't be
@@ -97,7 +97,8 @@ There are two tiers:
   still run the suite: `@force-gate vercel` for a Vercel-only suite,
   `@force-gate !deploy || vercel` to skip only other platforms, `!vercel` to
   skip only Vercel.
-- **lazy** — a predicate over the fixture's *resolved* `next.config`
+
+- **lazy** — a predicate over the fixture's _resolved_ `next.config`
   (`cacheComponents`, `ppr`, `prefetchInlining`, `output`, …), read the first
   time a gate asks for it.
 
@@ -115,7 +116,7 @@ Add conditions freely; the guidance for doing so is at the top of
 ## Covering both states of an experiment: test axes
 
 On top of the dimensions the test matrix already has (mode, bundler, React
-version), the suites run once plainly and once per *test axis* — a fixed,
+version), the suites run once plainly and once per _test axis_ — a fixed,
 lettered set of alternate flag configurations marked by `__NEXT_TEST_AXIS`.
 (Today there is one axis, `A`, an alias for the `--experimental` /
 `__NEXT_CACHE_COMPONENTS` run; see `scripts/run-jest.sh`.) A fixture can key
@@ -145,7 +146,7 @@ fixture build entirely.
 Keep exactly **one** flag varying per fixture (pin the rest, like
 `cacheComponents` above) so a red shard still attributes to a single
 dimension. The gate itself keeps working either way — lazy conditions read the
-*resolved* config, so they observe whatever the fixture decided, not how it
+_resolved_ config, so they observe whatever the fixture decided, not how it
 decided it.
 
 To reproduce the disabled (axis) state locally, set the marker the same way
@@ -172,7 +173,7 @@ literals. Values are coerced by truthiness in boolean position, so
 ## Conditional logic inside a body: `gate()`
 
 The pragma gates a whole test. For a body that should run under both states
-but *assert differently*, import the runtime `gate()` — the same registry,
+but _assert differently_, import the runtime `gate()` — the same registry,
 without the inversion:
 
 ```ts
@@ -210,7 +211,7 @@ var is not what the fixture actually resolved.
    `next/jest` configures. `jest.config.js` wires it up with
    `withGateTransformer()`.
 3. `runtime.ts` installs `_test_gate` and evaluates conditions. A false
-   *static* `@gate` is known while tests are collected, so the test registers
+   _static_ `@gate` is known while tests are collected, so the test registers
    through Jest's native `test.failing` and the inversion is Jest's own. A
    lazy gate can't be decided until the fixture's config resolves, so those
    tests wrap the body and invert the outcome at runtime. The `it`/`test`
@@ -229,12 +230,12 @@ A suite with no lazy gate never resolves a config, so the cost is zero.
 - A pragma the transform would not pick up is a **hard error**, not a no-op:
   blank line in between, `it.each` / `it.failing`, a pragma inside a JSDoc
   block. Reword prose comments that start with `@gate`. A pragma on a
-  *skipped* test (`it.skip`, `xit`, …) gets a dedicated error — gating a skip
+  _skipped_ test (`it.skip`, `xit`, …) gets a dedicated error — gating a skip
   is ambiguous, so either remove the skip and let the gate decide, or keep the
-  plain skip and drop the pragma. (A skip *without* a pragma is left alone.)
+  plain skip and drop the pragma. (A skip _without_ a pragma is left alone.)
 - A `describe`-level gate does not reach `it.each` tests (they bypass the
   `it` wrapper) — branch inside the body with the runtime `gate()` instead.
-- A gated-false body that *stalls* rather than throwing wastes the full Jest
+- A gated-false body that _stalls_ rather than throwing wastes the full Jest
   timeout. Under a static gate (native `test.failing`) the timeout counts as
   the expected failure, so the test passes — slowly; under a lazy gate the
   runtime inversion only absorbs thrown errors, so the timeout fails the suite
@@ -252,7 +253,7 @@ A suite with no lazy gate never resolves a config, so the cost is zero.
 ## Tests
 
 `test/unit/gate/` covers the transform, the expression language, and the runtime.
-The stale-gate *failure* cannot be asserted from inside Jest — a test that must
+The stale-gate _failure_ cannot be asserted from inside Jest — a test that must
 fail cannot report itself as passing — so it is verified by hand:
 
 ```sh

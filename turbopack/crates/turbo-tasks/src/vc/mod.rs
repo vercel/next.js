@@ -440,7 +440,7 @@ where
     }
 
     /// Returns `true` if the reference is resolved, meaning the underlying [`RawVc`] uses the
-    /// [`RawVc::TaskCell`] representation.
+    /// [`RawVcUnpacked::TaskCell`] representation.
     ///
     /// If you need resolved [`Vc`] value, it's typically better to use the [`ResolvedVc`] type to
     /// enforce your requirements statically instead of dynamically at runtime.

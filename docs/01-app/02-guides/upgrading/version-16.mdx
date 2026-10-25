@@ -254,6 +254,8 @@ export default nextConfig
 
 Turbopack stores compiler artifacts on disk between runs, for significantly faster compile times across restarts. Filesystem caching is enabled by default for both `next dev` and `next build`, through `experimental.turbopackFileSystemCacheForDev` and `experimental.turbopackFileSystemCacheForBuild`. See [Turbopack FileSystem Caching](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) to configure or disable either one.
 
+<AppOnly>
+
 ## Async Request APIs (Breaking change)
 
 Version 15 introduced [Async Request APIs](https://nextjs.org/docs/app/guides/upgrading/version-15#async-request-apis-breaking-change) as a breaking change, with **temporary** synchronous compatibility.
@@ -368,6 +370,8 @@ The App Router in **Next.js 16** uses the latest React [Canary release](https://
 
 Learn more in the [React 19.2 announcement](https://react.dev/blog/2025/10/01/react-19-2).
 
+</AppOnly>
+
 ## React Compiler Support
 
 Built-in support for the React Compiler is now stable in **Next.js 16** following the React Compiler's 1.0 release. The React Compiler automatically memoizes components, reducing unnecessary re-renders with zero manual code changes.
@@ -412,6 +416,8 @@ bun add -D babel-plugin-react-compiler
 ```
 
 > **Good to know:** Expect compile times in development and during builds to be higher when enabling this option as the React Compiler relies on Babel.
+
+<AppOnly>
 
 ## Caching APIs
 
@@ -584,6 +590,8 @@ const nextConfig = {
 
 module.exports = nextConfig
 ```
+
+</AppOnly>
 
 ## `middleware` to `proxy`
 
@@ -906,6 +914,8 @@ yarn next internal trace .next-profiles/trace-turbopack.bin
 bunx next internal trace .next-profiles/trace-turbopack.bin
 ```
 
+<AppOnly>
+
 ## Parallel Routes `default.js` requirement
 
 All [parallel route](/docs/app/api-reference/file-conventions/parallel-routes) slots now require explicit `default.js` files. Builds will fail without them.
@@ -927,6 +937,8 @@ export default function Default() {
   return null
 }
 ```
+
+</AppOnly>
 
 ## ESLint Flat Config
 
@@ -950,6 +962,8 @@ In **Next.js 16**, this behavior has changed. By default, Next.js will **no long
 
 **If you want Next.js to perform this override** (the previous default behavior), add the `data-scroll-behavior="smooth"` attribute to your `<html>` element:
 
+<AppOnly>
+
 ```tsx filename="app/layout.tsx"
 export default function RootLayout({ children }) {
   return (
@@ -959,6 +973,28 @@ export default function RootLayout({ children }) {
   )
 }
 ```
+
+</AppOnly>
+
+<PagesOnly>
+
+```tsx filename="pages/_document.tsx"
+import { Html, Head, Main, NextScript } from 'next/document'
+
+export default function Document() {
+  return (
+    <Html lang="en" data-scroll-behavior="smooth">
+      <Head />
+      <body>
+        <Main />
+        <NextScript />
+      </body>
+    </Html>
+  )
+}
+```
+
+</PagesOnly>
 
 ## Performance Improvements
 
@@ -1175,6 +1211,8 @@ The following options have been removed from [`devIndicators`](/docs/app/api-ref
 
 The indicator itself remains available.
 
+<AppOnly>
+
 ### `experimental.dynamicIO` and `experimental.useCache`
 
 The `experimental.dynamicIO` and `experimental.useCache` flags have been removed.
@@ -1225,6 +1263,8 @@ For the full migration path, see [Migrating to Cache Components](/docs/app/guide
 
 The `unstable_rootParams` function has been removed. Use [`next/root-params`](/docs/app/api-reference/functions/next-root-params) instead.
 
+</AppOnly>
+
 ## Troubleshooting
 
 ### Installation fails after upgrading to React 19
@@ -1233,7 +1273,7 @@ The `unstable_rootParams` function has been removed. Use [`next/root-params`](/d
 
 ### Installation fails after upgrading ESLint
 
-Next.js 16 removes `next lint`, but migrating to the ESLint CLI does not require upgrading ESLint. `eslint-config-next@16` requires ESLint 9; an existing compatible lint configuration can use an older version.
+Next.js 16 removes `next lint`, but migrating to the ESLint CLI does not require upgrading ESLint. `eslint-config-next@16` requires ESLint 9 or later, and `eslint-config-next@16.4.0` or later supports ESLint 10. If your existing lint configuration does not use `eslint-config-next@16`, you can keep its compatible ESLint version.
 
 - [ ] If an ESLint upgrade causes peer dependency conflicts, restore the previous compatible versions of `eslint`, `eslint-config-next`, and `@next/eslint-plugin-next` (if present), along with the previous lint configuration.
 - [ ] If installation interrupted the upgrade, retry the same exact target with `--skip-eslint-upgrade` to preserve the repaired lint stack and skip the lint codemod. If Next.js already matches the target, install dependencies and complete interrupted migrations individually. Replace `next lint` scripts with ESLint CLI commands compatible with the preserved configuration. Confirm installation and lint pass.
@@ -1244,13 +1284,18 @@ After applying the changes relevant to your app, review these action items befor
 you consider the migration complete:
 
 - [ ] The app meets the Node.js, TypeScript, and React requirements in this guide.
-- [ ] Async Request API access and affected callers are migrated. Resolve codemod error comments and `UnsafeUnwrapped` casts; use React `use` for synchronous Client Components where appropriate.
-- [ ] Dynamic metadata image functions and sitemap functions handle their asynchronous parameters, and affected generated URLs work.
 - [ ] Development and build scripts agree with the effective bundler configuration, including plugins, loaders, aliases, and affected Sass imports.
 - [ ] Middleware and proxy changes preserve the required runtime and routing behavior. Edge middleware is not blindly renamed to proxy.
-- [ ] Parallel route slots have appropriate defaults, and direct navigation and reloads retain the intended fallback behavior.
 - [ ] Affected image requests succeed under the documented restrictions and defaults while preserving the intended quality.
 - [ ] Existing cache API calls follow the documented signatures and semantics. React Compiler and Cache Components are not enabled merely to complete the upgrade.
 - [ ] Removed APIs and configuration have no remaining consumers. Runtime configuration replacements preserve server and client visibility and the required evaluation time.
 - [ ] Scripts and CI no longer invoke `next lint`; linting runs separately where the app requires it.
 - [ ] The app's supported checks and affected runtime behavior pass. A green build alone does not close runtime findings.
+
+<AppOnly>
+
+- [ ] Async Request API access and affected callers are migrated. Resolve codemod error comments and `UnsafeUnwrapped` casts; use React `use` for synchronous Client Components where appropriate.
+- [ ] Dynamic metadata image functions and sitemap functions handle their asynchronous parameters, and affected generated URLs work.
+- [ ] Parallel route slots have appropriate defaults, and direct navigation and reloads retain the intended fallback behavior.
+
+</AppOnly>

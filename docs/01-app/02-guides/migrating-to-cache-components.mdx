@@ -941,7 +941,7 @@ See [`generateMetadata` with Cache Components](/docs/app/api-reference/functions
 
 ## `runtime = 'edge'`
 
-**Not supported.** Cache Components requires the Node.js runtime. Switch to the Node.js runtime (the default) by removing the [deprecated](/docs/messages/edge-runtime-deprecated) `runtime = 'edge'` export. If you need edge behavior for specific routes, use [Proxy](/docs/app/api-reference/file-conventions/proxy) instead.
+**Remove the `runtime` export.** Cache Components requires the Node.js runtime, which is the default, and does not support the [`runtime` route segment config](/docs/app/api-reference/file-conventions/route-segment-config/runtime). Remove the export even when it is set to `runtime = 'nodejs'`. If a route uses the [deprecated](/docs/messages/edge-runtime-deprecated) `runtime = 'edge'` export, remove it and use [Proxy](/docs/app/api-reference/file-conventions/proxy) when you need edge behavior.
 
 ## `experimental_ppr`
 

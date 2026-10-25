@@ -198,13 +198,6 @@ async function main() {
     versionBumpArgs.push('--preid', 'beta')
   }
 
-  if (dryRun) {
-    // So the dry-run can be exercised outside
-    // of the release branches scripts/release-branches.json restricts
-    // real version bumps to.
-    versionBumpArgs.push('--allow-branch', '**')
-  }
-
   const child = execa('node', versionBumpArgs, {
     stdio: 'inherit',
   })
@@ -255,8 +248,6 @@ async function main() {
 
   if (releaseType === 'stable') {
     await updateLtsBranchRefs(githubToken, {
-      // Validated against SEMVER_TYPES above (stable always requires one).
-      semverType: /** @type {'patch' | 'minor' | 'major'} */ (semverType),
       tagName,
       tagSha: signedTagSha,
       githubRequest: mockRequest,

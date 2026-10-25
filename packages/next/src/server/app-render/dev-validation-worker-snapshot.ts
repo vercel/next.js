@@ -7,8 +7,6 @@ import type {
   SerializedValidationInputs,
 } from './dev-validation-worker-globals'
 
-import { isNodeNextResponse } from '../base-http/helpers'
-
 /**
  * Builds the serializable snapshot the dev validation worker needs to rebuild
  * the render context and inputs and run `runValidationInDev` on the worker
@@ -26,8 +24,7 @@ export async function buildDevValidationSnapshot(
   devRenderDidError: boolean
 ): Promise<DevValidationSnapshot> {
   const requestStore = staticInputs.requestStore
-  const responseFinished =
-    !isNodeNextResponse(ctx.res) || ctx.res.originalResponse.writableFinished
+  const responseFinished = ctx.devResponseLifecycle?.isFinished() ?? true
 
   // The instant and static inputs may share one debug channel, so drain each
   // channel only once.

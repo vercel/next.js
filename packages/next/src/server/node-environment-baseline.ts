@@ -8,7 +8,7 @@ if (typeof (globalThis as any).AsyncLocalStorage !== 'function') {
   ;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
 }
 
-if (typeof (globalThis as any).WebSocket !== 'function') {
+if (typeof globalThis.WebSocket !== 'function') {
   Object.defineProperty(globalThis, 'WebSocket', {
     configurable: true,
     get() {
