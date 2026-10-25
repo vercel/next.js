@@ -36,16 +36,17 @@ type FileSystemCacheContext = Omit<
 }
 
 /**
- * Returns the last modified time of a response cache entry read from disk.
- * Reproducible build tools (Bazel rules_js, OCI layer builders) normalize file
- * mtimes to the Unix epoch. The incremental cache treats a lastModified of 0
- * as unknown and substitutes the current time, so such an entry would never
- * become stale. Treat an epoch mtime as the time this server started instead,
- * so the entry is revalidated once its revalidate period has passed.
+ * Returns the lastModified of a response cache entry read from disk.
+ * Reproducible builds (e.g. Bazel rules_js) set mtimes to the Unix epoch.
+ * IncrementalCache treats a lastModified of 0 as unknown and substitutes the
+ * current time, so such an entry would never become stale. Use the server
+ * start time instead. It is persisted when the seed is promoted, so if the
+ * seed can't be promoted (e.g. read-only cache directory) the revalidate
+ * period restarts with each server start.
  */
 function getResponseLastModified(mtime: Date): number {
   const lastModified = mtime.getTime()
-  return lastModified === 0 ? performance.timeOrigin : lastModified
+  return lastModified === 0 ? Math.floor(performance.timeOrigin) : lastModified
 }
 
 export default class FileSystemCache implements CacheHandler {
