@@ -2553,6 +2553,127 @@ describe('Next-owned test discovery and configuration', () => {
       await session.dispose()
     }
   }, 30000)
+  it('preserves a child-owned alias and its compiler inputs beside an unused root alias with the same find', async () => {
+    const canonical = await realpath(directory)
+    const rootHelper = path.join(directory, 'root-alias-input.mjs')
+    const childHelper = path.join(directory, 'child-alias-input.mjs')
+    const rootTarget = path.join(canonical, 'root-value.mjs')
+    const childTarget = path.join(canonical, 'child-value.mjs')
+    await writeFile(rootTarget, 'export const value = 99')
+    await writeFile(childTarget, 'export const value = 2')
+    await writeFile(
+      rootHelper,
+      `export const target = ${JSON.stringify(rootTarget)}`
+    )
+    await writeFile(
+      childHelper,
+      `export const target = ${JSON.stringify(childTarget)}`
+    )
+    await writeFile(
+      path.join(directory, 'vitest.config.mjs'),
+      `import{target}from'./root-alias-input.mjs';export default {resolve:{alias:{'owner-value':target}},test:{projects:['./vitest.child.config.mjs']}}`
+    )
+    await writeFile(
+      path.join(directory, 'vitest.child.config.mjs'),
+      `import{target}from'./child-alias-input.mjs';export default {resolve:{alias:{'owner-value':target}},test:{name:'child',include:['*.case.mjs']}}`
+    )
+    const session = await openTestConfiguration(directory)
+    try {
+      const child = session.config.projects[0]
+      expect(child.compilerAliases?.entries).toEqual([
+        { find: 'owner-value', replacement: childTarget },
+      ])
+      expect(child.compilerAliases?.inputs).toContain(
+        await realpath(childHelper)
+      )
+      expect(child.compilerAliases?.inputs).not.toContain(
+        await realpath(rootHelper)
+      )
+      expect(session.compilerInputs).toContain(await realpath(childHelper))
+      expect(session.compilerInputs).not.toContain(await realpath(rootHelper))
+      expect(session.compilerInputsForProjects([child])).toEqual(
+        session.compilerInputs
+      )
+      expect(session.watchInputs).toContain(await realpath(rootHelper))
+      expect(session.watchInputs).toContain(await realpath(childHelper))
+    } finally {
+      await session.dispose()
+    }
+  }, 30000)
+
+  it('does not give an independent external project the root alias or root compiler input role', async () => {
+    const target = path.join(await realpath(directory), 'root-value.mjs')
+    const helper = path.join(directory, 'unused-alias-input.mjs')
+    await writeFile(target, 'export const value = 99')
+    await writeFile(helper, `export const target = ${JSON.stringify(target)}`)
+    await writeFile(
+      path.join(directory, 'vitest.config.mjs'),
+      `import{target}from'./unused-alias-input.mjs';export default {resolve:{alias:{'owner-value':target}},test:{projects:['./vitest.child.config.mjs']}}`
+    )
+    await writeFile(
+      path.join(directory, 'vitest.child.config.mjs'),
+      `export default {test:{name:'child',include:['*.case.mjs']}}`
+    )
+    const session = await openTestConfiguration(directory)
+    try {
+      expect(session.config.projects[0].compilerAliases).toBeUndefined()
+      expect(session.compilerInputs).toEqual([])
+      expect(
+        session.compilerInputsForProjects(session.config.projects)
+      ).toEqual([])
+      expect(session.watchInputs).toContain(await realpath(helper))
+    } finally {
+      await session.dispose()
+    }
+    expect(
+      (await loadTestConfig(directory)).projects[0].compilerAliases
+    ).toBeUndefined()
+  }, 30000)
+
+  it('assigns root aliases only to inline owners and retains selected external alias dependencies', async () => {
+    const canonical = await realpath(directory)
+    const helpers = new Map<string, string>()
+    const targets = new Map<string, string>()
+    for (const name of ['root', 'first', 'second']) {
+      const target = path.join(canonical, `${name}-value.mjs`)
+      const helper = path.join(directory, `${name}-alias-input.mjs`)
+      await writeFile(target, 'export const value = 1')
+      await writeFile(helper, `export const target = ${JSON.stringify(target)}`)
+      helpers.set(name, await realpath(helper))
+      targets.set(name, target)
+    }
+    await writeFile(
+      path.join(directory, 'vitest.config.mjs'),
+      `import{target}from'./root-alias-input.mjs';export default {resolve:{alias:{'owner-value':target}},test:{projects:[{test:{name:'inline',include:['*.case.mjs']}},'./vitest.first.config.mjs','./vitest.second.config.mjs']}}`
+    )
+    for (const name of ['first', 'second'])
+      await writeFile(
+        path.join(directory, `vitest.${name}.config.mjs`),
+        `import{target}from'./${name}-alias-input.mjs';export default {resolve:{alias:{'owner-value':target}},test:{name:'${name}',include:['*.case.mjs']}}`
+      )
+    const session = await openTestConfiguration(directory)
+    try {
+      for (const name of ['inline', 'first', 'second']) {
+        const project = session.config.projects.find(
+          (project) => project.profile.id === name
+        )!
+        const owner = name === 'inline' ? 'root' : name
+        expect(project.compilerAliases?.entries).toEqual([
+          { find: 'owner-value', replacement: targets.get(owner) },
+        ])
+        const selected = session.compilerInputsForProjects([project])
+        expect(selected).toContain(helpers.get(owner))
+        for (const [other, helper] of helpers) {
+          if (other !== owner) expect(selected).not.toContain(helper)
+          expect(session.watchInputs).toContain(helper)
+        }
+      }
+      for (const helper of helpers.values())
+        expect(session.compilerInputs).toContain(helper)
+    } finally {
+      await session.dispose()
+    }
+  }, 30000)
 })
 
 // These test orchestration with real K reporting and controlled producer seams.

@@ -1031,15 +1031,9 @@ export async function openTestConfiguration(
     )
     const config = projectModules?.config ?? normalize(value)
     if (realm?.compilerAliases) {
-      if (
-        projectModules &&
-        config.projects.some((project) => projectModules!.owns(project))
-      )
-        invalid(
-          'Root resolve.alias inheritance into external project configurations is not implemented; configure each project mapping explicitly.'
-        )
       for (const project of config.projects)
-        project.compilerAliases = realm.compilerAliases
+        if (!projectModules?.owns(project))
+          project.compilerAliases = realm.compilerAliases
     }
     function compilerInputsForProjects(projects: readonly TestProjectConfig[]) {
       const usesRoot = projects.some(
