@@ -86,5 +86,21 @@ describe('get-page-static-infos', () => {
         regex.test('/index.segments/$c$children/__PAGE__.segment.rsc')
       ).toBe(true)
     })
+
+    it('matches the basePath root for catch-all matchers that match root', () => {
+      const regex = new RegExp(
+        getMiddlewareMatchers(
+          '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)',
+          { i18n: undefined, basePath: '/test' }
+        )[0].regexp
+      )
+
+      expect(regex.test('/test')).toBe(true)
+      expect(regex.test('/test/')).toBe(true)
+      expect(regex.test('/')).toBe(true)
+      expect(regex.test('/test/dashboard')).toBe(true)
+      expect(regex.test('/test/api')).toBe(false)
+      expect(regex.test('/testing')).toBe(false)
+    })
   })
 })
