@@ -1,0 +1,12 @@
+import { test, beforeAll, afterAll } from 'vitest'
+import { page } from 'vitest/browser'
+const row = (phase, fields = {}) => console.log('BROWSER_HOOK_SEQUENCE:' + JSON.stringify({phase, ...fields}))
+let release, later, clicks = 0
+beforeAll(() => { release = document.createElement('button'); release.textContent = 'Release target'; release.onclick = () => { later = document.createElement('button'); later.textContent = 'Deferred target'; later.onclick = () => { clicks++ }; document.body.append(later); row('released') }; document.body.append(release) })
+afterAll(() => { release.remove(); later?.remove() })
+test('same body native actions cooperate', async () => {
+  const waiting = page.getByRole('button', {name:'Deferred target',exact:true}).click({timeout:500})
+  const releasing = page.getByRole('button', {name:'Release target',exact:true}).click({timeout:500})
+  await Promise.all([waiting,releasing])
+  row('complete',{clicks})
+})

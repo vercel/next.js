@@ -1,0 +1,35 @@
+{
+  "rows": [
+    {
+      "phase": "created",
+      "clicks": 0
+    },
+    {
+      "phase": "public-query",
+      "count": 1,
+      "text": "Retained serial target"
+    },
+    {
+      "phase": "retained-consumed",
+      "clicks": 1
+    },
+    {
+      "phase": "new-call",
+      "clicks": 2
+    }
+  ],
+  "cases": [
+    {
+      "name": "creates retained locator and action in A",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "public retained locator follows live caller B",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "success": true,
+  "exit": 0
+}

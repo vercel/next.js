@@ -1,0 +1,12 @@
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"setup-start\",\"scope\":\"file\",\"stage\":\"cleanup\",\"id\":1,\"clicks\":0}","browser":true,"time":1792952488283,"taskId":"-1594086377_0","type":"stdout","size":97}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"setup-end\",\"scope\":\"file\",\"stage\":\"cleanup\",\"id\":1,\"clicks\":0}","browser":true,"time":1792952488283,"taskId":"-1594086377_0","type":"stdout","size":95}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"A\",\"id\":1,\"clicks\":0,\"closed\":false}","browser":true,"time":1792952488284,"taskId":"-1594086377_0","type":"stdout","size":69}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"B\",\"id\":1,\"clicks\":0,\"closed\":false,\"firstClosed\":false,\"same\":true}","browser":true,"time":1792952488290,"taskId":"-1594086377_1","type":"stdout","size":101}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"cleanup-start\",\"scope\":\"file\",\"stage\":\"cleanup\",\"id\":1,\"clicks\":0}","browser":true,"time":1792952488291,"taskId":"-1594086377","type":"stdout","size":99}}
+{"hook":"ready","id":"-1594086377_0","name":"native fixture A","result":{"state":"passed"}}
+{"hook":"case","id":"-1594086377_0","name":"native fixture A","result":{"state":"passed","errors":[]}}
+{"hook":"ready","id":"-1594086377_1","name":"native fixture B","result":{"state":"passed"}}
+{"hook":"case","id":"-1594086377_1","name":"native fixture B","result":{"state":"passed","errors":[]}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"cleanup-end\",\"scope\":\"file\",\"stage\":\"cleanup\",\"id\":1,\"clicks\":1,\"closed\":true}","browser":true,"time":1792952488393,"taskId":"-1594086377","type":"stdout","size":111}}
+{"hook":"module","id":"-1594086377","state":"passed","errors":[]}
+{"hook":"end","reason":"passed","errors":[],"files":[{"id":"-1594086377","state":"passed","tests":[{"id":"-1594086377_0","name":"native fixture A","result":{"state":"passed","errors":[]}},{"id":"-1594086377_1","name":"native fixture B","result":{"state":"passed","errors":[]}}]}]}

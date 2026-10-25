@@ -1,0 +1,2 @@
+{"content":"BROWSER_HOOK_SEQUENCE:{\"phase\":\"released\"}","browser":true,"time":1792927870101,"taskId":"1018205745_0","type":"stdout","size":42}
+{"content":"BROWSER_HOOK_SEQUENCE:{\"phase\":\"complete\",\"clicks\":1}","browser":true,"time":1792927870165,"taskId":"1018205745_0","type":"stdout","size":53}

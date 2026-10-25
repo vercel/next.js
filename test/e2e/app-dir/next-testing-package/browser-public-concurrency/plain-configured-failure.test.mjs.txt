@@ -1,0 +1,16 @@
+import{test}from'vitest'
+const concurrent=true,declared=false,failure=true
+const row=value=>console.log('BROWSER_CONCURRENCY:'+JSON.stringify(value))
+function gate(){let resolve;const promise=new Promise(value=>{resolve=value});return{promise,resolve}}
+const aStarted=gate(),bStarted=gate(),aFinal=gate(),active=new Set()
+const channel=new MessageChannel();channel.port1.onmessage=()=>{aFinal.resolve();channel.port1.close();channel.port2.close()}
+const add=(name,body)=>declared?test.concurrent(name,body):test(name,body)
+const finishCounts=()=>({a:Array.isArray(aContext?.task.onFinished)?aContext.task.onFinished.length:0,b:Array.isArray(bContext?.task.onFinished)?bContext.task.onFinished.length:0})
+let aContext,bContext
+add('plain A',async context=>{
+ aContext=context;active.add('A');row({phase:'A-start',active:[...active]});aStarted.resolve()
+ try{if(concurrent)await bStarted.promise;await Promise.resolve();row({phase:'A-resumed',active:[...active],self:context.task.name});context.expect(active.has('B')).toBe(concurrent);if(failure){const error=new Error('original plain concurrent failure');error.stack='';throw error}row({phase:'A-end'})}finally{active.delete('A');channel.port2.postMessage('A-final')}
+})
+add('plain B',async context=>{
+ bContext=context;active.add('B');row({phase:'B-start',active:[...active]});bStarted.resolve();if(concurrent)await aFinal.promise;await Promise.resolve();context.expect(active.has('A')).toBe(false);row({phase:'B-end',active:[...active],self:context.task.name});active.delete('B')
+})

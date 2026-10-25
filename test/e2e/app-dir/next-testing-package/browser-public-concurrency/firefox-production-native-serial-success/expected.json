@@ -1,0 +1,116 @@
+{
+  "rows": [
+    {
+      "value": {
+        "phase": "A-start",
+        "active": ["A"]
+      },
+      "task": "native A"
+    },
+    {
+      "value": {
+        "phase": "A-requested",
+        "active": ["A"],
+        "finished": {
+          "a": 1,
+          "b": 0
+        }
+      },
+      "task": "native A"
+    },
+    {
+      "value": {
+        "phase": "A-end",
+        "clicksA": 1,
+        "clicksB": 0,
+        "finished": {
+          "a": 1,
+          "b": 0
+        }
+      },
+      "task": "native A"
+    },
+    {
+      "value": {
+        "phase": "B-start",
+        "active": ["B"]
+      },
+      "task": "native B"
+    },
+    {
+      "value": {
+        "phase": "B-before-native",
+        "finished": {
+          "a": 0,
+          "b": 0
+        }
+      },
+      "task": "native B"
+    },
+    {
+      "value": {
+        "phase": "B-native-done",
+        "clicksA": 1,
+        "clicksB": 1,
+        "finished": {
+          "a": 0,
+          "b": 1
+        }
+      },
+      "task": "native B"
+    },
+    {
+      "value": {
+        "phase": "B-end",
+        "clicksA": 1,
+        "clicksB": 1
+      },
+      "task": "native B"
+    }
+  ],
+  "cases": [
+    {
+      "name": "native A",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "native B",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "caseFinals": [
+    {
+      "name": "native A",
+      "state": "passed"
+    },
+    {
+      "name": "native B",
+      "state": "passed"
+    }
+  ],
+  "runFinals": [
+    {
+      "reason": "passed",
+      "errors": [],
+      "files": [
+        {
+          "state": "passed",
+          "tests": [
+            {
+              "name": "native A",
+              "state": "passed"
+            },
+            {
+              "name": "native B",
+              "state": "passed"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "success": true,
+  "exit": 0
+}

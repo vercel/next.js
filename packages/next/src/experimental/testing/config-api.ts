@@ -13,6 +13,316 @@ export interface ConfigEnv {
 export interface UserConfig extends Record<string, unknown> {
   test?: Record<string, unknown>
 }
+/** Public test settings modeled by the configuration facade. */
+export interface TestUserConfig {
+  mode?: string
+  name?:
+    | string
+    | {
+        label: string
+        color?:
+          | 'black'
+          | 'red'
+          | 'green'
+          | 'yellow'
+          | 'blue'
+          | 'magenta'
+          | 'cyan'
+          | 'white'
+      }
+  include?: string[]
+  exclude?: string[]
+  includeSource?: string[]
+  setupFiles?: string | string[]
+  globalSetup?: string | string[]
+  globals?: boolean
+  environment?: string
+  browser?: ConfigurationBrowser
+  env?: Partial<NodeJS.ProcessEnv>
+  testTimeout?: number
+  hookTimeout?: number
+  isolate?: boolean
+  maxWorkers?: number | string
+  maxConcurrency?: number
+  retry?: number | { count?: number; delay?: number; condition?: RegExp }
+  clearMocks?: boolean
+  mockReset?: boolean
+  restoreMocks?: boolean
+  unstubGlobals?: boolean
+  unstubEnvs?: boolean
+  sequence?: ConfigurationSequence
+  projects?: TestProjectConfiguration[]
+  watch?: boolean
+  shard?: string
+  testNamePattern?: string | RegExp
+  passWithNoTests?: boolean
+}
+
+interface ConfigurationSequence {
+  hooks?: 'stack' | 'list' | 'parallel'
+  setupFiles?: 'list' | 'parallel'
+  concurrent?: boolean
+  seed?: number
+  shuffle?: boolean | { files?: boolean; tests?: boolean }
+}
+
+type ProjectTestSettings = Omit<
+  TestUserConfig,
+  | 'projects'
+  | 'sequence'
+  | 'watch'
+  | 'shard'
+  | 'testNamePattern'
+  | 'passWithNoTests'
+> & {
+  sequence?: Omit<ConfigurationSequence, 'seed' | 'shuffle'> & {
+    shuffle?: boolean | { tests?: boolean }
+  }
+}
+
+interface ConfigurationPluginLog {
+  message: string
+  code?: string
+  id?: string
+  plugin?: string
+  frame?: string
+  loc?: { file?: string; line: number; column: number }
+}
+interface ConfigurationResolvedId {
+  id: string
+  external: boolean | 'absolute'
+  moduleSideEffects: boolean | 'no-treeshake' | null
+}
+interface ConfigurationPluginContext {
+  warn(
+    message:
+      | string
+      | ConfigurationPluginLog
+      | (() => string | ConfigurationPluginLog)
+  ): void
+  error(message: string | ConfigurationPluginLog): never
+  addWatchFile(file: string): void
+  resolve(
+    source: string,
+    importer?: string,
+    options?: { skipSelf?: boolean; isEntry?: boolean }
+  ): Promise<ConfigurationResolvedId | null>
+}
+interface ConfigurationTransformContext extends ConfigurationPluginContext {
+  warn(
+    message:
+      | string
+      | ConfigurationPluginLog
+      | (() => string | ConfigurationPluginLog),
+    position?: number | { line: number; column: number }
+  ): void
+  error(
+    message: string | ConfigurationPluginLog,
+    position?: number | { line: number; column: number }
+  ): never
+}
+interface ConfigurationSourceMap {
+  version: number
+  file?: string
+  sources: string[]
+  names: string[]
+  mappings: string
+  sourcesContent?: (string | null)[]
+  sourceRoot?: string
+}
+type ConfigurationTransformResult =
+  | string
+  | null
+  | undefined
+  | void
+  | { code: string; map?: ConfigurationSourceMap | string | null }
+type ConfigurationObjectHook<T> = T | { handler: T; order?: 'pre' | 'post' }
+type ConfigurationTransformHook = (
+  this: ConfigurationTransformContext,
+  code: string,
+  id: string,
+  options?: { moduleType: string; ssr?: boolean }
+) => ConfigurationTransformResult | Promise<ConfigurationTransformResult>
+type ConfigurationLoadHook = (
+  this: ConfigurationPluginContext,
+  id: string,
+  options?: { ssr?: boolean }
+) => ConfigurationTransformResult | Promise<ConfigurationTransformResult>
+interface ConfigurationBuildOptions {
+  input: string[] | { [name: string]: string }
+  cwd: string
+  platform: 'node' | 'browser' | 'neutral' | undefined
+  shimMissingExports: boolean
+  context: string
+  plugins: (
+    | ConfigurationPlugin
+    | { _parallel: { fileUrl: string; options: unknown } }
+  )[]
+}
+interface ConfigurationPluginApplyConfig
+  extends Omit<UserWorkspaceConfig, 'test'> {
+  test?: TestUserConfig
+}
+interface ConfigurationPlugin {
+  name: string
+  enforce?: 'pre' | 'post'
+  apply?:
+    | 'serve'
+    | 'build'
+    | ((
+        this: void,
+        config: ConfigurationPluginApplyConfig,
+        env: ConfigEnv
+      ) => boolean)
+  buildStart?: ConfigurationObjectHook<
+    (
+      this: ConfigurationPluginContext,
+      options: ConfigurationBuildOptions
+    ) => void | Promise<void>
+  >
+  transform?: ConfigurationObjectHook<ConfigurationTransformHook>
+  load?: ConfigurationObjectHook<ConfigurationLoadHook>
+}
+type ConfigurationPluginOption =
+  | ConfigurationPlugin
+  | false
+  | null
+  | undefined
+  | ConfigurationPluginOption[]
+  | Promise<
+      | ConfigurationPlugin
+      | false
+      | null
+      | undefined
+      | ConfigurationPluginOption[]
+    >
+interface ConfigurationHmr {
+  protocol?: string
+  host?: string
+  port?: number
+  clientPort?: number
+  path?: string
+  timeout?: number
+  overlay?: boolean
+  server?: import('node:http').Server | import('node:http2').Http2SecureServer
+}
+interface ConfigurationProxyTarget {
+  host: string
+  port: number
+  protocol?: string
+  hostname?: string
+  socketPath?: string
+  key?: string
+  passphrase?: string
+  pfx?: Buffer | string
+  cert?: string
+  ca?: string
+  ciphers?: string
+  secureProtocol?: string
+}
+interface ConfigurationProxyOptions {
+  target?: string | URL | ConfigurationProxyTarget
+  forward?: string | URL | { host: string; port: number; protocol?: string }
+  ws?: boolean
+  xfwd?: boolean
+  secure?: boolean
+  toProxy?: boolean
+  prependPath?: boolean
+  ignorePath?: boolean
+  localAddress?: string
+  changeOrigin?: boolean
+  preserveHeaderKeyCase?: boolean
+  auth?: string
+  hostRewrite?: string
+  autoRewrite?: boolean
+  protocolRewrite?: string
+  cookieDomainRewrite?: false | string | { [oldDomain: string]: string }
+  cookiePathRewrite?: false | string | { [oldPath: string]: string }
+  headers?: { [header: string]: string | string[] | undefined }
+  proxyTimeout?: number
+  timeout?: number
+  followRedirects?: boolean
+  selfHandleResponse?: boolean
+  buffer?: import('node:stream').Stream
+  method?: string
+  ca?: string
+  rewrite?: (path: string) => string
+  rewriteWsOrigin?: boolean
+  bypass?: (
+    req: import('node:http').IncomingMessage,
+    res: import('node:http').ServerResponse | undefined,
+    options: ConfigurationProxyOptions
+  ) =>
+    | void
+    | null
+    | undefined
+    | false
+    | string
+    | Promise<void | null | undefined | boolean | string>
+}
+interface ConfigurationServer {
+  port?: number
+  strictPort?: boolean
+  host?: string | boolean
+  hmr?: boolean | ConfigurationHmr
+  headers?: import('node:http').OutgoingHttpHeaders
+  proxy?: { [context: string]: string | ConfigurationProxyOptions }
+}
+interface ConfigurationLocators {
+  testIdAttribute?: string
+  exact?: boolean
+  errorFormat?: 'html' | 'aria' | 'all'
+}
+interface ConfigurationViewport {
+  width: number
+  height: number
+}
+interface ConfigurationBrowser {
+  detailsPanelPosition?: 'right' | 'bottom'
+  enabled?: boolean
+  headless?: boolean
+  ui?: boolean
+  locators?: ConfigurationLocators
+  viewport?: ConfigurationViewport
+  instances?: {
+    browser: string
+    name?: string
+    headless?: boolean
+    viewport?: ConfigurationViewport
+    locators?: ConfigurationLocators
+  }[]
+}
+
+/** Typed project authoring data; unmodeled Vite fields remain outside this facade. */
+export interface UserWorkspaceConfig {
+  root?: string
+  base?: string
+  plugins?: ConfigurationPluginOption[]
+  server?: ConfigurationServer
+  mode?: string
+  resolve?: {
+    alias?:
+      | { [find: string]: string }
+      | readonly { find: string | RegExp; replacement: string }[]
+  }
+  test?: ProjectTestSettings & { projects?: TestProjectConfiguration[] }
+}
+export type UserProjectConfigFn = (
+  env: ConfigEnv
+) => UserWorkspaceConfig | Promise<UserWorkspaceConfig>
+export type UserProjectConfigExport =
+  | UserWorkspaceConfig
+  | Promise<UserWorkspaceConfig>
+  | UserProjectConfigFn
+export type TestProjectInlineConfiguration = UserWorkspaceConfig & {
+  extends?: string | boolean
+}
+export type TestProjectConfiguration =
+  | string
+  | TestProjectInlineConfiguration
+  | Promise<UserWorkspaceConfig>
+  | UserProjectConfigFn
+
 export type ViteUserConfigFnObject = (env: ConfigEnv) => UserConfig
 export type ViteUserConfigFnPromise = (env: ConfigEnv) => Promise<UserConfig>
 export type UserConfigFn = (env: ConfigEnv) => UserConfig | Promise<UserConfig>

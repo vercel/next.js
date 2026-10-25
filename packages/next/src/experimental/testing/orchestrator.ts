@@ -1,4 +1,8 @@
 import type { RuntimeModuleCompletion } from './execution/completed-module'
+import type {
+  IstanbulSourcePlan,
+  IstanbulStandardFileCoverage,
+} from './coverage/istanbul-types'
 import {
   createRuntimeConfigurationPlan,
   assertRuntimeConfigurationPlan,
@@ -87,6 +91,8 @@ export interface RunTestsOptions {
   reporter?: Omit<TestReporterOptions, 'write' | 'projectDir' | 'fileCount'>
   coverage?: boolean
   standardCoverageOptions?: StandardCoverageOptions
+  /** Separate JavaScript instrumentation selection for explicit Istanbul. */
+  istanbulSourcePlan?: IstanbulSourcePlan
   /** Parent-issued source/profile selection; compiler children cannot authorize themselves. */
   coverageSourcePlan?: CoverageSourcePlan
   /** Derived only from the existing isolated one-shot compiler request. */
@@ -196,7 +202,52 @@ export async function runTests(
     throw new Error('Standard coverage options require coverage collection.')
   if (options.collectOnly && options.coverage)
     throw new Error('Collection cannot request coverage or snapshot updates.')
+  const istanbul = options.standardCoverageOptions?.provider === 'istanbul'
+  if (
+    istanbul &&
+    (projects.length !== 1 ||
+      projects[0].isolate === false ||
+      options.collectOnly ||
+      options.inspect ||
+      options.customCoverageRequests ||
+      options.userCancelSignal ||
+      projects[0].executionEnvironment ||
+      projects[0].typecheck?.enabled)
+  )
+    throw new Error(
+      'Istanbul currently requires one one-shot isolated development Node JavaScript project.'
+    )
+  const istanbulSourcePlan = istanbul
+    ? (options.istanbulSourcePlan ??
+      (await (
+        await import('./coverage/istanbul-instrumentation.js')
+      ).createIstanbulSourcePlan({
+        projectDir,
+        profile: projects[0].profile,
+        config: options.standardCoverageOptions!,
+        excludedFiles: [
+          ...(options.coverageInputs ?? []),
+          ...projects[0].setupFiles,
+          ...projects[0].entries.map((entry) => entry.file),
+        ],
+        signal: options.signal,
+      })))
+    : undefined
+  if (options.istanbulSourcePlan && !istanbul)
+    throw new Error(
+      'An Istanbul source plan requires the explicit Istanbul provider.'
+    )
+  if (istanbulSourcePlan) {
+    if (!isDeepStrictEqual(istanbulSourcePlan.profile, projects[0].profile))
+      throw new Error(
+        'Istanbul source selection has a different compiler profile.'
+      )
+    await (
+      await import('./coverage/istanbul-instrumentation.js')
+    ).assertIstanbulSourcePlan(istanbulSourcePlan, options.signal)
+  }
   const standardCoverage: StandardFileCoverage[] = []
+  const istanbulCoverage: IstanbulStandardFileCoverage[] = []
   const compilerSourceCoverage: CompilerSourceCoverage[] = []
   const runtimeConfigurationReceipts: RuntimeConfigurationReceipt[] = []
   if (
@@ -208,28 +259,30 @@ export async function runTests(
     throw new Error(
       'Compiler source analysis requires standard coverage options'
     )
-  const coverageSourcePlan = options.standardCoverageOptions
-    ? (options.coverageSourcePlan ??
-      (await createCoverageSourcePlan({
-        projectDir,
-        projects,
-        config: options.standardCoverageOptions,
-        inputs: options.coverageInputs,
-        includeUnimported: options.includeUnimportedCoverage,
-        signal: options.signal,
-      })))
-    : { version: 1 as const, requests: [], inputs: [] }
-  await assertCoverageSourcePlan(coverageSourcePlan, options.signal)
-  const runtimeConfigurationPlan = options.standardCoverageOptions
-    ? options.runtimeConfigurationPlan
-      ? structuredClone(options.runtimeConfigurationPlan)
-      : await createRuntimeConfigurationPlan({
+  const coverageSourcePlan =
+    options.standardCoverageOptions && !istanbul
+      ? (options.coverageSourcePlan ??
+        (await createCoverageSourcePlan({
           projectDir,
           projects,
+          config: options.standardCoverageOptions,
           inputs: options.coverageInputs,
+          includeUnimported: options.includeUnimportedCoverage,
           signal: options.signal,
-        })
-    : undefined
+        })))
+      : { version: 1 as const, requests: [], inputs: [] }
+  await assertCoverageSourcePlan(coverageSourcePlan, options.signal)
+  const runtimeConfigurationPlan =
+    options.standardCoverageOptions && !istanbul
+      ? options.runtimeConfigurationPlan
+        ? structuredClone(options.runtimeConfigurationPlan)
+        : await createRuntimeConfigurationPlan({
+            projectDir,
+            projects,
+            inputs: options.coverageInputs,
+            signal: options.signal,
+          })
+      : undefined
   if (runtimeConfigurationPlan) {
     await assertRuntimeConfigurationPlan(
       runtimeConfigurationPlan,
@@ -843,7 +896,42 @@ export async function runTests(
               },
             }
           : {}),
-        ...(coverageReport || options.standardCoverageOptions
+        ...(istanbul
+          ? {
+              coverage: { version: 1 as const, kind: 'node-istanbul' as const },
+              onIstanbulCoverage: async (
+                completion: import('./contracts').IstanbulCoverageCompletion
+              ) => {
+                if (
+                  coverageReceived ||
+                  completion.version !== 1 ||
+                  completion.runId !== runId ||
+                  completion.entryId !== entry.id ||
+                  completion.revision !== artifact.revision
+                )
+                  throw new Error(
+                    'Invalid or duplicate Istanbul coverage completion.'
+                  )
+                coverageReceived = true
+                if (!completion.complete)
+                  throw new Error(
+                    'Istanbul coverage collection did not complete.'
+                  )
+                const { remapIstanbulCapture } = await import(
+                  './coverage/istanbul-capture.js'
+                )
+                istanbulCoverage.push(
+                  await remapIstanbulCapture(
+                    artifact,
+                    completion.data,
+                    projectDir,
+                    controller.signal
+                  )
+                )
+              },
+            }
+          : {}),
+        ...(!istanbul && (coverageReport || options.standardCoverageOptions)
           ? {
               coverage: {
                 version: 1 as const,
@@ -1156,7 +1244,15 @@ export async function runTests(
           coverage: options.coverage,
           standardCoverageOptions: options.standardCoverageOptions,
           customCoverageDisabled: options.customCoverageDisabled,
-          ...(options.standardCoverageOptions
+          ...(istanbulSourcePlan
+            ? {
+                istanbulSourcePlan,
+                ...(options.coverageInputs
+                  ? { coverageInputs: options.coverageInputs }
+                  : {}),
+              }
+            : {}),
+          ...(options.standardCoverageOptions && !istanbul
             ? {
                 runtimeConfigurationPlan: {
                   ...runtimeConfigurationPlan!,
@@ -1245,7 +1341,21 @@ export async function runTests(
         )
       } else if (completion.result.customCoverage !== undefined)
         throw new Error('Unrequested custom coverage facts.')
-      if (options.standardCoverageOptions) {
+      if (istanbul) {
+        const { assertIstanbulCoverageFacts } = await import(
+          './coverage/report-istanbul.js'
+        )
+        istanbulCoverage.push(
+          ...(await assertIstanbulCoverageFacts({
+            facts: completion.result.istanbulCoverage,
+            projectDir,
+            plan: istanbulSourcePlan!,
+            expected: selected,
+            revisions: collectionRevisions,
+            signal: controller.signal,
+          }))
+        )
+      } else if (options.standardCoverageOptions) {
         const { assertStandardCoverageFacts } = await import(
           './coverage/report-standard.js'
         )
@@ -1479,6 +1589,13 @@ export async function runTests(
             | undefined
           let projectPhase: SerializedDiagnostic['phase'] = 'compilation'
           let sessionClosed = false
+          let instrumentation:
+            | Awaited<
+                ReturnType<
+                  typeof import('./coverage/istanbul-instrumentation').openIstanbulInstrumentation
+                >
+              >
+            | undefined
           const plannedBrowserDeclarations =
             (productionBrowserCoverage || developmentBrowserCoverage) &&
             sourceRequests.length > 0
@@ -1510,6 +1627,28 @@ export async function runTests(
                 !/\.d\.[cm]?ts$/.test(request.source.file)
             )
           try {
+            if (istanbulSourcePlan) {
+              const { openIstanbulInstrumentation, istanbulSourceSelector } =
+                await import('./coverage/istanbul-instrumentation.js')
+              instrumentation = await openIstanbulInstrumentation({
+                projectDir,
+                plan: istanbulSourcePlan,
+                signal: controller.signal,
+                ...(istanbulSourcePlan.importedOnly
+                  ? {
+                      selectSource: istanbulSourceSelector(
+                        projectDir,
+                        options.standardCoverageOptions!,
+                        [
+                          ...(options.coverageInputs ?? []),
+                          ...project.setupFiles,
+                          ...project.entries.map((entry) => entry.file),
+                        ]
+                      ),
+                    }
+                  : {}),
+              })
+            }
             const { createTestCompilerSession } = await import(
               './compiler/index.js'
             )
@@ -1518,6 +1657,29 @@ export async function runTests(
               project.profile,
               {
                 allocateArtifact: options.allocateArtifact,
+                ...(instrumentation
+                  ? {
+                      istanbulInstrumentation: instrumentation.descriptor,
+                      ...(instrumentation.readMetadata
+                        ? {
+                            readIstanbulInstrumentation:
+                              instrumentation.readMetadata,
+                          }
+                        : {}),
+                    }
+                  : {}),
+                ...(project.env !== undefined &&
+                project.isolate !== false &&
+                project.profile.environment === 'node' &&
+                project.profile.runtime === 'nodejs' &&
+                project.profile.bundler === 'turbopack' &&
+                !project.profile.browserClient &&
+                project.profile.route === undefined &&
+                (!project.executionEnvironment ||
+                  project.executionEnvironment.name === 'node') &&
+                !project.customCoverage
+                  ? { compilerEnvKeys: true as const }
+                  : {}),
                 ...(plannedBrowserDeclarations
                   ? { browserCoverageDeclarations: true }
                   : {}),
@@ -1746,9 +1908,11 @@ export async function runTests(
                       ? {
                           coverage: {
                             version: 1 as const,
-                            kind: project.profile.browserClient
-                              ? ('browser-v8' as const)
-                              : ('node-line' as const),
+                            kind: istanbul
+                              ? ('node-istanbul' as const)
+                              : project.profile.browserClient
+                                ? ('browser-v8' as const)
+                                : ('node-line' as const),
                           },
                         }
                       : {}),
@@ -1816,6 +1980,13 @@ export async function runTests(
               diagnostic(error, 'cleanup')
               controller.abort(error)
             }
+            try {
+              await instrumentation?.dispose()
+            } catch (error) {
+              unsafeCleanup = true
+              diagnostic(error, 'cleanup')
+              controller.abort(error)
+            }
           }
         }
       }
@@ -1823,6 +1994,7 @@ export async function runTests(
   } finally {
     if (
       options.standardCoverageOptions &&
+      !istanbul &&
       !options.onCoverageSource &&
       !controller.signal.aborted &&
       !unsafeCleanup
@@ -1913,8 +2085,18 @@ export async function runTests(
     ...reporter.getSummary(),
     unsafeCleanup,
     ...(options.collectOnly ? { collections } : {}),
-    ...(options.standardCoverageOptions ? { standardCoverage } : {}),
-    ...(options.standardCoverageOptions && !options.onCoverageSource
+    ...(istanbul
+      ? {
+          istanbulCoverage,
+          ...(!options.execute ? { istanbulSourcePlan } : {}),
+        }
+      : {}),
+    ...(options.standardCoverageOptions && !istanbul
+      ? { standardCoverage }
+      : {}),
+    ...(options.standardCoverageOptions &&
+    !istanbul &&
+    !options.onCoverageSource
       ? {
           compilerSourceCoverage,
           coverageSourcePlan,

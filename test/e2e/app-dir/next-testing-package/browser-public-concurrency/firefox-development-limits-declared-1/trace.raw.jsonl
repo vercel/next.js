@@ -1,0 +1,9 @@
+{"hook":"console","log":{"content":"BROWSER_CONCURRENCY:{\"phase\":\"start\",\"name\":\"limit A\",\"active\":[\"limit A\"],\"peak\":1}","browser":true,"time":1792936209084,"taskId":"-435979062_0","type":"stdout","size":84}}
+{"hook":"console","log":{"content":"BROWSER_CONCURRENCY:{\"phase\":\"end\",\"name\":\"limit A\",\"active\":[\"limit A\"],\"peak\":1}","browser":true,"time":1792936209084,"taskId":"-435979062_0","type":"stdout","size":82}}
+{"hook":"console","log":{"content":"BROWSER_CONCURRENCY:{\"phase\":\"start\",\"name\":\"limit B\",\"active\":[\"limit B\"],\"peak\":1}","browser":true,"time":1792936209085,"taskId":"-435979062_1","type":"stdout","size":84}}
+{"hook":"console","log":{"content":"BROWSER_CONCURRENCY:{\"phase\":\"end\",\"name\":\"limit B\",\"active\":[\"limit B\"],\"peak\":1}","browser":true,"time":1792936209085,"taskId":"-435979062_1","type":"stdout","size":82}}
+{"hook":"ready","id":"-435979062_0","name":"limit A","result":{"state":"passed"}}
+{"hook":"case","id":"-435979062_0","name":"limit A","result":{"state":"passed","errors":[]}}
+{"hook":"ready","id":"-435979062_1","name":"limit B","result":{"state":"passed"}}
+{"hook":"case","id":"-435979062_1","name":"limit B","result":{"state":"passed","errors":[]}}
+{"hook":"end","reason":"passed","errors":[],"files":[{"id":"-435979062","state":"passed","tests":[{"id":"-435979062_0","name":"limit A","result":{"state":"passed","errors":[]}},{"id":"-435979062_1","name":"limit B","result":{"state":"passed","errors":[]}}]}]}

@@ -32,13 +32,14 @@ export function parseStandardCoverageOptions(
     return value
   }
   const provider = flags['coverage.provider']
-  if (provider !== undefined && provider !== 'v8')
+  if (provider !== undefined && provider !== 'v8' && provider !== 'istanbul')
     throw new Error(
-      'Standard coverage CLI currently supports only the V8 provider.'
+      'Standard coverage CLI supports the V8 and Istanbul providers.'
     )
   const requestedReports = list('reporter')
   const formatterReports =
     provider === 'v8' ||
+    provider === 'istanbul' ||
     requestedReports?.some((name) =>
       [
         'text',
@@ -53,7 +54,7 @@ export function parseStandardCoverageOptions(
     )
   const reporter = [
     ...(requestedReports ??
-      (provider === 'v8'
+      (provider === 'v8' || provider === 'istanbul'
         ? ['text', 'html', 'clover', 'json']
         : ['json', 'lcov'])),
   ]
@@ -139,6 +140,7 @@ export function parseStandardCoverageOptions(
   if (![true, false, 'true', 'false'].includes(cleanOnRerun as boolean))
     throw new Error('--coverage.cleanOnRerun must be true or false.')
   return {
+    ...(provider === 'istanbul' ? { provider } : {}),
     cleanOnRerun: cleanOnRerun === true || cleanOnRerun === 'true',
     reporter: [...new Set(reporter)] as StandardCoverageOptions['reporter'],
     ...(formatterReports
@@ -179,8 +181,14 @@ export function parseProjectStandardCoverage(
     throw new Error('V8 coverage requires an object configuration.')
   const config = value as Record<string, unknown>
   if (config.provider === 'custom') return
-  if (config.provider !== undefined && config.provider !== 'v8')
-    throw new Error('Project coverage provider must be v8 or custom.')
+  if (
+    config.provider !== undefined &&
+    config.provider !== 'v8' &&
+    config.provider !== 'istanbul'
+  )
+    throw new Error(
+      'Project coverage provider must be v8, istanbul, or custom.'
+    )
   for (const key of Object.keys(config))
     if (
       ![
@@ -261,6 +269,9 @@ export function parseProjectStandardCoverage(
     // Existing flag validation also owns include/exclude/report directory and
     // threshold units. Formatter names are validated separately above.
     'coverage.reporter': ['json'],
+    ...(config.provider === 'istanbul'
+      ? { 'coverage.provider': 'istanbul' }
+      : {}),
   }
   for (const key of [
     'include',

@@ -1,0 +1,1050 @@
+{
+  "reference": {
+    "name": "Vitest",
+    "version": "5.0.4",
+    "browserProvider": "Playwright1.64.0"
+  },
+  "scope": "Plain asynchronous fixture setup/use/teardown and mutable identity for test/file/worker scopes, two serial or concurrent cases, default-isolated cross-file file/worker lifetimes. Exact authored/public-task rows, standard cases/exits and case/module/run states. Full raw custom traces retained; Ready/full report fidelity and native fixture operations/overrides/auto/dependencies/coverage/snapshot/clocks/cleanup errors remain separate.",
+  "profiles": [
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "scope": "test",
+      "scheduling": "serial",
+      "group": "test-serial",
+      "label": "chromium-development-test-serial",
+      "limit": 2,
+      "include": ["fixtures.test.mjs"],
+      "representative": true,
+      "sources": [
+        {
+          "path": "test-serial.test.mjs.txt",
+          "filename": "fixtures.test.mjs",
+          "sha256": "2e3360c2e4f9597f69413fe7a66f93c51b82a8260b69d22f661214a5d0e504fe"
+        }
+      ],
+      "projected": {
+        "path": "chromium-development-test-serial/expected.json",
+        "sha256": "4b818641958ba3da23307c78436dcbf046c89711cee5080a8c22724e474e0152"
+      },
+      "rawStandardReport": {
+        "path": "chromium-development-test-serial/report.raw.json",
+        "sha256": "e7e3497fc2211a0f82b8f743c1fff3f72b5139ff9a6741cd9d7819c198ac73f2"
+      },
+      "rawCustomTrace": {
+        "path": "chromium-development-test-serial/trace.raw.jsonl",
+        "sha256": "8df158495a9f44f648fcf0c0894e6341dfdfde64788fd5a04d308859a66e76a5"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "scope": "test",
+      "scheduling": "declared",
+      "group": "test-declared",
+      "label": "chromium-development-test-declared",
+      "limit": 2,
+      "include": ["fixtures.test.mjs"],
+      "representative": false,
+      "sources": [
+        {
+          "path": "test-declared.test.mjs.txt",
+          "filename": "fixtures.test.mjs",
+          "sha256": "6e396a1d4f0caf579560a74d083b1b6165faaec8cfe4a101d4abfd19c6cf2738"
+        }
+      ],
+      "projected": {
+        "path": "chromium-development-test-declared/expected.json",
+        "sha256": "7697fa277d40eadea38b1a4af06ee1131cfc975bdd0253b6d24967b2fbe26d7b"
+      },
+      "rawStandardReport": {
+        "path": "chromium-development-test-declared/report.raw.json",
+        "sha256": "1e756041b5233adb33a9792f82b67aaeb1d5901009b1e1265af6a49a6b64fce9"
+      },
+      "rawCustomTrace": {
+        "path": "chromium-development-test-declared/trace.raw.jsonl",
+        "sha256": "266b44660c3a39868e8e4ec014458a360259a18599d6f84a9c8695afb4c978d6"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "scope": "file",
+      "scheduling": "serial",
+      "group": "file-serial",
+      "label": "chromium-development-file-serial",
+      "limit": 2,
+      "include": ["fixtures.test.mjs"],
+      "representative": false,
+      "sources": [
+        {
+          "path": "file-serial.test.mjs.txt",
+          "filename": "fixtures.test.mjs",
+          "sha256": "d896a58d974b5c2dc5053895f59f299dca2dba28f54cf0849b1ef4f5e53213da"
+        }
+      ],
+      "projected": {
+        "path": "chromium-development-file-serial/expected.json",
+        "sha256": "40f369acfc3bc6205ff61193ef417cc7944ebeae9e35df112d11988552ff0034"
+      },
+      "rawStandardReport": {
+        "path": "chromium-development-file-serial/report.raw.json",
+        "sha256": "3ad1e00356a1bc009fe2ac2115d654b2c6118f7319a7a6c388a2c7d0e80b9fc6"
+      },
+      "rawCustomTrace": {
+        "path": "chromium-development-file-serial/trace.raw.jsonl",
+        "sha256": "ec6ee6cc2eeff63c2dbc220075c322b93880db637a70843a1f7d77d169cf8ef4"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "scope": "file",
+      "scheduling": "declared",
+      "group": "file-declared",
+      "label": "chromium-development-file-declared",
+      "limit": 2,
+      "include": ["fixtures.test.mjs"],
+      "representative": true,
+      "sources": [
+        {
+          "path": "file-declared.test.mjs.txt",
+          "filename": "fixtures.test.mjs",
+          "sha256": "186d9413cbdd3891d42fc707a175bbbc11ba9bd9c50494fab326fe1c53cfc593"
+        }
+      ],
+      "projected": {
+        "path": "chromium-development-file-declared/expected.json",
+        "sha256": "246a65a73509f50e4e156dce140344cf83f4447f8cb62c37ae44d74c230c9b14"
+      },
+      "rawStandardReport": {
+        "path": "chromium-development-file-declared/report.raw.json",
+        "sha256": "5f8647abf6a22e13060b467da4927edc45b648067924bcd15fe4b0cbaf8c97ea"
+      },
+      "rawCustomTrace": {
+        "path": "chromium-development-file-declared/trace.raw.jsonl",
+        "sha256": "eba100134dccf2537a21d40b78941d85197c1628b387a912737d5a5d712cd26d"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "scope": "worker",
+      "scheduling": "serial",
+      "group": "worker-serial",
+      "label": "chromium-development-worker-serial",
+      "limit": 2,
+      "include": ["fixtures.test.mjs"],
+      "representative": true,
+      "sources": [
+        {
+          "path": "worker-serial.test.mjs.txt",
+          "filename": "fixtures.test.mjs",
+          "sha256": "e88ad084fd7a8bfeb74e14d3fc0b840c40e09430e87450504438c3fa1fd5190b"
+        }
+      ],
+      "projected": {
+        "path": "chromium-development-worker-serial/expected.json",
+        "sha256": "4eea36c3fd806580be4b0b0536b90e5536693e8b3541de805dcf337be9af4140"
+      },
+      "rawStandardReport": {
+        "path": "chromium-development-worker-serial/report.raw.json",
+        "sha256": "3a497f98a13ad6d7b5084f01cebf4a4b625164c6d14aafc4a49f5c4e82bade80"
+      },
+      "rawCustomTrace": {
+        "path": "chromium-development-worker-serial/trace.raw.jsonl",
+        "sha256": "acff4695765f6654194caf00380914a9add0f752ecb781a21eb529affc5a91b7"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "scope": "worker",
+      "scheduling": "declared",
+      "group": "worker-declared",
+      "label": "chromium-development-worker-declared",
+      "limit": 2,
+      "include": ["fixtures.test.mjs"],
+      "representative": false,
+      "sources": [
+        {
+          "path": "worker-declared.test.mjs.txt",
+          "filename": "fixtures.test.mjs",
+          "sha256": "4d8caf37efc04397194a7c737709810bacee815ac1a0af9090d6272b4d0c2cb6"
+        }
+      ],
+      "projected": {
+        "path": "chromium-development-worker-declared/expected.json",
+        "sha256": "5f62266470c1f8dcd5779ca1f3e38254089dd3618278d4b71f60e82d70b1bbd2"
+      },
+      "rawStandardReport": {
+        "path": "chromium-development-worker-declared/report.raw.json",
+        "sha256": "5b75bc5f1f5ee2b6f6a4bc9d8eb2a7edd536d04cc9abc34314c82cfeba2f7121"
+      },
+      "rawCustomTrace": {
+        "path": "chromium-development-worker-declared/trace.raw.jsonl",
+        "sha256": "2f11640cdb11042b067d724e1db32f4bb3df0ab66d761930b1fe2953ac53bca1"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "scope": "test",
+      "scheduling": "serial",
+      "group": "test-serial",
+      "label": "chromium-production-test-serial",
+      "limit": 2,
+      "include": ["fixtures.test.mjs"],
+      "representative": false,
+      "sources": [
+        {
+          "path": "test-serial.test.mjs.txt",
+          "filename": "fixtures.test.mjs",
+          "sha256": "2e3360c2e4f9597f69413fe7a66f93c51b82a8260b69d22f661214a5d0e504fe"
+        }
+      ],
+      "projected": {
+        "path": "chromium-production-test-serial/expected.json",
+        "sha256": "4b818641958ba3da23307c78436dcbf046c89711cee5080a8c22724e474e0152"
+      },
+      "rawStandardReport": {
+        "path": "chromium-production-test-serial/report.raw.json",
+        "sha256": "fb1f2a19077d176882896274238d4bb63f23111f6e3ad05b6ae593be0fa86c76"
+      },
+      "rawCustomTrace": {
+        "path": "chromium-production-test-serial/trace.raw.jsonl",
+        "sha256": "617eebb1c2cba88c69f36fee5b08d093a9902cf6dc6338d301b5332eb4bad7df"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "scope": "test",
+      "scheduling": "declared",
+      "group": "test-declared",
+      "label": "chromium-production-test-declared",
+      "limit": 2,
+      "include": ["fixtures.test.mjs"],
+      "representative": true,
+      "sources": [
+        {
+          "path": "test-declared.test.mjs.txt",
+          "filename": "fixtures.test.mjs",
+          "sha256": "6e396a1d4f0caf579560a74d083b1b6165faaec8cfe4a101d4abfd19c6cf2738"
+        }
+      ],
+      "projected": {
+        "path": "chromium-production-test-declared/expected.json",
+        "sha256": "7697fa277d40eadea38b1a4af06ee1131cfc975bdd0253b6d24967b2fbe26d7b"
+      },
+      "rawStandardReport": {
+        "path": "chromium-production-test-declared/report.raw.json",
+        "sha256": "1f6ee9d8cae5d7ab45fd970d5e02f63b1c4409a3647a6ed44e83c7571f290816"
+      },
+      "rawCustomTrace": {
+        "path": "chromium-production-test-declared/trace.raw.jsonl",
+        "sha256": "e3404714de5092004d706469c34c022c2f2ab27a63d66c0e993b1e7524ba4e46"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "scope": "file",
+      "scheduling": "serial",
+      "group": "file-serial",
+      "label": "chromium-production-file-serial",
+      "limit": 2,
+      "include": ["fixtures.test.mjs"],
+      "representative": true,
+      "sources": [
+        {
+          "path": "file-serial.test.mjs.txt",
+          "filename": "fixtures.test.mjs",
+          "sha256": "d896a58d974b5c2dc5053895f59f299dca2dba28f54cf0849b1ef4f5e53213da"
+        }
+      ],
+      "projected": {
+        "path": "chromium-production-file-serial/expected.json",
+        "sha256": "40f369acfc3bc6205ff61193ef417cc7944ebeae9e35df112d11988552ff0034"
+      },
+      "rawStandardReport": {
+        "path": "chromium-production-file-serial/report.raw.json",
+        "sha256": "98e1ac50192f3a516ca47118ab7636737c0d2a5620b64943f89d3471a1af3fae"
+      },
+      "rawCustomTrace": {
+        "path": "chromium-production-file-serial/trace.raw.jsonl",
+        "sha256": "0c593a77db10b4e383a251e2d545ace67c17cf41ceb5ef0601dc11dc9691575b"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "scope": "file",
+      "scheduling": "declared",
+      "group": "file-declared",
+      "label": "chromium-production-file-declared",
+      "limit": 2,
+      "include": ["fixtures.test.mjs"],
+      "representative": false,
+      "sources": [
+        {
+          "path": "file-declared.test.mjs.txt",
+          "filename": "fixtures.test.mjs",
+          "sha256": "186d9413cbdd3891d42fc707a175bbbc11ba9bd9c50494fab326fe1c53cfc593"
+        }
+      ],
+      "projected": {
+        "path": "chromium-production-file-declared/expected.json",
+        "sha256": "246a65a73509f50e4e156dce140344cf83f4447f8cb62c37ae44d74c230c9b14"
+      },
+      "rawStandardReport": {
+        "path": "chromium-production-file-declared/report.raw.json",
+        "sha256": "b13e3c4b94aac864353cf3ba04f6904103ce5d89f3a454f1f53ee1e5b02584c6"
+      },
+      "rawCustomTrace": {
+        "path": "chromium-production-file-declared/trace.raw.jsonl",
+        "sha256": "74465329b57f05f9827ef390352ef1e8301f25c2451536b087387a3749b93175"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "scope": "worker",
+      "scheduling": "serial",
+      "group": "worker-serial",
+      "label": "chromium-production-worker-serial",
+      "limit": 2,
+      "include": ["fixtures.test.mjs"],
+      "representative": false,
+      "sources": [
+        {
+          "path": "worker-serial.test.mjs.txt",
+          "filename": "fixtures.test.mjs",
+          "sha256": "e88ad084fd7a8bfeb74e14d3fc0b840c40e09430e87450504438c3fa1fd5190b"
+        }
+      ],
+      "projected": {
+        "path": "chromium-production-worker-serial/expected.json",
+        "sha256": "4eea36c3fd806580be4b0b0536b90e5536693e8b3541de805dcf337be9af4140"
+      },
+      "rawStandardReport": {
+        "path": "chromium-production-worker-serial/report.raw.json",
+        "sha256": "dbaa638bde847fee4de6e78c8bbabdedfb36c1094f5bbb32641e163c121e8265"
+      },
+      "rawCustomTrace": {
+        "path": "chromium-production-worker-serial/trace.raw.jsonl",
+        "sha256": "97a7cecaeb182a9f0d588b195ad49925a1dc79df397de9588f126f246c270ade"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "scope": "worker",
+      "scheduling": "declared",
+      "group": "worker-declared",
+      "label": "chromium-production-worker-declared",
+      "limit": 2,
+      "include": ["fixtures.test.mjs"],
+      "representative": true,
+      "sources": [
+        {
+          "path": "worker-declared.test.mjs.txt",
+          "filename": "fixtures.test.mjs",
+          "sha256": "4d8caf37efc04397194a7c737709810bacee815ac1a0af9090d6272b4d0c2cb6"
+        }
+      ],
+      "projected": {
+        "path": "chromium-production-worker-declared/expected.json",
+        "sha256": "5f62266470c1f8dcd5779ca1f3e38254089dd3618278d4b71f60e82d70b1bbd2"
+      },
+      "rawStandardReport": {
+        "path": "chromium-production-worker-declared/report.raw.json",
+        "sha256": "def735e1f8a543a248f6276e710b11efce28571bceeef324536a8da6200c6b36"
+      },
+      "rawCustomTrace": {
+        "path": "chromium-production-worker-declared/trace.raw.jsonl",
+        "sha256": "7ebfb43cd8969890a6aceef2c8ab08dcc1f690ca40ff5e36db4e0fca44092713"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "scope": "test",
+      "scheduling": "serial",
+      "group": "test-serial",
+      "label": "firefox-development-test-serial",
+      "limit": 2,
+      "include": ["fixtures.test.mjs"],
+      "representative": true,
+      "sources": [
+        {
+          "path": "test-serial.test.mjs.txt",
+          "filename": "fixtures.test.mjs",
+          "sha256": "2e3360c2e4f9597f69413fe7a66f93c51b82a8260b69d22f661214a5d0e504fe"
+        }
+      ],
+      "projected": {
+        "path": "firefox-development-test-serial/expected.json",
+        "sha256": "4b818641958ba3da23307c78436dcbf046c89711cee5080a8c22724e474e0152"
+      },
+      "rawStandardReport": {
+        "path": "firefox-development-test-serial/report.raw.json",
+        "sha256": "ded44a058f2187fc5516ae1e8f41b74ea3d952d86d51acd143680b892ef1f282"
+      },
+      "rawCustomTrace": {
+        "path": "firefox-development-test-serial/trace.raw.jsonl",
+        "sha256": "4f6733b5f98bc960343abbe3e953fcb6eaf9e4c568ea50e0e5269048da05185c"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "scope": "test",
+      "scheduling": "declared",
+      "group": "test-declared",
+      "label": "firefox-development-test-declared",
+      "limit": 2,
+      "include": ["fixtures.test.mjs"],
+      "representative": false,
+      "sources": [
+        {
+          "path": "test-declared.test.mjs.txt",
+          "filename": "fixtures.test.mjs",
+          "sha256": "6e396a1d4f0caf579560a74d083b1b6165faaec8cfe4a101d4abfd19c6cf2738"
+        }
+      ],
+      "projected": {
+        "path": "firefox-development-test-declared/expected.json",
+        "sha256": "7697fa277d40eadea38b1a4af06ee1131cfc975bdd0253b6d24967b2fbe26d7b"
+      },
+      "rawStandardReport": {
+        "path": "firefox-development-test-declared/report.raw.json",
+        "sha256": "b6b161174b145e91641cecdc83d2e61f188b400d1cdf89aa926d63b0b5ef4d61"
+      },
+      "rawCustomTrace": {
+        "path": "firefox-development-test-declared/trace.raw.jsonl",
+        "sha256": "247c6b2a89252f2415126e84e5ffa08fdbcdfa2ace6288d663880d454ceeecc5"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "scope": "file",
+      "scheduling": "serial",
+      "group": "file-serial",
+      "label": "firefox-development-file-serial",
+      "limit": 2,
+      "include": ["fixtures.test.mjs"],
+      "representative": false,
+      "sources": [
+        {
+          "path": "file-serial.test.mjs.txt",
+          "filename": "fixtures.test.mjs",
+          "sha256": "d896a58d974b5c2dc5053895f59f299dca2dba28f54cf0849b1ef4f5e53213da"
+        }
+      ],
+      "projected": {
+        "path": "firefox-development-file-serial/expected.json",
+        "sha256": "40f369acfc3bc6205ff61193ef417cc7944ebeae9e35df112d11988552ff0034"
+      },
+      "rawStandardReport": {
+        "path": "firefox-development-file-serial/report.raw.json",
+        "sha256": "0f826e74598509c406e1556b2ffded42117e87148eaf3c25a2d92efd3cf3616a"
+      },
+      "rawCustomTrace": {
+        "path": "firefox-development-file-serial/trace.raw.jsonl",
+        "sha256": "1969fba0a928417e929283ede5c8770a10e4b3e05bfb081097146229420e3a47"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "scope": "file",
+      "scheduling": "declared",
+      "group": "file-declared",
+      "label": "firefox-development-file-declared",
+      "limit": 2,
+      "include": ["fixtures.test.mjs"],
+      "representative": true,
+      "sources": [
+        {
+          "path": "file-declared.test.mjs.txt",
+          "filename": "fixtures.test.mjs",
+          "sha256": "186d9413cbdd3891d42fc707a175bbbc11ba9bd9c50494fab326fe1c53cfc593"
+        }
+      ],
+      "projected": {
+        "path": "firefox-development-file-declared/expected.json",
+        "sha256": "246a65a73509f50e4e156dce140344cf83f4447f8cb62c37ae44d74c230c9b14"
+      },
+      "rawStandardReport": {
+        "path": "firefox-development-file-declared/report.raw.json",
+        "sha256": "4534719f6de6ca69fd348e6f773bfb02625fc31c6dd0dc99572196d8bb56c395"
+      },
+      "rawCustomTrace": {
+        "path": "firefox-development-file-declared/trace.raw.jsonl",
+        "sha256": "5ba0931d3119b97805e41f2b5307980a0fb6d89f1dbe483feb4ee2354058829c"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "scope": "worker",
+      "scheduling": "serial",
+      "group": "worker-serial",
+      "label": "firefox-development-worker-serial",
+      "limit": 2,
+      "include": ["fixtures.test.mjs"],
+      "representative": true,
+      "sources": [
+        {
+          "path": "worker-serial.test.mjs.txt",
+          "filename": "fixtures.test.mjs",
+          "sha256": "e88ad084fd7a8bfeb74e14d3fc0b840c40e09430e87450504438c3fa1fd5190b"
+        }
+      ],
+      "projected": {
+        "path": "firefox-development-worker-serial/expected.json",
+        "sha256": "4eea36c3fd806580be4b0b0536b90e5536693e8b3541de805dcf337be9af4140"
+      },
+      "rawStandardReport": {
+        "path": "firefox-development-worker-serial/report.raw.json",
+        "sha256": "fea88457d058bd851fbf4c4908da2081a7ee7a3dba71cf6e755ba78692869ffa"
+      },
+      "rawCustomTrace": {
+        "path": "firefox-development-worker-serial/trace.raw.jsonl",
+        "sha256": "d880b3eebb532f8ab980d63339ccb0f72d25d9369ce18c8cc38c785cc5d75d0a"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "scope": "worker",
+      "scheduling": "declared",
+      "group": "worker-declared",
+      "label": "firefox-development-worker-declared",
+      "limit": 2,
+      "include": ["fixtures.test.mjs"],
+      "representative": false,
+      "sources": [
+        {
+          "path": "worker-declared.test.mjs.txt",
+          "filename": "fixtures.test.mjs",
+          "sha256": "4d8caf37efc04397194a7c737709810bacee815ac1a0af9090d6272b4d0c2cb6"
+        }
+      ],
+      "projected": {
+        "path": "firefox-development-worker-declared/expected.json",
+        "sha256": "5f62266470c1f8dcd5779ca1f3e38254089dd3618278d4b71f60e82d70b1bbd2"
+      },
+      "rawStandardReport": {
+        "path": "firefox-development-worker-declared/report.raw.json",
+        "sha256": "7e56747a59cc671cc8d0c5cf5b3038e0d93cc1a6645fa2fe7e9928b69bedf19b"
+      },
+      "rawCustomTrace": {
+        "path": "firefox-development-worker-declared/trace.raw.jsonl",
+        "sha256": "3cb270d33900e1d9dc76ad08bc5fe55cd0fb30aecdceb06165bc1b01822a638e"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "scope": "test",
+      "scheduling": "serial",
+      "group": "test-serial",
+      "label": "firefox-production-test-serial",
+      "limit": 2,
+      "include": ["fixtures.test.mjs"],
+      "representative": false,
+      "sources": [
+        {
+          "path": "test-serial.test.mjs.txt",
+          "filename": "fixtures.test.mjs",
+          "sha256": "2e3360c2e4f9597f69413fe7a66f93c51b82a8260b69d22f661214a5d0e504fe"
+        }
+      ],
+      "projected": {
+        "path": "firefox-production-test-serial/expected.json",
+        "sha256": "4b818641958ba3da23307c78436dcbf046c89711cee5080a8c22724e474e0152"
+      },
+      "rawStandardReport": {
+        "path": "firefox-production-test-serial/report.raw.json",
+        "sha256": "18028409727168de32c59b5e037a2dc13b6b6ff4bfd1494ec5c6f3050c8eda07"
+      },
+      "rawCustomTrace": {
+        "path": "firefox-production-test-serial/trace.raw.jsonl",
+        "sha256": "cd5a1a570e5d7670f8e057fcc5cace28793186eea03198274ccbaf54d611a6c8"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "scope": "test",
+      "scheduling": "declared",
+      "group": "test-declared",
+      "label": "firefox-production-test-declared",
+      "limit": 2,
+      "include": ["fixtures.test.mjs"],
+      "representative": true,
+      "sources": [
+        {
+          "path": "test-declared.test.mjs.txt",
+          "filename": "fixtures.test.mjs",
+          "sha256": "6e396a1d4f0caf579560a74d083b1b6165faaec8cfe4a101d4abfd19c6cf2738"
+        }
+      ],
+      "projected": {
+        "path": "firefox-production-test-declared/expected.json",
+        "sha256": "7697fa277d40eadea38b1a4af06ee1131cfc975bdd0253b6d24967b2fbe26d7b"
+      },
+      "rawStandardReport": {
+        "path": "firefox-production-test-declared/report.raw.json",
+        "sha256": "c874bfd695e071bdcb4de5a07b6afc85a8df3979a47ae8c1daf0af9d6e1d1ce7"
+      },
+      "rawCustomTrace": {
+        "path": "firefox-production-test-declared/trace.raw.jsonl",
+        "sha256": "cf401e163f6f1aa42391e498cf84cdc4eabbaa159c9d6b35333f4a481a62afe6"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "scope": "file",
+      "scheduling": "serial",
+      "group": "file-serial",
+      "label": "firefox-production-file-serial",
+      "limit": 2,
+      "include": ["fixtures.test.mjs"],
+      "representative": true,
+      "sources": [
+        {
+          "path": "file-serial.test.mjs.txt",
+          "filename": "fixtures.test.mjs",
+          "sha256": "d896a58d974b5c2dc5053895f59f299dca2dba28f54cf0849b1ef4f5e53213da"
+        }
+      ],
+      "projected": {
+        "path": "firefox-production-file-serial/expected.json",
+        "sha256": "40f369acfc3bc6205ff61193ef417cc7944ebeae9e35df112d11988552ff0034"
+      },
+      "rawStandardReport": {
+        "path": "firefox-production-file-serial/report.raw.json",
+        "sha256": "81184a85d00172a80c6b7a911c3cc45cd72a69b776a499755f5ed22293a7a148"
+      },
+      "rawCustomTrace": {
+        "path": "firefox-production-file-serial/trace.raw.jsonl",
+        "sha256": "11cf959aa296e5bf6fc3cb036b663c864df9beaac6be45c6f007f41479358825"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "scope": "file",
+      "scheduling": "declared",
+      "group": "file-declared",
+      "label": "firefox-production-file-declared",
+      "limit": 2,
+      "include": ["fixtures.test.mjs"],
+      "representative": false,
+      "sources": [
+        {
+          "path": "file-declared.test.mjs.txt",
+          "filename": "fixtures.test.mjs",
+          "sha256": "186d9413cbdd3891d42fc707a175bbbc11ba9bd9c50494fab326fe1c53cfc593"
+        }
+      ],
+      "projected": {
+        "path": "firefox-production-file-declared/expected.json",
+        "sha256": "246a65a73509f50e4e156dce140344cf83f4447f8cb62c37ae44d74c230c9b14"
+      },
+      "rawStandardReport": {
+        "path": "firefox-production-file-declared/report.raw.json",
+        "sha256": "e98df7f82a117622a5581ab5604e2e274476a94e36c41f384943fa91d5a51dfd"
+      },
+      "rawCustomTrace": {
+        "path": "firefox-production-file-declared/trace.raw.jsonl",
+        "sha256": "e06995ede08dcf7b732fed14e3a76ada8887a3df4b1e4bbff9ab85cf1070c0ad"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "scope": "worker",
+      "scheduling": "serial",
+      "group": "worker-serial",
+      "label": "firefox-production-worker-serial",
+      "limit": 2,
+      "include": ["fixtures.test.mjs"],
+      "representative": false,
+      "sources": [
+        {
+          "path": "worker-serial.test.mjs.txt",
+          "filename": "fixtures.test.mjs",
+          "sha256": "e88ad084fd7a8bfeb74e14d3fc0b840c40e09430e87450504438c3fa1fd5190b"
+        }
+      ],
+      "projected": {
+        "path": "firefox-production-worker-serial/expected.json",
+        "sha256": "4eea36c3fd806580be4b0b0536b90e5536693e8b3541de805dcf337be9af4140"
+      },
+      "rawStandardReport": {
+        "path": "firefox-production-worker-serial/report.raw.json",
+        "sha256": "505b78ed08600263acb19cc5b72b67213b3f3abd0cd656d9fdb473126b4cc65e"
+      },
+      "rawCustomTrace": {
+        "path": "firefox-production-worker-serial/trace.raw.jsonl",
+        "sha256": "f60a2bee634a76797e15047788743d3c3f382ee88e1ae32fec42bbf646460b47"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "scope": "worker",
+      "scheduling": "declared",
+      "group": "worker-declared",
+      "label": "firefox-production-worker-declared",
+      "limit": 2,
+      "include": ["fixtures.test.mjs"],
+      "representative": true,
+      "sources": [
+        {
+          "path": "worker-declared.test.mjs.txt",
+          "filename": "fixtures.test.mjs",
+          "sha256": "4d8caf37efc04397194a7c737709810bacee815ac1a0af9090d6272b4d0c2cb6"
+        }
+      ],
+      "projected": {
+        "path": "firefox-production-worker-declared/expected.json",
+        "sha256": "5f62266470c1f8dcd5779ca1f3e38254089dd3618278d4b71f60e82d70b1bbd2"
+      },
+      "rawStandardReport": {
+        "path": "firefox-production-worker-declared/report.raw.json",
+        "sha256": "105071fd6905c5cee5dacc58f2727c1e29980bba39ba87653bb4291f28a20924"
+      },
+      "rawCustomTrace": {
+        "path": "firefox-production-worker-declared/trace.raw.jsonl",
+        "sha256": "64e84353532066dc27659b6e0928924b59ca76bd132a0b4fdb87918af6931dad"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "scope": "file",
+      "scheduling": "serial",
+      "group": "file-cross-files",
+      "label": "chromium-development-file-cross-files",
+      "limit": 2,
+      "include": ["*.fixture.test.mjs"],
+      "representative": false,
+      "sources": [
+        {
+          "path": "file.shared.mjs.txt",
+          "filename": "shared.mjs",
+          "sha256": "a3226110a1a74d39ed45c8b090517a3c7889456863786e7a1dc1b07ad91eb3d4"
+        },
+        {
+          "path": "a.fixture.test.mjs.txt",
+          "filename": "a.fixture.test.mjs",
+          "sha256": "0512aaccc8d26a5f246bac35d769e36e208c2351efa48e989c3cd51143853ae6"
+        },
+        {
+          "path": "b.fixture.test.mjs.txt",
+          "filename": "b.fixture.test.mjs",
+          "sha256": "9328151619880a707fcb3e4a871ccecd282e2804c991aec48b660891671c6f16"
+        }
+      ],
+      "projected": {
+        "path": "chromium-development-file-cross-files/expected.json",
+        "sha256": "a3668ebf18c23a3671a5e397b475f6dbb5ce408190899bd046e20b9cc6613117"
+      },
+      "rawStandardReport": {
+        "path": "chromium-development-file-cross-files/report.raw.json",
+        "sha256": "8c9cd2cecd124e6fe82dcd44b6f1cb36e2db790c9f2ed955211ad1fa16740165"
+      },
+      "rawCustomTrace": {
+        "path": "chromium-development-file-cross-files/trace.raw.jsonl",
+        "sha256": "9708ec1f228a70b4fe3131ff7ab9605773e4e439319ed105cd838f651d39f717"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "scope": "worker",
+      "scheduling": "serial",
+      "group": "worker-cross-files",
+      "label": "chromium-development-worker-cross-files",
+      "limit": 2,
+      "include": ["*.fixture.test.mjs"],
+      "representative": true,
+      "sources": [
+        {
+          "path": "worker.shared.mjs.txt",
+          "filename": "shared.mjs",
+          "sha256": "d2af621d0497da1107329ace2b4bb6563be5f045f3857bd2207629cb83153283"
+        },
+        {
+          "path": "a.fixture.test.mjs.txt",
+          "filename": "a.fixture.test.mjs",
+          "sha256": "0512aaccc8d26a5f246bac35d769e36e208c2351efa48e989c3cd51143853ae6"
+        },
+        {
+          "path": "b.fixture.test.mjs.txt",
+          "filename": "b.fixture.test.mjs",
+          "sha256": "9328151619880a707fcb3e4a871ccecd282e2804c991aec48b660891671c6f16"
+        }
+      ],
+      "projected": {
+        "path": "chromium-development-worker-cross-files/expected.json",
+        "sha256": "617817b33d8963cfa1ca7ea89abd7776da8c94e3c2ca8987e9e7e0f53c4b6e8d"
+      },
+      "rawStandardReport": {
+        "path": "chromium-development-worker-cross-files/report.raw.json",
+        "sha256": "03c98f150d423938d43c55f0733714a1c55c189c66b3af720641a39c79db3054"
+      },
+      "rawCustomTrace": {
+        "path": "chromium-development-worker-cross-files/trace.raw.jsonl",
+        "sha256": "695109b25b04415ebe44b818cf718eaf97df471e22e3f6a1c477288924d77982"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "scope": "file",
+      "scheduling": "serial",
+      "group": "file-cross-files",
+      "label": "chromium-production-file-cross-files",
+      "limit": 2,
+      "include": ["*.fixture.test.mjs"],
+      "representative": true,
+      "sources": [
+        {
+          "path": "file.shared.mjs.txt",
+          "filename": "shared.mjs",
+          "sha256": "a3226110a1a74d39ed45c8b090517a3c7889456863786e7a1dc1b07ad91eb3d4"
+        },
+        {
+          "path": "a.fixture.test.mjs.txt",
+          "filename": "a.fixture.test.mjs",
+          "sha256": "0512aaccc8d26a5f246bac35d769e36e208c2351efa48e989c3cd51143853ae6"
+        },
+        {
+          "path": "b.fixture.test.mjs.txt",
+          "filename": "b.fixture.test.mjs",
+          "sha256": "9328151619880a707fcb3e4a871ccecd282e2804c991aec48b660891671c6f16"
+        }
+      ],
+      "projected": {
+        "path": "chromium-production-file-cross-files/expected.json",
+        "sha256": "a3668ebf18c23a3671a5e397b475f6dbb5ce408190899bd046e20b9cc6613117"
+      },
+      "rawStandardReport": {
+        "path": "chromium-production-file-cross-files/report.raw.json",
+        "sha256": "6de39a0dc2b8512e5684239aa476565a2d7552899221646c3fd0687b7e06798e"
+      },
+      "rawCustomTrace": {
+        "path": "chromium-production-file-cross-files/trace.raw.jsonl",
+        "sha256": "45c0f8862bc3a95bafa97fe3d2752cbd8cfb9381939539520365cadcc07f982a"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "scope": "worker",
+      "scheduling": "serial",
+      "group": "worker-cross-files",
+      "label": "chromium-production-worker-cross-files",
+      "limit": 2,
+      "include": ["*.fixture.test.mjs"],
+      "representative": false,
+      "sources": [
+        {
+          "path": "worker.shared.mjs.txt",
+          "filename": "shared.mjs",
+          "sha256": "d2af621d0497da1107329ace2b4bb6563be5f045f3857bd2207629cb83153283"
+        },
+        {
+          "path": "a.fixture.test.mjs.txt",
+          "filename": "a.fixture.test.mjs",
+          "sha256": "0512aaccc8d26a5f246bac35d769e36e208c2351efa48e989c3cd51143853ae6"
+        },
+        {
+          "path": "b.fixture.test.mjs.txt",
+          "filename": "b.fixture.test.mjs",
+          "sha256": "9328151619880a707fcb3e4a871ccecd282e2804c991aec48b660891671c6f16"
+        }
+      ],
+      "projected": {
+        "path": "chromium-production-worker-cross-files/expected.json",
+        "sha256": "617817b33d8963cfa1ca7ea89abd7776da8c94e3c2ca8987e9e7e0f53c4b6e8d"
+      },
+      "rawStandardReport": {
+        "path": "chromium-production-worker-cross-files/report.raw.json",
+        "sha256": "87561aa854ca04149d74c1477625aa0259c6b7083821d862b757ae2b3e89c2fa"
+      },
+      "rawCustomTrace": {
+        "path": "chromium-production-worker-cross-files/trace.raw.jsonl",
+        "sha256": "f4979e5d03dee086282df7dd475d5060b6296937627360a1e3968fc343df8a32"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "scope": "file",
+      "scheduling": "serial",
+      "group": "file-cross-files",
+      "label": "firefox-development-file-cross-files",
+      "limit": 2,
+      "include": ["*.fixture.test.mjs"],
+      "representative": false,
+      "sources": [
+        {
+          "path": "file.shared.mjs.txt",
+          "filename": "shared.mjs",
+          "sha256": "a3226110a1a74d39ed45c8b090517a3c7889456863786e7a1dc1b07ad91eb3d4"
+        },
+        {
+          "path": "a.fixture.test.mjs.txt",
+          "filename": "a.fixture.test.mjs",
+          "sha256": "0512aaccc8d26a5f246bac35d769e36e208c2351efa48e989c3cd51143853ae6"
+        },
+        {
+          "path": "b.fixture.test.mjs.txt",
+          "filename": "b.fixture.test.mjs",
+          "sha256": "9328151619880a707fcb3e4a871ccecd282e2804c991aec48b660891671c6f16"
+        }
+      ],
+      "projected": {
+        "path": "firefox-development-file-cross-files/expected.json",
+        "sha256": "a3668ebf18c23a3671a5e397b475f6dbb5ce408190899bd046e20b9cc6613117"
+      },
+      "rawStandardReport": {
+        "path": "firefox-development-file-cross-files/report.raw.json",
+        "sha256": "defc947df10c408aac3fb603e11879c3bdc95a2a7d2c7368f54149e0b9a5fc11"
+      },
+      "rawCustomTrace": {
+        "path": "firefox-development-file-cross-files/trace.raw.jsonl",
+        "sha256": "246b14ac0de72e4b805071973cfa49ee842bea1e64052ccdec2adc13b27a9911"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "scope": "worker",
+      "scheduling": "serial",
+      "group": "worker-cross-files",
+      "label": "firefox-development-worker-cross-files",
+      "limit": 2,
+      "include": ["*.fixture.test.mjs"],
+      "representative": true,
+      "sources": [
+        {
+          "path": "worker.shared.mjs.txt",
+          "filename": "shared.mjs",
+          "sha256": "d2af621d0497da1107329ace2b4bb6563be5f045f3857bd2207629cb83153283"
+        },
+        {
+          "path": "a.fixture.test.mjs.txt",
+          "filename": "a.fixture.test.mjs",
+          "sha256": "0512aaccc8d26a5f246bac35d769e36e208c2351efa48e989c3cd51143853ae6"
+        },
+        {
+          "path": "b.fixture.test.mjs.txt",
+          "filename": "b.fixture.test.mjs",
+          "sha256": "9328151619880a707fcb3e4a871ccecd282e2804c991aec48b660891671c6f16"
+        }
+      ],
+      "projected": {
+        "path": "firefox-development-worker-cross-files/expected.json",
+        "sha256": "617817b33d8963cfa1ca7ea89abd7776da8c94e3c2ca8987e9e7e0f53c4b6e8d"
+      },
+      "rawStandardReport": {
+        "path": "firefox-development-worker-cross-files/report.raw.json",
+        "sha256": "42a92b16247ed18085543f4599db4aacd81438240d42ef6688fd0a48c5d1385f"
+      },
+      "rawCustomTrace": {
+        "path": "firefox-development-worker-cross-files/trace.raw.jsonl",
+        "sha256": "e896d23819d598982a300c1c7db9a63da753571ef1c8d662d56064f069b3abee"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "scope": "file",
+      "scheduling": "serial",
+      "group": "file-cross-files",
+      "label": "firefox-production-file-cross-files",
+      "limit": 2,
+      "include": ["*.fixture.test.mjs"],
+      "representative": true,
+      "sources": [
+        {
+          "path": "file.shared.mjs.txt",
+          "filename": "shared.mjs",
+          "sha256": "a3226110a1a74d39ed45c8b090517a3c7889456863786e7a1dc1b07ad91eb3d4"
+        },
+        {
+          "path": "a.fixture.test.mjs.txt",
+          "filename": "a.fixture.test.mjs",
+          "sha256": "0512aaccc8d26a5f246bac35d769e36e208c2351efa48e989c3cd51143853ae6"
+        },
+        {
+          "path": "b.fixture.test.mjs.txt",
+          "filename": "b.fixture.test.mjs",
+          "sha256": "9328151619880a707fcb3e4a871ccecd282e2804c991aec48b660891671c6f16"
+        }
+      ],
+      "projected": {
+        "path": "firefox-production-file-cross-files/expected.json",
+        "sha256": "a3668ebf18c23a3671a5e397b475f6dbb5ce408190899bd046e20b9cc6613117"
+      },
+      "rawStandardReport": {
+        "path": "firefox-production-file-cross-files/report.raw.json",
+        "sha256": "b216cbfeb767ed15011ddd82994f63aa22bf366879d73ebbdde0b04c87738148"
+      },
+      "rawCustomTrace": {
+        "path": "firefox-production-file-cross-files/trace.raw.jsonl",
+        "sha256": "23e0ab9de60521e9b1d3c2c9cd6457eb6e1e2570ddef4d2aaf6bfa77d1ce11af"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "scope": "worker",
+      "scheduling": "serial",
+      "group": "worker-cross-files",
+      "label": "firefox-production-worker-cross-files",
+      "limit": 2,
+      "include": ["*.fixture.test.mjs"],
+      "representative": false,
+      "sources": [
+        {
+          "path": "worker.shared.mjs.txt",
+          "filename": "shared.mjs",
+          "sha256": "d2af621d0497da1107329ace2b4bb6563be5f045f3857bd2207629cb83153283"
+        },
+        {
+          "path": "a.fixture.test.mjs.txt",
+          "filename": "a.fixture.test.mjs",
+          "sha256": "0512aaccc8d26a5f246bac35d769e36e208c2351efa48e989c3cd51143853ae6"
+        },
+        {
+          "path": "b.fixture.test.mjs.txt",
+          "filename": "b.fixture.test.mjs",
+          "sha256": "9328151619880a707fcb3e4a871ccecd282e2804c991aec48b660891671c6f16"
+        }
+      ],
+      "projected": {
+        "path": "firefox-production-worker-cross-files/expected.json",
+        "sha256": "617817b33d8963cfa1ca7ea89abd7776da8c94e3c2ca8987e9e7e0f53c4b6e8d"
+      },
+      "rawStandardReport": {
+        "path": "firefox-production-worker-cross-files/report.raw.json",
+        "sha256": "96ceefde02caeac6ee736f41d988e1594b476bf975c245b8992072347496f580"
+      },
+      "rawCustomTrace": {
+        "path": "firefox-production-worker-cross-files/trace.raw.jsonl",
+        "sha256": "89cf085b61af5fb600e2081f43226de8be5131de193ea14c10a9be9b5c1d0d16"
+      }
+    }
+  ]
+}

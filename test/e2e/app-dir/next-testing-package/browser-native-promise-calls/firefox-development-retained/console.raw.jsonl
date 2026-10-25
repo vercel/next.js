@@ -1,0 +1,4 @@
+{"content":"BROWSER_HOOK_SEQUENCE:{\"phase\":\"created\",\"clicks\":0}","browser":true,"time":1792927873407,"taskId":"1018205745_0","type":"stdout","size":52}
+{"content":"BROWSER_HOOK_SEQUENCE:{\"phase\":\"public-query\",\"count\":1,\"text\":\"Retained serial target\"}","browser":true,"time":1792927873409,"taskId":"1018205745_1","type":"stdout","size":88}
+{"content":"BROWSER_HOOK_SEQUENCE:{\"phase\":\"retained-consumed\",\"clicks\":1}","browser":true,"time":1792927873515,"taskId":"1018205745_1","type":"stdout","size":62}
+{"content":"BROWSER_HOOK_SEQUENCE:{\"phase\":\"new-call\",\"clicks\":2}","browser":true,"time":1792927873547,"taskId":"1018205745_1","type":"stdout","size":53}

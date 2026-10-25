@@ -1,0 +1,1130 @@
+[
+  {
+    "name": "reset",
+    "views": [
+      {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": ["default", "Symbol(Symbol.toStringTag)"],
+          "prototype": "null",
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "default",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "raw": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype"],
+          "prototype": "Function.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "prototypeConstructorSame": true,
+        "name": "named",
+        "length": 1,
+        "tag": "[object Function]",
+        "prototype": {
+          "type": "object",
+          "brand": false,
+          "keys": ["constructor"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "constructor",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            }
+          ]
+        },
+        "missing": 1,
+        "undefined": 1,
+        "zero": 0,
+        "null": null,
+        "nullFailure": {
+          "name": "TypeError",
+          "message": "Cannot read properties of null (reading 'value')"
+        }
+      },
+      {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": ["default", "Symbol(Symbol.toStringTag)"],
+          "prototype": "null",
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "default",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "raw": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype"],
+          "prototype": "Function.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "prototypeConstructorSame": true,
+        "name": "named",
+        "length": 1,
+        "tag": "[object Function]",
+        "prototype": {
+          "type": "object",
+          "brand": false,
+          "keys": ["constructor"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "constructor",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            }
+          ]
+        },
+        "missing": 1,
+        "undefined": 1,
+        "zero": 0,
+        "null": null,
+        "nullFailure": {
+          "name": "TypeError",
+          "message": "Cannot read properties of null (reading 'value')"
+        }
+      },
+      {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": ["default", "Symbol(Symbol.toStringTag)"],
+          "prototype": "null",
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "default",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "raw": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype"],
+          "prototype": "Function.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "prototypeConstructorSame": true,
+        "name": "named",
+        "length": 1,
+        "tag": "[object Function]",
+        "prototype": {
+          "type": "object",
+          "brand": false,
+          "keys": ["constructor"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "constructor",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            }
+          ]
+        },
+        "missing": 1,
+        "undefined": 1,
+        "zero": 0,
+        "null": null,
+        "nullFailure": {
+          "name": "TypeError",
+          "message": "Cannot read properties of null (reading 'value')"
+        }
+      }
+    ],
+    "identities": [
+      [true, true, false],
+      [true, true, false],
+      [false, false, true]
+    ],
+    "rawIdentities": [
+      [true, true, false],
+      [true, true, false],
+      [false, false, true]
+    ],
+    "counts": {
+      "root": 0,
+      "dependency": 0,
+      "defaults": 0
+    }
+  },
+  {
+    "name": "actual",
+    "views": [
+      {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": ["default", "Symbol(Symbol.toStringTag)"],
+          "prototype": "null",
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "default",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "raw": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype"],
+          "prototype": "Function.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "prototypeConstructorSame": true,
+        "name": "named",
+        "length": 1,
+        "tag": "[object Function]",
+        "prototype": {
+          "type": "object",
+          "brand": false,
+          "keys": ["constructor"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "constructor",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            }
+          ]
+        },
+        "missing": 1,
+        "undefined": 1,
+        "zero": 0,
+        "null": null,
+        "nullFailure": {
+          "name": "TypeError",
+          "message": "Cannot read properties of null (reading 'value')"
+        }
+      },
+      {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": ["default", "Symbol(Symbol.toStringTag)"],
+          "prototype": "null",
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "default",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "raw": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype"],
+          "prototype": "Function.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "prototypeConstructorSame": true,
+        "name": "named",
+        "length": 1,
+        "tag": "[object Function]",
+        "prototype": {
+          "type": "object",
+          "brand": false,
+          "keys": ["constructor"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "constructor",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            }
+          ]
+        },
+        "missing": 1,
+        "undefined": 1,
+        "zero": 0,
+        "null": null,
+        "nullFailure": {
+          "name": "TypeError",
+          "message": "Cannot read properties of null (reading 'value')"
+        }
+      },
+      {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": ["default", "Symbol(Symbol.toStringTag)"],
+          "prototype": "null",
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "default",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "raw": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype"],
+          "prototype": "Function.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "prototypeConstructorSame": true,
+        "name": "named",
+        "length": 1,
+        "tag": "[object Function]",
+        "prototype": {
+          "type": "object",
+          "brand": false,
+          "keys": ["constructor"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "constructor",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            }
+          ]
+        },
+        "missing": 1,
+        "undefined": 1,
+        "zero": 0,
+        "null": null,
+        "nullFailure": {
+          "name": "TypeError",
+          "message": "Cannot read properties of null (reading 'value')"
+        }
+      },
+      {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": ["default", "Symbol(Symbol.toStringTag)"],
+          "prototype": "null",
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "default",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "raw": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype"],
+          "prototype": "Function.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "prototypeConstructorSame": true,
+        "name": "named",
+        "length": 1,
+        "tag": "[object Function]",
+        "prototype": {
+          "type": "object",
+          "brand": false,
+          "keys": ["constructor"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "constructor",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            }
+          ]
+        },
+        "missing": 1,
+        "undefined": 1,
+        "zero": 0,
+        "null": null,
+        "nullFailure": {
+          "name": "TypeError",
+          "message": "Cannot read properties of null (reading 'value')"
+        }
+      }
+    ],
+    "identities": [
+      [true, true, true, false],
+      [true, true, true, false],
+      [true, true, true, false],
+      [false, false, false, true]
+    ],
+    "rawIdentities": [
+      [true, true, true, false],
+      [true, true, true, false],
+      [true, true, true, false],
+      [false, false, false, true]
+    ],
+    "counts": {
+      "root": 0,
+      "dependency": 0,
+      "defaults": 0
+    }
+  },
+  {
+    "name": "held",
+    "before": {
+      "namespace": {
+        "type": "object",
+        "brand": false,
+        "keys": ["default", "Symbol(Symbol.toStringTag)"],
+        "prototype": "null",
+        "tag": "Module",
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "default",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "Symbol(Symbol.toStringTag)",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": false
+          }
+        ]
+      },
+      "raw": {
+        "type": "function",
+        "brand": false,
+        "keys": ["length", "name", "prototype", "extra"],
+        "prototype": "Function.prototype",
+        "tag": null,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "length",
+            "valueType": "number",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": true
+          },
+          {
+            "key": "name",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": true
+          },
+          {
+            "key": "prototype",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": false,
+            "configurable": false
+          },
+          {
+            "key": "extra",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          }
+        ]
+      },
+      "prototypeConstructorSame": true,
+      "name": "owned-renamed-callable",
+      "length": 7,
+      "tag": "[object Function]",
+      "prototype": {
+        "type": "object",
+        "brand": false,
+        "keys": ["constructor", "ownedPrototype"],
+        "prototype": "Object.prototype",
+        "tag": null,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "constructor",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": false,
+            "configurable": true
+          },
+          {
+            "key": "ownedPrototype",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          }
+        ]
+      },
+      "missing": 1,
+      "undefined": 1,
+      "zero": 0,
+      "null": null,
+      "nullFailure": {
+        "name": "TypeError",
+        "message": "Cannot read properties of null (reading 'value')"
+      }
+    },
+    "held": {
+      "namespace": {
+        "type": "object",
+        "brand": false,
+        "keys": ["default", "Symbol(Symbol.toStringTag)"],
+        "prototype": "null",
+        "tag": "Module",
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "default",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "Symbol(Symbol.toStringTag)",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": false
+          }
+        ]
+      },
+      "raw": {
+        "type": "function",
+        "brand": false,
+        "keys": ["length", "name", "prototype", "extra"],
+        "prototype": "Function.prototype",
+        "tag": null,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "length",
+            "valueType": "number",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": true
+          },
+          {
+            "key": "name",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": true
+          },
+          {
+            "key": "prototype",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": false,
+            "configurable": false
+          },
+          {
+            "key": "extra",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          }
+        ]
+      },
+      "prototypeConstructorSame": true,
+      "name": "owned-renamed-callable",
+      "length": 7,
+      "tag": "[object Function]",
+      "prototype": {
+        "type": "object",
+        "brand": false,
+        "keys": ["constructor", "ownedPrototype"],
+        "prototype": "Object.prototype",
+        "tag": null,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "constructor",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": false,
+            "configurable": true
+          },
+          {
+            "key": "ownedPrototype",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          }
+        ]
+      },
+      "missing": 1,
+      "undefined": 1,
+      "zero": 0,
+      "null": null,
+      "nullFailure": {
+        "name": "TypeError",
+        "message": "Cannot read properties of null (reading 'value')"
+      }
+    },
+    "fresh": {
+      "namespace": {
+        "type": "object",
+        "brand": false,
+        "keys": ["default", "Symbol(Symbol.toStringTag)"],
+        "prototype": "null",
+        "tag": "Module",
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "default",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": true,
+            "configurable": true
+          },
+          {
+            "key": "Symbol(Symbol.toStringTag)",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": false
+          }
+        ]
+      },
+      "raw": {
+        "type": "function",
+        "brand": false,
+        "keys": ["length", "name", "prototype"],
+        "prototype": "Function.prototype",
+        "tag": null,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "length",
+            "valueType": "number",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": true
+          },
+          {
+            "key": "name",
+            "valueType": "string",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": false,
+            "enumerable": false,
+            "configurable": true
+          },
+          {
+            "key": "prototype",
+            "valueType": "object",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": false,
+            "configurable": false
+          }
+        ]
+      },
+      "prototypeConstructorSame": true,
+      "name": "named",
+      "length": 1,
+      "tag": "[object Function]",
+      "prototype": {
+        "type": "object",
+        "brand": false,
+        "keys": ["constructor"],
+        "prototype": "Object.prototype",
+        "tag": null,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "descriptors": [
+          {
+            "key": "constructor",
+            "valueType": "function",
+            "get": "undefined",
+            "set": "undefined",
+            "writable": true,
+            "enumerable": false,
+            "configurable": true
+          }
+        ]
+      },
+      "missing": 1,
+      "undefined": 1,
+      "zero": 0,
+      "null": null,
+      "nullFailure": {
+        "name": "TypeError",
+        "message": "Cannot read properties of null (reading 'value')"
+      }
+    },
+    "heldExtraSame": true,
+    "freshHasExtra": false,
+    "counts": {
+      "root": 0,
+      "dependency": 0,
+      "defaults": 0
+    }
+  }
+]

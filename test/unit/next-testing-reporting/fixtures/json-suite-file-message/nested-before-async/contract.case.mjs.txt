@@ -1,0 +1,2 @@
+import{test,describe,beforeAll,afterAll}from'vitest';const noStack=message=>{const error=new Error(message);error.stack=undefined;return error};
+test('root passing',()=>{});describe('nested',()=>{beforeAll(async()=>{await Promise.resolve();throw noStack('nested before async')});test('one',()=>{});test('two',()=>{})})

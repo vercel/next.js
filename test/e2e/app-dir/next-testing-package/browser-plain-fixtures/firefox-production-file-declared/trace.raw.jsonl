@@ -1,0 +1,11 @@
+{"hook":"console","log":{"content":"BROWSER_FIXTURE:{\"phase\":\"setup\",\"scope\":\"file\",\"id\":1}","browser":true,"time":1792939085521,"taskId":"-1594086377_1","type":"stdout","size":55}}
+{"hook":"console","log":{"content":"BROWSER_FIXTURE:{\"phase\":\"A-start\",\"id\":1,\"closed\":false,\"active\":[\"A\"]}","browser":true,"time":1792939085522,"taskId":"-1594086377_1","type":"stdout","size":72}}
+{"hook":"console","log":{"content":"BROWSER_FIXTURE:{\"phase\":\"B-start\",\"id\":1,\"closed\":false,\"active\":[\"A\",\"B\"]}","browser":true,"time":1792939085522,"taskId":"-1594086377_1","type":"stdout","size":76}}
+{"hook":"console","log":{"content":"BROWSER_FIXTURE:{\"phase\":\"A-end\",\"id\":1,\"active\":[\"A\",\"B\"]}","browser":true,"time":1792939085522,"taskId":"-1594086377_1","type":"stdout","size":59}}
+{"hook":"console","log":{"content":"BROWSER_FIXTURE:{\"phase\":\"B-end\",\"id\":1,\"aClosed\":false,\"active\":[\"B\"]}","browser":true,"time":1792939085522,"taskId":"-1594086377","type":"stdout","size":71}}
+{"hook":"console","log":{"content":"BROWSER_FIXTURE:{\"phase\":\"cleanup\",\"scope\":\"file\",\"id\":1}","browser":true,"time":1792939085522,"taskId":"-1594086377","type":"stdout","size":57}}
+{"hook":"ready","id":"-1594086377_0","name":"fixture A","result":{"state":"passed"}}
+{"hook":"ready","id":"-1594086377_1","name":"fixture B","result":{"state":"passed"}}
+{"hook":"case","id":"-1594086377_0","name":"fixture A","result":{"state":"passed","errors":[]}}
+{"hook":"case","id":"-1594086377_1","name":"fixture B","result":{"state":"passed","errors":[]}}
+{"hook":"end","reason":"passed","errors":[],"files":[{"id":"-1594086377","state":"passed","tests":[{"id":"-1594086377_0","name":"fixture A","result":{"state":"passed","errors":[]}},{"id":"-1594086377_1","name":"fixture B","result":{"state":"passed","errors":[]}}]}]}

@@ -287,6 +287,8 @@ export async function createAssertionRuntime(options: {
   observeNativeBeforeEachAssertions?: boolean
   observeNativeAfterEachAssertions?: boolean
   observeNativeBeforeEachCleanupAssertions?: boolean
+  /** Actual bundle-local file run option, known after collection. */
+  captureCoverageCompletion?: () => boolean
   resourceLifetime?: 'attempt' | 'file'
   fakeTimers?: import('./utilities').FakeTimerOptions
   runtimeConfig?: import('./utilities').RuntimeOptions
@@ -400,6 +402,14 @@ export async function createAssertionRuntime(options: {
     serializers: Set<Parameters<typeof addSerializer>[0]>
     utilities: AttemptUtilities
   }
+  const coverageAfterAllRecords: {
+    scope: AssertionScope
+    promise: object
+    settled: boolean
+    hostSettlement?: true
+    observed?: { reason: unknown }
+  }[] = []
+  let coverageAfterAllMetadataInvalid = false
   const scopes = new Map<string, AssertionScope>()
   let nativeRejectionRecordsReleased = false
   let runningAttempt: AssertionScope | undefined
@@ -659,11 +669,45 @@ export async function createAssertionRuntime(options: {
                 new Error()
               )
             }
+            const origin = options.peekCurrentScope?.()
+            const coverageOrigin =
+              options.captureCoverageCompletion?.() === true &&
+              origin?.kind === 'hook' &&
+              !origin.closed &&
+              origin.context === scope.context &&
+              scope.kind === 'hook' &&
+              'hook' in scope.context &&
+              scope.context.hook === 'afterAll' &&
+              !disposed &&
+              !scope.finalized &&
+              !scope.disposed
+                ? scope
+                : undefined
             const result = Reflect.apply(
               target as (...args: unknown[]) => unknown,
               receiver ?? thisArg,
               args
             )
+            // No Task is published for ordinary afterAll. Retain only the exact
+            // returned object; the existing native rejection event must prove
+            // it is the actual rejected promise. Never probe or consume it.
+            if (
+              coverageOrigin &&
+              result !== null &&
+              typeof result === 'object'
+            ) {
+              const recorded = coverageAfterAllRecords.find(
+                (record) =>
+                  record.promise === result && record.scope === coverageOrigin
+              )
+              if (!recorded)
+                coverageAfterAllRecords.push({
+                  scope: coverageOrigin,
+                  promise: result,
+                  settled: false,
+                  hostSettlement: true,
+                })
+            }
             // Promise results retain the primitive's own consumption tracking.
             return result instanceof chai.Assertion
               ? wrapProducedAssertion(result)
@@ -2735,6 +2779,11 @@ export async function createAssertionRuntime(options: {
     const records: AsyncAssertionRecord[] = []
     const softFailures: { error: unknown; body: boolean }[] = []
     const checks = new Map<() => void, (typeof records)[number]>()
+    const coverageAfterAll =
+      options.captureCoverageCompletion?.() === true &&
+      kind === 'hook' &&
+      'hook' in context &&
+      context.hook === 'afterAll'
     const publicTask =
       kind === 'attempt' && 'testId' in context ? context.task : undefined
     const onFinished: (() => void)[] = []
@@ -2888,6 +2937,27 @@ export async function createAssertionRuntime(options: {
         throw error
       }
     }
+    if (coverageAfterAll) {
+      // Observe the pinned primitive's existing lifecycle callbacks only. These
+      // promises remain in their actual public owner queue and stay unconsumed.
+      scope.asyncAssertionObserver = {
+        recorded(promise) {
+          if (
+            coverageAfterAllRecords.some((record) => record.promise === promise)
+          )
+            coverageAfterAllMetadataInvalid = true
+          coverageAfterAllRecords.push({ scope, promise, settled: false })
+        },
+        settled(promise) {
+          const ownedRecords = coverageAfterAllRecords.filter(
+            (record) => record.scope === scope && record.promise === promise
+          )
+          if (ownedRecords.length !== 1 || ownedRecords[0].settled)
+            coverageAfterAllMetadataInvalid = true
+          else ownedRecords[0].settled = true
+        },
+      }
+    }
     if (kind === 'attempt' && 'testId' in context) {
       if (context.task) {
         const observer: AsyncAssertionObserver = {
@@ -2924,9 +2994,20 @@ export async function createAssertionRuntime(options: {
             // the real invoking scope; later settlement must retain this owner.
             const currentOrigin = options.peekCurrentScope?.()
             const origin =
-              currentOrigin?.kind === 'attempt' && !currentOrigin.closed
+              currentOrigin && !currentOrigin.closed
                 ? scopes.get(currentOrigin.context.id)
                 : undefined
+            if (
+              origin?.kind === 'hook' &&
+              'hook' in origin.context &&
+              origin.context.hook === 'afterAll' &&
+              options.captureCoverageCompletion?.() === true &&
+              origin.context === currentOrigin?.context &&
+              !disposed &&
+              !origin.finalized &&
+              !origin.disposed
+            )
+              return origin.asyncAssertionObserver
             return origin?.kind === 'attempt' &&
               origin.context === currentOrigin?.context &&
               scopes.get(origin.context.id) === origin &&
@@ -2977,6 +3058,7 @@ export async function createAssertionRuntime(options: {
       | { error: unknown; body: boolean; nativeHook: boolean }
       | undefined
     let bodyFailure: unknown
+    let completedCoverageFinalizationFailure: { error: unknown } | undefined
     function countIsBody(error: unknown) {
       const selected =
         kind === 'attempt' && 'testId' in context
@@ -3426,9 +3508,25 @@ export async function createAssertionRuntime(options: {
         }
       },
       checkpoint,
+      isSettledCoverageFinalizationFailure(error: unknown) {
+        return (
+          coverageAfterAll &&
+          completedCoverageFinalizationFailure !== undefined &&
+          completedCoverageFinalizationFailure?.error === error &&
+          scope.finalized &&
+          !scope.disposed &&
+          !disposed &&
+          scopes.get(context.id) === scope
+        )
+      },
       async finalize() {
+        completedCoverageFinalizationFailure = undefined
         try {
           await checkpoint()
+        } catch (error) {
+          if (coverageAfterAll && checkpointFailure?.error === error)
+            completedCoverageFinalizationFailure = { error }
+          throw error
         } finally {
           scope.finalized = true
         }
@@ -3453,7 +3551,8 @@ export async function createAssertionRuntime(options: {
         } finally {
           if (
             !fileAssertionLifetime &&
-            (!options.observeNativeUnhandledAssertions || kind !== 'attempt')
+            (!options.observeNativeUnhandledAssertions || kind !== 'attempt') &&
+            !(coverageAfterAll && options.observeNativeUnhandledAssertions)
           )
             scopes.delete(context.id)
           if (runningAttempt === scope) runningAttempt = undefined
@@ -3762,6 +3861,57 @@ export async function createAssertionRuntime(options: {
       if (!scope.finalized) record.settledBeforeFinalization = true
       return true
     },
+    observeNativeAfterAllCoverageRejection(
+      reason: unknown,
+      promise: Promise<unknown>
+    ) {
+      if (
+        options.captureCoverageCompletion?.() !== true ||
+        nativeRejectionRecordsReleased ||
+        coverageAfterAllMetadataInvalid
+      )
+        return false
+      const owners = coverageAfterAllRecords.filter(
+        (record) => record.promise === promise
+      )
+      if (
+        owners.length !== 1 ||
+        (!owners[0].settled && !owners[0].hostSettlement) ||
+        owners[0].observed !== undefined
+      ) {
+        if (owners.length) coverageAfterAllMetadataInvalid = true
+        return false
+      }
+      const record = owners[0]
+      const origin = options.peekCurrentScope?.()
+      if (
+        origin?.kind !== 'hook' ||
+        origin.context !== record.scope.context ||
+        record.scope.kind !== 'hook' ||
+        !('hook' in record.scope.context) ||
+        record.scope.context.hook !== 'afterAll' ||
+        scopes.get(record.scope.context.id) !== record.scope
+      )
+        return false
+      record.settled = true
+      record.observed = { reason }
+      return true
+    },
+    hasCompleteNativeAfterAllCoverageRejections() {
+      return (
+        options.captureCoverageCompletion?.() === true &&
+        !nativeRejectionRecordsReleased &&
+        !coverageAfterAllMetadataInvalid &&
+        coverageAfterAllRecords.every(
+          (record) =>
+            !record.observed ||
+            (record.settled &&
+              record.scope.finalized &&
+              record.scope.disposed &&
+              scopes.get(record.scope.context.id) === record.scope)
+        )
+      )
+    },
     hasCompleteNativeBodyRejections() {
       if (nativeRejectionRecordsReleased) return false
       return [...scopes.values()].every((scope) =>
@@ -3781,6 +3931,7 @@ export async function createAssertionRuntime(options: {
       if (!disposed)
         throw new Error('Dispose assertions before releasing native records.')
       nativeRejectionRecordsReleased = true
+      coverageAfterAllRecords.length = 0
       scopes.clear()
     },
     prepareTaskExpect(task: Test) {

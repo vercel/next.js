@@ -2,13 +2,15 @@ import { selectedCases, type TestSuite } from '../runner/collector'
 import { resolveFixtureDefinitions } from '../runner/fixtures'
 import { clientDeclarations, resolveClientDeclarations } from './collection'
 
-/** Keep numeric serial attempts separate from unsupported fixture/concurrency paths. */
+/** Concurrent attempts require their collected scheduling and ownership protocol. */
 export function validateSynchronousClient(
   root: TestSuite,
   options: {
     testNamePattern?: string | RegExp
     allowOnly?: boolean
     retry?: unknown
+    caseScheduling?: 'concurrent-v1'
+    fixtureResources?: 'file-v1'
   }
 ) {
   const numeric = (value: unknown) =>
@@ -21,7 +23,8 @@ export function validateSynchronousClient(
   function walk(suite: TestSuite) {
     for (const task of [suite, ...suite.children]) {
       if (
-        task.options.concurrent ||
+        (task.options.concurrent &&
+          options.caseScheduling !== 'concurrent-v1') ||
         !numeric(task.options.retry) ||
         !numeric(task.options.repeats)
       )
@@ -32,7 +35,7 @@ export function validateSynchronousClient(
     }
   }
   walk(root)
-  const declarations = clientDeclarations(root)
+  const declarations = clientDeclarations(root, options.caseScheduling)
   const selected = resolveClientDeclarations(
     declarations,
     root.id,
@@ -41,6 +44,7 @@ export function validateSynchronousClient(
   for (const [test, mode] of selectedCases(root)) {
     if (mode !== 'run' || selected.get(test.id)?.mode !== 'run') continue
     if (
+      options.fixtureResources !== 'file-v1' &&
       Object.keys(resolveFixtureDefinitions(test.fixtures, test.suite)).length
     )
       throw new Error(

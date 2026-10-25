@@ -1,0 +1,13 @@
+{"hook":"console","log":{"content":"BROWSER_FIXTURE:{\"phase\":\"setup\",\"scope\":\"test\",\"id\":1}","browser":true,"time":1792939065524,"taskId":"704938072_0","type":"stdout","size":55}}
+{"hook":"console","log":{"content":"BROWSER_FIXTURE:{\"phase\":\"A-start\",\"id\":1,\"closed\":false,\"active\":[\"A\"]}","browser":true,"time":1792939065525,"taskId":"704938072_0","type":"stdout","size":72}}
+{"hook":"console","log":{"content":"BROWSER_FIXTURE:{\"phase\":\"A-end\",\"id\":1,\"active\":[\"A\"]}","browser":true,"time":1792939065525,"taskId":"704938072_0","type":"stdout","size":55}}
+{"hook":"console","log":{"content":"BROWSER_FIXTURE:{\"phase\":\"cleanup\",\"scope\":\"test\",\"id\":1}","browser":true,"time":1792939065525,"taskId":"704938072_0","type":"stdout","size":57}}
+{"hook":"console","log":{"content":"BROWSER_FIXTURE:{\"phase\":\"setup\",\"scope\":\"test\",\"id\":2}","browser":true,"time":1792939065525,"taskId":"704938072_1","type":"stdout","size":55}}
+{"hook":"console","log":{"content":"BROWSER_FIXTURE:{\"phase\":\"B-start\",\"id\":2,\"closed\":false,\"active\":[\"B\"]}","browser":true,"time":1792939065525,"taskId":"704938072_1","type":"stdout","size":72}}
+{"hook":"console","log":{"content":"BROWSER_FIXTURE:{\"phase\":\"B-end\",\"id\":2,\"aClosed\":true,\"active\":[\"B\"]}","browser":true,"time":1792939065525,"taskId":"704938072_1","type":"stdout","size":70}}
+{"hook":"console","log":{"content":"BROWSER_FIXTURE:{\"phase\":\"cleanup\",\"scope\":\"test\",\"id\":2}","browser":true,"time":1792939065526,"taskId":"704938072_1","type":"stdout","size":57}}
+{"hook":"ready","id":"704938072_0","name":"fixture A","result":{"state":"passed"}}
+{"hook":"case","id":"704938072_0","name":"fixture A","result":{"state":"passed","errors":[]}}
+{"hook":"ready","id":"704938072_1","name":"fixture B","result":{"state":"passed"}}
+{"hook":"case","id":"704938072_1","name":"fixture B","result":{"state":"passed","errors":[]}}
+{"hook":"end","reason":"passed","errors":[],"files":[{"id":"704938072","state":"passed","tests":[{"id":"704938072_0","name":"fixture A","result":{"state":"passed","errors":[]}},{"id":"704938072_1","name":"fixture B","result":{"state":"passed","errors":[]}}]}]}

@@ -1,0 +1,286 @@
+[
+  {
+    "name": "root-single",
+    "scope": "root",
+    "errors": [
+      {
+        "phase": "cleanup",
+        "severity": "error",
+        "name": "Error",
+        "message": "first file error",
+        "stack": "Error: first file error\n    at authored (/project/contract.case.mjs:4:2)"
+      }
+    ],
+    "diagnostics": [
+      {
+        "error": {
+          "phase": "cleanup",
+          "severity": "error",
+          "name": "Error",
+          "message": "first file error",
+          "stack": "Error: first file error\n    at authored (/project/contract.case.mjs:4:2)"
+        },
+        "index": 0
+      }
+    ],
+    "message": "first file error"
+  },
+  {
+    "name": "root-multiple",
+    "scope": "root",
+    "errors": [
+      {
+        "phase": "cleanup",
+        "severity": "error",
+        "name": "Error",
+        "message": "first file error",
+        "stack": "Error: first file error\n    at authored (/project/contract.case.mjs:4:2)"
+      },
+      {
+        "phase": "cleanup",
+        "severity": "error",
+        "name": "Error",
+        "message": "second file error",
+        "stack": "Error: second file error\n    at authored (/project/contract.case.mjs:5:2)"
+      }
+    ],
+    "diagnostics": [
+      {
+        "error": {
+          "phase": "cleanup",
+          "severity": "error",
+          "name": "Error",
+          "message": "first file error",
+          "stack": "Error: first file error\n    at authored (/project/contract.case.mjs:4:2)"
+        },
+        "index": 0
+      },
+      {
+        "error": {
+          "phase": "cleanup",
+          "severity": "error",
+          "name": "Error",
+          "message": "second file error",
+          "stack": "Error: second file error\n    at authored (/project/contract.case.mjs:5:2)"
+        },
+        "index": 1
+      }
+    ],
+    "message": "first file error"
+  },
+  {
+    "name": "root-aggregate",
+    "scope": "root",
+    "errors": [
+      {
+        "phase": "cleanup",
+        "severity": "error",
+        "name": "AggregateError",
+        "message": "outer suite aggregate",
+        "stack": "Error: first file error\n    at authored (/project/contract.case.mjs:4:2)",
+        "errors": [
+          {
+            "phase": "cleanup",
+            "severity": "error",
+            "name": "Error",
+            "message": "first file error",
+            "stack": "Error: first file error\n    at authored (/project/contract.case.mjs:4:2)"
+          },
+          {
+            "phase": "cleanup",
+            "severity": "error",
+            "name": "Error",
+            "message": "second file error",
+            "stack": "Error: second file error\n    at authored (/project/contract.case.mjs:5:2)"
+          }
+        ]
+      }
+    ],
+    "diagnostics": [
+      {
+        "error": {
+          "phase": "cleanup",
+          "severity": "error",
+          "name": "AggregateError",
+          "message": "outer suite aggregate",
+          "stack": "Error: first file error\n    at authored (/project/contract.case.mjs:4:2)",
+          "errors": [
+            {
+              "phase": "cleanup",
+              "severity": "error",
+              "name": "Error",
+              "message": "first file error",
+              "stack": "Error: first file error\n    at authored (/project/contract.case.mjs:4:2)"
+            },
+            {
+              "phase": "cleanup",
+              "severity": "error",
+              "name": "Error",
+              "message": "second file error",
+              "stack": "Error: second file error\n    at authored (/project/contract.case.mjs:5:2)"
+            }
+          ]
+        },
+        "index": 0
+      }
+    ],
+    "message": "first file error"
+  },
+  {
+    "name": "nested-single",
+    "scope": "nested",
+    "errors": [
+      {
+        "phase": "cleanup",
+        "severity": "error",
+        "name": "Error",
+        "message": "first file error",
+        "stack": "Error: first file error\n    at authored (/project/contract.case.mjs:4:2)"
+      }
+    ],
+    "diagnostics": [
+      {
+        "error": {
+          "phase": "cleanup",
+          "severity": "error",
+          "name": "Error",
+          "message": "first file error",
+          "stack": "Error: first file error\n    at authored (/project/contract.case.mjs:4:2)"
+        },
+        "index": 0
+      }
+    ],
+    "message": ""
+  },
+  {
+    "name": "unscoped",
+    "scope": "root",
+    "errors": [],
+    "diagnostics": [
+      {
+        "error": {
+          "phase": "cleanup",
+          "severity": "error",
+          "name": "Error",
+          "message": "first file error",
+          "stack": "Error: first file error\n    at authored (/project/contract.case.mjs:4:2)"
+        }
+      }
+    ],
+    "message": "first file error"
+  },
+  {
+    "name": "unhandled",
+    "scope": "root",
+    "errors": [],
+    "diagnostics": [
+      {
+        "error": {
+          "phase": "runtime",
+          "severity": "error",
+          "name": "Error",
+          "message": "first file error",
+          "stack": "Error: first file error\n    at authored (/project/contract.case.mjs:4:2)",
+          "unhandled": "rejection"
+        }
+      }
+    ],
+    "message": ""
+  },
+  {
+    "name": "warning",
+    "scope": "root",
+    "errors": [],
+    "diagnostics": [
+      {
+        "error": {
+          "phase": "cleanup",
+          "severity": "warning",
+          "name": "Error",
+          "message": "first file error",
+          "stack": "Error: first file error\n    at authored (/project/contract.case.mjs:4:2)"
+        }
+      }
+    ],
+    "message": ""
+  },
+  {
+    "name": "wrong-revision",
+    "scope": "nested",
+    "errors": [
+      {
+        "phase": "cleanup",
+        "severity": "error",
+        "name": "Error",
+        "message": "first file error",
+        "stack": "Error: first file error\n    at authored (/project/contract.case.mjs:4:2)"
+      }
+    ],
+    "diagnostics": [
+      {
+        "error": {
+          "phase": "cleanup",
+          "severity": "error",
+          "name": "Error",
+          "message": "first file error",
+          "stack": "Error: first file error\n    at authored (/project/contract.case.mjs:4:2)"
+        },
+        "index": 0,
+        "revision": "foreign"
+      }
+    ],
+    "message": "first file error"
+  },
+  {
+    "name": "wrong-index",
+    "scope": "nested",
+    "errors": [
+      {
+        "phase": "cleanup",
+        "severity": "error",
+        "name": "Error",
+        "message": "first file error",
+        "stack": "Error: first file error\n    at authored (/project/contract.case.mjs:4:2)"
+      }
+    ],
+    "diagnostics": [
+      {
+        "error": {
+          "phase": "cleanup",
+          "severity": "error",
+          "name": "Error",
+          "message": "first file error",
+          "stack": "Error: first file error\n    at authored (/project/contract.case.mjs:4:2)"
+        },
+        "index": 3
+      }
+    ],
+    "message": "first file error"
+  },
+  {
+    "name": "wrong-error-slot",
+    "scope": "nested",
+    "errors": [
+      {
+        "phase": "cleanup",
+        "severity": "error",
+        "name": "Error",
+        "message": "first file error",
+        "stack": "Error: first file error\n    at authored (/project/contract.case.mjs:4:2)"
+      }
+    ],
+    "diagnostics": [
+      {
+        "error": {
+          "phase": "cleanup",
+          "severity": "error",
+          "name": "Error",
+          "message": "second file error",
+          "stack": "Error: second file error\n    at authored (/project/contract.case.mjs:5:2)"
+        },
+        "index": 0
+      }
+    ],
+    "message": "second file error"
+  }
+]

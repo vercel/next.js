@@ -91,11 +91,14 @@ export async function executeClient(
     (options.sequence?.hooks !== undefined &&
       !['stack', 'list', 'parallel'].includes(options.sequence.hooks)) ||
     (options.sequence?.setupFiles && options.sequence.setupFiles !== 'list') ||
-    options.sequence?.concurrent ||
+    (options.sequence?.concurrent !== undefined &&
+      typeof options.sequence.concurrent !== 'boolean') ||
     (typeof options.sequence?.shuffle === 'object'
       ? options.sequence.shuffle.tests
       : options.sequence?.shuffle) ||
-    (options.maxConcurrency !== undefined && options.maxConcurrency !== 1) ||
+    (options.maxConcurrency !== undefined &&
+      (!Number.isSafeInteger(options.maxConcurrency) ||
+        options.maxConcurrency < 1)) ||
     options.tags?.length ||
     options.strictTags ||
     options.attachmentsDir
@@ -163,6 +166,7 @@ export async function executeClient(
     artifact,
     {
       ...options,
+      caseScheduling: 'concurrent-v1',
       updateSnapshots: snapshotUpdateMode !== 'none',
       ...(options.userCancelSignal
         ? {
@@ -305,10 +309,16 @@ export async function executeClient(
           (!(options.browserHeadless ?? isTestCI) && !isTestCI),
         testTimeout: options.testTimeout,
         hookTimeout: options.hookTimeout,
+        caseScheduling: 'concurrent-v1',
         ...(options.sequence?.hooks === undefined
           ? {}
           : { hookSequence: options.sequence.hooks }),
-        ...(options.maxConcurrency === 1 ? { maxConcurrency: 1 as const } : {}),
+        ...(options.sequence?.concurrent === undefined
+          ? {}
+          : { sequenceConcurrent: options.sequence.concurrent }),
+        ...(options.maxConcurrency === undefined
+          ? {}
+          : { maxConcurrency: options.maxConcurrency }),
         fakeTimers: options.fakeTimers,
         provide,
         env: options.env,
@@ -320,7 +330,7 @@ export async function executeClient(
         unstubEnvs: options.unstubEnvs,
         retry: typeof options.retry === 'number' ? options.retry : undefined,
       },
-      async onBrowserCommand(command, admit = () => {}) {
+      async onBrowserCommand(command, admit = () => {}, origin) {
         const deferredLocator =
           typeof command?.element === 'string' &&
           /^next-test-locator-[0-9]+$/.test(command.element)
@@ -345,6 +355,7 @@ export async function executeClient(
         )
           throw new Error('Invalid Browser Mode element command.')
         const runAction = <T>(perform: () => Promise<T>) => {
+          if (origin) collector.assertLiveCommandOrigin(origin)
           admit()
           return runClientBrowserAction(perform)
         }

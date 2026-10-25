@@ -28,6 +28,7 @@ import { createUncoveredSource } from './istanbul'
 import { writeReports } from '../../../compiled/next-test-coverage'
 import { standardCoverageSourceSelector } from './options'
 import picomatch from 'next/dist/compiled/picomatch'
+import type { IstanbulMappedFileCoverage } from './istanbul-types'
 import type {
   CompilerSourceCoverage,
   StandardCoverageData,
@@ -393,7 +394,13 @@ export function mergeStandardCoverageData(
   return result
 }
 
-function lineHits(data: StandardCoverageData) {
+type ReportCoverageData = StandardCoverageData | IstanbulMappedFileCoverage
+
+export type PreparedCoverageMap = Readonly<
+  Record<string, StandardCoverageData | IstanbulMappedFileCoverage>
+>
+
+function lineHits(data: ReportCoverageData) {
   const lines = new Map<number, number>()
   for (const [id, range] of Object.entries(data.statementMap))
     lines.set(
@@ -404,7 +411,7 @@ function lineHits(data: StandardCoverageData) {
 }
 
 export function standardCoverageSummary(
-  files: Record<string, StandardCoverageData>
+  files: Record<string, ReportCoverageData>
 ) {
   const values: Record<StandardCoverageMetric, number[]> = {
     statements: [],
@@ -439,7 +446,7 @@ export function standardCoverageSummary(
 }
 
 export function standardCoverageJsonSummary(
-  files: Record<string, StandardCoverageData>,
+  files: Record<string, ReportCoverageData>,
   total = standardCoverageSummary(files)
 ) {
   const summarize = (
@@ -472,7 +479,7 @@ export function standardCoverageJsonSummary(
 }
 
 export function standardCoverageTextSummary(
-  files: Record<string, StandardCoverageData>,
+  files: Record<string, ReportCoverageData>,
   summary = standardCoverageSummary(files)
 ): string {
   const empty = Object.keys(files).length === 0
@@ -500,7 +507,7 @@ export function standardCoverageTextSummary(
 }
 
 export function standardCoverageLcov(
-  files: Record<string, StandardCoverageData>,
+  files: Record<string, ReportCoverageData>,
   root: string
 ) {
   const output: string[] = []
@@ -552,6 +559,10 @@ export async function publishStandardCoverage(options: {
     plan?: RuntimeConfigurationPlan
   }
   signal?: AbortSignal
+  /** Private actual-map checkpoint, after joins and before report-file policy. */
+  onCoverageMap?: (map: PreparedCoverageMap) => void | Promise<void>
+  /** Observe actual generation without running file reporters or thresholds. */
+  prepareOnly?: true
 }): Promise<{
   published: boolean
   thresholdErrors: string[]
@@ -564,7 +575,15 @@ export async function publishStandardCoverage(options: {
   signal?.throwIfAborted()
   if (options.status === 'cancelled')
     throw new Error('Interrupted runs cannot publish standard coverage.')
-  if (options.status !== 'passed' && !config.reportOnFailure)
+  if (options.prepareOnly !== undefined && options.prepareOnly !== true)
+    throw new Error('Coverage preparation requires its explicit true option.')
+  if (options.prepareOnly && typeof options.onCoverageMap !== 'function')
+    throw new Error('Coverage preparation requires its actual map observer.')
+  if (
+    options.status !== 'passed' &&
+    !config.reportOnFailure &&
+    !options.onCoverageMap
+  )
     return { published: false, thresholdErrors: [] }
   await assertStandardCoverageFacts(
     options.facts,
@@ -698,11 +717,74 @@ export async function publishStandardCoverage(options: {
     }
     await visit(root)
   }
+  return publishPreparedStandardCoverage({
+    root,
+    output,
+    files,
+    config,
+    signal,
+    assertRuntime,
+    ...(options.onCoverageMap
+      ? {
+          onCoverageMap: options.onCoverageMap,
+          ...(options.prepareOnly ||
+          (options.status !== 'passed' && !config.reportOnFailure)
+            ? { skipPublication: true as const }
+            : {}),
+        }
+      : {}),
+    ...(options.sourceAnalysis
+      ? {
+          assertSourceAnalysis: async () => {
+            await assertCompilerSourceCoverage(
+              options.sourceAnalysis!.facts,
+              options.sourceAnalysis!.plan,
+              analysisSignal
+            )
+          },
+        }
+      : {}),
+  })
+}
+
+/** Reporting starts only after the selected provider has validated and merged facts. */
+export async function publishPreparedStandardCoverage(options: {
+  root: string
+  output: string
+  files: ReadonlyMap<string, { hash: string; data: ReportCoverageData }>
+  config: StandardCoverageOptions
+  signal?: AbortSignal
+  assertRuntime: () => Promise<void>
+  assertSourceAnalysis?: () => Promise<void>
+  onCoverageMap?: (map: PreparedCoverageMap) => void | Promise<void>
+  skipPublication?: true
+}) {
+  const {
+    root,
+    output,
+    files,
+    config,
+    signal,
+    assertRuntime,
+    assertSourceAnalysis,
+  } = options
   const data = Object.fromEntries(
     [...files]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([file, value]) => [file, value.data])
   )
+  if (options.onCoverageMap) {
+    await assertRuntime()
+    for (const [file, value] of files)
+      if (coverageHash(await readFile(file)) !== value.hash)
+        throw new Error(
+          `Standard coverage source changed before map publication: ${file}`
+        )
+    if (assertSourceAnalysis) await assertSourceAnalysis()
+    signal?.throwIfAborted()
+    await options.onCoverageMap(structuredClone(data))
+  }
+  if (options.skipPublication) return { published: false, thresholdErrors: [] }
   const summary = standardCoverageSummary(data)
   const thresholdGroups: {
     file?: string
@@ -965,12 +1047,7 @@ export async function publishStandardCoverage(options: {
         throw new Error(
           `Standard coverage source changed before publication: ${file}`
         )
-    if (options.sourceAnalysis)
-      await assertCompilerSourceCoverage(
-        options.sourceAnalysis.facts,
-        options.sourceAnalysis.plan,
-        analysisSignal
-      )
+    if (assertSourceAnalysis) await assertSourceAnalysis()
     signal?.throwIfAborted()
     // Stdout-only formatters complete without creating a report directory.
     if (!config.formatterReports || reportFiles.length) {
@@ -983,12 +1060,7 @@ export async function publishStandardCoverage(options: {
       published = true
     }
     await assertRuntime()
-    if (options.sourceAnalysis)
-      await assertCompilerSourceCoverage(
-        options.sourceAnalysis.facts,
-        options.sourceAnalysis.plan,
-        analysisSignal
-      )
+    if (assertSourceAnalysis) await assertSourceAnalysis()
     // A queued rename can complete after cancellation. Keep the previous
     // report recoverable until this transaction confirms the committed output.
     signal?.throwIfAborted()

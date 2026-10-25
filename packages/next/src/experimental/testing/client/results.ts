@@ -13,7 +13,12 @@ import type { ResultEvent, SerializedDiagnostic } from '../reporting/events'
 import { serializeDiagnostic } from '../reporting/diagnostics'
 import type { RunnerCaseResult, RunnerFailure } from '../runner/lifecycle'
 import { getFinalCaseResults } from '../reporting/final-cases'
-import type { ClientMessage } from './protocol'
+import {
+  clientCaseFinal,
+  isClientCommandAttemptOrigin,
+  type ClientMessage,
+  type ClientCommandAttemptOrigin,
+} from './protocol'
 import type { SnapshotUpdate } from '../assertions/snapshots'
 import { resolveClientDeclarations } from './collection'
 import {
@@ -64,9 +69,11 @@ export function createClientResultCollector(
   artifact: CompiledBrowserClientTestArtifact,
   options: ExecuteTestOptions & {
     isUserCancellationFinalized?: () => boolean
+    caseScheduling?: 'concurrent-v1'
   },
   mapStack?: (stack: string) => NonNullable<SerializedDiagnostic['frames']>
 ) {
+  const concurrentScheduling = options.caseScheduling === 'concurrent-v1'
   const events: ResultEvent[] = []
   let moduleCompletion: RuntimeModuleCompletion | undefined
   const moduleFailures = options.captureCompletedModuleResult
@@ -112,8 +119,11 @@ export function createClientResultCollector(
   const startedAttempts = new Set<string>()
   const completedCases = new Set<string>()
   const logicalResults = new Set<string>()
+  const activeCases = new Set<string>()
+  const finalCases = new Set<string>()
   let latestCase: string | undefined
   const enterCase = (id: string) => {
+    if (concurrentScheduling) return
     if (latestCase !== undefined && latestCase !== id)
       completedCases.add(latestCase)
     latestCase = id
@@ -362,8 +372,16 @@ export function createClientResultCollector(
       if (
         !declared ||
         declared.mode !== 'run' ||
-        active ||
-        completedCases.has(declared.id) ||
+        (concurrentScheduling
+          ? activeCases.has(declared.id) ||
+            finalCases.has(declared.id) ||
+            (activeCases.size > 0 &&
+              (!declared.concurrent ||
+                [...activeCases].some(
+                  (id) => !declarations!.cases.get(id)!.concurrent
+                ))) ||
+            activeCases.size >= (options.maxConcurrency ?? 5)
+          : active || completedCases.has(declared.id)) ||
         (state && (!state.started || !state.ended)) ||
         startedAttempts.has(context.id) ||
         !ordinal ||
@@ -375,7 +393,8 @@ export function createClientResultCollector(
       )
         throw new Error('Invalid or duplicate Browser Mode attempt owner.')
       enterCase(declared.id)
-      active = declared.id
+      if (concurrentScheduling) activeCases.add(declared.id)
+      else active = declared.id
       startedAttempts.add(context.id)
       cases.set(declared.id, {
         ...state,
@@ -447,7 +466,10 @@ export function createClientResultCollector(
         !declared ||
         state?.ended ||
         completedCases.has(declared.id) ||
-        (active !== undefined && (!state?.started || active !== declared.id)) ||
+        (concurrentScheduling
+          ? state?.started && !activeCases.has(declared.id)
+          : active !== undefined &&
+            (!state?.started || active !== declared.id)) ||
         caseAncestors(declared.id).some((id) => suites.has(id)) ||
         result.entryId !== artifact.entryId ||
         !record(result.attempt) ||
@@ -529,14 +551,26 @@ export function createClientResultCollector(
           result.status === 'cancelled' &&
           !result.errors.length &&
           !result.pending
-        if (!inactive && !suiteSkipped && !cancelled)
+        const userCancelled =
+          concurrentScheduling &&
+          options.isUserCancellationFinalized !== undefined &&
+          declared.mode === 'run' &&
+          mode === 'run' &&
+          result.status === 'skipped' &&
+          !result.errors.length &&
+          !result.pending
+        if (!inactive && !suiteSkipped && !cancelled && !userCancelled)
           throw new Error(
             'Browser Mode case result does not match its immutable attempt.'
           )
         if (!inactive && suiteSkipped) blockedCases.add(declared.id)
-        requiresInterruption ||= cancelled
+        requiresInterruption ||= cancelled || userCancelled
+        requiresUserCancellation ||= userCancelled
       }
-      if (state?.started) active = undefined
+      if (state?.started) {
+        if (concurrentScheduling) activeCases.delete(declared.id)
+        else active = undefined
+      }
       enterCase(declared.id)
       const completed = { ...result, mode }
       attemptResults.push(completed)
@@ -573,6 +607,28 @@ export function createClientResultCollector(
           )
         ),
       })
+    } else if (message.type === 'case-final') {
+      const result = message.result
+      const declared = record(result)
+        ? declarations?.cases.get(result.caseId as string)
+        : undefined
+      const state = declared ? cases.get(declared.id) : undefined
+      const final = declared
+        ? getFinalCaseResults(
+            attemptResults.filter((attempt) => attempt.caseId === declared.id)
+          ).get(declared.id)
+        : undefined
+      if (
+        !concurrentScheduling ||
+        !declared ||
+        !state?.ended ||
+        activeCases.has(declared.id) ||
+        finalCases.has(declared.id) ||
+        !final ||
+        !same(result, clientCaseFinal(final))
+      )
+        throw new Error('Invalid Browser Mode final case facts.')
+      finalCases.add(declared.id)
     } else if (message.type === 'task-update') {
       if (
         !options.captureTaskResults ||
@@ -638,7 +694,11 @@ export function createClientResultCollector(
         record(result) && declarations?.suites.get(result.suiteId as string)
       if (
         !declared ||
-        active ||
+        (concurrentScheduling
+          ? [...activeCases].some((id) =>
+              caseAncestors(id).includes(declared.id)
+            )
+          : active) ||
         suites.has(declared.id) ||
         suiteAncestors(declared.id).some((id) => suites.has(id)) ||
         result.entryId !== artifact.entryId ||
@@ -670,7 +730,11 @@ export function createClientResultCollector(
         (suite) => suite.parentId === declared.id
       )
       if (
-        descendants.some((id) => !cases.get(id)?.ended) ||
+        descendants.some(
+          (id) =>
+            !cases.get(id)?.ended ||
+            (concurrentScheduling && !finalCases.has(id))
+        ) ||
         children.some((suite) => !suites.has(suite.id))
       )
         throw new Error('Browser Mode suite omitted declared descendants.')
@@ -759,7 +823,7 @@ export function createClientResultCollector(
         !integer(message.caseCount) ||
         message.caseCount !==
           [...cases.values()].filter((state) => state.ended).length ||
-        active ||
+        (concurrentScheduling ? activeCases.size > 0 : active) ||
         !Array.isArray(message.updates)
       )
         throw new Error('Invalid Browser Mode completion facts.')
@@ -769,6 +833,8 @@ export function createClientResultCollector(
           suites.size !== declarations.suites.size ||
           (options.captureTaskResults &&
             logicalResults.size !== declarations.cases.size) ||
+          (concurrentScheduling &&
+            finalCases.size !== declarations.cases.size) ||
           [...blockedCases].some((id) => !blocked(caseAncestors(id))) ||
           [...blockedSuites].some((id) => !blocked(suiteAncestors(id))) ||
           (requiresInterruption && !message.interrupted) ||
@@ -854,6 +920,29 @@ export function createClientResultCollector(
   }
   return {
     accept,
+    assertLiveCommandOrigin(origin: ClientCommandAttemptOrigin) {
+      if (
+        !concurrentScheduling ||
+        complete ||
+        !isClientCommandAttemptOrigin(origin) ||
+        origin.fileId !== artifact.entryId
+      )
+        throw new Error('Invalid Browser Mode native command owner.')
+      const declared = declarations?.cases.get(origin.caseId)
+      const state = cases.get(origin.caseId)
+      if (
+        !declared ||
+        declared.mode !== 'run' ||
+        !state?.started ||
+        state.ended ||
+        !activeCases.has(origin.caseId) ||
+        finalCases.has(origin.caseId) ||
+        state.attempt?.id !== origin.attempt.id ||
+        state.attempt.retry !== origin.attempt.retry ||
+        state.attempt.repeat !== origin.attempt.repeat
+      )
+        throw new Error('Invalid Browser Mode native command owner.')
+    },
     hasFailure() {
       return hasFailedOutcomes()
     },

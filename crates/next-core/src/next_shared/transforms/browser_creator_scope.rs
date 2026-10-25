@@ -3,7 +3,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::browser_creator_scope::{
-    browser_creator_scope, preserve_browser_block_function_names,
+    browser_creator_scope, browser_promise_static_calls, preserve_browser_block_function_names,
 };
 use swc_core::{common::SyntaxContext, ecma::ast::Program};
 use turbo_tasks::Vc;
@@ -59,6 +59,10 @@ impl CustomTransformer for CreatorTransformer {
             return Ok(());
         }
         browser_creator_scope(program)?;
+        browser_promise_static_calls(
+            program,
+            SyntaxContext::empty().apply_mark(ctx.unresolved_mark),
+        );
         preserve_browser_block_function_names(
             program,
             SyntaxContext::empty().apply_mark(ctx.unresolved_mark),

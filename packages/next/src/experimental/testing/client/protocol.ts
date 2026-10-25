@@ -41,12 +41,14 @@ export interface ClientConfiguration extends ClientIdentity {
   captureTaskResults?: boolean
   includeTaskLocation?: boolean
   captureCompletedModuleResult?: true
+  caseScheduling?: 'concurrent-v1'
   /** Private scheduling control, independent of the test file's lifetime. */
   userCancellation?: true
   testTimeout: number
   hookTimeout: number
   hookSequence?: 'stack' | 'list' | 'parallel'
-  maxConcurrency?: 1
+  sequenceConcurrent?: boolean
+  maxConcurrency?: number
   retry?: number
   fakeTimers?: FakeTimerOptions
   provide?: Record<string, unknown>
@@ -80,6 +82,45 @@ export interface ClientBrowserCommand {
     | 'upload'
   args: unknown[]
 }
+/** Captured from the actual private attempt when its command starts. */
+export interface ClientCommandAttemptOrigin {
+  readonly fileId: string
+  readonly caseId: string
+  readonly attempt: {
+    readonly id: string
+    readonly retry: number
+    readonly repeat: number
+  }
+}
+export function isClientCommandAttemptOrigin(
+  value: unknown
+): value is ClientCommandAttemptOrigin {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const origin = value as Record<string, unknown>
+  if (
+    Object.keys(origin).length !== 3 ||
+    typeof origin.fileId !== 'string' ||
+    !origin.fileId ||
+    typeof origin.caseId !== 'string' ||
+    !origin.caseId ||
+    !origin.attempt ||
+    typeof origin.attempt !== 'object' ||
+    Array.isArray(origin.attempt)
+  )
+    return false
+  const attempt = origin.attempt as Record<string, unknown>
+  return (
+    Object.keys(attempt).length === 3 &&
+    typeof attempt.id === 'string' &&
+    !!attempt.id &&
+    typeof attempt.retry === 'number' &&
+    Number.isSafeInteger(attempt.retry) &&
+    attempt.retry >= 0 &&
+    typeof attempt.repeat === 'number' &&
+    Number.isSafeInteger(attempt.repeat) &&
+    attempt.repeat >= 0
+  )
+}
 export type ClientMessage = ClientIdentity & { sequence: number } & (
     | {
         type: 'output'
@@ -112,7 +153,11 @@ export type ClientMessage = ClientIdentity & { sequence: number } & (
           repeat: number
         }
       }
-    | { type: 'browser-command'; command: ClientBrowserCommand }
+    | {
+        type: 'browser-command'
+        command: ClientBrowserCommand
+        origin?: ClientCommandAttemptOrigin
+      }
     | {
         type: 'artifact'
         taskId: string
@@ -120,6 +165,7 @@ export type ClientMessage = ClientIdentity & { sequence: number } & (
         artifact: TestArtifact
       }
     | { type: 'case-end'; result: RunnerCaseResult }
+    | { type: 'case-final'; result: ClientCaseFinal }
     | {
         type: 'task-update'
         caseResults: RunnerCaseResult[]
@@ -141,6 +187,26 @@ export type ClientMessage = ClientIdentity & { sequence: number } & (
         snapshotSummary?: unknown
       }
   )
+
+export type ClientCaseFinal = Pick<
+  RunnerCaseResult,
+  'caseId' | 'attempt' | 'status' | 'mode' | 'pending'
+>
+
+/** Only the real logical-case callback produces these scalar completion facts. */
+export function clientCaseFinal(result: RunnerCaseResult): ClientCaseFinal {
+  return {
+    caseId: result.caseId,
+    attempt: {
+      id: result.attempt.id,
+      retry: result.attempt.retry,
+      repeat: result.attempt.repeat,
+    },
+    status: result.status,
+    ...(result.mode === undefined ? {} : { mode: result.mode }),
+    ...(result.pending === undefined ? {} : { pending: result.pending }),
+  }
+}
 
 type WithoutIdentity<T> = T extends unknown
   ? Omit<T, keyof ClientIdentity | 'sequence'>

@@ -26,7 +26,10 @@ import { getFinalCaseResults } from '../reporting/final-cases'
 import type { RunnerFailure } from '../runner/lifecycle'
 import type { RuntimeModuleCompletion } from './completed-module'
 import type { WorkerInput, WorkerMessage } from './protocol'
-import type { TestCoverageCompletion, TestFileCollection } from '../contracts'
+import type {
+  AnyTestCoverageCompletion,
+  TestFileCollection,
+} from '../contracts'
 import type { RscTestingBindings } from '../rsc'
 import { setBundlerFindSourceMapImplementation } from '../../../server/patch-error-inspect'
 import { createArtifactSourceMapLookup } from './source-maps'
@@ -37,6 +40,10 @@ import { assertArtifactProfile } from './artifact-profile'
 import { assertCompiledSetup } from './setup'
 import { openTestEnvironment } from '../environments/runtime'
 import { installTestConsole } from './console'
+import {
+  assertNodeProjectEnvironment,
+  applyNodeProjectEnvironment,
+} from './project-env'
 
 type EventPayload<T = ResultEvent> = T extends ResultEvent
   ? Omit<T, 'version' | 'runId' | 'timestamp'>
@@ -178,15 +185,34 @@ async function run({
     )
   )
   let snapshotUnhandledClean = true
+  let coverageUnhandledClean = true
+  const nativeCoverageOccurrences: {
+    reason: unknown
+    promise: Promise<unknown>
+    afterAll: boolean
+  }[] = []
   const reportLateFailure = (reason: unknown) => {
     snapshotUnhandledClean = false
+    if (
+      !(
+        options.coverage?.kind === 'node-istanbul' &&
+        activeNativeRejection?.recordedCoverageAfterAll &&
+        activeNativeRejection.reason === reason
+      )
+    )
+      coverageUnhandledClean = false
     lateFailures.report(reason)
   }
   let routeRuntimeUnhandled:
     | ((reason: unknown, promise: Promise<unknown>) => boolean)
     | undefined
   let activeNativeRejection:
-    | { reason: unknown; promise: Promise<unknown>; recordedBody: boolean }
+    | {
+        reason: unknown
+        promise: Promise<unknown>
+        recordedBody: boolean
+        recordedCoverageAfterAll: boolean
+      }
     | undefined
   let collection: TestFileCollection | undefined
   let publishingResult = false
@@ -194,11 +220,27 @@ async function run({
   // rejection fails the file without discarding already completed case facts.
   reportUnhandledRejection = (reason, promise) => {
     unhandledRejections.add(reason)
-    activeNativeRejection = { reason, promise, recordedBody: false }
+    activeNativeRejection = {
+      reason,
+      promise,
+      recordedBody: false,
+      recordedCoverageAfterAll: false,
+    }
     try {
       routeRuntimeUnhandled?.(reason, promise)
       if (!activeNativeRejection.recordedBody || publishingResult)
         snapshotUnhandledClean = false
+      nativeCoverageOccurrences.push({
+        reason,
+        promise,
+        afterAll: activeNativeRejection.recordedCoverageAfterAll,
+      })
+      if (
+        (!activeNativeRejection.recordedBody &&
+          !activeNativeRejection.recordedCoverageAfterAll) ||
+        publishingResult
+      )
+        coverageUnhandledClean = false
     } finally {
       activeNativeRejection = undefined
     }
@@ -208,6 +250,11 @@ async function run({
   let status: ResultStatus = 'failed'
   let coverageCollector:
     | Awaited<ReturnType<typeof import('../coverage/collector').startCoverage>>
+    | Awaited<
+        ReturnType<
+          typeof import('../coverage/istanbul-capture').startIstanbulCoverage
+        >
+      >
     | undefined
   let customCollector:
     | Awaited<
@@ -217,8 +264,14 @@ async function run({
       >
     | undefined
   let customCoverage: CustomCoverageCompletion | undefined
-  let coverage: TestCoverageCompletion | undefined
+  let coverage: AnyTestCoverageCompletion | undefined
   let coverageComplete = true
+  const provisionalCoverageFailures: RunnerFailure[] = []
+  const reportedFileErrors: {
+    failure: RunnerFailure
+    index: number
+    diagnostic: ReturnType<typeof serializeDiagnostic>
+  }[] = []
   let snapshotHostComplete = true
   const unfinishedAttempts = new Set<string>()
   let file:
@@ -235,7 +288,12 @@ async function run({
     artifact.profile.environment === 'node' &&
     snapshotUnhandledClean &&
     file?.hasCompletedBodyExecution?.() === true
+  const canPublishIstanbulNativeFacts = () =>
+    options.coverage?.kind === 'node-istanbul' &&
+    coverageUnhandledClean &&
+    file?.getCompletedCoverageFailures() !== undefined
   let environment: Awaited<ReturnType<typeof openTestEnvironment>> | undefined
+  let restoreProjectEnvironment: (() => void) | undefined
   let consoleCapture: ReturnType<typeof installTestConsole> | undefined
   let readConsoleTask:
     | (() => import('./console').ConsoleTask | undefined)
@@ -315,6 +373,7 @@ async function run({
         'Client Browser Mode artifacts require the parent-owned client executor, never a Node worker.'
       )
     assertArtifactProfile(artifact, options.entry)
+    assertNodeProjectEnvironment(artifact, options)
     if (options.customCoverage) {
       const { assertCustomCoverageRequest } = await import(
         '../coverage/custom-runtime.js'
@@ -482,8 +541,18 @@ async function run({
     if (options.coverage) {
       // Start before even the emitted bootstrap is evaluated. One interval
       // retains setup, hooks and every retry, including superseded failures.
-      const { startCoverage } = await import('../coverage/collector.js')
-      coverageCollector = await startCoverage(artifact)
+      if (options.coverage.kind === 'node-istanbul') {
+        const { startIstanbulCoverage } = await import(
+          '../coverage/istanbul-capture.js'
+        )
+        coverageCollector = await startIstanbulCoverage(
+          artifact,
+          options.projectDir
+        )
+      } else {
+        const { startCoverage } = await import('../coverage/collector.js')
+        coverageCollector = await startCoverage(artifact)
+      }
     }
     // The emitted entry initializes the normal Turbopack runtime. Its spec import
     // is deferred until the bundle-local collector and manifests are installed.
@@ -507,6 +576,9 @@ async function run({
       mockTesting?: typeof import('../mocking/runtime')
     }
     moduleFailurePhase = undefined
+    // The actual emitted entry has initialized Next's runtime env bindings.
+    // Setup and authored modules remain deferred until collection below.
+    restoreProjectEnvironment = applyNodeProjectEnvironment(options.env)
     if (
       options.setupFiles.length &&
       typeof entry.loadSetupModules !== 'function'
@@ -631,14 +703,23 @@ async function run({
       publicTaskSelection: true,
       ...(artifact.kind === 'node' && artifact.profile.environment === 'node'
         ? {
-            onUnhandledRejection(reason, promise, recordedBody) {
+            onUnhandledRejection(
+              reason,
+              promise,
+              recordedBody,
+              recordedCoverageAfterAll
+            ) {
               const active = activeNativeRejection
               if (
                 active &&
                 active.reason === reason &&
                 active.promise === promise
-              )
+              ) {
                 active.recordedBody = recordedBody === true
+                active.recordedCoverageAfterAll =
+                  options.coverage?.kind === 'node-istanbul' &&
+                  recordedCoverageAfterAll === true
+              }
             },
           }
         : {}),
@@ -802,8 +883,18 @@ async function run({
       status = 'passed'
     } else {
       phase = 'runtime'
+      if (
+        options.coverage?.kind === 'node-istanbul' &&
+        typeof file.getCompletedCoverageFailures !== 'function'
+      )
+        throw new Error(
+          'Istanbul completion requires the actual runner coverage observation.'
+        )
       if (options.captureCompletedModuleResult) moduleFailurePhase = 'run'
       const result = await file.run({
+        ...(options.coverage?.kind === 'node-istanbul'
+          ? { captureCoverageCompletion: true as const }
+          : {}),
         ...(options.captureCompletedModuleResult
           ? { captureCompletedModuleResult: true as const }
           : {}),
@@ -975,11 +1066,22 @@ async function run({
         snapshotHostComplete = false
         coverageComplete = false
       }
-      for (const failure of result.errors) {
+      for (const [index, failure] of result.errors.entries()) {
         if (
-          failure.phase === 'cleanup' ||
-          failure.phase === 'afterAll' ||
-          failure.phase === 'runtime'
+          (failure.phase === 'beforeAll' ||
+            failure.phase === 'afterAll' ||
+            failure.phase === 'cleanup' ||
+            failure.phase === 'runtime') &&
+          options.coverage?.kind === 'node-istanbul'
+        ) {
+          snapshotHostComplete = false
+          provisionalCoverageFailures.push(failure)
+        }
+        if (
+          ((failure.phase === 'cleanup' || failure.phase === 'afterAll') &&
+            options.coverage?.kind !== 'node-istanbul') ||
+          (failure.phase === 'runtime' &&
+            options.coverage?.kind !== 'node-istanbul')
         ) {
           snapshotHostComplete = false
           coverageComplete = false
@@ -988,6 +1090,12 @@ async function run({
         const owners = reportedSuiteErrors.filter(
           (item) => item.failure === failure
         )
+        const serialized = runnerFailure(failure)
+        const fileError =
+          options.coverage?.kind === 'node-istanbul' &&
+          failure.phase === 'cleanup'
+        if (fileError)
+          reportedFileErrors.push({ failure, index, diagnostic: serialized })
         await event({
           type: 'diagnostic',
           entryId: artifact.entryId,
@@ -1000,7 +1108,8 @@ async function run({
                 },
               }
             : {}),
-          diagnostic: runnerFailure(failure),
+          ...(fileError ? { coverageFileError: { index } } : {}),
+          diagnostic: serialized,
         })
       }
       // A successful retry replaces its failure; an earlier failed repeat still
@@ -1146,6 +1255,15 @@ async function run({
       status = 'failed'
       await diagnostic(error, 'cleanup')
     }
+    try {
+      restoreProjectEnvironment?.()
+    } catch (error) {
+      moduleHostCleanupComplete = false
+      snapshotHostComplete = false
+      coverageComplete = false
+      status = 'failed'
+      await diagnostic(error, 'cleanup')
+    }
   }
   try {
     // Factory/original callbacks have retired; no publication precedes this check.
@@ -1171,6 +1289,60 @@ async function run({
     }
     let captured = false
     try {
+      let settledSuiteErrors: { suiteId: string; index: number }[] | undefined
+      let settledFileErrors:
+        | {
+            index: number
+            diagnostic: ReturnType<typeof serializeDiagnostic>
+          }[]
+        | undefined
+      if (options.coverage.kind === 'node-istanbul') {
+        const observed = file!.getCompletedCoverageFailures()
+        if (
+          !observed ||
+          observed.length !== provisionalCoverageFailures.length ||
+          provisionalCoverageFailures.some(
+            (failure) => !observed.includes(failure)
+          )
+        )
+          coverageComplete = false
+        else {
+          settledSuiteErrors = []
+          settledFileErrors = []
+          for (const failure of observed) {
+            const owners = reportedSuiteErrors.filter(
+              (item) => item.failure === failure
+            )
+            const fileOwners = reportedFileErrors.filter(
+              (item) => item.failure === failure
+            )
+            if (fileOwners.length === 1 && owners.length <= 1) {
+              settledFileErrors.push({
+                index: fileOwners[0].index,
+                diagnostic: fileOwners[0].diagnostic,
+              })
+            } else if (owners.length === 1 && fileOwners.length === 0) {
+              settledSuiteErrors.push({
+                suiteId: owners[0].suiteId,
+                index: owners[0].index,
+              })
+            } else if (
+              !(
+                owners.length === 0 &&
+                fileOwners.length === 0 &&
+                failure.phase === 'runtime' &&
+                nativeCoverageOccurrences.filter(
+                  (item) => item.afterAll && item.reason === failure.error
+                ).length === 1 &&
+                lateFailures.has(failure.error)
+              )
+            ) {
+              coverageComplete = false
+              break
+            }
+          }
+        }
+      }
       if (!coverageCollector)
         throw new Error('Test coverage collection did not start')
       const data = await coverageCollector.stop()
@@ -1182,14 +1354,22 @@ async function run({
       if (
         !coverageComplete ||
         controller.signal.aborted ||
-        (lateFailures.failed && !canPublishNativeBodyFacts()) ||
+        (lateFailures.failed &&
+          !canPublishNativeBodyFacts() &&
+          !canPublishIstanbulNativeFacts()) ||
         unfinishedAttempts.size
       ) {
         throw new Error(
           'Test coverage is incomplete after interrupted execution or failed cleanup'
         )
       }
-      coverage = { ...identity, complete: true, data }
+      coverage = {
+        ...identity,
+        complete: true,
+        data,
+        ...(settledSuiteErrors?.length ? { settledSuiteErrors } : {}),
+        ...(settledFileErrors?.length ? { settledFileErrors } : {}),
+      }
     } catch (error) {
       snapshotHostComplete = false
       status =
@@ -1299,7 +1479,9 @@ async function run({
     coverage?.complete &&
     (!coverageComplete ||
       controller.signal.aborted ||
-      (lateFailures.failed && !canPublishNativeBodyFacts()) ||
+      (lateFailures.failed &&
+        !canPublishNativeBodyFacts() &&
+        !canPublishIstanbulNativeFacts()) ||
       unfinishedAttempts.size)
   )
     coverage = {

@@ -1,0 +1,1 @@
+globalThis.__cjsNamedShorthandDependency=(globalThis.__cjsNamedShorthandDependency||0)+1;module.exports={value:'dependency-'+globalThis.__cjsNamedShorthandDependency}

@@ -5,9 +5,21 @@ import {
   createBrowserLocatorFormatter,
 } from '../../../compiled/next-test-primitives/browser'
 import * as common from '../vitest'
-import { assertBrowserApiScope, captureAsyncScope } from './async-context'
-import type { ClientBrowserCommand } from './protocol'
+import {
+  assertBrowserApiScope,
+  captureAsyncScope,
+  type ClientCommandAdmission,
+} from './async-context'
+import type {
+  ClientBrowserCommand,
+  ClientCommandAttemptOrigin,
+} from './protocol'
+import type { Task } from '../runner/tasks'
 import type { Locator, Page } from 'playwright'
+import {
+  registerBrowserActionIdentity,
+  type BrowserActionIdentity,
+} from './browser-action-identity'
 
 type Query = (...args: any[]) => Element[]
 type DragOptions = Parameters<Page['dragAndDrop']>[2]
@@ -55,13 +67,194 @@ function resolveWheelOptions(options: WheelOptions) {
     throw new Error('Invalid Browser wheel options.')
   return { delta: { x, y }, times }
 }
-let command: ((value: ClientBrowserCommand) => Promise<unknown>) | undefined
+let command:
+  | ((
+      value: ClientBrowserCommand,
+      origin?: ClientCommandAttemptOrigin
+    ) => Promise<unknown>)
+  | undefined
+type BrowserActionCallbacks = {
+  getConsoleTask(): Task | undefined
+  captureCommandAdmission?(): ClientCommandAdmission | undefined
+}
+type AwaitCheckTask = Task & { onFinished?: (() => void)[] }
+let actionCallbacks: BrowserActionCallbacks | undefined
+
+class Action<T> implements Promise<T> {
+  [Symbol.toStringTag] = 'Action'
+  #command: (args: unknown[], options: unknown) => Promise<T>
+  #args: unknown[]
+  #options: unknown
+  #promise: Promise<T> | undefined
+  #awaited = false
+
+  constructor(
+    perform: (args: unknown[], options: unknown) => Promise<T>,
+    args: unknown[],
+    options: unknown,
+    errorSource?: Error
+  ) {
+    this.#command = perform
+    this.#args = args
+    this.#options = options
+    const sourceError = errorSource ?? new Error('STACK_TRACE_ERROR')
+    const task = actionCallbacks?.getConsoleTask() as AwaitCheckTask | undefined
+    if (errorSource || !task || task.type !== 'test') {
+      this.#promise = this.#run()
+      return
+    }
+    task.onFinished ??= []
+    task.onFinished.push(() => {
+      if (!this.#awaited) {
+        const error = new Error(
+          'The call was not awaited. This method is asynchronous and must be awaited; otherwise, the call will not start to avoid unhandled rejections.'
+        )
+        error.stack = sourceError.stack?.replace(
+          sourceError.message,
+          error.message
+        )
+        throw error
+      }
+    })
+  }
+
+  #run(): Promise<T> {
+    return this.#command(this.#args, this.#options)
+  }
+
+  #start(): Promise<T> {
+    this.#awaited = true
+    return (this.#promise ??= this.#run())
+  }
+
+  then<TResult1 = T, TResult2 = never>(
+    onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null,
+    onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null
+  ): Promise<TResult1 | TResult2> {
+    return this.#start().then(onfulfilled, onrejected)
+  }
+
+  catch<TResult = never>(
+    onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | null
+  ): Promise<T | TResult> {
+    return this.#start().catch(onrejected)
+  }
+
+  finally(onfinally?: (() => void) | null): Promise<T> {
+    return this.#start().finally(onfinally)
+  }
+}
+
+type LocatorWork<T> = (
+  locator: ElementLocator,
+  args: unknown[],
+  options: unknown
+) => Promise<T>
+
+class LocatorAction<T> extends Action<T> {
+  constructor(
+    perform: LocatorWork<T>,
+    locator: ElementLocator,
+    args: unknown[],
+    options: unknown,
+    errorSource?: Error
+  ) {
+    super(
+      (values, actionOptions) => perform(locator, values, actionOptions),
+      args,
+      options,
+      errorSource
+    )
+    if (new.target === LocatorAction)
+      registerBrowserActionIdentity(this, locatorActionIdentity)
+  }
+}
+
+class UploadAction<T> extends Action<T> {
+  constructor(
+    perform: LocatorWork<T>,
+    locator: ElementLocator,
+    args: unknown[],
+    options: unknown
+  ) {
+    super(
+      (values, actionOptions) => perform(locator, values, actionOptions),
+      args,
+      options
+    )
+    if (new.target === UploadAction)
+      registerBrowserActionIdentity(this, uploadActionIdentity)
+  }
+}
+
+const actionThenDescriptor = Object.getOwnPropertyDescriptor(
+  Action.prototype,
+  'then'
+)!
+const locatorActionIdentity: BrowserActionIdentity = {
+  prototypes: [LocatorAction.prototype, Action.prototype],
+  then: actionThenDescriptor,
+}
+const uploadActionIdentity: BrowserActionIdentity = {
+  prototypes: [UploadAction.prototype, Action.prototype],
+  then: actionThenDescriptor,
+}
+
+function createAction<T>(
+  locator: ElementLocator,
+  work: LocatorWork<T>,
+  args: unknown[],
+  options?: unknown,
+  upload = false
+): Promise<T> {
+  if (!actionCallbacks) return work(locator, args, options)
+  return upload
+    ? new UploadAction(work, locator, args, options)
+    : new LocatorAction(work, locator, args, options)
+}
+
+function ensureAwaited<T>(work: () => Promise<T>): Promise<T> {
+  if (!actionCallbacks) return work()
+  const task = actionCallbacks.getConsoleTask() as AwaitCheckTask | undefined
+  if (!task || task.type !== 'test') return work()
+  let awaited = false
+  const sourceError = new Error('STACK_TRACE_ERROR')
+  task.onFinished ??= []
+  task.onFinished.push(() => {
+    if (!awaited) {
+      const error = new Error(
+        'The call was not awaited. This method is asynchronous and must be awaited; otherwise, the call will not start to avoid unhandled rejections.'
+      )
+      error.stack = sourceError.stack?.replace(
+        sourceError.message,
+        error.message
+      )
+      throw error
+    }
+  })
+  let promise: Promise<T> | undefined
+  return {
+    then(onfulfilled, onrejected) {
+      awaited = true
+      return (promise ??= work()).then(onfulfilled, onrejected)
+    },
+    catch(onrejected) {
+      awaited = true
+      return (promise ??= work()).catch(onrejected)
+    },
+    finally(onfinally) {
+      awaited = true
+      return (promise ??= work()).finally(onfinally)
+    },
+    [Symbol.toStringTag]: 'Promise',
+  }
+}
 let nextElement = 0
-const extensions: Record<PropertyKey, unknown> = {}
 const attribute = 'data-next-test-element'
 const deferredLocatorKey = Symbol.for('next.testing.browser.locators')
 const deferredLocators = new Map<string, () => Element[]>()
 const deferredCommands = new Set<Promise<unknown>>()
+const admittedDeferredCommands = new Set<Promise<unknown>>()
 
 /** Only live action callbacks cross the native selector boundary, never source. */
 function resolveDeferredLocators(root: Node, id: string): Element[] {
@@ -89,20 +282,25 @@ function releaseDeferredLocators() {
 }
 
 async function cleanupDeferredLocators() {
-  if (deferredCommands.size) await Promise.allSettled([...deferredCommands])
+  const legacy = [...deferredCommands].filter(
+    (operation) => !admittedDeferredCommands.has(operation)
+  )
+  if (legacy.length) await Promise.allSettled(legacy)
 }
 
 async function dispatchBrowserCommand(
   resolveElement: () => Element | null,
   method: ClientBrowserCommand['method'],
   args: unknown[],
-  resolveElements?: () => Element[]
+  resolveElements?: () => Element[],
+  resolveNativeElements?: () => Element[]
 ): Promise<void> {
   await dispatchBrowserCommandResult(
     resolveElement,
     method,
     args,
-    resolveElements
+    resolveElements,
+    resolveNativeElements
   )
 }
 
@@ -110,9 +308,11 @@ async function dispatchBrowserCommandResult(
   resolveElement: () => Element | null,
   method: ClientBrowserCommand['method'],
   args: unknown[],
-  resolveElements?: () => Element[]
+  resolveElements?: () => Element[],
+  resolveNativeElements?: () => Element[]
 ) {
-  assertBrowserApiScope('utility')
+  assertBrowserApiScope('browser-native')
+  const admission = actionCallbacks?.captureCommandAdmission?.()
   const element = resolveElement()
   if (
     !element &&
@@ -128,31 +328,53 @@ async function dispatchBrowserCommandResult(
   ) {
     if (!command) throw new Error('Browser element transport has closed.')
     const id = 'next-test-locator-' + nextElement++
-    const origin = captureAsyncScope()
-    deferredLocators.set(id, () => origin.run(resolveElements))
+    const origin = admission ? undefined : captureAsyncScope()
     let operation: Promise<unknown> | undefined
+    deferredLocators.set(id, () => {
+      if (!admission) return origin!.run(resolveElements)
+      if (!operation || !resolveNativeElements)
+        throw new Error('Browser locator has no pending command query.')
+      return admission.query(operation, resolveNativeElements)
+    })
     try {
-      operation = command({ method, element: id, args })
+      operation = admission
+        ? command({ method, element: id, args }, admission.origin)
+        : command({ method, element: id, args })
+      admission?.bind(operation)
       deferredCommands.add(operation)
+      if (admission) admittedDeferredCommands.add(operation)
       const result = await operation
-      assertBrowserApiScope('utility')
+      if (!admission) assertBrowserApiScope('browser-native')
       return result
     } finally {
+      if (operation) admission?.finish(operation)
       deferredLocators.delete(id)
-      if (operation) deferredCommands.delete(operation)
+      if (operation) {
+        deferredCommands.delete(operation)
+        admittedDeferredCommands.delete(operation)
+      }
       releaseDeferredLocators()
     }
   }
   if (!element || !element.isConnected)
     throw new Error('Browser element is not attached to its document.')
   if (!command) throw new Error('Browser element transport has closed.')
-  const result = await command({
+  const value = {
     method,
     element: browserElementId(element),
     args,
-  })
-  assertBrowserApiScope('utility')
-  return result
+  }
+  const operation = admission
+    ? command(value, admission.origin)
+    : command(value)
+  admission?.bind(operation)
+  try {
+    const result = await operation
+    if (!admission) assertBrowserApiScope('browser-native')
+    return result
+  } finally {
+    admission?.finish(operation)
+  }
 }
 
 function browserElementId(element: Element) {
@@ -165,22 +387,31 @@ function browserElementId(element: Element) {
 }
 
 const locatorFormatter = createBrowserLocatorFormatter()
+let nativeLocatorElements: (locator: ElementLocator) => Element[]
 
 /** Queries execute in the actual document. Input commands stay Playwright-owned. */
 class ElementLocator {
+  #nativeElements: () => Element[]
+
+  static {
+    nativeLocatorElements = (locator) => locator.#nativeElements()
+  }
+
   constructor(
-    private readonly resolve: () => Element[],
+    private readonly resolve: (native?: boolean) => Element[],
     private readonly description: string | (() => string),
     readonly container?: Element,
     private readonly actionElement?: Element
-  ) {}
+  ) {
+    this.#nativeElements = () => resolve(true)
+  }
   get selector(): string {
     return typeof this.description === 'function'
       ? this.description()
       : this.description
   }
   elements() {
-    assertBrowserApiScope('utility')
+    assertBrowserApiScope('browser-native')
     return this.resolve()
   }
   element(): Element {
@@ -204,7 +435,11 @@ class ElementLocator {
   }
   nth(index: number) {
     return new ElementLocator(
-      () => this.elements().slice(index, index === -1 ? undefined : index + 1),
+      (native) =>
+        (native ? this.#nativeElements() : this.elements()).slice(
+          index,
+          index === -1 ? undefined : index + 1
+        ),
       `${this.selector} >> nth=${index}`,
       this.container
     )
@@ -214,16 +449,20 @@ class ElementLocator {
   }
   last() {
     return new ElementLocator(
-      () => this.elements().slice(-1),
+      (native) => (native ? this.#nativeElements() : this.elements()).slice(-1),
       `${this.selector} >> nth=-1`,
       this.container
     )
   }
   and(locator: ElementLocator) {
     return new ElementLocator(
-      () => {
-        const matching = new Set(locator.elements())
-        return this.elements().filter((element) => matching.has(element))
+      (native) => {
+        const matching = new Set(
+          native ? locator.#nativeElements() : locator.elements()
+        )
+        return (native ? this.#nativeElements() : this.elements()).filter(
+          (element) => matching.has(element)
+        )
       },
       `${this.selector} >> internal:and=${JSON.stringify(locator.selector)}`,
       this.container
@@ -231,14 +470,17 @@ class ElementLocator {
   }
   or(locator: ElementLocator) {
     return new ElementLocator(
-      () =>
-        [...new Set([...this.elements(), ...locator.elements()])].sort(
-          (left, right) => {
-            const position = left.compareDocumentPosition(right)
-            if (position & Node.DOCUMENT_POSITION_DISCONNECTED) return 0
-            return position & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1
-          }
-        ),
+      (native) =>
+        [
+          ...new Set([
+            ...(native ? this.#nativeElements() : this.elements()),
+            ...(native ? locator.#nativeElements() : locator.elements()),
+          ]),
+        ].sort((left, right) => {
+          const position = left.compareDocumentPosition(right)
+          if (position & Node.DOCUMENT_POSITION_DISCONNECTED) return 0
+          return position & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1
+        }),
       `${this.selector} >> internal:or=${JSON.stringify(locator.selector)}`,
       this.container
     )
@@ -249,91 +491,135 @@ class ElementLocator {
       throw locatorFormatter.strictError(this.selector, values)
     return values[0] ?? null
   }
-  async click(options?: ClickOptions) {
-    await this.dispatch('click', options === undefined ? [] : [options])
+  click(options?: ClickOptions): Promise<void> {
+    return this.#action('click', [], options)
   }
-  async dblClick(options?: DoubleClickOptions) {
-    await this.dispatch('dblClick', options === undefined ? [] : [options])
+  dblClick(options?: DoubleClickOptions): Promise<void> {
+    return this.#action('dblClick', [], options)
   }
-  async tripleClick(options?: ClickOptions) {
-    await this.dispatch('tripleClick', options === undefined ? [] : [options])
+  tripleClick(options?: ClickOptions): Promise<void> {
+    return this.#action('tripleClick', [], options)
   }
-  async unhover(options?: HoverOptions) {
-    await this.dispatch('unhover', options === undefined ? [] : [options])
+  unhover(options?: HoverOptions): Promise<void> {
+    return this.#action('unhover', [], options)
   }
-  async hover(options?: HoverOptions) {
-    await this.dispatch('hover', options === undefined ? [] : [options])
+  hover(options?: HoverOptions): Promise<void> {
+    return this.#action('hover', [], options)
   }
-  async wheel(options: WheelOptions) {
-    assertBrowserApiScope('utility')
-    const resolved = resolveWheelOptions(options)
-    await this.dispatch('wheel', [resolved])
-    // Match Chromium's compositor settling used by the native provider.
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
-    assertBrowserApiScope('utility')
-  }
-  async dropTo(target: ElementLocator, options?: DragOptions) {
-    assertBrowserApiScope('utility')
-    const sourceElement = this.query()
-    const targetElement = target.query()
-    if (!sourceElement?.isConnected || !targetElement?.isConnected)
-      throw new Error('Browser element is not attached to its document.')
-    await dispatchBrowserCommand(() => sourceElement, 'dragAndDrop', [
-      browserElementId(targetElement),
-      ...(options === undefined ? [] : [options]),
-    ])
-  }
-  async fill(value: string, options?: FillOptions) {
-    await this.dispatch(
-      'fill',
-      options === undefined ? [value] : [value, options]
-    )
-  }
-  async clear(options?: ClearOptions) {
-    await this.dispatch('clear', options === undefined ? [] : [options])
-  }
-  async selectOptions(value: SelectValues, options?: SelectOptions) {
-    assertBrowserApiScope('utility')
-    const values = (Array.isArray(value) ? value : [value]).map((option) => {
-      if (typeof option === 'string') return option
-      const element = option instanceof ElementLocator ? option.query() : option
-      if (!element?.isConnected)
-        throw new Error(
-          'Browser option element is not attached to its document.'
-        )
-      return { element: browserElementId(element) }
+  wheel(options: WheelOptions): Promise<void> {
+    return ensureAwaited(async () => {
+      assertBrowserApiScope('browser-native')
+      const resolved = resolveWheelOptions(options)
+      await this.dispatch('wheel', [resolved])
+      // Match Chromium's compositor settling used by the native provider.
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => resolve())
+      )
+      assertBrowserApiScope('browser-native')
     })
-    await this.dispatch('selectOptions', [
-      values,
-      ...(options === undefined ? [] : [options]),
-    ])
   }
-  async upload(files: UploadFiles, options?: UploadOptions) {
-    assertBrowserApiScope('utility')
-    const values = await Promise.all(
-      (Array.isArray(files) ? files : [files]).map(async (file) => {
-        if (typeof file === 'string') return file
-        const data = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onload = () => {
-            if (typeof reader.result === 'string') resolve(reader.result)
-            else reject(new Error(`Failed to read upload file: ${file.name}`))
-          }
-          reader.onerror = () =>
-            reject(new Error(`Failed to read upload file: ${file.name}`))
-          reader.readAsDataURL(file)
-        })
-        return {
-          name: file.name,
-          mimeType: file.type,
-          base64: data.slice(data.indexOf(',') + 1),
-        }
-      })
+  dropTo(target: ElementLocator, options?: DragOptions): Promise<void> {
+    return createAction(
+      this,
+      async () => {
+        assertBrowserApiScope('browser-native')
+        const sourceElement = this.query()
+        const targetElement = target.query()
+        if (!sourceElement?.isConnected || !targetElement?.isConnected)
+          throw new Error('Browser element is not attached to its document.')
+        await dispatchBrowserCommand(() => sourceElement, 'dragAndDrop', [
+          browserElementId(targetElement),
+          ...(options === undefined ? [] : [options]),
+        ])
+      },
+      [target],
+      options
     )
-    await this.dispatch('upload', [
-      values,
-      ...(options === undefined ? [] : [options]),
-    ])
+  }
+  fill(value: string, options?: FillOptions): Promise<void> {
+    return this.#action('fill', [value], options)
+  }
+  clear(options?: ClearOptions): Promise<void> {
+    return this.#action('clear', [], options)
+  }
+  selectOptions(value: SelectValues, options?: SelectOptions): Promise<void> {
+    return createAction(
+      this,
+      async () => {
+        assertBrowserApiScope('browser-native')
+        const values = (Array.isArray(value) ? value : [value]).map(
+          (option) => {
+            if (typeof option === 'string') return option
+            const element =
+              option instanceof ElementLocator ? option.query() : option
+            if (!element?.isConnected)
+              throw new Error(
+                'Browser option element is not attached to its document.'
+              )
+            return { element: browserElementId(element) }
+          }
+        )
+        await this.dispatch('selectOptions', [
+          values,
+          ...(options === undefined ? [] : [options]),
+        ])
+      },
+      [value],
+      options
+    )
+  }
+  upload(files: UploadFiles, options?: UploadOptions): Promise<void> {
+    return createAction(
+      this,
+      async () => {
+        assertBrowserApiScope('browser-native')
+        const values = await Promise.all(
+          (Array.isArray(files) ? files : [files]).map(async (file) => {
+            if (typeof file === 'string') return file
+            const data = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader()
+              reader.onload = () => {
+                if (typeof reader.result === 'string') resolve(reader.result)
+                else
+                  reject(new Error(`Failed to read upload file: ${file.name}`))
+              }
+              reader.onerror = () =>
+                reject(new Error(`Failed to read upload file: ${file.name}`))
+              reader.readAsDataURL(file)
+            })
+            return {
+              name: file.name,
+              mimeType: file.type,
+              base64: data.slice(data.indexOf(',') + 1),
+            }
+          })
+        )
+        await this.dispatch('upload', [
+          values,
+          ...(options === undefined ? [] : [options]),
+        ])
+      },
+      [files],
+      options,
+      true
+    )
+  }
+  #action(
+    method: ClientBrowserCommand['method'],
+    args: unknown[],
+    options?: unknown
+  ): Promise<void> {
+    return createAction(
+      this,
+      async (locator, values, actionOptions) => {
+        await locator.dispatch(
+          method,
+          actionOptions === undefined ? values : [...values, actionOptions]
+        )
+      },
+      args,
+      options
+    )
   }
   private async dispatch(
     method: ClientBrowserCommand['method'],
@@ -343,7 +629,8 @@ class ElementLocator {
       () => this.actionElement ?? this.query(),
       method,
       args,
-      () => this.elements()
+      () => this.elements(),
+      this.#nativeElements
     )
   }
   getByRole(...args: any[]) {
@@ -379,8 +666,13 @@ function createQueryLocator(
   const parent = root instanceof ElementLocator ? root.selector : ''
   const description = locatorFormatter.selector(name, args)
   return new ElementLocator(
-    () => {
-      const elements = root instanceof ElementLocator ? root.elements() : [root]
+    (native) => {
+      const elements =
+        root instanceof ElementLocator
+          ? native
+            ? nativeLocatorElements(root)
+            : root.elements()
+          : [root]
       return [...new Set(elements.flatMap((value) => query(value, ...args)))]
     },
     parent ? `${parent} >> ${description}` : description,
@@ -405,7 +697,7 @@ function selectors(root: Element | ElementLocator) {
 const root = new ElementLocator(() => [document.body], '')
 export const page = Object.assign(selectors(root), {
   elementLocator(element: Element) {
-    assertBrowserApiScope('utility')
+    assertBrowserApiScope('browser-native')
     if (!(element instanceof Element) || element.ownerDocument !== document)
       throw new Error('Browser locator must belong to its owned document.')
     return new ElementLocator(
@@ -417,10 +709,14 @@ export const page = Object.assign(selectors(root), {
       element
     )
   },
-  extend(values: Record<PropertyKey, unknown>) {
+  extend(values: Record<PropertyKey, unknown>): typeof page {
     assertBrowserApiScope('declaration')
-    Object.assign(extensions, values)
-    Object.assign(page, values)
+    const extended = page as Record<string, unknown>
+    for (const key in values)
+      extended[key] = (
+        values[key] as { bind(receiver: unknown): unknown }
+      ).bind(page)
+    return page
   },
 })
 function eventLocator(element: Element | ElementLocator) {
@@ -440,8 +736,10 @@ const userEventActions = {
   wheel(element: Element | ElementLocator, options: WheelOptions) {
     return eventLocator(element).wheel(options)
   },
-  tab(options: { shift?: boolean } = {}) {
-    return dispatchBrowserCommand(() => document.body, 'tab', [options])
+  tab(options: { shift?: boolean } = {}): Promise<void> {
+    return ensureAwaited(() =>
+      dispatchBrowserCommand(() => document.body, 'tab', [options])
+    )
   },
   click(element: Element | ElementLocator, options?: ClickOptions) {
     return eventLocator(element).click(options)
@@ -486,7 +784,7 @@ const userEventActions = {
 function createUserEvent() {
   let unreleased: string[] = []
   async function cleanup(internal = false) {
-    if (!internal) assertBrowserApiScope('utility')
+    if (!internal) assertBrowserApiScope('browser-native')
     if (!unreleased.length) return
     if (!command) throw new Error('Browser element transport has closed.')
     await command({
@@ -495,36 +793,42 @@ function createUserEvent() {
       args: [unreleased],
     })
     unreleased = []
-    if (!internal) assertBrowserApiScope('utility')
+    if (!internal) assertBrowserApiScope('browser-native')
   }
   const event = {
     ...userEventActions,
     setup() {
-      assertBrowserApiScope('utility')
+      assertBrowserApiScope('browser-native')
       return createUserEvent().event
     },
     cleanup: () => cleanup(),
-    async type(
+    type(
       element: Element | ElementLocator,
       text: string,
       options?: TypeOptions
-    ) {
-      const args: unknown[] = options === undefined ? [text] : [text, options]
-      if (unreleased.length) args.splice(1, 2, options ?? {}, unreleased)
-      const result = await dispatchBrowserCommandResult(
-        () => eventLocator(element).query(),
-        'type',
-        args
-      )
-      unreleased = (result as { unreleased: string[] } | null)?.unreleased ?? []
+    ): Promise<void> {
+      return ensureAwaited(async () => {
+        const args: unknown[] = options === undefined ? [text] : [text, options]
+        if (unreleased.length) args.splice(1, 2, options ?? {}, unreleased)
+        const result = await dispatchBrowserCommandResult(
+          () => eventLocator(element).query(),
+          'type',
+          args
+        )
+        unreleased =
+          (result as { unreleased: string[] } | null)?.unreleased ?? []
+      })
     },
-    async keyboard(text: string) {
-      const result = await dispatchBrowserCommandResult(
-        () => document.body,
-        'keyboard',
-        unreleased.length ? [text, unreleased] : [text]
-      )
-      unreleased = (result as { unreleased: string[] } | null)?.unreleased ?? []
+    keyboard(text: string): Promise<void> {
+      return ensureAwaited(async () => {
+        const result = await dispatchBrowserCommandResult(
+          () => document.body,
+          'keyboard',
+          unreleased.length ? [text, unreleased] : [text]
+        )
+        unreleased =
+          (result as { unreleased: string[] } | null)?.unreleased ?? []
+      })
     },
     copy(): Promise<void> {
       return event.keyboard('{ControlOrMeta>}{c}{/ControlOrMeta}')
@@ -569,7 +873,10 @@ export function elementExpect(
     options
   )
 }
-export function initializeBrowserContext(send: NonNullable<typeof command>) {
+export function initializeBrowserContext(
+  send: NonNullable<typeof command>,
+  callbacks?: BrowserActionCallbacks
+) {
   if (command || deferredCommands.size)
     throw new Error('Browser context already has an owner.')
   Object.defineProperty(globalThis, deferredLocatorKey, {
@@ -577,6 +884,7 @@ export function initializeBrowserContext(send: NonNullable<typeof command>) {
     value: resolveDeferredLocators,
   })
   command = send
+  actionCallbacks = callbacks
   return {
     install() {
       // jest-dom declares assertion methods; this entry contains their raw matcher functions.
@@ -586,6 +894,7 @@ export function initializeBrowserContext(send: NonNullable<typeof command>) {
     },
     dispose() {
       command = undefined
+      actionCallbacks = undefined
       releaseDeferredLocators()
     },
   }
@@ -594,9 +903,12 @@ export function initializeBrowserContext(send: NonNullable<typeof command>) {
 export async function cleanupBrowserContext() {
   const failures: unknown[] = []
   for (const cleanup of [
-    ...(deferredCommands.size ? [cleanupDeferredLocators] : []),
+    () => {
+      const key = Symbol.for('vitest:component-cleanup')
+      if (key in page) return (page as Record<symbol, () => unknown>)[key]()
+    },
     cleanupBrowserKeyboard,
-    extensions[Symbol.for('vitest:component-cleanup')],
+    ...(deferredCommands.size ? [cleanupDeferredLocators] : []),
   ]) {
     if (typeof cleanup !== 'function') continue
     try {

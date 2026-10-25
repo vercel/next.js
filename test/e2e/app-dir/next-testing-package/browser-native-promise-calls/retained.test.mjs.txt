@@ -1,0 +1,19 @@
+import { test, beforeAll, afterAll } from 'vitest'
+import { page } from 'vitest/browser'
+const row = (phase, fields = {}) => console.log('BROWSER_HOOK_SEQUENCE:' + JSON.stringify({phase, ...fields}))
+let target, locator, action, clicks = 0
+beforeAll(() => { target = document.createElement('button'); target.textContent = 'Retained serial target'; target.onclick = () => { clicks++ }; document.body.append(target) })
+afterAll(() => target.remove())
+test('creates retained locator and action in A', context => {
+  locator = page.getByRole('button', {name:'Retained serial target',exact:true})
+  action = locator.click()
+  row('created',{clicks})
+  context.task.onFinished = []
+})
+test('public retained locator follows live caller B', async () => {
+  row('public-query',{count:locator.elements().length,text:locator.element().textContent})
+  await action
+  row('retained-consumed',{clicks})
+  await locator.click()
+  row('new-call',{clicks})
+})

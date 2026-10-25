@@ -1,0 +1,16 @@
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"setup-start\",\"scope\":\"test\",\"stage\":\"cleanup\",\"id\":1,\"clicks\":0}","browser":true,"time":1792952481808,"taskId":"-1594086377_0","type":"stdout","size":97}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"setup-end\",\"scope\":\"test\",\"stage\":\"cleanup\",\"id\":1,\"clicks\":0}","browser":true,"time":1792952481808,"taskId":"-1594086377_0","type":"stdout","size":95}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"A\",\"id\":1,\"clicks\":0,\"closed\":false}","browser":true,"time":1792952481808,"taskId":"-1594086377_0","type":"stdout","size":69}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"cleanup-start\",\"scope\":\"test\",\"stage\":\"cleanup\",\"id\":1,\"clicks\":0}","browser":true,"time":1792952481814,"taskId":"-1594086377_0","type":"stdout","size":99}}
+{"hook":"ready","id":"-1594086377_0","name":"native fixture A","result":{"state":"passed"}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"cleanup-end\",\"scope\":\"test\",\"stage\":\"cleanup\",\"id\":1,\"clicks\":1,\"closed\":true}","browser":true,"time":1792952481913,"taskId":"-1594086377_0","type":"stdout","size":111}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"setup-start\",\"scope\":\"test\",\"stage\":\"cleanup\",\"id\":2,\"clicks\":0}","browser":true,"time":1792952481914,"taskId":"-1594086377_1","type":"stdout","size":97}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"setup-end\",\"scope\":\"test\",\"stage\":\"cleanup\",\"id\":2,\"clicks\":0}","browser":true,"time":1792952481914,"taskId":"-1594086377_1","type":"stdout","size":95}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"B\",\"id\":2,\"clicks\":0,\"closed\":false,\"firstClosed\":true,\"same\":false}","browser":true,"time":1792952481915,"taskId":"-1594086377_1","type":"stdout","size":101}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"cleanup-start\",\"scope\":\"test\",\"stage\":\"cleanup\",\"id\":2,\"clicks\":0}","browser":true,"time":1792952481916,"taskId":"-1594086377_1","type":"stdout","size":99}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"cleanup-end\",\"scope\":\"test\",\"stage\":\"cleanup\",\"id\":2,\"clicks\":1,\"closed\":true}","browser":true,"time":1792952481951,"taskId":"-1594086377_1","type":"stdout","size":111}}
+{"hook":"case","id":"-1594086377_0","name":"native fixture A","result":{"state":"passed","errors":[]}}
+{"hook":"ready","id":"-1594086377_1","name":"native fixture B","result":{"state":"passed"}}
+{"hook":"case","id":"-1594086377_1","name":"native fixture B","result":{"state":"passed","errors":[]}}
+{"hook":"module","id":"-1594086377","state":"passed","errors":[]}
+{"hook":"end","reason":"passed","errors":[],"files":[{"id":"-1594086377","state":"passed","tests":[{"id":"-1594086377_0","name":"native fixture A","result":{"state":"passed","errors":[]}},{"id":"-1594086377_1","name":"native fixture B","result":{"state":"passed","errors":[]}}]}]}

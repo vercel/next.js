@@ -1,0 +1,9 @@
+{"hook":"console","log":{"content":"BROWSER_CONCURRENCY:{\"phase\":\"A-start\",\"active\":[\"A\"]}","browser":true,"time":1792936103969,"taskId":"-2048440827_1","type":"stdout","size":54}}
+{"hook":"console","log":{"content":"BROWSER_CONCURRENCY:{\"phase\":\"B-start\",\"active\":[\"A\",\"B\"]}","browser":true,"time":1792936103970,"taskId":"-2048440827_1","type":"stdout","size":58}}
+{"hook":"console","log":{"content":"BROWSER_CONCURRENCY:{\"phase\":\"A-resumed\",\"active\":[\"A\",\"B\"],\"self\":\"plain A\"}","browser":true,"time":1792936103970,"taskId":"-2048440827_1","type":"stdout","size":77}}
+{"hook":"console","log":{"content":"BROWSER_CONCURRENCY:{\"phase\":\"B-end\",\"active\":[\"B\"],\"self\":\"plain B\"}","browser":true,"time":1792936103971,"taskId":"-2048440827","type":"stdout","size":69}}
+{"hook":"ready","id":"-2048440827_0","name":"plain A","result":{"state":"failed","errors":[{"stack":"","message":"original plain concurrent failure","constructor":"Function<Error>","name":"Error","toString":"Function<toString>","stacks":[]}]}}
+{"hook":"ready","id":"-2048440827_1","name":"plain B","result":{"state":"passed"}}
+{"hook":"case","id":"-2048440827_0","name":"plain A","result":{"state":"failed","errors":[{"name":"Error","message":"original plain concurrent failure","stack":""}]}}
+{"hook":"case","id":"-2048440827_1","name":"plain B","result":{"state":"passed","errors":[]}}
+{"hook":"end","reason":"failed","errors":[],"files":[{"id":"-2048440827","state":"failed","tests":[{"id":"-2048440827_0","name":"plain A","result":{"state":"failed","errors":[{"name":"Error","message":"original plain concurrent failure","stack":""}]}},{"id":"-2048440827_1","name":"plain B","result":{"state":"passed","errors":[]}}]}]}

@@ -1,4 +1,5 @@
 import type { RuntimeModuleCompletion } from './execution/completed-module'
+import type { IstanbulSourcePlan } from './coverage/istanbul-types'
 import { isDeepStrictEqual } from 'util'
 import {
   createRuntimeConfigurationPlan,
@@ -80,6 +81,7 @@ export type WatchProcessRequest =
       maxWorkers?: number
       coverage?: boolean
       standardCoverageOptions?: StandardCoverageOptions
+      istanbulSourcePlan?: IstanbulSourcePlan
       /** Issued by an outer parent profile coordinator or this process before fork. */
       coverageSourcePlan?: CoverageSourcePlan
       runtimeConfigurationPlan?: RuntimeConfigurationPlan
@@ -294,8 +296,55 @@ export async function runWatchProcess(
       ? await import('./execution/broker.js')
       : undefined
   options.signal.throwIfAborted()
+  const istanbul =
+    request.operation === 'run' &&
+    request.standardCoverageOptions?.provider === 'istanbul'
+  if (
+    istanbul &&
+    (request.operation !== 'run' ||
+      request.isolatedProfile !== true ||
+      request.watchCoverage ||
+      request.projects.length !== 1)
+  )
+    throw new Error(
+      'Istanbul isolated compilation currently requires a one-shot Node project.'
+    )
+  const istanbulSourcePlan =
+    istanbul && request.operation === 'run'
+      ? (request.istanbulSourcePlan ??
+        (await (
+          await import('./coverage/istanbul-instrumentation.js')
+        ).createIstanbulSourcePlan({
+          projectDir: request.projectDir,
+          profile: request.projects[0].profile,
+          config: request.standardCoverageOptions!,
+          excludedFiles: [
+            ...(request.coverageInputs ?? []),
+            ...request.projects[0].setupFiles,
+            ...request.projects[0].entries.map((entry) => entry.file),
+          ],
+          signal: options.signal,
+        })))
+      : undefined
+  if (request.operation === 'run' && request.istanbulSourcePlan && !istanbul)
+    throw new Error('Unrequested Istanbul source plan.')
+  if (istanbulSourcePlan && request.operation === 'run') {
+    if (
+      !isDeepStrictEqual(
+        istanbulSourcePlan.profile,
+        request.projects[0].profile
+      )
+    )
+      throw new Error(
+        'Istanbul source selection has a different compiler profile.'
+      )
+    await (
+      await import('./coverage/istanbul-instrumentation.js')
+    ).assertIstanbulSourcePlan(istanbulSourcePlan, options.signal)
+    request = { ...request, istanbulSourcePlan }
+  }
   const coverageSourcePlan =
-    request.operation === 'run' && request.standardCoverageOptions
+    request.operation === 'run' && request.standardCoverageOptions && !istanbul
       ? (request.coverageSourcePlan ??
         (await createCoverageSourcePlan({
           projectDir: request.projectDir,
@@ -327,7 +376,7 @@ export async function runWatchProcess(
     request = { ...request, coverageSourcePlan }
   }
   const runtimeConfigurationPlan =
-    request.operation === 'run' && request.standardCoverageOptions
+    request.operation === 'run' && request.standardCoverageOptions && !istanbul
       ? (request.runtimeConfigurationPlan ??
         (await createRuntimeConfigurationPlan({
           projectDir: request.projectDir,
@@ -1071,6 +1120,7 @@ export async function runWatchProcess(
           } else if (message.value.result.customCoverage !== undefined)
             throw new Error('Unsolicited custom coverage facts.')
           if (
+            message.value.result.istanbulSourcePlan !== undefined ||
             message.value.result.compilerSourceCoverage !== undefined ||
             message.value.result.coverageSourcePlan !== undefined ||
             message.value.result.runtimeConfigurationReceipts !== undefined ||
@@ -1079,7 +1129,32 @@ export async function runWatchProcess(
             throw new Error(
               'Compiler child cannot supply parent declaration facts or source authorization'
             )
-          if (request.standardCoverageOptions) {
+          if (istanbul) {
+            if (message.value.result.unsafeCleanup)
+              throw new Error('Istanbul coverage generation cleanup failed.')
+            if (message.value.result.standardCoverage !== undefined)
+              throw new Error(
+                'Istanbul compilation returned unrequested V8 coverage facts.'
+              )
+            if (options.signal.aborted)
+              delete message.value.result.istanbulCoverage
+            else {
+              const { assertIstanbulCoverageFacts } = await import(
+                './coverage/report-istanbul.js'
+              )
+              await assertIstanbulCoverageFacts({
+                facts: message.value.result.istanbulCoverage,
+                projectDir: request.projectDir,
+                plan: istanbulSourcePlan!,
+                expected: selectedFiles,
+                revisions: collectionRevisions,
+                signal: options.signal,
+              })
+              message.value.result.istanbulSourcePlan = structuredClone(
+                istanbulSourcePlan!
+              )
+            }
+          } else if (request.standardCoverageOptions) {
             if (message.value.result.unsafeCleanup)
               throw new Error('Standard coverage generation cleanup failed.')
             const { validateStandardWatchCoverage } = await import(
@@ -1149,6 +1224,8 @@ export async function runWatchProcess(
               'Watch process returned unsolicited standard coverage facts.'
             )
           }
+          if (!istanbul && message.value.result.istanbulCoverage !== undefined)
+            throw new Error('Unrequested Istanbul coverage facts.')
           const collections = message.value.result.collections
           if (!request.collectOnly) {
             if (collections !== undefined)
@@ -1283,6 +1360,12 @@ export async function runWatchProcess(
                 : {}),
               ...(message.value.result.standardCoverage
                 ? { standardCoverage: message.value.result.standardCoverage }
+                : {}),
+              ...(message.value.result.istanbulCoverage
+                ? {
+                    istanbulCoverage: message.value.result.istanbulCoverage,
+                    istanbulSourcePlan: message.value.result.istanbulSourcePlan,
+                  }
                 : {}),
               ...(message.value.result.compilerSourceCoverage
                 ? {

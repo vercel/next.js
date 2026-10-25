@@ -112,6 +112,9 @@ export async function openCustomReporters(options: {
   let closed = false
   let failure: unknown
   let deliveredFailure: unknown
+  let publicationExitFailure: unknown
+  let publicationExitCause: unknown
+  let shutdownResponseFailure: unknown
   let disposal: Promise<void> | undefined
   let consoleQueue = Promise.resolve()
   let consoleFailure: unknown
@@ -216,6 +219,8 @@ export async function openCustomReporters(options: {
         retainCancellationFailure(error)
       }
       const current = pending
+      if (error && current?.requestType === 'shutdown')
+        shutdownResponseFailure = error
       if (
         error &&
         current?.requestType === 'finish' &&
@@ -241,10 +246,23 @@ export async function openCustomReporters(options: {
       if (
         !(result.reason === 'cancelled' && options.signal?.aborted) &&
         (!closing || result.reason !== 'exit' || result.code !== 0)
-      )
-        failure ??= new Error(
+      ) {
+        const error = new Error(
           `Custom reporter process ended unexpectedly (${result.reason}, code ${result.code}).`
         )
+        const reportedShutdownFailure =
+          closing &&
+          shutdownResponseFailure !== undefined &&
+          ((result.reason === 'exit' && result.code === 1) ||
+            (result.reason === 'cancelled' &&
+              controller.signal.reason === shutdownResponseFailure))
+        if (!reportedShutdownFailure && publicationExitFailure === undefined) {
+          publicationExitFailure = error
+          publicationExitCause =
+            result.reason === 'cancelled' ? controller.signal.reason : undefined
+        }
+        failure ??= error
+      }
       clearTimeout(pending?.timer)
       pending?.reject(
         failure ??
@@ -255,6 +273,7 @@ export async function openCustomReporters(options: {
     },
     (error) => {
       closed = true
+      publicationExitFailure ??= error
       failure ??= error
       retainCancellationFailure(error)
       clearTimeout(pending?.timer)
@@ -286,7 +305,11 @@ export async function openCustomReporters(options: {
       throw error
     }
   }
-  function dispose() {
+  function dispose({ handledFailure }: { handledFailure?: unknown } = {}) {
+    const handled =
+      handledFailure !== undefined && handledFailure === deliveredFailure
+        ? handledFailure
+        : undefined
     return (disposal ??= (async () => {
       await consoleQueue
       closing = true
@@ -306,16 +329,33 @@ export async function openCustomReporters(options: {
         await settleCancellation(true)
         return
       }
-      if (cleanupErrors.length) {
-        if (failure && !cleanupErrors.includes(failure))
-          cleanupErrors.unshift(failure)
-        if (cleanupErrors.length === 1) throw cleanupErrors[0]
+      const ownedCleanupErrors =
+        handled === undefined
+          ? cleanupErrors
+          : cleanupErrors.filter((error) => error !== handled)
+      if (
+        handled !== undefined &&
+        publicationExitFailure !== undefined &&
+        publicationExitFailure !== handled &&
+        publicationExitCause !== handled &&
+        !ownedCleanupErrors.includes(publicationExitFailure)
+      )
+        ownedCleanupErrors.push(publicationExitFailure)
+      if (ownedCleanupErrors.length) {
+        if (
+          failure &&
+          failure !== handled &&
+          !ownedCleanupErrors.includes(failure)
+        )
+          ownedCleanupErrors.unshift(failure)
+        if (ownedCleanupErrors.length === 1) throw ownedCleanupErrors[0]
         throw new AggregateError(
-          cleanupErrors,
+          ownedCleanupErrors,
           'Custom reporter cleanup failed.'
         )
       }
-      if (failure && failure !== deliveredFailure) throw failure
+      if (failure && failure !== deliveredFailure && failure !== handled)
+        throw failure
     })())
   }
   try {

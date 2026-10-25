@@ -574,3 +574,70 @@ it('attributes only the captured native body completion check, preserving identi
     disposed: true,
   })
 }, 20000)
+
+it('observes only actual settled afterAll assertion finalizers without changing error carriers', async () => {
+  const { stdout } = await promisify(execFile)(process.execPath, [
+    join(__dirname, 'coverage-afterall-finalization.cjs'),
+    process.cwd(),
+    '--source',
+  ]).catch((error) => {
+    throw new Error([error.message, error.stdout, error.stderr].join('\n'))
+  })
+  const result = JSON.parse(stdout)
+  expect(result.actualAssertionRuntime).toBe(true)
+  expect(result.rows).toHaveLength(4)
+  expect(result.rows.map((row) => row.carrierMarks)).toEqual([
+    [true],
+    [false],
+    [false],
+    [true, false],
+  ])
+  expect(
+    result.rows.every((row) => row.rawErrorUnchanged && row.completed)
+  ).toBe(true)
+}, 30000)
+
+it.each(['object', 'fulfilled'])(
+  'retains Istanbul completion for an unobserved shared afterAll %s payload',
+  async (kind) => {
+    const { mkdtemp, readFile, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const output = await mkdtemp(
+      join(tmpdir(), 'next-istanbul-shared-payload-')
+    )
+    try {
+      await promisify(execFile)(
+        process.execPath,
+        [
+          join(
+            __dirname,
+            '../next-testing-coverage/istanbul-afterall-payloads.mjs'
+          ),
+          'source',
+          process.cwd(),
+          output,
+          kind,
+        ],
+        {
+          env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+          timeout: 125000,
+        }
+      ).catch((error) => {
+        throw new Error([error.message, error.stdout, error.stderr].join('\n'))
+      })
+      expect(
+        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+      ).toMatchObject({
+        kind,
+        exit: 0,
+        passedCases: 3,
+        failedFiles: 0,
+        completeCoverageReports: true,
+        noNativeRejection: true,
+      })
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  },
+  125000
+)

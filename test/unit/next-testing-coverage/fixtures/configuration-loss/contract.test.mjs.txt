@@ -1,0 +1,13 @@
+import { test, expect, inject, vi } from 'vitest'
+import { writeFileSync } from 'node:fs'
+import { choose } from './subject.mjs'
+
+test('completes after its real configuration owner exits', async () => {
+  expect(choose(true)).toBe(1)
+  const pid = inject('ownerPid')
+  expect(Number.isSafeInteger(pid)).toBe(true)
+  writeFileSync('body-started.txt', 'started')
+  process.kill(pid, 'SIGTERM')
+  await vi.waitFor(() => expect(() => process.kill(pid, 0)).toThrow())
+  writeFileSync('body-completed.txt', 'completed')
+})

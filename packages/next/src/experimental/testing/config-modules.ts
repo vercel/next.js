@@ -319,6 +319,18 @@ export async function openTestConfigModule(
             },
           }
         : {}),
+      assertReadyForCoverage() {
+        if (terminalError) throw terminalError
+        controller.signal.throwIfAborted()
+        if (closing || closed || transformsRevoked)
+          throw new Error(
+            'Test configuration session is unavailable for coverage.'
+          )
+        if (transforms.size)
+          throw new Error(
+            'Compiler transform requests remain active before coverage.'
+          )
+      },
       get compilerTransformInputs() {
         return [...transformInputs]
       },
@@ -655,6 +667,13 @@ export async function openTestProjectModules(
             Object.assign(contexts, await realm.setup(selected))
         }
         return contexts
+      },
+      assertReadyForCoverage() {
+        if (disposing)
+          throw new Error(
+            'Test project configuration is closing before coverage.'
+          )
+        for (const realm of realms) realm.assertReadyForCoverage()
       },
       async teardown() {
         const failures: unknown[] = []

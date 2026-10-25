@@ -1,0 +1,19 @@
+import { test, beforeAll, afterAll } from 'vitest'
+import { page, userEvent } from 'vitest/browser'
+const row = (fields) => console.log('BROWSER_HOOK_SEQUENCE:' + JSON.stringify(fields))
+let target, input
+beforeAll(() => { target = document.createElement('button'); target.textContent = 'Shape target'; target.id = 'shape-target'; input = document.createElement('input'); input.type = 'file'; input.id = 'shape-input'; document.body.append(target, input) })
+afterAll(() => { target.remove(); input.remove() })
+test('native action public shapes', context => {
+  const locator = page.getByRole('button', {name:'Shape target',exact:true})
+  const methods = [
+    ['click', () => locator.click()], ['dblClick', () => locator.dblClick()], ['tripleClick', () => locator.tripleClick()], ['hover', () => locator.hover()], ['unhover', () => locator.unhover()], ['fill', () => locator.fill('x')], ['clear', () => locator.clear()], ['selectOptions', () => locator.selectOptions('x')], ['dropTo', () => locator.dropTo(locator)], ['upload', () => page.elementLocator(input).upload(new File(['x'],'x.txt'))], ['wheel', () => locator.wheel({direction:'down'})],
+    ['user-type', () => userEvent.type(locator,'x')], ['keyboard', () => userEvent.keyboard('x')], ['tab', () => userEvent.tab()], ['copy', () => userEvent.copy()], ['cut', () => userEvent.cut()], ['paste', () => userEvent.paste()], ['user-upload', () => userEvent.upload(input,new File(['x'],'x.txt'))],
+  ]
+  for (const [method, invoke] of methods) {
+    const before = context.task.onFinished?.length ?? 0
+    const value = invoke()
+    row({method,tag:Object.prototype.toString.call(value),native:value instanceof Promise,ownNames:Object.getOwnPropertyNames(value),ownSymbols:Object.getOwnPropertySymbols(value).map(String),prototypeNames:Object.getOwnPropertyNames(Object.getPrototypeOf(value)),constructorLength:value.constructor.length,thenLength:value.then.length,catchLength:value.catch.length,finallyLength:value.finally.length,guardDelta:(context.task.onFinished?.length ?? 0)-before})
+  }
+  context.task.onFinished = []
+})

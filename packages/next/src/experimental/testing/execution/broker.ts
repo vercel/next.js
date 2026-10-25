@@ -9,6 +9,7 @@ import type {
   ExecuteTest,
   ExecuteTestOptions,
   TestCoverageCompletion,
+  IstanbulCoverageCompletion,
   TestExecutionResult,
 } from '../contracts'
 import type { ResultEvent, SerializedDiagnostic } from '../reporting/events'
@@ -36,6 +37,7 @@ type SerializableOptions = Omit<
   | 'userCancelSignal'
   | 'onEvent'
   | 'onCoverage'
+  | 'onIstanbulCoverage'
   | 'onCustomCoverage'
   | 'onCustomCoverageSuite'
   | 'onSnapshotUpdates'
@@ -46,6 +48,8 @@ export type ExecutionBrokerRequest =
       type: 'execution-broker-request'
       id: string
       action: 'execute'
+      /** Present only with the explicit separate instrumentation consumer. */
+      istanbulCoverage?: true
       artifact: CompiledTestArtifact
       options: SerializableOptions
       /** Private IPC only: never log, fingerprint, or report this object. */
@@ -69,6 +73,12 @@ export type ExecutionBrokerRequest =
   | { type: 'execution-broker-request'; id: string; action: 'cancel' }
 
 export type ExecutionBrokerResponse =
+  | {
+      type: 'execution-broker-response'
+      id: string
+      action: 'istanbul-coverage'
+      completion: IstanbulCoverageCompletion
+    }
   | {
       type: 'execution-broker-response'
       id: string
@@ -331,6 +341,8 @@ export function createExecutionBrokerHost(options: {
             return
           }
           if (
+            (message.options.coverage?.kind === 'node-istanbul') !==
+              (message.istanbulCoverage === true) ||
             ((message.options.coverage || message.options.customCoverage) &&
               !options.allowCoverage) ||
             (resolveSnapshotUpdateMode(message.options) !== 'none' &&
@@ -492,7 +504,23 @@ export function createExecutionBrokerHost(options: {
                       }),
                   }
                 : {}),
-              ...(message.options.coverage && options.allowCoverage
+              ...(message.options.coverage?.kind === 'node-istanbul' &&
+              options.allowCoverage
+                ? {
+                    onIstanbulCoverage: (
+                      completion: IstanbulCoverageCompletion
+                    ) =>
+                      publish({
+                        type: 'execution-broker-response',
+                        id: message.id,
+                        action: 'istanbul-coverage',
+                        completion,
+                      }),
+                  }
+                : {}),
+              ...(message.options.coverage &&
+              message.options.coverage.kind !== 'node-istanbul' &&
+              options.allowCoverage
                 ? {
                     onCoverage: (completion: TestCoverageCompletion) =>
                       publish({
@@ -636,6 +664,7 @@ export function createExecutionBrokerClient(options: {
     onAbort(): void
     failure?: { error: unknown }
     onCoverage?: ExecuteTestOptions['onCoverage']
+    onIstanbulCoverage?: ExecuteTestOptions['onIstanbulCoverage']
     onCustomCoverage?: ExecuteTestOptions['onCustomCoverage']
     coverage: Promise<void>
   }
@@ -663,6 +692,16 @@ export function createExecutionBrokerClient(options: {
 
   const execute: ExecuteTest = (artifact, executionOptions) => {
     if (disconnected) return Promise.reject(disconnected)
+    if (
+      (executionOptions.coverage?.kind === 'node-istanbul') !==
+        (typeof executionOptions.onIstanbulCoverage === 'function') ||
+      (executionOptions.onIstanbulCoverage && executionOptions.onCoverage)
+    )
+      return Promise.reject(
+        new Error(
+          'Istanbul execution requires its separate requested coverage consumer.'
+        )
+      )
     if (executionOptions.onCustomCoverageSuite)
       return Promise.reject(
         new Error(
@@ -673,6 +712,7 @@ export function createExecutionBrokerClient(options: {
       !options.allowCoverage &&
       (executionOptions.coverage ||
         executionOptions.onCoverage ||
+        executionOptions.onIstanbulCoverage ||
         executionOptions.customCoverage ||
         executionOptions.onCustomCoverage)
     ) {
@@ -686,6 +726,7 @@ export function createExecutionBrokerClient(options: {
       userCancelSignal: _userCancelSignal,
       onEvent,
       onCoverage: _onCoverage,
+      onIstanbulCoverage: _onIstanbulCoverage,
       onCustomCoverage: _onCustomCoverage,
       onCustomCoverageSuite: _onCustomCoverageSuite,
       onSnapshotUpdates: _onSnapshotUpdates,
@@ -717,6 +758,9 @@ export function createExecutionBrokerClient(options: {
         signal,
         onAbort: cancel,
         onCoverage: executionOptions.onCoverage,
+        ...(executionOptions.onIstanbulCoverage
+          ? { onIstanbulCoverage: executionOptions.onIstanbulCoverage }
+          : {}),
         onCustomCoverage: executionOptions.onCustomCoverage,
         coverage: Promise.resolve(),
       }
@@ -727,6 +771,9 @@ export function createExecutionBrokerClient(options: {
           type: 'execution-broker-request',
           id,
           action: 'execute',
+          ...(executionOptions.onIstanbulCoverage
+            ? { istanbulCoverage: true as const }
+            : {}),
           artifact,
           options: serializable,
           env: { ...process.env },
@@ -809,7 +856,8 @@ export function createExecutionBrokerClient(options: {
           value.customCoverage ||
           value.onCustomCoverage ||
           value.onCustomCoverageSuite ||
-          value.onCoverage
+          value.onCoverage ||
+          value.onIstanbulCoverage
       )
     )
       return Promise.reject(
@@ -824,6 +872,7 @@ export function createExecutionBrokerClient(options: {
         userCancelSignal: _userCancelSignal,
         onEvent: _onEvent,
         onCoverage: _onCoverage,
+        onIstanbulCoverage: _onIstanbulCoverage,
         onCustomCoverage: _onCustomCoverage,
         onCustomCoverageSuite: _onCustomCoverageSuite,
         onSnapshotUpdates: _onSnapshotUpdates,
@@ -931,6 +980,19 @@ export function createExecutionBrokerClient(options: {
             if (!options.allowCoverage || !request.onCustomCoverage)
               throw new Error('Unexpected broker custom coverage completion')
             await request.onCustomCoverage(message.completion)
+          })
+          .catch((error) => {
+            request.failure ??= { error }
+            request.onAbort()
+          })
+        return true
+      }
+      if (message.action === 'istanbul-coverage') {
+        request.coverage = request.coverage
+          .then(async () => {
+            if (!options.allowCoverage || !request.onIstanbulCoverage)
+              throw new Error('Unexpected broker Istanbul coverage completion')
+            await request.onIstanbulCoverage(message.completion)
           })
           .catch((error) => {
             request.failure ??= { error }

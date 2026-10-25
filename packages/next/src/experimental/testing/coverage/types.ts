@@ -4,9 +4,19 @@ export interface MockCoverageSources {
   sources: readonly { source: string; sha256: string }[]
 }
 
+/** Exact native wrapper roles, used only with actual Istanbul instrumentation. */
+export interface IstanbulHarnessCoverage {
+  version: 1
+  nativeMetadata: { path: string; sha256: string }
+  sources: readonly { source: string; sha256: string }[]
+}
+
 /** Internal, versioned data only. Coverage never supplies a compiler or runtime. */
 export interface CoverageArtifactMetadata {
   version: 1
+  /** Actual selected JavaScript instrumenter initial maps, separate from V8. */
+  istanbul?: import('./istanbul-types').IstanbulInstrumentationMetadata
+  istanbulHarness?: IstanbulHarnessCoverage
   /** Explicit native test producer proof; never a public configuration value. */
   importRoles?: { version: 1; nativeMetadata: { path: string; sha256: string } }
   /** Compile-only entry; never executable runtime coverage evidence. */
@@ -148,6 +158,8 @@ export type StandardCoverageMetric =
   | 'branches'
   | 'lines'
 export interface StandardCoverageOptions {
+  /** Explicit instrumentation provider; absence preserves the existing V8 path. */
+  provider?: 'istanbul'
   reporter: (
     | 'json'
     | 'json-summary'

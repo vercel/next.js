@@ -1,0 +1,116 @@
+{
+  "rows": [
+    {
+      "value": {
+        "phase": "setup",
+        "scope": "test",
+        "id": 1
+      },
+      "task": "fixture B"
+    },
+    {
+      "value": {
+        "phase": "setup",
+        "scope": "test",
+        "id": 2
+      },
+      "task": "fixture B"
+    },
+    {
+      "value": {
+        "phase": "A-start",
+        "id": 1,
+        "closed": false,
+        "active": ["A"]
+      },
+      "task": "fixture B"
+    },
+    {
+      "value": {
+        "phase": "B-start",
+        "id": 2,
+        "closed": false,
+        "active": ["A", "B"]
+      },
+      "task": "fixture B"
+    },
+    {
+      "value": {
+        "phase": "A-end",
+        "id": 1,
+        "active": ["A", "B"]
+      },
+      "task": "fixture B"
+    },
+    {
+      "value": {
+        "phase": "cleanup",
+        "scope": "test",
+        "id": 1
+      },
+      "task": "fixture B"
+    },
+    {
+      "value": {
+        "phase": "B-end",
+        "id": 2,
+        "aClosed": true,
+        "active": ["B"]
+      },
+      "task": "<file>"
+    },
+    {
+      "value": {
+        "phase": "cleanup",
+        "scope": "test",
+        "id": 2
+      },
+      "task": "<file>"
+    }
+  ],
+  "cases": [
+    {
+      "name": "fixture A",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "fixture B",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "caseFinals": [
+    {
+      "name": "fixture A",
+      "state": "passed"
+    },
+    {
+      "name": "fixture B",
+      "state": "passed"
+    }
+  ],
+  "runFinals": [
+    {
+      "reason": "passed",
+      "errors": [],
+      "files": [
+        {
+          "state": "passed",
+          "tests": [
+            {
+              "name": "fixture A",
+              "state": "passed"
+            },
+            {
+              "name": "fixture B",
+              "state": "passed"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "success": true,
+  "exit": 0
+}

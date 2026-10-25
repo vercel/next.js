@@ -1,0 +1,1 @@
+globalThis.inlineChildSetup = (globalThis.inlineChildSetup ?? 0) + 1

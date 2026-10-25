@@ -1,0 +1,51 @@
+{
+  "numTotalTestSuites": 1,
+  "numPassedTestSuites": 1,
+  "numFailedTestSuites": 0,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 1,
+  "numPassedTests": 1,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1792920912820,
+  "success": true,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [],
+          "fullName": "serial original getter failure",
+          "status": "passed",
+          "title": "serial original getter failure",
+          "duration": 74.20000004768372,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1792920913154,
+      "endTime": 1792920913228.2,
+      "status": "passed",
+      "message": "",
+      "name": "/private/tmp/next-testing-run/work-1/task-buffers/browser-concurrency-contract/native-actions/serial-behavior/.actual-native-actions-reference-y_nur30f/hooks.test.mjs"
+    }
+  ]
+}

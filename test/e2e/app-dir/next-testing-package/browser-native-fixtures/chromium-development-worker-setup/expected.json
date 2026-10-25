@@ -1,0 +1,110 @@
+{
+  "rows": [
+    {
+      "value": {
+        "phase": "setup-start",
+        "scope": "worker",
+        "stage": "setup",
+        "id": 1,
+        "clicks": 0
+      },
+      "task": "native fixture A"
+    },
+    {
+      "value": {
+        "phase": "setup-end",
+        "scope": "worker",
+        "stage": "setup",
+        "id": 1,
+        "clicks": 1
+      },
+      "task": "native fixture A"
+    },
+    {
+      "value": {
+        "phase": "A",
+        "id": 1,
+        "clicks": 1,
+        "closed": false
+      },
+      "task": "native fixture A"
+    },
+    {
+      "value": {
+        "phase": "B",
+        "id": 1,
+        "clicks": 1,
+        "closed": false,
+        "firstClosed": false,
+        "same": true
+      },
+      "task": "native fixture B"
+    },
+    {
+      "value": {
+        "phase": "cleanup-start",
+        "scope": "worker",
+        "stage": "setup",
+        "id": 1,
+        "clicks": 1
+      },
+      "task": "__vitest__unknown_test__"
+    },
+    {
+      "value": {
+        "phase": "cleanup-end",
+        "scope": "worker",
+        "stage": "setup",
+        "id": 1,
+        "clicks": 1,
+        "closed": true
+      },
+      "task": "__vitest__unknown_test__"
+    }
+  ],
+  "cases": [
+    {
+      "name": "native fixture A",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "native fixture B",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "caseFinals": [
+    {
+      "name": "native fixture A",
+      "state": "passed"
+    },
+    {
+      "name": "native fixture B",
+      "state": "passed"
+    }
+  ],
+  "runFinals": [
+    {
+      "reason": "passed",
+      "errors": [],
+      "files": [
+        {
+          "state": "passed",
+          "tests": [
+            {
+              "name": "native fixture A",
+              "state": "passed"
+            },
+            {
+              "name": "native fixture B",
+              "state": "passed"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "success": true,
+  "exit": 0
+}

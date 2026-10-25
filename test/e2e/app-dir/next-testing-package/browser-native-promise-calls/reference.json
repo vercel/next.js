@@ -1,0 +1,359 @@
+{
+  "version": 1,
+  "reference": "Vitest 5.0.4 / Playwright 1.64.0",
+  "scope": "Ordinary serial Chromium/Firefox Browser Nodejs development/production: unchanged native Promise.all cooperation, direct native resolve identity and retained calls from live test attempts; afterAll settles already admitted attempt work. Hook-origin commands retain the legacy profile, public concurrent declarations remain closed, and pending-file deadline/coverage combinations have separate qualification.",
+  "profiles": [
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "group": "cooperate",
+      "label": "chromium-development-cooperate",
+      "source": {
+        "path": "cooperate.test.mjs.txt",
+        "sha256": "d03bd4bc3f9f75e4863107755b4110158c8a91e16e0d921c9b39abc6c3805226"
+      },
+      "projected": {
+        "path": "chromium-development-cooperate/expected.json",
+        "sha256": "f5df76d0814938d4a51f8a3232917f8f8f1fb6e5873225cb9821bb9220ca09c3"
+      },
+      "rawStandardReport": {
+        "path": "chromium-development-cooperate/report.raw.json",
+        "sha256": "447e661b860853657a039554e2d297726eddd94ceac06698d2c470b3461fdbc8"
+      },
+      "rawConsole": {
+        "path": "chromium-development-cooperate/console.raw.jsonl",
+        "sha256": "f87fe663b93a886a8ef5d8ace9374e981657df7282e13a47e7593f3ce024d0d4"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "group": "cooperate",
+      "label": "chromium-production-cooperate",
+      "source": {
+        "path": "cooperate.test.mjs.txt",
+        "sha256": "d03bd4bc3f9f75e4863107755b4110158c8a91e16e0d921c9b39abc6c3805226"
+      },
+      "projected": {
+        "path": "chromium-production-cooperate/expected.json",
+        "sha256": "f5df76d0814938d4a51f8a3232917f8f8f1fb6e5873225cb9821bb9220ca09c3"
+      },
+      "rawStandardReport": {
+        "path": "chromium-production-cooperate/report.raw.json",
+        "sha256": "8b349bc8445839f957b87c0a74d7b980aa49beecb7c137983709952154d3d49f"
+      },
+      "rawConsole": {
+        "path": "chromium-production-cooperate/console.raw.jsonl",
+        "sha256": "8065887365b30b5fc9043bebc99b82010c0d34be99acb623c5adb7faad5bd41b"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "group": "cooperate",
+      "label": "firefox-development-cooperate",
+      "source": {
+        "path": "cooperate.test.mjs.txt",
+        "sha256": "d03bd4bc3f9f75e4863107755b4110158c8a91e16e0d921c9b39abc6c3805226"
+      },
+      "projected": {
+        "path": "firefox-development-cooperate/expected.json",
+        "sha256": "f5df76d0814938d4a51f8a3232917f8f8f1fb6e5873225cb9821bb9220ca09c3"
+      },
+      "rawStandardReport": {
+        "path": "firefox-development-cooperate/report.raw.json",
+        "sha256": "83c98ecdc54f57eb810a3f1f110a2b91ac230e9dc64eacd32b8c58bf9854e144"
+      },
+      "rawConsole": {
+        "path": "firefox-development-cooperate/console.raw.jsonl",
+        "sha256": "f0bc39d952ebd7ff7071a2ad95d2d00460f4962529c08d9735417eaaebf6d244"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "group": "cooperate",
+      "label": "firefox-production-cooperate",
+      "source": {
+        "path": "cooperate.test.mjs.txt",
+        "sha256": "d03bd4bc3f9f75e4863107755b4110158c8a91e16e0d921c9b39abc6c3805226"
+      },
+      "projected": {
+        "path": "firefox-production-cooperate/expected.json",
+        "sha256": "f5df76d0814938d4a51f8a3232917f8f8f1fb6e5873225cb9821bb9220ca09c3"
+      },
+      "rawStandardReport": {
+        "path": "firefox-production-cooperate/report.raw.json",
+        "sha256": "b9a9260777f6b98b6ac93094be3642947c66327758edbb8ec675c32814604286"
+      },
+      "rawConsole": {
+        "path": "firefox-production-cooperate/console.raw.jsonl",
+        "sha256": "513deb2656cd9cf297dcf4c665bd1620e1c08c543c7bdf5a8a8ff5d9ae831cc2"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "group": "native-resolve",
+      "label": "chromium-development-native-resolve",
+      "source": {
+        "path": "native-resolve.test.mjs.txt",
+        "sha256": "88d95b423b30ad060aa265e438487f5a89d17b544764675011d8aaa9db5fa421"
+      },
+      "projected": {
+        "path": "chromium-development-native-resolve/expected.json",
+        "sha256": "2c3830c35cb9044db00aca9766a2839c1c6bfd5c54ef9a27a3b238d91d96d613"
+      },
+      "rawStandardReport": {
+        "path": "chromium-development-native-resolve/report.raw.json",
+        "sha256": "28e213babc0bce4a2230d826b4b5a8284028bff601d68e7e516e701ef82ebbec"
+      },
+      "rawConsole": {
+        "path": "chromium-development-native-resolve/console.raw.jsonl",
+        "sha256": "5fe363368bd111bbcf2092c4781846cce00b0529530b81f65260c240e453ac13"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "group": "native-resolve",
+      "label": "chromium-production-native-resolve",
+      "source": {
+        "path": "native-resolve.test.mjs.txt",
+        "sha256": "88d95b423b30ad060aa265e438487f5a89d17b544764675011d8aaa9db5fa421"
+      },
+      "projected": {
+        "path": "chromium-production-native-resolve/expected.json",
+        "sha256": "2c3830c35cb9044db00aca9766a2839c1c6bfd5c54ef9a27a3b238d91d96d613"
+      },
+      "rawStandardReport": {
+        "path": "chromium-production-native-resolve/report.raw.json",
+        "sha256": "354e66ce126579d7dce8d2268027580a49805b37b7bd15b3d1127ffb7e9efc3d"
+      },
+      "rawConsole": {
+        "path": "chromium-production-native-resolve/console.raw.jsonl",
+        "sha256": "fdfd6c3e108cd1d9592729b14ce7aee7de3177bb421e35540a0c15f6446fd415"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "group": "native-resolve",
+      "label": "firefox-development-native-resolve",
+      "source": {
+        "path": "native-resolve.test.mjs.txt",
+        "sha256": "88d95b423b30ad060aa265e438487f5a89d17b544764675011d8aaa9db5fa421"
+      },
+      "projected": {
+        "path": "firefox-development-native-resolve/expected.json",
+        "sha256": "2c3830c35cb9044db00aca9766a2839c1c6bfd5c54ef9a27a3b238d91d96d613"
+      },
+      "rawStandardReport": {
+        "path": "firefox-development-native-resolve/report.raw.json",
+        "sha256": "52128c7eee0828c57df8e8a2b8cb95dd2f278a4824e7f0df337315a350ba5beb"
+      },
+      "rawConsole": {
+        "path": "firefox-development-native-resolve/console.raw.jsonl",
+        "sha256": "546f0bb548567fd50b6a03299cab16df981e46a8acfae4a47612baf0d6fed650"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "group": "native-resolve",
+      "label": "firefox-production-native-resolve",
+      "source": {
+        "path": "native-resolve.test.mjs.txt",
+        "sha256": "88d95b423b30ad060aa265e438487f5a89d17b544764675011d8aaa9db5fa421"
+      },
+      "projected": {
+        "path": "firefox-production-native-resolve/expected.json",
+        "sha256": "2c3830c35cb9044db00aca9766a2839c1c6bfd5c54ef9a27a3b238d91d96d613"
+      },
+      "rawStandardReport": {
+        "path": "firefox-production-native-resolve/report.raw.json",
+        "sha256": "ffa27f6f7157a708d312c33b4a6a3aa9f33a7c9c298a20892ca629596acaad09"
+      },
+      "rawConsole": {
+        "path": "firefox-production-native-resolve/console.raw.jsonl",
+        "sha256": "28ae287d6be72ba6774f78bc0469f37326b7b263e315fcc2b6fca2ff7d162132"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "group": "retained",
+      "label": "chromium-development-retained",
+      "source": {
+        "path": "retained.test.mjs.txt",
+        "sha256": "199a1cfe956553a630fd3af01c9998a8dae3115008172b6d745a75cdc34ec8e1"
+      },
+      "projected": {
+        "path": "chromium-development-retained/expected.json",
+        "sha256": "052e9bf69b3696fb397e56f3aea150018cc144c0a8fa2089db6fa7ab3845cbf6"
+      },
+      "rawStandardReport": {
+        "path": "chromium-development-retained/report.raw.json",
+        "sha256": "ef398ba290ed9de4af9118dbf22434150cf503e5f4776d2325558ea1d9b425d7"
+      },
+      "rawConsole": {
+        "path": "chromium-development-retained/console.raw.jsonl",
+        "sha256": "1f4b2ab67f676c8c2f15cfd894132e9456f8a50807063f1583bdefba83397cdb"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "group": "retained",
+      "label": "chromium-production-retained",
+      "source": {
+        "path": "retained.test.mjs.txt",
+        "sha256": "199a1cfe956553a630fd3af01c9998a8dae3115008172b6d745a75cdc34ec8e1"
+      },
+      "projected": {
+        "path": "chromium-production-retained/expected.json",
+        "sha256": "052e9bf69b3696fb397e56f3aea150018cc144c0a8fa2089db6fa7ab3845cbf6"
+      },
+      "rawStandardReport": {
+        "path": "chromium-production-retained/report.raw.json",
+        "sha256": "3e081c07cd1a24828c7e5c7c4aaaaac98b645f30fb5d1d7e588d415506e65756"
+      },
+      "rawConsole": {
+        "path": "chromium-production-retained/console.raw.jsonl",
+        "sha256": "beb7baffbb2e35677a0a52122d4af74da071f1c5c87ce9150c2c788a34088ba3"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "group": "retained",
+      "label": "firefox-development-retained",
+      "source": {
+        "path": "retained.test.mjs.txt",
+        "sha256": "199a1cfe956553a630fd3af01c9998a8dae3115008172b6d745a75cdc34ec8e1"
+      },
+      "projected": {
+        "path": "firefox-development-retained/expected.json",
+        "sha256": "052e9bf69b3696fb397e56f3aea150018cc144c0a8fa2089db6fa7ab3845cbf6"
+      },
+      "rawStandardReport": {
+        "path": "firefox-development-retained/report.raw.json",
+        "sha256": "4fc4477b1710268c42f50822f217e5745b47cd7fb71ce70f6e093a94b3ec7b46"
+      },
+      "rawConsole": {
+        "path": "firefox-development-retained/console.raw.jsonl",
+        "sha256": "4a051e38ebde28464cb1f3765e0c69b73cbe6cb195b1cbf9a7d44ef3cb708b70"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "group": "retained",
+      "label": "firefox-production-retained",
+      "source": {
+        "path": "retained.test.mjs.txt",
+        "sha256": "199a1cfe956553a630fd3af01c9998a8dae3115008172b6d745a75cdc34ec8e1"
+      },
+      "projected": {
+        "path": "firefox-production-retained/expected.json",
+        "sha256": "052e9bf69b3696fb397e56f3aea150018cc144c0a8fa2089db6fa7ab3845cbf6"
+      },
+      "rawStandardReport": {
+        "path": "firefox-production-retained/report.raw.json",
+        "sha256": "cd4d82912192ae46edd885c193f2bf9728e8f18042ae2683c0dd8cda3c7247e5"
+      },
+      "rawConsole": {
+        "path": "firefox-production-retained/console.raw.jsonl",
+        "sha256": "e0af234f25c290b7a8f3baa318e20b4c197d4d49a30ee0a357dba532e049fb77"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "group": "after-all",
+      "label": "chromium-development-after-all",
+      "source": {
+        "path": "after-all.test.mjs.txt",
+        "sha256": "2e9777ae2e7fe1a8eb9505658757c9ba6162f489abff4e5f48ed42bfd9ecb518"
+      },
+      "projected": {
+        "path": "chromium-development-after-all/expected.json",
+        "sha256": "aa5b42799824f4c81b5180157c59c00b255a6398ad0cde9cc77e267af167aac4"
+      },
+      "rawStandardReport": {
+        "path": "chromium-development-after-all/report.raw.json",
+        "sha256": "812391093bbf77bf9c9345098482e278f2fea7985602e8b82c6a7ce1c2768623"
+      },
+      "rawConsole": {
+        "path": "chromium-development-after-all/console.raw.jsonl",
+        "sha256": "099c42511c83a400493d162bb28f8b835cda493e1a29a2e75d585980be5fa6f9"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "group": "after-all",
+      "label": "chromium-production-after-all",
+      "source": {
+        "path": "after-all.test.mjs.txt",
+        "sha256": "2e9777ae2e7fe1a8eb9505658757c9ba6162f489abff4e5f48ed42bfd9ecb518"
+      },
+      "projected": {
+        "path": "chromium-production-after-all/expected.json",
+        "sha256": "aa5b42799824f4c81b5180157c59c00b255a6398ad0cde9cc77e267af167aac4"
+      },
+      "rawStandardReport": {
+        "path": "chromium-production-after-all/report.raw.json",
+        "sha256": "855ebf318cffb246b92f3e0d1cfd2f505b5cb7bd115a8b848e735502baa275a6"
+      },
+      "rawConsole": {
+        "path": "chromium-production-after-all/console.raw.jsonl",
+        "sha256": "914115e7fc944edaa07c384d69ce8b80f934650eb0bd209f2d596d332e4e40f9"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "group": "after-all",
+      "label": "firefox-development-after-all",
+      "source": {
+        "path": "after-all.test.mjs.txt",
+        "sha256": "2e9777ae2e7fe1a8eb9505658757c9ba6162f489abff4e5f48ed42bfd9ecb518"
+      },
+      "projected": {
+        "path": "firefox-development-after-all/expected.json",
+        "sha256": "aa5b42799824f4c81b5180157c59c00b255a6398ad0cde9cc77e267af167aac4"
+      },
+      "rawStandardReport": {
+        "path": "firefox-development-after-all/report.raw.json",
+        "sha256": "c2fb4821b6a2d979c1ffd588f8ef99bcbf0a25eac882afb6517ac83355f8b7dc"
+      },
+      "rawConsole": {
+        "path": "firefox-development-after-all/console.raw.jsonl",
+        "sha256": "c3c1a2adb9851b78d8200af8289ec9a6c564222a7651808c20c28765ed8828bf"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "group": "after-all",
+      "label": "firefox-production-after-all",
+      "source": {
+        "path": "after-all.test.mjs.txt",
+        "sha256": "2e9777ae2e7fe1a8eb9505658757c9ba6162f489abff4e5f48ed42bfd9ecb518"
+      },
+      "projected": {
+        "path": "firefox-production-after-all/expected.json",
+        "sha256": "aa5b42799824f4c81b5180157c59c00b255a6398ad0cde9cc77e267af167aac4"
+      },
+      "rawStandardReport": {
+        "path": "firefox-production-after-all/report.raw.json",
+        "sha256": "2f5557b956ada6f18000d70869b34a4685292ddb1c1835a881f777c8b488046b"
+      },
+      "rawConsole": {
+        "path": "firefox-production-after-all/console.raw.jsonl",
+        "sha256": "8a3c5b621d526e26da5667326bfe4235f7d5f239c8c18717d4ea49756ee3c19a"
+      }
+    }
+  ]
+}

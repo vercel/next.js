@@ -833,6 +833,254 @@ describe('Next-owned test discovery and configuration', () => {
     30000
   )
 
+  it('normalizes measured inline inheritance without exposing its compiler policy as authored input', () => {
+    const root = {
+      testTimeout: 789,
+      setupFiles: ['./root-setup.mjs'],
+      provide: { root: 5 },
+      projects: [
+        {
+          test: {
+            name: 'omitted',
+            setupFiles: ['./child-setup.mjs'],
+            provide: { child: 7 },
+          },
+        },
+        {
+          extends: true,
+          test: {
+            name: 'enabled',
+            setupFiles: ['./child-setup.mjs'],
+            provide: { child: 7 },
+          },
+        },
+        {
+          extends: false,
+          test: {
+            name: 'disabled',
+            setupFiles: ['./child-setup.mjs'],
+            provide: { child: 7 },
+          },
+        },
+      ],
+    }
+    const config = normalizeTestConfig({ test: root })
+    expect(
+      config.projects.map((project) => ({
+        setup: project.setupFiles,
+        timeout: project.testTimeout,
+        provide: project.provide,
+        compilerRootInheritance: project.compilerRootInheritance,
+      }))
+    ).toEqual([
+      {
+        setup: ['./root-setup.mjs', './child-setup.mjs'],
+        timeout: 789,
+        provide: { root: 5, child: 7 },
+        compilerRootInheritance: undefined,
+      },
+      {
+        setup: ['./root-setup.mjs', './child-setup.mjs'],
+        timeout: 789,
+        provide: { root: 5, child: 7 },
+        compilerRootInheritance: undefined,
+      },
+      {
+        setup: ['./child-setup.mjs'],
+        timeout: 5000,
+        provide: { root: 5, child: 7 },
+        compilerRootInheritance: false,
+      },
+    ])
+    expect(structuredClone(config.projects)[2].compilerRootInheritance).toBe(
+      false
+    )
+    expect(root.projects[2]).toEqual({
+      extends: false,
+      test: {
+        name: 'disabled',
+        setupFiles: ['./child-setup.mjs'],
+        provide: { child: 7 },
+      },
+    })
+    expect(() =>
+      normalizeTestConfig({
+        test: {
+          projects: [
+            { test: { name: 'spoof', compilerRootInheritance: false } },
+          ],
+        },
+      })
+    ).toThrow('compilerRootInheritance')
+    for (const value of ['./other.config.mjs', 1, null])
+      expect(() =>
+        normalizeTestConfig({
+          test: { projects: [{ extends: value, test: { name: 'invalid' } }] },
+        })
+      ).toThrow('extends must be a boolean')
+    expect(() =>
+      normalizeTestConfig({
+        test: { projects: [{ extends: false, name: 'legacy' }] },
+      })
+    ).toThrow('extends')
+  })
+
+  it('keeps inline compiler inheritance attached to cloned and expanded project identities', () => {
+    const config = normalizeTestConfig({
+      test: {
+        projects: [
+          {
+            extends: false,
+            test: {
+              name: 'browser',
+              environment: 'browser',
+              browser: {
+                enabled: true,
+                instances: [{ browser: 'chromium' }, { browser: 'firefox' }],
+              },
+            },
+          },
+        ],
+      },
+    })
+    expect(config.projects).toHaveLength(2)
+    expect(
+      structuredClone(config.projects).map(
+        (project) => project.compilerRootInheritance
+      )
+    ).toEqual([false, false])
+  })
+
+  it('selects only inherited inline compiler adapters while retaining all evaluated watch dependencies', async () => {
+    const file = path.join(directory, 'vitest.config.mjs')
+    const helper = path.join(directory, 'inline-value.mjs')
+    await writeFile(helper, 'export const value = 9')
+    await writeFile(
+      file,
+      `import {value} from './inline-value.mjs';export default {plugins:[{name:'inline-owner',transform(code){return code.replace('1',String(value))}}],resolve:{alias:{'inline-target':${JSON.stringify(helper)}}},test:{projects:[{test:{name:'omitted'}},{extends:true,test:{name:'enabled'}},{extends:false,test:{name:'disabled'}}]}}`
+    )
+    const owner = await openTestConfiguration(directory)
+    const projects = structuredClone(owner.config.projects)
+    const descriptors = owner.compilerTransforms(projects)
+    try {
+      expect(Object.keys(descriptors)).toEqual(['omitted', 'enabled'])
+      expect(descriptors.omitted).toBe(descriptors.enabled)
+      expect(
+        projects.map((project) => project.compilerAliases?.entries)
+      ).toEqual([
+        [{ find: 'inline-target', replacement: helper }],
+        [{ find: 'inline-target', replacement: helper }],
+        undefined,
+      ])
+      expect(owner.compilerInputsForProjects([projects[2]])).toEqual([])
+      expect(owner.compilerInputsForProjects([projects[0]])).toContain(
+        await realpath(helper)
+      )
+      expect(owner.watchInputs).toContain(await realpath(helper))
+      expect(owner.watchInputs).toContain(file)
+      expect(
+        (
+          await requestCompilerTransform(descriptors.omitted, {
+            file: path.join(directory, 'subject.mjs'),
+            query: '',
+            moduleType: 'js',
+            code: 'export const value = 1',
+          })
+        ).code
+      ).toBe('export const value = 9')
+    } finally {
+      await owner.dispose()
+    }
+    await expect(
+      requestCompilerTransform(descriptors.omitted, {
+        file: path.join(directory, 'subject.mjs'),
+        query: '',
+        moduleType: 'js',
+        code: 'export const value = 1',
+      })
+    ).rejects.toThrow()
+  }, 30000)
+
+  it('preserves external compiler ownership beside an inline project that declines root inheritance', async () => {
+    const rootHelper = path.join(directory, 'inline-root.mjs')
+    const childHelper = path.join(directory, 'inline-child.mjs')
+    await writeFile(rootHelper, 'export const value = 9')
+    await writeFile(childHelper, 'export const value = 2')
+    await writeFile(
+      path.join(directory, 'vitest.config.mjs'),
+      "import{value}from'./inline-root.mjs';export default {plugins:[{name:'root',transform(code){return code.replace('1',String(value))}}],test:{projects:[{extends:false,test:{name:'inline'}},'./vitest.child.config.mjs']}}"
+    )
+    await writeFile(
+      path.join(directory, 'vitest.child.config.mjs'),
+      "import{value}from'./inline-child.mjs';export default {plugins:[{name:'child',transform(code){return code.replace('1',String(value))}}],test:{name:'external'}}"
+    )
+    const owner = await openTestConfiguration(directory)
+    try {
+      const projects = structuredClone(owner.config.projects)
+      const descriptors = owner.compilerTransforms(projects)
+      expect(Object.keys(descriptors)).toEqual(['external'])
+      expect(
+        owner.compilerInputsForProjects([
+          projects.find((project) => project.profile.id === 'inline')!,
+        ])
+      ).toEqual([])
+      const external = projects.find(
+        (project) => project.profile.id === 'external'
+      )!
+      expect(owner.compilerInputsForProjects([external])).toContain(
+        await realpath(childHelper)
+      )
+      expect(owner.compilerInputsForProjects([external])).not.toContain(
+        await realpath(rootHelper)
+      )
+      expect(owner.watchInputs).toEqual(
+        expect.arrayContaining([
+          await realpath(rootHelper),
+          await realpath(childHelper),
+        ])
+      )
+      expect(
+        (
+          await requestCompilerTransform(descriptors.external, {
+            file: path.join(directory, 'subject.mjs'),
+            query: '',
+            moduleType: 'js',
+            code: 'export const value = 1',
+          })
+        ).code
+      ).toBe('export const value = 2')
+    } finally {
+      await owner.dispose()
+    }
+  }, 30000)
+
+  it('matches complete genuine inline inheritance rows through the real CLI', async () => {
+    const { execFileSync } = await import('node:child_process')
+    const output = path.join(directory, 'inline-cli-proof')
+    execFileSync(
+      process.execPath,
+      [
+        path.join(__dirname, 'inline-project-reports.mjs'),
+        path.join(__dirname, '../../..'),
+        output,
+        '--source',
+      ],
+      {
+        encoding: 'utf8',
+        timeout: 120000,
+        env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+      }
+    )
+    expect(
+      JSON.parse(await readFile(path.join(output, 'CHECKS.json'), 'utf8'))
+    ).toMatchObject({
+      profiles: 6,
+      completeCasesAndRowsEqual: true,
+      allOwnersJoined: true,
+      authoredBytesHeld: true,
+    })
+  }, 125000)
+
   it('selects each project configuration closure even when plugin names coincide', async () => {
     await writeFile(
       path.join(directory, 'vitest.config.mjs'),
@@ -2260,6 +2508,7 @@ describe('Next-owned test discovery and configuration', () => {
         'development Node',
         'production Node',
         'development Chromium client',
+        'one-shot isolated route-less production Chromium client',
       ],
       reports: ['json', 'json-summary', 'text', 'text-summary', 'lcov'],
     })
@@ -7717,6 +7966,53 @@ it.each([
   }
 )
 
+describe('ordinary development Node project environment', () => {
+  it('normalizes configured values without changing host environment or excluding similarly prefixed runtime keys', () => {
+    const before = process.env.NODE_CUSTOM_ENV
+    const config = normalizeTestConfig({
+      test: {
+        env: { ROOT: 'root', NODE_CUSTOM_ENV: 'node', __CUSTOM_ENV: 'custom' },
+        projects: [
+          { test: { name: 'ordinary', env: { ROOT: 'child', EMPTY: '' } } },
+        ],
+      },
+    })
+    expect(config.projects[0].env).toEqual({
+      ROOT: 'child',
+      NODE_CUSTOM_ENV: 'node',
+      __CUSTOM_ENV: 'custom',
+      EMPTY: '',
+    })
+    expect(process.env.NODE_CUSTOM_ENV).toBe(before)
+    expect(() =>
+      parseTestConfig({ projects: [{ name: 'invalid', env: { VALUE: 1 } }] })
+    ).toThrow('env.VALUE must be a string')
+    expect(() =>
+      parseTestConfig({
+        projects: [{ name: 'invalid', env: { NODE_ENV: 'custom' } }],
+      })
+    ).toThrow('compiler-owned Node mode')
+  })
+
+  it.each([
+    { environment: 'rsc' },
+    { environment: 'jsdom' },
+    { route: '/route' },
+    { isolate: false },
+  ])(
+    'keeps the unqualified Node env execution profile explicit: %j',
+    (profile) => {
+      expect(() =>
+        parseTestConfig({
+          projects: [{ name: 'invalid', ...profile, env: { VALUE: 'value' } }],
+        })
+      ).toThrow(
+        'env currently requires an isolated ordinary Node or Browser client project'
+      )
+    }
+  )
+})
+
 describe('Browser env configuration forwarding', () => {
   it('inherits string env values for Browser clients and rejects unimplemented inputs', () => {
     const config = normalizeTestConfig({
@@ -7743,9 +8039,10 @@ describe('Browser env configuration forwarding', () => {
         test: { browser: { enabled: true }, env: { BAD: 1 } },
       })
     ).toThrow('env.BAD must be a string')
-    expect(() =>
+    expect(
       parseTestConfig({ projects: [{ name: 'node', env: { KEY: 'value' } }] })
-    ).toThrow('env currently requires a development Browser client project')
+        .projects[0].env
+    ).toEqual({ KEY: 'value' })
   })
 
   it('forwards exact env and reset settings to ordinary and watch-broker file execution', async () => {
@@ -11015,3 +11312,64 @@ it.each(['before', 'after'] as const)(
   },
   250000
 )
+
+describe('ordinary production Node project environment', () => {
+  it('normalizes ordinary runtime env values in the actual production profile without mutating the host', () => {
+    const before = process.env.VALUE
+    const config = parseTestConfig({
+      projects: [
+        { name: 'invalid', mode: 'production', env: { VALUE: 'value' } },
+      ],
+    })
+    expect(config.projects[0].env).toEqual({ VALUE: 'value' })
+    expect(config.projects[0].profile.mode).toBe('production')
+    expect(process.env.VALUE).toBe(before)
+  })
+})
+
+it('retains strict named project/workspace configuration type relationships and genuine rejected fields', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [path.join(__dirname, 'config-project-types.cjs')],
+      { encoding: 'utf8', timeout: 60000 }
+    )
+  )
+  expect(actual).toMatchObject({
+    namedTypes: 6,
+    strict: true,
+    rootConfigAndGlobalAugmentations: true,
+    physicalPackageDeclarations: true,
+  })
+  expect(
+    actual.results.map((result: any) => ({
+      kind: result.kind,
+      count: result.diagnostics.length,
+    }))
+  ).toEqual([
+    { kind: 'positive', count: 0 },
+    { kind: 'negative', count: 18 },
+  ])
+}, 65000)
+
+it('types modeled project plugins, server and Browser fields without permissive helper overloads', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [path.join(__dirname, 'config-project-model-types.cjs')],
+      { encoding: 'utf8', timeout: 60000 }
+    )
+  )
+  expect(actual).toEqual({
+    programs: 102,
+    accepted: 59,
+    rejected: 43,
+    strict: true,
+    namedTypesDirectlyAnnotated: true,
+    rootConfigAndGlobalAugmentations: true,
+    physicalPackageDeclarations: true,
+    outsideDiagnostics: 0,
+  })
+}, 65000)

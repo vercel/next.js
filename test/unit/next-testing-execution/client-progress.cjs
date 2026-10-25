@@ -226,8 +226,8 @@ async function main() {
     'body-B',
     'afterAll',
     'run-finished',
-    'browser-cleanup',
     'file-cleanup',
+    'browser-cleanup',
     'mocks-cleanup',
     'context-cleanup',
   ])

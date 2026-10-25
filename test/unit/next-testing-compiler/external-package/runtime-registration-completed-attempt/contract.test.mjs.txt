@@ -1,0 +1,32 @@
+import {test,expect,vi} from 'vitest'
+let retained, heldNamespace, pending, release, started
+const rows=[]
+const row=(name,data)=>console.log('WS2_CROSS_ATTEMPT:'+JSON.stringify({name,...data}))
+test('capture an original request in the first real test',async()=>{
+ vi.doMock('./root.mjs',original=>{retained=original;return {value:{kind:'mock'},default:{kind:'mock-default'}}})
+ heldNamespace=await import('./root.mjs')
+ row('captured',{value:heldNamespace.value,callback:{type:typeof retained,name:retained.name,length:retained.length,ordinary:retained.constructor===Function},actualCount:globalThis.__crossAttemptCount??0})
+ expect(heldNamespace.value.kind).toBe('mock')
+})
+test('call the retained original request after its factory test completed',async()=>{
+ const first=retained(),second=retained()
+ const outcomes=await Promise.all([first,second].map(p=>p.then(value=>({value}),error=>({error:{name:error.name,message:error.message}}))))
+ row('retained-after-complete',{differentPromises:first!==second,outcomes:outcomes.map(x=>x.error?{error:x.error}:{value:x.value.value,defaultSame:x.value.default===x.value.value}),namespaceSame:outcomes[0].value===outcomes[1].value,actualCount:globalThis.__crossAttemptCount??0})
+ expect(outcomes).toHaveLength(2)
+ vi.doUnmock('./root.mjs')
+})
+test('start a real held factory then leave the originating test',async()=>{
+ const entered=new Promise(resolve=>started=resolve),gate=new Promise(resolve=>release=resolve)
+ vi.doMock('./pending.mjs',async original=>{rows.push('factory-enter');started();await gate;rows.push('factory-release');const actual=await original();rows.push('factory-actual');return {value:{kind:'held-mock',count:actual.value.count},default:actual.default}})
+ pending=import('./pending.mjs').then(value=>({value}),error=>({error:{name:error.name,message:error.message,cause:error.cause?{name:error.cause.name,message:error.cause.message}:null}}))
+ await entered
+ row('pending-entered',{events:[...rows],actualCount:globalThis.__crossPendingCount??0})
+ expect(rows).toEqual(['factory-enter'])
+})
+test('complete a prior real held factory from the next test',async()=>{
+ release()
+ const outcome=await pending
+ row('pending-after-complete',{events:[...rows],...(outcome.error?{error:outcome.error}:{value:outcome.value.value,default:outcome.value.default}),actualCount:globalThis.__crossPendingCount??0})
+ expect(outcome).toBeDefined()
+ vi.doUnmock('./pending.mjs')
+})

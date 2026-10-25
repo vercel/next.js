@@ -15,6 +15,7 @@ import {
   writeCoverageReport,
 } from 'next/dist/experimental/testing/coverage/report'
 import type { CompiledTestArtifact } from 'next/dist/experimental/testing/contracts'
+import type { ResultEvent } from 'next/dist/experimental/testing/reporting/events'
 import type {
   CoverageCapture,
   CoverageArtifactMetadata,
@@ -1855,6 +1856,284 @@ async function standardReportFixture() {
     excludedFiles: [],
   }
 }
+
+describe('actual standard merged-map observer', () => {
+  function expectActualMap(value: unknown, expected: unknown) {
+    const { isDeepStrictEqual } = require('node:util')
+    // Genuine converter metadata contains Maps from a separate compiled realm.
+    expect(
+      isDeepStrictEqual(structuredClone(value), structuredClone(expected))
+    ).toBe(true)
+  }
+  it.each(['passed', 'failed'] as const)(
+    'observes V8 data before file publication for a %s run',
+    async (status) => {
+      const { publishStandardCoverage } = await import(
+        'next/dist/experimental/testing/coverage/report-standard'
+      )
+      const f = await standardReportFixture()
+      try {
+        const seen: unknown[] = []
+        const result = await publishStandardCoverage({
+          ...f,
+          projectDir: f.root,
+          status,
+          config: { ...f.config, include: ['subject.mjs'] },
+          onCoverageMap: async (map) => {
+            await expect(
+              readFile(join(f.root, 'coverage', 'coverage-final.json'))
+            ).rejects.toMatchObject({ code: 'ENOENT' })
+            expectActualMap(map, { [f.file]: f.data })
+            seen.push(structuredClone(map))
+            map[f.file].s['0'] = 876
+            await Promise.resolve()
+          },
+        })
+        expectActualMap(seen, [{ [f.file]: f.data }])
+        if (status === 'failed') {
+          expect(result).toEqual({ published: false, thresholdErrors: [] })
+          await expect(
+            readFile(join(f.root, 'coverage', 'coverage-final.json'))
+          ).rejects.toMatchObject({ code: 'ENOENT' })
+        } else {
+          expect(result.published).toBe(true)
+          expect(result.thresholdErrors.length).toBeGreaterThan(0)
+          expect(
+            JSON.parse(
+              await readFile(
+                join(f.root, 'coverage', 'coverage-final.json'),
+                'utf8'
+              )
+            )
+          ).toEqual(JSON.parse(JSON.stringify({ [f.file]: f.data })))
+        }
+      } finally {
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  )
+  it.each(['passed', 'failed'] as const)(
+    'prepares the actual V8 map without changing prior files or evaluating thresholds for %s',
+    async (status) => {
+      const { publishStandardCoverage } = await import(
+        'next/dist/experimental/testing/coverage/report-standard'
+      )
+      const { mkdir, readdir } = await import('fs/promises')
+      const f = await standardReportFixture()
+      try {
+        const output = join(f.root, 'coverage')
+        await mkdir(output)
+        await writeFile(
+          join(output, 'coverage-final.json'),
+          'prior coverage bytes'
+        )
+        const seen: unknown[] = []
+        const result = await publishStandardCoverage({
+          ...f,
+          projectDir: f.root,
+          status,
+          config: {
+            ...f.config,
+            include: ['subject.mjs'],
+            reportOnFailure: true,
+            thresholds: { lines: 100, functions: 0, autoUpdate: true },
+          },
+          prepareOnly: true,
+          onCoverageMap: async (map) => {
+            seen.push(map)
+            await Promise.resolve()
+            expect(
+              await readFile(join(output, 'coverage-final.json'), 'utf8')
+            ).toBe('prior coverage bytes')
+          },
+        })
+        expectActualMap(seen, [{ [f.file]: f.data }])
+        expect(result).toEqual({ published: false, thresholdErrors: [] })
+        expect(await readdir(output)).toEqual(['coverage-final.json'])
+        expect(
+          await readFile(join(output, 'coverage-final.json'), 'utf8')
+        ).toBe('prior coverage bytes')
+      } finally {
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  )
+  it('requires the explicit V8 prepare option and its actual observer before reading facts', async () => {
+    const { publishStandardCoverage } = await import(
+      'next/dist/experimental/testing/coverage/report-standard'
+    )
+    const options = {
+      projectDir: '/missing-standard-preparation',
+      facts: [],
+      expected: new Set(['entry']),
+      excludedFiles: [],
+      status: 'failed' as const,
+      config: {
+        reporter: ['json'] as 'json'[],
+        exclude: [],
+        reportsDirectory: 'coverage',
+        reportOnFailure: false,
+        thresholds: {},
+      },
+    }
+    await expect(
+      publishStandardCoverage({ ...options, prepareOnly: true })
+    ).rejects.toThrow('actual map observer')
+    const onCoverageMap = jest.fn()
+    await expect(
+      publishStandardCoverage({
+        ...options,
+        prepareOnly: false as any,
+        onCoverageMap,
+      })
+    ).rejects.toThrow('explicit true option')
+    await expect(
+      publishStandardCoverage({ ...options, prepareOnly: true, onCoverageMap })
+    ).rejects.toThrow()
+    expect(onCoverageMap).not.toHaveBeenCalled()
+    expect(
+      await publishStandardCoverage({ ...options, prepareOnly: undefined })
+    ).toEqual({ published: false, thresholdErrors: [] })
+  })
+  it('awaits and preserves a V8 preparation observer rejection without publishing', async () => {
+    const { publishStandardCoverage } = await import(
+      'next/dist/experimental/testing/coverage/report-standard'
+    )
+    const f = await standardReportFixture()
+    try {
+      const failure = new Error('owned preparation callback failed')
+      await expect(
+        publishStandardCoverage({
+          ...f,
+          projectDir: f.root,
+          status: 'passed',
+          prepareOnly: true,
+          onCoverageMap: async () => {
+            await Promise.resolve()
+            throw failure
+          },
+        })
+      ).rejects.toBe(failure)
+      await expect(
+        readFile(join(f.root, 'coverage', 'coverage-final.json'))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+  it('still rejects stale V8 source before a preparation observer can run', async () => {
+    const { publishStandardCoverage } = await import(
+      'next/dist/experimental/testing/coverage/report-standard'
+    )
+    const f = await standardReportFixture()
+    try {
+      await writeFile(f.file, f.source + '\n')
+      const onCoverageMap = jest.fn()
+      await expect(
+        publishStandardCoverage({
+          ...f,
+          projectDir: f.root,
+          status: 'passed',
+          prepareOnly: true,
+          onCoverageMap,
+        })
+      ).rejects.toThrow('changed after capture')
+      expect(onCoverageMap).not.toHaveBeenCalled()
+    } finally {
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+  it('keeps V8 failure preparation opt-in and rejects an invalid observed capture', async () => {
+    const { publishStandardCoverage } = await import(
+      'next/dist/experimental/testing/coverage/report-standard'
+    )
+    const config = {
+      reporter: ['json'] as 'json'[],
+      exclude: [],
+      reportsDirectory: 'coverage',
+      reportOnFailure: false,
+      thresholds: {},
+    }
+    const options = {
+      projectDir: '/missing-standard-project',
+      facts: [],
+      expected: new Set(['entry']),
+      excludedFiles: [],
+      config,
+      status: 'failed' as const,
+    }
+    expect(await publishStandardCoverage(options)).toEqual({
+      published: false,
+      thresholdErrors: [],
+    })
+    const onCoverageMap = jest.fn()
+    await expect(
+      publishStandardCoverage({ ...options, onCoverageMap })
+    ).rejects.toThrow()
+    expect(onCoverageMap).not.toHaveBeenCalled()
+  })
+  it.each(['observer-error', 'stale-source', 'cancelled'] as const)(
+    'preserves prior V8 reports for %s',
+    async (scenario) => {
+      const { publishStandardCoverage } = await import(
+        'next/dist/experimental/testing/coverage/report-standard'
+      )
+      const { mkdir } = await import('fs/promises')
+      const f = await standardReportFixture()
+      try {
+        const output = join(f.root, 'coverage', 'coverage-final.json')
+        await mkdir(join(f.root, 'coverage'))
+        await writeFile(output, 'prior-report')
+        if (scenario === 'stale-source')
+          await writeFile(f.file, f.source + '\n')
+        const onCoverageMap = jest.fn(async () => {
+          throw new Error('actual map observer failed')
+        })
+        await expect(
+          publishStandardCoverage({
+            ...f,
+            projectDir: f.root,
+            status: scenario === 'cancelled' ? 'cancelled' : 'passed',
+            onCoverageMap,
+          })
+        ).rejects.toThrow()
+        expect(onCoverageMap).toHaveBeenCalledTimes(
+          scenario === 'observer-error' ? 1 : 0
+        )
+        expect(await readFile(output, 'utf8')).toBe('prior-report')
+      } finally {
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  )
+  it('retains the observed V8 map if report promotion subsequently fails', async () => {
+    const { publishStandardCoverage } = await import(
+      'next/dist/experimental/testing/coverage/report-standard'
+    )
+    const f = await standardReportFixture()
+    try {
+      await writeFile(join(f.root, 'coverage'), 'owned output obstruction')
+      const seen: unknown[] = []
+      await expect(
+        publishStandardCoverage({
+          ...f,
+          projectDir: f.root,
+          status: 'passed',
+          config: { ...f.config, include: ['subject.mjs'] },
+          onCoverageMap: (map) => {
+            seen.push(map)
+          },
+        })
+      ).rejects.toThrow('not a regular dedicated directory')
+      expectActualMap(seen, [{ [f.file]: f.data }])
+      expect(await readFile(join(f.root, 'coverage'), 'utf8')).toBe(
+        'owned output obstruction'
+      )
+    } finally {
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+})
 
 it('accepts and deduplicates json-summary alongside the other standard reporters', async () => {
   const { parseStandardCoverageOptions } = await import(
@@ -15712,9 +15991,9 @@ describe('explicit V8 provider and formatter CLI routes', () => {
       reporter: expect.arrayContaining(['text', 'json']),
     })
     expect(flags).toEqual(before)
-    expect(() =>
+    expect(
       parseStandardCoverageOptions({ 'coverage.provider': 'istanbul' })
-    ).toThrow('only the V8 provider')
+    ).toMatchObject({ provider: 'istanbul', formatterReports: true })
   })
 
   it('matches actual pristine V8 provider/text/default/HTML/Clover CLI reports and disabled omission', async () => {
@@ -16744,3 +17023,2478 @@ describe('remaining built-in standard coverage reporters', () => {
     }
   }, 615000)
 })
+
+describe('private Istanbul JavaScript producer', () => {
+  it('instruments selected raw modules without evaluating unimported code and rejects a different loader phase', async () => {
+    const {
+      createIstanbulSourcePlan,
+      openIstanbulInstrumentation,
+      assertIstanbulSourcePlan,
+    } = await import(
+      'next/dist/experimental/testing/coverage/istanbul-instrumentation'
+    )
+    const { assertIstanbulMetadata } = await import(
+      'next/dist/experimental/testing/coverage/istanbul-capture'
+    )
+    const { requestCompilerTransform } = await import(
+      'next/dist/experimental/testing/compiler/transform-broker'
+    )
+    const root = await realpath(
+      await mkdtemp(join(tmpdir(), 'next-istanbul-loader-'))
+    )
+    const file = join(root, 'subject.mjs')
+    const unused = join(root, 'unimported.mjs')
+    const source =
+      'export function choose(flag) { if(flag) return 1; return 0 }\n'
+    await writeFile(file, source)
+    await writeFile(
+      unused,
+      "throw new Error('unimported source must not run')\n"
+    )
+    await writeFile(
+      join(root, 'excluded.test.mjs'),
+      "throw new Error('test source')\n"
+    )
+    const signal = new AbortController().signal
+    const config = {
+      reporter: ['json' as const],
+      include: ['*.mjs'],
+      exclude: [],
+      reportsDirectory: 'coverage',
+      reportOnFailure: false,
+      thresholds: {},
+    }
+    let service:
+      | Awaited<ReturnType<typeof openIstanbulInstrumentation>>
+      | undefined
+    try {
+      const plan = await createIstanbulSourcePlan({
+        projectDir: root,
+        profile,
+        config,
+        excludedFiles: [],
+        signal,
+      })
+      expect(plan.sources.map((source) => basename(source.file))).toEqual([
+        'subject.mjs',
+        'unimported.mjs',
+      ])
+      service = await openIstanbulInstrumentation({
+        projectDir: root,
+        plan,
+        signal,
+      })
+      await assertIstanbulMetadata(
+        JSON.parse(JSON.stringify(service.descriptor.metadata)),
+        root,
+        signal
+      )
+      for (const kind of ['numeric', 'unknown'] as const) {
+        const changed = structuredClone(service.descriptor.metadata)
+        const declaration = changed.sources.find(
+          (source) => source.file === file
+        )!
+        const position = Object.values(declaration.initial.branchMap)[0]
+          .locations[0].start
+        if (kind === 'numeric') {
+          expect(typeof position.line).toBe('number')
+          position.line!++
+        } else {
+          Object.defineProperty(position, 'foreignCoordinate', {
+            enumerable: true,
+            value: undefined,
+          })
+        }
+        await expect(
+          assertIstanbulMetadata(changed, root, signal)
+        ).rejects.toThrow('actual instrumenter map changed')
+      }
+      expect(
+        service.descriptor.metadata.sources.every(
+          ({ initial }) =>
+            Object.values(initial.s).every((count) => count === 0) &&
+            Object.values(initial.f).every((count) => count === 0) &&
+            Object.values(initial.b)
+              .flat()
+              .every((count) => count === 0)
+        )
+      ).toBe(true)
+      const input = { file, query: '', code: source, moduleType: 'js' }
+      const actual = await requestCompilerTransform(
+        service.descriptor.transport,
+        input
+      )
+      expect(actual.code).toContain('__VITEST_COVERAGE__')
+      expect(actual.map?.sourcesContent).toEqual([source])
+      for (const change of [
+        { query: '?different-phase=1' },
+        {
+          map: {
+            version: 3 as const,
+            sources: [file],
+            names: [],
+            mappings: 'AAAA',
+            sourcesContent: [source],
+          },
+        },
+        { code: source + '\n' },
+      ]) {
+        await expect(
+          requestCompilerTransform(service.descriptor.transport, {
+            ...input,
+            ...change,
+          })
+        ).rejects.toThrow('unmapped JavaScript phase differs')
+      }
+      const forged = structuredClone(service.descriptor.metadata)
+      forged.sources[0].initial.s[Object.keys(forged.sources[0].initial.s)[0]] =
+        1
+      await expect(
+        assertIstanbulMetadata(forged, root, signal)
+      ).rejects.toThrow('actual instrumenter map changed')
+      await writeFile(file, source + '// actual current edit\n')
+      await expect(assertIstanbulSourcePlan(plan, signal)).rejects.toThrow(
+        'selected source changed'
+      )
+      await expect(
+        requestCompilerTransform(service.descriptor.transport, input)
+      ).rejects.toThrow('unmapped JavaScript phase differs')
+    } finally {
+      await service?.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps ordinary configuration exact and refuses foreign profiles before instrumentation', async () => {
+    const { withIstanbulInstrumentation } = await import(
+      'next/dist/experimental/testing/compiler/istanbul-config'
+    )
+    const { createIstanbulSourcePlan } = await import(
+      'next/dist/experimental/testing/coverage/istanbul-instrumentation'
+    )
+    const ordinary = {} as any
+    expect(withIstanbulInstrumentation(ordinary, '/unused', profile)).toBe(
+      ordinary
+    )
+    await expect(
+      createIstanbulSourcePlan({
+        projectDir: '/unused',
+        profile: { ...profile, mode: 'production' },
+        config: {} as any,
+        excludedFiles: [],
+        signal: new AbortController().signal,
+      })
+    ).rejects.toThrow('isolated development Node JavaScript')
+  })
+
+  it('matches genuine complete models through the actual compiler and worker across selected, absent and selected requests', async () => {
+    const { execFileSync } = await import('node:child_process')
+    const output = await mkdtemp(join(tmpdir(), 'next-istanbul-private-model-'))
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'istanbul-provider-private.cjs'),
+          join(__dirname, '../../..'),
+          output,
+          '--source',
+        ],
+        {
+          encoding: 'utf8',
+          timeout: 120000,
+          env: {
+            ...process.env,
+            TURBO_TASKS_AVAILABLE_PARALLELISM: '4',
+          },
+        }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+      ).toMatchObject({
+        actualPrivateCompilerWorkerCases: 2,
+        wholeThreeFileJSONSummaryLCOVEqual: true,
+        publicAdmission: false,
+      })
+      expect(
+        JSON.parse(await readFile(join(output, 'CLOSED.json'), 'utf8'))
+      ).toEqual({
+        fixtureRetired: true,
+        sessionDisposed: true,
+        serviceDisposed: true,
+      })
+    } finally {
+      if (process.env.NEXT_TESTING_ISTANBUL_EVIDENCE) {
+        const { cp } = await import('fs/promises')
+        await cp(output, process.env.NEXT_TESTING_ISTANBUL_EVIDENCE, {
+          recursive: true,
+        })
+      }
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 125000)
+})
+
+describe('private settled suite coverage observations', () => {
+  const reference = { suiteId: 'suite', index: 0 }
+  const failure: ResultEvent = {
+    version: 1,
+    runId: 'run',
+    timestamp: 0,
+    type: 'diagnostic',
+    entryId: 'entry',
+    revision: 'revision',
+    suiteError: reference,
+    diagnostic: {
+      severity: 'error',
+      phase: 'runtime',
+      message: 'authored afterAll',
+    },
+  }
+
+  it('marks the authored carrier only when disposal throws the same raw Error', async () => {
+    const { createCollector } = await import(
+      'next/dist/experimental/testing/runner/collector'
+    )
+    const { runCollected, isSettledAuthoredAfterAllFailure } = await import(
+      'next/dist/experimental/testing/runner/lifecycle'
+    )
+    const collector = createCollector('carrier-identity')
+    const error = new Error('same authored and integration error')
+    const before = Object.getOwnPropertyDescriptors(error)
+    collector.api.test('body', () => {})
+    collector.api.afterAll(() => {
+      throw error
+    })
+    await collector.settle()
+    const scope = () => ({ async finalize() {}, async dispose() {} })
+    const result = await runCollected(
+      collector.close(),
+      {
+        runId: 'carrier-run',
+        signal: new AbortController().signal,
+        captureCoverageCompletion: true,
+      },
+      () => {},
+      {
+        beginFileFixtures: scope,
+        beginHook(context) {
+          return {
+            async finalize() {},
+            async dispose() {
+              if (context.hook === 'afterAll') throw error
+            },
+          }
+        },
+        setActiveHook() {},
+      }
+    )
+    expect(result.errors).toHaveLength(2)
+    expect(result.errors.map((failure) => failure.error)).toEqual([
+      error,
+      error,
+    ])
+    expect(result.errors.map(isSettledAuthoredAfterAllFailure)).toEqual([
+      true,
+      false,
+    ])
+    expect(Object.getOwnPropertyDescriptors(error)).toEqual(before)
+  })
+
+  it('keeps a suite error provisional until the matching joined completion', async () => {
+    const { createCoverageAttemptTracker } = await import(
+      'next/dist/experimental/testing/execution/coverage'
+    )
+    const tracker = createCoverageAttemptTracker({
+      deferSettledSuiteErrors: true,
+    })
+    tracker.observe(failure)
+    expect(tracker.complete).toBe(false)
+    tracker.observeCoverageCompletion(true)
+    expect(tracker.complete).toBe(false)
+    tracker.authorizeSettledSuiteErrors([reference])
+    expect(tracker.complete).toBe(true)
+    expect(() => tracker.authorizeSettledSuiteErrors([reference])).toThrow(
+      'repeated'
+    )
+  })
+
+  it('refuses missing, foreign, duplicate and invalid suite references', async () => {
+    const { createCoverageAttemptTracker } = await import(
+      'next/dist/experimental/testing/execution/coverage'
+    )
+    for (const observed of [
+      [],
+      [{ suiteId: 'foreign', index: 0 }],
+      [reference, reference],
+      [{ suiteId: 'suite', index: -1 }],
+      {},
+    ]) {
+      const tracker = createCoverageAttemptTracker({
+        deferSettledSuiteErrors: true,
+      })
+      tracker.observe(failure)
+      tracker.observeCoverageCompletion(true)
+      expect(() => tracker.authorizeSettledSuiteErrors(observed)).toThrow()
+      expect(tracker.complete).toBe(false)
+    }
+  })
+
+  it('preserves ordinary V8 diagnostic vetoes and unrelated cleanup failures', async () => {
+    const { createCoverageAttemptTracker } = await import(
+      'next/dist/experimental/testing/execution/coverage'
+    )
+    const legacy = createCoverageAttemptTracker()
+    legacy.observe(failure)
+    legacy.observeCoverageCompletion(true)
+    expect(legacy.complete).toBe(false)
+    expect(() => legacy.authorizeSettledSuiteErrors([reference])).toThrow(
+      'Unrequested'
+    )
+    for (const phase of ['runtime', 'cleanup'] as const) {
+      const tracker = createCoverageAttemptTracker({
+        deferSettledSuiteErrors: true,
+      })
+      tracker.observe(failure)
+      tracker.observe({
+        ...failure,
+        suiteError: undefined,
+        diagnostic: {
+          severity: 'error',
+          phase,
+          message: 'actual host failure',
+        },
+      })
+      tracker.observeCoverageCompletion(true)
+      tracker.authorizeSettledSuiteErrors([reference])
+      expect(tracker.complete).toBe(false)
+    }
+  })
+
+  it('does not authorize incomplete capture or a suite reference received twice', async () => {
+    const { createCoverageAttemptTracker } = await import(
+      'next/dist/experimental/testing/execution/coverage'
+    )
+    const tracker = createCoverageAttemptTracker({
+      deferSettledSuiteErrors: true,
+    })
+    tracker.observe(failure)
+    tracker.observe(failure)
+    tracker.observeCoverageCompletion(false)
+    tracker.authorizeSettledSuiteErrors([reference])
+    expect(tracker.complete).toBe(false)
+  })
+})
+
+describe('private settled afterAll compiled producer', () => {
+  it.each([
+    'sync',
+    'async',
+    'timeout',
+    'parallel-timeout',
+    'scope-finalization',
+    'disposal',
+    'abort',
+  ])(
+    'retains actual completion and resource vetoes for %s',
+    async (scenario) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-istanbul-afterall-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'istanbul-afterall-completion.cjs'),
+            'supervise',
+            join(__dirname, '../../..'),
+            output,
+            scenario,
+          ],
+          {
+            encoding: 'utf8',
+            timeout: 125000,
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+          }
+        )
+        const checks = JSON.parse(
+          await readFile(join(output, 'CHECKS.json'), 'utf8')
+        )
+        expect(checks).toMatchObject({
+          actualCrossModuleCompiledFailure: true,
+          captureCount: [
+            'sync',
+            'async',
+            'scope-finalization',
+            'disposal',
+          ].includes(scenario)
+            ? 3
+            : 2,
+          publicAdmission: false,
+        })
+        if (['sync', 'async'].includes(scenario))
+          expect(checks.errorOwnFieldsEqual).toBe(true)
+        expect(
+          JSON.parse(await readFile(join(output, 'CLOSED.json'), 'utf8'))
+        ).toEqual({
+          fixtureRetired: true,
+          sessionDisposed: true,
+          serviceDisposed: true,
+        })
+      } finally {
+        if (process.env.NEXT_TESTING_ISTANBUL_AFTERALL_EVIDENCE) {
+          const { cp } = await import('fs/promises')
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_ISTANBUL_AFTERALL_EVIDENCE, scenario),
+            { recursive: true }
+          )
+        }
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('Istanbul mapped fact wire and publication contract', () => {
+  let root: string
+  let plan: import('next/dist/experimental/testing/coverage/istanbul-types').IstanbulSourcePlan
+  let fact: import('next/dist/experimental/testing/coverage/istanbul-types').IstanbulStandardFileCoverage
+  const signal = new AbortController().signal
+  beforeAll(async () => {
+    root = await realpath(await mkdtemp(join(tmpdir(), 'next-istanbul-facts-')))
+    const file = join(root, 'subject.mjs')
+    const source = require('./fixtures/istanbul-provider/pristine.json')
+      .sourceFiles['subject.mjs'].source
+    await writeFile(file, source)
+    const { coverageHash } = await import(
+      'next/dist/experimental/testing/coverage/artifact'
+    )
+    const { instrumentJavaScript, remapIstanbulCoverage } = await import(
+      'next/dist/compiled/next-test-instrumentation'
+    )
+    const sha256 = coverageHash(source)
+    plan = {
+      version: 1,
+      profile: {
+        id: 'facts',
+        environment: 'node',
+        runtime: 'nodejs',
+        mode: 'development',
+        bundler: 'turbopack',
+      },
+      sources: [{ file, sha256 }],
+    }
+    const data = (
+      await remapIstanbulCoverage({
+        [file]: instrumentJavaScript(source, file).initial,
+      })
+    )[file]
+    fact = {
+      version: 1,
+      provider: 'istanbul',
+      entryId: 'entry',
+      revision: 'revision',
+      complete: true,
+      errors: [],
+      files: [{ file, sha256, data }],
+    }
+  })
+  afterAll(async () => {
+    await rm(root, { recursive: true, force: true })
+  })
+  async function validate(facts: unknown) {
+    const { assertIstanbulCoverageFacts } = await import(
+      'next/dist/experimental/testing/coverage/report-istanbul'
+    )
+    return assertIstanbulCoverageFacts({
+      projectDir: root,
+      facts,
+      plan,
+      expected: new Set(['entry']),
+      revisions: new Map([['entry', 'revision']]),
+      signal,
+    })
+  }
+  it('retains actual plain mapped data through advanced IPC without numeric normalization', async () => {
+    const { serialize, deserialize } = await import('node:v8')
+    expect(Object.getPrototypeOf(fact.files[0].data)).toBe(Object.prototype)
+    const wire = deserialize(serialize([fact]))
+    expect(wire).toEqual([fact])
+    expect(await validate(wire)).toEqual([fact])
+    expect(
+      Object.values(fact.files[0].data.fnMap).some(
+        (fn) => fn.loc.end.column === Infinity
+      )
+    ).toBe(true)
+    await expect(validate(JSON.parse(JSON.stringify([fact])))).rejects.toThrow(
+      'mapped declarations'
+    )
+  })
+  it('retains the actual remapper omission of an empty selected module', async () => {
+    const file = join(root, 'empty.mjs')
+    const source = 'export {}\n'
+    await writeFile(file, source)
+    const { instrumentJavaScript, remapIstanbulCoverage } = await import(
+      'next/dist/compiled/next-test-instrumentation'
+    )
+    const data = await remapIstanbulCoverage({
+      [file]: instrumentJavaScript(source, file).initial,
+    })
+    expect(data).toEqual({})
+    const { assertIstanbulCoverageFacts } = await import(
+      'next/dist/experimental/testing/coverage/report-istanbul'
+    )
+    const empty = { ...fact, files: [] }
+    const options = {
+      projectDir: root,
+      plan: { ...plan, sources: [{ file, sha256: coverageHash(source) }] },
+      expected: new Set(['entry']),
+      signal,
+    }
+    expect(
+      await assertIstanbulCoverageFacts({ ...options, facts: [empty] })
+    ).toEqual([empty])
+    await expect(
+      assertIstanbulCoverageFacts({
+        ...options,
+        facts: [
+          {
+            ...empty,
+            files: [
+              {
+                file,
+                sha256: coverageHash(source),
+                data: {
+                  path: file,
+                  statementMap: {},
+                  fnMap: {},
+                  branchMap: {},
+                  s: {},
+                  f: {},
+                  b: {},
+                },
+              },
+            ],
+          },
+        ],
+      })
+    ).rejects.toThrow('coverage fact')
+  })
+  it('awaits the actual Istanbul merged map before report policy and keeps observer mutations private', async () => {
+    const { publishIstanbulCoverage } = await import(
+      'next/dist/experimental/testing/coverage/report-istanbul'
+    )
+    const output = join(root, 'observer-success')
+    let observed = false
+    const result = await publishIstanbulCoverage({
+      projectDir: root,
+      facts: [fact],
+      plan,
+      expected: new Set(['entry']),
+      config: {
+        provider: 'istanbul',
+        formatterReports: true,
+        exclude: [],
+        reporter: ['json'],
+        reportsDirectory: 'observer-success',
+        reportOnFailure: false,
+        thresholds: {},
+      },
+      status: 'passed',
+      signal,
+      onCoverageMap: async (map) => {
+        await expect(
+          readFile(join(output, 'coverage-final.json'))
+        ).rejects.toMatchObject({ code: 'ENOENT' })
+        expect(map).toEqual({ [fact.files[0].file]: fact.files[0].data })
+        expect(
+          Object.values(map[fact.files[0].file].fnMap).some(
+            (fn) => fn.loc.end.column === Infinity
+          )
+        ).toBe(true)
+        map[fact.files[0].file].s['0'] = 987
+        await Promise.resolve()
+        observed = true
+      },
+    })
+    expect(observed).toBe(true)
+    expect(result.published).toBe(true)
+    expect(
+      JSON.parse(await readFile(join(output, 'coverage-final.json'), 'utf8'))
+    ).toEqual(
+      JSON.parse(JSON.stringify({ [fact.files[0].file]: fact.files[0].data }))
+    )
+  })
+  it('observes Istanbul maps on a failed run without publishing reports or evaluating thresholds', async () => {
+    const { publishIstanbulCoverage } = await import(
+      'next/dist/experimental/testing/coverage/report-istanbul'
+    )
+    const seen: unknown[] = []
+    const result = await publishIstanbulCoverage({
+      projectDir: root,
+      facts: [fact],
+      plan,
+      expected: new Set(['entry']),
+      signal,
+      config: {
+        provider: 'istanbul',
+        formatterReports: true,
+        exclude: [],
+        reporter: ['json'],
+        reportsDirectory: 'observer-failed',
+        reportOnFailure: false,
+        thresholds: { statements: 100 },
+      },
+      status: 'failed',
+      onCoverageMap: (map) => {
+        seen.push(map)
+      },
+    })
+    expect(seen).toEqual([{ [fact.files[0].file]: fact.files[0].data }])
+    expect(result).toEqual({ published: false, thresholdErrors: [] })
+    await expect(
+      readFile(join(root, 'observer-failed', 'coverage-final.json'))
+    ).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+  it('observes the real empty Istanbul map with no file reporters', async () => {
+    const { publishIstanbulCoverage } = await import(
+      'next/dist/experimental/testing/coverage/report-istanbul'
+    )
+    const seen: unknown[] = []
+    const result = await publishIstanbulCoverage({
+      projectDir: root,
+      facts: [{ ...fact, files: [] }],
+      plan: { ...plan, sources: [] },
+      expected: new Set(['entry']),
+      signal,
+      config: {
+        provider: 'istanbul',
+        formatterReports: true,
+        exclude: [],
+        reporter: ['none'],
+        reportsDirectory: 'observer-empty',
+        reportOnFailure: false,
+        thresholds: {},
+      },
+      status: 'passed',
+      onCoverageMap: (map) => {
+        seen.push(map)
+      },
+    })
+    expect(seen).toEqual([{}])
+    expect(result.published).toBe(true)
+    expect(result.files).toEqual([])
+  })
+  it('does not invoke the Istanbul observer for missing captures or cancellation', async () => {
+    const { publishIstanbulCoverage } = await import(
+      'next/dist/experimental/testing/coverage/report-istanbul'
+    )
+    const onCoverageMap = jest.fn()
+    const options = {
+      projectDir: root,
+      facts: [],
+      plan,
+      expected: new Set(['entry']),
+      signal,
+      onCoverageMap,
+      config: {
+        provider: 'istanbul' as const,
+        formatterReports: true as const,
+        exclude: [],
+        reporter: ['json'] as 'json'[],
+        reportsDirectory: 'observer-incomplete',
+        reportOnFailure: true,
+        thresholds: {},
+      },
+    }
+    await expect(
+      publishIstanbulCoverage({ ...options, status: 'passed' })
+    ).rejects.toThrow('omitted an expected completed entry')
+    await expect(
+      publishIstanbulCoverage({ ...options, status: 'cancelled' })
+    ).rejects.toThrow('Interrupted runs')
+    expect(onCoverageMap).not.toHaveBeenCalled()
+  })
+  it.each(['passed', 'failed'] as const)(
+    'prepares the actual Istanbul map without publishing files or thresholds for %s',
+    async (status) => {
+      const { publishIstanbulCoverage } = await import(
+        'next/dist/experimental/testing/coverage/report-istanbul'
+      )
+      const { mkdir, readdir } = await import('fs/promises')
+      const outputName = 'prepare-' + status
+      const output = join(root, outputName)
+      await mkdir(output)
+      await writeFile(
+        join(output, 'coverage-final.json'),
+        'prior Istanbul bytes'
+      )
+      const seen: unknown[] = []
+      const result = await publishIstanbulCoverage({
+        projectDir: root,
+        facts: [fact],
+        plan,
+        expected: new Set(['entry']),
+        signal,
+        status,
+        config: {
+          provider: 'istanbul',
+          formatterReports: true,
+          reporter: ['json', 'html'],
+          exclude: [],
+          reportsDirectory: outputName,
+          reportOnFailure: true,
+          thresholds: { lines: 100, functions: 0, autoUpdate: true },
+        },
+        prepareOnly: true,
+        onCoverageMap: async (map) => {
+          seen.push(map)
+          await Promise.resolve()
+        },
+      })
+      expect(seen).toEqual([{ [fact.files[0].file]: fact.files[0].data }])
+      expect(result).toEqual({ published: false, thresholdErrors: [] })
+      expect(await readdir(output)).toEqual(['coverage-final.json'])
+      expect(await readFile(join(output, 'coverage-final.json'), 'utf8')).toBe(
+        'prior Istanbul bytes'
+      )
+    }
+  )
+  it('keeps real multi-entry Istanbul captures immutable across generation and report publication', async () => {
+    const { runInNewContext } = await import('node:vm')
+    const {
+      instrumentJavaScript,
+      remapIstanbulCoverage,
+      mergeIstanbulCoverage,
+    } = await import('next/dist/compiled/next-test-instrumentation')
+    const { publishIstanbulCoverage } = await import(
+      'next/dist/experimental/testing/coverage/report-istanbul'
+    )
+    const file = join(root, 'prepare-merged.mjs')
+    const source =
+      'function choose(value) {\n  if (value) return 1\n  return 0\n}\nchoose(true)\n'
+    await writeFile(file, source)
+    const selected = {
+      ...plan,
+      sources: [{ file, sha256: coverageHash(source) }],
+    }
+    const code = instrumentJavaScript(source, file).code
+    const rows: (typeof fact)[] = []
+    for (const entryId of ['one', 'two']) {
+      const context: any = {}
+      runInNewContext(code, context)
+      const data = (
+        await remapIstanbulCoverage(
+          structuredClone(context.__VITEST_COVERAGE__)
+        )
+      )[file]
+      expect(Object.values(data.f)).toEqual([1])
+      rows.push({
+        ...fact,
+        entryId,
+        files: [{ file, sha256: coverageHash(source), data }],
+      })
+    }
+    const before = structuredClone(rows)
+    const expected = mergeIstanbulCoverage(
+      structuredClone(
+        rows.map((row) =>
+          Object.fromEntries(row.files.map((file) => [file.file, file.data]))
+        )
+      )
+    )
+    expect(Object.values(expected[file].f)).toEqual([2])
+    const options = {
+      projectDir: root,
+      facts: rows,
+      plan: selected,
+      expected: new Set(['one', 'two']),
+      signal,
+      status: 'passed' as const,
+      config: {
+        provider: 'istanbul' as const,
+        formatterReports: true as const,
+        reporter: ['json'] as 'json'[],
+        exclude: [],
+        reportsDirectory: 'prepare-merged',
+        reportOnFailure: true,
+        thresholds: {},
+      },
+    }
+    const seen: unknown[] = []
+    expect(
+      await publishIstanbulCoverage({
+        ...options,
+        prepareOnly: true,
+        onCoverageMap: (map) => {
+          seen.push(map)
+        },
+      })
+    ).toEqual({ published: false, thresholdErrors: [] })
+    expect(seen).toEqual([expected])
+    expect(rows).toEqual(before)
+    expect((await publishIstanbulCoverage(options)).published).toBe(true)
+    expect(
+      JSON.parse(
+        await readFile(
+          join(root, 'prepare-merged', 'coverage-final.json'),
+          'utf8'
+        )
+      )
+    ).toEqual(JSON.parse(JSON.stringify(expected)))
+    expect(rows).toEqual(before)
+  })
+  it('requires the explicit Istanbul prepare option and observer without bypassing real facts', async () => {
+    const { publishIstanbulCoverage } = await import(
+      'next/dist/experimental/testing/coverage/report-istanbul'
+    )
+    const options = {
+      projectDir: root,
+      facts: [fact],
+      plan,
+      expected: new Set(['entry']),
+      signal,
+      status: 'passed' as const,
+      config: {
+        provider: 'istanbul' as const,
+        formatterReports: true as const,
+        reporter: ['json'] as 'json'[],
+        exclude: [],
+        reportsDirectory: 'prepare-invalid',
+        reportOnFailure: true,
+        thresholds: {},
+      },
+    }
+    await expect(
+      publishIstanbulCoverage({ ...options, prepareOnly: true })
+    ).rejects.toThrow('actual map observer')
+    const onCoverageMap = jest.fn()
+    await expect(
+      publishIstanbulCoverage({
+        ...options,
+        prepareOnly: false as any,
+        onCoverageMap,
+      })
+    ).rejects.toThrow('explicit true option')
+    await expect(
+      publishIstanbulCoverage({
+        ...options,
+        facts: [],
+        prepareOnly: true,
+        onCoverageMap,
+      })
+    ).rejects.toThrow('omitted an expected completed entry')
+    expect(onCoverageMap).not.toHaveBeenCalled()
+  })
+  it('retains exact Istanbul callback failures and cancellation during preparation', async () => {
+    const { publishIstanbulCoverage } = await import(
+      'next/dist/experimental/testing/coverage/report-istanbul'
+    )
+    const failure = new Error('Istanbul preparation callback failed')
+    const options = {
+      projectDir: root,
+      facts: [fact],
+      plan,
+      expected: new Set(['entry']),
+      signal,
+      prepareOnly: true as const,
+      config: {
+        provider: 'istanbul' as const,
+        formatterReports: true as const,
+        reporter: ['json'] as 'json'[],
+        exclude: [],
+        reportsDirectory: 'prepare-callback',
+        reportOnFailure: true,
+        thresholds: {},
+      },
+    }
+    await expect(
+      publishIstanbulCoverage({
+        ...options,
+        status: 'passed',
+        onCoverageMap: async () => {
+          await Promise.resolve()
+          throw failure
+        },
+      })
+    ).rejects.toBe(failure)
+    const onCoverageMap = jest.fn()
+    await expect(
+      publishIstanbulCoverage({
+        ...options,
+        status: 'cancelled',
+        onCoverageMap,
+      })
+    ).rejects.toThrow('Interrupted runs')
+    expect(onCoverageMap).not.toHaveBeenCalled()
+    await expect(
+      readFile(join(root, 'prepare-callback', 'coverage-final.json'))
+    ).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+  it('retains actual source-hash validation before Istanbul preparation', async () => {
+    const { publishIstanbulCoverage } = await import(
+      'next/dist/experimental/testing/coverage/report-istanbul'
+    )
+    const file = fact.files[0].file
+    const original = await readFile(file)
+    const onCoverageMap = jest.fn()
+    try {
+      await writeFile(file, Buffer.concat([original, Buffer.from('\n')]))
+      await expect(
+        publishIstanbulCoverage({
+          projectDir: root,
+          facts: [fact],
+          plan,
+          expected: new Set(['entry']),
+          signal,
+          status: 'passed',
+          prepareOnly: true,
+          onCoverageMap,
+          config: {
+            provider: 'istanbul',
+            formatterReports: true as const,
+            reporter: ['json'],
+            exclude: [],
+            reportsDirectory: 'prepare-stale',
+            reportOnFailure: true,
+            thresholds: {},
+          },
+        })
+      ).rejects.toThrow('changed or is invalid')
+      expect(onCoverageMap).not.toHaveBeenCalled()
+    } finally {
+      await writeFile(file, original)
+    }
+  })
+  it('observes a genuine empty Istanbul map while preparing without creating output', async () => {
+    const { publishIstanbulCoverage } = await import(
+      'next/dist/experimental/testing/coverage/report-istanbul'
+    )
+    const seen: unknown[] = []
+    const result = await publishIstanbulCoverage({
+      projectDir: root,
+      facts: [{ ...fact, files: [] }],
+      plan: { ...plan, sources: [] },
+      expected: new Set(['entry']),
+      signal,
+      status: 'passed',
+      prepareOnly: true,
+      onCoverageMap: (map) => {
+        seen.push(map)
+      },
+      config: {
+        provider: 'istanbul',
+        formatterReports: true as const,
+        reporter: ['none'],
+        exclude: [],
+        reportsDirectory: 'prepare-empty',
+        reportOnFailure: true,
+        thresholds: {},
+      },
+    })
+    expect(seen).toEqual([{}])
+    expect(result).toEqual({ published: false, thresholdErrors: [] })
+    await expect(
+      readFile(join(root, 'prepare-empty', 'coverage-final.json'))
+    ).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+  it('preserves the Istanbul no-observer failure short circuit without reading invalid facts', async () => {
+    const { publishIstanbulCoverage } = await import(
+      'next/dist/experimental/testing/coverage/report-istanbul'
+    )
+    expect(
+      await publishIstanbulCoverage({
+        projectDir: '/missing-istanbul-project',
+        facts: [],
+        plan,
+        expected: new Set(['entry']),
+        signal,
+        config: {
+          provider: 'istanbul',
+          formatterReports: true,
+          exclude: [],
+          reporter: ['json'],
+          reportsDirectory: 'coverage',
+          reportOnFailure: false,
+          thresholds: {},
+        },
+        status: 'failed',
+      })
+    ).toEqual({ published: false, thresholdErrors: [] })
+  })
+  it.each([
+    'numeric-position',
+    'unknown-coordinate',
+    'negative-count',
+    'counter-key',
+    'branch-length',
+    'source-hash',
+    'revision',
+    'missing-file',
+    'duplicate-entry',
+  ])('rejects changed actual mapped facts: %s', async (mutation) => {
+    const rows = structuredClone([fact]) as any[]
+    const file = rows[0].files[0],
+      data = file.data
+    if (mutation === 'numeric-position') data.statementMap['0'].start.column++
+    if (mutation === 'unknown-coordinate')
+      data.branchMap['0'].locations[1].start.unknown = 1
+    if (mutation === 'negative-count') data.s['0'] = -1
+    if (mutation === 'counter-key') data.f.extra = 0
+    if (mutation === 'branch-length') data.b['0'].push(0)
+    if (mutation === 'source-hash') file.sha256 = '0'.repeat(64)
+    if (mutation === 'revision') rows[0].revision = 'foreign'
+    if (mutation === 'missing-file') rows[0].files = []
+    if (mutation === 'duplicate-entry') rows.push(structuredClone(rows[0]))
+    await expect(validate(rows)).rejects.toThrow()
+  })
+})
+
+describe('public Istanbul CommonJS sources', () => {
+  it.each([
+    "require('./dependency.cjs')",
+    "module.require('./dependency.cjs')",
+    "module['require']('./dependency.cjs')",
+  ])(
+    'retains the measured unimplemented CommonJS edge bound for %s',
+    async (expression) => {
+      const { assertIstanbulCjsSource } = await import(
+        'next/dist/experimental/testing/coverage/istanbul-cjs'
+      )
+      expect(() =>
+        assertIstanbulCjsSource(
+          'exports.value = ' + expression,
+          '/project/subject.cjs'
+        )
+      ).toThrow('CommonJS require dependency coverage is not implemented')
+    }
+  )
+  it('distinguishes real CommonJS calls from exported names and string contents', async () => {
+    const { assertIstanbulCjsSource } = await import(
+      'next/dist/experimental/testing/coverage/istanbul-cjs'
+    )
+    expect(() =>
+      assertIstanbulCjsSource(
+        `exports.require = "require('./unused.cjs')"`,
+        '/project/subject.cjs'
+      )
+    ).not.toThrow()
+    expect(() =>
+      assertIstanbulCjsSource(
+        `export const value = require('./unused.cjs')`,
+        '/project/subject.mjs'
+      )
+    ).not.toThrow()
+  })
+  const pristine = require('./fixtures/istanbul-provider/cjs-pristine.json')
+  it.each(
+    pristine.rows.filter(
+      (row) => !Object.hasOwn(pristine.unqualifiedProfiles, row.name)
+    )
+  )(
+    'matches actual complete CommonJS reports for $name',
+    async (row) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-istanbul-cjs-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'istanbul-cjs-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            row.name,
+            '--source',
+          ],
+          {
+            encoding: 'utf8',
+            timeout: 125000,
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          actualPublicCLI: true,
+          wholeCaseProjection: true,
+          completeMapsSummaryLCOV: true,
+          allOwnersJoined: true,
+        })
+        expect(
+          JSON.parse(await readFile(join(output, 'CLOSED.json'), 'utf8'))
+        ).toEqual({ fixtureRetired: true })
+      } finally {
+        if (process.env.NEXT_TESTING_ISTANBUL_CJS_EVIDENCE) {
+          const { cp } = await import('fs/promises')
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_ISTANBUL_CJS_EVIDENCE, row.name),
+            { recursive: true }
+          )
+        }
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('public Istanbul JavaScript coverage', () => {
+  const pristine = require('./fixtures/istanbul-provider/public-pristine.json')
+  it.each(
+    pristine.rows
+      .filter((row) => !Object.hasOwn(pristine.unqualifiedProfiles, row.name))
+      .map((row) => row.name)
+  )(
+    'matches the complete genuine reports and cases for %s',
+    async (profile) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-public-istanbul-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'istanbul-public-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          {
+            encoding: 'utf8',
+            timeout: 125000,
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          profile,
+          actualPublicCLI: true,
+          completeCaseProjection: true,
+          wholeMapsSummaryLCOVAndReportAssets: true,
+          actualThresholdsAndConfigBytes: true,
+          ownedProcessTreeClosed: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('public Istanbul file workers', () => {
+  it.each(['default', 'two-workers'])(
+    'matches actual whole reports and worker ownership for %s',
+    async (profile) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-istanbul-workers-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'istanbul-worker-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          {
+            encoding: 'utf8',
+            timeout: 125000,
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toEqual({
+          profile,
+          completeCasesAndReports: true,
+          actualParallelBarrier: profile === 'two-workers',
+          defaultConfigurationReportEquality: true,
+          allOwnersClosed: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('Istanbul loaded-source metadata', () => {
+  const profile = {
+    id: 'loaded',
+    mode: 'development',
+    environment: 'node',
+    runtime: 'nodejs',
+    bundler: 'turbopack',
+  } as const
+  it('plans candidates without parsing untouched malformed JavaScript and preserves explicit empty selection', async () => {
+    const root = await realpath(
+      await mkdtemp(join(tmpdir(), 'next-istanbul-candidates-'))
+    )
+    try {
+      await writeFile(join(root, 'untouched.mjs'), 'export const broken =\n')
+      await writeFile(join(root, 'subject.mjs'), 'export const value = 1\n')
+      const { createIstanbulSourcePlan } = await import(
+        'next/dist/experimental/testing/coverage/istanbul-instrumentation'
+      )
+      const config = {
+        provider: 'istanbul' as const,
+        reporter: ['json'] as const,
+        exclude: [],
+        reportsDirectory: 'coverage',
+        reportOnFailure: false,
+        thresholds: {},
+      }
+      const plan = await createIstanbulSourcePlan({
+        projectDir: root,
+        profile,
+        config: { ...config, reporter: ['json'] },
+        excludedFiles: [],
+        signal: new AbortController().signal,
+      })
+      expect(plan.importedOnly).toBe(true)
+      expect(plan.sources.map((source) => basename(source.file))).toEqual([
+        'subject.mjs',
+        'untouched.mjs',
+      ])
+      const empty = await createIstanbulSourcePlan({
+        projectDir: root,
+        profile,
+        config: { ...config, reporter: ['json'], include: [] },
+        excludedFiles: [],
+        signal: new AbortController().signal,
+      })
+      expect(empty).not.toHaveProperty('importedOnly')
+      expect(empty.sources).toEqual([])
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('seals each emitted source closure independently of later loader requests', async () => {
+    const root = await realpath(
+      await mkdtemp(join(tmpdir(), 'next-istanbul-loaded-maps-'))
+    )
+    let service:
+      | Awaited<
+          ReturnType<
+            typeof import('next/dist/experimental/testing/coverage/istanbul-instrumentation').openIstanbulInstrumentation
+          >
+        >
+      | undefined
+    try {
+      const first = join(root, 'first.mjs'),
+        second = join(root, 'second.mjs'),
+        broken = join(root, 'untouched.mjs')
+      const source = (name: string) => `export function ${name}(){ return 1 }\n`
+      await writeFile(first, source('first'))
+      await writeFile(second, source('second'))
+      await writeFile(broken, 'export const invalid =\n')
+      const { createIstanbulSourcePlan, openIstanbulInstrumentation } =
+        await import(
+          'next/dist/experimental/testing/coverage/istanbul-instrumentation'
+        )
+      const { requestCompilerTransform } = await import(
+        'next/dist/experimental/testing/compiler/transform-broker'
+      )
+      const signal = new AbortController().signal
+      const plan = await createIstanbulSourcePlan({
+        projectDir: root,
+        profile,
+        config: {
+          provider: 'istanbul',
+          reporter: ['json'],
+          exclude: [],
+          reportsDirectory: 'coverage',
+          reportOnFailure: false,
+          thresholds: {},
+        },
+        excludedFiles: [],
+        signal,
+      })
+      service = await openIstanbulInstrumentation({
+        projectDir: root,
+        plan,
+        signal,
+        selectSource: (file) => file.startsWith(root + '/'),
+      })
+      expect(service.descriptor.metadata).toEqual({
+        version: 1,
+        importedOnly: true,
+        sources: [],
+      })
+      expect(() => service!.readMetadata!([first])).toThrow(
+        'loader observation'
+      )
+      await requestCompilerTransform(service.descriptor.transport, {
+        file: first,
+        query: '',
+        moduleType: 'js',
+        code: source('first'),
+      })
+      const snapshot = service.readMetadata!([first])
+      expect(snapshot.sources.map((entry) => entry.file)).toEqual([first])
+      const before = structuredClone(snapshot)
+      await requestCompilerTransform(service.descriptor.transport, {
+        file: second,
+        query: '',
+        moduleType: 'js',
+        code: source('second'),
+      })
+      expect(snapshot).toEqual(before)
+      expect(
+        service.readMetadata!([second]).sources.map((entry) => entry.file)
+      ).toEqual([second])
+      expect(service.readMetadata!([first])).toEqual(before)
+      snapshot.sources[0].initial.s['0'] = 999
+      expect(service.readMetadata!([first])).toEqual(before)
+      expect(service.descriptor.metadata.sources).toEqual([])
+      expect(() =>
+        service!.readMetadata!([join(root, 'unsupported.ts')])
+      ).toThrow('not implemented')
+    } finally {
+      await service?.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('validates only actual loaded maps while retaining the untouched malformed candidate hash', async () => {
+    const root = await realpath(
+      await mkdtemp(join(tmpdir(), 'next-istanbul-loaded-facts-'))
+    )
+    try {
+      const file = join(root, 'subject.mjs'),
+        broken = join(root, 'untouched.mjs'),
+        source = 'export const value = 1\n',
+        invalid = 'export const invalid =\n'
+      await writeFile(file, source)
+      await writeFile(broken, invalid)
+      const { instrumentJavaScript, remapIstanbulCoverage } = await import(
+        'next/dist/compiled/next-test-instrumentation'
+      )
+      const data = (
+        await remapIstanbulCoverage({
+          [file]: instrumentJavaScript(source, file).initial,
+        })
+      )[file]
+      const plan = {
+        version: 1 as const,
+        importedOnly: true as const,
+        profile,
+        sources: [
+          { file, sha256: coverageHash(source) },
+          { file: broken, sha256: coverageHash(invalid) },
+        ],
+      }
+      const fact = {
+        version: 1 as const,
+        provider: 'istanbul' as const,
+        entryId: 'entry',
+        revision: 'revision',
+        complete: true,
+        errors: [],
+        files: [{ file, sha256: coverageHash(source), data }],
+      }
+      const { assertIstanbulCoverageFacts } = await import(
+        'next/dist/experimental/testing/coverage/report-istanbul'
+      )
+      const options = {
+        projectDir: root,
+        plan,
+        expected: new Set(['entry']),
+        signal: new AbortController().signal,
+      }
+      expect(
+        await assertIstanbulCoverageFacts({ ...options, facts: [fact] })
+      ).toEqual([fact])
+      await writeFile(broken, 'export const changed =\n')
+      await expect(
+        assertIstanbulCoverageFacts({ ...options, facts: [fact] })
+      ).rejects.toThrow('changed')
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('requires its exact private local metadata reader and rejects an unsolicited reader', async () => {
+    const { createTestCompilerSession } = await import(
+      'next/dist/experimental/testing/compiler'
+    )
+    const descriptor = {
+      version: 1,
+      profile,
+      transport: {},
+      metadata: { version: 1, importedOnly: true, sources: [] },
+    } as any
+    await expect(
+      createTestCompilerSession(join(__dirname, '../../..'), profile, {
+        istanbulInstrumentation: descriptor,
+      })
+    ).rejects.toThrow('explicit local metadata reader')
+    await expect(
+      createTestCompilerSession(join(__dirname, '../../..'), profile, {
+        readIstanbulInstrumentation: () => ({ version: 1, sources: [] }),
+      })
+    ).rejects.toThrow('explicit local metadata reader')
+  })
+})
+
+describe('public Istanbul loaded sources', () => {
+  const pristine = require('./fixtures/istanbul-provider/loaded-pristine.json')
+  it.each(
+    pristine.rows
+      .filter((row) => !Object.hasOwn(pristine.unqualifiedProfiles, row.name))
+      .map((row) => row.name)
+  )(
+    'matches actual loaded-source reports for %s',
+    async (profile) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-istanbul-loaded-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'istanbul-loaded-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          {
+            encoding: 'utf8',
+            timeout: 125000,
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toEqual({
+          profile,
+          completeCasesAndReports: true,
+          actualLoadedSourcesOnly: true,
+          actualParallelBarrier: profile === 'two-worker-loaded-only',
+          defaultConfigurationReportEquality: true,
+          allOwnersClosed: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('owned configuration readiness before prepared coverage', () => {
+  it('retains a real ready realm until disposal and rejects the closed owner', async () => {
+    const { openTestConfigModule } = await import(
+      'next/dist/experimental/testing/config-modules'
+    )
+    const root = await mkdtemp(join(tmpdir(), 'next-coverage-ready-realm-'))
+    let realm: Awaited<ReturnType<typeof openTestConfigModule>> | undefined
+    try {
+      realm = await openTestConfigModule(undefined, root)
+      expect(() => realm!.assertReadyForCoverage()).not.toThrow()
+      await realm.dispose()
+      expect(() => realm!.assertReadyForCoverage()).toThrow(
+        'unavailable for coverage'
+      )
+    } finally {
+      await realm?.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 30000)
+
+  it('preserves a real early config-child failure before map preparation', async () => {
+    const { openTestConfigModule } = await import(
+      'next/dist/experimental/testing/config-modules'
+    )
+    const { retry } = await import('next-test-utils')
+    const root = await mkdtemp(join(tmpdir(), 'next-coverage-dead-realm-'))
+    const config = join(root, 'vitest.config.mjs')
+    let realm: Awaited<ReturnType<typeof openTestConfigModule>> | undefined
+    try {
+      await writeFile(config, 'export default {pid:process.pid}\n')
+      realm = await openTestConfigModule(config, root)
+      const pid = (realm.value as { pid: number }).pid
+      expect(Number.isSafeInteger(pid)).toBe(true)
+      process.kill(pid, 'SIGTERM')
+      await retry(async () => {
+        expect(() => realm!.assertReadyForCoverage()).toThrow(
+          'Test configuration session ended unexpectedly'
+        )
+      })
+      let failure: unknown
+      try {
+        realm.assertReadyForCoverage()
+      } catch (error) {
+        failure = error
+      }
+      await expect(realm.dispose()).rejects.toBe(failure)
+      expect(() => process.kill(pid, 0)).toThrow()
+    } finally {
+      await realm?.dispose().catch(() => {})
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 30000)
+
+  it('keeps an actual transform-host exit and closed broker as coverage failures', async () => {
+    const { openTestConfigModule } = await import(
+      'next/dist/experimental/testing/config-modules'
+    )
+    const { requestCompilerTransform } = await import(
+      'next/dist/experimental/testing/compiler/transform-broker'
+    )
+    const { retry } = await import('next-test-utils')
+    const root = await mkdtemp(join(tmpdir(), 'next-coverage-dead-transform-'))
+    const config = join(root, 'vitest.config.mjs')
+    let realm: Awaited<ReturnType<typeof openTestConfigModule>> | undefined
+    try {
+      await writeFile(
+        config,
+        "export default {test:{},plugins:[{name:'owned-transform-exit',transform(){process.exit(2)}}]}\n"
+      )
+      const setup = join(root, 'setup.mjs')
+      await writeFile(
+        setup,
+        "export default function(project){project.provide('ownerPid',process.pid)}\n"
+      )
+      realm = await openTestConfigModule(config, root)
+      const provided = await realm.setup([
+        { name: 'control', globalSetup: [setup], provide: {} },
+      ])
+      const pid = provided.control.ownerPid as number
+      expect(Number.isSafeInteger(pid)).toBe(true)
+      expect(realm.compilerTransform).toBeDefined()
+      await expect(
+        requestCompilerTransform(realm.compilerTransform!, {
+          file: join(root, 'subject.mjs'),
+          code: 'export const value = 1',
+          query: '',
+          moduleType: 'js',
+        })
+      ).rejects.toThrow()
+      await retry(async () => {
+        expect(() => realm!.assertReadyForCoverage()).toThrow()
+      })
+      await expect(realm.dispose()).rejects.toThrow()
+      expect(() => process.kill(pid, 0)).toThrow()
+      await expect(
+        requestCompilerTransform(realm.compilerTransform!, {
+          file: join(root, 'subject.mjs'),
+          code: 'export const value = 1',
+          query: '',
+          moduleType: 'js',
+        })
+      ).rejects.toThrow()
+    } finally {
+      await realm?.dispose().catch(() => {})
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 30000)
+})
+
+describe('prepared JSON coverage maps', () => {
+  const pristine = require('./fixtures/istanbul-provider/json-map-pristine.json')
+  it.each(pristine.rows.map((row: { name: string }) => row.name))(
+    'includes the actual complete prepared coverage map for %s',
+    async (profile: string) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-json-coverage-map-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'json-coverage-map-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          {
+            encoding: 'utf8',
+            timeout: 125000,
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+          }
+        )
+        expect(
+          JSON.parse(
+            await readFile(join(output, 'JSON-MAP-CHECKS.json'), 'utf8')
+          )
+        ).toMatchObject({
+          profile,
+          actualPublicCLI: true,
+          completePreparedMapMatchesGenuine: true,
+          preservedCaseAndCoverageAssetChecks: true,
+          originalOwnedProcessChecksPassed: true,
+        })
+      } finally {
+        if (process.env.NEXT_TESTING_JSON_MAP_EVIDENCE) {
+          const { cp } = await import('node:fs/promises')
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_JSON_MAP_EVIDENCE, profile),
+            { recursive: true }
+          )
+        }
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('coverage publication before authored global teardown', () => {
+  const pristine = require('./fixtures/istanbul-provider/global-teardown-pristine.json')
+  it.each(pristine.rows.map((row: { profile: string }) => row.profile))(
+    'matches complete genuine coverage and teardown outcomes for %s',
+    async (profile: string) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-global-coverage-order-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'global-teardown-coverage-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 125000 }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          profile,
+          genuineObservationsAndPublicationOrder: true,
+          wholeJSONWithCompleteMap: true,
+          authoredBytesHeld: true,
+          ownedProcessTreeClosed: true,
+        })
+      } finally {
+        if (process.env.NEXT_TESTING_GLOBAL_COVERAGE_EVIDENCE) {
+          const { cp } = await import('node:fs/promises')
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_GLOBAL_COVERAGE_EVIDENCE, profile),
+            { recursive: true }
+          )
+        }
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('real configuration failure vetoes coverage publication', () => {
+  it.each(['configuration'] as const)(
+    'retains previous JSON and coverage after actual %s owner loss',
+    async (profile) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-coverage-owner-loss-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'configuration-loss-coverage.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 125000 }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          profile,
+          actualPassingBodyCompleted: true,
+          actualConfigurationFailureRetained: true,
+          priorJSONAndCoverageBytesHeld: true,
+          authoredBytesHeld: true,
+          ownedProcessTreeClosed: true,
+        })
+      } finally {
+        if (process.env.NEXT_TESTING_CONFIGURATION_LOSS_EVIDENCE) {
+          const { cp } = await import('node:fs/promises')
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_CONFIGURATION_LOSS_EVIDENCE, profile),
+            { recursive: true }
+          )
+        }
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('private settled file fixture coverage slots', () => {
+  const owner = { runId: 'run', entryId: 'entry', revision: 'revision' }
+  const diagnostic = {
+    severity: 'error' as const,
+    phase: 'cleanup' as const,
+    message: 'settled file fixture',
+    stack: 'exact authored frame',
+  }
+  const failure: ResultEvent = {
+    version: 1,
+    timestamp: 0,
+    type: 'diagnostic',
+    ...owner,
+    coverageFileError: { index: 2 },
+    diagnostic,
+  }
+  const reference = { index: 2, diagnostic }
+  async function tracker() {
+    const { createCoverageAttemptTracker } = await import(
+      'next/dist/experimental/testing/execution/coverage'
+    )
+    return createCoverageAttemptTracker({
+      deferSettledFileErrors: true,
+      fileErrorOwner: owner,
+    })
+  }
+  it('requires the exact actual owner and complete serialized carrier after joins', async () => {
+    const actual = await tracker()
+    actual.observe(failure)
+    expect(actual.complete).toBe(false)
+    expect(() => actual.authorizeSettledFileErrors([reference])).toThrow(
+      'Unrequested'
+    )
+    actual.observeCoverageCompletion(true)
+    actual.authorizeSettledFileErrors([reference])
+    expect(actual.complete).toBe(true)
+    expect(() => actual.authorizeSettledFileErrors([reference])).toThrow(
+      'repeated'
+    )
+  })
+  it('rejects missing, duplicate, unsolicited, payload-mutated and malformed slots', async () => {
+    for (const refs of [
+      [],
+      [reference, reference],
+      [{ ...reference, index: 1 }],
+      [{ ...reference, diagnostic: { ...diagnostic, message: 'other' } }],
+      [{ ...reference, diagnostic: { ...diagnostic, stack: undefined } }],
+      [{ ...reference, extra: true }],
+      [{ ...reference, index: -1 }],
+      {},
+    ]) {
+      const actual = await tracker()
+      actual.observe(failure)
+      actual.observeCoverageCompletion(true)
+      expect(() => actual.authorizeSettledFileErrors(refs)).toThrow()
+      expect(actual.complete).toBe(false)
+    }
+  })
+  it('retains foreign-owner, duplicate-event, unmarked-host and incomplete vetoes', async () => {
+    for (const changes of [
+      { runId: 'other' },
+      { entryId: 'other' },
+      { revision: 'other' },
+      { coverageFileError: undefined },
+      { diagnostic: { ...diagnostic, phase: 'runtime' as const } },
+    ]) {
+      const actual = await tracker()
+      actual.observe({ ...failure, ...changes })
+      actual.observeCoverageCompletion(true)
+      expect(() => actual.authorizeSettledFileErrors([reference])).toThrow()
+      expect(actual.complete).toBe(false)
+    }
+    for (const complete of [false, true]) {
+      const actual = await tracker()
+      actual.observe(failure)
+      actual.observe(failure)
+      actual.observeCoverageCompletion(complete)
+      actual.authorizeSettledFileErrors([reference])
+      expect(actual.complete).toBe(false)
+    }
+  })
+  it('does not permit the option without a concrete execution owner', async () => {
+    const { createCoverageAttemptTracker } = await import(
+      'next/dist/experimental/testing/execution/coverage'
+    )
+    expect(() =>
+      createCoverageAttemptTracker({ deferSettledFileErrors: true })
+    ).toThrow('actual execution owner')
+  })
+})
+
+it('authorizes actual file-fixture carriers separately when final disposal reuses the same Error', async () => {
+  const { createCollector } = await import(
+    'next/dist/experimental/testing/runner/collector'
+  )
+  const { runCollected, isSettledCoverageFailure } = await import(
+    'next/dist/experimental/testing/runner/lifecycle'
+  )
+  const collector = createCollector('file-fixture-carrier')
+  const error = new Error('same file fixture and integration error')
+  const before = Object.getOwnPropertyDescriptors(error)
+  const scoped = collector.api.test.extend({
+    value: [
+      // eslint-disable-next-line no-empty-pattern -- Fixture dependency introspection requires this binding.
+      async ({}, use) => {
+        await use(1)
+        throw error
+      },
+      { scope: 'file' },
+    ],
+  })
+  scoped('completed body', ({ value }) => expect(value).toBe(1))
+  await collector.settle()
+  const result = await runCollected(
+    collector.close(),
+    {
+      runId: 'file-fixture-run',
+      signal: new AbortController().signal,
+      captureCoverageCompletion: true,
+    },
+    () => {},
+    {
+      beginFileFixtures: () => ({
+        async finalize() {},
+        async dispose() {
+          throw error
+        },
+      }),
+      beginHook: () => ({ async finalize() {}, async dispose() {} }),
+      setActiveHook() {},
+    }
+  )
+  expect(result.cases.map((row) => row.status)).toEqual(['passed'])
+  expect(result.errors.map((row) => row.error)).toEqual([error, error])
+  expect(result.errors.map(isSettledCoverageFailure)).toEqual([true, false])
+  expect(Object.getOwnPropertyDescriptors(error)).toEqual(before)
+})
+
+describe('settled Istanbul assertion and file-fixture continuation', () => {
+  it.each([
+    'fixture-only',
+    'scope-before-run',
+    'scope-fulfilled',
+    'scope-pending',
+    'scope-foreign',
+    'scope-foreign-return',
+    'scope-mixed-same-error',
+  ])(
+    'verifies actual compiled %s without changing native error behavior',
+    async (scenario) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-istanbul-settled-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'istanbul-afterall-finalization.cjs'),
+            'supervise',
+            join(__dirname, '../../..'),
+            output,
+            scenario,
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        const observed = JSON.parse(
+          await readFile(join(output, 'OBSERVED.json'), 'utf8')
+        )
+        expect(observed.results[2].status).toBe('failed')
+        expect(observed.captures).toHaveLength(
+          scenario === 'scope-foreign' || scenario === 'scope-mixed-same-error'
+            ? 2
+            : 3
+        )
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    125000
+  )
+  it.each(['scope-finalization', 'disposal', 'fixture-only'])(
+    'publishes exact reports while the public %s file and run stay failed',
+    async (scenario) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-istanbul-settled-public-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'istanbul-afterall-finalization.cjs'),
+            'supervise',
+            join(__dirname, '../../..'),
+            output,
+            scenario,
+            'source-public',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        const report = JSON.parse(
+          await readFile(join(output, 'cases.json'), 'utf8')
+        )
+        expect(report.numPassedTests).toBe(3)
+        expect(report.numFailedTestSuites).toBe(1)
+        expect(report.success).toBe(false)
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    125000
+  )
+})
+
+describe('actual Istanbul native setup and serializer source roles', () => {
+  let owned: string[] = []
+  afterEach(async () => {
+    await Promise.all(
+      owned.splice(0).map((root) => rm(root, { recursive: true, force: true }))
+    )
+  })
+  async function fixture() {
+    const { mkdir } = await import('fs/promises')
+    const root = await realpath(
+      await mkdtemp(join(tmpdir(), 'next-istanbul-harness-'))
+    )
+    owned.push(root)
+    const actual = require('./fixtures/istanbul-provider/native-harness-s28.json')
+    const native = structuredClone(actual.actualSidecar)
+    const before = pathToFileURL(actual.actualProject + '/').href
+    const after = pathToFileURL(root + '/').href
+    for (const source of native.sources) {
+      source.source = source.source.replace(before, after)
+      if (source.setup) source.setup = source.setup.replace(before, after)
+    }
+    const entryPath = native.entryPath
+    const nativePath = entryPath.replace(/\.js$/, '.harness-coverage.json')
+    await mkdir(join(root, 'server/next-test'), { recursive: true })
+    await writeFile(join(root, 'setup.mjs'), 'export const setup = true\n')
+    await writeFile(
+      join(root, 'suite.test.mjs'),
+      '// actual fixture ownership only\n'
+    )
+    await writeFile(join(root, nativePath), JSON.stringify(native))
+    await writeFile(join(root, entryPath), 'void 0;\n')
+    const { fileURLToPath } = await import('url')
+    await writeFile(
+      join(root, entryPath + '.map'),
+      JSON.stringify(
+        makeMap(fileURLToPath(native.sources[0].source), native.sources[0].code)
+      )
+    )
+    const files = [entryPath, entryPath + '.map', nativePath]
+    const options = {
+      entryPath,
+      files,
+      projectDir: root,
+      setupFiles: [join(root, 'setup.mjs')],
+      snapshotSerializers: ['./serializer.mjs'],
+      signal: new AbortController().signal,
+      readArtifact: (file: string) => readFile(join(root, file)),
+    }
+    const { readIstanbulHarnessCoverage } = await import(
+      'next/dist/experimental/testing/coverage/istanbul-harness'
+    )
+    const harness = await readIstanbulHarnessCoverage(options)
+    const metadataOptions = {
+      rootDir: root,
+      files,
+      projectDir: root,
+      sourceRootDir: root,
+      entryFile: join(root, 'suite.test.mjs'),
+      setupFiles: options.setupFiles,
+    }
+    return {
+      root,
+      native,
+      nativePath,
+      options,
+      harness,
+      metadataOptions,
+      readIstanbulHarnessCoverage,
+    }
+  }
+  it('binds the actual entry, configured requests and original factory code without mock roles', async () => {
+    const f = await fixture()
+    expect(f.harness?.sources.map((source) => source.source)).toEqual(
+      f.native.sources.map((source) => source.source)
+    )
+    expect(f.harness?.sources.map((source) => source.sha256)).toEqual(
+      f.native.sources.map((source) => coverageHash(source.code))
+    )
+    const metadata = await buildCoverageMetadata({
+      ...f.metadataOptions,
+      istanbulHarness: f.harness,
+    })
+    expect(metadata.sources[f.native.sources[0].source]).toBeNull()
+    expect(metadata.istanbulHarness).toEqual(f.harness)
+    expect('syntheticSources' in metadata).toBe(false)
+    await expect(buildCoverageMetadata(f.metadataOptions)).rejects.toThrow(
+      /ENOENT/
+    )
+  })
+  it('keeps zero-wrapper absence exact and does not read unrequested metadata', async () => {
+    const f = await fixture(),
+      readArtifact = jest.fn(f.options.readArtifact)
+    await expect(
+      f.readIstanbulHarnessCoverage({
+        ...f.options,
+        files: [],
+        setupFiles: [],
+        snapshotSerializers: [],
+        readArtifact,
+      })
+    ).resolves.toBeUndefined()
+    expect(readArtifact).not.toHaveBeenCalled()
+    await expect(
+      f.readIstanbulHarnessCoverage({
+        ...f.options,
+        setupFiles: [],
+        snapshotSerializers: [],
+      })
+    ).rejects.toThrow('native Istanbul harness')
+    await expect(
+      f.readIstanbulHarnessCoverage({ ...f.options, files: [] })
+    ).rejects.toThrow('native Istanbul harness')
+  })
+  it.each([
+    'version',
+    'kind',
+    'entry',
+    'missing setup',
+    'duplicate source',
+    'foreign setup',
+    'foreign serializer',
+    'extra serializer',
+    'unknown role',
+    'code',
+    'outside project',
+    'unknown field',
+  ])(
+    'rejects a changed actual native %s record before returning an exclusion',
+    async (kind) => {
+      const f = await fixture(),
+        native = structuredClone(f.native),
+        setup = native.sources.find((source) => source.kind === 'setup'),
+        serializer = native.sources.find(
+          (source) => source.kind === 'snapshot-serializers'
+        )
+      if (kind === 'version') native.version = 2
+      if (kind === 'kind') native.kind = 'mock-coverage'
+      if (kind === 'entry') native.entryPath = 'server/next-test/other.js'
+      if (kind === 'missing setup')
+        native.sources = native.sources.filter((source) => source !== setup)
+      if (kind === 'duplicate source')
+        native.sources.push({ ...native.sources[0] })
+      if (kind === 'foreign setup')
+        setup.setup = pathToFileURL(join(f.root, 'other-setup.mjs')).href
+      if (kind === 'foreign serializer')
+        serializer.serializers = ['./other-serializer.mjs']
+      if (kind === 'extra serializer')
+        serializer.serializers.push('./other-serializer.mjs')
+      if (kind === 'unknown role') setup.kind = 'unknown'
+      if (kind === 'code') delete setup.code
+      if (kind === 'outside project')
+        setup.source = pathToFileURL(join(f.root, '../outside.mjs')).href
+      if (kind === 'unknown field') native.extra = true
+      await writeFile(join(f.root, f.nativePath), JSON.stringify(native))
+      await expect(f.readIstanbulHarnessCoverage(f.options)).rejects.toThrow(
+        'native Istanbul harness'
+      )
+    }
+  )
+  it('binds original serializer request order using an actual two-request factory', async () => {
+    const f = await fixture()
+    const actual = require('./fixtures/istanbul-provider/native-harness-pair-s28.json')
+    const native = structuredClone(actual.actualSidecar)
+    const before = pathToFileURL(actual.actualProject + '/').href
+    const after = pathToFileURL(f.root + '/').href
+    native.sources[0].source = native.sources[0].source.replace(before, after)
+    const nativePath = native.entryPath.replace(
+      /\.js$/,
+      '.harness-coverage.json'
+    )
+    await writeFile(join(f.root, nativePath), JSON.stringify(native))
+    const options = {
+      ...f.options,
+      entryPath: native.entryPath,
+      files: [nativePath],
+      setupFiles: [],
+      snapshotSerializers: [...native.sources[0].serializers],
+    }
+    const proof = await f.readIstanbulHarnessCoverage(options)
+    expect(proof?.sources).toEqual([
+      {
+        source: native.sources[0].source,
+        sha256: coverageHash(native.sources[0].code),
+      },
+    ])
+    await expect(
+      f.readIstanbulHarnessCoverage({
+        ...options,
+        snapshotSerializers: [...options.snapshotSerializers].reverse(),
+      })
+    ).rejects.toThrow('native Istanbul harness')
+    native.sources[0].serializers.reverse()
+    await writeFile(join(f.root, nativePath), JSON.stringify(native))
+    await expect(f.readIstanbulHarnessCoverage(options)).rejects.toThrow(
+      'native Istanbul harness'
+    )
+  })
+  it('keeps unknown map identities, changed map content and cross-role collisions strict', async () => {
+    const f = await fixture(),
+      source = f.native.sources[0],
+      { fileURLToPath } = await import('url')
+    await writeFile(
+      join(f.root, f.options.entryPath + '.map'),
+      JSON.stringify(makeMap(fileURLToPath(source.source), source.code + '\n'))
+    )
+    await expect(
+      buildCoverageMetadata({
+        ...f.metadataOptions,
+        istanbulHarness: f.harness,
+      })
+    ).rejects.toThrow('harness source mismatch')
+    await writeFile(
+      join(f.root, f.options.entryPath + '.map'),
+      JSON.stringify(
+        makeMap(join(f.root, 'unknown-generated.mjs'), source.code)
+      )
+    )
+    await expect(
+      buildCoverageMetadata({
+        ...f.metadataOptions,
+        istanbulHarness: f.harness,
+      })
+    ).rejects.toThrow(/ENOENT/)
+    await expect(
+      buildCoverageMetadata({
+        ...f.metadataOptions,
+        istanbulHarness: f.harness,
+        syntheticSources: { version: 1, sources: f.harness!.sources },
+      })
+    ).rejects.toThrow('Conflicting generated coverage source roles')
+  })
+  it('re-reads the sidecar and requests before remapping and preserves actual counters on failure', async () => {
+    const f = await fixture(),
+      metadata = await buildCoverageMetadata({
+        ...f.metadataOptions,
+        istanbulHarness: f.harness,
+      })
+    const artifact = {
+      version: 2,
+      kind: 'node',
+      entryId: 'harness-entry',
+      revision: 'harness-revision',
+      profile,
+      rootDir: f.root,
+      entryPath: f.options.entryPath,
+      files: f.options.files,
+      sourceHash: coverageHash('entry'),
+      setupFiles: f.options.setupFiles,
+      snapshotSerializers: f.options.snapshotSerializers,
+      diagnostics: [],
+      coverage: { ...metadata, istanbul: { version: 1, sources: [] } },
+    } as CompiledTestArtifact
+    const { remapIstanbulCapture } = await import(
+      'next/dist/experimental/testing/coverage/istanbul-capture'
+    )
+    const capture = {
+        version: 1 as const,
+        kind: 'node-istanbul' as const,
+        files: {},
+      },
+      before = JSON.stringify(capture)
+    await expect(
+      remapIstanbulCapture(artifact, capture, f.root, f.options.signal)
+    ).resolves.toMatchObject({ files: [] })
+    await expect(
+      remapIstanbulCapture(
+        { ...artifact, snapshotSerializers: ['./other.mjs'] },
+        capture,
+        f.root,
+        f.options.signal
+      )
+    ).rejects.toThrow('native Istanbul harness')
+    f.native.sources[0].code += '\n'
+    await writeFile(join(f.root, f.nativePath), JSON.stringify(f.native))
+    await expect(
+      remapIstanbulCapture(artifact, capture, f.root, f.options.signal)
+    ).rejects.toThrow('harness metadata or requests changed')
+    expect(JSON.stringify(capture)).toBe(before)
+  })
+  it('observes cancellation before any role read and after the actual read joins', async () => {
+    const f = await fixture(),
+      first = new AbortController(),
+      error = new Error('owned harness cancellation'),
+      readArtifact = jest.fn(f.options.readArtifact)
+    first.abort(error)
+    await expect(
+      f.readIstanbulHarnessCoverage({
+        ...f.options,
+        signal: first.signal,
+        readArtifact,
+      })
+    ).rejects.toBe(error)
+    expect(readArtifact).not.toHaveBeenCalled()
+    const later = new AbortController()
+    await expect(
+      f.readIstanbulHarnessCoverage({
+        ...f.options,
+        signal: later.signal,
+        readArtifact: async (path) => {
+          const value = await f.options.readArtifact(path)
+          later.abort(error)
+          return value
+        },
+      })
+    ).rejects.toBe(error)
+  })
+})
+
+describe('public Istanbul setup and snapshot serializers', () => {
+  it.each([
+    'combined',
+    'combined-case-failure',
+    'serializer-explicit',
+    'serializer-imported',
+    'setup-explicit',
+    'setup-imported',
+  ])(
+    'matches unchanged genuine complete reports, cases and snapshots for %s',
+    async (profile) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-istanbul-setup-public-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'istanbul-setup-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+// Suite callback failures retain their real skipped descendants and exact carrier.
+describe('settled Istanbul beforeAll callback completion', () => {
+  it('marks only the authored beforeAll carrier when disposal reuses the same Error', async () => {
+    const { createCollector } = await import(
+      'next/dist/experimental/testing/runner/collector'
+    )
+    const { runCollected, isSettledCoverageFailure } = await import(
+      'next/dist/experimental/testing/runner/lifecycle'
+    )
+    const collector = createCollector('beforeall-stage-identity')
+    const error = new Error('same authored and disposal error')
+    const before = Object.getOwnPropertyDescriptors(error)
+    collector.api.test('unstarted descendant', () => {
+      throw new Error('body must remain unstarted')
+    })
+    collector.api.beforeAll(() => {
+      throw error
+    })
+    await collector.settle()
+    const starts: unknown[] = []
+    const result = await runCollected(
+      collector.close(),
+      {
+        runId: 'beforeall-stage-run',
+        signal: new AbortController().signal,
+        captureCoverageCompletion: true,
+        onCaseStart: (context) => {
+          starts.push(context)
+        },
+      },
+      () => {},
+      {
+        beginFileFixtures: () => ({ async finalize() {}, async dispose() {} }),
+        beginHook: (context) => ({
+          async finalize() {},
+          async dispose() {
+            if (context.hook === 'beforeAll') throw error
+          },
+        }),
+        setActiveHook() {},
+      }
+    )
+    expect(starts).toEqual([])
+    expect(
+      result.cases.map((row) => ({ status: row.status, errors: row.errors }))
+    ).toEqual([{ status: 'skipped', errors: [] }])
+    expect(result.errors.map((row) => row.error)).toEqual([error, error])
+    expect(result.errors.map(isSettledCoverageFailure)).toEqual([true, false])
+    expect(Object.getOwnPropertyDescriptors(error)).toEqual(before)
+  })
+
+  it('keeps an actual beforeAll deadline unmarked with no descendant body starts', async () => {
+    const { createCollector } = await import(
+      'next/dist/experimental/testing/runner/collector'
+    )
+    const { runCollected, isSettledCoverageFailure } = await import(
+      'next/dist/experimental/testing/runner/lifecycle'
+    )
+    const collector = createCollector('beforeall-deadline')
+    collector.api.test('unstarted descendant', () => {
+      throw new Error('body must remain unstarted')
+    })
+    collector.api.beforeAll(() => new Promise(() => {}), 10)
+    await collector.settle()
+    const starts: unknown[] = []
+    const result = await runCollected(
+      collector.close(),
+      {
+        runId: 'beforeall-timeout-run',
+        signal: new AbortController().signal,
+        captureCoverageCompletion: true,
+        onCaseStart: (context) => {
+          starts.push(context)
+        },
+      },
+      () => {}
+    )
+    expect(starts).toEqual([])
+    expect(result.interrupted).toBe(true)
+    expect(result.errors.length).toBeGreaterThan(0)
+    expect(result.errors.map(isSettledCoverageFailure)).not.toContain(true)
+  })
+
+  it.each([
+    'beforeall-sync',
+    'beforeall-async',
+    'beforeall-sync-report-false',
+    'beforeall-async-report-false',
+  ])(
+    'retains actual suite slots, unstarted descendants and genuine maps for %s',
+    async (profile) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-istanbul-beforeall-private-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'istanbul-beforeall-private.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+        ).toMatchObject({
+          actualBeforeAllSuiteSlot: true,
+          noInventedCaseStarts: true,
+          actualMapIndependentOfReportFilePolicy: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+
+  it.each([
+    'beforeall-sync',
+    'beforeall-async',
+    'beforeall-sync-report-false',
+    'beforeall-async-report-false',
+  ])(
+    'matches unchanged genuine cases, file message and report policy for %s',
+    async (profile) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-istanbul-beforeall-public-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'istanbul-beforeall-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          actualSettledBeforeAllFailure: true,
+          wholeCaseProjection: true,
+          completeMapsSummaryLCOV: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+it('vetoes Istanbul beforeAll capture when independent actual mock disposal reuses the authored Error', async () => {
+  const { execFileSync } = await import('node:child_process')
+  const output = await mkdtemp(join(tmpdir(), 'next-istanbul-beforeall-stage-'))
+  try {
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'istanbul-beforeall-private.mjs'),
+        join(__dirname, '../../..'),
+        output,
+        'beforeall-mixed-stage',
+      ],
+      {
+        env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+        stdio: 'pipe',
+        timeout: 125000,
+      }
+    )
+    expect(
+      JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+    ).toMatchObject({
+      independentActualDisposalVeto: true,
+      sharedOriginalErrorAuthoredAndRestore: true,
+      noInventedCaseStarts: true,
+    })
+  } finally {
+    await rm(output, { recursive: true, force: true })
+  }
+}, 130000)

@@ -1,0 +1,79 @@
+{
+  "rows": [
+    {
+      "value": {
+        "phase": "A-start",
+        "active": ["A"]
+      },
+      "task": "plain B"
+    },
+    {
+      "value": {
+        "phase": "B-start",
+        "active": ["A", "B"]
+      },
+      "task": "plain B"
+    },
+    {
+      "value": {
+        "phase": "A-resumed",
+        "active": ["A", "B"],
+        "self": "plain A"
+      },
+      "task": "plain B"
+    },
+    {
+      "value": {
+        "phase": "B-end",
+        "active": ["B"],
+        "self": "plain B"
+      },
+      "task": "<file>"
+    }
+  ],
+  "cases": [
+    {
+      "name": "plain A",
+      "status": "failed",
+      "failureMessages": ["original plain concurrent failure"]
+    },
+    {
+      "name": "plain B",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "caseFinals": [
+    {
+      "name": "plain A",
+      "state": "failed"
+    },
+    {
+      "name": "plain B",
+      "state": "passed"
+    }
+  ],
+  "runFinals": [
+    {
+      "reason": "failed",
+      "errors": [],
+      "files": [
+        {
+          "state": "failed",
+          "tests": [
+            {
+              "name": "plain A",
+              "state": "failed"
+            },
+            {
+              "name": "plain B",
+              "state": "passed"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "success": false,
+  "exit": 1
+}

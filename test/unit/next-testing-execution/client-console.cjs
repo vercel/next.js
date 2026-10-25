@@ -347,7 +347,7 @@ async function main() {
     globalThis.console = hostConsole
   }
   assert.deepEqual(target, originals)
-  assert.deepEqual(trace, ['browser', 'file', 'mocks', 'context'])
+  assert.deepEqual(trace, ['file', 'browser', 'mocks', 'context'])
   assert.equal(native.at(-1).args[0], clientConsoleBoundary.stop)
   assert.equal(maximumConcurrent, 1)
   if (envMode) {
@@ -392,8 +392,8 @@ async function main() {
       [
         ['stdout', 'collection\n'],
         ['stderr', 'body\n'],
-        ['stdout', 'browser cleanup\n'],
         ['stderr', 'file cleanup\n'],
+        ['stdout', 'browser cleanup\n'],
         ['stdout', 'mock cleanup\n'],
       ]
     )

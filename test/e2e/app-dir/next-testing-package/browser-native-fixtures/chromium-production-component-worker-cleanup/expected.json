@@ -1,0 +1,83 @@
+{
+  "rows": [
+    {
+      "value": {
+        "phase": "setup"
+      },
+      "task": "component fixture A"
+    },
+    {
+      "value": {
+        "phase": "A",
+        "clicks": 0
+      },
+      "task": "component fixture A"
+    },
+    {
+      "value": {
+        "phase": "B-mounted",
+        "clicks": 0
+      },
+      "task": "component fixture B"
+    },
+    {
+      "value": {
+        "phase": "worker-cleanup-start",
+        "clicks": 0
+      },
+      "task": "__vitest__unknown_test__"
+    },
+    {
+      "value": {
+        "phase": "worker-cleanup-end",
+        "clicks": 1
+      },
+      "task": "__vitest__unknown_test__"
+    }
+  ],
+  "cases": [
+    {
+      "name": "component fixture A",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "component fixture B",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "caseFinals": [
+    {
+      "name": "component fixture A",
+      "state": "passed"
+    },
+    {
+      "name": "component fixture B",
+      "state": "passed"
+    }
+  ],
+  "runFinals": [
+    {
+      "reason": "passed",
+      "errors": [],
+      "files": [
+        {
+          "state": "passed",
+          "tests": [
+            {
+              "name": "component fixture A",
+              "state": "passed"
+            },
+            {
+              "name": "component fixture B",
+              "state": "passed"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "success": true,
+  "exit": 0
+}

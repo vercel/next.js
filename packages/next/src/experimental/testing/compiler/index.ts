@@ -65,8 +65,10 @@ import { writeDevRequestManifests } from '../../../server/lib/router-utils/write
 import { formatIssue } from '../../../shared/lib/turbopack/utils'
 import { loadTestCompilerConfig, validateTestProfile } from './watch-options'
 import { withCompilerTransforms } from './transform-config'
+import { withIstanbulInstrumentation } from './istanbul-config'
 import { assertTransformSource } from './transform-hooks'
-import { buildCoverageMetadata } from '../coverage/artifact'
+import { buildCoverageMetadata, readArtifactFile } from '../coverage/artifact'
+import { readIstanbulHarnessCoverage } from '../coverage/istanbul-harness'
 import type { CompiledCoverageSource } from '../coverage/types'
 import { sourceAnalysisEntryId } from '../coverage/source-analysis'
 import { readSourceCoverageProof } from '../coverage/source-profile'
@@ -838,21 +840,57 @@ export async function createTestCompilerSession(
 ) {
   const configuredTestingDefaultConfiguration =
     readTestingDefaultConfiguration(options)
+  const configuredCompilerEnvKeys = options.compilerEnvKeys
+  if (
+    configuredCompilerEnvKeys !== undefined &&
+    (configuredCompilerEnvKeys !== true ||
+      profile.environment !== 'node' ||
+      !['development', 'production'].includes(profile.mode) ||
+      profile.browserClient ||
+      profile.route !== undefined)
+  )
+    throw new Error(
+      'Compiler env key capture requires an ordinary Node profile and explicit true.'
+    )
+  if (
+    configuredCompilerEnvKeys &&
+    configuredTestingDefaultConfiguration !== undefined
+  )
+    throw new Error(
+      'Compiler env key capture requires the ordinary Next project producer.'
+    )
   const configuredCompilerAliases = options.compilerAliases
   const configuredCompilerTransforms = options.compilerTransforms
+  const istanbulInstrumentation =
+    options.istanbulInstrumentation === undefined
+      ? undefined
+      : structuredClone(options.istanbulInstrumentation)
+  const readIstanbulInstrumentation = options.readIstanbulInstrumentation
+  if (
+    (istanbulInstrumentation?.metadata?.importedOnly === true) !==
+      (typeof readIstanbulInstrumentation === 'function') ||
+    (readIstanbulInstrumentation !== undefined &&
+      typeof readIstanbulInstrumentation !== 'function')
+  )
+    throw new Error(
+      'Loaded Istanbul compilation requires its explicit local metadata reader.'
+    )
   const configuredArtifactAllocator = options.allocateArtifact
   if (
     configuredTestingDefaultConfiguration !== undefined &&
     (configuredCompilerAliases !== undefined ||
-      configuredCompilerTransforms !== undefined)
+      configuredCompilerTransforms !== undefined ||
+      istanbulInstrumentation !== undefined)
   ) {
     throw new Error(
       'ERR_NEXT_TEST_DEFAULT_CONFIGURATION: compiler aliases and transforms are unavailable'
     )
   }
   const privateFactoryUnsupported =
+    configuredCompilerEnvKeys !== undefined ||
     configuredCompilerAliases !== undefined ||
     configuredCompilerTransforms !== undefined ||
+    istanbulInstrumentation !== undefined ||
     configuredArtifactAllocator !== undefined
   const importCoverageRequest = options.nativeImportCoverageRoles
   if (
@@ -896,6 +934,16 @@ export async function createTestCompilerSession(
           configuredTestingDefaultConfiguration
         )
   const { dir } = loaded
+  if (istanbulInstrumentation) {
+    const { assertIstanbulMetadata } = await import(
+      '../coverage/istanbul-capture.js'
+    )
+    await assertIstanbulMetadata(
+      istanbulInstrumentation.metadata,
+      dir,
+      new AbortController().signal
+    )
+  }
   // Assertion and inline-snapshot locations need maps in the isolated test
   // artifact even when the application's production build omits them.
   const testConfig =
@@ -909,11 +957,16 @@ export async function createTestCompilerSession(
           },
         }
       : loaded.config
-  const config = withCompilerTransforms(
-    withCompilerAliases(testConfig, dir, profile, configuredCompilerAliases),
+  const config = withIstanbulInstrumentation(
+    withCompilerTransforms(
+      withCompilerAliases(testConfig, dir, profile, configuredCompilerAliases),
+      dir,
+      profile,
+      configuredCompilerTransforms
+    ),
     dir,
     profile,
-    configuredCompilerTransforms
+    istanbulInstrumentation
   )
   if (configuredTestingDefaultConfiguration !== undefined) {
     assertTestingDefaultConfigurationEnvironment(
@@ -962,6 +1015,7 @@ export async function createTestCompilerSession(
             rewrites: (await loadCustomRoutes(config)).rewrites,
             previewProps: await generatePreviewKeys({ isBuild: true, distDir }),
           }
+      let nodejsDefineEnvKeys: readonly string[] | undefined
       let nativeProjectPaths:
         | Readonly<{ rootPath: string; projectPath: string }>
         | undefined
@@ -973,8 +1027,30 @@ export async function createTestCompilerSession(
               distDir,
               fsChecker,
               serverFastRefresh: false,
+              ...(configuredCompilerEnvKeys
+                ? { captureNodejsDefineEnvKeys: true as const }
+                : {}),
             })
             nativeProjectPaths = result.nativeProjectPaths
+            if (configuredCompilerEnvKeys) {
+              if (
+                !Array.isArray(result.nodejsDefineEnvKeys) ||
+                result.nodejsDefineEnvKeys.some(
+                  (name) => typeof name !== 'string'
+                )
+              ) {
+                const error = new Error(
+                  'The actual Next project did not provide its Node define-env key map.'
+                )
+                try {
+                  await result.project.shutdown()
+                } catch (cleanup) {
+                  throw new AggregateError([error, cleanup], error.message)
+                }
+                throw error
+              }
+              nodejsDefineEnvKeys = result.nodejsDefineEnvKeys
+            }
             return result.project
           })()
         : await (async () => {
@@ -999,6 +1075,10 @@ export async function createTestCompilerSession(
                       configuredTestingDefaultConfiguration,
                   }),
             })
+            if (configuredCompilerEnvKeys)
+              nodejsDefineEnvKeys = Object.freeze(
+                projectOptions.defineEnv.nodejs.map(({ name }) => name)
+              )
             nativeProjectPaths = Object.freeze({
               rootPath: projectOptions.rootPath,
               projectPath: projectOptions.projectPath,
@@ -1017,7 +1097,13 @@ export async function createTestCompilerSession(
                 return result.value
               })
           })()
-      return { buildId, fsChecker, project, nativeProjectPaths }
+      return {
+        buildId,
+        fsChecker,
+        project,
+        nativeProjectPaths,
+        nodejsDefineEnvKeys,
+      }
     } catch (error) {
       await outputLock.unlock()
       throw error
@@ -1048,6 +1134,27 @@ export async function createTestCompilerSession(
   ) {
     signal.throwIfAborted()
     if (
+      (coverage?.kind === 'node-istanbul') !==
+      (istanbulInstrumentation !== undefined)
+    )
+      throw new Error(
+        'Istanbul compilation requires its matching instrumentation request and descriptor.'
+      )
+    if (
+      istanbulInstrumentation &&
+      (!/\.(?:js|mjs)$/.test(entry.file) ||
+        entry.inSource ||
+        entry.typecheck ||
+        entry.executionEnvironment ||
+        cohortEntries ||
+        dependencyPlan ||
+        sourceAnalysis ||
+        nativeContext)
+    )
+      throw new Error(
+        'Private Istanbul compilation requires one ordinary isolated JavaScript runtime entry.'
+      )
+    if (
       configuredCompilerTransforms &&
       (entry.inSource ||
         setupFiles.length ||
@@ -1075,7 +1182,9 @@ export async function createTestCompilerSession(
       (coverage.version !== 1 ||
         (profile.browserClient
           ? coverage.kind !== 'browser-v8' || profile.environment !== 'browser'
-          : coverage.kind !== 'node-line' || profile.environment !== 'node'))
+          : (coverage.kind !== 'node-line' &&
+              coverage.kind !== 'node-istanbul') ||
+            profile.environment !== 'node'))
     ) {
       throw new Error(
         'Coverage requires an explicit Node or Browser Mode profile'
@@ -1837,6 +1946,13 @@ export async function createTestCompilerSession(
         throw new Error(
           'Production source coverage does not yet support module mocks.'
         )
+      if (
+        istanbulInstrumentation &&
+        (moduleMocking || moduleCache || dynamicModuleMocking)
+      )
+        throw new Error(
+          'Private Istanbul instrumentation cannot yet combine with mock or module cache compiler helpers.'
+        )
       const importRoles = nativeImportCoverageRoles
         ? await readImportCoverageProof(
             staging,
@@ -1849,6 +1965,17 @@ export async function createTestCompilerSession(
         coverage && profile.mode === 'production' && !profile.browserClient
           ? await readSourceCoverageProof(staging, output.entryPath, files)
           : undefined
+      const istanbulHarness = istanbulInstrumentation
+        ? await readIstanbulHarnessCoverage({
+            entryPath: output.entryPath,
+            files,
+            projectDir: dir,
+            setupFiles,
+            snapshotSerializers,
+            signal,
+            readArtifact: (path) => readArtifactFile(staging, path),
+          })
+        : undefined
       const coverageMetadata = coverage
         ? await (
             profile.browserClient
@@ -1866,8 +1993,38 @@ export async function createTestCompilerSession(
             includeEntrySource: !!sourceAnalysis,
             setupFiles,
             syntheticSources: moduleMocking?.coverage,
+            ...(istanbulHarness ? { istanbulHarness } : {}),
           })
         : undefined
+      let istanbulMetadata = istanbulInstrumentation?.metadata
+      if (istanbulMetadata?.importedOnly) {
+        if (!coverageMetadata)
+          throw new Error(
+            'Loaded Istanbul metadata requires its actual emitted coverage closure.'
+          )
+        const sourceFiles = [
+          ...new Set(
+            Object.values(coverageMetadata.sources).flatMap((mappedSource) =>
+              mappedSource ? [mappedSource.file] : []
+            )
+          ),
+        ].sort()
+        istanbulMetadata = structuredClone(
+          readIstanbulInstrumentation!(sourceFiles)
+        )
+        if (
+          istanbulMetadata.importedOnly !== true ||
+          istanbulMetadata.sources.some(
+            (mappedSource) => !sourceFiles.includes(mappedSource.file)
+          )
+        )
+          throw new Error(
+            'Loaded Istanbul metadata escaped this artifact source closure.'
+          )
+        await (
+          await import('../coverage/istanbul-capture.js')
+        ).assertIstanbulMetadata(istanbulMetadata, dir, signal)
+      }
       signal.throwIfAborted()
       const publishedSourceHash = createHash('sha256')
         .update(await readFile(entry.file))
@@ -1942,6 +2099,11 @@ export async function createTestCompilerSession(
           ? {
               coverage: {
                 ...coverageMetadata,
+                ...(istanbulInstrumentation
+                  ? {
+                      istanbul: structuredClone(istanbulMetadata!),
+                    }
+                  : {}),
                 ...(sourceAnalysis
                   ? {
                       sourceAnalysis: {
@@ -2036,6 +2198,18 @@ export async function createTestCompilerSession(
           : {
               ...common,
               kind: 'node',
+              ...(configuredCompilerEnvKeys &&
+              !sourceAnalysis &&
+              !dependencyPlan &&
+              !nativeContext &&
+              !cohortInputs
+                ? {
+                    compilerEnvKeys: {
+                      version: 1 as const,
+                      names: compilation.nodejsDefineEnvKeys!,
+                    },
+                  }
+                : {}),
               ...(cohortInputs
                 ? {
                     cohort: {

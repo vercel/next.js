@@ -9,6 +9,8 @@ import type {
   ExecuteTest,
   ExecuteTestOptions,
   TestCoverageCompletion,
+  AnyTestCoverageCompletion,
+  IstanbulCoverageCompletion,
   TestFileCollection,
   TestExecutionResult,
 } from '../contracts'
@@ -23,6 +25,7 @@ import {
   type RuntimeModuleCompletion,
 } from './completed-module'
 import { withFileCacheDirectory } from './file-cache'
+import { assertNodeProjectEnvironment } from './project-env'
 import {
   assertCoverageRequest,
   assertCoverageCompletion,
@@ -109,6 +112,12 @@ export async function executeWithEnvironment(
     snapshotUpdateMode,
     updateSnapshots: snapshotUpdateMode !== 'none',
   }
+  if (
+    (options.coverage?.kind === 'node-istanbul' ||
+      options.onIstanbulCoverage) &&
+    artifact.kind !== 'node'
+  )
+    throw new Error('Istanbul coverage requires a Node execution artifact.')
   if (artifact.kind === 'browser') {
     let launched = false
     return (await import('../client/execute.js')).executeClient(artifact, {
@@ -132,9 +141,11 @@ export async function executeWithEnvironment(
         : {}),
     })
   }
+  assertNodeProjectEnvironment(artifact, options)
   const {
     onEvent,
     onCoverage,
+    onIstanbulCoverage,
     onCustomCoverage,
     onCustomCoverageSuite,
     onSnapshotUpdates,
@@ -152,6 +163,17 @@ export async function executeWithEnvironment(
     ? await captureCustomCoverageClosure(artifact, options.entry)
     : undefined
   const attempts = createCoverageAttemptTracker({
+    deferSettledSuiteErrors: options.coverage?.kind === 'node-istanbul',
+    ...(options.coverage?.kind === 'node-istanbul'
+      ? {
+          deferSettledFileErrors: true,
+          fileErrorOwner: {
+            runId: options.runId,
+            entryId: artifact.entryId,
+            revision: artifact.revision,
+          },
+        }
+      : {}),
     deferNativeRejections:
       options.coverage !== undefined &&
       options.customCoverage === undefined &&
@@ -191,7 +213,7 @@ export async function executeWithEnvironment(
     : undefined
   let result: FileResult | undefined
   let snapshotUpdates: SnapshotUpdate[] | undefined
-  let coverage: TestCoverageCompletion | undefined
+  let coverage: AnyTestCoverageCompletion | undefined
   let customCoverage: CustomCoverageCompletion | undefined
   let customSuite: Promise<void> | undefined
   const exit = await withFileCacheDirectory(async (directory) => {
@@ -531,6 +553,10 @@ export async function executeWithEnvironment(
       ) {
         throw new Error('Test coverage is incomplete after worker interruption')
       }
+      if (options.coverage?.kind === 'node-istanbul' && coverage?.complete) {
+        attempts.authorizeSettledSuiteErrors(coverage.settledSuiteErrors)
+        attempts.authorizeSettledFileErrors(coverage.settledFileErrors)
+      }
       if (!attempts.complete)
         throw new Error('Test coverage has incomplete attempts or cleanup')
       if (options.customCoverage) {
@@ -547,7 +573,17 @@ export async function executeWithEnvironment(
       } else {
         assertCoverageCompletion(coverage, artifact, options.runId)
         if (!coverage.complete) throw new Error(coverage.error.message)
-        await onCoverage!(coverage)
+        if (options.coverage?.kind === 'node-istanbul') {
+          if (coverage.data.kind !== 'node-istanbul')
+            throw new Error(
+              'Istanbul request received a different coverage capture.'
+            )
+          await onIstanbulCoverage!(coverage as IstanbulCoverageCompletion)
+        } else {
+          if (coverage.data.kind === 'node-istanbul')
+            throw new Error('V8 request received an Istanbul coverage capture.')
+          await onCoverage!(coverage as TestCoverageCompletion)
+        }
       }
       signal.throwIfAborted()
     } catch (error) {

@@ -1,0 +1,19 @@
+import type { TestProjectConfiguration, TestProjectInlineConfiguration, TestUserConfig, UserProjectConfigExport, UserProjectConfigFn, UserWorkspaceConfig } from 'vitest/config'
+const timeout:TestUserConfig={testTimeout:'slow'}
+const watch:UserWorkspaceConfig={test:{watch:true}}
+const shard:UserWorkspaceConfig={test:{shard:'1/2'}}
+const extension:TestProjectInlineConfiguration={extends:3}
+const number:TestProjectConfiguration=42
+const promise:TestProjectConfiguration=Promise.resolve('child.config.ts')
+const wrongFunction:UserProjectConfigFn=(env:{command:'wrong';mode:string})=>({test:{name:env.mode}})
+const wrongExport:UserProjectConfigExport=()=>42
+const nested:UserWorkspaceConfig={test:{projects:[false]}}
+const root:UserWorkspaceConfig={root:9}
+const setup:UserWorkspaceConfig={test:{setupFiles:[false]}}
+const hooks:TestUserConfig={sequence:{hooks:'random'}}
+const seed:UserWorkspaceConfig={test:{sequence:{seed:1}}}
+const files:UserWorkspaceConfig={test:{sequence:{shuffle:{files:true}}}}
+const alias:UserWorkspaceConfig={resolve:{alias:{target:9}}}
+const retry:UserWorkspaceConfig={test:{retry:{condition:()=>true}}}
+const arbitrary:TestUserConfig={madeUpOption:true}
+const run:TestUserConfig={run:true}

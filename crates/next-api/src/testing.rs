@@ -734,6 +734,38 @@ pub(crate) async fn snapshot_serializer_source(
     .await
 }
 
+/// Preserve the exact generated Source identity and bytes used by the entry.
+/// Coverage readers can then distinguish these wrappers from authored sources.
+async fn node_test_harness_source(
+    project: ResolvedVc<Project>,
+    source: ResolvedVc<Box<dyn Source>>,
+    kind: &str,
+) -> Result<serde_json::Value> {
+    let code = file_content_rope(source.content().file_content()).await?;
+    Ok(serde_json::json!({
+        "kind": kind,
+        "source": canonical_test_source_identity(project, source).await?,
+        "code": code.to_str()?.to_string(),
+    }))
+}
+
+fn push_node_test_harness_source(
+    sources: &mut Vec<serde_json::Value>,
+    source: serde_json::Value,
+) -> Result<()> {
+    if let Some(previous) = sources
+        .iter()
+        .find(|value| value["source"] == source["source"])
+    {
+        if previous != &source {
+            bail!("Conflicting generated test harness source identity");
+        }
+    } else {
+        sources.push(source);
+    }
+    Ok(())
+}
+
 /// User-derived test source must participate in configured loader rules, which
 /// intentionally exclude VirtualSource. Synthetic mock wrappers stay virtual.
 #[turbo_tasks::value]
@@ -3466,6 +3498,7 @@ struct NodeTestEndpoint {
 struct PreparedNodeTestEntry {
     module: ResolvedVc<Box<dyn Module>>,
     demand_graph: Option<ResolvedVc<RuntimeImportDemandGraph>>,
+    harness_coverage: Option<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
@@ -3533,6 +3566,7 @@ impl NodeTestEndpoint {
             return Ok(PreparedNodeTestEntry {
                 module,
                 demand_graph: None,
+                harness_coverage: None,
             }
             .cell());
         }
@@ -3552,6 +3586,7 @@ impl NodeTestEndpoint {
             return Ok(PreparedNodeTestEntry {
                 module,
                 demand_graph: None,
+                harness_coverage: None,
             }
             .cell());
         }
@@ -3875,6 +3910,7 @@ impl NodeTestEndpoint {
         } else {
             ""
         };
+        let mut harness_sources = Vec::new();
         let mut setup_loads = String::new();
         let mut setup_callbacks = String::new();
         if !self.snapshot_serializers.is_empty() {
@@ -3883,6 +3919,10 @@ impl NodeTestEndpoint {
                 &self.snapshot_serializers,
             )
             .await?;
+            let mut harness =
+                node_test_harness_source(self.project, source, "snapshot-serializers").await?;
+            harness["serializers"] = serde_json::to_value(&self.snapshot_serializers)?;
+            push_node_test_harness_source(&mut harness_sources, harness)?;
             let module = setup_context
                 .process(
                     *source,
@@ -3898,15 +3938,24 @@ impl NodeTestEndpoint {
         }
         for (index, path) in self.setup_paths.iter().enumerate() {
             let name = format!("INNER_TEST_SETUP_{index}");
+            let setup_source: ResolvedVc<Box<dyn Source>> =
+                Vc::upcast::<Box<dyn Source>>(FileSource::new(path.clone()))
+                    .to_resolved()
+                    .await?;
             let module = setup_context
                 .process(
-                    Vc::upcast(FileSource::new(path.clone())),
+                    *setup_source,
                     ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
                 )
                 .module()
                 .to_resolved()
                 .await?;
             let source = setup_module_source(path.clone()).await?;
+            let mut harness = node_test_harness_source(self.project, source, "setup").await?;
+            harness["setup"] = serde_json::Value::String(
+                canonical_test_source_identity(self.project, setup_source).await?,
+            );
+            push_node_test_harness_source(&mut harness_sources, harness)?;
             let wrapper = setup_context
                 .process(
                     *source,
@@ -3963,9 +4012,24 @@ impl NodeTestEndpoint {
             .module()
             .to_resolved()
             .await?;
+        let harness_coverage = if harness_sources.is_empty() {
+            None
+        } else {
+            Some(
+                serde_json::json!({
+                    "version": 1,
+                    "kind": "node-test-harness",
+                    "entryPath": format!("server/next-test/{}.js", self.id),
+                    "sources": harness_sources,
+                })
+                .to_string()
+                .into(),
+            )
+        };
         Ok(PreparedNodeTestEntry {
             module,
             demand_graph,
+            harness_coverage,
         }
         .cell())
     }
@@ -4021,6 +4085,21 @@ impl NodeTestEndpoint {
             )
             .await?;
         let mut assets = vec![asset];
+        if let Some(metadata) = &prepared.harness_coverage {
+            assets.push(ResolvedVc::upcast(
+                VirtualOutputAsset::new(
+                    this.project.node_root().await?.join(&format!(
+                        "server/next-test/{}.harness-coverage.json",
+                        this.id
+                    ))?,
+                    AssetContent::file(
+                        FileContent::Content(File::from(metadata.to_string())).cell(),
+                    ),
+                )
+                .to_resolved()
+                .await?,
+            ));
+        }
         if this.import_coverage_roles {
             let mode = if this.project.next_mode().await?.is_production() {
                 "production"

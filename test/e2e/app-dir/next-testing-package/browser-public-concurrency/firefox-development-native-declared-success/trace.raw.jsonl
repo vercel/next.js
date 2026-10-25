@@ -1,0 +1,12 @@
+{"hook":"console","log":{"content":"BROWSER_CONCURRENCY:{\"phase\":\"A-start\",\"active\":[\"A\"]}","browser":true,"time":1792935807378,"taskId":"-435979062_1","type":"stdout","size":54}}
+{"hook":"console","log":{"content":"BROWSER_CONCURRENCY:{\"phase\":\"B-start\",\"active\":[\"A\",\"B\"]}","browser":true,"time":1792935807378,"taskId":"-435979062_1","type":"stdout","size":58}}
+{"hook":"console","log":{"content":"BROWSER_CONCURRENCY:{\"phase\":\"A-requested\",\"active\":[\"A\",\"B\"],\"finished\":{\"a\":0,\"b\":1}}","browser":true,"time":1792935807378,"taskId":"-435979062_1","type":"stdout","size":87}}
+{"hook":"console","log":{"content":"BROWSER_CONCURRENCY:{\"phase\":\"B-before-native\",\"finished\":{\"a\":0,\"b\":1}}","browser":true,"time":1792935807380,"taskId":"-435979062_1","type":"stdout","size":72}}
+{"hook":"console","log":{"content":"BROWSER_CONCURRENCY:{\"phase\":\"B-native-done\",\"clicksA\":0,\"clicksB\":1,\"finished\":{\"a\":0,\"b\":2}}","browser":true,"time":1792935807438,"taskId":"-435979062_1","type":"stdout","size":94}}
+{"hook":"console","log":{"content":"BROWSER_CONCURRENCY:{\"phase\":\"A-end\",\"clicksA\":1,\"clicksB\":1,\"finished\":{\"a\":0,\"b\":2}}","browser":true,"time":1792935807469,"taskId":"-435979062_1","type":"stdout","size":86}}
+{"hook":"console","log":{"content":"BROWSER_CONCURRENCY:{\"phase\":\"B-end\",\"clicksA\":1,\"clicksB\":1}","browser":true,"time":1792935807469,"taskId":"-435979062","type":"stdout","size":61}}
+{"hook":"ready","id":"-435979062_0","name":"native A","result":{"state":"passed"}}
+{"hook":"ready","id":"-435979062_1","name":"native B","result":{"state":"passed"}}
+{"hook":"case","id":"-435979062_0","name":"native A","result":{"state":"passed","errors":[]}}
+{"hook":"case","id":"-435979062_1","name":"native B","result":{"state":"passed","errors":[]}}
+{"hook":"end","reason":"passed","errors":[],"files":[{"id":"-435979062","state":"passed","tests":[{"id":"-435979062_0","name":"native A","result":{"state":"passed","errors":[]}},{"id":"-435979062_1","name":"native B","result":{"state":"passed","errors":[]}}]}]}

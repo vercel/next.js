@@ -86,6 +86,8 @@ export interface AttemptIntegration {
   invokeFinishedCallback?(fn: TestBody, context: TestContext): Promise<unknown>
   markSkipped?(): unknown[]
   checkpoint?(): Promise<void>
+  /** Only the actual assertion-runtime afterAll finalizer can issue this fact. */
+  isSettledCoverageFinalizationFailure?(error: unknown): boolean
   finalize(): Promise<void>
   dispose(): Promise<void>
 }
@@ -127,6 +129,24 @@ export interface RunnerFailure {
     | 'assertion'
     | 'runtime'
   error: unknown
+}
+
+const settledBeforeAllFailures = new WeakMap<RunnerFailure, string>()
+const settledAfterAllFailures = new WeakMap<RunnerFailure, string>()
+const settledFileFixtureFailures = new WeakMap<RunnerFailure, string>()
+
+/** Read only in the actual runner realm that created this failure carrier. */
+export function isSettledAuthoredAfterAllFailure(failure: RunnerFailure) {
+  return settledAfterAllFailures.has(failure)
+}
+
+/** Only the actual file-fixture cleanup invocation issues this carrier fact. */
+export function isSettledCoverageFailure(failure: RunnerFailure) {
+  return (
+    settledBeforeAllFailures.has(failure) ||
+    settledAfterAllFailures.has(failure) ||
+    settledFileFixtureFailures.has(failure)
+  )
 }
 
 export interface RunnerCaseResult {
@@ -188,6 +208,8 @@ export interface CompletedModuleResult {
 export interface RunnerOptions {
   /** Internal scheduling hint capture; never publication or baseline authority. */
   captureCompletedModuleResult?: true
+  /** Private Istanbul completion observation; independent of snapshot eligibility. */
+  captureCoverageCompletion?: true
   retry?: TestOptions['retry']
   bail?: number
   passWithNoTests?: boolean
@@ -763,6 +785,37 @@ export async function runCollected(
     }
   }
 
+  async function captureFileFixtureCleanup(
+    phase: RunnerFailure['phase'],
+    fn: () => unknown | Promise<unknown>,
+    errors: RunnerFailure[],
+    timeout?: number
+  ) {
+    const previous = errors.length
+    const authored = new Set<unknown>()
+    const value = await capture(
+      phase,
+      async () => {
+        try {
+          return await fn()
+        } catch (error) {
+          for (const failure of Array.isArray(error) ? error : [error])
+            authored.add(failure)
+          throw error
+        }
+      },
+      errors,
+      timeout
+    )
+    for (const failure of errors.slice(previous))
+      if (
+        !(failure.error instanceof DeadlineError) &&
+        authored.has(failure.error)
+      )
+        settledFileFixtureFailures.set(failure, fixtureContext.id)
+    return value
+  }
+
   const prepareRegisteredHookDeadline = (
     hook: Hook,
     timeout: number,
@@ -784,7 +837,8 @@ export async function runCollected(
       registeredDeadline: (
         hook: Hook,
         timeout: number
-      ) => (error: DeadlineError) => void
+      ) => (error: DeadlineError) => void,
+      observeAuthoredFailure: (error: unknown) => void
     ) => unknown | Promise<unknown>,
     errors: RunnerFailure[],
     timeout: number,
@@ -818,9 +872,13 @@ export async function runCollected(
               registeredDeadlines.push(error)
             }
           const previous = errors.length
+          const authoredFailures = new Set<unknown>()
           const value = await capture(
             context.hook,
-            () => fn(integration, registeredDeadline),
+            () =>
+              fn(integration, registeredDeadline, (error) =>
+                authoredFailures.add(error)
+              ),
             errors,
             bodyTimeout,
             undefined,
@@ -829,6 +887,15 @@ export async function runCollected(
               : undefined
           )
           for (const failure of errors.slice(previous)) {
+            if (
+              options.captureCoverageCompletion &&
+              authoredFailures.has(failure.error)
+            ) {
+              if (context.hook === 'beforeAll')
+                settledBeforeAllFailures.set(failure, context.id)
+              else if (context.hook === 'afterAll')
+                settledAfterAllFailures.set(failure, context.id)
+            }
             if (
               registeredDeadlines.some((deadline) => deadline === failure.error)
             )
@@ -845,7 +912,15 @@ export async function runCollected(
         } finally {
           if (integration) {
             const scope = integration
+            const previous = errors.length
             await capture(context.hook, () => scope.finalize(), errors, timeout)
+            if (
+              options.captureCoverageCompletion &&
+              context.hook === 'afterAll'
+            )
+              for (const failure of errors.slice(previous))
+                if (scope.isSettledCoverageFinalizationFailure?.(failure.error))
+                  settledAfterAllFailures.set(failure, context.id)
             await capture(context.hook, () => scope.dispose(), errors, timeout)
           }
           suiteHooks?.setActiveHook(undefined)
@@ -1486,6 +1561,8 @@ export async function runCollected(
           onLateFailure,
           options.onUnhandledFailure
         )
+        let compilerContinuations = false
+        let compilerAttemptRan = false
         try {
           // eslint-disable-next-line no-loop-func -- Awaited scopes serialize attempts and observe shared realm poisoning.
           await asyncScope.run(async () => {
@@ -1565,6 +1642,7 @@ export async function runCollected(
                   errors
                 )
                 const runTestInner = async () => {
+                  compilerAttemptRan = true
                   const fixtureCheckpoint = fixtures.cleanups.length
                   try {
                     integration?.beforeTry?.()
@@ -2002,8 +2080,22 @@ export async function runCollected(
               }
             }
           })
+          compilerContinuations =
+            compilerAttemptRan &&
+            mode === 'run' &&
+            (caseResult.status === 'passed' ||
+              caseResult.status === 'failed') &&
+            !pending &&
+            !skipSignals &&
+            !attemptTimedOut &&
+            !cancelledByUser &&
+            !options.signal.aborted &&
+            !controller.signal.aborted &&
+            !poisoned
         } finally {
-          asyncScope.close()
+          asyncScope.close(
+            compilerContinuations ? { compilerContinuations: true } : undefined
+          )
         }
         caseResult.durationMs = frameworkDateNow() - start
         const expectedFailureUnexpectedlyPassed =
@@ -2327,17 +2419,35 @@ export async function runCollected(
     })
     const invokeSuiteCallback = (
       hook: Hook,
-      name: 'beforeAll' | 'afterAll'
+      name: 'beforeAll' | 'afterAll',
+      observeFailure?: (error: unknown) => void
     ) => {
+      const invoke = (values: unknown) => {
+        const call = () =>
+          Reflect.apply(hook.fn, undefined, [values, publicSuite])
+        if (!options.captureCoverageCompletion || !observeFailure) return call()
+        return (async () => {
+          try {
+            return await call()
+          } catch (error) {
+            observeFailure(error)
+            throw error
+          }
+        })()
+      }
       if (hook.fixtures === undefined)
         return settleSuiteHookResult(
-          Reflect.apply(hook.fn, undefined, [context, publicSuite]),
+          options.captureCoverageCompletion && observeFailure
+            ? invoke(context)
+            : Reflect.apply(hook.fn, undefined, [context, publicSuite]),
           name === 'beforeAll'
         )
       const definitions = resolveFixtureDefinitions(hook.fixtures, node)
       const fixtures = fixtureFile.attempt(definitions, {}, name)
       const wrapper = (values: Record<string, unknown>) =>
-        Reflect.apply(hook.fn, undefined, [values, publicSuite])
+        options.captureCoverageCompletion && observeFailure
+          ? invoke(values)
+          : Reflect.apply(hook.fn, undefined, [values, publicSuite])
       configureFixtureCallback(wrapper, hook.fn, 0)
       return settleSuiteHookResult(
         fixtures.invoke(wrapper),
@@ -2356,12 +2466,13 @@ export async function runCollected(
         const hooks = node.hooks.beforeAll
         const callbacks = await invokeSuiteHook(
           hookContext('beforeAll', 0),
-          (_integration, registeredDeadline) =>
+          (_integration, registeredDeadline, observeFailure) =>
             Promise.all(
               hooks.map((hook) =>
                 limited(async () => {
                   const cleanup = await bounded(
-                    () => invokeSuiteCallback(hook, 'beforeAll'),
+                    () =>
+                      invokeSuiteCallback(hook, 'beforeAll', observeFailure),
                     hook.timeout ?? hookTimeout,
                     registeredDeadline(hook, hook.timeout ?? hookTimeout),
                     operationObservation?.bounded
@@ -2388,7 +2499,8 @@ export async function runCollected(
         for (const [index, hook] of node.hooks.beforeAll.entries()) {
           const cleanup = await invokeSuiteHook(
             hookContext('beforeAll', index),
-            () => invokeSuiteCallback(hook, 'beforeAll'),
+            (_integration, _registeredDeadline, observeFailure) =>
+              invokeSuiteCallback(hook, 'beforeAll', observeFailure),
             errors,
             hook.timeout ?? hookTimeout,
             hook.timeout ?? hookTimeout,
@@ -2474,12 +2586,13 @@ export async function runCollected(
           if (afterAllSequence === 'parallel' && node.hooks.afterAll.length)
             await invokeSuiteHook(
               hookContext('afterAll', 0),
-              (_integration, registeredDeadline) =>
+              (_integration, registeredDeadline, observeFailure) =>
                 Promise.all(
                   node.hooks.afterAll.map((hook) =>
                     limited(() =>
                       bounded(
-                        () => invokeSuiteCallback(hook, 'afterAll'),
+                        () =>
+                          invokeSuiteCallback(hook, 'afterAll', observeFailure),
                         hook.timeout ?? hookTimeout,
                         registeredDeadline(hook, hook.timeout ?? hookTimeout),
                         operationObservation?.bounded
@@ -2496,7 +2609,8 @@ export async function runCollected(
             : ordered([...node.hooks.afterAll.entries()])) {
             await invokeSuiteHook(
               hookContext('afterAll', index),
-              () => invokeSuiteCallback(hook, 'afterAll'),
+              (_integration, _deadline, observeFailure) =>
+                invokeSuiteCallback(hook, 'afterAll', observeFailure),
               teardownErrors,
               hook.timeout ?? hookTimeout,
               hook.timeout ?? hookTimeout,
@@ -2544,7 +2658,13 @@ export async function runCollected(
           }
           if (node === root && !teardownErrors.length)
             await fixtureScope.run(() =>
-              clean(fixtureFile.cleanups, teardownErrors)
+              options.captureCoverageCompletion
+                ? clean(
+                    fixtureFile.cleanups,
+                    teardownErrors,
+                    captureFileFixtureCleanup
+                  )
+                : clean(fixtureFile.cleanups, teardownErrors)
             )
           result.errors.push(...teardownErrors)
           errors.push(...teardownErrors)
@@ -2685,7 +2805,13 @@ export async function runCollected(
         // hook work must still settle before fixtures and publication are released.
         while (pendingHooks.size) await Promise.allSettled([...pendingHooks])
         await fixtureScope.run(async () => {
-          await clean(fixtureFile.cleanups, result.errors)
+          if (options.captureCoverageCompletion)
+            await clean(
+              fixtureFile.cleanups,
+              result.errors,
+              captureFileFixtureCleanup
+            )
+          else await clean(fixtureFile.cleanups, result.errors)
           if (fixtureAssertions) {
             const scope = fixtureAssertions
             await capture('cleanup', () => scope.finalize(), result.errors)

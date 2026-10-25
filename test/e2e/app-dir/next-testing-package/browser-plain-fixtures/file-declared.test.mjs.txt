@@ -1,0 +1,11 @@
+import{test as base}from'vitest'
+const fixtureScope="file",concurrent=true
+const row=value=>console.log('BROWSER_FIXTURE:'+JSON.stringify(value))
+function gate(){let resolve;const promise=new Promise(value=>{resolve=value});return{promise,resolve}}
+let factoryCalls=0,aResource,bResource
+const aStarted=gate(),bStarted=gate(),aFinal=gate(),active=new Set()
+const channel=new MessageChannel();channel.port1.onmessage=()=>{aFinal.resolve();channel.port1.close();channel.port2.close()}
+const withFixture=base.extend({resource:[async({},use)=>{const resource={id:++factoryCalls,closed:false};row({phase:'setup',scope:fixtureScope,id:resource.id});await use(resource);resource.closed=true;row({phase:'cleanup',scope:fixtureScope,id:resource.id})},{scope:fixtureScope}]})
+const add=(name,fn)=>concurrent?withFixture.concurrent(name,fn):withFixture(name,fn)
+add('fixture A',async({resource,expect})=>{aResource=resource;active.add('A');row({phase:'A-start',id:resource.id,closed:resource.closed,active:[...active]});aStarted.resolve();try{if(concurrent)await bStarted.promise;expect(resource.closed).toBe(false);if(concurrent)expect(aResource===bResource).toBe(fixtureScope!=='test');row({phase:'A-end',id:resource.id,active:[...active]})}finally{active.delete('A');channel.port2.postMessage('A-final')}})
+add('fixture B',async({resource,expect})=>{bResource=resource;active.add('B');row({phase:'B-start',id:resource.id,closed:resource.closed,active:[...active]});bStarted.resolve();if(concurrent)await aFinal.promise;expect(active.has('A')).toBe(false);expect(resource.closed).toBe(false);expect(aResource.closed).toBe(fixtureScope==='test');expect(aResource===resource).toBe(fixtureScope!=='test');row({phase:'B-end',id:resource.id,aClosed:aResource.closed,active:[...active]});active.delete('B')})

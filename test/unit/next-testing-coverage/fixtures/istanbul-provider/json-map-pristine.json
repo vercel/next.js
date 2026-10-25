@@ -1,0 +1,2272 @@
+{
+  "reference": "Unchanged genuine Vitest5.0.4 public-contract reports; only physical project root and durations are canonicalized",
+  "rows": [
+    {
+      "name": "baseline",
+      "genuineReportSHA256": "9c8c836261ee7fa7b3f9dd8779eba5b19612dca0d5d00cbcb46addaadf054205",
+      "coverageMapPresent": true,
+      "coverageMap": {
+        "<PROJECT_ROOT>/fully.mjs": {
+          "path": "<PROJECT_ROOT>/fully.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 1,
+                "column": 31
+              },
+              "end": {
+                "line": 1,
+                "column": 47
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "fully",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 21
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            }
+          },
+          "branchMap": {},
+          "s": {
+            "0": 1
+          },
+          "f": {
+            "0": 1
+          },
+          "b": {}
+        },
+        "<PROJECT_ROOT>/subject.mjs": {
+          "path": "<PROJECT_ROOT>/subject.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              }
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              }
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ]
+            }
+          },
+          "s": {
+            "0": 1,
+            "1": 1,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [1, 0]
+          }
+        },
+        "<PROJECT_ROOT>/unimported.mjs": {
+          "path": "<PROJECT_ROOT>/unimported.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              }
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              }
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ]
+            }
+          },
+          "s": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 0,
+            "1": 0
+          },
+          "b": {
+            "0": [0, 0]
+          }
+        }
+      },
+      "standardReport": {
+        "numTotalTestSuites": 2,
+        "numPassedTestSuites": 2,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "only true branch is executed",
+                "status": "passed",
+                "title": "only true branch is executed",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<PROJECT_ROOT>/contract.test.mjs"
+          },
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "fully covered control",
+                "status": "passed",
+                "title": "fully covered control",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<PROJECT_ROOT>/full.test.mjs"
+          }
+        ]
+      },
+      "assertWholeStandardReport": true
+    },
+    {
+      "name": "configured-disabled",
+      "genuineReportSHA256": "5108b8689f2a27341ed0151cfdc0c38a7e2ac27b61168849e40d874916763dba",
+      "coverageMapPresent": false,
+      "standardReport": {
+        "numTotalTestSuites": 2,
+        "numPassedTestSuites": 2,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "only true branch is executed",
+                "status": "passed",
+                "title": "only true branch is executed",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<PROJECT_ROOT>/contract.test.mjs"
+          },
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "fully covered control",
+                "status": "passed",
+                "title": "fully covered control",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<PROJECT_ROOT>/full.test.mjs"
+          }
+        ]
+      },
+      "assertWholeStandardReport": true
+    },
+    {
+      "name": "configured-istanbul-cli-v8",
+      "genuineReportSHA256": "d3027bc479001510cd876c165cf5c76d0c676ac654e2338011c66c464c621d7f",
+      "coverageMapPresent": true,
+      "coverageMap": {
+        "<PROJECT_ROOT>/subject.mjs": {
+          "path": "<PROJECT_ROOT>/subject.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              },
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              },
+              "line": 5
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 1,
+            "1": 1,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [1, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        },
+        "<PROJECT_ROOT>/fully.mjs": {
+          "path": "<PROJECT_ROOT>/fully.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 1,
+                "column": 31
+              },
+              "end": {
+                "line": 1,
+                "column": 47
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "fully",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 21
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              },
+              "line": 1
+            }
+          },
+          "branchMap": {},
+          "s": {
+            "0": 1
+          },
+          "f": {
+            "0": 1
+          },
+          "b": {},
+          "meta": {
+            "lastBranch": 0,
+            "lastFunction": 1,
+            "lastStatement": 1,
+            "seen": {
+              "f:1:16:1:21": 0,
+              "s:1:31:1:47": 0
+            },
+            "fnNames": {}
+          }
+        },
+        "<PROJECT_ROOT>/unimported.mjs": {
+          "path": "<PROJECT_ROOT>/unimported.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              },
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              },
+              "line": 5
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 0,
+            "1": 0
+          },
+          "b": {
+            "0": [0, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        }
+      },
+      "standardReport": {
+        "numTotalTestSuites": 2,
+        "numPassedTestSuites": 2,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "only true branch is executed",
+                "status": "passed",
+                "title": "only true branch is executed",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<PROJECT_ROOT>/contract.test.mjs"
+          },
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "fully covered control",
+                "status": "passed",
+                "title": "fully covered control",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<PROJECT_ROOT>/full.test.mjs"
+          }
+        ]
+      },
+      "assertWholeStandardReport": true
+    },
+    {
+      "name": "empty-include",
+      "genuineReportSHA256": "bff0767aa996c3b5706fa0ca1b19081f3bc568809f0060c4ec38fc9c8f1c34d0",
+      "coverageMapPresent": true,
+      "coverageMap": {},
+      "standardReport": {
+        "numTotalTestSuites": 2,
+        "numPassedTestSuites": 2,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "only true branch is executed",
+                "status": "passed",
+                "title": "only true branch is executed",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<PROJECT_ROOT>/contract.test.mjs"
+          },
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "fully covered control",
+                "status": "passed",
+                "title": "fully covered control",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<PROJECT_ROOT>/full.test.mjs"
+          }
+        ]
+      },
+      "assertWholeStandardReport": true
+    },
+    {
+      "name": "all-excluded",
+      "genuineReportSHA256": "3d88a0f70091f094aa2e2a50e070b6b83c3dab9b9c578b2646990051ed138549",
+      "coverageMapPresent": true,
+      "coverageMap": {},
+      "standardReport": {
+        "numTotalTestSuites": 2,
+        "numPassedTestSuites": 2,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "only true branch is executed",
+                "status": "passed",
+                "title": "only true branch is executed",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<PROJECT_ROOT>/contract.test.mjs"
+          },
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "fully covered control",
+                "status": "passed",
+                "title": "fully covered control",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<PROJECT_ROOT>/full.test.mjs"
+          }
+        ]
+      },
+      "assertWholeStandardReport": true
+    },
+    {
+      "name": "stdout-none",
+      "genuineReportSHA256": "4048f6599e308513e933c9a3b31452f8130c374cc99d1f2b81ec2940941194cc",
+      "coverageMapPresent": true,
+      "coverageMap": {
+        "<PROJECT_ROOT>/fully.mjs": {
+          "path": "<PROJECT_ROOT>/fully.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 1,
+                "column": 31
+              },
+              "end": {
+                "line": 1,
+                "column": 47
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "fully",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 21
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            }
+          },
+          "branchMap": {},
+          "s": {
+            "0": 1
+          },
+          "f": {
+            "0": 1
+          },
+          "b": {}
+        },
+        "<PROJECT_ROOT>/subject.mjs": {
+          "path": "<PROJECT_ROOT>/subject.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              }
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              }
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ]
+            }
+          },
+          "s": {
+            "0": 1,
+            "1": 1,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [1, 0]
+          }
+        },
+        "<PROJECT_ROOT>/unimported.mjs": {
+          "path": "<PROJECT_ROOT>/unimported.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              }
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              }
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ]
+            }
+          },
+          "s": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 0,
+            "1": 0
+          },
+          "b": {
+            "0": [0, 0]
+          }
+        }
+      },
+      "standardReport": {
+        "numTotalTestSuites": 2,
+        "numPassedTestSuites": 2,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "only true branch is executed",
+                "status": "passed",
+                "title": "only true branch is executed",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<PROJECT_ROOT>/contract.test.mjs"
+          },
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "fully covered control",
+                "status": "passed",
+                "title": "fully covered control",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<PROJECT_ROOT>/full.test.mjs"
+          }
+        ]
+      },
+      "assertWholeStandardReport": true
+    },
+    {
+      "name": "failure-default",
+      "genuineReportSHA256": "b4ad3d1e0ba2902679a345c38cb7de70fa2ab512e6301152359f46603289dd0c",
+      "coverageMapPresent": true,
+      "coverageMap": {
+        "<PROJECT_ROOT>/subject.mjs": {
+          "path": "<PROJECT_ROOT>/subject.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              }
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              }
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ]
+            }
+          },
+          "s": {
+            "0": 1,
+            "1": 1,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [1, 0]
+          }
+        },
+        "<PROJECT_ROOT>/fully.mjs": {
+          "path": "<PROJECT_ROOT>/fully.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 1,
+                "column": 31
+              },
+              "end": {
+                "line": 1,
+                "column": 47
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "fully",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 21
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            }
+          },
+          "branchMap": {},
+          "s": {
+            "0": 1
+          },
+          "f": {
+            "0": 1
+          },
+          "b": {}
+        },
+        "<PROJECT_ROOT>/unimported.mjs": {
+          "path": "<PROJECT_ROOT>/unimported.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              }
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              }
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ]
+            }
+          },
+          "s": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 0,
+            "1": 0
+          },
+          "b": {
+            "0": [0, 0]
+          }
+        }
+      },
+      "standardReport": {
+        "numTotalTestSuites": 3,
+        "numPassedTestSuites": 2,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 3,
+        "numPassedTests": 2,
+        "numFailedTests": 1,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": false,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "only true branch is executed",
+                "status": "passed",
+                "title": "only true branch is executed",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<PROJECT_ROOT>/contract.test.mjs"
+          },
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "failed body still owns complete coverage",
+                "status": "failed",
+                "title": "failed body still owns complete coverage",
+                "failureMessages": [
+                  "AssertionError: expected 1 to be 2 // Object.is equality\n    at <PROJECT_ROOT>/failed.case.mjs:2:66\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1632:35\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:2794:26\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3334:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3329:10)\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3314:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3272:10)\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3895:64"
+                ],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "failed",
+            "message": "",
+            "name": "<PROJECT_ROOT>/failed.case.mjs"
+          },
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "fully covered control",
+                "status": "passed",
+                "title": "fully covered control",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<PROJECT_ROOT>/full.test.mjs"
+          }
+        ]
+      },
+      "assertWholeStandardReport": false
+    },
+    {
+      "name": "failure-report-on-failure",
+      "genuineReportSHA256": "e694e53d6ec69adb9fd121258e7091b05f18451cc48d11706d958c1190883ab0",
+      "coverageMapPresent": true,
+      "coverageMap": {
+        "<PROJECT_ROOT>/fully.mjs": {
+          "path": "<PROJECT_ROOT>/fully.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 1,
+                "column": 31
+              },
+              "end": {
+                "line": 1,
+                "column": 47
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "fully",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 21
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            }
+          },
+          "branchMap": {},
+          "s": {
+            "0": 1
+          },
+          "f": {
+            "0": 1
+          },
+          "b": {}
+        },
+        "<PROJECT_ROOT>/subject.mjs": {
+          "path": "<PROJECT_ROOT>/subject.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              }
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              }
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ]
+            }
+          },
+          "s": {
+            "0": 1,
+            "1": 1,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [1, 0]
+          }
+        },
+        "<PROJECT_ROOT>/unimported.mjs": {
+          "path": "<PROJECT_ROOT>/unimported.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              }
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              }
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ]
+            }
+          },
+          "s": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 0,
+            "1": 0
+          },
+          "b": {
+            "0": [0, 0]
+          }
+        }
+      },
+      "standardReport": {
+        "numTotalTestSuites": 3,
+        "numPassedTestSuites": 2,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 3,
+        "numPassedTests": 2,
+        "numFailedTests": 1,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": false,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "only true branch is executed",
+                "status": "passed",
+                "title": "only true branch is executed",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<PROJECT_ROOT>/contract.test.mjs"
+          },
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "failed body still owns complete coverage",
+                "status": "failed",
+                "title": "failed body still owns complete coverage",
+                "failureMessages": [
+                  "AssertionError: expected 1 to be 2 // Object.is equality\n    at <PROJECT_ROOT>/failed.case.mjs:2:66\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1632:35\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:2794:26\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3334:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3329:10)\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3314:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3272:10)\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3895:64"
+                ],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "failed",
+            "message": "",
+            "name": "<PROJECT_ROOT>/failed.case.mjs"
+          },
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "fully covered control",
+                "status": "passed",
+                "title": "fully covered control",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<PROJECT_ROOT>/full.test.mjs"
+          }
+        ]
+      },
+      "assertWholeStandardReport": false
+    }
+  ]
+}

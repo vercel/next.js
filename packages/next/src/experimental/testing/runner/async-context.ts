@@ -15,6 +15,7 @@ type Owner =
 
 type Scope = Owner & {
   closed: boolean
+  compilerContinuations?: boolean
   phase?: RunnerFailure['phase']
   authoredCallback?: boolean
   ancestors: readonly Scope[]
@@ -42,8 +43,10 @@ export function createAsyncScope(
     run<T>(fn: () => T): T {
       return storage.run(scope, fn)
     },
-    close() {
+    close(options?: { compilerContinuations: true }) {
       scope.closed = true
+      scope.compilerContinuations =
+        scope.kind === 'attempt' && options?.compilerContinuations === true
     },
   }
 }
@@ -72,6 +75,9 @@ export function runWithCasePhase<T>(
     ...owner,
     get closed() {
       return owner.closed
+    },
+    get compilerContinuations() {
+      return owner.compilerContinuations
     },
     phase,
     authoredCallback,
@@ -160,6 +166,36 @@ export function captureAsyncScope() {
     run<T>(fn: () => T): T {
       const invoke = () => {
         current()
+        return fn()
+      }
+      return scope ? storage.run(scope, invoke) : storage.exit(invoke)
+    },
+  }
+}
+
+function compilerCurrent() {
+  const scope = storage.getStore()
+  if (
+    scope?.closed &&
+    scope.kind === 'attempt' &&
+    scope.compilerContinuations &&
+    !scope.context.signal.aborted
+  )
+    return scope
+  return current()
+}
+
+/** Compiler work may finish after an ordinary settled attempt, in its true origin. */
+export function assertCompilerScopeActive() {
+  compilerCurrent()
+}
+
+export function captureCompilerAsyncScope() {
+  const scope = compilerCurrent()
+  return {
+    run<T>(fn: () => T): T {
+      const invoke = () => {
+        compilerCurrent()
         return fn()
       }
       return scope ? storage.run(scope, invoke) : storage.exit(invoke)

@@ -1,0 +1,43 @@
+{
+  "rows": [
+    {
+      "phase": "created-action",
+      "clicks": 0,
+      "tag": "[object Action]",
+      "native": false,
+      "trace": [
+        ["get", "undefined"],
+        ["set", "array"],
+        ["get", "array"]
+      ],
+      "guardName": "",
+      "guardLength": 0
+    },
+    {
+      "phase": "one-click",
+      "clicks": 1
+    },
+    {
+      "phase": "created-keyboard",
+      "keydowns": 0,
+      "tag": "[object Promise]",
+      "native": false,
+      "ownNames": ["then", "catch", "finally"],
+      "guardDelta": 1
+    },
+    {
+      "phase": "one-keyboard",
+      "value": "a",
+      "keydowns": 1
+    }
+  ],
+  "cases": [
+    {
+      "name": "serial cached actions and ensureAwaited",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "success": true,
+  "exit": 0
+}

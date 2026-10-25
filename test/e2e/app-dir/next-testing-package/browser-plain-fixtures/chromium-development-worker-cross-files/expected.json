@@ -1,0 +1,150 @@
+{
+  "rows": [
+    {
+      "value": {
+        "phase": "setup",
+        "scope": "worker",
+        "id": 1
+      },
+      "task": "a A"
+    },
+    {
+      "value": {
+        "phase": "body",
+        "name": "a A",
+        "id": 1,
+        "history": ["a A"]
+      },
+      "task": "a A"
+    },
+    {
+      "value": {
+        "phase": "body",
+        "name": "a B",
+        "id": 1,
+        "history": ["a A", "a B"]
+      },
+      "task": "a B"
+    },
+    {
+      "value": {
+        "phase": "cleanup",
+        "scope": "worker",
+        "id": 1,
+        "history": ["a A", "a B"]
+      },
+      "task": "__vitest__unknown_test__"
+    },
+    {
+      "value": {
+        "phase": "setup",
+        "scope": "worker",
+        "id": 1
+      },
+      "task": "b A"
+    },
+    {
+      "value": {
+        "phase": "body",
+        "name": "b A",
+        "id": 1,
+        "history": ["b A"]
+      },
+      "task": "b A"
+    },
+    {
+      "value": {
+        "phase": "body",
+        "name": "b B",
+        "id": 1,
+        "history": ["b A", "b B"]
+      },
+      "task": "b B"
+    },
+    {
+      "value": {
+        "phase": "cleanup",
+        "scope": "worker",
+        "id": 1,
+        "history": ["b A", "b B"]
+      },
+      "task": "__vitest__unknown_test__"
+    }
+  ],
+  "cases": [
+    {
+      "name": "a A",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "a B",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "b A",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "b B",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "caseFinals": [
+    {
+      "name": "a A",
+      "state": "passed"
+    },
+    {
+      "name": "a B",
+      "state": "passed"
+    },
+    {
+      "name": "b A",
+      "state": "passed"
+    },
+    {
+      "name": "b B",
+      "state": "passed"
+    }
+  ],
+  "runFinals": [
+    {
+      "reason": "passed",
+      "errors": [],
+      "files": [
+        {
+          "state": "passed",
+          "tests": [
+            {
+              "name": "a A",
+              "state": "passed"
+            },
+            {
+              "name": "a B",
+              "state": "passed"
+            }
+          ]
+        },
+        {
+          "state": "passed",
+          "tests": [
+            {
+              "name": "b A",
+              "state": "passed"
+            },
+            {
+              "name": "b B",
+              "state": "passed"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "success": true,
+  "exit": 0
+}

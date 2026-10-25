@@ -284,13 +284,15 @@ fn own_hidden_function_default_definition(
     fields.into_iter().all(|field| field)
 }
 
-fn callable_parameter(pattern: &Pat) -> bool {
+fn callable_parameter(pattern: &Pat, allow_object_shorthand_defaults: bool) -> bool {
     match pattern {
         Pat::Ident(_) => true,
         Pat::Assign(default) => matches!(&*default.left, Pat::Ident(_)),
         Pat::Rest(rest) => matches!(&*rest.arg, Pat::Ident(_)),
         Pat::Object(object) => object.props.iter().all(|property| match property {
-            ObjectPatProp::Assign(property) => property.value.is_none(),
+            ObjectPatProp::Assign(property) => {
+                property.value.is_none() || allow_object_shorthand_defaults
+            }
             ObjectPatProp::KeyValue(property) => {
                 matches!(
                     property.key,
@@ -352,11 +354,12 @@ fn certify_for_callable_publication(
         }
         Expr::Fn(function)
             if function.function.body.is_some()
-                && function
-                    .function
-                    .params
-                    .iter()
-                    .all(|parameter| callable_parameter(&parameter.pat)) =>
+                && function.function.params.iter().all(|parameter| {
+                    callable_parameter(
+                        &parameter.pat,
+                        !function.function.is_async && !function.function.is_generator,
+                    )
+                }) =>
         {
             (
                 if function.ident.is_some() {
@@ -367,7 +370,12 @@ fn certify_for_callable_publication(
                 None,
             )
         }
-        Expr::Arrow(function) if function.params.iter().all(callable_parameter) => {
+        Expr::Arrow(function)
+            if function
+                .params
+                .iter()
+                .all(|parameter| callable_parameter(parameter, false)) =>
+        {
             (CommonJsResetExportShape::ArrowFunctionExpression, None)
         }
         Expr::Class(class) => (
@@ -679,17 +687,69 @@ mod tests {
     }
 
     #[test]
+    fn accepts_ordinary_anonymous_object_shorthand_defaults() {
+        for source in [
+            "module.exports = function({value = 1}) { return value }",
+            "const dependency = require('./dependency.cjs'); const resolveDefault = () => \
+             dependency.value; module.exports = function({value = resolveDefault()}) { return \
+             [dependency.value, value] }",
+        ] {
+            check(
+                source,
+                CommonJsResetExportShape::AnonymousFunctionExpression,
+            );
+        }
+    }
+
+    #[test]
+    fn keeps_object_shorthand_default_boundaries() {
+        for source in [
+            "module.exports = async function({value = 1}) { return value }",
+            "module.exports = function*({value = 1}) { yield value }",
+            "module.exports = async function*({value = 1}) { yield value }",
+            "module.exports = ({value = 1}) => value",
+            "module.exports = async ({value = 1}) => value",
+            "module.exports = function({value: renamed = 1}) { return renamed }",
+            "module.exports = function({value: {nested = 1}}) { return nested }",
+            "module.exports = function({value = 1, ...rest}) { return [value, rest] }",
+            "module.exports = function({[key]: value = 1}) { return value }",
+            "module.exports = function({value = 1} = {}) { return value }",
+            "module.exports = function([value = 1]) { return value }",
+            "module.exports = function({value = module.exports}) { return value }",
+            "module.exports = function({value = exports.value}) { return value }",
+            "module.exports = async function named({value = 1}) { return value }",
+            "module.exports = function* named({value = 1}) { yield value }",
+            "module.exports = async function* named({value = 1}) { yield value }",
+            "module.exports = function named({value: renamed = 1}) { return renamed }",
+            "module.exports = function named({value: {nested = 1}}) { return nested }",
+            "module.exports = function named({value = 1, ...rest}) { return [value, rest] }",
+            "module.exports = function named({[key]: value = 1}) { return value }",
+            "module.exports = function named({value = 1} = {}) { return value }",
+            "module.exports = function named([value = 1]) { return value }",
+            "module.exports = function named({value = module.exports}) { return value }",
+            "module.exports = function named({value = exports.value}) { return value }",
+        ] {
+            check(source, CommonJsResetExportShape::Unsupported);
+        }
+    }
+
+    #[test]
     fn accepts_terminal_named_function_expressions_with_their_own_self_binding() {
         for source in [
             "module.exports = function named(value) { return value ? named(value - 1) : named }",
             "const local = 7; module.exports = function named(value) { return [named, local, \
              this, arguments, new.target, value] }",
             "module.exports = function named(module, exports) { return [named, module, exports] }",
+            "module.exports = function named({value}) { return value }",
+            "module.exports = function named({value = 1}) { return value }",
+            "const dependency = require('./dependency.cjs'); const resolveDefault = () => \
+             dependency.value; module.exports = function named({value = resolveDefault()}) { \
+             return [named, dependency.value, value] }",
+            "module.exports = function named({value = named}) { return [named, value] }",
         ] {
             check(source, CommonJsResetExportShape::NamedFunctionExpression);
         }
         for source in [
-            "module.exports = function named({value}) { return value }",
             "module.exports = function named() { return module.exports }",
             "module.exports = function named() { return exports.value }",
             "module.exports = function named() {}; module.exports.value = 1",
@@ -767,6 +827,8 @@ mod tests {
     fn accepts_terminal_arrow_expression_roots() {
         for source in [
             "module.exports = () => 1",
+            "module.exports = ({value}) => value",
+            "module.exports = ([value]) => value",
             "module.exports = value => value",
             "module.exports = (value = 1) => value",
             "module.exports = (...values) => values",
@@ -779,8 +841,6 @@ mod tests {
             check(source, CommonJsResetExportShape::ArrowFunctionExpression);
         }
         for source in [
-            "module.exports = ({value}) => value",
-            "module.exports = ([value]) => value",
             "module.exports = (value = module.exports) => value",
             "module.exports = value => exports.value",
             "const escaped = module; module.exports = value => value",
@@ -818,13 +878,20 @@ mod tests {
 
     #[test]
     fn rejects_unmeasured_function_expression_forms_and_global_publication_use() {
+        for source in [
+            "module.exports = function({value}) { return value }",
+            "module.exports = function([value]) { return value }",
+        ] {
+            check(
+                source,
+                CommonJsResetExportShape::AnonymousFunctionExpression,
+            );
+        }
         check(
             "module.exports = function named() { return 1 }",
             CommonJsResetExportShape::NamedFunctionExpression,
         );
         for source in [
-            "module.exports = function({value}) { return value }",
-            "module.exports = function([value]) { return value }",
             "module.exports = function() { return module.exports }",
             "module.exports = function() { module.exports = 1 }",
             "module.exports = function() { return exports.value }",
@@ -1201,7 +1268,11 @@ mod tests {
             for function in ["function", "async function", "function*", "async function*"] {
                 check(
                     &format!("module.exports = {function} named({parameters}) {{ return 1 }}"),
-                    CommonJsResetExportShape::Unsupported,
+                    if function == "function" && parameters == "{value = 1}" {
+                        CommonJsResetExportShape::NamedFunctionExpression
+                    } else {
+                        CommonJsResetExportShape::Unsupported
+                    },
                 );
             }
             check(

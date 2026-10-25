@@ -1,0 +1,12 @@
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"setup-start\",\"scope\":\"file\",\"stage\":\"setup\",\"id\":1,\"clicks\":0}","browser":true,"time":1792952458285,"taskId":"704938072_0","type":"stdout","size":95}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"setup-end\",\"scope\":\"file\",\"stage\":\"setup\",\"id\":1,\"clicks\":1}","browser":true,"time":1792952458372,"taskId":"704938072_0","type":"stdout","size":93}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"A\",\"id\":1,\"clicks\":1,\"closed\":false}","browser":true,"time":1792952458373,"taskId":"704938072_0","type":"stdout","size":69}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"B\",\"id\":1,\"clicks\":1,\"closed\":false,\"firstClosed\":false,\"same\":true}","browser":true,"time":1792952458374,"taskId":"704938072_1","type":"stdout","size":101}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"cleanup-start\",\"scope\":\"file\",\"stage\":\"setup\",\"id\":1,\"clicks\":1}","browser":true,"time":1792952458374,"taskId":"704938072","type":"stdout","size":97}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"cleanup-end\",\"scope\":\"file\",\"stage\":\"setup\",\"id\":1,\"clicks\":1,\"closed\":true}","browser":true,"time":1792952458374,"taskId":"704938072","type":"stdout","size":109}}
+{"hook":"ready","id":"704938072_0","name":"native fixture A","result":{"state":"passed"}}
+{"hook":"case","id":"704938072_0","name":"native fixture A","result":{"state":"passed","errors":[]}}
+{"hook":"ready","id":"704938072_1","name":"native fixture B","result":{"state":"passed"}}
+{"hook":"case","id":"704938072_1","name":"native fixture B","result":{"state":"passed","errors":[]}}
+{"hook":"module","id":"704938072","state":"passed","errors":[]}
+{"hook":"end","reason":"passed","errors":[],"files":[{"id":"704938072","state":"passed","tests":[{"id":"704938072_0","name":"native fixture A","result":{"state":"passed","errors":[]}},{"id":"704938072_1","name":"native fixture B","result":{"state":"passed","errors":[]}}]}]}

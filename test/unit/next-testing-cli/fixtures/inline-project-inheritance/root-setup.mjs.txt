@@ -1,0 +1,1 @@
+globalThis.inlineRootSetup = (globalThis.inlineRootSetup ?? 0) + 1

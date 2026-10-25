@@ -1,0 +1,12 @@
+{"hook":"console","log":{"content":"BROWSER_CONCURRENCY:{\"phase\":\"A-start\",\"active\":[\"A\"]}","browser":true,"time":1792936113682,"taskId":"-435979062_1","type":"stdout","size":54}}
+{"hook":"console","log":{"content":"BROWSER_CONCURRENCY:{\"phase\":\"B-start\",\"active\":[\"A\",\"B\"]}","browser":true,"time":1792936113682,"taskId":"-435979062_1","type":"stdout","size":58}}
+{"hook":"console","log":{"content":"BROWSER_CONCURRENCY:{\"phase\":\"A-requested\",\"active\":[\"A\",\"B\"],\"finished\":{\"a\":0,\"b\":1}}","browser":true,"time":1792936113683,"taskId":"-435979062_1","type":"stdout","size":87}}
+{"hook":"console","log":{"content":"BROWSER_CONCURRENCY:{\"phase\":\"B-before-native\",\"finished\":{\"a\":0,\"b\":1}}","browser":true,"time":1792936113683,"taskId":"-435979062_1","type":"stdout","size":72}}
+{"hook":"console","log":{"content":"BROWSER_CONCURRENCY:{\"phase\":\"B-native-done\",\"clicksA\":0,\"clicksB\":1,\"finished\":{\"a\":0,\"b\":2}}","browser":true,"time":1792936113757,"taskId":"-435979062_1","type":"stdout","size":94}}
+{"hook":"ready","id":"-435979062_0","name":"native A","result":{"state":"pending"}}
+{"hook":"ready","id":"-435979062_1","name":"native B","result":{"state":"pending"}}
+{"hook":"console","log":{"content":"BROWSER_CONCURRENCY:{\"phase\":\"A-end\",\"clicksA\":1,\"clicksB\":1,\"finished\":{\"a\":0,\"b\":2}}","browser":true,"time":1792936113811,"taskId":"-435979062_1","type":"stdout","size":86}}
+{"hook":"console","log":{"content":"BROWSER_CONCURRENCY:{\"phase\":\"B-end\",\"clicksA\":1,\"clicksB\":1}","browser":true,"time":1792936113811,"taskId":"-435979062","type":"stdout","size":61}}
+{"hook":"case","id":"-435979062_0","name":"native A","result":{"state":"failed","errors":[{"name":"Error","message":"original native concurrent failure","stack":""}]}}
+{"hook":"case","id":"-435979062_1","name":"native B","result":{"state":"passed","errors":[]}}
+{"hook":"end","reason":"failed","errors":[],"files":[{"id":"-435979062","state":"failed","tests":[{"id":"-435979062_0","name":"native A","result":{"state":"failed","errors":[{"name":"Error","message":"original native concurrent failure","stack":""}]}},{"id":"-435979062_1","name":"native B","result":{"state":"passed","errors":[]}}]}]}

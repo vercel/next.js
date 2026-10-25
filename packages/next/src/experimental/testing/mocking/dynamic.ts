@@ -1,5 +1,9 @@
 import { createDeclarationStorage } from '../runner/collector-platform'
-import { assertScopeActive, captureAsyncScope } from '../runner/async-context'
+import {
+  assertScopeActive,
+  assertCompilerScopeActive,
+  captureCompilerAsyncScope,
+} from '../runner/async-context'
 import {
   assertNativeModuleOwnership,
   assertRuntimeModuleOwnership,
@@ -276,7 +280,7 @@ export function initializeDynamicModuleMocking(
   }
   const pending = new Set<(error: Error) => void>()
   function assertOwner() {
-    assertScopeActive()
+    assertCompilerScopeActive()
     if (state.closed || active !== state) {
       const error = new Error(
         'The originating runtime module mock file has been disposed.'
@@ -361,7 +365,7 @@ export function initializeDynamicModuleMocking(
     importer: object,
     id: ModuleId,
     target: Target,
-    origin?: ReturnType<typeof captureAsyncScope>
+    origin?: ReturnType<typeof captureCompilerAsyncScope>
   ): Promise<Namespace> {
     if (origin)
       return origin.run(() => {
@@ -375,7 +379,7 @@ export function initializeDynamicModuleMocking(
     id: ModuleId,
     target: Target,
     registration: Registration,
-    origin: ReturnType<typeof captureAsyncScope>,
+    origin: ReturnType<typeof captureCompilerAsyncScope>,
     dependency: boolean
   ): Promise<Namespace> {
     if (!registration.result) {
@@ -467,7 +471,7 @@ export function initializeDynamicModuleMocking(
   const method = function (this: Importer, loaderId: ModuleId) {
     if (!entryIds.has(this.m.id))
       return Reflect.apply(originalLoader, this, [loaderId])
-    const origin = captureAsyncScope()
+    const origin = captureCompilerAsyncScope()
     const invoke = () =>
       origin.run(() => {
         assertOwner()
@@ -541,7 +545,7 @@ export function initializeDynamicModuleMocking(
       : invoke()
   }
   const demandMethod = function (this: Importer, site: number, id: ModuleId) {
-    const origin = captureAsyncScope()
+    const origin = captureCompilerAsyncScope()
     return origin.run(() => {
       assertOwner()
       if (!activation || !staticDemands.get(this.m.id)?.get(site)?.has(id))

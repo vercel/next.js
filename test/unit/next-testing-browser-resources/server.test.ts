@@ -1408,6 +1408,38 @@ describe('Browser Mode immutable parent transport', () => {
     expect(disposed).toBe(true)
   })
 
+  it.each([false, true])(
+    'admits logical final messages only with private case scheduling: %s',
+    async (admitted) => {
+      if (admitted) configuration.caseScheduling = 'concurrent-v1'
+      const rows: unknown[] = []
+      const { post } = await open((message) => {
+        rows.push(message)
+      })
+      const result = {
+        caseId: 'entry/0',
+        attempt: { id: 'run/entry/0/0/0', retry: 0, repeat: 0 },
+        status: 'passed',
+        mode: 'run',
+      }
+      const response = await post({ type: 'case-final', result })
+      expect(response.status).toBe(admitted ? 200 : 400)
+      expect(await response.json()).toEqual(
+        admitted ? { value: null } : { error: 'Browser Mode transport failed.' }
+      )
+      if (admitted) {
+        expect(rows).toEqual([
+          expect.objectContaining({ type: 'case-final', result }),
+        ])
+      } else {
+        expect(rows).toEqual([])
+        await expect(server!.completion).rejects.toThrow(
+          'Unknown Browser Mode transport message.'
+        )
+      }
+    }
+  )
+
   it('retains unexpected admitted action failures in the existing terminal error envelope', async () => {
     const original = new Error('actual post-admission host failure')
     const { post } = await open(
@@ -4908,3 +4940,229 @@ it('maps measured Gecko srcScript diagnostic frames without changing raw errors 
     )
   ).toEqual([])
 })
+
+it('tracks private concurrent logical finals by immutable case and exact attempt while preserving rejection controls', () => {
+  const { execFileSync } = require('node:child_process')
+  const output = execFileSync(
+    process.execPath,
+    [join(__dirname, 'concurrent-case-finals.cjs')],
+    { encoding: 'utf8', timeout: 15000 }
+  )
+  expect(JSON.parse(output)).toEqual({
+    controls: 15,
+    bothEndOrders: true,
+    independentRetry: true,
+    invalidFinalsRejected: true,
+    noExtraErrorReads: true,
+  })
+})
+
+it('copies effective concurrent and sequential flags from closed definitions without reading mutable public Task fields', async () => {
+  const {
+    createCollector,
+  } = require('next/dist/experimental/testing/runner/collector')
+  const {
+    clientDeclarations,
+  } = require('next/dist/experimental/testing/client/collection')
+  const {
+    createTaskTree,
+  } = require('next/dist/experimental/testing/runner/tasks')
+  const collector = createCollector('entry')
+  collector.api.describe.concurrent('parallel', () => {
+    collector.api.test('inherited', () => {})
+    collector.api.describe('sequential', { concurrent: false }, () => {
+      collector.api.test('overridden', () => {})
+    })
+  })
+  collector.api.test('ordinary', () => {})
+  await collector.settle()
+  const root = collector.close()
+  const tree = createTaskTree(root, {
+    filePath: '/original/cases.test.mjs',
+    testTimeout: 1000,
+  })
+  for (const task of tree.tasks.values()) task.concurrent = false
+  expect(
+    clientDeclarations(root, 'concurrent-v1').map(({ name, concurrent }) => ({
+      name,
+      concurrent,
+    }))
+  ).toEqual([
+    { name: '', concurrent: false },
+    { name: 'parallel', concurrent: true },
+    { name: 'inherited', concurrent: true },
+    { name: 'sequential', concurrent: false },
+    { name: 'overridden', concurrent: false },
+    { name: 'ordinary', concurrent: false },
+  ])
+  expect(
+    clientDeclarations(root).every(
+      (declaration) => !('concurrent' in declaration)
+    )
+  ).toBe(true)
+})
+
+it('admits native Browser commands only from the exact immutable active attempt without accepting stale retry or public fields', () => {
+  const { execFileSync } = require('node:child_process')
+  const output = execFileSync(
+    process.execPath,
+    [join(__dirname, 'native-command-origins.cjs')],
+    { encoding: 'utf8', timeout: 15000 }
+  )
+  expect(JSON.parse(output)).toEqual({
+    controls: 15,
+    exactLiveAttemptOnly: true,
+    closedAndPreviousRetriesRejected: true,
+    malformedOriginsRejected: true,
+    legacyProfileUnchanged: true,
+  })
+})
+
+it('admits collected public Browser concurrency while enforcing native owner, limit and legacy boundaries', () => {
+  const { execFileSync } = require('node:child_process')
+  const output = execFileSync(
+    process.execPath,
+    [join(__dirname, 'public-concurrency-admission.cjs')],
+    { encoding: 'utf8', timeout: 15000 }
+  )
+  expect(JSON.parse(output)).toEqual({
+    controls: 10,
+    explicitAndConfiguredDefinitions: true,
+    exactTwoLiveNativeOwners: true,
+    positiveLimitsEnforced: true,
+    mixedAndDuplicateStartsRejected: true,
+    legacyAndFixtureControlsPreserved: true,
+  })
+})
+
+it('admits plain Browser fixture resources only through the file-owned capability', () => {
+  const { execFileSync } = require('node:child_process')
+  const output = execFileSync(
+    process.execPath,
+    [join(__dirname, 'public-fixture-admission.cjs')],
+    { encoding: 'utf8', timeout: 15000 }
+  )
+  expect(JSON.parse(output)).toEqual({
+    controls: 7,
+    plainScopesAdmittedByActualFile: true,
+    legacyFixtureRefusalsPreserved: true,
+    concurrentCapabilityStillIndependent: true,
+    sharedFileAndWorkerLifetime: true,
+    testScopeRecreated: true,
+  })
+})
+
+it('keeps native Browser fixture scope and awaited disposal ownership separate from attempt authority', () => {
+  const { execFileSync } = require('node:child_process')
+  const scopes = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [join(__dirname, 'native-fixture-scopes.cjs')],
+      {
+        encoding: 'utf8',
+        timeout: 15000,
+      }
+    )
+  )
+  expect(scopes).toEqual({
+    controls: 18,
+    liveActualFixtureScopesOnly: true,
+    noSyntheticAttemptOrigin: true,
+    assertionDeclarationAndUtilityAdmissionHeld: true,
+    absentForeignAndClosedOwnersRefused: true,
+    lateContinuationRefused: true,
+  })
+  for (const mode of [
+    'normal',
+    'file-error',
+    'browser-error',
+    'keyboard-error',
+    'all-errors',
+    'cancelled',
+  ]) {
+    const result = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'native-fixture-disposal.cjs'), mode],
+        { encoding: 'utf8', timeout: 15000 }
+      )
+    )
+    expect(result).toEqual({
+      mode,
+      fileDisposalAwaitedBeforeBrowserCleanup: true,
+      allRemainingDisposalsAttempted: true,
+      originalFailureOrderHeld: true,
+      cancellationAndPublicationVetoHeld: true,
+    })
+  }
+})
+
+it('owns the real before-worker cleanup boundary and preserves component and keyboard cleanup contracts', () => {
+  const { execFileSync } = require('node:child_process')
+  for (const mode of [
+    'default',
+    'ordered',
+    'before-error',
+    'worker-error',
+    'mixed-same',
+  ]) {
+    const result = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'native-fixture-ordering.cjs'), mode],
+        { encoding: 'utf8', timeout: 15000 }
+      )
+    )
+    expect(result).toEqual({
+      mode,
+      actualOwnedWorkerBoundary: true,
+      callbackAwaitedBeforeWorker: true,
+      assertionAndWorkerLifetimesHeld: true,
+      allFailureSlotsPreserved: true,
+      closedAfterJoin: true,
+    })
+  }
+  for (const mode of [
+    'normal',
+    'component-error',
+    'getter-error',
+    'noncallable',
+  ]) {
+    const result = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'native-fixture-component-cleanup.cjs'), mode],
+        { encoding: 'utf8', timeout: 15000 }
+      )
+    )
+    expect(result).toEqual({
+      mode,
+      inheritedGetterAndBoundExtension: true,
+      ignoredExtensionSymbols: true,
+      directSymbolReceiverAndReadCount: true,
+      componentBeforeKeyboard: true,
+      keyboardAttemptedAfterComponentFailure: true,
+      originalErrorRetained: true,
+    })
+  }
+}, 45000)
+
+it('joins the same Browser cleanup promise when an older file ignores or does not await the private callback', () => {
+  const { execFileSync } = require('node:child_process')
+  for (const mode of ['awaited', 'unawaited', 'missing-file']) {
+    const result = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'native-fixture-cleanup-join.cjs'), mode],
+        { encoding: 'utf8', timeout: 15000 }
+      )
+    )
+    expect(result).toEqual({
+      mode,
+      callbackPromiseShared: true,
+      fallbackJoinedBeforeRemainingDisposals: true,
+      cleanupExactlyOnce: true,
+      originalInitializationFailureRetained: true,
+    })
+  }
+}, 30000)

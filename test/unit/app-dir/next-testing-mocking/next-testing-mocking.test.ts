@@ -811,6 +811,98 @@ describe('compiler-owned runtime mock dispatch components (not native conformanc
       }
     }
   )
+
+  it('retains the exact closed phase origin only for admitted compiler continuation', () => {
+    const controller = new AbortController()
+    const context = {
+      id: 'completed-origin',
+      name: 'completed origin',
+      signal: controller.signal,
+    } as import('next/dist/experimental/testing/runner/lifecycle').AttemptContext
+    const late = jest.fn()
+    const scope = scopes.createAsyncScope({ kind: 'attempt', context }, late)
+    const origin = scope.run(() =>
+      scopes.runWithCasePhase('test', () => scopes.captureCompilerAsyncScope())
+    )
+    scope.close({ compilerContinuations: true })
+    origin.run(() => {
+      expect(scopes.peekOriginatingScope()).toMatchObject({ closed: true })
+      expect(scopes.peekOriginatingScope()?.context).toBe(context)
+      expect(() => scopes.assertScopeActive()).toThrow('closed attempt scope')
+      expect(() => scopes.captureAsyncScope()).toThrow('closed attempt scope')
+      expect(() => dynamic.doMock('./subject', () => ({}))).toThrow(
+        'closed attempt scope'
+      )
+    })
+    expect(late).toHaveBeenCalledTimes(3)
+    controller.abort(new Error('original attempt cancelled'))
+    expect(() => origin.run(() => {})).toThrow('closed attempt scope')
+    expect(late).toHaveBeenCalledTimes(4)
+  })
+
+  it.each(['attempt', 'collection', 'hook'] as const)(
+    'does not admit a default-closed or foreign closed %s compiler origin',
+    (kind) => {
+      const late = jest.fn()
+      const context = {
+        id: 'closed-origin',
+        name: 'closed origin',
+        signal: new AbortController().signal,
+      }
+      const scope = scopes.createAsyncScope({ kind, context } as any, late)
+      const origin = scope.run(() => scopes.captureCompilerAsyncScope())
+      scope.close(
+        kind === 'attempt' ? undefined : { compilerContinuations: true }
+      )
+      expect(() => origin.run(() => {})).toThrow(`closed ${kind} scope`)
+      expect(late).toHaveBeenCalledTimes(1)
+    }
+  )
+
+  it('finishes a real held factory in a closed admitted attempt without reopening authored APIs', async () => {
+    const h = host()
+    const late = jest.fn()
+    const context = {
+      id: 'held-origin',
+      name: 'held origin',
+      signal: new AbortController().signal,
+    } as import('next/dist/experimental/testing/runner/lifecycle').AttemptContext
+    const scope = scopes.createAsyncScope({ kind: 'attempt', context }, late)
+    let release!: () => void, entered!: () => void
+    const started = new Promise<void>((resolve) => {
+      entered = resolve
+    })
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    try {
+      const pending = scope.run(() => {
+        dynamic.doMock('./subject', async (original) => {
+          entered()
+          await gate
+          expect(scopes.peekOriginatingScope()?.context).toBe(context)
+          expect(scopes.peekOriginatingScope()?.closed).toBe(true)
+          expect(() => dynamic.doUnmock('./subject')).toThrow(
+            'closed attempt scope'
+          )
+          return { ...(await original()), mocked: true }
+        })
+        return h.context.A(3)
+      })
+      await started
+      scope.close({ compilerContinuations: true })
+      release()
+      const value = await pending
+      expect(value).toMatchObject({ value: 1, mocked: true })
+      expect(h.evaluations()).toBe(1)
+      expect(late).toHaveBeenCalledTimes(1)
+      expect(h.late).not.toHaveBeenCalled()
+    } finally {
+      release()
+      h.binding.dispose()
+      h.tracker.dispose()
+    }
+  })
 })
 
 describe('compiler importMock runtime selections (not native compiler conformance)', () => {
@@ -3052,6 +3144,29 @@ it('preserves actual callback Promise creation and captured loader origins acros
       publicPromiseScope: 'caller-B',
       loaderScope: 'caller-B',
     },
+    exactNamespace: true,
+    lateErrors: 0,
+  })
+})
+
+it('preserves actual callback Promise construction and the exact completed factory origin', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [require('node:path').join(__dirname, 'runtime-completed-origins.cjs')],
+      { encoding: 'utf8', timeout: 15000 }
+    )
+  )
+  expect(result).toEqual({
+    factory: {
+      callbackPromiseScope: 'caller-B',
+      loaderScope: 'factory-A',
+      loaderClosed: true,
+      ordinaryCallback: true,
+      arguments: 0,
+    },
+    publicCaller: { publicPromiseScope: 'caller-B', loaderScope: 'caller-B' },
     exactNamespace: true,
     lateErrors: 0,
   })

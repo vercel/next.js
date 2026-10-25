@@ -1,0 +1,64 @@
+{
+  "numTotalTestSuites": 1,
+  "numPassedTestSuites": 0,
+  "numFailedTestSuites": 1,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 2,
+  "numPassedTests": 1,
+  "numFailedTests": 1,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1792920908089,
+  "success": false,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [],
+          "fullName": "serial unconsumed action",
+          "status": "failed",
+          "title": "serial unconsumed action",
+          "duration": 1,
+          "failureMessages": [
+            "d@http://localhost:63316/@fs/private/tmp/next-testing-run/integration/production-browser-mocks/reference/node_modules/@vitest/browser/dist/locators-BHr21v4S.js?v=eb1db6a6:1:1405\nf@http://localhost:63316/@fs/private/tmp/next-testing-run/integration/production-browser-mocks/reference/node_modules/@vitest/browser/dist/locators-BHr21v4S.js?v=eb1db6a6:1:2236\naction@http://localhost:63316/@fs/private/tmp/next-testing-run/integration/production-browser-mocks/reference/node_modules/@vitest/browser/dist/locators-BHr21v4S.js?v=eb1db6a6:4:14553\nclick@http://localhost:63316/@fs/private/tmp/next-testing-run/integration/production-browser-mocks/reference/node_modules/@vitest/browser/dist/locators-BHr21v4S.js?v=eb1db6a6:4:10881\nclick@http://localhost:63316/@fs/private/tmp/next-testing-run/integration/production-browser-mocks/reference/node_modules/@vitest/browser-playwright/dist/locators.js:14:16\n@http://localhost:63316/private/tmp/next-testing-run/work-1/task-buffers/browser-concurrency-contract/native-actions/serial-behavior/.actual-native-actions-reference-tmbc4ow6/hooks.test.mjs?import&browserv=1792920909323:9:62\nwithFixtures/<@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:4125:35\nwithAwaitAsyncAssertions/<@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:5235:26\nwithCancel/runWithCancel/<@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:5726:22\nrunWithCancel@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:5721:10\nwithTimeout/runWithTimeout/<@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:5710:22\nrunWithTimeout@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:5674:10\nrunTest/</</<@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:6242:64\nrun@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:3862:24\nlimiterFn@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:3872:59\nrunTest/</<@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:6242:57\n$@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/vitest_internal_traces.js?v=41146336:139:27\ncreateBrowserRunner/BrowserTestRunner/<@http://localhost:63316/__vitest_browser__/tester-BH7uPfyB.js:1019:23\nrunTest/<@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:6242:13\nasync*callAroundEachHooks/<@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:6119:37\ncallAroundHooks@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:6009:9\ncallAroundEachHooks@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:6119:8\nrunTest@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:6230:10\nasync*runSuiteChild/</<@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:6455:45\nrun@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:3862:24\nlimiterFn@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:3872:59\nrunSuiteChild/<@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:6455:31\n$@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/vitest_internal_traces.js?v=41146336:139:27\ncreateBrowserRunner/BrowserTestRunner/<@http://localhost:63316/__vitest_browser__/tester-BH7uPfyB.js:1019:23\nrunSuiteChild@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:6447:32\nrunSuite/<@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:6411:41\nasync*callAroundHooks@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:6009:9\ncallAroundAllHooks@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:6111:8\nrunSuite@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:6394:10\nasync*runFiles/<@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:6478:20\n$@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/vitest_internal_traces.js?v=41146336:139:27\ncreateBrowserRunner/BrowserTestRunner/<@http://localhost:63316/__vitest_browser__/tester-BH7uPfyB.js:1019:23\nrunFiles@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:6475:16\nstartTests@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=eb1db6a6:6511:9\nasync*executeTests/<@http://localhost:63316/__vitest_browser__/tester-BH7uPfyB.js:2105:32\n$@http://localhost:63316/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/vitest_internal_traces.js?v=41146336:139:27\nexecuteTests@http://localhost:63316/__vitest_browser__/tester-BH7uPfyB.js:2104:16\n@http://localhost:63316/__vitest_browser__/tester-BH7uPfyB.js:2009:16\nasync*@http://localhost:63316/__vitest_browser__/tester-BH7uPfyB.js:1980:9\n"
+          ],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "serial following case continues",
+          "status": "passed",
+          "title": "serial following case continues",
+          "duration": 0,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1792920909328,
+      "endTime": 1792920909329,
+      "status": "failed",
+      "message": "",
+      "name": "/private/tmp/next-testing-run/work-1/task-buffers/browser-concurrency-contract/native-actions/serial-behavior/.actual-native-actions-reference-tmbc4ow6/hooks.test.mjs"
+    }
+  ]
+}

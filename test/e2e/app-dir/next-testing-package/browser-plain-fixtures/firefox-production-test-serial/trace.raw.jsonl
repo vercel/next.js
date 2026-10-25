@@ -1,0 +1,13 @@
+{"hook":"console","log":{"content":"BROWSER_FIXTURE:{\"phase\":\"setup\",\"scope\":\"test\",\"id\":1}","browser":true,"time":1792939078928,"taskId":"-1594086377_0","type":"stdout","size":55}}
+{"hook":"console","log":{"content":"BROWSER_FIXTURE:{\"phase\":\"A-start\",\"id\":1,\"closed\":false,\"active\":[\"A\"]}","browser":true,"time":1792939078929,"taskId":"-1594086377_0","type":"stdout","size":72}}
+{"hook":"console","log":{"content":"BROWSER_FIXTURE:{\"phase\":\"A-end\",\"id\":1,\"active\":[\"A\"]}","browser":true,"time":1792939078929,"taskId":"-1594086377_0","type":"stdout","size":55}}
+{"hook":"console","log":{"content":"BROWSER_FIXTURE:{\"phase\":\"cleanup\",\"scope\":\"test\",\"id\":1}","browser":true,"time":1792939078930,"taskId":"-1594086377_0","type":"stdout","size":57}}
+{"hook":"console","log":{"content":"BROWSER_FIXTURE:{\"phase\":\"setup\",\"scope\":\"test\",\"id\":2}","browser":true,"time":1792939078930,"taskId":"-1594086377_1","type":"stdout","size":55}}
+{"hook":"console","log":{"content":"BROWSER_FIXTURE:{\"phase\":\"B-start\",\"id\":2,\"closed\":false,\"active\":[\"B\"]}","browser":true,"time":1792939078930,"taskId":"-1594086377_1","type":"stdout","size":72}}
+{"hook":"console","log":{"content":"BROWSER_FIXTURE:{\"phase\":\"B-end\",\"id\":2,\"aClosed\":true,\"active\":[\"B\"]}","browser":true,"time":1792939078930,"taskId":"-1594086377_1","type":"stdout","size":70}}
+{"hook":"console","log":{"content":"BROWSER_FIXTURE:{\"phase\":\"cleanup\",\"scope\":\"test\",\"id\":2}","browser":true,"time":1792939078930,"taskId":"-1594086377_1","type":"stdout","size":57}}
+{"hook":"ready","id":"-1594086377_0","name":"fixture A","result":{"state":"passed"}}
+{"hook":"case","id":"-1594086377_0","name":"fixture A","result":{"state":"passed","errors":[]}}
+{"hook":"ready","id":"-1594086377_1","name":"fixture B","result":{"state":"passed"}}
+{"hook":"case","id":"-1594086377_1","name":"fixture B","result":{"state":"passed","errors":[]}}
+{"hook":"end","reason":"passed","errors":[],"files":[{"id":"-1594086377","state":"passed","tests":[{"id":"-1594086377_0","name":"fixture A","result":{"state":"passed","errors":[]}},{"id":"-1594086377_1","name":"fixture B","result":{"state":"passed","errors":[]}}]}]}

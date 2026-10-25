@@ -1,0 +1,175 @@
+{
+  "referenceVersion": "5.0.4",
+  "sourceSHA256": {
+    "package.json.txt": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+    "subject.mjs.txt": "fce82f4c8897b6f0ab4e35910e4c833a7dbccb365e310891f2e4f2f144ef1d6e",
+    "aliased.mjs.txt": "43d73f34b8cb473b61cf7436cf309add5df09ecf3bc4cf37147228cd4c3c5b44",
+    "root-setup.mjs.txt": "d6aeb84f4cb9468f5c036f124b2c04963fcf7db46cba8328225ea3c441304a71",
+    "child-setup.mjs.txt": "5fba506f55061e5d409087f617c8cf989919bb4135f07491fb61160b3b5d6d08",
+    "contract.case.mjs.txt": "b8c568a935fdebc054cbc6580c6e100a6476d216256ddcccf9d5350aefcc8fef",
+    "real-package/package.json.txt": "4af5ab2dfb2ed5fa8cce27ac0a46db06b5ed4db22c78fa937e99bb2cd8de9ece",
+    "real-package/index.mjs.txt": "9b88244ea409407b25029d0702cc90e5a43476ea96af6171a53a471839fd674d"
+  },
+  "profiles": [
+    {
+      "kind": "compiler",
+      "flag": "omitted",
+      "exit": 0,
+      "cases": [
+        {
+          "name": "inline inheritance contract",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "observations": [
+        {
+          "value": 9,
+          "aliasValue": 99,
+          "rootSetup": 0,
+          "childSetup": 0,
+          "env": null,
+          "rootProvide": 5,
+          "childProvide": 7,
+          "taskTimeout": 789
+        }
+      ],
+      "transforms": [
+        {
+          "target": "subject.mjs",
+          "value": 9
+        }
+      ]
+    },
+    {
+      "kind": "compiler",
+      "flag": "true",
+      "exit": 0,
+      "cases": [
+        {
+          "name": "inline inheritance contract",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "observations": [
+        {
+          "value": 9,
+          "aliasValue": 99,
+          "rootSetup": 0,
+          "childSetup": 0,
+          "env": null,
+          "rootProvide": 5,
+          "childProvide": 7,
+          "taskTimeout": 789
+        }
+      ],
+      "transforms": [
+        {
+          "target": "subject.mjs",
+          "value": 9
+        }
+      ]
+    },
+    {
+      "kind": "compiler",
+      "flag": "false",
+      "exit": 0,
+      "cases": [
+        {
+          "name": "inline inheritance contract",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "observations": [
+        {
+          "value": 1,
+          "aliasValue": 1,
+          "rootSetup": 0,
+          "childSetup": 0,
+          "env": null,
+          "rootProvide": 5,
+          "childProvide": 7,
+          "taskTimeout": 5000
+        }
+      ],
+      "transforms": []
+    },
+    {
+      "kind": "settings",
+      "flag": "omitted",
+      "exit": 0,
+      "cases": [
+        {
+          "name": "inline inheritance contract",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "observations": [
+        {
+          "value": 1,
+          "aliasValue": 1,
+          "rootSetup": 1,
+          "childSetup": 1,
+          "env": null,
+          "rootProvide": 5,
+          "childProvide": 7,
+          "taskTimeout": 789
+        }
+      ],
+      "transforms": []
+    },
+    {
+      "kind": "settings",
+      "flag": "true",
+      "exit": 0,
+      "cases": [
+        {
+          "name": "inline inheritance contract",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "observations": [
+        {
+          "value": 1,
+          "aliasValue": 1,
+          "rootSetup": 1,
+          "childSetup": 1,
+          "env": null,
+          "rootProvide": 5,
+          "childProvide": 7,
+          "taskTimeout": 789
+        }
+      ],
+      "transforms": []
+    },
+    {
+      "kind": "settings",
+      "flag": "false",
+      "exit": 0,
+      "cases": [
+        {
+          "name": "inline inheritance contract",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "observations": [
+        {
+          "value": 1,
+          "aliasValue": 1,
+          "rootSetup": 0,
+          "childSetup": 1,
+          "env": null,
+          "rootProvide": 5,
+          "childProvide": 7,
+          "taskTimeout": 5000
+        }
+      ],
+      "transforms": []
+    }
+  ]
+}

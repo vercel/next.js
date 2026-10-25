@@ -1,0 +1,23 @@
+{
+  "rows": [
+    {
+      "group": "resolve",
+      "same": true,
+      "clicks": 1,
+      "native": true,
+      "constructor": true,
+      "prototype": true,
+      "ownNames": [],
+      "ownSymbols": []
+    }
+  ],
+  "cases": [
+    {
+      "name": "direct native Promise resolve starts the SDK action exactly once",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "success": true,
+  "exit": 0
+}

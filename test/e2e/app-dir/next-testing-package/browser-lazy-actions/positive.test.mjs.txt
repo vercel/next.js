@@ -1,0 +1,20 @@
+import { test, beforeAll, afterAll } from 'vitest'
+import { page, userEvent } from 'vitest/browser'
+const row = (phase, fields = {}) => console.log('BROWSER_HOOK_SEQUENCE:' + JSON.stringify({phase, ...fields}))
+let button, input, clicks = 0, keydowns = 0
+beforeAll(() => { button = document.createElement('button'); button.textContent = 'Serial target'; button.id = 'serial-target'; button.onclick = () => { clicks++ }; input = document.createElement('input'); input.id = 'serial-input'; input.onkeydown = () => { keydowns++ }; document.body.append(button,input) })
+afterAll(() => { button.remove(); input.remove() })
+test('serial cached actions and ensureAwaited', async context => {
+  const trace = []; let queue
+  Object.defineProperty(context.task, 'onFinished', {configurable:true,get() { trace.push(['get',Array.isArray(queue)?'array':typeof queue]); return queue },set(value) { trace.push(['set',Array.isArray(value)?'array':typeof value]); queue = value }})
+  const action = page.getByRole('button',{name:'Serial target',exact:true}).click()
+  row('created-action', {clicks,tag:Object.prototype.toString.call(action),native:action instanceof Promise,trace:[...trace],guardName:queue.at(-1).name,guardLength:queue.at(-1).length})
+  await Promise.all([action.then(()=>{}),action.catch(()=>{}),action.finally(()=>{})])
+  row('one-click', {clicks})
+  input.focus()
+  const before = queue.length
+  const keyboard = userEvent.keyboard('a')
+  row('created-keyboard', {keydowns,tag:Object.prototype.toString.call(keyboard),native:keyboard instanceof Promise,ownNames:Object.getOwnPropertyNames(keyboard),guardDelta:queue.length-before})
+  await Promise.all([keyboard.then(()=>{}),keyboard.catch(()=>{}),keyboard.finally(()=>{})])
+  row('one-keyboard', {value:input.value,keydowns})
+})

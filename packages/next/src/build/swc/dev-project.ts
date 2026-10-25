@@ -19,6 +19,7 @@ export async function createDevTurbopackProject({
   fsChecker,
   serverFastRefresh,
   browserFixtureHost,
+  captureNodejsDefineEnvKeys,
 }: {
   projectPath: string
   nextConfig: NextConfigComplete
@@ -29,6 +30,8 @@ export async function createDevTurbopackProject({
   }
   serverFastRefresh?: boolean
   browserFixtureHost?: BrowserFixtureHost
+  /** Private names-only observation of the same map passed to the native project. */
+  captureNodejsDefineEnvKeys?: true
 }) {
   const dev = true
   const buildId = 'development'
@@ -100,6 +103,9 @@ export async function createDevTurbopackProject({
     nextVersion: process.env.__NEXT_VERSION as string,
     serverHmr: serverFastRefresh,
   }
+  const nodejsDefineEnvKeys = captureNodejsDefineEnvKeys
+    ? Object.freeze(projectOptions.defineEnv.nodejs.map(({ name }) => name))
+    : undefined
   const nativeProjectPaths = Object.freeze({
     rootPath: projectOptions.rootPath,
     projectPath: projectOptions.projectPath,
@@ -116,5 +122,10 @@ export async function createDevTurbopackProject({
   for (const issue of projectResult.issues) {
     printNonFatalIssue(issue)
   }
-  return { project: projectResult.value, encryptionKey, nativeProjectPaths }
+  return {
+    project: projectResult.value,
+    encryptionKey,
+    nativeProjectPaths,
+    ...(nodejsDefineEnvKeys ? { nodejsDefineEnvKeys } : {}),
+  }
 }

@@ -1,0 +1,20 @@
+{
+  "rows": [
+    {
+      "phase": "released"
+    },
+    {
+      "phase": "complete",
+      "clicks": 1
+    }
+  ],
+  "cases": [
+    {
+      "name": "same body native actions cooperate",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "success": true,
+  "exit": 0
+}

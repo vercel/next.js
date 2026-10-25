@@ -12,6 +12,7 @@ export interface ClientDeclaration {
   parentId: string | null
   name: string
   mode: TestMode
+  concurrent?: boolean
 }
 
 export interface ClientDeclaredCase {
@@ -21,6 +22,7 @@ export interface ClientDeclaredCase {
   ancestors: { id: string; name: string }[]
   suiteId: string
   mode: 'run' | 'skip' | 'todo'
+  concurrent?: boolean
 }
 
 export interface ClientDeclaredSuite {
@@ -32,7 +34,10 @@ export interface ClientDeclaredSuite {
 }
 
 /** Copy declaration facts only after the real collector has closed. */
-export function clientDeclarations(root: TestSuite): ClientDeclaration[] {
+export function clientDeclarations(
+  root: TestSuite,
+  caseScheduling?: 'concurrent-v1'
+): ClientDeclaration[] {
   const declarations: ClientDeclaration[] = []
   function visit(task: TestSuite | TestCase) {
     declarations.push({
@@ -41,6 +46,9 @@ export function clientDeclarations(root: TestSuite): ClientDeclaration[] {
       parentId: task.suite?.id ?? null,
       name: task.name,
       mode: task.mode,
+      ...(caseScheduling === 'concurrent-v1'
+        ? { concurrent: task.options.concurrent === true }
+        : {}),
     })
     if (task.type === 'suite') for (const child of task.children) visit(child)
   }
@@ -52,7 +60,11 @@ export function clientDeclarations(root: TestSuite): ClientDeclaration[] {
 export function resolveClientDeclarations(
   declarations: unknown,
   entryId: string,
-  options: { testNamePattern?: string | RegExp; allowOnly?: boolean }
+  options: {
+    testNamePattern?: string | RegExp
+    allowOnly?: boolean
+    caseScheduling?: 'concurrent-v1'
+  }
 ) {
   const invalid = () =>
     new Error('Invalid Browser Mode collected declarations.')
@@ -68,13 +80,25 @@ export function resolveClientDeclarations(
       typeof declaration !== 'object' ||
       Array.isArray(declaration) ||
       Object.keys(declaration).some(
-        (key) => !['type', 'id', 'parentId', 'name', 'mode'].includes(key)
+        (key) =>
+          ![
+            'type',
+            'id',
+            'parentId',
+            'name',
+            'mode',
+            ...(options.caseScheduling === 'concurrent-v1'
+              ? ['concurrent']
+              : []),
+          ].includes(key)
       ) ||
       !['suite', 'test'].includes(declaration.type) ||
       typeof declaration.id !== 'string' ||
       tasks.has(declaration.id) ||
       typeof declaration.name !== 'string' ||
-      !['run', 'skip', 'todo', 'only'].includes(declaration.mode)
+      !['run', 'skip', 'todo', 'only'].includes(declaration.mode) ||
+      (options.caseScheduling === 'concurrent-v1' &&
+        typeof declaration.concurrent !== 'boolean')
     )
       throw invalid()
     const parent = suites.get(declaration.parentId)
@@ -102,7 +126,10 @@ export function resolveClientDeclarations(
             mode: declaration.mode,
             suite: parent,
             children: [],
-            options: {},
+            options:
+              options.caseScheduling === 'concurrent-v1'
+                ? { concurrent: declaration.concurrent }
+                : {},
             meta: {},
             tags: [],
             hooks: {
@@ -120,7 +147,10 @@ export function resolveClientDeclarations(
             name: declaration.name,
             mode: declaration.mode,
             suite: parent!,
-            options: {},
+            options:
+              options.caseScheduling === 'concurrent-v1'
+                ? { concurrent: declaration.concurrent }
+                : {},
             fixtures: {},
             meta: {},
             tags: [],
@@ -172,6 +202,9 @@ export function resolveClientDeclarations(
         .map(({ id, name }) => ({ id, name })),
       suiteId: test.suite.id,
       mode,
+      ...(options.caseScheduling === 'concurrent-v1'
+        ? { concurrent: test.options.concurrent === true }
+        : {}),
     })
   }
   for (const suite of suites.values()) {

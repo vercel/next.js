@@ -1,0 +1,116 @@
+{
+  "rows": [
+    {
+      "value": {
+        "phase": "A-start",
+        "active": ["A"]
+      },
+      "task": "native B"
+    },
+    {
+      "value": {
+        "phase": "B-start",
+        "active": ["A", "B"]
+      },
+      "task": "native B"
+    },
+    {
+      "value": {
+        "phase": "A-requested",
+        "active": ["A", "B"],
+        "finished": {
+          "a": 0,
+          "b": 1
+        }
+      },
+      "task": "native B"
+    },
+    {
+      "value": {
+        "phase": "B-before-native",
+        "finished": {
+          "a": 0,
+          "b": 1
+        }
+      },
+      "task": "native B"
+    },
+    {
+      "value": {
+        "phase": "B-native-done",
+        "clicksA": 0,
+        "clicksB": 1,
+        "finished": {
+          "a": 0,
+          "b": 2
+        }
+      },
+      "task": "native B"
+    },
+    {
+      "value": {
+        "phase": "A-end",
+        "clicksA": 1,
+        "clicksB": 1,
+        "finished": {
+          "a": 0,
+          "b": 2
+        }
+      },
+      "task": "native B"
+    },
+    {
+      "value": {
+        "phase": "B-end",
+        "clicksA": 1,
+        "clicksB": 1
+      },
+      "task": "<file>"
+    }
+  ],
+  "cases": [
+    {
+      "name": "native A",
+      "status": "failed",
+      "failureMessages": ["original native concurrent failure"]
+    },
+    {
+      "name": "native B",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "caseFinals": [
+    {
+      "name": "native A",
+      "state": "failed"
+    },
+    {
+      "name": "native B",
+      "state": "passed"
+    }
+  ],
+  "runFinals": [
+    {
+      "reason": "failed",
+      "errors": [],
+      "files": [
+        {
+          "state": "failed",
+          "tests": [
+            {
+              "name": "native A",
+              "state": "failed"
+            },
+            {
+              "name": "native B",
+              "state": "passed"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "success": false,
+  "exit": 1
+}

@@ -155,4 +155,169 @@ describe('next-testing-package', () => {
       }
     }, 600000)
   }
+
+  if (isNextDev && isTurbopack) {
+    it('matches genuine lazy Browser action shapes, await guards and consumption in the installed package', async () => {
+      const temporary = await mkdtemp(
+        join(tmpdir(), 'next-browser-lazy-actions-')
+      )
+      try {
+        const evidence = join(temporary, 'evidence')
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'verify-browser-lazy-actions.mjs'),
+            next.testDir,
+            evidence,
+            'chromium',
+          ],
+          { timeout: 240000, maxBuffer: 1024 * 1024 }
+        )
+        const verified = JSON.parse(
+          await readFile(join(evidence, 'verified.json'), 'utf8')
+        )
+        expect(verified.profiles).toBe(8)
+        expect(verified.cases).toBe(10)
+        expect(verified.allAuthoredRowsAndCaseStatesMatch).toBe(true)
+        expect(verified.actualGuardErrorNamesMessagesMatch).toBe(true)
+        expect(verified.allOwnersClosed).toBe(true)
+        expect(verified.allInputsRemovedAfterOwnedReadersJoined).toBe(true)
+      } finally {
+        await rm(temporary, { recursive: true, force: true })
+      }
+    }, 300000)
+  }
+
+  if (isNextDev && isTurbopack) {
+    it('matches genuine cooperating native Browser Promise calls and retained ownership in the installed package', async () => {
+      const temporary = await mkdtemp(
+        join(tmpdir(), 'next-browser-native-promise-')
+      )
+      try {
+        const evidence = join(temporary, 'evidence')
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'verify-browser-native-promise-calls.mjs'),
+            next.testDir,
+            evidence,
+            'chromium',
+          ],
+          { timeout: 240000, maxBuffer: 1024 * 1024 }
+        )
+        const verified = JSON.parse(
+          await readFile(join(evidence, 'verified.json'), 'utf8')
+        )
+        expect(verified.profiles).toBe(8)
+        expect(verified.cases).toBe(10)
+        expect(verified.authoredRows).toBe(22)
+        expect(verified.fullAuthoredProjectionsExact).toBe(true)
+        expect(verified.ordinarySerialCLI).toBe(true)
+        expect(verified.allOwnersClosed).toBe(true)
+        expect(verified.allInputsRemovedAfterOwnedReadersJoined).toBe(true)
+      } finally {
+        await rm(temporary, { recursive: true, force: true })
+      }
+    }, 300000)
+  }
+  if (isNextDev && isTurbopack) {
+    it('matches genuine public Browser concurrency, native ownership and limits in the installed package', async () => {
+      const temporary = await mkdtemp(
+        join(tmpdir(), 'next-browser-concurrency-')
+      )
+      try {
+        const evidence = join(temporary, 'evidence')
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'verify-browser-public-concurrency.mjs'),
+            next.testDir,
+            evidence,
+            'chromium',
+            'representative',
+          ],
+          { timeout: 480000, maxBuffer: 1024 * 1024 }
+        )
+        const verified = JSON.parse(
+          await readFile(join(evidence, 'verified.json'), 'utf8')
+        )
+        expect(verified.profiles).toBe(8)
+        expect(verified.cases).toBe(16)
+        expect(verified.authoredRows).toBe(45)
+        expect(verified.fullAuthoredProjectionsExact).toBe(true)
+        expect(verified.publicBrowserConcurrencyCLI).toBe(true)
+        expect(verified.wholeCustomErrorOrReadyEqualityClaim).toBe(false)
+        expect(verified.allOwnersClosed).toBe(true)
+        expect(verified.allInputsRemovedAfterOwnedReadersJoined).toBe(true)
+      } finally {
+        await rm(temporary, { recursive: true, force: true })
+      }
+    }, 540000)
+  }
+  if (isNextDev && isTurbopack) {
+    it('matches genuine plain Browser fixture lifetimes and concurrent resource identity in the installed package', async () => {
+      const temporary = await mkdtemp(join(tmpdir(), 'next-browser-fixtures-'))
+      try {
+        const evidence = join(temporary, 'evidence')
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'verify-browser-plain-fixtures.mjs'),
+            next.testDir,
+            evidence,
+            'chromium',
+            'representative',
+          ],
+          { timeout: 480000, maxBuffer: 1024 * 1024 }
+        )
+        const verified = JSON.parse(
+          await readFile(join(evidence, 'verified.json'), 'utf8')
+        )
+        expect(verified.profiles).toBe(8)
+        expect(verified.cases).toBe(20)
+        expect(verified.authoredRows).toBe(56)
+        expect(verified.fullAuthoredProjectionsExact).toBe(true)
+        expect(verified.plainBrowserFixturesCLI).toBe(true)
+        expect(verified.wholeCustomErrorOrReadyEqualityClaim).toBe(false)
+        expect(verified.allOwnersClosed).toBe(true)
+        expect(verified.allInputsRemovedAfterOwnedReadersJoined).toBe(true)
+      } finally {
+        await rm(temporary, { recursive: true, force: true })
+      }
+    }, 540000)
+  }
+  if (isNextDev && isTurbopack) {
+    it('matches genuine native Browser fixture setup and teardown through the installed CLI', async () => {
+      const temporary = await mkdtemp(
+        join(tmpdir(), 'next-browser-native-fixtures-')
+      )
+      try {
+        const evidence = join(temporary, 'evidence')
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'verify-browser-native-fixtures.mjs'),
+            next.testDir,
+            evidence,
+            'chromium',
+            'representative',
+          ],
+          { timeout: 480000, maxBuffer: 1024 * 1024 }
+        )
+        const verified = JSON.parse(
+          await readFile(join(evidence, 'verified.json'), 'utf8')
+        )
+        expect(verified.profiles).toBe(8)
+        expect(verified.cases).toBe(16)
+        expect(verified.authoredRows).toBe(54)
+        expect(verified.fullAuthoredProjectionsExact).toBe(true)
+        expect(verified.nativeBrowserFixturesCLI).toBe(true)
+        expect(verified.wholeCustomErrorOrReadyEqualityClaim).toBe(false)
+        expect(verified.allOwnersClosed).toBe(true)
+        expect(verified.allInputsRemovedAfterOwnedReadersJoined).toBe(true)
+      } finally {
+        await rm(temporary, { recursive: true, force: true })
+      }
+    }, 540000)
+  }
 })

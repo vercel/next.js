@@ -1,0 +1,959 @@
+{
+  "reference": "Vitest5.0.4 actual default/two-worker Istanbul runs; unchanged bodies and causal filesystem barrier",
+  "rows": [
+    {
+      "name": "default",
+      "sourceFiles": {
+        "contract.test.mjs": {
+          "source": "import { test, expect } from 'vitest'\nimport { choose } from './subject.mjs'\ntest('only true branch is executed', () => expect(choose(true)).toBe(1))\n",
+          "sha256": "66fd33264aa1a5f2dfdca26325436cecb291b6c28e42570c6a54c6ce6b6539c5"
+        },
+        "subject.mjs": {
+          "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
+          "sha256": "080ca8e12b1705b0a9e993d1c7956453465b4a31c42b2bc818d59d62da79c00c"
+        },
+        "unimported.mjs": {
+          "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
+          "sha256": "080ca8e12b1705b0a9e993d1c7956453465b4a31c42b2bc818d59d62da79c00c"
+        },
+        "fully.mjs": {
+          "source": "export function fully(value) { return value + 1 }\n",
+          "sha256": "b6e96cd95b5ae257577aaea9ed3ec8f51289d66e502646763aa460b688d4e570"
+        },
+        "full.test.mjs": {
+          "source": "import { test, expect } from 'vitest'\nimport { fully } from './fully.mjs'\ntest('fully covered control', () => expect(fully(2)).toBe(3))\n",
+          "sha256": "35abf182dccc2fc0f20a7affa97c09d64e8f7e92c840e6fb42978f602de28213"
+        },
+        "failed.case.mjs": {
+          "source": "import { test, expect } from 'vitest'\ntest('failed body still owns complete coverage', () => expect(1).toBe(2))\n",
+          "sha256": "339dcf066db033e5338f18c43c99a33a635a8fc40df6259004159cb299862fb7"
+        },
+        "package.json": {
+          "source": "{\"private\":true,\"type\":\"module\"}\n",
+          "sha256": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\",\"full.test.mjs\"],\"testTimeout\":10000,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\",\"fully.mjs\",\"unimported.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"]}}}\n",
+      "reports": {
+        "coverage-final.json": {
+          "fully.mjs": {
+            "path": "fully.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 31
+                },
+                "end": {
+                  "line": 1,
+                  "column": 47
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "fully",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 21
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 29
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": null
+                  }
+                }
+              }
+            },
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {}
+          },
+          "subject.mjs": {
+            "path": "subject.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 12
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              },
+              "3": {
+                "start": {
+                  "line": 6,
+                  "column": 2
+                },
+                "end": {
+                  "line": 6,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 29
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                }
+              },
+              "1": {
+                "name": "unused",
+                "decl": {
+                  "start": {
+                    "line": 5,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 5,
+                    "column": 25
+                  },
+                  "end": {
+                    "line": 7,
+                    "column": null
+                  }
+                }
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0,
+              "3": 0
+            },
+            "f": {
+              "0": 1,
+              "1": 0
+            },
+            "b": {
+              "0": [1, 0]
+            }
+          },
+          "unimported.mjs": {
+            "path": "unimported.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 12
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              },
+              "3": {
+                "start": {
+                  "line": 6,
+                  "column": 2
+                },
+                "end": {
+                  "line": 6,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 29
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                }
+              },
+              "1": {
+                "name": "unused",
+                "decl": {
+                  "start": {
+                    "line": 5,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 5,
+                    "column": 25
+                  },
+                  "end": {
+                    "line": 7,
+                    "column": null
+                  }
+                }
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 0,
+              "1": 0,
+              "2": 0,
+              "3": 0
+            },
+            "f": {
+              "0": 0,
+              "1": 0
+            },
+            "b": {
+              "0": [0, 0]
+            }
+          }
+        },
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 7,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 28.57
+            },
+            "statements": {
+              "total": 9,
+              "covered": 3,
+              "skipped": 0,
+              "pct": 33.33
+            },
+            "functions": {
+              "total": 5,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 40
+            },
+            "branches": {
+              "total": 4,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 25
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": "Unknown"
+            }
+          },
+          "fully.mjs": {
+            "lines": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "subject.mjs": {
+            "lines": {
+              "total": 3,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 33.33
+            },
+            "functions": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "statements": {
+              "total": 4,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            }
+          },
+          "unimported.mjs": {
+            "lines": {
+              "total": 3,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "functions": {
+              "total": 2,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "statements": {
+              "total": 4,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "branches": {
+              "total": 2,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:fully.mjs\nFN:1,fully\nFNF:1\nFNH:1\nFNDA:1,fully\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,0\nDA:6,0\nLF:3\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\nTN:\nSF:unimported.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:6,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record\n"
+      },
+      "cases": [
+        {
+          "file": "contract.test.mjs",
+          "status": "passed",
+          "message": "",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "only true branch is executed",
+              "status": "passed",
+              "title": "only true branch is executed",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        },
+        {
+          "file": "full.test.mjs",
+          "status": "passed",
+          "message": "",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "fully covered control",
+              "status": "passed",
+              "title": "fully covered control",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        }
+      ],
+      "actualParallelBarrier": false
+    },
+    {
+      "name": "two-workers",
+      "sourceFiles": {
+        "contract.test.mjs": {
+          "source": "import { test, expect } from 'vitest'\nimport { choose } from './subject.mjs'\ntest('only true branch is executed', () => expect(choose(true)).toBe(1))\n",
+          "sha256": "66fd33264aa1a5f2dfdca26325436cecb291b6c28e42570c6a54c6ce6b6539c5"
+        },
+        "subject.mjs": {
+          "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
+          "sha256": "080ca8e12b1705b0a9e993d1c7956453465b4a31c42b2bc818d59d62da79c00c"
+        },
+        "unimported.mjs": {
+          "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
+          "sha256": "080ca8e12b1705b0a9e993d1c7956453465b4a31c42b2bc818d59d62da79c00c"
+        },
+        "fully.mjs": {
+          "source": "export function fully(value) { return value + 1 }\n",
+          "sha256": "b6e96cd95b5ae257577aaea9ed3ec8f51289d66e502646763aa460b688d4e570"
+        },
+        "full.test.mjs": {
+          "source": "import { test, expect } from 'vitest'\nimport { fully } from './fully.mjs'\ntest('fully covered control', () => expect(fully(2)).toBe(3))\n",
+          "sha256": "35abf182dccc2fc0f20a7affa97c09d64e8f7e92c840e6fb42978f602de28213"
+        },
+        "failed.case.mjs": {
+          "source": "import { test, expect } from 'vitest'\ntest('failed body still owns complete coverage', () => expect(1).toBe(2))\n",
+          "sha256": "339dcf066db033e5338f18c43c99a33a635a8fc40df6259004159cb299862fb7"
+        },
+        "package.json": {
+          "source": "{\"private\":true,\"type\":\"module\"}\n",
+          "sha256": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428"
+        },
+        "a.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {writeFileSync,existsSync,watchFile,unwatchFile} from 'node:fs'\nimport {choose} from './subject.mjs'\ntest('actual parallel a',async()=>{writeFileSync('ready-a','entered');await new Promise(resolve=>{const peer='ready-b';const check=()=>{if(existsSync(peer)){unwatchFile(peer,check);resolve()}};watchFile(peer,{interval:10,persistent:false},check);check()});expect(choose(true)).toBe(1)})\n",
+          "sha256": "5d836b1d1a31a52be9525e28f15757219599a9a1235094e483d2e6582936783a"
+        },
+        "b.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {writeFileSync,existsSync,watchFile,unwatchFile} from 'node:fs'\nimport {choose} from './subject.mjs'\ntest('actual parallel b',async()=>{writeFileSync('ready-b','entered');await new Promise(resolve=>{const peer='ready-a';const check=()=>{if(existsSync(peer)){unwatchFile(peer,check);resolve()}};watchFile(peer,{interval:10,persistent:false},check);check()});expect(choose(false)).toBe(0)})\n",
+          "sha256": "344d98c33bb33106acecdd20c47d86e7cf55f5eae4729c71b1bed76e2c980dc2"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"a.test.mjs\",\"b.test.mjs\"],\"maxWorkers\":2,\"testTimeout\":10000,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\",\"unimported.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"]}}}\n",
+      "reports": {
+        "coverage-final.json": {
+          "subject.mjs": {
+            "path": "subject.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 12
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              },
+              "3": {
+                "start": {
+                  "line": 6,
+                  "column": 2
+                },
+                "end": {
+                  "line": 6,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 29
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                }
+              },
+              "1": {
+                "name": "unused",
+                "decl": {
+                  "start": {
+                    "line": 5,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 5,
+                    "column": 25
+                  },
+                  "end": {
+                    "line": 7,
+                    "column": null
+                  }
+                }
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 2,
+              "1": 1,
+              "2": 1,
+              "3": 0
+            },
+            "f": {
+              "0": 2,
+              "1": 0
+            },
+            "b": {
+              "0": [1, 1]
+            }
+          },
+          "unimported.mjs": {
+            "path": "unimported.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 12
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              },
+              "3": {
+                "start": {
+                  "line": 6,
+                  "column": 2
+                },
+                "end": {
+                  "line": 6,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 29
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                }
+              },
+              "1": {
+                "name": "unused",
+                "decl": {
+                  "start": {
+                    "line": 5,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 5,
+                    "column": 25
+                  },
+                  "end": {
+                    "line": 7,
+                    "column": null
+                  }
+                }
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 0,
+              "1": 0,
+              "2": 0,
+              "3": 0
+            },
+            "f": {
+              "0": 0,
+              "1": 0
+            },
+            "b": {
+              "0": [0, 0]
+            }
+          }
+        },
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 6,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 33.33
+            },
+            "statements": {
+              "total": 8,
+              "covered": 3,
+              "skipped": 0,
+              "pct": 37.5
+            },
+            "functions": {
+              "total": 4,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 25
+            },
+            "branches": {
+              "total": 4,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": "Unknown"
+            }
+          },
+          "subject.mjs": {
+            "lines": {
+              "total": 3,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 66.66
+            },
+            "functions": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "statements": {
+              "total": 4,
+              "covered": 3,
+              "skipped": 0,
+              "pct": 75
+            },
+            "branches": {
+              "total": 2,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "unimported.mjs": {
+            "lines": {
+              "total": 3,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "functions": {
+              "total": 2,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "statements": {
+              "total": 4,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "branches": {
+              "total": 2,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:2,choose\nFNDA:0,unused\nDA:2,2\nDA:3,1\nDA:6,0\nLF:3\nLH:2\nBRDA:2,0,0,1\nBRDA:2,0,1,1\nBRF:2\nBRH:2\nend_of_record\nTN:\nSF:unimported.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:6,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record\n"
+      },
+      "cases": [
+        {
+          "file": "a.test.mjs",
+          "status": "passed",
+          "message": "",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "actual parallel a",
+              "status": "passed",
+              "title": "actual parallel a",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        },
+        {
+          "file": "b.test.mjs",
+          "status": "passed",
+          "message": "",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "actual parallel b",
+              "status": "passed",
+              "title": "actual parallel b",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        }
+      ],
+      "actualParallelBarrier": true
+    }
+  ]
+}

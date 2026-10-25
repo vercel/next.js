@@ -7675,6 +7675,7 @@ for (const [target, rows] of [
   ['runtime-registration-leaf-tla-order', 8],
   ['runtime-registration-two-tla-order', 8],
   ['runtime-registration-original-adoption', 3],
+  ['runtime-registration-completed-attempt', 4],
   ['runtime-registration-builtin-transitions', 6],
   ['runtime-registration-esm-demand-literal-v5', 1],
   ['runtime-registration-leaf-object-invalidation-v1', 2],
@@ -8527,3 +8528,113 @@ it('retains native import source order for one ordinary runtime factory root', (
   expect(actual.cases).toHaveLength(1)
   expect(actual.rows).toHaveLength(1)
 }, 140000)
+
+it.each([
+  { group: 'cjs-flat-object-control-dependency-reset', mode: 'development' },
+  { group: 'cjs-flat-object-control-dependency-reset', mode: 'production' },
+  {
+    group: 'cjs-binding-object-shorthand-default-dependency-reset',
+    mode: 'development',
+  },
+  {
+    group: 'cjs-binding-object-shorthand-default-dependency-reset',
+    mode: 'production',
+  },
+  {
+    group: 'cjs-anonymous-object-shorthand-default-dependency-reset',
+    mode: 'development',
+  },
+  {
+    group: 'cjs-anonymous-object-shorthand-default-dependency-reset',
+    mode: 'production',
+  },
+])(
+  'retains ordinary CommonJS object shorthand defaults and controls: $group/$mode',
+  ({ group, mode }) => {
+    const { execFileSync } = require('node:child_process')
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'external-package-integration.cjs'), group, mode],
+        { encoding: 'utf8', timeout: 135000 }
+      )
+    )
+    expect(actual.close).toEqual({ code: 0, signal: null })
+    expect(actual.cases).toHaveLength(3)
+    expect(actual.rows).toHaveLength(3)
+  },
+  140000
+)
+
+it.each([
+  {
+    group: 'cjs-named-flat-object-self-control-reset',
+    mode: 'development',
+  },
+  {
+    group: 'cjs-named-flat-object-self-control-reset',
+    mode: 'production',
+  },
+  {
+    group: 'cjs-named-object-shorthand-default-dependency-reset',
+    mode: 'development',
+  },
+  {
+    group: 'cjs-named-object-shorthand-default-dependency-reset',
+    mode: 'production',
+  },
+  {
+    group: 'cjs-named-object-shorthand-self-default-reset',
+    mode: 'development',
+  },
+  {
+    group: 'cjs-named-object-shorthand-self-default-reset',
+    mode: 'production',
+  },
+  {
+    group: 'cjs-named-object-shorthand-literal-default-reset',
+    mode: 'development',
+  },
+  {
+    group: 'cjs-named-object-shorthand-literal-default-reset',
+    mode: 'production',
+  },
+])(
+  'retains named CommonJS shorthand defaults, self identity and descriptors: $group/$mode',
+  ({ group, mode }) => {
+    const { execFileSync } = require('node:child_process')
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'external-package-integration.cjs'), group, mode],
+        { encoding: 'utf8', timeout: 135000 }
+      )
+    )
+    expect(actual.close).toEqual({ code: 0, signal: null })
+    expect(actual.cases).toHaveLength(3)
+    expect(actual.rows).toHaveLength(3)
+  },
+  140000
+)
+
+it.each(['development', 'production'] as const)(
+  'retains the original named CommonJS return-one default literal in %s',
+  (mode) => {
+    const { execFileSync } = require('node:child_process')
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'external-package-integration.cjs'),
+          'cjs-named-object-shorthand-return-one-default-reset',
+          mode,
+        ],
+        { encoding: 'utf8', timeout: 135000 }
+      )
+    )
+    expect(actual.close).toEqual({ code: 0, signal: null })
+    expect(actual.cases).toHaveLength(3)
+    expect(actual.rows).toHaveLength(3)
+  },
+  140000
+)

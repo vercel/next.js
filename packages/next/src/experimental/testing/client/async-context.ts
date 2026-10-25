@@ -1,6 +1,7 @@
 import type { AttemptContext, SuiteHookContext } from '../runner/lifecycle'
 import { continueNative } from './native-continuation'
 import { isExactNativePromise } from './engine-brand-contract'
+import type { ClientCommandAttemptOrigin } from './protocol'
 
 type Owner =
   | { kind: 'attempt'; context: AttemptContext }
@@ -87,7 +88,9 @@ function bind<T extends Function>(callback: T, scope = active): T {
  * compiler-owned native continuation bridge retains native await.
  */
 export const NativePromise = Promise
-export const nativePromiseResolve = Promise.resolve.bind(Promise)
+export const nativePromiseResolveFunction = Promise.resolve
+export const nativePromiseAll = Promise.all
+export const nativePromiseResolve = nativePromiseResolveFunction.bind(Promise)
 export const nativePromiseThen = Promise.prototype.then
 const nativeThen = nativePromiseThen
 const settled = nativePromiseResolve()
@@ -512,10 +515,15 @@ export function invokeClientAttempt<T>(
   return callback()
 }
 export function assertBrowserApiScope(
-  kind: 'declaration' | 'assertion' | 'utility'
+  kind: 'declaration' | 'assertion' | 'utility' | 'browser-native'
 ) {
   const scope = kind === 'assertion' && assertionFileOpen ? active : current()
-  if (scope && ['attempt', 'collection', 'hook'].includes(scope.kind)) {
+  if (
+    scope &&
+    (['attempt', 'collection', 'hook'].includes(scope.kind) ||
+      (kind === 'browser-native' &&
+        ['file-fixtures', 'worker-fixtures'].includes(scope.kind)))
+  ) {
     if (kind === 'declaration' && scope.kind !== 'collection')
       throw new Error(
         'Browser Mode declarations require the active collection owner.'
@@ -599,6 +607,55 @@ export function captureAsyncScope() {
         current()
         return callback()
       })
+    },
+  }
+}
+
+// Completed-attempt compiler continuations are currently admitted only in Node.
+export const assertCompilerScopeActive = assertScopeActive
+export const captureCompilerAsyncScope = captureAsyncScope
+
+export interface ClientCommandAdmission {
+  readonly origin: ClientCommandAttemptOrigin
+  bind(operation: Promise<unknown>): void
+  query<T>(operation: Promise<unknown>, privatePureQuery: () => T): T
+  finish(operation: Promise<unknown>): void
+}
+
+/** A started native operation keeps its origin without reopening that scope. */
+export function captureClientCommandAdmission():
+  | ClientCommandAdmission
+  | undefined {
+  assertBrowserApiScope('browser-native')
+  const scope = current()
+  if (scope?.kind !== 'attempt') return undefined
+  const context = scope.context
+  const origin: ClientCommandAttemptOrigin = {
+    fileId: context.fileId,
+    caseId: context.testId,
+    attempt: { id: context.id, retry: context.retry, repeat: context.repeat },
+  }
+  let bound: Promise<unknown> | undefined
+  let finished = false
+  const assertOperation = (operation: Promise<unknown>) => {
+    if (!bound || bound !== operation || finished)
+      throw new Error('Invalid Browser Mode command operation.')
+  }
+  return {
+    origin,
+    bind(operation) {
+      if (bound || finished)
+        throw new Error('Browser Mode command operation was already bound.')
+      bound = operation
+    },
+    query(operation, privatePureQuery) {
+      assertOperation(operation)
+      context.signal.throwIfAborted()
+      return runInScope(scope, privatePureQuery)
+    },
+    finish(operation) {
+      assertOperation(operation)
+      finished = true
     },
   }
 }

@@ -5190,7 +5190,7 @@ it.each(['setup', 'setup-error', 'setup-dispose-error'])(
     const observed = JSON.parse(child.stdout.trim())
     expect(observed.restored).toBe(true)
     expect(observed.setupOrder.at(-1)).toBe('dispose')
-    expect(observed.trace).toEqual(['browser', 'file', 'mocks', 'context'])
+    expect(observed.trace).toEqual(['file', 'browser', 'mocks', 'context'])
   }
 )
 
@@ -6912,4 +6912,239 @@ describe('Browser locator element and query semantics', () => {
     )
     expect(result).toEqual({ mode, passed: true })
   })
+})
+
+describe('ordinary development Node project environment', () => {
+  it('retains genuine configured values through setup, cases and fixture disposal while keeping global setup and the parent unchanged', async () => {
+    const output = await fileSystem.mkdtemp(
+      path.join(tmpdir(), 'next-node-project-env-')
+    )
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          path.join(__dirname, 'project-env-reports.mjs'),
+          path.join(__dirname, '../../..'),
+          output,
+          '--source',
+        ],
+        {
+          encoding: 'utf8',
+          timeout: 120000,
+          env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+        }
+      )
+      expect(
+        JSON.parse(
+          await fileSystem.readFile(path.join(output, 'CHECKS.json'), 'utf8')
+        )
+      ).toMatchObject({
+        profiles: 3,
+        completeCasesRowsAndGlobalContextMatch: true,
+        actualWorkerExitRestoredHostValues: true,
+        parentEnvironmentUnchanged: true,
+        allOwnersJoined: true,
+        authoredBytesHeld: true,
+      })
+    } finally {
+      await fileSystem.rm(output, { recursive: true, force: true })
+    }
+  }, 125000)
+
+  it('records actual compiler define names only on requested executable Node artifacts and refuses collisions before authored evaluation', async () => {
+    const output = await fileSystem.mkdtemp(
+      path.join(tmpdir(), 'next-node-env-key-contract-')
+    )
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          path.join(__dirname, 'project-env-compiler-keys.cjs'),
+          path.join(__dirname, '../../..'),
+          output,
+          '--source',
+        ],
+        {
+          encoding: 'utf8',
+          timeout: 120000,
+          env: {
+            ...process.env,
+            NODE_ENV: 'development',
+            TURBO_TASKS_AVAILABLE_PARALLELISM: '4',
+          },
+        }
+      )
+      expect(
+        JSON.parse(
+          await fileSystem.readFile(path.join(output, 'CHECKS.json'), 'utf8')
+        )
+      ).toMatchObject({
+        actualNodeDefineNamesOnly: true,
+        valuesNotExposed: true,
+        snapshotsNotReusedFromAbsentSession: true,
+        compileOnlyArtifactsUnchanged: true,
+        collisions: [
+          {
+            name: 'NEXT_PUBLIC_ENV_KEY_FILE',
+            refusedBeforeSetupSpecAndBody: true,
+            ownersClosed: true,
+          },
+          {
+            name: 'WS2_COMPILER_KEY',
+            refusedBeforeSetupSpecAndBody: true,
+            ownersClosed: true,
+          },
+        ],
+        allSessionsDisposed: true,
+        sourceRoleAuthorityNotGranted: true,
+      })
+    } finally {
+      await fileSystem.rm(output, { recursive: true, force: true })
+    }
+  }, 125000)
+
+  it('rejects invalid runtime env profiles before evaluating any worker entry', async () => {
+    const { assertNodeProjectEnvironment } = await import(
+      'next/dist/experimental/testing/execution/project-env'
+    )
+    const profile = {
+      id: 'env',
+      environment: 'node' as const,
+      mode: 'development' as const,
+      runtime: 'nodejs' as const,
+      bundler: 'turbopack' as const,
+    }
+    const artifact = {
+      version: 2 as const,
+      kind: 'node' as const,
+      entryId: 'env:entry',
+      profile,
+      revision: 'env',
+      compilerEnvKeys: { version: 1 as const, names: ['process.env.NODE_ENV'] },
+      rootDir: '/unread',
+      entryPath: 'entry.cjs',
+      files: ['entry.cjs'],
+      diagnostics: [],
+    }
+    const options = {
+      entry: { id: artifact.entryId, file: '/unread/spec.mjs', profile },
+      env: { KEY: 'value' },
+    }
+    expect(() => assertNodeProjectEnvironment(artifact, options)).not.toThrow()
+    expect(() =>
+      assertNodeProjectEnvironment(
+        { ...artifact, compilerEnvKeys: undefined },
+        { ...options, env: undefined }
+      )
+    ).not.toThrow()
+    expect(() =>
+      assertNodeProjectEnvironment(
+        { ...artifact, compilerEnvKeys: undefined },
+        options
+      )
+    ).toThrow('actual compiler define-env key map')
+    expect(() =>
+      assertNodeProjectEnvironment(
+        {
+          ...artifact,
+          compilerEnvKeys: { version: 1, names: ['process.env.KEY'] },
+        },
+        options
+      )
+    ).toThrow('compiler-defined process.env.KEY')
+    expect(() =>
+      assertNodeProjectEnvironment(
+        { ...artifact, profile: { ...profile, mode: 'production' } },
+        {
+          ...options,
+          entry: {
+            ...options.entry,
+            profile: { ...profile, mode: 'production' },
+          },
+        }
+      )
+    ).not.toThrow()
+    expect(() =>
+      assertNodeProjectEnvironment(artifact, {
+        ...options,
+        env: { NODE_ENV: 'custom' },
+      })
+    ).toThrow('compiler-defined process.env.NODE_ENV')
+    expect(() =>
+      assertNodeProjectEnvironment(artifact, {
+        ...options,
+        env: { KEY: false } as any,
+      })
+    ).toThrow('env.KEY must be a string')
+  })
+})
+
+describe('ordinary production Node project environment', () => {
+  it.each([
+    ['complete lifecycle', 'project-env-reports.mjs'],
+    ['actual compiler key contract', 'project-env-compiler-keys.cjs'],
+  ])(
+    'retains the %s across actual production emission and file disposal',
+    async (_label, helper) => {
+      const output = await fileSystem.mkdtemp(
+        path.join(tmpdir(), 'next-production-node-env-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            path.join(__dirname, helper),
+            path.join(__dirname, '../../..'),
+            output,
+            '--source',
+            '--production',
+          ],
+          {
+            encoding: 'utf8',
+            timeout: 120000,
+            env: {
+              ...process.env,
+              NODE_ENV: 'production',
+              TURBO_TASKS_AVAILABLE_PARALLELISM: '4',
+            },
+          }
+        )
+        const checks = JSON.parse(
+          await fileSystem.readFile(path.join(output, 'CHECKS.json'), 'utf8')
+        )
+        expect(checks).toMatchObject(
+          helper === 'project-env-reports.mjs'
+            ? {
+                profiles: 3,
+                completeCasesRowsAndGlobalContextMatch: true,
+                actualWorkerExitRestoredHostValues: true,
+                parentEnvironmentUnchanged: true,
+                allOwnersJoined: true,
+                authoredBytesHeld: true,
+              }
+            : {
+                actualNodeDefineNamesOnly: true,
+                valuesNotExposed: true,
+                snapshotsNotReusedFromAbsentSession: true,
+                compileOnlyArtifactsUnchanged: true,
+                collisions: [
+                  {
+                    name: 'NEXT_PUBLIC_ENV_KEY_FILE',
+                    refusedBeforeSetupSpecAndBody: true,
+                    ownersClosed: true,
+                  },
+                  {
+                    name: 'WS2_COMPILER_KEY',
+                    refusedBeforeSetupSpecAndBody: true,
+                    ownersClosed: true,
+                  },
+                ],
+              }
+        )
+      } finally {
+        await fileSystem.rm(output, { recursive: true, force: true })
+      }
+    },
+    125000
+  )
 })

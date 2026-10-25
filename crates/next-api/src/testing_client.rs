@@ -89,6 +89,10 @@ async fn resolve_context(
             "dist/experimental/testing/client/async-context.js",
         ),
         (
+            "private-next-test-promise-static-call",
+            "dist/experimental/testing/client/promise-static-call.js",
+        ),
+        (
             "@swc/helpers/_/_async_to_generator",
             "dist/experimental/testing/client/async-helper.js",
         ),
@@ -403,6 +407,8 @@ async fn validate_client_graph(
     let legacy_brand =
         framework.join("dist/experimental/testing/client/engine-brand-contract.js")?;
     let creator_helper = framework.join("dist/experimental/testing/client/async-context.js")?;
+    let promise_static_helper =
+        framework.join("dist/experimental/testing/client/promise-static-call.js")?;
     while let Some(module) = queue.pop() {
         if !visited.insert(module) {
             continue;
@@ -440,6 +446,7 @@ async fn validate_client_graph(
                 );
             };
             next_core::validate_browser_creator_import(program)?;
+            next_core::validate_browser_promise_static_import(program)?;
             let mut syntax = ClientAsyncSyntax::default();
             program.visit_with(&mut syntax);
             if native_bridge {
@@ -496,7 +503,12 @@ async fn validate_client_graph(
                             bail!("Browser creator classifier refuses an authored/foreign issuer");
                         }
                     }
-                    if target_path == creator_helper {
+                    if target_path == creator_helper || target_path == promise_static_helper {
+                        let expected_request = if target_path == creator_helper {
+                            "private-next-test-creator-scope"
+                        } else {
+                            "private-next-test-promise-static-call"
+                        };
                         let issuer = full_client_module(module).await?;
                         let Some(issuer) = issuer else {
                             bail!("Browser creator certificate refuses a non-source helper issuer");
@@ -512,7 +524,7 @@ async fn validate_client_graph(
                                 );
                             };
                             if issued.await?.module != issuer
-                                || issued.await?.request != "private-next-test-creator-scope"
+                                || issued.await?.request != expected_request
                             {
                                 bail!(
                                     "Browser creator certificate refuses an indirect private \
@@ -523,7 +535,12 @@ async fn validate_client_graph(
                             let ParseResult::Ok { program, .. } = &*parsed else {
                                 bail!("Browser creator certificate requires the actual issuer AST");
                             };
-                            if !next_core::validate_browser_creator_import(program)? {
+                            let issued_import = if target_path == creator_helper {
+                                next_core::validate_browser_creator_import(program)?
+                            } else {
+                                next_core::validate_browser_promise_static_import(program)?
+                            };
+                            if !issued_import {
                                 bail!(
                                     "Browser creator certificate requires an issued private import"
                                 );

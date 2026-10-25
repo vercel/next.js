@@ -1,0 +1,17 @@
+[
+  {
+    "name": "complete object binding default namespace and reset lifetime",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "actual object binding default helper and ordinary import ownership",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "held default functions keep their actual dependency and own properties",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

@@ -20,6 +20,10 @@ export async function startCoverage(artifact: CoverageArtifact): Promise<{
   stop(): Promise<CoverageCapture>
   dispose(): Promise<void>
 }> {
+  if (artifact.coverage?.istanbul)
+    throw new Error(
+      'V8 collection cannot consume an Istanbul instrumentation artifact.'
+    )
   if (artifact.coverage?.sourceAnalysis)
     throw new Error(
       'Compile-only coverage sources cannot enter runtime capture'

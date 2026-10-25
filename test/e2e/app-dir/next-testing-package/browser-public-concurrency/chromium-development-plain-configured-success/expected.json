@@ -1,0 +1,85 @@
+{
+  "rows": [
+    {
+      "value": {
+        "phase": "A-start",
+        "active": ["A"]
+      },
+      "task": "plain B"
+    },
+    {
+      "value": {
+        "phase": "B-start",
+        "active": ["A", "B"]
+      },
+      "task": "plain B"
+    },
+    {
+      "value": {
+        "phase": "A-resumed",
+        "active": ["A", "B"],
+        "self": "plain A"
+      },
+      "task": "plain B"
+    },
+    {
+      "value": {
+        "phase": "A-end"
+      },
+      "task": "plain B"
+    },
+    {
+      "value": {
+        "phase": "B-end",
+        "active": ["B"],
+        "self": "plain B"
+      },
+      "task": "<file>"
+    }
+  ],
+  "cases": [
+    {
+      "name": "plain A",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "plain B",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "caseFinals": [
+    {
+      "name": "plain A",
+      "state": "passed"
+    },
+    {
+      "name": "plain B",
+      "state": "passed"
+    }
+  ],
+  "runFinals": [
+    {
+      "reason": "passed",
+      "errors": [],
+      "files": [
+        {
+          "state": "passed",
+          "tests": [
+            {
+              "name": "plain A",
+              "state": "passed"
+            },
+            {
+              "name": "plain B",
+              "state": "passed"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "success": true,
+  "exit": 0
+}

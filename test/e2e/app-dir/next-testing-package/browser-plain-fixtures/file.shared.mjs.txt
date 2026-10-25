@@ -1,0 +1,4 @@
+import{test as base}from'vitest'
+const scope="file";let calls=0
+const row=value=>console.log('BROWSER_FIXTURE:'+JSON.stringify(value))
+export const test=base.extend({resource:[async({},use)=>{const value={id:++calls,history:[],closed:false};row({phase:'setup',scope,id:value.id});await use(value);value.closed=true;row({phase:'cleanup',scope,id:value.id,history:[...value.history]})},{scope}]})

@@ -1,0 +1,71 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_ATTEMPT",
+    "value": {
+      "name": "captured",
+      "value": {
+        "kind": "mock"
+      },
+      "callback": {
+        "type": "function",
+        "name": "",
+        "length": 0,
+        "ordinary": true
+      },
+      "actualCount": 0
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_ATTEMPT",
+    "value": {
+      "name": "retained-after-complete",
+      "differentPromises": true,
+      "outcomes": [
+        {
+          "value": {
+            "kind": "actual",
+            "count": 1
+          },
+          "defaultSame": true
+        },
+        {
+          "value": {
+            "kind": "actual",
+            "count": 1
+          },
+          "defaultSame": true
+        }
+      ],
+      "namespaceSame": true,
+      "actualCount": 1
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_ATTEMPT",
+    "value": {
+      "name": "pending-entered",
+      "events": ["factory-enter"],
+      "actualCount": 0
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_ATTEMPT",
+    "value": {
+      "name": "pending-after-complete",
+      "events": ["factory-enter", "factory-release", "factory-actual"],
+      "value": {
+        "kind": "held-mock",
+        "count": 1
+      },
+      "default": {
+        "kind": "pending-actual",
+        "count": 1
+      },
+      "actualCount": 1
+    }
+  }
+]

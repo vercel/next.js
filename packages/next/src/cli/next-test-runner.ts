@@ -7,6 +7,7 @@ import type {
   RuntimeConfigurationReceipt,
 } from '../experimental/testing/coverage/runtime-configuration'
 import type { CoverageSourcePlan } from '../experimental/testing/coverage/source-analysis-plan'
+import type { PreparedCoverageMap } from '../experimental/testing/coverage/report-standard'
 import {
   isProductionBrowserCoverageProject,
   isDevelopmentBrowserCoverageProject,
@@ -375,7 +376,15 @@ export async function nextTestRunner(
   let resultCache: TestResultCache | undefined
   let pendingCacheUpdates: TestResultCacheUpdate[] | undefined
   let cacheStartTime: number | undefined
+  let resultCompletionError: unknown
+  let deferredResultReporterDisposal: (() => Promise<void>) | undefined
   let pendingCoverage:
+    | Omit<
+        Parameters<
+          typeof import('../experimental/testing/coverage/report-istanbul').publishIstanbulCoverage
+        >[0],
+        'projectDir' | 'signal'
+      >
     | {
         facts: StandardFileCoverage[]
         runtimeConfiguration: {
@@ -393,6 +402,32 @@ export async function nextTestRunner(
       }
     | undefined
   const controller = new AbortController()
+  async function publishPendingCoverage(
+    publicationOptions: {
+      prepareOnly?: true
+      onCoverageMap?: (map: PreparedCoverageMap) => void | Promise<void>
+    } = {}
+  ) {
+    if (!pendingCoverage)
+      throw new Error('No completed standard coverage request is available.')
+    if ('plan' in pendingCoverage)
+      return (
+        await import('../experimental/testing/coverage/report-istanbul.js')
+      ).publishIstanbulCoverage({
+        projectDir,
+        ...pendingCoverage,
+        signal: controller.signal,
+        ...publicationOptions,
+      })
+    return (
+      await import('../experimental/testing/coverage/report-standard.js')
+    ).publishStandardCoverage({
+      projectDir,
+      ...pendingCoverage,
+      signal: controller.signal,
+      ...publicationOptions,
+    })
+  }
   const cancel = () => controller.abort(new Error('Test run interrupted.'))
   process.once('SIGINT', cancel)
   process.once('SIGTERM', cancel)
@@ -401,8 +436,13 @@ export async function nextTestRunner(
     | undefined
   try {
     configuration =
-      options['coverage.provider'] === 'v8'
-        ? await openTestConfiguration(projectDir, controller.signal, 'v8')
+      options['coverage.provider'] === 'v8' ||
+      options['coverage.provider'] === 'istanbul'
+        ? await openTestConfiguration(
+            projectDir,
+            controller.signal,
+            options['coverage.provider']
+          )
         : await openTestConfiguration(projectDir, controller.signal)
     const authoredCache = configuration.config.cache
     const selectedCache =
@@ -498,6 +538,8 @@ export async function nextTestRunner(
     ) {
       options = { ...options, coverage: configuredCoverage.enabled }
       standardCoverageOptions = configuredCoverage.options
+      if (standardCoverageOptions?.provider === 'istanbul' && options.watch)
+        throw new Error('Istanbul coverage watch is not implemented.')
       if (
         !options.watch &&
         !configuredCoverage.configured &&
@@ -1075,7 +1117,72 @@ export async function nextTestRunner(
       await discoveryApi?.dispose()
       discoveryApi = undefined
       if (reporterFailure) throw reporterFailure
-      await machine.finish()
+      if (
+        standardCoverageOptions &&
+        summary.status !== 'cancelled' &&
+        summary.status !== 'running' &&
+        !summary.unsafeCleanup &&
+        (standardCoverageOptions.provider === 'istanbul'
+          ? summary.istanbulCoverage && summary.istanbulSourcePlan
+          : summary.standardCoverage)
+      ) {
+        pendingCoverage =
+          standardCoverageOptions.provider === 'istanbul'
+            ? {
+                facts: summary.istanbulCoverage!,
+                plan: summary.istanbulSourcePlan!,
+                expected: new Set(entries.map((entry) => entry.id)),
+                config: standardCoverageOptions,
+                status: summary.status,
+              }
+            : {
+                facts: summary.standardCoverage!,
+                runtimeConfiguration: {
+                  receipts: summary.runtimeConfigurationReceipts ?? [],
+                  plan: summary.runtimeConfigurationPlan!,
+                },
+                sourceAnalysis: {
+                  facts: summary.compilerSourceCoverage ?? [],
+                  plan: summary.coverageSourcePlan ?? {
+                    version: 1,
+                    requests: [],
+                    inputs: [],
+                  },
+                },
+                expected: new Set(entries.map((entry) => entry.id)),
+                excludedFiles: projects.flatMap((project) => [
+                  ...project.setupFiles,
+                  ...project.entries.map((entry) => entry.file),
+                ]),
+                config: standardCoverageOptions,
+                status: summary.status,
+              }
+      }
+      if (pendingCoverage)
+        deferredResultReporterDisposal = () =>
+          machine.dispose({ handledCustomFailure: resultCompletionError })
+      let preparedCoverageMap: PreparedCoverageMap | undefined
+      if (pendingCoverage && reporters.includes('json')) {
+        configuration?.assertReadyForCoverage()
+        await publishPendingCoverage({
+          prepareOnly: true,
+          onCoverageMap(map) {
+            preparedCoverageMap = map
+          },
+        })
+        if (preparedCoverageMap === undefined)
+          throw new Error('Standard coverage did not produce its actual map.')
+      }
+      try {
+        await machine.finish(
+          preparedCoverageMap === undefined
+            ? undefined
+            : { preparedCoverageMap }
+        )
+      } catch (error) {
+        if (pendingCoverage) resultCompletionError = error
+        throw error
+      }
       if (customProjects.length && summary.status !== 'cancelled') {
         if (summary.unsafeCleanup || summary.status === 'running')
           throw new Error(
@@ -1100,32 +1207,15 @@ export async function nextTestRunner(
       if (standardCoverageOptions && summary.status !== 'cancelled') {
         if (summary.status === 'running')
           throw new Error('Standard coverage requires a terminal run result.')
-        if (summary.unsafeCleanup || !summary.standardCoverage)
+        if (
+          summary.unsafeCleanup ||
+          (standardCoverageOptions.provider === 'istanbul'
+            ? !summary.istanbulCoverage || !summary.istanbulSourcePlan
+            : !summary.standardCoverage)
+        )
           throw new Error(
             'Standard coverage did not complete after clean execution.'
           )
-        pendingCoverage = {
-          facts: summary.standardCoverage,
-          runtimeConfiguration: {
-            receipts: summary.runtimeConfigurationReceipts ?? [],
-            plan: summary.runtimeConfigurationPlan!,
-          },
-          sourceAnalysis: {
-            facts: summary.compilerSourceCoverage ?? [],
-            plan: summary.coverageSourcePlan ?? {
-              version: 1,
-              requests: [],
-              inputs: [],
-            },
-          },
-          expected: new Set(entries.map((entry) => entry.id)),
-          excludedFiles: projects.flatMap((project) => [
-            ...project.setupFiles,
-            ...project.entries.map((entry) => entry.file),
-          ]),
-          config: standardCoverageOptions,
-          status: summary.status,
-        }
       }
       if (summary.status !== 'passed') {
         process.exitCode = summary.status === 'cancelled' ? 130 : 1
@@ -1137,15 +1227,19 @@ export async function nextTestRunner(
         try {
           terminal.dispose()
         } finally {
-          await machine.dispose()
+          await machine.dispose(
+            deferredResultReporterDisposal ? { deferCustom: true } : undefined
+          )
         }
       }
     }
     cleanedExecution = true
+  } catch (error) {
+    if (pendingCoverage) resultCompletionError ??= error
+    throw error
   } finally {
-    const deferredConfiguration =
-      !!configuration?.formatCoverageThresholdUpdates && !!pendingCoverage
-    let coverageCompletionError: unknown
+    const deferredConfiguration = cleanedExecution && !!pendingCoverage
+    let coverageCompletionError: unknown = resultCompletionError
     try {
       if (!deferredConfiguration) await configuration?.dispose()
       if (
@@ -1170,14 +1264,8 @@ export async function nextTestRunner(
       }
       if (cleanedExecution && pendingCoverage) {
         try {
-          const { publishStandardCoverage } = await import(
-            '../experimental/testing/coverage/report-standard.js'
-          )
-          const result = await publishStandardCoverage({
-            projectDir,
-            ...pendingCoverage,
-            signal: controller.signal,
-          })
+          configuration?.assertReadyForCoverage()
+          const result = await publishPendingCoverage()
           if (result.textSummary) process.stdout.write(result.textSummary)
           if (result.thresholdErrors.length) {
             for (const message of result.thresholdErrors)
@@ -1221,22 +1309,49 @@ export async function nextTestRunner(
         }
       }
     } catch (error) {
+      if (coverageCompletionError && coverageCompletionError !== error) {
+        const combined = new AggregateError(
+          [coverageCompletionError, error],
+          'Result reporting and coverage completion failed.'
+        )
+        coverageCompletionError = combined
+        throw combined
+      }
       coverageCompletionError = error
       throw error
     } finally {
       try {
-        if (deferredConfiguration) {
-          try {
-            await configuration?.dispose()
-          } catch (error) {
-            if (coverageCompletionError)
-              throw new AggregateError(
-                [coverageCompletionError, error],
-                'Coverage threshold update and configuration cleanup failed.'
-              )
-            throw error
+        let configurationCleanupError: unknown
+        try {
+          if (deferredConfiguration) {
+            try {
+              await configuration?.dispose()
+            } catch (error) {
+              if (coverageCompletionError && coverageCompletionError !== error)
+                throw new AggregateError(
+                  [coverageCompletionError, error],
+                  configuration?.formatCoverageThresholdUpdates
+                    ? 'Coverage threshold update and configuration cleanup failed.'
+                    : 'Coverage reporting and configuration cleanup failed.'
+                )
+              throw error
+            }
           }
+        } catch (error) {
+          configurationCleanupError = error
         }
+        try {
+          await deferredResultReporterDisposal?.()
+        } catch (error) {
+          const prior = configurationCleanupError ?? coverageCompletionError
+          if (prior && prior !== error)
+            throw new AggregateError(
+              [prior, error],
+              'Coverage completion and result reporter cleanup failed.'
+            )
+          throw error
+        }
+        if (configurationCleanupError) throw configurationCleanupError
       } finally {
         try {
           const failures = []

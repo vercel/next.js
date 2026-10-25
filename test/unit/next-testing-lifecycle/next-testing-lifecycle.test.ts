@@ -9919,3 +9919,178 @@ it('preserves zero-body raw Error identity, immediate invocation and fulfillment
     immediateInvocation: true,
   })
 }, 20000)
+
+it.each(['pass', 'failure', 'retry'] as const)(
+  'admits compiler work only after the complete ordinary %s attempt settles',
+  async (outcome) => {
+    const scopes: typeof import('next/dist/experimental/testing/runner/async-context') = require('next/dist/experimental/testing/runner/async-context')
+    const c = createCollector('compiler-completion')
+    const origins: ReturnType<typeof scopes.captureCompilerAsyncScope>[] = []
+    const contexts: unknown[] = []
+    const events: string[] = []
+    c.api.test('case', { retry: outcome === 'retry' ? 1 : 0 }, () => {
+      origins.push(scopes.captureCompilerAsyncScope())
+      events.push('body')
+      if (
+        outcome === 'failure' ||
+        (outcome === 'retry' && origins.length === 1)
+      )
+        throw new Error('ordinary authored failure')
+    })
+    const result = await runCollected(
+      c.close(),
+      {
+        ...options(),
+        beginAttempt(context) {
+          contexts.push(context)
+          return {
+            async finalize() {
+              events.push('finalize')
+            },
+            async dispose() {
+              events.push('dispose')
+            },
+          }
+        },
+      },
+      () => {}
+    )
+    expect(result.cases.map((test) => test.status)).toEqual(
+      outcome === 'retry'
+        ? ['failed', 'passed']
+        : [outcome === 'failure' ? 'failed' : 'passed']
+    )
+    expect(events).toEqual(
+      origins.flatMap(() => ['body', 'finalize', 'dispose'])
+    )
+    origins.forEach((origin, index) => {
+      origin.run(() => {
+        expect(scopes.peekOriginatingScope()?.context).toBe(contexts[index])
+        expect(scopes.peekOriginatingScope()?.closed).toBe(true)
+        expect(() => scopes.assertScopeActive()).toThrow('closed attempt scope')
+      })
+    })
+  }
+)
+
+it.each(['skip', 'user-cancel', 'setup-error', 'disposal-abort'] as const)(
+  'does not mark a %s attempt as an ordinary compiler completion',
+  async (outcome) => {
+    const scopes: typeof import('next/dist/experimental/testing/runner/async-context') = require('next/dist/experimental/testing/runner/async-context')
+    const {
+      getTaskContext,
+    }: typeof import('next/dist/experimental/testing/runner/tasks') = require('next/dist/experimental/testing/runner/tasks')
+    const c = createCollector('compiler-incomplete')
+    const cancellation = new AbortController()
+    let origin: ReturnType<typeof scopes.captureCompilerAsyncScope> | undefined
+    c.api.test('case', ({ skip }) => {
+      origin = scopes.captureCompilerAsyncScope()
+      if (outcome === 'skip') skip()
+      if (outcome === 'user-cancel')
+        cancellation.abort(new Error('user cancel'))
+    })
+    const result = await runCollected(
+      c.close(),
+      {
+        ...options(),
+        userCancelSignal: cancellation.signal,
+        beginAttempt(context) {
+          if (outcome === 'setup-error') {
+            origin = scopes.captureCompilerAsyncScope()
+            throw new Error('integration setup failure')
+          }
+          return {
+            async finalize() {},
+            async dispose() {
+              if (outcome === 'disposal-abort')
+                getTaskContext(context.task).controller.abort(
+                  new Error('internal resource disposal')
+                )
+            },
+          }
+        },
+      },
+      () => {}
+    )
+    expect(origin).toBeDefined()
+    expect(result.cases).toHaveLength(1)
+    expect(() => origin!.run(() => {})).toThrow('closed attempt scope')
+    expect(result.cases[0].status).toBe(
+      outcome === 'setup-error'
+        ? 'failed'
+        : outcome === 'disposal-abort'
+          ? 'cancelled'
+          : 'skipped'
+    )
+  }
+)
+
+it('exposes the actual console selection Task privately while retaining metadata-only event payloads', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'console-task-getter.cjs')],
+    { timeout: 15000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    actualTaskIdentity: true,
+    suiteTask: true,
+    metadataOnly: true,
+    selectionCleared: true,
+  })
+}, 20000)
+
+it('binds Browser native command queries and settlement to their exact original operation without reopening public scopes', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'browser-command-admission.cjs')],
+    { timeout: 15000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    exactPromiseIdentity: true,
+    trueClosedOriginRetained: true,
+    publicGuardsStillClosed: true,
+    callerRestored: true,
+    originalErrorAndAbortIdentity: true,
+    noNewAdmissionAfterClose: true,
+    hooksRemainLegacy: true,
+  })
+}, 20000)
+
+it('adopts private SDK actions at their actual static Promise call scopes without changing native intrinsics', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'promise-static-call.cjs')],
+    { timeout: 15000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    actualPrivateScopes: true,
+    constructorCarriesNoScope: true,
+    exactInterleavedStartAndSettlementOrigins: true,
+    nativeQueueIndependentOfAuthoredReplacement: true,
+    mutatedThenDelegatesOriginalIdentity: true,
+    rawGetterIdentityAndSingleRead: true,
+    closedScopeStillRefused: true,
+    staticIntrinsicsUnchanged: true,
+  })
+}, 20000)
+
+it('serializes native and receiver-sensitive stack getters without mutating the raw failure', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'task-error-stack-accessors.cjs')],
+    { timeout: 15000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    comparisons: 10,
+    nativeEmptyNonemptyUndefined: true,
+    originalGetterReceiverAndReadCounts: true,
+    weakMapAndThrowingGetters: true,
+    serializerWritesStayLocal: true,
+    originalDescriptorsValuesAndCausePreserved: true,
+    capturedAccessorInvocation: true,
+  })
+}, 20000)

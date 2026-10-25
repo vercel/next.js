@@ -28,6 +28,8 @@ import { parseExecutionEnvironment } from './environments/config'
 import type { TestExecutionEnvironment } from './contracts'
 
 export interface TestProjectConfig {
+  /** Private inline-project compiler adapter policy; authored keys cannot supply it. */
+  compilerRootInheritance?: false
   /** Private evaluated config mapping; raw public test settings cannot supply it. */
   compilerAliases?: CompilerAliases
   customCoverage?: CustomCoverageConfig
@@ -227,7 +229,8 @@ function timeout(
 
 export function parseTestConfig(
   value: unknown,
-  authoredNames?: readonly (string | undefined)[]
+  authoredNames?: readonly (string | undefined)[],
+  compilerRootInheritance?: readonly boolean[]
 ): TestConfig {
   const config = object(value, 'config')
   keys(
@@ -577,14 +580,25 @@ export function parseTestConfig(
         invalid(`${label}.bail must be a nonnegative safe integer.`)
       let env: Record<string, string> | undefined
       if (project.env !== undefined) {
-        if (!browserClient)
+        if (
+          !browserClient &&
+          (environment !== 'node' ||
+            project.route !== undefined ||
+            project.isolate === false ||
+            (executionEnvironment && executionEnvironment.name !== 'node') ||
+            customCoverage)
+        )
           invalid(
-            `${label}.env currently requires a development Browser client project.`
+            `${label}.env currently requires an isolated ordinary Node or Browser client project.`
           )
         const configured = object(project.env, `${label}.env`)
         for (const [envName, envValue] of Object.entries(configured)) {
           if (typeof envValue !== 'string')
             invalid(`${label}.env.${envName} must be a string.`)
+          if (!browserClient && envName === 'NODE_ENV')
+            invalid(
+              `${label}.env.NODE_ENV cannot override the compiler-owned Node mode.`
+            )
         }
         env = configured as Record<string, string>
       }
@@ -718,6 +732,9 @@ export function parseTestConfig(
         )
       }
       return {
+        ...(compilerRootInheritance?.[index] === false
+          ? { compilerRootInheritance: false as const }
+          : {}),
         ...(config.projects === undefined ? {} : { displayName: name }),
         profile: {
           id: name,
@@ -894,16 +911,23 @@ export function normalizeTestConfig(value: unknown): TestConfig {
         const project = object(projectValue, `test.projects[${index}]`)
         const settings =
           'test' in project
-            ? (keys(project, ['test'], `test.projects[${index}]`),
+            ? (keys(project, ['test', 'extends'], `test.projects[${index}]`),
               object(project.test, `test.projects[${index}].test`))
             : project
+        if (
+          'test' in project &&
+          project.extends !== undefined &&
+          typeof project.extends !== 'boolean'
+        )
+          invalid(`test.projects[${index}].extends must be a boolean.`)
+        const inherited = project.extends === false ? {} : defaults
         return {
-          ...defaults,
+          ...inherited,
           ...settings,
           name: settings.name ?? `project-${index}`,
           sequence: inheritGlobalTestSequence(
             {
-              ...object(defaults.sequence, 'test.sequence'),
+              ...object(inherited.sequence ?? {}, 'test.sequence'),
               ...object(
                 settings.sequence ?? {},
                 `test.projects[${index}].sequence`
@@ -911,6 +935,20 @@ export function normalizeTestConfig(value: unknown): TestConfig {
             } as TestSequenceOptions,
             defaults.sequence as TestSequenceOptions
           ),
+          ...(project.extends !== false &&
+          (defaults.setupFiles !== undefined ||
+            settings.setupFiles !== undefined)
+            ? {
+                setupFiles: [
+                  ...strings(defaults.setupFiles, [], 'test.setupFiles'),
+                  ...strings(
+                    settings.setupFiles,
+                    [],
+                    `test.projects[${index}].setupFiles`
+                  ),
+                ],
+              }
+            : {}),
           ...(defaults.env || settings.env
             ? {
                 env: {
@@ -938,7 +976,11 @@ export function normalizeTestConfig(value: unknown): TestConfig {
       return (
         'test' in project ? object(project.test, 'test.projects.test') : project
       ).name as string | undefined
-    })
+    }),
+    projects.map(
+      (projectValue, index) =>
+        object(projectValue, `test.projects[${index}]`).extends !== false
+    )
   )
 }
 
@@ -964,7 +1006,7 @@ async function testConfigSource(projectDir: string) {
 export async function openTestConfiguration(
   projectDir: string,
   signal?: AbortSignal,
-  coverageProvider?: 'v8'
+  coverageProvider?: 'v8' | 'istanbul'
 ) {
   const filename = await testConfigSource(projectDir)
   const sourceBytes = filename ? await readFile(filename) : undefined
@@ -1032,12 +1074,17 @@ export async function openTestConfiguration(
     const config = projectModules?.config ?? normalize(value)
     if (realm?.compilerAliases) {
       for (const project of config.projects)
-        if (!projectModules?.owns(project))
+        if (
+          !projectModules?.owns(project) &&
+          project.compilerRootInheritance !== false
+        )
           project.compilerAliases = realm.compilerAliases
     }
     function compilerInputsForProjects(projects: readonly TestProjectConfig[]) {
       const usesRoot = projects.some(
-        (project) => !projectModules?.owns(project)
+        (project) =>
+          !projectModules?.owns(project) &&
+          project.compilerRootInheritance !== false
       )
       return [
         ...new Set([
@@ -1157,7 +1204,9 @@ export async function openTestConfiguration(
           projects.flatMap((project) => {
             const descriptor = projectModules?.owns(project)
               ? projectModules.compilerTransform(project)
-              : realm?.compilerTransform
+              : project.compilerRootInheritance === false
+                ? undefined
+                : realm?.compilerTransform
             return descriptor ? [[project.profile.id, descriptor]] : []
           })
         )
@@ -1320,6 +1369,12 @@ export async function openTestConfiguration(
           if (globalSetupLifetime) globalSetupRetentionInvalid = true
           throw error
         }
+      },
+      assertReadyForCoverage() {
+        if (disposing)
+          throw new Error('Test configuration is closing before coverage.')
+        realm?.assertReadyForCoverage()
+        projectModules?.assertReadyForCoverage()
       },
       dispose,
     }

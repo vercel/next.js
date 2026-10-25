@@ -1,0 +1,4 @@
+{"content":"BROWSER_HOOK_SEQUENCE:{\"phase\":\"body-ended\",\"clicks\":0}","browser":true,"time":1792927881161,"taskId":"81615230_0","type":"stdout","size":55}
+{"content":"BROWSER_HOOK_SEQUENCE:{\"phase\":\"after-all-created\"}","browser":true,"time":1792927881161,"taskId":"81615230","type":"stdout","size":51}
+{"content":"BROWSER_HOOK_SEQUENCE:{\"phase\":\"settled\",\"clicks\":1}","browser":true,"time":1792927881222,"taskId":"81615230","type":"stdout","size":52}
+{"content":"BROWSER_HOOK_SEQUENCE:{\"phase\":\"after-all-done\",\"clicks\":1}","browser":true,"time":1792927881222,"taskId":"81615230","type":"stdout","size":59}

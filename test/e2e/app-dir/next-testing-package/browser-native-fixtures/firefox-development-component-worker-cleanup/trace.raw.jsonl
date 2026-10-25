@@ -1,0 +1,11 @@
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"setup\"}","browser":true,"time":1792953191982,"taskId":"-1594086377_0","type":"stdout","size":40}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"A\",\"clicks\":0}","browser":true,"time":1792953191983,"taskId":"-1594086377_0","type":"stdout","size":47}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"B-mounted\",\"clicks\":0}","browser":true,"time":1792953191995,"taskId":"-1594086377_1","type":"stdout","size":55}}
+{"hook":"ready","id":"-1594086377_0","name":"component fixture A","result":{"state":"passed"}}
+{"hook":"case","id":"-1594086377_0","name":"component fixture A","result":{"state":"passed","errors":[]}}
+{"hook":"ready","id":"-1594086377_1","name":"component fixture B","result":{"state":"passed"}}
+{"hook":"case","id":"-1594086377_1","name":"component fixture B","result":{"state":"passed","errors":[]}}
+{"hook":"module","id":"-1594086377","state":"passed","errors":[]}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"worker-cleanup-start\",\"clicks\":0}","browser":true,"time":1792953191999,"taskId":"__vitest__unknown_test__","type":"stdout","size":66}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"worker-cleanup-end\",\"clicks\":1}","browser":true,"time":1792953192096,"taskId":"__vitest__unknown_test__","type":"stdout","size":64}}
+{"hook":"end","reason":"passed","errors":[],"files":[{"id":"-1594086377","state":"passed","tests":[{"id":"-1594086377_0","name":"component fixture A","result":{"state":"passed","errors":[]}},{"id":"-1594086377_1","name":"component fixture B","result":{"state":"passed","errors":[]}}]}]}

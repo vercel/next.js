@@ -1,0 +1,6 @@
+import{test}from'vitest'
+const declared=false,active=new Set();let peak=0
+const row=value=>console.log('BROWSER_CONCURRENCY:'+JSON.stringify(value))
+const tick=()=>new Promise(resolve=>{const channel=new MessageChannel();channel.port1.onmessage=()=>{channel.port1.close();channel.port2.close();resolve()};channel.port2.postMessage('tick')})
+const add=(name,body)=>declared?test.concurrent(name,body):test(name,body)
+for(const name of ['limit A','limit B'])add(name,async context=>{active.add(name);peak=Math.max(peak,active.size);row({phase:'start',name,active:[...active],peak});await tick();context.expect(active.has(name)).toBe(true);row({phase:'end',name,active:[...active],peak});active.delete(name)})

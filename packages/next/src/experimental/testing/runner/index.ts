@@ -42,7 +42,9 @@ import {
 } from '../assertions/snapshot-common'
 import {
   runCollected,
+  isSettledCoverageFailure,
   type AttemptContext,
+  type RunnerFailure,
   type RunnerOptions,
   type CompletedModuleResult,
   type RunnerOperationObservation,
@@ -63,7 +65,7 @@ let assertions: Awaited<ReturnType<typeof createAssertionRuntime>> | undefined
 
 let publicSelectionEnabled = false
 let currentTest: Test | undefined
-let consoleTask: { taskId: string; caseId?: string } | undefined
+let consoleTask: { taskId: string; caseId?: string; task?: Task } | undefined
 
 /** Public task selection is separate from the origin that owns private resources. */
 export function isPublicTaskSelectionEnabled(): boolean {
@@ -78,18 +80,25 @@ export function getConsoleTask() {
   if (!publicSelectionEnabled) return getOriginatingConsoleTask()
   if (!consoleTask) return undefined
   const origin = getOriginatingConsoleTask()
+  const { task: _task, ...metadata } = consoleTask
   return {
-    ...consoleTask,
+    ...metadata,
     ...(origin?.caseId === consoleTask.caseId && origin?.attempt
       ? { attempt: origin.attempt }
       : {}),
   }
 }
 
+/** The Browser SDK uses this real public queue without selecting a resource owner. */
+export function getCurrentConsoleTask(): Task | undefined {
+  return publicSelectionEnabled ? consoleTask?.task : undefined
+}
+
 function selectConsoleTask(task: Task) {
   consoleTask = {
     taskId: task.id,
     ...(task.type === 'test' ? { caseId: task.id } : {}),
+    task,
   }
 }
 
@@ -138,7 +147,8 @@ export interface TestFileOptions {
   onUnhandledRejection?(
     reason: unknown,
     promise?: Promise<unknown>,
-    recordedBody?: boolean
+    recordedBody?: boolean,
+    recordedCoverageAfterAll?: boolean
   ): void
   resourceLifetime?: 'attempt' | 'file'
   fakeTimers?: import('../assertions/utilities').FakeTimerOptions
@@ -374,6 +384,8 @@ function initializeFile(
   providedContext = provide
   const globalDescriptors = new Map<string, PropertyDescriptor | undefined>()
   const lateErrors: unknown[] = []
+  const coverageAfterAllLateErrors = new Set<number>()
+  const coverageAfterAllCarriers = new WeakSet<RunnerFailure>()
   let reportedLateErrors = 0
   let completedModuleResult: CompletedModuleResult | undefined
   let operationObservation: RunnerOperationObservation | undefined
@@ -419,8 +431,24 @@ function initializeFile(
       onUnhandledRejection !== undefined &&
       promise !== undefined &&
       fileAssertions?.observeNativeHookRejection(reason, promise) === true
-    onUnhandledRejection?.(reason, promise, recordedBody)
+    const recordedCoverageAfterAll =
+      captureCoverageCompletion &&
+      !recordedBody &&
+      !recordedHook &&
+      promise !== undefined &&
+      fileAssertions?.observeNativeAfterAllCoverageRejection(
+        reason,
+        promise
+      ) === true
+    onUnhandledRejection?.(
+      reason,
+      promise,
+      recordedBody,
+      recordedCoverageAfterAll
+    )
     if (recordedBody || recordedHook) return
+    if (recordedCoverageAfterAll)
+      coverageAfterAllLateErrors.add(lateErrors.length)
     lateErrors.push(reason)
     worker?.fail(reason, fileId)
     if (reason instanceof Error) lateFailureSink?.(reason)
@@ -428,8 +456,10 @@ function initializeFile(
   let fileAssertions: typeof assertions
   let browserPublicTaskQueues = false
   let snapshotExecutionComplete = false
+  let completedCoverageFailures: readonly RunnerFailure[] | undefined
   let disposalSucceeded = false
   let runSignal: AbortSignal | undefined
+  let captureCoverageCompletion = false
   let state:
     | 'initialized'
     | 'collecting'
@@ -487,6 +517,7 @@ function initializeFile(
             nativeBeforeEachCleanupAssertions &&
             snapshotBodyFailures &&
             onUnhandledRejection !== undefined,
+          captureCoverageCompletion: () => captureCoverageCompletion,
           collectOnly,
           resourceLifetime,
           fakeTimers,
@@ -616,7 +647,10 @@ function initializeFile(
       options: Pick<
         RunnerOptions,
         'testNamePattern' | 'allowOnly' | 'retry'
-      > = {}
+      > & {
+        caseScheduling?: 'concurrent-v1'
+        fixtureResources?: 'file-v1'
+      } = {}
     ) {
       if (state !== 'collected')
         throw new Error(`Cannot validate browser file in ${state} state.`)
@@ -629,12 +663,13 @@ function initializeFile(
         throw new Error(`Cannot run test file in ${state} state.`)
       state = 'running'
       runSignal = options.signal
+      captureCoverageCompletion = options.captureCoverageCompletion === true
       lateFailureSink = options.onLateFailure
       let rootDuration: number | undefined
       try {
         const captureCompletedModuleResult =
           options.captureCompletedModuleResult === true
-        if (captureCompletedModuleResult)
+        if (captureCompletedModuleResult || options.captureCoverageCompletion)
           operationObservation = { bounded: new Set(), around: new Set() }
         const moduleObservation: RunnerModuleResultObservation | undefined =
           captureCompletedModuleResult ? {} : undefined
@@ -884,10 +919,37 @@ function initializeFile(
             )
               worker.fail(failure.error, fileId)
         result.errors.push(
-          ...lateErrors.map((error) => ({ phase: 'runtime' as const, error }))
+          ...lateErrors.map((error, index) => {
+            const failure: RunnerFailure = { phase: 'runtime', error }
+            if (
+              captureCoverageCompletion &&
+              coverageAfterAllLateErrors.has(index)
+            )
+              coverageAfterAllCarriers.add(failure)
+            return failure
+          })
         )
         reportedLateErrors = lateErrors.length
         const finalCases = getFinalCaseResults(result.cases)
+        if (
+          options.captureCoverageCompletion &&
+          !result.interrupted &&
+          !options.signal.aborted &&
+          result.errors.every(
+            (failure) =>
+              isSettledCoverageFailure(failure) ||
+              coverageAfterAllCarriers.has(failure)
+          ) &&
+          result.cases.every(
+            (test) =>
+              test.status !== 'cancelled' &&
+              test.errors.every(
+                (failure) =>
+                  failure.phase === 'test' || failure.phase === 'assertion'
+              )
+          )
+        )
+          completedCoverageFailures = Object.freeze([...result.errors])
         // A completed body failure changes the logical result, not whether the
         // snapshot owner finished. Hook/resource failures and interruptions still
         // withhold every staged byte.
@@ -976,7 +1038,36 @@ function initializeFile(
         pendingHooks: operationObservation.pendingHooks?.size ?? 0,
       })
     },
-    async dispose() {
+    getCompletedCoverageFailures(): readonly RunnerFailure[] | undefined {
+      if (
+        state !== 'disposed' ||
+        !disposalSucceeded ||
+        !completedCoverageFailures ||
+        !operationObservation ||
+        (worker && (!worker.disposalSucceeded || worker.failures.length)) ||
+        runSignal?.aborted ||
+        lateErrors.some(
+          (_error, index) => !coverageAfterAllLateErrors.has(index)
+        ) ||
+        completedCoverageFailures.some(
+          (failure) =>
+            !coverageAfterAllCarriers.has(failure) &&
+            lateErrors.some((error) => error === failure.error)
+        ) ||
+        fileAssertions?.hasCompleteNativeAfterAllCoverageRejections() !==
+          true ||
+        fileAssertions?.hasCompleteNativeBodyRejections() !== true ||
+        operationObservation.pendingHooks?.size ||
+        [...operationObservation.bounded, ...operationObservation.around].some(
+          (operation) => !operation.settled
+        )
+      )
+        return undefined
+      return completedCoverageFailures
+    },
+    async dispose(disposal?: {
+      beforeOwnedWorkerDispose?: () => unknown | Promise<unknown>
+    }) {
       if (state === 'running' || state === 'collecting')
         throw new Error('Abort and await the active test file before disposal.')
       if (state === 'disposed') return
@@ -986,6 +1077,14 @@ function initializeFile(
       consoleTask = undefined
       const errors: unknown[] = []
       let result
+      const beforeWorkerDispose = !worker
+        ? disposal?.beforeOwnedWorkerDispose
+        : undefined
+      try {
+        if (beforeWorkerDispose) await beforeWorkerDispose()
+      } catch (error) {
+        errors.push(error)
+      }
       try {
         if (!worker) await workerFixtures.dispose()
       } catch (error) {
@@ -1009,7 +1108,15 @@ function initializeFile(
         }
         globalDescriptors.clear()
       }
-      errors.push(...lateErrors.slice(reportedLateErrors))
+      errors.push(
+        ...lateErrors.filter(
+          (_error, index) =>
+            index >= reportedLateErrors &&
+            !(
+              captureCoverageCompletion && coverageAfterAllLateErrors.has(index)
+            )
+        )
+      )
       if (worker) for (const error of errors) worker.fail(error, fileId)
       if (errors.length === 1) throw errors[0]
       if (errors.length)

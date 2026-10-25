@@ -1,0 +1,22 @@
+[
+  {
+    "name": "capture an original request in the first real test",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "call the retained original request after its factory test completed",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "start a real held factory then leave the originating test",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete a prior real held factory from the next test",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

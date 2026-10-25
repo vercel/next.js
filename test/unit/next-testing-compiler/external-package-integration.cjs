@@ -9,6 +9,46 @@ const group = process.argv[2]
 const mode = process.argv[3] ?? 'development'
 assert.ok(mode === 'development' || mode === 'production')
 const ordinaryEsmNamespaceGroups = {
+  'cjs-named-object-shorthand-return-one-default-reset': {
+    cases: 3,
+    prefix: 'CJS218:',
+    referenceRows: 'values',
+  },
+  'cjs-named-flat-object-self-control-reset': {
+    cases: 3,
+    prefix: 'CJS218:',
+    referenceRows: 'values',
+  },
+  'cjs-named-object-shorthand-default-dependency-reset': {
+    cases: 3,
+    prefix: 'CJS218:',
+    referenceRows: 'values',
+  },
+  'cjs-named-object-shorthand-self-default-reset': {
+    cases: 3,
+    prefix: 'CJS218:',
+    referenceRows: 'values',
+  },
+  'cjs-named-object-shorthand-literal-default-reset': {
+    cases: 3,
+    prefix: 'CJS218:',
+    referenceRows: 'values',
+  },
+  'cjs-flat-object-control-dependency-reset': {
+    cases: 3,
+    prefix: 'CJS210:',
+    referenceRows: 'values',
+  },
+  'cjs-binding-object-shorthand-default-dependency-reset': {
+    cases: 3,
+    prefix: 'CJS210:',
+    referenceRows: 'values',
+  },
+  'cjs-anonymous-object-shorthand-default-dependency-reset': {
+    cases: 3,
+    prefix: 'CJS210:',
+    referenceRows: 'values',
+  },
   'compiled-native-single-root-order': {
     cases: 1,
     prefix: 'WS2_CROSS_NATIVE_before:',
@@ -282,6 +322,10 @@ const ordinaryEsmNamespaceGroups = {
   'runtime-namespace-ordinary-tla': { cases: 3, prefix: 'WS2_ESM_NAMESPACE:' },
   'runtime-registration-leaf-tla-order': { cases: 8, prefix: 'WS2_LEAF_TLA:' },
   'runtime-registration-two-tla-order': { cases: 8, prefix: 'WS2_LEAF_TLA:' },
+  'runtime-registration-completed-attempt': {
+    cases: 4,
+    prefix: 'WS2_CROSS_ATTEMPT:',
+  },
   'runtime-registration-original-adoption': {
     cases: 3,
     prefix: 'WS2_LEAF_TLA:',
@@ -648,19 +692,27 @@ const deadline = setTimeout(() => {
       Array.from({ length: expectedCount }, () => [])
     )
     const versionedGolden = `pristine-rows-node${Number(process.versions.node.split('.')[0])}.json`
+    const referenceRows = JSON.parse(
+      fs.readFileSync(
+        path.join(
+          source,
+          fs.existsSync(path.join(source, versionedGolden))
+            ? versionedGolden
+            : 'pristine-rows.json'
+        ),
+        'utf8'
+      )
+    )
+    const descriptor = ordinaryEsmNamespaceGroups[group]
     assert.deepEqual(
       rows,
-      JSON.parse(
-        fs.readFileSync(
-          path.join(
-            source,
-            fs.existsSync(path.join(source, versionedGolden))
-              ? versionedGolden
-              : 'pristine-rows.json'
-          ),
-          'utf8'
-        )
-      )
+      descriptor?.referenceRows === 'values'
+        ? referenceRows.map((value) => ({
+            stream: 'stdout',
+            prefix: descriptor.prefix.slice(0, -1),
+            value,
+          }))
+        : referenceRows
     )
   } finally {
     clearTimeout(deadline)

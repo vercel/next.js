@@ -12,6 +12,8 @@ import { basename } from './task-path'
 import { getPublicTestContext } from './invocation-platform'
 import type { AttemptContext } from './lifecycle'
 
+const applyTaskErrorAccessor = Reflect.apply
+
 export interface TaskMeta {
   typecheck?: boolean
   benchmark?: boolean
@@ -491,6 +493,30 @@ export function serializeTaskError(error: unknown): TestError {
     seen.set(value, cloned)
     for (const key of Reflect.ownKeys(value)) {
       const descriptor = Object.getOwnPropertyDescriptor(value, key)!
+      if (key === 'stack' && !('value' in descriptor)) {
+        const getter = descriptor.get
+        let assigned = false
+        let assignedValue: unknown
+        Object.defineProperty(cloned, key, {
+          ...descriptor,
+          configurable: true,
+          get: getter
+            ? () => {
+                // Native stacks and private getter state belong to the failure.
+                const original = applyTaskErrorAccessor(getter, value, [])
+                return assigned ? assignedValue : original
+              }
+            : undefined,
+          // Serializer writes stay local without invoking the failure's setter.
+          set: descriptor.set
+            ? (next: unknown) => {
+                assigned = true
+                assignedValue = next
+              }
+            : undefined,
+        })
+        continue
+      }
       Object.defineProperty(cloned, key, {
         ...descriptor,
         ...(key === 'length' && Array.isArray(value)

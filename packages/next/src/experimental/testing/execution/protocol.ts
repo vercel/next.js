@@ -2,7 +2,7 @@ import type { CustomCoverageCompletion } from '../coverage/custom-types'
 import type {
   CompiledTestArtifact,
   ExecuteTestOptions,
-  TestCoverageCompletion,
+  AnyTestCoverageCompletion,
   TestFileCollection,
 } from '../contracts'
 import type { FileResult, ResultEvent } from '../reporting/events'
@@ -17,6 +17,7 @@ export interface WorkerInput {
     | 'userCancelSignal'
     | 'onEvent'
     | 'onCoverage'
+    | 'onIstanbulCoverage'
     | 'onCustomCoverage'
     | 'onCustomCoverageSuite'
   >
@@ -43,7 +44,7 @@ export type WorkerMessage =
       /** Actual host cleanup outcome; present only with private capture. */
       moduleHostCleanupComplete?: boolean
       snapshotUpdates?: SnapshotUpdate[]
-      coverage?: TestCoverageCompletion
+      coverage?: AnyTestCoverageCompletion
       customCoverage?: CustomCoverageCompletion
       collection?: TestFileCollection
     }

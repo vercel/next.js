@@ -10,7 +10,7 @@ import {
   writeFile,
 } from 'node:fs/promises'
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
-import { stripVTControlCharacters } from 'node:util'
+import { isDeepStrictEqual, stripVTControlCharacters } from 'node:util'
 import type {
   CaseResult,
   FileResult,
@@ -19,7 +19,11 @@ import type {
   SerializedDiagnostic,
 } from './events'
 import type { TestEntry } from '../contracts'
-import type { CustomReporterCompletion } from './custom-reporter-tasks'
+import type { PreparedCoverageMap } from '../coverage/report-standard'
+import {
+  isReportedSuiteError,
+  type CustomReporterCompletion,
+} from './custom-reporter-tasks'
 import {
   createTestReporter,
   formatDiagnostic,
@@ -223,6 +227,33 @@ export interface ClosedMachineFileRecord {
   caseCompletions: Extract<ResultEvent, { type: 'case-end' }>[]
 }
 
+/** Closed history retains actual suite payloads and their original diagnostic slots. */
+function isRetainedSuiteError(
+  event: Extract<ResultEvent, { type: 'diagnostic' }>,
+  record: ClosedMachineFileRecord
+): boolean {
+  const owner = event.suiteError
+  if (
+    !owner ||
+    !record.diagnostics.includes(event) ||
+    event.runId !== record.runId ||
+    event.revision !== record.revision ||
+    event.entryId !== record.result.entry.entry.id ||
+    !Number.isSafeInteger(owner.index) ||
+    owner.index < 0
+  )
+    return false
+  const suites = record.result.suites.filter(
+    (suite) =>
+      suite.entryId === event.entryId && suite.suiteId === owner.suiteId
+  )
+  return (
+    suites.length === 1 &&
+    suites[0].errors[owner.index] !== undefined &&
+    isDeepStrictEqual(suites[0].errors[owner.index], event.diagnostic)
+  )
+}
+
 export function createMachineReporter(options: {
   projectDir: string
   reporters: readonly ResultReporter[]
@@ -277,7 +308,7 @@ export function createMachineReporter(options: {
   let retainedFiles: ClosedMachineFileRecord[] = []
   let unexecutedEntries: TestEntry[] = []
   let retainedSpecificationOrder: readonly string[] | undefined
-  function json() {
+  function json(fileMessage: 'task' | 'formatted' = 'task') {
     let summary = collector!.getSummary()
     const currentEvents = collector!.getEvents()
     const current = collector!.getResults()
@@ -516,6 +547,28 @@ export function createMachineReporter(options: {
         const diagnostics = events.filter(
           (event) => event.type === 'diagnostic' && event.entryId === entry.id
         )
+        const historical = retained.find(
+          (record) => record.result.entry.entry.id === entry.id
+        )
+        const rootSuite = suiteResults.find(
+          (suite) => suite.entryId === entry.id && suite.suiteId === entry.id
+        )
+        const fileErrors = [
+          ...(rootSuite?.errors ?? []),
+          ...diagnostics.flatMap((event) =>
+            event.type === 'diagnostic' &&
+            event.diagnostic.severity === 'error' &&
+            event.diagnostic.unhandled === undefined &&
+            !isReportedSuiteError(event, currentEvents) &&
+            !(historical && isRetainedSuiteError(event, historical))
+              ? [event.diagnostic]
+              : []
+          ),
+        ].flatMap((error) =>
+          error.name === 'AggregateError' && error.errors
+            ? error.errors
+            : [error]
+        )
         return {
           assertionResults: orderTestDeclarations(
             entry.id,
@@ -604,18 +657,21 @@ export function createMachineReporter(options: {
             unhandledOnlyFiles.has(entry.id)
               ? 'passed'
               : 'failed',
-          message: diagnostics
-            .filter(
-              (event) =>
-                event.type !== 'diagnostic' ||
-                event.diagnostic.unhandled === undefined
-            )
-            .map((event) =>
-              event.type === 'diagnostic'
-                ? formatDiagnostic(event.diagnostic, options.projectDir)
-                : ''
-            )
-            .join('\n'),
+          message:
+            fileMessage === 'task'
+              ? (fileErrors[0]?.message ?? '')
+              : diagnostics
+                  .filter(
+                    (event) =>
+                      event.type !== 'diagnostic' ||
+                      event.diagnostic.unhandled === undefined
+                  )
+                  .map((event) =>
+                    event.type === 'diagnostic'
+                      ? formatDiagnostic(event.diagnostic, options.projectDir)
+                      : ''
+                  )
+                  .join('\n'),
           name: entry.file,
         }
       }),
@@ -625,7 +681,7 @@ export function createMachineReporter(options: {
     }
   }
   function junit() {
-    const report = json()
+    const report = json('formatted')
     const events = collector!.getEvents()
     const suites = report.testResults.map((file) => {
       const entry = collector!
@@ -681,6 +737,24 @@ export function createMachineReporter(options: {
         `<testsuite name="[run errors]" tests="1" errors="1"><testcase name="[run error]"><error>${xml(unscoped.map((event) => (event.type === 'diagnostic' ? formatDiagnostic(event.diagnostic) : '')).join('\n'))}</error></testcase></testsuite>`
       )
     return `<?xml version="1.0" encoding="UTF-8"?>\n<testsuites>${suites.join('')}</testsuites>\n`
+  }
+  async function publishContent(content: string, signal?: AbortSignal) {
+    if (!options.outputFile) {
+      write(content)
+      return
+    }
+    const target = resolve(options.projectDir, options.outputFile)
+    const temporary = `${target}.${randomUUID()}.tmp`
+    await mkdir(dirname(target), { recursive: true })
+    try {
+      await writeFile(temporary, content, { flag: 'wx', signal })
+      signal?.throwIfAborted()
+      await rename(temporary, target)
+    } finally {
+      await unlink(temporary).catch((error: NodeJS.ErrnoException) => {
+        if (error.code !== 'ENOENT') throw error
+      })
+    }
   }
   return {
     initialize,
@@ -833,9 +907,15 @@ export function createMachineReporter(options: {
       unexecutedEntries = structuredClone([...entries])
       retainedSpecificationOrder = [...specificationOrder]
     },
-    getJson: json,
+    getJson: () => json(),
     getJUnit: junit,
-    async finish({ signal }: { signal?: AbortSignal } = {}) {
+    async finish({
+      signal,
+      preparedCoverageMap,
+    }: {
+      signal?: AbortSignal
+      preparedCoverageMap?: PreparedCoverageMap
+    } = {}) {
       signal?.throwIfAborted()
       if (!enabled) return
       const events = collector!.getEvents()
@@ -885,26 +965,16 @@ export function createMachineReporter(options: {
                           ? { reporterErrors: errorsForBlob }
                           : {}),
                       }
-                    : json(),
+                    : {
+                        ...json(),
+                        ...(preparedCoverageMap === undefined
+                          ? {}
+                          : { coverageMap: preparedCoverageMap }),
+                      },
                   null,
                   2
                 )}\n`
-          if (!options.outputFile) {
-            write(content)
-            return
-          }
-          const target = resolve(options.projectDir, options.outputFile)
-          const temporary = `${target}.${randomUUID()}.tmp`
-          await mkdir(dirname(target), { recursive: true })
-          try {
-            await writeFile(temporary, content, { flag: 'wx', signal })
-            signal?.throwIfAborted()
-            await rename(temporary, target)
-          } finally {
-            await unlink(temporary).catch((error: NodeJS.ErrnoException) => {
-              if (error.code !== 'ENOENT') throw error
-            })
-          }
+          await publishContent(content, signal)
         }
         if (reporter === 'blob' && custom?.captureTaskResults)
           pendingBlobs.push(publish)
@@ -938,7 +1008,10 @@ export function createMachineReporter(options: {
       }
       if (customError) throw customError
     },
-    async dispose() {
+    async dispose({
+      deferCustom,
+      handledCustomFailure,
+    }: { deferCustom?: true; handledCustomFailure?: unknown } = {}) {
       const errors: unknown[] = []
       for (const reporter of [collector, ...liveReporters]) {
         try {
@@ -948,7 +1021,10 @@ export function createMachineReporter(options: {
         }
       }
       try {
-        if (!options.customReporterSession) await custom?.dispose()
+        if (!options.customReporterSession && !deferCustom) {
+          if (handledCustomFailure === undefined) await custom?.dispose()
+          else await custom?.dispose({ handledFailure: handledCustomFailure })
+        }
       } catch (error) {
         errors.push(error)
       }

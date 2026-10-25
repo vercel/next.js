@@ -42,7 +42,10 @@ pub mod util;
 
 pub use app_page_loader_tree::AppPageLoaderTreeModule;
 pub use emit::{emit_all_assets, emit_assets};
-pub use next_custom_transforms::transforms::browser_creator_scope::validate_creator_import as validate_browser_creator_import;
+pub use next_custom_transforms::transforms::browser_creator_scope::{
+    validate_creator_import as validate_browser_creator_import,
+    validate_promise_static_import as validate_browser_promise_static_import,
+};
 pub use next_edge::context::{
     get_edge_chunking_context, get_edge_chunking_context_with_client_assets,
     get_edge_compile_time_info, get_edge_resolve_options_context,

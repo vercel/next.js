@@ -1,13 +1,18 @@
 import { captureReporterTaskTree } from '../reporting/live-tasks'
 import { createReporterTaskUpdates } from '../reporting/task-updates'
 import type { RuntimeModuleCompletion } from '../execution/completed-module'
-import { initializeTestFile, getConsoleTask } from '../runner'
+import {
+  initializeTestFile,
+  getConsoleTask,
+  getCurrentConsoleTask,
+} from '../runner'
 import { configureBrowserEnv } from './env'
 import { getFinalCaseResults } from '../reporting/final-cases'
 import { processError } from '../../../compiled/next-test-primitives/error'
 import { installBrowserSnapshotBridge } from './snapshot-environment'
 import { createClientSourceMapResolver } from './source-maps'
 import type { ClientConfiguration, ClientPayload } from './protocol'
+import { clientCaseFinal } from './protocol'
 import {
   initializeBrowserContext,
   cleanupBrowserContext,
@@ -17,6 +22,11 @@ import { installClientConsole } from './console'
 import { getClientArtifactLocation } from './artifact-location'
 import { getClientDeclarationLocation } from './declaration-location'
 import type { TestArtifact } from '../runner/tasks'
+import {
+  captureClientCommandAdmission,
+  nativePromiseResolve,
+  nativePromiseThen,
+} from './async-context'
 
 /** Called only by the actual native evaluated client entry, before its spec. */
 export async function startClientTest(
@@ -46,11 +56,17 @@ export async function startClientTest(
       typeof config.captureTaskResults !== 'boolean') ||
     (config.captureCompletedModuleResult !== undefined &&
       config.captureCompletedModuleResult !== true) ||
+    (config.caseScheduling !== undefined &&
+      config.caseScheduling !== 'concurrent-v1') ||
     (config.userCancellation !== undefined &&
       config.userCancellation !== true) ||
     (config.hookSequence !== undefined &&
       !['stack', 'list', 'parallel'].includes(config.hookSequence)) ||
-    (config.maxConcurrency !== undefined && config.maxConcurrency !== 1) ||
+    (config.sequenceConcurrent !== undefined &&
+      typeof config.sequenceConcurrent !== 'boolean') ||
+    (config.maxConcurrency !== undefined &&
+      (!Number.isSafeInteger(config.maxConcurrency) ||
+        config.maxConcurrency < 1)) ||
     config.version !== 1 ||
     !config.ownerToken ||
     !config.authorization ||
@@ -79,6 +95,7 @@ export async function startClientTest(
     queue: Promise<unknown> = Promise.resolve(),
     nativeReply: Promise<void> | undefined,
     transportFailure: unknown
+  const nativeReplies = new Set<Promise<void>>()
   const pendingFailures: unknown[] = []
   let moduleCompletion: RuntimeModuleCompletion | undefined
   let moduleFailurePhase: 'collection' | 'run' | undefined
@@ -107,6 +124,14 @@ export async function startClientTest(
         message.type === 'output' ||
         (config.captureTaskResults === true && message.type === 'task-update')
       if (!observational && nativeReply) await nativeReply
+      if (
+        config.caseScheduling === 'concurrent-v1' &&
+        nativeReplies.size &&
+        (message.type === 'snapshot' ||
+          message.type === 'artifact' ||
+          (message.type === 'browser-command' && !message.origin))
+      )
+        await Promise.all([...nativeReplies])
       if (transportFailure) throw transportFailure
       const response = await fetch(config.rpcURL, {
         method: 'POST',
@@ -135,10 +160,15 @@ export async function startClientTest(
           () => {},
           () => {}
         )
-        nativeReply = pending
-        void pending.then(() => {
-          if (nativeReply === pending) nativeReply = undefined
-        })
+        if (config.caseScheduling === 'concurrent-v1' && message.origin) {
+          nativeReplies.add(pending)
+          void pending.then(() => nativeReplies.delete(pending))
+        } else {
+          nativeReply = pending
+          void pending.then(() => {
+            if (nativeReply === pending) nativeReply = undefined
+          })
+        }
       }
       return { reply }
     })
@@ -215,8 +245,19 @@ export async function startClientTest(
     > = [],
     snapshotSummary: unknown
   const mapper = createClientSourceMapResolver(config)
-  const browserContext = initializeBrowserContext((command) =>
-    send({ type: 'browser-command', command })
+  const browserContext = initializeBrowserContext(
+    (command, origin) =>
+      send({
+        type: 'browser-command',
+        command,
+        ...(origin ? { origin } : {}),
+      }),
+    {
+      getConsoleTask: getCurrentConsoleTask,
+      ...(config.caseScheduling === 'concurrent-v1'
+        ? { captureCommandAdmission: captureClientCommandAdmission }
+        : {}),
+    }
   )
   let mocks: { dispose(): void } | undefined
   let imports: ReturnType<NonNullable<typeof createImports>> | undefined
@@ -341,6 +382,9 @@ export async function startClientTest(
         resourceLifetime: 'file',
         waitForImports: imports?.waitForImports,
         retry: config.retry,
+        ...(config.sequenceConcurrent === undefined
+          ? {}
+          : { sequence: { concurrent: config.sequenceConcurrent } }),
         fakeTimers: config.fakeTimers,
         provide: config.provide,
         globals: config.globals,
@@ -371,6 +415,8 @@ export async function startClientTest(
               ),
         allowOnly: config.allowOnly,
         retry: config.retry,
+        caseScheduling: config.caseScheduling,
+        fixtureResources: 'file-v1',
       })
       if (!taskUpdates) await send({ type: 'collected', declarations })
       if (config.captureCompletedModuleResult) moduleFailurePhase = 'run'
@@ -388,9 +434,19 @@ export async function startClientTest(
           : {}),
         testTimeout: config.testTimeout,
         hookTimeout: config.hookTimeout,
-        ...(config.hookSequence === undefined
+        ...(config.hookSequence === undefined &&
+        config.sequenceConcurrent === undefined
           ? {}
-          : { sequence: { hooks: config.hookSequence } }),
+          : {
+              sequence: {
+                ...(config.hookSequence === undefined
+                  ? {}
+                  : { hooks: config.hookSequence }),
+                ...(config.sequenceConcurrent === undefined
+                  ? {}
+                  : { concurrent: config.sequenceConcurrent }),
+              },
+            }),
         ...(config.maxConcurrency === undefined
           ? {}
           : { maxConcurrency: config.maxConcurrency }),
@@ -466,26 +522,33 @@ export async function startClientTest(
             },
           }).catch(report)
         },
-        onCaseResult: taskUpdates
-          ? (task, result) => {
-              // The real callback owns these immutable logical outcome facts;
-              // later task metadata packs have their separate actual identity.
-              const snapshot = JSON.parse(
-                JSON.stringify({
-                  ...result,
-                  errors: result.errors.map((failure) => ({
-                    ...failure,
-                    error:
-                      failure.error && typeof failure.error === 'object'
-                        ? (serializedErrors?.get(failure.error) ??
-                          processError(failure.error))
-                        : processError(failure.error),
-                  })),
-                })
-              )
-              taskUpdates.caseResult(task, snapshot)
-            }
-          : undefined,
+        onCaseResult:
+          config.caseScheduling === 'concurrent-v1' || taskUpdates
+            ? (task, result) => {
+                if (config.caseScheduling === 'concurrent-v1')
+                  void send({
+                    type: 'case-final',
+                    result: clientCaseFinal(result),
+                  }).catch(report)
+                if (!taskUpdates) return
+                // The real callback owns these immutable logical outcome facts;
+                // later task metadata packs have their separate actual identity.
+                const snapshot = JSON.parse(
+                  JSON.stringify({
+                    ...result,
+                    errors: result.errors.map((failure) => ({
+                      ...failure,
+                      error:
+                        failure.error && typeof failure.error === 'object'
+                          ? (serializedErrors?.get(failure.error) ??
+                            processError(failure.error))
+                          : processError(failure.error),
+                    })),
+                  })
+                )
+                taskUpdates.caseResult(task, snapshot)
+              }
+            : undefined,
         onSuiteEnd(result, task) {
           taskUpdates?.suiteEnd(task)
           void send({
@@ -535,13 +598,35 @@ export async function startClientTest(
     } finally {
       userCancellation?.finishRun()
     }
+    let browserCleanup: Promise<void> | undefined
+    const cleanupBrowserResources = () => {
+      if (!browserCleanup)
+        browserCleanup = nativePromiseThen.call(
+          nativePromiseResolve(),
+          async () => {
+            for (const cleanup of [
+              cleanupBrowserContext,
+              cleanupBrowserKeyboard,
+            ]) {
+              try {
+                await cleanup()
+              } catch (error) {
+                report(error)
+                status = 'failed'
+              }
+            }
+          }
+        ) as Promise<void>
+      return browserCleanup
+    }
     for (const dispose of [
       ...(taskUpdates
         ? [() => taskUpdates.finish(), () => taskUpdates.dispose()]
         : []),
-      cleanupBrowserContext,
-      cleanupBrowserKeyboard,
-      () => file?.dispose(),
+      () =>
+        file?.dispose({ beforeOwnedWorkerDispose: cleanupBrowserResources }),
+      // Joined fallback for failed initialization or older file implementations.
+      cleanupBrowserResources,
       () => imports?.dispose(),
       ...(userCancellation ? [() => userCancellation!.close()] : []),
     ]) {

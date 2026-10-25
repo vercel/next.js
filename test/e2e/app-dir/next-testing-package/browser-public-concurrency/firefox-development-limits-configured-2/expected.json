@@ -1,0 +1,85 @@
+{
+  "rows": [
+    {
+      "value": {
+        "phase": "start",
+        "name": "limit A",
+        "active": ["limit A"],
+        "peak": 1
+      },
+      "task": "limit B"
+    },
+    {
+      "value": {
+        "phase": "start",
+        "name": "limit B",
+        "active": ["limit A", "limit B"],
+        "peak": 2
+      },
+      "task": "limit B"
+    },
+    {
+      "value": {
+        "phase": "end",
+        "name": "limit A",
+        "active": ["limit A", "limit B"],
+        "peak": 2
+      },
+      "task": "limit B"
+    },
+    {
+      "value": {
+        "phase": "end",
+        "name": "limit B",
+        "active": ["limit B"],
+        "peak": 2
+      },
+      "task": "<file>"
+    }
+  ],
+  "cases": [
+    {
+      "name": "limit A",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "limit B",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "caseFinals": [
+    {
+      "name": "limit A",
+      "state": "passed"
+    },
+    {
+      "name": "limit B",
+      "state": "passed"
+    }
+  ],
+  "runFinals": [
+    {
+      "reason": "passed",
+      "errors": [],
+      "files": [
+        {
+          "state": "passed",
+          "tests": [
+            {
+              "name": "limit A",
+              "state": "passed"
+            },
+            {
+              "name": "limit B",
+              "state": "passed"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "success": true,
+  "exit": 0
+}

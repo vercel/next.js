@@ -1,0 +1,100 @@
+{
+  "rows": [
+    {
+      "value": {
+        "phase": "setup",
+        "scope": "worker",
+        "id": 1
+      },
+      "task": "fixture A"
+    },
+    {
+      "value": {
+        "phase": "A-start",
+        "id": 1,
+        "closed": false,
+        "active": ["A"]
+      },
+      "task": "fixture A"
+    },
+    {
+      "value": {
+        "phase": "A-end",
+        "id": 1,
+        "active": ["A"]
+      },
+      "task": "fixture A"
+    },
+    {
+      "value": {
+        "phase": "B-start",
+        "id": 1,
+        "closed": false,
+        "active": ["B"]
+      },
+      "task": "fixture B"
+    },
+    {
+      "value": {
+        "phase": "B-end",
+        "id": 1,
+        "aClosed": false,
+        "active": ["B"]
+      },
+      "task": "fixture B"
+    },
+    {
+      "value": {
+        "phase": "cleanup",
+        "scope": "worker",
+        "id": 1
+      },
+      "task": "__vitest__unknown_test__"
+    }
+  ],
+  "cases": [
+    {
+      "name": "fixture A",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "fixture B",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "caseFinals": [
+    {
+      "name": "fixture A",
+      "state": "passed"
+    },
+    {
+      "name": "fixture B",
+      "state": "passed"
+    }
+  ],
+  "runFinals": [
+    {
+      "reason": "passed",
+      "errors": [],
+      "files": [
+        {
+          "state": "passed",
+          "tests": [
+            {
+              "name": "fixture A",
+              "state": "passed"
+            },
+            {
+              "name": "fixture B",
+              "state": "passed"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "success": true,
+  "exit": 0
+}

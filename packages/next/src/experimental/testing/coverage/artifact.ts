@@ -1,10 +1,15 @@
 import { validateMockCoverageSources } from './mock-sources'
+import { validateIstanbulHarnessCoverage } from './istanbul-harness'
 import { createHash } from 'crypto'
 import { readFile, realpath } from 'fs/promises'
 import { isAbsolute, posix, relative, resolve, sep } from 'path'
 import { fileURLToPath } from 'url'
 import { decodeCoverageMap } from './maps'
-import type { CoverageArtifactMetadata, MockCoverageSources } from './types'
+import type {
+  CoverageArtifactMetadata,
+  MockCoverageSources,
+  IstanbulHarnessCoverage,
+} from './types'
 
 export function coverageHash(value: string | Buffer): string {
   return createHash('sha256').update(value).digest('hex')
@@ -42,17 +47,29 @@ export async function buildCoverageMetadata(options: {
   includeEntrySource?: boolean
   setupFiles: readonly string[]
   syntheticSources?: MockCoverageSources
+  istanbulHarness?: IstanbulHarnessCoverage
   /** Actual production Browser assets name maps by their own content hash. */
   browserSourceMapReferences?: true
 }): Promise<CoverageArtifactMetadata> {
   if (options.syntheticSources)
     validateMockCoverageSources(options.syntheticSources)
+  if (options.istanbulHarness)
+    validateIstanbulHarnessCoverage(options.istanbulHarness)
+  const declaredHarness = new Map(
+    options.istanbulHarness?.sources.map((source) => [
+      source.source,
+      source.sha256,
+    ])
+  )
   const declaredSynthetic = new Map(
     options.syntheticSources?.sources.map((source) => [
       source.source,
       source.sha256,
     ])
   )
+  for (const identity of declaredHarness.keys())
+    if (declaredSynthetic.has(identity))
+      throw new Error('Conflicting generated coverage source roles.')
   const syntheticSources: Record<string, { sha256: string }> =
     Object.create(null)
   const project = await realpath(options.projectDir)
@@ -131,7 +148,15 @@ export async function buildCoverageMetadata(options: {
           throw new Error(`Unsupported coverage source identity: ${identity}`)
         }
         let source: CoverageArtifactMetadata['sources'][string] = null
-        if (declaredSynthetic.has(identity)) {
+        if (declaredHarness.has(identity)) {
+          if (
+            typeof content !== 'string' ||
+            coverageHash(content) !== declaredHarness.get(identity)
+          )
+            throw new Error(
+              `Native Istanbul harness source mismatch: ${identity}`
+            )
+        } else if (declaredSynthetic.has(identity)) {
           const sha256 = declaredSynthetic.get(identity)!
           if (
             !file ||
@@ -186,5 +211,8 @@ export async function buildCoverageMetadata(options: {
     scripts,
     sources,
     ...(options.syntheticSources ? { syntheticSources } : {}),
+    ...(options.istanbulHarness
+      ? { istanbulHarness: options.istanbulHarness }
+      : {}),
   }
 }

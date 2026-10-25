@@ -47,7 +47,11 @@ export function convert(options: {
 
 /** Pinned formatter primitives only; all inputs are supplied by the Next owner. */
 export function writeReports(
-  data: Record<string, CoverageData>,
+  data: Record<
+    string,
+    | CoverageData
+    | import('../../experimental/testing/coverage/istanbul-types').IstanbulMappedFileCoverage
+  >,
   directory: string,
   reporters: string[],
   options?: Record<string, object>

@@ -38,14 +38,12 @@ async function main() {
       throw error
     }
   )
-  collection.run(() =>
-    page.extend({
-      [Symbol.for('vitest:component-cleanup')]: async () => {
-        componentCleaned = true
-        if (failComponent) throw componentError
-      },
-    })
-  )
+  collection.run(() => {
+    page[Symbol.for('vitest:component-cleanup')] = async () => {
+      componentCleaned = true
+      if (failComponent) throw componentError
+    }
+  })
   collection.close()
   const scope = client.createAsyncScope(
     {
@@ -137,8 +135,8 @@ async function main() {
       cleanupBrowserContext(),
       (error) =>
         error instanceof AggregateError &&
-        error.errors[0] === cleanupError &&
-        error.errors[1] === componentError
+        error.errors[0] === componentError &&
+        error.errors[1] === cleanupError
     )
     assert.equal(componentCleaned, true)
     failComponent = false

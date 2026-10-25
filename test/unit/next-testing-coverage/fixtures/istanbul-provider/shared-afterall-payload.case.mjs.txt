@@ -1,0 +1,17 @@
+import { test, afterAll, expect, chai } from 'vitest'
+const payload = __PAYLOAD__
+const keys = Reflect.ownKeys(payload)
+chai.Assertion.addMethod('sharedAfterAllPayload', function () {
+  return payload
+})
+test('shared afterAll payload remains a caller value', () => {
+  expect(Reflect.ownKeys(payload)).toEqual(keys)
+})
+afterAll(() => {
+  expect(expect(1).sharedAfterAllPayload()).toBe(payload)
+  expect(Reflect.ownKeys(payload)).toEqual(keys)
+})
+afterAll(() => {
+  expect(expect(2).sharedAfterAllPayload()).toBe(payload)
+  expect(Reflect.ownKeys(payload)).toEqual(keys)
+})

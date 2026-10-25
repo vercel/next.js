@@ -17,6 +17,10 @@ import type { WorkStoreContext } from '../../server/async-storage/work-store'
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { RenderOptsPartial } from '../../server/app-render/types'
 import type { SnapshotUpdate, SnapshotUpdateMode } from './assertions/snapshots'
+import type {
+  IstanbulCoverageCapture,
+  IstanbulInstrumentationDescriptor,
+} from './coverage/istanbul-types'
 
 /** Requested Next compilation context, not a replacement compiler configuration. */
 export interface TestProfile {
@@ -58,18 +62,34 @@ export interface TestEntry {
 /** The first coverage protocol is opt-in and deliberately narrower than profiles. */
 export interface TestCoverageRequest {
   version: 1
-  kind: 'node-line' | 'browser-v8'
+  kind: 'node-line' | 'browser-v8' | 'node-istanbul'
 }
 
-export type TestCoverageCompletion = {
+export type TestCoverageCompletion<Data = CoverageCapture> = {
   version: 1
   runId: string
   entryId: string
   revision: string
 } & (
-  | { complete: true; data: CoverageCapture }
+  | { complete: true; data: Data }
   | { complete: false; error: SerializedDiagnostic }
 )
+
+export type IstanbulCoverageCompletion =
+  TestCoverageCompletion<IstanbulCoverageCapture> & {
+    /** Actual authored afterAll failures, authorized only after real disposal. */
+    settledSuiteErrors?: readonly { suiteId: string; index: number }[]
+    /** Exact actual file-cleanup diagnostic slots, after real disposal/joins. */
+    settledFileErrors?: readonly {
+      index: number
+      diagnostic: SerializedDiagnostic
+    }[]
+  }
+/** Shared IPC; the additional observation is admitted only for Istanbul. */
+export type AnyTestCoverageCompletion = TestCoverageCompletion<
+  CoverageCapture | IstanbulCoverageCapture
+> &
+  Pick<IstanbulCoverageCompletion, 'settledSuiteErrors' | 'settledFileErrors'>
 
 /** Explicit source registration, never an arbitrary browser-supplied module path. */
 export interface RegisteredBrowserFixture {
@@ -114,6 +134,8 @@ export interface CompileTestOptions {
 
 /** Allocated before emission so an outer watch owner can reclaim crash leftovers. */
 export interface TestCompilerSessionOptions {
+  /** Private opt-in to names from the actual Node define-env map; no Native authority. */
+  compilerEnvKeys?: true
   /** Internal extra refusals only; never native/client/transport authority. */
   testingDefaultConfiguration?: import('../../server/config-testing-policy').TestingDefaultConfiguration
   /** Private producer qualification only; not a public config or capability claim. */
@@ -126,6 +148,12 @@ export interface TestCompilerSessionOptions {
   compilerAliases?: import('./compiler/aliases').CompilerAliases
   /** Exact retained executable configuration realm; never a public config value. */
   compilerTransforms?: import('./compiler/transform-broker').CompilerTransformDescriptor
+  /** Distinct built-in JS coverage lane; never a user transform permission. */
+  istanbulInstrumentation?: IstanbulInstrumentationDescriptor
+  /** Local service snapshot of this artifact's actual emitted source closure. */
+  readIstanbulInstrumentation?: (
+    sourceFiles: readonly string[]
+  ) => import('./coverage/istanbul-types').IstanbulInstrumentationMetadata
   /** Caller retains deletion ownership through every worker and compiler shutdown. */
   allocateArtifact?: (parentDir: string) => Promise<{
     stagingDir: string
@@ -327,6 +355,8 @@ export interface CompiledTestCohort {
 /** Node units and Node browser-e2e drivers have no RSC manifests or request state. */
 export interface CompiledNodeTestArtifact
   extends CompiledTestArtifactBase<'node' | 'browser'> {
+  /** Actual compiler key names only, requested for ordinary executable Node env. */
+  compilerEnvKeys?: { version: 1; names: readonly string[] }
   kind: 'node'
   /** Native-issued actual module-ID manifest, never a public reset option. */
   moduleCache?: { version: 1 }
@@ -414,6 +444,8 @@ export interface ExecuteTestOptions {
   coverage?: TestCoverageRequest
   /** Parent-only callback, awaited after authoritative worker exit and cleanup. */
   onCoverage?: (completion: TestCoverageCompletion) => Promise<void>
+  /** Private actual Istanbul counter consumer, after the same cleanup barrier. */
+  onIstanbulCoverage?: (completion: IstanbulCoverageCompletion) => Promise<void>
   customCoverage?: CustomCoverageRequest
   /** Parent-only opaque payload consumer after authoritative worker cleanup. */
   onCustomCoverage?: (completion: CustomCoverageCompletion) => Promise<void>

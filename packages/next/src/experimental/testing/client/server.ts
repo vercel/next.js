@@ -11,8 +11,9 @@ import type {
   ClientConfiguration,
   ClientMessage,
   ClientBrowserCommand,
+  ClientCommandAttemptOrigin,
 } from './protocol'
-import { assertClientIdentity } from './protocol'
+import { assertClientIdentity, isClientCommandAttemptOrigin } from './protocol'
 import { createClientAssetReader } from './assets'
 import { createClientSnapshotAccess } from './snapshot-access'
 import { createClientSourceMapResolver } from './source-maps'
@@ -46,7 +47,8 @@ export async function createClientServer(options: {
   >
   onBrowserCommand?(
     command: ClientBrowserCommand,
-    admit: () => void
+    admit: () => void,
+    origin?: ClientCommandAttemptOrigin
   ): Promise<unknown>
   onMessage(
     message: Exclude<ClientMessage, { type: 'snapshot' | 'browser-command' }>
@@ -92,6 +94,7 @@ export async function createClientServer(options: {
   const sockets = new Set<Socket>()
   const socketClosures = new Set<Promise<void>>()
   const handlers = new Set<Promise<void>>()
+  const nativeActions = new Set<object>()
   const fail = (error: unknown) => {
     terminal ??= error
     rejectComplete(error)
@@ -308,6 +311,7 @@ body {
       busy = true
       let ownsAdmission = true,
         ownsNativeAction = false
+      let ownedNativeRecord: object | undefined
       try {
         const raw = await body(request)
         if (!record(raw))
@@ -319,6 +323,14 @@ body {
           )
         const message = raw as unknown as ClientMessage
         if (
+          message.type === 'browser-command' &&
+          message.origin !== undefined &&
+          (configuration.caseScheduling !== 'concurrent-v1' ||
+            !isClientCommandAttemptOrigin(message.origin) ||
+            message.origin.fileId !== configuration.entryId)
+        )
+          throw new Error('Invalid Browser Mode command attempt origin.')
+        if (
           nativeAction &&
           message.type !== 'output' &&
           !(
@@ -328,6 +340,26 @@ body {
         )
           throw new Error(
             'Only Browser console output or captured task updates may pass a pending native action.'
+          )
+        if (
+          nativeActions.size &&
+          ![
+            'output',
+            'case-start',
+            'case-end',
+            'case-final',
+            'suite-end',
+            'failure',
+            'complete',
+          ].includes(message.type) &&
+          !(
+            configuration.captureTaskResults === true &&
+            message.type === 'task-update'
+          ) &&
+          !(message.type === 'browser-command' && message.origin)
+        )
+          throw new Error(
+            'Browser Mode RPC cannot pass pending attempt commands.'
           )
         let result: unknown = null
         if (message.type === 'snapshot')
@@ -363,17 +395,34 @@ body {
           if (!options.onBrowserCommand)
             throw new Error('Browser Mode commands are unavailable.')
           try {
-            result = await options.onBrowserCommand(message.command, () => {
+            const admit = () => {
               if (!ownsAdmission || ownsNativeAction || nativeAction)
                 throw new Error('Invalid Browser Mode native action admission.')
+              if (message.origin) {
+                ownedNativeRecord = {}
+                nativeActions.add(ownedNativeRecord)
+              } else {
+                if (nativeActions.size)
+                  throw new Error(
+                    'Invalid Browser Mode serial command admission.'
+                  )
+                nativeAction = true
+              }
               response.setHeader('Content-Type', 'application/json')
               response.flushHeaders()
               // Gecko exposes a fetch Response after its first body bytes. JSON
               // whitespace admits observations without completing the reply.
               response.write(' ')
-              ownsNativeAction = nativeAction = true
+              ownsNativeAction = true
               ownsAdmission = busy = false
-            })
+            }
+            result = message.origin
+              ? await options.onBrowserCommand(
+                  message.command,
+                  admit,
+                  message.origin
+                )
+              : await options.onBrowserCommand(message.command, admit)
           } catch (error) {
             if (!(error instanceof ClientBrowserActionError)) throw error
             if (!response.headersSent)
@@ -392,7 +441,11 @@ body {
               'suite-end',
               'failure',
               'complete',
-            ].includes(message.type)
+            ].includes(message.type) &&
+            !(
+              configuration.caseScheduling === 'concurrent-v1' &&
+              message.type === 'case-final'
+            )
           )
             throw new Error('Unknown Browser Mode transport message.')
           await options.onMessage(message)
@@ -408,7 +461,8 @@ body {
         response.end(JSON.stringify({ value: result }))
       } finally {
         if (ownsAdmission) busy = false
-        if (ownsNativeAction) nativeAction = false
+        if (ownedNativeRecord) nativeActions.delete(ownedNativeRecord)
+        else if (ownsNativeAction) nativeAction = false
       }
     } catch (error) {
       fail(error)

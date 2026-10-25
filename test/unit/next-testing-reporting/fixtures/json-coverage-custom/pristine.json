@@ -1,0 +1,1281 @@
+{
+  "reference": "Genuine Vitest5.0.4 V8 JSON/custom end/global teardown/close combined outcomes; complete JSON+map and exact callback/file order",
+  "rows": [
+    {
+      "name": "close",
+      "files": {
+        "package.json": "{\"private\":true,\"type\":\"module\"}\n",
+        "subject.mjs": "export function choose(value){if(value)return 1;return 0}\n",
+        "suite.test.mjs": "import{test,expect}from'vitest';import{choose}from'./subject.mjs';test('completed body',()=>expect(choose(true)).toBe(1))\n",
+        "setup.mjs": "import{appendFileSync,existsSync}from'node:fs';export default()=>()=>{appendFileSync('trace.jsonl',JSON.stringify({event:'global-teardown',jsonExists:existsSync('cases.json'),coverageExists:existsSync('coverage/coverage-final.json')})+'\\n');}\n",
+        "reporter.mjs": "import{appendFileSync,existsSync}from'node:fs';const record=value=>appendFileSync('trace.jsonl',JSON.stringify(value)+'\\n');export default class{onInit(ctx){ctx.onClose(async()=>{record({event:'close',jsonExists:existsSync('cases.json'),coverageExists:existsSync('coverage/coverage-final.json')});await Promise.resolve();throw new Error('owned custom matrix close error')})}async onTestRunEnd(){record({event:'end'});await Promise.resolve();}}\n",
+        "vitest.config.mjs": "export default{test:{include:['suite.test.mjs'],maxWorkers:1,globalSetup:['./setup.mjs'],coverage:{enabled:true,provider:'v8',include:['subject.mjs'],reporter:['json','json-summary','lcovonly'],reportsDirectory:'coverage',clean:false}}}\n"
+      },
+      "pins": {
+        "package.json": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+        "subject.mjs": "cf10ebdf414506cccf3cb6587aec2551b6aec52ff20fbb85e9b4288dd9b8555e",
+        "suite.test.mjs": "8399f898cedb531fc059c79bcd44aaddf6255b536dca9a27503c7f3bb913fefd",
+        "setup.mjs": "9f0c3fff7b4e5f7a7ca2fa4ed2c9c4d3a376ddb43bb46c0584fe75fd4e130e0c",
+        "reporter.mjs": "2bf58f613ada8227ef6c9df51a1ff601823368d6bce0ac6c42c25b6798b32d2d",
+        "vitest.config.mjs": "9a8442fd4e0df0d1f71716a6f9ba0e7e08f2891381d148843a4e5a863ac58e17"
+      },
+      "observations": {
+        "status": 1,
+        "json": true,
+        "coverageMap": true,
+        "tests": 1,
+        "success": true,
+        "trace": [
+          {
+            "event": "end"
+          },
+          {
+            "event": "global-teardown",
+            "jsonExists": true,
+            "coverageExists": true
+          },
+          {
+            "event": "close",
+            "jsonExists": true,
+            "coverageExists": true
+          }
+        ],
+        "coverageFiles": [
+          "coverage-final.json",
+          "coverage-summary.json",
+          "lcov.info"
+        ]
+      },
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "completed body",
+                "status": "passed",
+                "title": "completed body",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<PROJECT_ROOT>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<PROJECT_ROOT>/subject.mjs": {
+            "path": "<PROJECT_ROOT>/subject.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 30
+                },
+                "end": {
+                  "line": 1,
+                  "column": 48
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 1,
+                  "column": 39
+                },
+                "end": {
+                  "line": 1,
+                  "column": 48
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 1,
+                  "column": 48
+                },
+                "end": {
+                  "line": 1,
+                  "column": 56
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 29
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": null
+                  }
+                },
+                "line": 1
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 48
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 1,
+                      "column": 30
+                    },
+                    "end": {
+                      "line": 1,
+                      "column": 48
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 1
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 1,
+              "lastStatement": 3,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:1:30:1:48:undefined:undefined:undefined:undefined": 0,
+                "s:1:30:1:48": 0,
+                "s:1:39:1:48": 1,
+                "s:1:48:1:56": 2
+              },
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "errors": ["owned custom matrix close error"]
+    },
+    {
+      "name": "config-close",
+      "files": {
+        "package.json": "{\"private\":true,\"type\":\"module\"}\n",
+        "subject.mjs": "export function choose(value){if(value)return 1;return 0}\n",
+        "suite.test.mjs": "import{test,expect}from'vitest';import{choose}from'./subject.mjs';test('completed body',()=>expect(choose(true)).toBe(1))\n",
+        "setup.mjs": "import{appendFileSync,existsSync}from'node:fs';export default()=>()=>{appendFileSync('trace.jsonl',JSON.stringify({event:'global-teardown',jsonExists:existsSync('cases.json'),coverageExists:existsSync('coverage/coverage-final.json')})+'\\n');throw new Error('owned custom matrix global teardown error')}\n",
+        "reporter.mjs": "import{appendFileSync,existsSync}from'node:fs';const record=value=>appendFileSync('trace.jsonl',JSON.stringify(value)+'\\n');export default class{onInit(ctx){ctx.onClose(async()=>{record({event:'close',jsonExists:existsSync('cases.json'),coverageExists:existsSync('coverage/coverage-final.json')});await Promise.resolve();throw new Error('owned custom matrix close error')})}async onTestRunEnd(){record({event:'end'});await Promise.resolve();}}\n",
+        "vitest.config.mjs": "export default{test:{include:['suite.test.mjs'],maxWorkers:1,globalSetup:['./setup.mjs'],coverage:{enabled:true,provider:'v8',include:['subject.mjs'],reporter:['json','json-summary','lcovonly'],reportsDirectory:'coverage',clean:false}}}\n"
+      },
+      "pins": {
+        "package.json": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+        "subject.mjs": "cf10ebdf414506cccf3cb6587aec2551b6aec52ff20fbb85e9b4288dd9b8555e",
+        "suite.test.mjs": "8399f898cedb531fc059c79bcd44aaddf6255b536dca9a27503c7f3bb913fefd",
+        "setup.mjs": "ae27743813aee9db1c981f69a3c459459af2cdb7d6802d1325a7eabfe367cbff",
+        "reporter.mjs": "2bf58f613ada8227ef6c9df51a1ff601823368d6bce0ac6c42c25b6798b32d2d",
+        "vitest.config.mjs": "9a8442fd4e0df0d1f71716a6f9ba0e7e08f2891381d148843a4e5a863ac58e17"
+      },
+      "observations": {
+        "status": 1,
+        "json": true,
+        "coverageMap": true,
+        "tests": 1,
+        "success": true,
+        "trace": [
+          {
+            "event": "end"
+          },
+          {
+            "event": "global-teardown",
+            "jsonExists": true,
+            "coverageExists": true
+          },
+          {
+            "event": "close",
+            "jsonExists": true,
+            "coverageExists": true
+          }
+        ],
+        "coverageFiles": [
+          "coverage-final.json",
+          "coverage-summary.json",
+          "lcov.info"
+        ]
+      },
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "completed body",
+                "status": "passed",
+                "title": "completed body",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<PROJECT_ROOT>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<PROJECT_ROOT>/subject.mjs": {
+            "path": "<PROJECT_ROOT>/subject.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 30
+                },
+                "end": {
+                  "line": 1,
+                  "column": 48
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 1,
+                  "column": 39
+                },
+                "end": {
+                  "line": 1,
+                  "column": 48
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 1,
+                  "column": 48
+                },
+                "end": {
+                  "line": 1,
+                  "column": 56
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 29
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": null
+                  }
+                },
+                "line": 1
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 48
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 1,
+                      "column": 30
+                    },
+                    "end": {
+                      "line": 1,
+                      "column": 48
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 1
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 1,
+              "lastStatement": 3,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:1:30:1:48:undefined:undefined:undefined:undefined": 0,
+                "s:1:30:1:48": 0,
+                "s:1:39:1:48": 1,
+                "s:1:48:1:56": 2
+              },
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "errors": [
+        "owned custom matrix global teardown error",
+        "owned custom matrix close error"
+      ]
+    },
+    {
+      "name": "end",
+      "files": {
+        "package.json": "{\"private\":true,\"type\":\"module\"}\n",
+        "subject.mjs": "export function choose(value){if(value)return 1;return 0}\n",
+        "suite.test.mjs": "import{test,expect}from'vitest';import{choose}from'./subject.mjs';test('completed body',()=>expect(choose(true)).toBe(1))\n",
+        "setup.mjs": "import{appendFileSync,existsSync}from'node:fs';export default()=>()=>{appendFileSync('trace.jsonl',JSON.stringify({event:'global-teardown',jsonExists:existsSync('cases.json'),coverageExists:existsSync('coverage/coverage-final.json')})+'\\n');}\n",
+        "reporter.mjs": "import{appendFileSync,existsSync}from'node:fs';const record=value=>appendFileSync('trace.jsonl',JSON.stringify(value)+'\\n');export default class{onInit(ctx){ctx.onClose(async()=>{record({event:'close',jsonExists:existsSync('cases.json'),coverageExists:existsSync('coverage/coverage-final.json')});await Promise.resolve();})}async onTestRunEnd(){record({event:'end'});await Promise.resolve();throw new Error('owned custom matrix end error')}}\n",
+        "vitest.config.mjs": "export default{test:{include:['suite.test.mjs'],maxWorkers:1,globalSetup:['./setup.mjs'],coverage:{enabled:true,provider:'v8',include:['subject.mjs'],reporter:['json','json-summary','lcovonly'],reportsDirectory:'coverage',clean:false}}}\n"
+      },
+      "pins": {
+        "package.json": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+        "subject.mjs": "cf10ebdf414506cccf3cb6587aec2551b6aec52ff20fbb85e9b4288dd9b8555e",
+        "suite.test.mjs": "8399f898cedb531fc059c79bcd44aaddf6255b536dca9a27503c7f3bb913fefd",
+        "setup.mjs": "9f0c3fff7b4e5f7a7ca2fa4ed2c9c4d3a376ddb43bb46c0584fe75fd4e130e0c",
+        "reporter.mjs": "3940f4d4eabc270309d19fee3a32acb6f24e279201e967e4d60b07bdb3672b51",
+        "vitest.config.mjs": "9a8442fd4e0df0d1f71716a6f9ba0e7e08f2891381d148843a4e5a863ac58e17"
+      },
+      "observations": {
+        "status": 1,
+        "json": true,
+        "coverageMap": true,
+        "tests": 1,
+        "success": true,
+        "trace": [
+          {
+            "event": "end"
+          },
+          {
+            "event": "global-teardown",
+            "jsonExists": true,
+            "coverageExists": false
+          },
+          {
+            "event": "close",
+            "jsonExists": true,
+            "coverageExists": false
+          }
+        ],
+        "coverageFiles": []
+      },
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "completed body",
+                "status": "passed",
+                "title": "completed body",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<PROJECT_ROOT>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<PROJECT_ROOT>/subject.mjs": {
+            "path": "<PROJECT_ROOT>/subject.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 30
+                },
+                "end": {
+                  "line": 1,
+                  "column": 48
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 1,
+                  "column": 39
+                },
+                "end": {
+                  "line": 1,
+                  "column": 48
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 1,
+                  "column": 48
+                },
+                "end": {
+                  "line": 1,
+                  "column": 56
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 29
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": null
+                  }
+                },
+                "line": 1
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 48
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 1,
+                      "column": 30
+                    },
+                    "end": {
+                      "line": 1,
+                      "column": 48
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 1
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 1,
+              "lastStatement": 3,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:1:30:1:48:undefined:undefined:undefined:undefined": 0,
+                "s:1:30:1:48": 0,
+                "s:1:39:1:48": 1,
+                "s:1:48:1:56": 2
+              },
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "errors": ["owned custom matrix end error"]
+    },
+    {
+      "name": "end-close",
+      "files": {
+        "package.json": "{\"private\":true,\"type\":\"module\"}\n",
+        "subject.mjs": "export function choose(value){if(value)return 1;return 0}\n",
+        "suite.test.mjs": "import{test,expect}from'vitest';import{choose}from'./subject.mjs';test('completed body',()=>expect(choose(true)).toBe(1))\n",
+        "setup.mjs": "import{appendFileSync,existsSync}from'node:fs';export default()=>()=>{appendFileSync('trace.jsonl',JSON.stringify({event:'global-teardown',jsonExists:existsSync('cases.json'),coverageExists:existsSync('coverage/coverage-final.json')})+'\\n');}\n",
+        "reporter.mjs": "import{appendFileSync,existsSync}from'node:fs';const record=value=>appendFileSync('trace.jsonl',JSON.stringify(value)+'\\n');export default class{onInit(ctx){ctx.onClose(async()=>{record({event:'close',jsonExists:existsSync('cases.json'),coverageExists:existsSync('coverage/coverage-final.json')});await Promise.resolve();throw new Error('owned custom matrix close error')})}async onTestRunEnd(){record({event:'end'});await Promise.resolve();throw new Error('owned custom matrix end error')}}\n",
+        "vitest.config.mjs": "export default{test:{include:['suite.test.mjs'],maxWorkers:1,globalSetup:['./setup.mjs'],coverage:{enabled:true,provider:'v8',include:['subject.mjs'],reporter:['json','json-summary','lcovonly'],reportsDirectory:'coverage',clean:false}}}\n"
+      },
+      "pins": {
+        "package.json": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+        "subject.mjs": "cf10ebdf414506cccf3cb6587aec2551b6aec52ff20fbb85e9b4288dd9b8555e",
+        "suite.test.mjs": "8399f898cedb531fc059c79bcd44aaddf6255b536dca9a27503c7f3bb913fefd",
+        "setup.mjs": "9f0c3fff7b4e5f7a7ca2fa4ed2c9c4d3a376ddb43bb46c0584fe75fd4e130e0c",
+        "reporter.mjs": "d4e7c911863e5733032cbaae02bb7dd1b73cea122703c66762d6e55f5e5f9c6a",
+        "vitest.config.mjs": "9a8442fd4e0df0d1f71716a6f9ba0e7e08f2891381d148843a4e5a863ac58e17"
+      },
+      "observations": {
+        "status": 1,
+        "json": true,
+        "coverageMap": true,
+        "tests": 1,
+        "success": true,
+        "trace": [
+          {
+            "event": "end"
+          },
+          {
+            "event": "global-teardown",
+            "jsonExists": true,
+            "coverageExists": false
+          },
+          {
+            "event": "close",
+            "jsonExists": true,
+            "coverageExists": false
+          }
+        ],
+        "coverageFiles": []
+      },
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "completed body",
+                "status": "passed",
+                "title": "completed body",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<PROJECT_ROOT>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<PROJECT_ROOT>/subject.mjs": {
+            "path": "<PROJECT_ROOT>/subject.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 30
+                },
+                "end": {
+                  "line": 1,
+                  "column": 48
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 1,
+                  "column": 39
+                },
+                "end": {
+                  "line": 1,
+                  "column": 48
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 1,
+                  "column": 48
+                },
+                "end": {
+                  "line": 1,
+                  "column": 56
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 29
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": null
+                  }
+                },
+                "line": 1
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 48
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 1,
+                      "column": 30
+                    },
+                    "end": {
+                      "line": 1,
+                      "column": 48
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 1
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 1,
+              "lastStatement": 3,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:1:30:1:48:undefined:undefined:undefined:undefined": 0,
+                "s:1:30:1:48": 0,
+                "s:1:39:1:48": 1,
+                "s:1:48:1:56": 2
+              },
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "errors": [
+        "owned custom matrix end error",
+        "owned custom matrix close error"
+      ]
+    },
+    {
+      "name": "end-config-close",
+      "files": {
+        "package.json": "{\"private\":true,\"type\":\"module\"}\n",
+        "subject.mjs": "export function choose(value){if(value)return 1;return 0}\n",
+        "suite.test.mjs": "import{test,expect}from'vitest';import{choose}from'./subject.mjs';test('completed body',()=>expect(choose(true)).toBe(1))\n",
+        "setup.mjs": "import{appendFileSync,existsSync}from'node:fs';export default()=>()=>{appendFileSync('trace.jsonl',JSON.stringify({event:'global-teardown',jsonExists:existsSync('cases.json'),coverageExists:existsSync('coverage/coverage-final.json')})+'\\n');throw new Error('owned custom matrix global teardown error')}\n",
+        "reporter.mjs": "import{appendFileSync,existsSync}from'node:fs';const record=value=>appendFileSync('trace.jsonl',JSON.stringify(value)+'\\n');export default class{onInit(ctx){ctx.onClose(async()=>{record({event:'close',jsonExists:existsSync('cases.json'),coverageExists:existsSync('coverage/coverage-final.json')});await Promise.resolve();throw new Error('owned custom matrix close error')})}async onTestRunEnd(){record({event:'end'});await Promise.resolve();throw new Error('owned custom matrix end error')}}\n",
+        "vitest.config.mjs": "export default{test:{include:['suite.test.mjs'],maxWorkers:1,globalSetup:['./setup.mjs'],coverage:{enabled:true,provider:'v8',include:['subject.mjs'],reporter:['json','json-summary','lcovonly'],reportsDirectory:'coverage',clean:false}}}\n"
+      },
+      "pins": {
+        "package.json": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+        "subject.mjs": "cf10ebdf414506cccf3cb6587aec2551b6aec52ff20fbb85e9b4288dd9b8555e",
+        "suite.test.mjs": "8399f898cedb531fc059c79bcd44aaddf6255b536dca9a27503c7f3bb913fefd",
+        "setup.mjs": "ae27743813aee9db1c981f69a3c459459af2cdb7d6802d1325a7eabfe367cbff",
+        "reporter.mjs": "d4e7c911863e5733032cbaae02bb7dd1b73cea122703c66762d6e55f5e5f9c6a",
+        "vitest.config.mjs": "9a8442fd4e0df0d1f71716a6f9ba0e7e08f2891381d148843a4e5a863ac58e17"
+      },
+      "observations": {
+        "status": 1,
+        "json": true,
+        "coverageMap": true,
+        "tests": 1,
+        "success": true,
+        "trace": [
+          {
+            "event": "end"
+          },
+          {
+            "event": "global-teardown",
+            "jsonExists": true,
+            "coverageExists": false
+          },
+          {
+            "event": "close",
+            "jsonExists": true,
+            "coverageExists": false
+          }
+        ],
+        "coverageFiles": []
+      },
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "completed body",
+                "status": "passed",
+                "title": "completed body",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<PROJECT_ROOT>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<PROJECT_ROOT>/subject.mjs": {
+            "path": "<PROJECT_ROOT>/subject.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 30
+                },
+                "end": {
+                  "line": 1,
+                  "column": 48
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 1,
+                  "column": 39
+                },
+                "end": {
+                  "line": 1,
+                  "column": 48
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 1,
+                  "column": 48
+                },
+                "end": {
+                  "line": 1,
+                  "column": 56
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 29
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": null
+                  }
+                },
+                "line": 1
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 48
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 1,
+                      "column": 30
+                    },
+                    "end": {
+                      "line": 1,
+                      "column": 48
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 1
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 1,
+              "lastStatement": 3,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:1:30:1:48:undefined:undefined:undefined:undefined": 0,
+                "s:1:30:1:48": 0,
+                "s:1:39:1:48": 1,
+                "s:1:48:1:56": 2
+              },
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "errors": [
+        "owned custom matrix end error",
+        "owned custom matrix global teardown error",
+        "owned custom matrix close error"
+      ]
+    },
+    {
+      "name": "success",
+      "files": {
+        "package.json": "{\"private\":true,\"type\":\"module\"}\n",
+        "subject.mjs": "export function choose(value){if(value)return 1;return 0}\n",
+        "suite.test.mjs": "import{test,expect}from'vitest';import{choose}from'./subject.mjs';test('completed body',()=>expect(choose(true)).toBe(1))\n",
+        "setup.mjs": "import{appendFileSync,existsSync}from'node:fs';export default()=>()=>{appendFileSync('trace.jsonl',JSON.stringify({event:'global-teardown',jsonExists:existsSync('cases.json'),coverageExists:existsSync('coverage/coverage-final.json')})+'\\n');}\n",
+        "reporter.mjs": "import{appendFileSync,existsSync}from'node:fs';const record=value=>appendFileSync('trace.jsonl',JSON.stringify(value)+'\\n');export default class{onInit(ctx){ctx.onClose(async()=>{record({event:'close',jsonExists:existsSync('cases.json'),coverageExists:existsSync('coverage/coverage-final.json')});await Promise.resolve();})}async onTestRunEnd(){record({event:'end'});await Promise.resolve();}}\n",
+        "vitest.config.mjs": "export default{test:{include:['suite.test.mjs'],maxWorkers:1,globalSetup:['./setup.mjs'],coverage:{enabled:true,provider:'v8',include:['subject.mjs'],reporter:['json','json-summary','lcovonly'],reportsDirectory:'coverage',clean:false}}}\n"
+      },
+      "pins": {
+        "package.json": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+        "subject.mjs": "cf10ebdf414506cccf3cb6587aec2551b6aec52ff20fbb85e9b4288dd9b8555e",
+        "suite.test.mjs": "8399f898cedb531fc059c79bcd44aaddf6255b536dca9a27503c7f3bb913fefd",
+        "setup.mjs": "9f0c3fff7b4e5f7a7ca2fa4ed2c9c4d3a376ddb43bb46c0584fe75fd4e130e0c",
+        "reporter.mjs": "44a3637afde5e7befe98eaba65fdbc2f9d8c9e9486124a262a6265b0fc264ee2",
+        "vitest.config.mjs": "9a8442fd4e0df0d1f71716a6f9ba0e7e08f2891381d148843a4e5a863ac58e17"
+      },
+      "observations": {
+        "status": 0,
+        "json": true,
+        "coverageMap": true,
+        "tests": 1,
+        "success": true,
+        "trace": [
+          {
+            "event": "end"
+          },
+          {
+            "event": "global-teardown",
+            "jsonExists": true,
+            "coverageExists": true
+          },
+          {
+            "event": "close",
+            "jsonExists": true,
+            "coverageExists": true
+          }
+        ],
+        "coverageFiles": [
+          "coverage-final.json",
+          "coverage-summary.json",
+          "lcov.info"
+        ]
+      },
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "completed body",
+                "status": "passed",
+                "title": "completed body",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<PROJECT_ROOT>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<PROJECT_ROOT>/subject.mjs": {
+            "path": "<PROJECT_ROOT>/subject.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 30
+                },
+                "end": {
+                  "line": 1,
+                  "column": 48
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 1,
+                  "column": 39
+                },
+                "end": {
+                  "line": 1,
+                  "column": 48
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 1,
+                  "column": 48
+                },
+                "end": {
+                  "line": 1,
+                  "column": 56
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 29
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": null
+                  }
+                },
+                "line": 1
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 48
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 1,
+                      "column": 30
+                    },
+                    "end": {
+                      "line": 1,
+                      "column": 48
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 1
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 1,
+              "lastStatement": 3,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:1:30:1:48:undefined:undefined:undefined:undefined": 0,
+                "s:1:30:1:48": 0,
+                "s:1:39:1:48": 1,
+                "s:1:48:1:56": 2
+              },
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "errors": []
+    }
+  ]
+}

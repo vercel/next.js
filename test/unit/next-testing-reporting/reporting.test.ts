@@ -1204,6 +1204,213 @@ describe('Next structured source attribution', () => {
 })
 
 describe('Next machine result reporters', () => {
+  it.each(['BigInt', 'cycle'] as const)(
+    'retains original mapped JSON serialization failure timing for %s metadata before other reporters',
+    async (kind) => {
+      const writes: string[] = []
+      const machine = createMachineReporter({
+        projectDir: '/project',
+        reporters: ['json', 'junit'],
+        write: (text) => writes.push(text),
+      })
+      const meta: Record<string, unknown> = {}
+      if (kind === 'BigInt') meta.value = 1n
+      else meta.self = meta
+      const emit = (event: object) =>
+        machine.onEvent({ ...envelope, ...event } as ResultEvent)
+      try {
+        emit({ type: 'run-start' })
+        emit({ type: 'file-start', entry })
+        emit({ type: 'case-end', ...result(0, 'passed'), meta })
+        emit({
+          type: 'file-end',
+          entryId: entry.id,
+          status: 'passed',
+          durationMs: 3,
+        })
+        emit({ type: 'run-end', status: 'passed', durationMs: 3 })
+        await expect(
+          machine.finish({ preparedCoverageMap: {} })
+        ).rejects.toThrow(TypeError)
+        expect(writes).toEqual([])
+      } finally {
+        await machine.dispose()
+      }
+    }
+  )
+
+  it.each([false, true])(
+    'publishes the actual prepared coverage map at JSON finish (empty=%s)',
+    async (empty) => {
+      const root = await mkdtemp(join(tmpdir(), 'next-json-prepared-coverage-'))
+      const outputFile = join(root, 'cases.json')
+      const machine = createMachineReporter({
+        projectDir: root,
+        reporters: ['json'],
+        outputFile,
+      })
+      const emit = (event: object) =>
+        machine.onEvent({ ...envelope, ...event } as ResultEvent)
+      const map: NonNullable<
+        Parameters<typeof machine.finish>[0]
+      >['preparedCoverageMap'] = empty
+        ? {}
+        : {
+            '/project/subject.ts': {
+              path: '/project/subject.ts',
+              statementMap: {
+                '0': {
+                  start: { line: 1, column: 0 },
+                  end: { line: 1, column: 8 },
+                },
+              },
+              fnMap: {},
+              branchMap: {},
+              s: { '0': 3 },
+              f: {},
+              b: {},
+            },
+          }
+      try {
+        emit({ type: 'run-start' })
+        emit({ type: 'file-start', entry })
+        emit({ type: 'case-end', ...result(0, 'passed') })
+        emit({
+          type: 'file-end',
+          entryId: entry.id,
+          status: 'passed',
+          durationMs: 3,
+        })
+        emit({ type: 'run-end', status: 'passed', durationMs: 3 })
+        const report = machine.getJson()
+        await machine.finish({ preparedCoverageMap: map })
+        expect(JSON.parse(await readFile(outputFile, 'utf8'))).toEqual({
+          ...JSON.parse(JSON.stringify(report)),
+          coverageMap: map,
+        })
+        expect(machine.getJson()).not.toHaveProperty('coverageMap')
+      } finally {
+        await machine.dispose()
+        await rm(root, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('omits coverageMap from original JSON finish when no actual map is supplied', async () => {
+    const writes: string[] = []
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+      write: (text) => writes.push(text),
+    })
+    try {
+      machine.onEvent({ ...envelope, type: 'run-start' })
+      machine.onEvent({
+        ...envelope,
+        type: 'run-end',
+        status: 'passed',
+        durationMs: 3,
+      })
+      await machine.finish()
+      expect(JSON.parse(writes[0])).toEqual(
+        JSON.parse(JSON.stringify(machine.getJson()))
+      )
+      expect(JSON.parse(writes[0])).not.toHaveProperty('coverageMap')
+    } finally {
+      await machine.dispose()
+    }
+  })
+
+  it('keeps prepared maps exclusively in JSON without changing JUnit bytes', async () => {
+    const writes: string[] = []
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json', 'junit'],
+      write: (text) => writes.push(text),
+    })
+    try {
+      machine.onEvent({ ...envelope, type: 'run-start' })
+      machine.onEvent({
+        ...envelope,
+        type: 'run-end',
+        status: 'passed',
+        durationMs: 3,
+      })
+      const xml = machine.getJUnit()
+      await machine.finish({ preparedCoverageMap: {} })
+      expect(JSON.parse(writes[0])).toMatchObject({
+        success: true,
+        coverageMap: {},
+      })
+      expect(writes[1]).toBe(xml)
+    } finally {
+      await machine.dispose()
+    }
+  })
+
+  it('retains original mapped JSON output failure timing before later reporters', async () => {
+    const root = await mkdtemp(
+      join(tmpdir(), 'next-json-coverage-write-error-')
+    )
+    const outputFile = join(root, 'cases.json')
+    const machine = createMachineReporter({
+      projectDir: root,
+      reporters: ['json', 'junit'],
+      outputFile,
+    })
+    try {
+      await mkdir(outputFile)
+      machine.onEvent({ ...envelope, type: 'run-start' })
+      machine.onEvent({
+        ...envelope,
+        type: 'run-end',
+        status: 'passed',
+        durationMs: 3,
+      })
+      await expect(
+        machine.finish({ preparedCoverageMap: {} })
+      ).rejects.toMatchObject({
+        code: expect.stringMatching(/^(?:EISDIR|ENOTEMPTY|EPERM)$/),
+      })
+      const { readdir } = await import('node:fs/promises')
+      expect(await readdir(root)).toEqual(['cases.json'])
+    } finally {
+      await machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps an aborted mapped JSON finish unpublished', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-json-coverage-abort-'))
+    const outputFile = join(root, 'cases.json')
+    const controller = new AbortController()
+    const failure = new Error('prepared coverage observer cancelled')
+    const machine = createMachineReporter({
+      projectDir: root,
+      reporters: ['json'],
+      outputFile,
+    })
+    try {
+      machine.onEvent({ ...envelope, type: 'run-start' })
+      machine.onEvent({
+        ...envelope,
+        type: 'run-end',
+        status: 'passed',
+        durationMs: 3,
+      })
+      controller.abort(failure)
+      await expect(
+        machine.finish({ signal: controller.signal, preparedCoverageMap: {} })
+      ).rejects.toBe(failure)
+      await expect(readFile(outputFile)).rejects.toMatchObject({
+        code: 'ENOENT',
+      })
+    } finally {
+      await machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
   it.each(
     ([undefined, false, true] as const).flatMap(
       (emptySelectionPassWithNoTests) =>
@@ -2599,6 +2806,42 @@ describe('owned custom completion reporters', () => {
         .map((line) => JSON.parse(line))
     return { root, machine, complete, trace }
   }
+
+  it.each(['error', 'exit'] as const)(
+    'retains an actual independent close %s after an already-owned completion failure',
+    async (mode) => {
+      const c = await custom(mode, 'completion-distinct-close.mjs')
+      try {
+        await c.machine.initialize()
+        const { pid } = JSON.parse(
+          await readFile(join(c.root, 'initialized.json'), 'utf8')
+        )
+        c.complete()
+        const completionError = await c.machine
+          .finish({ preparedCoverageMap: {} })
+          .catch((error) => error)
+        expect(completionError.message).toBe('owned earlier completion error')
+        await c.machine.dispose({ deferCustom: true })
+        expect(process.kill(pid, 0)).toBe(true)
+        const closeError = await c.machine
+          .dispose({ handledCustomFailure: completionError })
+          .catch((error) => error)
+        expect(closeError).not.toBe(completionError)
+        expect(closeError.message).toContain(
+          mode === 'exit'
+            ? 'Custom reporter process ended unexpectedly'
+            : 'owned distinct close error'
+        )
+        expect(() => process.kill(pid, 0)).toThrow()
+        expect(
+          JSON.parse(await readFile(join(c.root, 'result.json'), 'utf8'))
+        ).toMatchObject({ success: true, coverageMap: {} })
+      } finally {
+        await c.machine.dispose().catch(() => {})
+        await rm(c.root, { recursive: true, force: true })
+      }
+    }
+  )
 
   it('initializes before events, exposes real nested task identities and awaits async completion/close', async () => {
     const c = await custom()
@@ -6242,4 +6485,95 @@ it('retains exact Browser intrinsic raw declarations and the existing closed-sco
     frozenUnknownTargetGuarded: true,
     guardCalls: 11,
   })
+})
+
+describe('pinned JSON file error messages', () => {
+  it('retains exact root/diagnostic slots through closed history while preserving prior JUnit bytes and original evidence', () => {
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'json-suite-message-unit.cjs')],
+        { encoding: 'utf8', timeout: 30000 }
+      )
+    )
+    expect(actual).toEqual({
+      scenarios: 20,
+      exactRawMessages: true,
+      priorJUnitBytesHeld: true,
+      originalEvidenceHeld: true,
+      closedHistoryOwnedSlots: true,
+    })
+  })
+  it('matches whole genuine JSON reports for root/nested hooks, aggregate/primitive errors, case and collection failures in both modes', async () => {
+    const output = await mkdtemp(join(tmpdir(), 'next-json-suite-messages-'))
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'json-suite-message-reports.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          '--source',
+        ],
+        {
+          encoding: 'utf8',
+          timeout: 300000,
+          env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+        }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+      ).toMatchObject({
+        profiles: 24,
+        wholeReportsEqual: 24,
+        rawFileAndCaseMessagesExact: true,
+        authoredBytesHeld: true,
+        allOwnersClosed: true,
+      })
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 310000)
+})
+
+describe('standard JSON coverage with custom reporter completion and close', () => {
+  const pristine = require('./fixtures/json-coverage-custom/pristine.json')
+  it.each(pristine.rows.map((row: { name: string }) => row.name))(
+    'retains genuine complete maps, report files and independent errors for %s',
+    async (name: string) => {
+      const output = await mkdtemp(join(tmpdir(), 'next-custom-json-coverage-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'json-coverage-custom-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 125000 }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          name,
+          completeGenuineJSONAndMap: true,
+          exactCallbackAndFileOrder: true,
+          allIndependentAuthoredErrorsRetained: true,
+          authoredBytesHeld: true,
+          ownedProcessTreeClosed: true,
+        })
+      } finally {
+        if (process.env.NEXT_TESTING_CUSTOM_JSON_COVERAGE_EVIDENCE)
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_CUSTOM_JSON_COVERAGE_EVIDENCE, name),
+            { recursive: true }
+          )
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
 })

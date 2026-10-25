@@ -13,6 +13,116 @@ use swc_core::{
 
 pub const CREATOR_BRIDGE: &str = "private-next-test-creator-scope";
 
+pub const PROMISE_STATIC_BRIDGE: &str = "private-next-test-promise-static-call";
+
+/// Bind the actual native static member before evaluating its original arguments.
+/// Local Promise bindings, optional/computed calls and aliases retain their AST.
+pub fn browser_promise_static_calls(
+    program: &mut Program,
+    unresolved_ctxt: SyntaxContext,
+) -> usize {
+    struct PromiseStaticCalls {
+        unresolved_ctxt: SyntaxContext,
+        bind: Ident,
+        count: usize,
+    }
+    impl VisitMut for PromiseStaticCalls {
+        fn visit_mut_call_expr(&mut self, call: &mut CallExpr) {
+            call.visit_mut_children_with(self);
+            let Callee::Expr(callee) = &mut call.callee else {
+                return;
+            };
+            let Expr::Member(member) = &mut **callee else {
+                return;
+            };
+            let Expr::Ident(receiver) = &*member.obj else {
+                return;
+            };
+            if receiver.sym != *"Promise" || receiver.ctxt != self.unresolved_ctxt {
+                return;
+            }
+            let MemberProp::Ident(property) = &member.prop else {
+                return;
+            };
+            if !matches!(property.sym.as_ref(), "all" | "resolve") {
+                return;
+            }
+            let key = property.sym.to_string();
+            let receiver = *member.obj.take();
+            let mut bound = quote!(
+                "$bind($receiver, $key)" as Expr,
+                bind = self.bind.clone(),
+                receiver: Expr = receiver,
+                key: Expr = key.into(),
+            );
+            if let Expr::Call(bound) = &mut bound {
+                bound.span = member.span;
+            }
+            *callee = Box::new(bound);
+            self.count += 1;
+        }
+    }
+    let mut pass = PromiseStaticCalls {
+        unresolved_ctxt,
+        bind: private_ident!("__next_promise_static_call"),
+        count: 0,
+    };
+    program.visit_mut_with(&mut pass);
+    if pass.count != 0 {
+        let mut import = quote!(
+            "import { bindNativePromiseStaticCall as $bind } from \
+             'private-next-test-promise-static-call';" as ModuleItem,
+            bind = pass.bind,
+        );
+        if let ModuleItem::ModuleDecl(ModuleDecl::Import(decl)) = &mut import {
+            decl.span = DUMMY_SP;
+            decl.src.span = DUMMY_SP;
+        }
+        if let Program::Module(module) = program {
+            module.body.insert(0, import);
+        }
+    }
+    pass.count
+}
+
+/// The one exact private import is produced above; authored AST cannot issue it.
+pub fn validate_promise_static_import(program: &Program) -> Result<bool> {
+    let Program::Module(module) = program else {
+        return Ok(false);
+    };
+    let mut found = false;
+    for item in &module.body {
+        let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = item else {
+            continue;
+        };
+        if import.src.value != PROMISE_STATIC_BRIDGE {
+            continue;
+        }
+        if found
+            || import.span != DUMMY_SP
+            || import.src.span != DUMMY_SP
+            || import.specifiers.len() != 1
+        {
+            bail!("Browser Promise static calls require the actual compiler import");
+        }
+        let ImportSpecifier::Named(named) = &import.specifiers[0] else {
+            bail!("Browser Promise static calls require the exact compiler binding");
+        };
+        let Some(ModuleExportName::Ident(imported)) = &named.imported else {
+            bail!("Browser Promise static calls require the named compiler binding");
+        };
+        if imported.sym != *"bindNativePromiseStaticCall"
+            || named.is_type_only
+            || named.local.ctxt == Default::default()
+            || !named.local.sym.starts_with("__next_promise_")
+        {
+            bail!("Browser Promise static calls require the issued binding identity");
+        }
+        found = true;
+    }
+    Ok(found)
+}
+
 /// Only parser-authored input reaches this check; generated bridge imports are
 /// added afterwards. Resolution/issuer checks must additionally run on the graph.
 pub fn browser_creator_scope(program: &mut Program) -> Result<usize> {
@@ -175,7 +285,10 @@ struct Admission {
 }
 impl Admission {
     fn request(&mut self, value: &str) {
-        if value == CREATOR_BRIDGE || value.contains("experimental/testing/client/") {
+        if value == CREATOR_BRIDGE
+            || value == PROMISE_STATIC_BRIDGE
+            || value.contains("experimental/testing/client/")
+        {
             self.error
                 .get_or_insert("authored private creator/runtime request");
         }
@@ -183,7 +296,10 @@ impl Admission {
 }
 impl Visit for Admission {
     fn visit_ident(&mut self, ident: &Ident) {
-        if ident.sym.starts_with("__next_creator_") || ident.sym.starts_with("__turbopack_") {
+        if ident.sym.starts_with("__next_creator_")
+            || ident.sym.starts_with("__next_promise_")
+            || ident.sym.starts_with("__turbopack_")
+        {
             self.error.get_or_insert("reserved compiler identifier");
         }
     }
@@ -1162,6 +1278,79 @@ console.log(JSON.stringify({
                 );
                 assert_eq!(to_code(&program), before);
             }
+        });
+    }
+    fn promise_calls(source: &str) -> (Program, usize) {
+        use swc_core::{common::Mark, ecma::transforms::base::resolver};
+        let unresolved = Mark::new();
+        let top_level = Mark::new();
+        let mut program = parse(source);
+        program.visit_mut_with(&mut resolver(unresolved, top_level, false));
+        let count = browser_promise_static_calls(
+            &mut program,
+            SyntaxContext::empty().apply_mark(unresolved),
+        );
+        (program, count)
+    }
+
+    #[test]
+    fn promise_static_call_binding_preserves_original_arguments_and_member_order() {
+        GLOBALS.set(&Default::default(), || {
+            let (program, count) = promise_calls(
+                "export async function run(values) { return Promise.all([Promise.resolve(await \
+                 value()), ...values]) }",
+            );
+            assert_eq!(count, 2);
+            assert!(validate_promise_static_import(&program).unwrap());
+            let output = to_code(&program);
+            assert!(
+                output.contains("__next_promise_static_call(Promise, \"all\")(["),
+                "{output}"
+            );
+            assert!(
+                output.contains("__next_promise_static_call(Promise, \"resolve\")(await value())"),
+                "{output}"
+            );
+            assert!(output.contains("...values"), "{output}");
+            assert_eq!(output.matches(PROMISE_STATIC_BRIDGE).count(), 1);
+        });
+    }
+
+    #[test]
+    fn promise_static_calls_leave_shadowed_optional_computed_and_alias_forms_unchanged() {
+        GLOBALS.set(&Default::default(), || {
+            for source in [
+                "export function run(Promise) { return Promise.all([value]) }",
+                "const Promise = custom; export const run = () => Promise.resolve(value)",
+                "export const run = () => Promise.all?.([value])",
+                "export const run = () => Promise['all']([value])",
+                "const all = Promise.all; export const run = () => all([value])",
+                "export const run = () => globalThis.Promise.all([value])",
+                "export const run = () => Promise.race([value])",
+            ] {
+                let (program, count) = promise_calls(source);
+                assert_eq!(count, 0, "{source}");
+                assert!(!validate_promise_static_import(&program).unwrap());
+            }
+        });
+    }
+
+    #[test]
+    fn promise_static_import_rejects_authored_and_duplicate_bindings() {
+        GLOBALS.set(&Default::default(), || {
+            assert!(
+                validate_promise_static_import(&parse(
+                    "import { bindNativePromiseStaticCall as injected } from \
+                     'private-next-test-promise-static-call'; export { injected }",
+                ))
+                .is_err()
+            );
+            let (mut program, _) = promise_calls("Promise.all([value]);");
+            let Program::Module(module) = &mut program else {
+                unreachable!()
+            };
+            module.body.insert(0, module.body[0].clone());
+            assert!(validate_promise_static_import(&program).is_err());
         });
     }
 }

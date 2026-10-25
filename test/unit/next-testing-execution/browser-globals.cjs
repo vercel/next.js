@@ -281,7 +281,7 @@ async function browserSelection() {
   } finally {
     globalThis.console = originalConsole
   }
-  assert.deepEqual(trace, ['load', 'browser', 'file', 'context'])
+  assert.deepEqual(trace, ['load', 'file', 'browser', 'context'])
   assert.equal(messages.at(-1).type, 'complete')
   assert.equal(messages.at(-1).status, 'passed')
   process.stdout.write(

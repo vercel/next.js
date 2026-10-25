@@ -1,0 +1,15 @@
+import { test, beforeAll, afterAll } from 'vitest'
+import { page } from 'vitest/browser'
+const row = (phase, fields = {}) => console.log('BROWSER_HOOK_SEQUENCE:' + JSON.stringify({phase, ...fields}))
+let target, observed, clicks = 0
+test('started action may settle after A closes', () => {
+  observed = page.getByRole('button', {name:'AfterAll target',exact:true}).click({timeout:500}).then(() => row('settled',{clicks}))
+  row('body-ended',{clicks})
+})
+afterAll(async () => {
+  target = document.createElement('button'); target.textContent = 'AfterAll target'; target.onclick = () => { clicks++ }; document.body.append(target)
+  row('after-all-created')
+  await observed
+  row('after-all-done',{clicks})
+  target.remove()
+})

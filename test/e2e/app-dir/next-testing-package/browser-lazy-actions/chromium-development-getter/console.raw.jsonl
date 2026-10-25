@@ -1,0 +1,3 @@
+{"content":"BROWSER_HOOK_SEQUENCE:{\"phase\":\"getter\"}","browser":true,"time":1792920909409,"taskId":"81615230_0","type":"stdout","size":40}
+{"content":"BROWSER_HOOK_SEQUENCE:{\"phase\":\"constructor-error\",\"same\":true,\"name\":\"Error\",\"message\":\"original serial getter\",\"clicks\":0}","browser":true,"time":1792920909409,"taskId":"81615230_0","type":"stdout","size":124}
+{"content":"BROWSER_HOOK_SEQUENCE:{\"phase\":\"after-restoration\",\"clicks\":1}","browser":true,"time":1792920909481,"taskId":"81615230_0","type":"stdout","size":62}

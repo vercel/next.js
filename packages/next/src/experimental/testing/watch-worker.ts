@@ -101,7 +101,16 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
       maxWorkers: request.maxWorkers,
       coverage: request.coverage,
       standardCoverageOptions: request.standardCoverageOptions,
-      ...(request.standardCoverageOptions
+      ...(request.istanbulSourcePlan
+        ? {
+            istanbulSourcePlan: request.istanbulSourcePlan,
+            ...(request.coverageInputs
+              ? { coverageInputs: request.coverageInputs }
+              : {}),
+          }
+        : {}),
+      ...(request.standardCoverageOptions &&
+      request.standardCoverageOptions.provider !== 'istanbul'
         ? {
             coverageSourcePlan: request.coverageSourcePlan,
             nodeTypeScriptImportCoverage:

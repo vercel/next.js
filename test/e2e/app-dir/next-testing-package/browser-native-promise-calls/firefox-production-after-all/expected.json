@@ -1,0 +1,28 @@
+{
+  "rows": [
+    {
+      "phase": "body-ended",
+      "clicks": 0
+    },
+    {
+      "phase": "after-all-created"
+    },
+    {
+      "phase": "settled",
+      "clicks": 1
+    },
+    {
+      "phase": "after-all-done",
+      "clicks": 1
+    }
+  ],
+  "cases": [
+    {
+      "name": "started action may settle after A closes",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "success": true,
+  "exit": 0
+}
