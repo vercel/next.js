@@ -125,7 +125,7 @@ export default defineRule({
           (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'target'
         )
 
-        if (target && target.value.value === '_blank') {
+        if (target?.value?.value === '_blank') {
           return
         }
 
@@ -133,7 +133,7 @@ export default defineRule({
           (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'href'
         )
 
-        if (!href || (href.value && href.value.type !== 'Literal')) {
+        if (!href?.value || href.value.type !== 'Literal') {
           return
         }
 

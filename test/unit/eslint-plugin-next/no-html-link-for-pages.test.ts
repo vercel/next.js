@@ -315,6 +315,34 @@ describe('no-html-link-for-pages', function () {
     )
     assert.deepEqual(report, [])
   })
+  it.each(['withCustomPages', 'withApp'] as const)(
+    'ignores a bare href attribute with %s',
+    function (mode) {
+      const report = linters[mode].verify(
+        '<a href>Homepage</a>',
+        mode === 'withCustomPages'
+          ? linterConfigWithCustomDirectory
+          : linterConfig,
+        { filename: 'foo.js' }
+      )
+      assert.deepEqual(report, [])
+    }
+  )
+  it.each(['withCustomPages', 'withApp'] as const)(
+    'reports internal links with a bare target attribute with %s',
+    function (mode) {
+      const reports = linters[mode].verify(
+        '<a target href="/">Homepage</a>',
+        mode === 'withCustomPages'
+          ? linterConfigWithCustomDirectory
+          : linterConfig,
+        { filename: 'foo.js' }
+      )
+      assert.notEqual(reports[0], undefined, 'No lint errors found.')
+      assert.equal(reports[0].ruleId, 'no-html-link-for-pages')
+      assert.match(reports[0].message, /Do not use an `<a>` element/)
+    }
+  )
   it('valid external link element', function () {
     const report = linters.withCustomPages.verify(
       validExternalLinkCode,
