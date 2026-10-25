@@ -10,6 +10,7 @@ import { requireCompilerAliasCapability } from './test-aliases'
 import {
   requireBrowserClientCapability,
   requireBrowserCoverageCapability,
+  withNativeBrowserSourceCoverage,
 } from './browser-client'
 import { requireProductionFixtureCapability } from './browser-fixtures'
 import { requireTestRouteCapability } from './test-route'
@@ -770,6 +771,7 @@ function bindingToApi(
       browserClient = false,
       browserCoverage = false,
       sourceCoverage = false,
+      browserSourceCoverage = false,
       importCoverageRoles = false,
       tsconfigInputRevision,
       aliasFinds = [],
@@ -788,6 +790,7 @@ function bindingToApi(
       browserClient?: boolean
       browserCoverage?: boolean
       sourceCoverage?: boolean
+      browserSourceCoverage?: boolean
       importCoverageRoles?: boolean
       tsconfigInputRevision?: string
       aliasFinds?: readonly string[]
@@ -817,6 +820,16 @@ function bindingToApi(
           'Browser coverage requires an actual client test entry.'
         )
       requireBrowserCoverageCapability(binding, browserCoverage)
+      if (
+        browserSourceCoverage &&
+        (!browserClient ||
+          !browserCoverage ||
+          sourceCoverage ||
+          environment !== 'browser')
+      )
+        throw new Error(
+          'Browser source coverage requires its explicit client coverage entry.'
+        )
       if (sourceCoverage && (browserClient || environment !== 'node'))
         throw new Error('Source coverage requires a Node test entry.')
       if (
@@ -917,6 +930,15 @@ function bindingToApi(
                 : dependencyPlan
                   ? ([true] as const)
                   : ([] as const)
+      const nativeArgs = withNativeBrowserSourceCoverage(
+        binding,
+        withNativeTsConfigRevision(
+          binding,
+          compilerArgs,
+          tsconfigInputRevision
+        ),
+        browserSourceCoverage
+      )
       return new EndpointImpl(
         await binding.projectTestEntry(
           this._nativeProject,
@@ -928,11 +950,7 @@ function bindingToApi(
           [...cohortFiles],
           runtimeEnv,
           route,
-          ...withNativeTsConfigRevision(
-            binding,
-            compilerArgs,
-            tsconfigInputRevision
-          )
+          ...nativeArgs
         )
       )
     }

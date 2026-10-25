@@ -1,0 +1,55 @@
+{
+  "rows": [
+    [
+      {
+        "stage": "before-one-start",
+        "aborted": false
+      },
+      {
+        "stage": "before-one-abort",
+        "aborted": true
+      },
+      {
+        "stage": "before-one-end",
+        "aborted": true
+      },
+      {
+        "stage": "before-two",
+        "aborted": true
+      },
+      {
+        "stage": "unexpected-body",
+        "aborted": true
+      },
+      {
+        "stage": "after-each",
+        "aborted": true
+      },
+      {
+        "stage": "cleanup-one",
+        "aborted": true
+      },
+      {
+        "stage": "cleanup-two",
+        "aborted": true
+      },
+      {
+        "stage": "finished",
+        "aborted": true
+      }
+    ]
+  ],
+  "cases": [
+    {
+      "name": "actual user cancellation during parallel hooks",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "success": true,
+  "exit": 1,
+  "completion": {
+    "errors": [],
+    "reason": "interrupted"
+  }
+}

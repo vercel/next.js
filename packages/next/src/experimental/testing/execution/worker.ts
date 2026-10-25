@@ -20,9 +20,11 @@ import {
   serializeSourceMappedDiagnostic as serializeDiagnostic,
 } from '../reporting/source-mapped-diagnostics'
 import { mapTestArtifactLocation } from '../reporting/artifact-location'
+import { mapTestDeclarationLocation } from '../reporting/declaration-location'
 import type { CaseResult, ResultEvent, ResultStatus } from '../reporting/events'
 import { getFinalCaseResults } from '../reporting/final-cases'
 import type { RunnerFailure } from '../runner/lifecycle'
+import type { RuntimeModuleCompletion } from './completed-module'
 import type { WorkerInput, WorkerMessage } from './protocol'
 import type { TestCoverageCompletion, TestFileCollection } from '../contracts'
 import type { RscTestingBindings } from '../rsc'
@@ -109,6 +111,9 @@ async function run({
   userCancellation: allowUserCancellation,
 }: WorkerInput) {
   const started = performance.now()
+  const moduleFailures = options.captureCompletedModuleResult
+    ? new Map<unknown, ReturnType<typeof serializeDiagnostic>>()
+    : undefined
   const event = (payload: EventPayload, timestamp = realDateNow()) =>
     send({
       type: 'event',
@@ -123,16 +128,19 @@ async function run({
     error: unknown,
     phase: 'collection' | 'runtime' | 'cleanup',
     unhandled?: 'rejection'
-  ) =>
-    event({
+  ) => {
+    const failure = {
+      ...serializeDiagnostic(error, { phase }),
+      ...(unhandled ? { unhandled } : {}),
+    }
+    moduleFailures?.set(error, failure)
+    return event({
       type: 'diagnostic',
       entryId: artifact.entryId,
       revision: artifact.revision,
-      diagnostic: {
-        ...serializeDiagnostic(error, { phase }),
-        ...(unhandled ? { unhandled } : {}),
-      },
+      diagnostic: failure,
     })
+  }
   let registrationOrigin:
     | ReturnType<typeof createArtifactRegistrationOriginMapper>
     | undefined
@@ -150,6 +158,7 @@ async function run({
   }[] = []
   const taskUpdates = options.captureTaskResults
     ? createReporterTaskUpdates<CaseResult>({
+        getTaskLocation: (task) => file?.getPublishedTaskLocation(task),
         onUpdate: (update) =>
           event({
             type: 'task-update',
@@ -232,6 +241,9 @@ async function run({
     | (() => import('./console').ConsoleTask | undefined)
     | undefined
   let phase: 'collection' | 'runtime' = 'collection'
+  let moduleFailurePhase: 'load' | 'collection' | 'run' | undefined
+  let moduleCompletion: RuntimeModuleCompletion | undefined
+  let moduleHostCleanupComplete = true
   let importBinding:
     | ReturnType<typeof import('../runner/imports').createModuleImportTracker>
     | undefined
@@ -389,7 +401,13 @@ async function run({
       artifact.moduleCache &&
       (artifact.moduleCache.version !== 1 ||
         artifact.profile.environment !== 'node' ||
-        artifact.profile.mode !== 'development' ||
+        (artifact.profile.mode !== 'development' &&
+          !(
+            artifact.profile.mode === 'production' &&
+            artifact.profile.route === undefined &&
+            !artifact.moduleMocking &&
+            !artifact.dynamicModuleMocking
+          )) ||
         (artifact.moduleMocking && !staticRuntimeMocks) ||
         artifact.cohort ||
         options.coverage ||
@@ -469,6 +487,7 @@ async function run({
     }
     // The emitted entry initializes the normal Turbopack runtime. Its spec import
     // is deferred until the bundle-local collector and manifests are installed.
+    if (options.captureCompletedModuleResult) moduleFailurePhase = 'load'
     const entry = require(
       artifactPath(artifact.rootDir, artifact.entryPath)
     ) as {
@@ -487,6 +506,7 @@ async function run({
       browserTesting?: typeof import('../browser')
       mockTesting?: typeof import('../mocking/runtime')
     }
+    moduleFailurePhase = undefined
     if (
       options.setupFiles.length &&
       typeof entry.loadSetupModules !== 'function'
@@ -608,6 +628,7 @@ async function run({
         ? entry.testRunner.routeUnhandledRejection
         : undefined
     file = entry.testRunner.initializeTestFile({
+      publicTaskSelection: true,
       ...(artifact.kind === 'node' && artifact.profile.environment === 'node'
         ? {
             onUnhandledRejection(reason, promise, recordedBody) {
@@ -631,6 +652,12 @@ async function run({
         artifact.kind === 'node' && artifact.profile.environment === 'node',
       fileId: artifact.entryId,
       filePath: options.entry.file,
+      ...(options.includeTaskLocation
+        ? {
+            getTaskLocation: (error: Error) =>
+              mapTestDeclarationLocation(error, options.entry.file),
+          }
+        : {}),
       collectOnly: options.collectOnly,
       updateSnapshots: options.updateSnapshots,
       snapshotUpdateMode: options.snapshotUpdateMode,
@@ -751,6 +778,7 @@ async function run({
         },
       })
     }
+    if (options.captureCompletedModuleResult) moduleFailurePhase = 'collection'
     await file.collect(async () => {
       // Both loaders belong to the emitted runtime. Setup hooks, matchers and
       // module state must reach the very same collector as the spec.
@@ -759,6 +787,7 @@ async function run({
       controller.signal.throwIfAborted()
       await entry.loadTestModule()
     })
+    moduleFailurePhase = undefined
     controller.signal.throwIfAborted()
     if (options.collectOnly) {
       collection = {
@@ -773,7 +802,11 @@ async function run({
       status = 'passed'
     } else {
       phase = 'runtime'
+      if (options.captureCompletedModuleResult) moduleFailurePhase = 'run'
       const result = await file.run({
+        ...(options.captureCompletedModuleResult
+          ? { captureCompletedModuleResult: true as const }
+          : {}),
         runId: options.runId,
         signal: controller.signal,
         ...(allowUserCancellation
@@ -836,7 +869,11 @@ async function run({
                 type: 'file-collected',
                 entryId: artifact.entryId,
                 revision: artifact.revision,
-                taskTree: captureReporterTaskTree(actualFile),
+                taskTree: captureReporterTaskTree(
+                  actualFile,
+                  undefined,
+                  file!.getPublishedTaskLocation
+                ),
               })
               taskUpdates.collected(actualFile)
             }
@@ -916,6 +953,21 @@ async function run({
           })
         },
       })
+      moduleFailurePhase = undefined
+      if (options.captureCompletedModuleResult) {
+        const completed = file.getCompletedModuleResult()
+        if (!completed)
+          throw new Error('Actual fulfilled module completion is missing.')
+        moduleCompletion = {
+          ...completed,
+          version: 1,
+          resultVersion: completed.version,
+          kind: 'fulfilled',
+          runId: options.runId,
+          entryId: artifact.entryId,
+          revision: artifact.revision,
+        }
+      }
       if (
         (options.coverage || options.customCoverage) &&
         result.interrupted !== false
@@ -971,11 +1023,26 @@ async function run({
     coverageComplete = false
     if (controller.signal.aborted) status = 'cancelled'
     else if (!lateFailures.has(error)) await diagnostic(error, phase)
+    if (
+      !controller.signal.aborted &&
+      moduleFailurePhase &&
+      moduleFailures?.has(error)
+    )
+      moduleCompletion = {
+        version: 1,
+        runId: options.runId,
+        entryId: artifact.entryId,
+        revision: artifact.revision,
+        kind: 'unavailable',
+        phase: moduleFailurePhase,
+        failure: moduleFailures.get(error),
+      }
   } finally {
     if (taskUpdates) {
       try {
         await taskUpdates.finish()
       } catch (error) {
+        moduleHostCleanupComplete = false
         snapshotHostComplete = false
         coverageComplete = false
         status = 'failed'
@@ -987,6 +1054,7 @@ async function run({
     try {
       await file?.dispose()
     } catch (error) {
+      moduleHostCleanupComplete = false
       snapshotHostComplete = false
       coverageComplete = false
       status = 'failed'
@@ -1004,6 +1072,7 @@ async function run({
           snapshot,
         })
     } catch (error) {
+      moduleHostCleanupComplete = false
       snapshotHostComplete = false
       coverageComplete = false
       status = 'failed'
@@ -1015,6 +1084,7 @@ async function run({
       // disk lease only after this worker has exited.
       await rscBinding?.dispose()
     } catch (error) {
+      moduleHostCleanupComplete = false
       snapshotHostComplete = false
       coverageComplete = false
       status = 'failed'
@@ -1023,6 +1093,7 @@ async function run({
     try {
       await browserBinding?.dispose()
     } catch (error) {
+      moduleHostCleanupComplete = false
       snapshotHostComplete = false
       coverageComplete = false
       status = 'failed'
@@ -1033,6 +1104,7 @@ async function run({
       // registry alive through all file/request/browser teardown, then seal it.
       await mockBinding?.dispose()
     } catch (error) {
+      moduleHostCleanupComplete = false
       snapshotHostComplete = false
       coverageComplete = false
       status = 'failed'
@@ -1041,6 +1113,7 @@ async function run({
     try {
       dynamicMockBinding?.dispose()
     } catch (error) {
+      moduleHostCleanupComplete = false
       snapshotHostComplete = false
       coverageComplete = false
       status = 'failed'
@@ -1049,6 +1122,7 @@ async function run({
     try {
       moduleCacheBinding?.dispose()
     } catch (error) {
+      moduleHostCleanupComplete = false
       snapshotHostComplete = false
       coverageComplete = false
       status = 'failed'
@@ -1057,6 +1131,7 @@ async function run({
     try {
       importBinding?.dispose()
     } catch (error) {
+      moduleHostCleanupComplete = false
       snapshotHostComplete = false
       coverageComplete = false
       status = 'failed'
@@ -1065,6 +1140,7 @@ async function run({
     try {
       await environment?.dispose()
     } catch (error) {
+      moduleHostCleanupComplete = false
       snapshotHostComplete = false
       coverageComplete = false
       status = 'failed'
@@ -1075,6 +1151,7 @@ async function run({
     // Factory/original callbacks have retired; no publication precedes this check.
     await verifyProductionStaticMock?.()
   } catch (error) {
+    moduleHostCleanupComplete = false
     snapshotHostComplete = false
     coverageComplete = false
     status = 'failed'
@@ -1129,6 +1206,7 @@ async function run({
       try {
         await coverageCollector?.dispose()
       } catch (error) {
+        moduleHostCleanupComplete = false
         snapshotHostComplete = false
         status = 'failed'
         await diagnostic(error, 'cleanup')
@@ -1194,6 +1272,7 @@ async function run({
       try {
         await customCollector?.dispose()
       } catch (error) {
+        moduleHostCleanupComplete = false
         snapshotHostComplete = false
         status = 'failed'
         await diagnostic(error, 'cleanup')
@@ -1208,6 +1287,7 @@ async function run({
   try {
     await consoleCapture?.dispose()
   } catch (error) {
+    moduleHostCleanupComplete = false
     snapshotHostComplete = false
     coverageComplete = false
     status = 'failed'
@@ -1238,8 +1318,25 @@ async function run({
   publishingResult = true
   // Serialize staged bytes only. The parent owns the authoritative exit/cleanup
   // decision and commits after this realm has exited successfully.
+  const cancelledSnapshotUpdates =
+    allowUserCancellation &&
+    userCancellation.signal.aborted &&
+    options.snapshotUpdateMode === 'new'
+      ? file?.takeSnapshotUpdates()
+      : undefined
+  if (
+    allowUserCancellation &&
+    userCancellation.signal.aborted &&
+    options.snapshotUpdateMode === 'new' &&
+    (!Array.isArray(cancelledSnapshotUpdates) ||
+      cancelledSnapshotUpdates.length > 0)
+  )
+    throw new Error(
+      'Cancelled coverage requires an actually empty snapshot update plan.'
+    )
   const snapshotUpdates =
-    options.updateSnapshots &&
+    cancelledSnapshotUpdates ??
+    (options.updateSnapshots &&
     !(allowUserCancellation && userCancellation.signal.aborted) &&
     !controller.signal.aborted &&
     (status === 'passed' ||
@@ -1251,9 +1348,13 @@ async function run({
         !unfinishedAttempts.size &&
         file?.canPublishSnapshots()))
       ? file?.takeSnapshotUpdates()
-      : undefined
+      : undefined)
   await send({
     type: 'complete',
+    ...(moduleCompletion ? { moduleCompletion } : {}),
+    ...(options.captureCompletedModuleResult
+      ? { moduleHostCleanupComplete }
+      : {}),
     result: {
       entryId: artifact.entryId,
       status,

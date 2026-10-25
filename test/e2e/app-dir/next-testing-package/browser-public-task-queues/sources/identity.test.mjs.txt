@@ -1,0 +1,14 @@
+import { test, expect, chai, beforeEach, afterEach, afterAll } from 'vitest'
+const rows=[];let heldTask,heldContext
+const row=(stage,value={})=>rows.push({stage,...value})
+const flag=value=>chai.util.flag(value,'vitest-test')
+beforeEach(context=>{heldTask=context.task;heldContext=context;row('beforeEach',{taskContextSame:context.task.context===context,globalTaskSame:flag(expect(0))===context.task,contextTaskSame:flag(context.expect(0))===context.task,topLevelSuiteAbsent:context.task.suite===undefined})})
+afterEach(context=>row('afterEach',{sameTask:context.task===heldTask,sameContext:context===heldContext,taskContextSame:context.task.context===context,globalTaskSame:flag(expect(0))===context.task,contextTaskSame:flag(context.expect(0))===context.task}))
+afterAll(()=>console.log('TASK_BROWSER_IDENTITY:'+JSON.stringify(rows)))
+test('actual browser task and context identity',async context=>{
+ const task=context.task;row('body',{sameTask:task===heldTask,sameContext:context===heldContext,taskContextSame:task.context===context,globalTaskSame:flag(expect(0))===task,localTaskSame:flag(context.expect(0))===task})
+ const pending=context.expect(Promise.resolve(17)).resolves.toBe(17),queue=task.promises,native=queue?.[0]
+ row('native-created',{array:Array.isArray(queue),ordinaryArray:Object.getPrototypeOf(queue)===Array.prototype,ownPush:Object.hasOwn(queue,'push'),nativePromise:native instanceof Promise,returnedNativeSame:pending===native,finishedArray:Array.isArray(task.onFinished),finishedOwnPush:task.onFinished?Object.hasOwn(task.onFinished,'push'):null,finishedLength:task.onFinished?.length,finishedName:task.onFinished?.[0]?.name,finishedArity:task.onFinished?.[0]?.length})
+ await pending;row('native-awaited',{sameTask:context.task===task,sameQueue:task.promises===queue,length:queue.length,globalTaskSame:flag(expect(0))===task,localTaskSame:flag(context.expect(0))===task})
+ context.onTestFinished(function(payload){row('finished',{sameTask:payload.task===task,sameContext:payload===context,taskContextSame:task.context===payload,receiverUndefined:this===undefined,args:arguments.length})},0)
+})

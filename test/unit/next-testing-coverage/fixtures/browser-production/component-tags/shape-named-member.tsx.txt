@@ -1,0 +1,11 @@
+/** @jsxRuntime classic */
+/** @jsx h */
+/** @jsxFrag Frag */
+import { createElement as h, Fragment as Frag } from 'react'
+type Input = { active: boolean; label: string }
+function Badge({label}: {label:string}) { return <b>{label}</b> }
+const parts = {Badge}
+export function Card({ active, label }: Input) {
+  return <parts.Badge label={label} />
+}
+export const Unused = () => <i />

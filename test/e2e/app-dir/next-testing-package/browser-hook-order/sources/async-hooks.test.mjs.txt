@@ -1,0 +1,16 @@
+import { test, beforeEach, afterEach, afterAll } from 'vitest'
+const rows = []
+const row = (stage, context) => rows.push({ stage, sameContext: !context || context.task.context === context })
+for (const label of ['one', 'two']) {
+  beforeEach(async context => { row('before-' + label + '-start', context); await Promise.resolve(); row('before-' + label + '-end', context); return async () => { row('cleanup-' + label + '-start', context); await Promise.resolve(); row('cleanup-' + label + '-end', context) } })
+  afterEach(async context => { row('after-' + label + '-start', context); await Promise.resolve(); row('after-' + label + '-end', context) })
+}
+test('actual async hook and listener sequencing', context => {
+  row('body', context)
+  for (const label of ['one', 'two']) {
+    context.onTestFinished(async payload => { row('finished-' + label + '-start', payload); await Promise.resolve(); row('finished-' + label + '-end', payload) }, 0)
+    context.onTestFailed(async payload => { row('failed-' + label + '-start', payload); await Promise.resolve(); row('failed-' + label + '-end', payload) }, 0)
+  }
+  const error = new Error('actual hook sequence controlled body failure'); error.stack = ''; throw error
+})
+afterAll(() => console.log('BROWSER_HOOK_SEQUENCE:' + JSON.stringify(rows)))

@@ -600,6 +600,465 @@ describe('Browser Mode immutable parent transport', () => {
       })
     return { cookie, config, post }
   }
+  async function openControl(
+    signal: AbortSignal,
+    onBrowserCommand?: (command: any, admit: () => void) => Promise<unknown>
+  ) {
+    server = await createClientServer({
+      artifact,
+      configuration: { ...configuration, userCancellation: true },
+      userCancelSignal: signal,
+      onMessage() {},
+      onBrowserCommand,
+      onFailure() {},
+    })
+    const document = await fetch(server.url)
+    const cookie = document.headers.get('set-cookie')!.split(';')[0]
+    const config = await fetch(new URL('config', server.url), {
+      headers: { Cookie: cookie },
+    }).then((response) => response.json())
+    const headers = {
+      Cookie: cookie,
+      Origin: new URL(server.url).origin,
+      Authorization: config.authorization,
+      'Content-Type': 'application/json',
+    }
+    const identity = {
+      version: configuration.version,
+      runId: configuration.runId,
+      entryId: configuration.entryId,
+      revision: configuration.revision,
+      ownerToken: configuration.ownerToken,
+    }
+    return {
+      post: (message: any) =>
+        fetch(config.rpcURL + '/user-cancellation', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ ...identity, ...message }),
+        }),
+      rpc: (message: any) =>
+        fetch(config.rpcURL, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ ...identity, sequence: 0, ...message }),
+        }),
+    }
+  }
+  it.each([false, true])(
+    'admits and joins actual scheduling delivery (alreadyAborted=%s)',
+    async (alreadyAborted) => {
+      const controller = new AbortController()
+      if (alreadyAborted) controller.abort()
+      const { post } = await openControl(controller.signal)
+      const response = await post({ type: 'wait' })
+      expect(server!.userCancellationFinalized()).toBe(false)
+      controller.abort()
+      expect(await response.json()).toEqual({ cancelled: true })
+      expect(
+        await (await post({ type: 'close', delivered: true })).json()
+      ).toEqual({ cancelled: true })
+      expect(server!.userCancellationFinalized()).toBe(true)
+    }
+  )
+  it.each([false, true])(
+    'never finalizes a clean or unacknowledged scheduling close (replyWasTrue=%s)',
+    async (replyWasTrue) => {
+      const controller = new AbortController()
+      const { post } = await openControl(controller.signal)
+      const response = await post({ type: 'wait' })
+      if (replyWasTrue) controller.abort()
+      const closing = post({ type: 'close', delivered: false })
+      expect(await response.json()).toEqual({ cancelled: replyWasTrue })
+      expect(await (await closing).json()).toEqual({ cancelled: false })
+      controller.abort()
+      expect(server!.userCancellationFinalized()).toBe(false)
+    }
+  )
+  it('joins pending scheduling transport before server disposal completes', async () => {
+    const controller = new AbortController()
+    const { post } = await openControl(controller.signal)
+    const response = await post({ type: 'wait' })
+    const pending = response.json().catch(() => undefined)
+    const disposal = server!.dispose()
+    expect(server!.dispose()).toBe(disposal)
+    await disposal
+    await pending
+    controller.abort()
+    expect(server!.userCancellationFinalized()).toBe(false)
+  })
+  it.each(['duplicate wait', 'forged delivery', 'foreign close', 'extra keys'])(
+    'retains a malformed scheduling %s as a transport failure',
+    async (kind) => {
+      const { post } = await openControl(new AbortController().signal)
+      const response = await post({ type: 'wait' })
+      const pending = response.json().catch(() => undefined)
+      const invalid =
+        kind === 'duplicate wait'
+          ? { type: 'wait' }
+          : kind === 'forged delivery'
+            ? { type: 'close', delivered: true }
+            : kind === 'foreign close'
+              ? { type: 'close', delivered: false, ownerToken: 'foreign' }
+              : { type: 'close', delivered: false, extra: true }
+      try {
+        expect((await post(invalid)).status).toBe(400)
+        await expect(server!.completion).rejects.toThrow(
+          /scheduling control|identity mismatch/
+        )
+        expect(server!.userCancellationFinalized()).toBe(false)
+      } finally {
+        await server!.dispose()
+        await pending
+      }
+    }
+  )
+  it('delivers scheduling control independently of an admitted native action', async () => {
+    const controller = new AbortController()
+    let release!: () => void
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const { post, rpc } = await openControl(
+      controller.signal,
+      async (_command, admit) => {
+        admit()
+        await held
+        return 'actual native result'
+      }
+    )
+    const waiting = await post({ type: 'wait' })
+    const native = await rpc({
+      type: 'browser-command',
+      command: { method: 'click', element: 'button', args: [] },
+    })
+    try {
+      controller.abort()
+      expect(await waiting.json()).toEqual({ cancelled: true })
+      expect(
+        await (await post({ type: 'close', delivered: true })).json()
+      ).toEqual({ cancelled: true })
+      expect(server!.userCancellationFinalized()).toBe(true)
+    } finally {
+      release()
+    }
+    expect(await native.json()).toEqual({ value: 'actual native result' })
+  })
+  it.each(['passed', 'failed'])(
+    'retains private fulfilled module metadata for an actual %s Browser result',
+    (status) => {
+      const collector = createClientResultCollector(artifact, {
+        runId: 'run',
+        captureCompletedModuleResult: true,
+      })
+      const completion = {
+        version: 1,
+        runId: 'run',
+        entryId: artifact.entryId,
+        revision: artifact.revision,
+        kind: 'fulfilled',
+        resultVersion: 2,
+        finalState: status === 'failed' ? 'fail' : 'pass',
+        durationMs: 7,
+        containsOnly: false,
+        interrupted: false,
+      }
+      collected(collector)
+      startCase(collector)
+      endCase(collector, undefined, undefined, {
+        status,
+        errors:
+          status === 'failed'
+            ? [{ phase: 'test', error: { message: 'actual case failure' } }]
+            : [],
+      })
+      rootSuite(collector, status)
+      finish(collector, 1, { status, moduleCompletion: completion })
+      expect(collector.result().moduleCompletion).toEqual(completion)
+      expect(collector.result().status).toBe(status)
+      expect(
+        collector.events.every(
+          (event) =>
+            !('moduleCompletion' in event) && !('moduleExecution' in event)
+        )
+      ).toBe(true)
+    }
+  )
+  it.each([undefined, 1, 'passed', 'foreign'])(
+    'rejects invalid actual root publication state %s',
+    (finalState) => {
+      const collector = createClientResultCollector(artifact, {
+        runId: 'run',
+        captureCompletedModuleResult: true,
+      })
+      collected(collector)
+      startCase(collector)
+      endCase(collector)
+      rootSuite(collector)
+      expect(() =>
+        finish(collector, 1, {
+          moduleCompletion: {
+            version: 1,
+            runId: 'run',
+            entryId: artifact.entryId,
+            revision: artifact.revision,
+            kind: 'fulfilled',
+            resultVersion: 2,
+            finalState,
+            durationMs: 1,
+            containsOnly: false,
+            interrupted: false,
+          },
+        })
+      ).toThrow('Invalid fulfilled private module completion.')
+    }
+  )
+
+  it('requires the same original Browser failure for private unavailable metadata', () => {
+    const collector = createClientResultCollector(artifact, {
+      runId: 'run',
+      captureCompletedModuleResult: true,
+    })
+    const failure = { name: 'Error', message: 'actual collection failure' }
+    collector.accept({ type: 'failure', error: failure })
+    const completion = {
+      version: 1,
+      runId: 'run',
+      entryId: artifact.entryId,
+      revision: artifact.revision,
+      kind: 'unavailable',
+      phase: 'collection',
+      failure: JSON.parse(JSON.stringify(failure)),
+    }
+    finish(collector, 0, { status: 'failed', moduleCompletion: completion })
+    expect(collector.result().moduleCompletion).toEqual(completion)
+    expect(collector.events).toContainEqual(
+      expect.objectContaining({
+        type: 'diagnostic',
+        diagnostic: expect.objectContaining({ message: failure.message }),
+      })
+    )
+  })
+  it('rejects missing requested and unsolicited Browser module metadata', () => {
+    const requested = createClientResultCollector(artifact, {
+      runId: 'run',
+      captureCompletedModuleResult: true,
+    })
+    collected(requested)
+    startCase(requested)
+    endCase(requested)
+    rootSuite(requested)
+    expect(() => finish(requested)).toThrow(
+      'Browser Mode omitted requested private module completion.'
+    )
+    const unsolicited = createClientResultCollector(artifact, { runId: 'run' })
+    expect(() => finish(unsolicited, 0, { moduleCompletion: {} })).toThrow(
+      'Unsolicited private module completion.'
+    )
+  })
+  it('rejects foreign and uncorroborated private Browser module facts', () => {
+    for (const completion of [
+      {
+        version: 1,
+        runId: 'foreign',
+        entryId: artifact.entryId,
+        revision: artifact.revision,
+        kind: 'fulfilled',
+        resultVersion: 2,
+        finalState: 'pass',
+        durationMs: 1,
+        containsOnly: false,
+        interrupted: false,
+      },
+      {
+        version: 1,
+        runId: 'run',
+        entryId: artifact.entryId,
+        revision: artifact.revision,
+        kind: 'unavailable',
+        phase: 'run',
+        failure: { name: 'Error', message: 'unobserved' },
+      },
+    ]) {
+      const collector = createClientResultCollector(artifact, {
+        runId: 'run',
+        captureCompletedModuleResult: true,
+      })
+      collector.accept({
+        type: 'failure',
+        error: { message: 'actual failure' },
+      })
+      expect(() =>
+        finish(collector, 0, { status: 'failed', moduleCompletion: completion })
+      ).toThrow()
+    }
+  })
+  it.each([undefined, false, true])(
+    'requires actual scheduling finalization for passed interrupted facts (%s)',
+    (finalized) => {
+      const collector = createClientResultCollector(artifact, {
+        runId: 'run',
+        ...(finalized === undefined
+          ? {}
+          : { isUserCancellationFinalized: () => finalized }),
+      })
+      collected(collector)
+      startCase(collector)
+      endCase(collector)
+      rootSuite(collector)
+      if (finalized !== true) {
+        expect(() => finish(collector, 1, { interrupted: true })).toThrow(
+          /omitted a failure or selected case/
+        )
+        return
+      }
+      finish(collector, 1, { interrupted: true })
+      expect(collector.result().status).toBe('passed')
+    }
+  )
+  it('retains incomplete tasks and snapshot vetoes under scheduling finalization', () => {
+    const options = {
+      runId: 'run',
+      isUserCancellationFinalized: () => true,
+    }
+    const incomplete = createClientResultCollector(artifact, options)
+    collected(incomplete)
+    startCase(incomplete)
+    expect(() => finish(incomplete, 1, { interrupted: true })).toThrow(
+      /completion facts/
+    )
+    const snapshots = createClientResultCollector(artifact, options)
+    collected(snapshots)
+    startCase(snapshots)
+    endCase(snapshots)
+    rootSuite(snapshots)
+    expect(() =>
+      finish(snapshots, 1, { interrupted: true, updates: [{}] })
+    ).toThrow(/returned snapshot updates/)
+  })
+  it.each([undefined, false, true])(
+    'requires finalized scheduling for an active skipped run attempt (%s)',
+    (finalized) => {
+      const collector = createClientResultCollector(artifact, {
+        runId: 'run',
+        ...(finalized === undefined
+          ? {}
+          : { isUserCancellationFinalized: () => finalized }),
+      })
+      collected(collector)
+      startCase(collector)
+      if (finalized === undefined) {
+        expect(() =>
+          endCase(collector, undefined, undefined, { status: 'skipped' })
+        ).toThrow(/immutable attempt/)
+        return
+      }
+      endCase(collector, undefined, undefined, { status: 'skipped' })
+      rootSuite(collector)
+      if (!finalized) {
+        expect(() => finish(collector, 1, { interrupted: true })).toThrow(
+          /omitted declared tasks/
+        )
+        return
+      }
+      finish(collector, 1, { interrupted: true })
+      expect(collector.result().status).toBe('passed')
+    }
+  )
+  it.each([
+    'not interrupted',
+    'errors',
+    'pending',
+    'inactive',
+    'mismatched mode',
+  ])('retains immutable attempt checks for scheduling %s', (kind) => {
+    const collector = createClientResultCollector(artifact, {
+      runId: 'run',
+      isUserCancellationFinalized: () => true,
+    })
+    collected(collector)
+    if (kind !== 'inactive') startCase(collector)
+    const end = () =>
+      endCase(collector, undefined, undefined, {
+        status: 'skipped',
+        ...(kind === 'mismatched mode' ? { mode: 'todo' } : {}),
+        ...(kind === 'errors'
+          ? { errors: [{ phase: 'test', error: 'actual' }] }
+          : {}),
+        ...(kind === 'pending' ? { pending: true } : {}),
+      })
+    if (kind !== 'not interrupted') {
+      expect(end).toThrow(/immutable attempt/)
+      return
+    }
+    end()
+    rootSuite(collector)
+    expect(() => finish(collector)).toThrow(/omitted declared tasks/)
+  })
+  it('serves an inert owned host and preserves issued child assets and configuration', async () => {
+    server = await createClientServer({
+      artifact,
+      configuration,
+      testFrame: true,
+      onMessage() {},
+      onFailure() {},
+    })
+    expect(server.hostURL).toBeDefined()
+    const host = await fetch(server.hostURL!)
+    expect(host.status).toBe(200)
+    const cookie = host.headers.get('set-cookie')!.split(';')[0]
+    const html = await host.text()
+    expect(html).toContain('<iframe src="about:blank">')
+    expect(html).not.toContain('<script')
+    expect(host.headers.get('content-security-policy')).toContain(
+      "frame-src 'self'"
+    )
+    expect((await fetch(new URL('config', server.url))).status).toBe(404)
+    const config = await fetch(new URL('config', server.url), {
+      headers: { Cookie: cookie },
+    }).then((response) => response.json())
+    expect(config.entryId).toBe(artifact.entryId)
+    expect(config.sourceHash).toBe(artifact.sourceHash)
+    expect(config.filePath).toBe(configuration.filePath)
+    const child = await fetch(server.url)
+    expect(child.headers.get('content-security-policy')).toContain(
+      "frame-ancestors 'self'"
+    )
+    expect(await child.text()).toContain('/_next/static/entry.js')
+    expect(
+      await (
+        await fetch(new URL('/_next/static/entry.js', server.url), {
+          headers: { Cookie: cookie },
+        })
+      ).text()
+    ).toBe('globalThis.infrastructure = true')
+    await server.verify()
+  })
+  it.each([false, true])(
+    'declares an inert favicon for the actual isolated documents (framed: %s)',
+    async (testFrame) => {
+      server = await createClientServer({
+        artifact,
+        configuration,
+        ...(testFrame ? { testFrame: true } : {}),
+        onMessage() {},
+        onFailure() {},
+      })
+      const urls = [server.url, ...(server.hostURL ? [server.hostURL] : [])]
+      for (const url of urls) {
+        const document = await fetch(url)
+        expect(document.status).toBe(200)
+        expect(await document.text()).toContain(
+          '<link rel="icon" href="data:,">'
+        )
+      }
+      // The declaration avoids a browser-generated missing-resource request;
+      // it does not add an application route to the isolated test server.
+      expect((await fetch(new URL('/favicon.ico', server.url))).status).toBe(
+        404
+      )
+    }
+  )
   it('opens an admitted native reply body before completion without changing its JSON value', async () => {
     let release!: () => void
     const held = new Promise<void>((resolve) => {
@@ -2311,6 +2770,50 @@ body {
       mapper.mapLocation({ file: '/_next/other.js', line: 10, column: 5 })
     ).toThrow()
   })
+  it('maps Gecko evaluated-source frames only through the exact retained chunk and source', () => {
+    const { SourceMapGenerator } = require('next/dist/compiled/source-map')
+    const {
+      createClientSourceMapResolver,
+    } = require('next/dist/experimental/testing/client/source-maps')
+    const map = new SourceMapGenerator({ file: 'entry.js' })
+    map.addMapping({
+      generated: { line: 1, column: 320 },
+      original: { line: 5, column: 2 },
+      source: 'original',
+    })
+    map.setSourceContent('original', 'exact selected source')
+    const mapper = createClientSourceMapResolver({
+      filePath: configuration.filePath,
+      sourceMaps: [
+        {
+          url: 'http://127.0.0.1:1234/_next/entry.js',
+          map: map.toJSON(),
+          originalSources: ['original'],
+        },
+      ],
+    })
+    for (const file of [
+      'http://127.0.0.1:1234/_next/entry.js line 14 > srcScript',
+      '/_next/entry.js line 14 > srcScript',
+    ]) {
+      const frame = { file, line: 1, column: 321 }
+      expect(mapper.mapLocation(frame)).toMatchObject({
+        file: configuration.filePath,
+        line: 5,
+        column: 3,
+      })
+      expect(mapper.getSourceContent(frame)).toBe('exact selected source')
+    }
+    for (const file of [
+      'http://127.0.0.1:1235/_next/entry.js line 14 > srcScript',
+      '/_next/other.js line 14 > srcScript',
+      '/_next/entry.js line 0 > srcScript',
+      '/_next/entry.js line 14 > eval',
+      '/_next/entry.js line 14 > srcScript > eval',
+    ]) {
+      expect(() => mapper.mapLocation({ file, line: 1, column: 321 })).toThrow()
+    }
+  })
   it('revalidates original source after clean HTTP owner disposal', async () => {
     const { post } = await open()
     expect(
@@ -2536,6 +3039,494 @@ body {
     await symlink(join(root, 'elsewhere'), join(root, '__snapshots__'))
     await expect(server!.verify()).rejects.toThrow(/symbolic link/)
   })
+  async function readSelectionMap(map: unknown) {
+    const raw = JSON.stringify(map)
+    await writeFile(join(artifact.rootDir, 'static/entry.js.map'), raw)
+    artifact.files.push('static/entry.js.map')
+    artifact.client.outputs.push({
+      path: 'static/entry.js.map',
+      sha256: hash(raw),
+    })
+    const reader = await createClientAssetReader(artifact)
+    const maps = await reader.sourceMaps('http://indexed-map.test')
+    expect((await reader.read('static/entry.js.map')).toString('utf8')).toBe(
+      raw
+    )
+    await reader.verify()
+    return maps
+  }
+  function indexedSelectionMap(kind: string, flat: unknown) {
+    const generated = {
+      version: 3,
+      sources: [],
+      names: [],
+      mappings: 'A',
+    }
+    if (kind === 'flat') return flat
+    if (kind === 'indexed')
+      return {
+        version: 3,
+        sections: [
+          { offset: { line: 0, column: 0 }, map: generated },
+          { offset: { line: 2, column: 4 }, map: flat },
+        ],
+      }
+    return {
+      version: 3,
+      sections: [
+        {
+          offset: { line: 0, column: 0 },
+          map: {
+            version: 3,
+            sources: ['unrelated.ts'],
+            names: [],
+            mappings: 'AAAA',
+          },
+        },
+        {
+          offset: { line: 2, column: 4 },
+          map: {
+            version: 3,
+            sections: [
+              { offset: { line: 0, column: 0 }, map: generated },
+              { offset: { line: 2, column: 1 }, map: flat },
+            ],
+          },
+        },
+      ],
+    }
+  }
+  it.each(['flat', 'indexed', 'nested'])(
+    'selects actual mapped sources in %s maps while keeping generated-only sections and original bytes',
+    async (kind) => {
+      const { SourceMapGenerator } = require('next/dist/compiled/source-map')
+      const original = await readFile(configuration.filePath, 'utf8')
+      const flat = new SourceMapGenerator({
+        sourceRoot: 'file:///authored/',
+      })
+      flat.addMapping({
+        generated: { line: 1, column: 0 },
+        original: { line: 1, column: 3 },
+        source: 'contract.case.mjs',
+      })
+      flat.addMapping({ generated: { line: 1, column: 8 } })
+      flat.setSourceContent('contract.case.mjs', original)
+      const map = indexedSelectionMap(kind, flat.toJSON())
+      const maps = await readSelectionMap(map)
+      expect(maps).toEqual([
+        {
+          url: 'http://indexed-map.test/_next/static/entry.js',
+          map,
+          originalSources: ['file:///authored/contract.case.mjs'],
+        },
+      ])
+      const {
+        createClientSourceMapResolver,
+      } = require('next/dist/experimental/testing/client/source-maps')
+      const resolver = createClientSourceMapResolver({
+        filePath: configuration.filePath,
+        sourceMaps: maps,
+      })
+      const frame = {
+        file: maps[0].url,
+        ...(kind === 'flat'
+          ? { line: 1, column: 1 }
+          : kind === 'indexed'
+            ? { line: 3, column: 5 }
+            : { line: 5, column: 2 }),
+      }
+      expect(resolver.mapLocation(frame)).toEqual({
+        file: configuration.filePath,
+        line: 1,
+        column: 4,
+        method: undefined,
+      })
+      expect(resolver.getSourceContent(frame)).toBe(original)
+    }
+  )
+  it.each(['flat', 'indexed', 'nested'])(
+    'accepts valid omitted sourcesContent in %s maps without selecting absent authored bytes',
+    async (kind) => {
+      const flat = {
+        version: 3,
+        sourceRoot: 'file:///authored/',
+        sources: ['contract.case.mjs'],
+        names: [],
+        mappings: 'AAAA,Q',
+      }
+      await expect(
+        readSelectionMap(indexedSelectionMap(kind, flat))
+      ).resolves.toEqual([])
+    }
+  )
+  it.each(['flat', 'indexed', 'nested'])(
+    'does not select matching content registered without mapped evidence in %s maps',
+    async (kind) => {
+      const flat = {
+        version: 3,
+        sourceRoot: 'file:///authored/',
+        sources: ['contract.case.mjs'],
+        sourcesContent: [await readFile(configuration.filePath, 'utf8')],
+        names: [],
+        mappings: 'A',
+      }
+      await expect(
+        readSelectionMap(indexedSelectionMap(kind, flat))
+      ).resolves.toEqual([])
+    }
+  )
+  it.each([
+    [
+      'unordered sections',
+      {
+        version: 3,
+        sections: [
+          {
+            offset: { line: 2, column: 0 },
+            map: { version: 3, sources: [], names: [], mappings: '' },
+          },
+          {
+            offset: { line: 1, column: 0 },
+            map: { version: 3, sources: [], names: [], mappings: '' },
+          },
+        ],
+      },
+      /ordered and non-overlapping/,
+    ],
+    [
+      'external section',
+      {
+        version: 3,
+        sections: [{ offset: { line: 0, column: 0 }, url: 'outside.map' }],
+      },
+      /url.*not implemented/,
+    ],
+    [
+      'missing section map',
+      { version: 3, sections: [{ offset: { line: 0, column: 0 } }] },
+      /map.*required/,
+    ],
+    [
+      'invalid actual source index',
+      {
+        version: 3,
+        sections: [
+          {
+            offset: { line: 0, column: 0 },
+            map: {
+              version: 3,
+              sources: ['actual'],
+              sourcesContent: ['text'],
+              names: [],
+              mappings: 'ACAA',
+            },
+          },
+        ],
+      },
+      /No element indexed by 1/,
+    ],
+  ] as const)(
+    'retains consumer validation for %s',
+    async (_name, map, error) => {
+      await expect(readSelectionMap(map)).rejects.toThrow(error)
+    }
+  )
+  it('retains ambiguity rejection across actual nested mapped source identities', async () => {
+    const original = await readFile(configuration.filePath, 'utf8')
+    const flat = (source: string) => ({
+      version: 3,
+      sources: [source],
+      sourcesContent: [original],
+      names: [],
+      mappings: 'AAAA',
+    })
+    const map = {
+      version: 3,
+      sections: [
+        { offset: { line: 0, column: 0 }, map: flat('file:///first.mjs') },
+        {
+          offset: { line: 2, column: 0 },
+          map: indexedSelectionMap('indexed', flat('file:///second.mjs')),
+        },
+      ],
+    }
+    await expect(readSelectionMap(map)).rejects.toThrow(
+      'Ambiguous original source identities'
+    )
+  })
+  it.each([
+    'mapped conflicting content',
+    'mapped missing content',
+    'unmapped conflicting content',
+    'matching mapped contents',
+  ])(
+    'binds repeated source identities to their actual leaf: %s',
+    async (kind) => {
+      const source = 'file:///authored/contract.case.mjs'
+      const original = await readFile(configuration.filePath, 'utf8')
+      const leaf = (content: string | undefined, mapped = true) => ({
+        version: 3,
+        sources: [source],
+        ...(content === undefined ? {} : { sourcesContent: [content] }),
+        names: [],
+        mappings: mapped ? 'AAAA' : 'A',
+      })
+      const map = {
+        version: 3,
+        sections: [
+          {
+            offset: { line: 0, column: 0 },
+            map: leaf(
+              kind === 'unmapped conflicting content'
+                ? 'other bytes'
+                : original,
+              kind !== 'unmapped conflicting content'
+            ),
+          },
+          {
+            offset: { line: 2, column: 0 },
+            map: leaf(
+              kind === 'mapped conflicting content'
+                ? 'other bytes'
+                : kind === 'mapped missing content'
+                  ? undefined
+                  : original
+            ),
+          },
+        ],
+      }
+      if (
+        kind === 'mapped conflicting content' ||
+        kind === 'mapped missing content'
+      ) {
+        await expect(readSelectionMap(map)).rejects.toThrow(
+          'Ambiguous original source identities'
+        )
+        return
+      }
+      const maps = await readSelectionMap(map)
+      expect(maps).toEqual([
+        {
+          url: 'http://indexed-map.test/_next/static/entry.js',
+          map,
+          originalSources: [source],
+        },
+      ])
+      const {
+        createClientSourceMapResolver,
+      } = require('next/dist/experimental/testing/client/source-maps')
+      const resolver = createClientSourceMapResolver({
+        filePath: configuration.filePath,
+        sourceMaps: maps,
+      })
+      expect(
+        resolver.getSourceContent({ file: maps[0].url, line: 3, column: 1 })
+      ).toBe(original)
+      if (kind === 'unmapped conflicting content')
+        expect(() =>
+          resolver.mapLocation({ file: maps[0].url, line: 1, column: 1 })
+        ).toThrow('not bound to the selected source bytes')
+      else
+        expect(
+          resolver.getSourceContent({ file: maps[0].url, line: 1, column: 1 })
+        ).toBe(original)
+    }
+  )
+  it('keeps exact section starts, endings and generated-only scopes without falling through', async () => {
+    const source = 'file:///authored/contract.case.mjs'
+    const original = await readFile(configuration.filePath, 'utf8')
+    const flat = {
+      version: 3,
+      sources: [source],
+      sourcesContent: [original],
+      names: [],
+      mappings: 'AAAA,Q',
+    }
+    const map = {
+      version: 3,
+      sections: [
+        { offset: { line: 0, column: 0 }, map: flat },
+        {
+          offset: { line: 0, column: 5 },
+          map: { version: 3, sources: [], names: [], mappings: 'A' },
+        },
+        { offset: { line: 0, column: 9 }, map: flat },
+      ],
+    }
+    const maps = await readSelectionMap(map)
+    const {
+      createClientSourceMapResolver,
+    } = require('next/dist/experimental/testing/client/source-maps')
+    const resolver = createClientSourceMapResolver({
+      filePath: configuration.filePath,
+      sourceMaps: maps,
+    })
+    for (const column of [1, 5, 10])
+      expect(
+        resolver.mapLocation({ file: maps[0].url, line: 1, column })
+      ).toMatchObject({ file: configuration.filePath, line: 1, column: 1 })
+    for (const column of [6, 7, 18])
+      expect(() =>
+        resolver.mapLocation({ file: maps[0].url, line: 1, column })
+      ).toThrow('not bound to the selected source bytes')
+  })
+  it('composes nested line and column offsets only on their actual first relative line', async () => {
+    const { SourceMapGenerator } = require('next/dist/compiled/source-map')
+    const source = 'file:///authored/contract.case.mjs'
+    const original = await readFile(configuration.filePath, 'utf8')
+    const generator = new SourceMapGenerator()
+    for (const [generated, originalColumn] of [
+      [1, 0],
+      [2, 6],
+    ])
+      generator.addMapping({
+        generated: { line: generated, column: 0 },
+        original: { line: 1, column: originalColumn },
+        source,
+      })
+    generator.setSourceContent(source, original)
+    const flat = generator.toJSON()
+    const map = {
+      version: 3,
+      sections: [
+        { offset: { line: 0, column: 0 }, map: flat },
+        {
+          offset: { line: 1, column: 7 },
+          map: {
+            version: 3,
+            sections: [
+              { offset: { line: 0, column: 3 }, map: flat },
+              { offset: { line: 2, column: 4 }, map: flat },
+            ],
+          },
+        },
+      ],
+    }
+    const maps = await readSelectionMap(map)
+    const {
+      createClientSourceMapResolver,
+    } = require('next/dist/experimental/testing/client/source-maps')
+    const resolver = createClientSourceMapResolver({
+      filePath: configuration.filePath,
+      sourceMaps: maps,
+    })
+    for (const [line, column, expectedColumn] of [
+      [2, 11, 1],
+      [4, 5, 1],
+      [5, 1, 7],
+    ])
+      expect(
+        resolver.mapLocation({ file: maps[0].url, line, column })
+      ).toMatchObject({
+        file: configuration.filePath,
+        line: 1,
+        column: expectedColumn,
+      })
+    for (const column of [8, 10])
+      expect(() =>
+        resolver.mapLocation({ file: maps[0].url, line: 2, column })
+      ).toThrow('not bound to the selected source bytes')
+  })
+  it('does not borrow source content from another indexed leaf for a missing-content frame', () => {
+    const source = 'file:///authored/contract.case.mjs'
+    const map = {
+      version: 3,
+      sections: [
+        {
+          offset: { line: 0, column: 0 },
+          map: {
+            version: 3,
+            sources: [source],
+            sourcesContent: ['first leaf'],
+            names: [],
+            mappings: 'AAAA',
+          },
+        },
+        {
+          offset: { line: 2, column: 0 },
+          map: { version: 3, sources: [source], names: [], mappings: 'AAAA' },
+        },
+      ],
+    }
+    const {
+      createClientSourceMapResolver,
+    } = require('next/dist/experimental/testing/client/source-maps')
+    const url = 'http://indexed-map.test/_next/static/entry.js'
+    const resolver = createClientSourceMapResolver({
+      filePath: configuration.filePath,
+      sourceMaps: [{ url, map, originalSources: [source] }],
+    })
+    expect(resolver.getSourceContent({ file: url, line: 1, column: 1 })).toBe(
+      'first leaf'
+    )
+    expect(
+      resolver.getSourceContent({ file: url, line: 3, column: 1 })
+    ).toBeNull()
+  })
+  it('retains an actual empty source content string through nested selection and resolution', async () => {
+    const source = 'file:///authored/contract.case.mjs'
+    await writeFile(configuration.filePath, '')
+    artifact.sourceHash = hash('')
+    const map = indexedSelectionMap('nested', {
+      version: 3,
+      sources: [source],
+      sourcesContent: [''],
+      names: [],
+      mappings: 'AAAA',
+    })
+    const maps = await readSelectionMap(map)
+    expect(maps).toEqual([
+      {
+        url: 'http://indexed-map.test/_next/static/entry.js',
+        map,
+        originalSources: [source],
+      },
+    ])
+    const {
+      createClientSourceMapResolver,
+    } = require('next/dist/experimental/testing/client/source-maps')
+    const resolver = createClientSourceMapResolver({
+      filePath: configuration.filePath,
+      sourceMaps: maps,
+    })
+    expect(
+      resolver.getSourceContent({ file: maps[0].url, line: 5, column: 2 })
+    ).toBe('')
+  })
+  it.each(['flat', 'nested'])(
+    'keeps generated-only original coordinates authoritative when an empty source normalizes to a truthy root in %s maps',
+    async (kind) => {
+      const { SourceMapConsumer } = require('next/dist/compiled/source-map')
+      const flat = {
+        version: 3,
+        sourceRoot: 'file:///',
+        sources: [''],
+        sourcesContent: [await readFile(configuration.filePath, 'utf8')],
+        names: [],
+        mappings: 'A',
+      }
+      const mappings: unknown[] = []
+      new SourceMapConsumer(flat).eachMapping(
+        (mapping: {
+          source: string | null
+          originalLine: number | null
+          originalColumn: number | null
+        }) => {
+          mappings.push({
+            source: mapping.source,
+            originalLine: mapping.originalLine,
+            originalColumn: mapping.originalColumn,
+          })
+        }
+      )
+      expect(mappings).toEqual([
+        { source: 'file:///', originalLine: null, originalColumn: null },
+      ])
+      await expect(
+        readSelectionMap(indexedSelectionMap(kind, flat))
+      ).resolves.toEqual([])
+    }
+  )
 })
 
 describe('Browser helper diagnostic presentation', () => {
@@ -3840,3 +4831,80 @@ it.each(['development', 'production'] as const)(
     }
   }
 )
+
+it('maps measured Gecko srcScript diagnostic frames without changing raw errors or admitting other evaluation labels', () => {
+  const { SourceMapGenerator } = require('next/dist/compiled/source-map')
+  const {
+    createClientSourceMapResolver,
+  } = require('next/dist/experimental/testing/client/source-maps')
+  const {
+    mapClientDiagnosticStack,
+  } = require('next/dist/experimental/testing/client/helper-diagnostics')
+  const map = new SourceMapGenerator({ file: 'chunk.js' })
+  map.addMapping({
+    generated: { line: 20, column: 401 },
+    original: { line: 7, column: 10 },
+    source: 'exact-selected-source',
+  })
+  map.setSourceContent('exact-selected-source', 'retained authored hook source')
+  const configuration = {
+    filePath: '/original/hooks.test.mjs',
+    sourceMaps: [
+      {
+        url: 'http://127.0.0.1:1234/chunk.js',
+        map: map.toJSON(),
+        originalSources: ['exact-selected-source'],
+      },
+    ],
+  }
+  const mapper = createClientSourceMapResolver(configuration),
+    raw =
+      'createCollector/hook/<@http://127.0.0.1:1234/framework.js line 14 > srcScript:9189:24\n@http://127.0.0.1:1234/chunk.js line 14 > srcScript:20:402\n',
+    error = new Error('original hook error')
+  error.stack = raw
+  expect(mapClientDiagnosticStack(error.stack, mapper)).toEqual([
+    {
+      file: '/original/hooks.test.mjs',
+      line: 7,
+      column: 11,
+      methodName: undefined,
+      original: true,
+    },
+  ])
+  expect(error.stack).toBe(raw)
+  expect(error.message).toBe('original hook error')
+  for (const label of [
+    'line 0 > srcScript',
+    'line -1 > srcScript',
+    'line 14 > eval',
+    'line 14 > srcScript extra',
+    'line 14  > srcScript',
+  ]) {
+    expect(
+      mapClientDiagnosticStack(
+        '@http://127.0.0.1:1234/chunk.js ' + label + ':20:402',
+        mapper
+      )
+    ).toEqual([])
+  }
+  expect(
+    mapClientDiagnosticStack(
+      '@http://127.0.0.1:1234/other.js line 14 > srcScript:20:402',
+      mapper
+    )
+  ).toEqual([])
+  expect(
+    mapClientDiagnosticStack(
+      raw,
+      createClientSourceMapResolver({
+        ...configuration,
+        sourceMaps: [
+          {
+            ...configuration.sourceMaps[0],
+            originalSources: ['unselected-source'],
+          },
+        ],
+      })
+    )
+  ).toEqual([])
+})

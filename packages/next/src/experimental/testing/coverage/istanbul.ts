@@ -1,3 +1,7 @@
+import {
+  bindBrowserCreatorMethodEnds,
+  type BrowserCreatorMethod,
+} from './browser-creator-scope'
 import { assertCoverageCompletion } from '../execution/coverage'
 import {
   retainNativeCompilerSourceAuthorization,
@@ -18,6 +22,14 @@ import type {
   RuntimeConfigurationReceipt,
 } from './runtime-configuration'
 import { bindJsxConditionalEnds } from './jsx-boundaries'
+import {
+  prepareBrowserImportInitializers,
+  bindBrowserImportStatements,
+  type BrowserImportStatement,
+  type BrowserClassicFactory,
+  type BrowserAutomaticFactory,
+} from './browser-imports'
+import { associateBrowserJsxCalls } from './browser-jsx-associations'
 import { bindIfReturnEnds } from './if-return-boundaries'
 import { bindConditionalOperandEnds } from './conditional-operands'
 import { bindParameterPropertyModel } from './parameter-properties'
@@ -25,6 +37,9 @@ import { bindNamespaceModel } from './namespaces'
 import { bindEnumModel, hasEnumDeclaration } from './enums'
 import {
   bindJsxArrowInitializerEnds,
+  bindJsxClassicConditionalChildEnds,
+  bindJsxNamedFragmentConditionalChildEnds,
+  browserNamedJsxRoleMap,
   bindJsxLogicalChildEnds,
   bindJsxReturnEnds,
 } from './jsx-owners'
@@ -228,6 +243,128 @@ export async function remapPlannedStandardCoverage(
         ? {}
         : { nativeImportFiles: selectedTypeScriptImports }),
     }
+  )
+  await validate()
+  return result
+}
+
+/** Private Browser JSX composition keeps declaration zeros separate from CDP hits. */
+export async function remapPlannedBrowserStandardCoverage(
+  artifact: CompiledTestArtifact,
+  completion: TestCoverageCompletion,
+  expected: {
+    runId: string
+    entry: TestEntry
+    sourcePlan: CoverageSourcePlan
+    sourceDeclarations: readonly CompilerSourceCoverage[]
+    runtimeConfigurationPlan: RuntimeConfigurationPlan
+    runtimeConfigurationReceipt: RuntimeConfigurationReceipt
+    assertLease(): void
+  },
+  signal: AbortSignal,
+  selectSource?: (file: string) => boolean
+): Promise<StandardFileCoverage> {
+  const { assertLease, ...authorization } = expected
+  const retained = structuredClone(authorization)
+  const [sources, configuration, browser] = await Promise.all([
+    import('./source-analysis-plan.js'),
+    import('./runtime-configuration.js'),
+    import('../client/coverage-artifact.js'),
+  ])
+  const selected = new Set<string>()
+  async function validate() {
+    signal.throwIfAborted()
+    if (
+      typeof assertLease !== 'function' ||
+      assertLease() !== undefined ||
+      !isDeepStrictEqual(authorization, retained)
+    )
+      throw new Error('Planned Browser coverage lost its parent compiler lease')
+    assertCoverageCompletion(completion, artifact, retained.runId)
+    if (
+      !completion.complete ||
+      artifact.kind !== 'browser' ||
+      artifact.entryId !== retained.entry.id ||
+      artifact.profile.environment !== 'browser' ||
+      artifact.profile.browserClient !== true ||
+      !['development', 'production'].includes(artifact.profile.mode) ||
+      artifact.profile.runtime !== 'nodejs' ||
+      artifact.profile.bundler !== 'turbopack' ||
+      artifact.profile.route !== undefined ||
+      !isDeepStrictEqual(artifact.profile, retained.entry.profile) ||
+      !isDeepStrictEqual(
+        artifact.profile,
+        retained.runtimeConfigurationReceipt.authority.profile
+      ) ||
+      retained.runtimeConfigurationReceipt.compiler.rootDir !==
+        artifact.rootDir ||
+      retained.runtimeConfigurationReceipt.authority.entry.file !==
+        retained.entry.file ||
+      retained.runtimeConfigurationReceipt.authority.entry.sha256 !==
+        artifact.sourceHash ||
+      Object.hasOwn(artifact, 'nativeTsConfigInputs')
+    )
+      throw new Error('Incompatible planned Browser coverage artifact')
+    await browser.assertBrowserCoverageArtifact(artifact)
+    await sources.assertCompilerSourceCoverage(
+      retained.sourceDeclarations,
+      retained.sourcePlan,
+      signal
+    )
+    await configuration.assertRuntimeConfigurationReceipts({
+      receipts: [retained.runtimeConfigurationReceipt],
+      facts: [{ entryId: artifact.entryId, revision: artifact.revision }],
+      plan: retained.runtimeConfigurationPlan,
+      signal,
+    })
+    const ordinaryTypeScript =
+      artifact.profile.mode === 'development' ? /\.(?:ts|mts)$/ : /\.ts$/
+    const ordinaryDeclaration = /\.d\.(?:ts|mts)$/
+    const allowed = retained.sourcePlan.requests.filter(
+      (request) =>
+        isDeepStrictEqual(request.profile, artifact.profile) &&
+        (artifact.profile.mode !== 'development' ||
+          /\.[jt]sx$/.test(request.source.file) ||
+          (ordinaryTypeScript.test(request.source.file) &&
+            !ordinaryDeclaration.test(request.source.file))) &&
+        (/\.[jt]sx$/.test(request.source.file) ||
+          (ordinaryTypeScript.test(request.source.file) &&
+            !ordinaryDeclaration.test(request.source.file)))
+    )
+    if (!allowed.length)
+      throw new Error('Missing planned Browser JSX declaration analysis')
+    selected.clear()
+    for (const source of Object.values(artifact.coverage!.sources)) {
+      if (
+        !source ||
+        (!/\.[jt]sx$/.test(source.file) &&
+          !ordinaryTypeScript.test(source.file)) ||
+        (selectSource && !selectSource(source.file))
+      )
+        continue
+      const matching = allowed.filter(
+        (request) =>
+          request.source.file === source.file &&
+          request.source.sha256 === source.sha256
+      )
+      if (matching.length !== 1)
+        throw new Error(
+          'Browser JSX runtime source differs from its parent analysis'
+        )
+      if (/\.[jt]sx$/.test(source.file)) selected.add(source.file)
+    }
+    signal.throwIfAborted()
+    if (assertLease() !== undefined)
+      throw new Error('Planned Browser coverage compiler lease closed')
+  }
+  await validate()
+  if (!completion.complete)
+    throw new Error('Incomplete planned Browser coverage')
+  const result = await remapCompiledStandardCoverage(
+    artifact,
+    completion.data,
+    selectSource,
+    { jsxFiles: selected }
   )
   await validate()
   return result
@@ -480,10 +617,38 @@ async function convertCompiledScript(
     metadata,
   })
   if (!sourceMap.sources.length) return []
+  const browserNative = await prepareBrowserImportInitializers({
+    artifact,
+    metadata,
+    code,
+    rawMap,
+    ast: native.ast,
+    selectedSources: new Map(
+      [...sourceContent].filter(
+        ([file]) =>
+          declarationSyntax?.jsxFile === file ||
+          declarationSyntax?.jsxFiles?.has(file) === true
+      )
+    ),
+    async generatedCoverage() {
+      const generatedFile = join(artifact.rootDir, metadata.path)
+      const result = await convertCoverage({
+        code,
+        ast: native.ast,
+        sourceMap: identityMap(generatedFile, code),
+        coverage: { url: pathToFileURL(generatedFile).href, functions },
+      })
+      if (Object.keys(result).length !== 1 || !result[generatedFile])
+        throw new Error(
+          'Generated Browser import coverage returned an unexpected script identity'
+        )
+      return result[generatedFile] as StandardCoverageData
+    },
+  })
   const mapped = await convertCoverage({
     code,
     sourceMap,
-    ast: native.ast,
+    ast: browserNative.ast,
     coverage: {
       url: pathToFileURL(join(artifact.rootDir, metadata.path)).href,
       functions: functions,
@@ -520,7 +685,11 @@ async function convertCompiledScript(
         data as StandardCoverageData,
         {
           code,
-          ast: native.ast,
+          ast: browserNative.ast,
+          browserImportStatements: browserNative.statements.get(file),
+          browserClassicFactories: browserNative.classicFactories.get(file),
+          browserAutomaticFactories: browserNative.automaticFactories.get(file),
+          browserCreatorMethods: browserNative.creatorMethods.get(file),
           mode: artifact.profile.mode,
           sourceMap,
           coverage: {
@@ -973,6 +1142,10 @@ async function recoverJavaScriptLocations(
     ast: unknown
     mode: 'development' | 'production'
     sourceMap: RawSourceMap
+    browserImportStatements?: readonly BrowserImportStatement[]
+    browserClassicFactories?: readonly BrowserClassicFactory[]
+    browserAutomaticFactories?: readonly BrowserAutomaticFactory[]
+    browserCreatorMethods?: readonly BrowserCreatorMethod[]
     coverage: {
       url: string
       functions: CoverageCapture['scripts'][number]['functions']
@@ -980,12 +1153,96 @@ async function recoverJavaScriptLocations(
   },
   declarationSyntax?: CompilerSyntax
 ): Promise<StandardCoverageData> {
-  const model = await createOriginalSourceModel(
+  let model = await createOriginalSourceModel(
     file,
     source,
     declarationSyntax,
     emitted && { ...emitted, data }
   )
+  let browserJsxChildren: ReadonlySet<string> | undefined
+  if (emitted && model.ast) {
+    const named = emitted.browserClassicFactories?.some(
+      (factory) => factory.namedPragma
+    )
+    const association = named
+      ? associateBrowserJsxCalls({
+          file,
+          code: emitted.code,
+          authored: model.ast,
+          emitted: emitted.ast,
+          sourceMap: emitted.sourceMap,
+          classic: emitted.browserClassicFactories,
+        })
+      : undefined
+    const roleMap =
+      association?.sourceMap ??
+      browserNamedJsxRoleMap(
+        file,
+        model.ast,
+        emitted.ast,
+        emitted.sourceMap,
+        emitted.browserClassicFactories
+      )
+    if (roleMap) {
+      const rebound = (
+        await convertCoverage({ ...emitted, sourceMap: roleMap })
+      )[file] as StandardCoverageData
+      if (
+        !rebound ||
+        !isDeepStrictEqual(
+          [data.s, data.f, data.b],
+          [rebound.s, rebound.f, rebound.b]
+        )
+      )
+        throw new Error(
+          'Named JSX factory role changed observed V8 counter identities'
+        )
+      data = rebound
+      emitted = { ...emitted, sourceMap: roleMap as RawSourceMap }
+      model = await createOriginalSourceModel(file, source, declarationSyntax, {
+        ...emitted,
+        data,
+      })
+      browserJsxChildren = association?.children
+    }
+  }
+  if (
+    emitted &&
+    model.ast &&
+    !emitted.browserClassicFactories?.some((factory) => factory.namedPragma)
+  ) {
+    const association = associateBrowserJsxCalls({
+      file,
+      code: emitted.code,
+      authored: model.ast,
+      emitted: emitted.ast,
+      sourceMap: emitted.sourceMap,
+      classic: emitted.browserClassicFactories,
+      automatic: emitted.browserAutomaticFactories,
+    })
+    if (association) {
+      const rebound = (
+        await convertCoverage({ ...emitted, sourceMap: association.sourceMap })
+      )[file] as StandardCoverageData
+      if (
+        !rebound ||
+        !isDeepStrictEqual(
+          [data.s, data.f, data.b],
+          [rebound.s, rebound.f, rebound.b]
+        )
+      )
+        throw new Error(
+          'Browser JSX terminal association changed observed V8 counter identities'
+        )
+      data = rebound
+      emitted = { ...emitted, sourceMap: association.sourceMap as RawSourceMap }
+      model = await createOriginalSourceModel(file, source, declarationSyntax, {
+        ...emitted,
+        data,
+      })
+      browserJsxChildren = association.children
+    }
+  }
   data = model.observed ?? data
   const original = model.data
   if (model.ast) {
@@ -1041,14 +1298,32 @@ async function recoverJavaScriptLocations(
         emitted.ast,
         emitted.sourceMap,
         emitted.mode,
-        original
+        original,
+        browserJsxChildren
+      )
+      bindJsxClassicConditionalChildEnds(
+        file,
+        data,
+        model.ast,
+        emitted.ast,
+        emitted.sourceMap,
+        emitted.browserClassicFactories
+      )
+      bindJsxNamedFragmentConditionalChildEnds(
+        file,
+        data,
+        model.ast,
+        emitted.ast,
+        emitted.sourceMap,
+        emitted.browserClassicFactories
       )
       bindJsxConditionalEnds(
         file,
         data,
         model.ast,
         emitted.ast,
-        emitted.sourceMap
+        emitted.sourceMap,
+        browserJsxChildren
       )
       bindFunctionExpressionCallbackEnds(
         file,
@@ -1099,6 +1374,17 @@ async function recoverJavaScriptLocations(
       emitted.sourceMap
     )
   }
+  if (emitted?.browserImportStatements)
+    bindBrowserImportStatements(original, data, emitted.browserImportStatements)
+  if (emitted?.browserCreatorMethods?.length && model.ast)
+    bindBrowserCreatorMethodEnds(
+      file,
+      original,
+      data,
+      model.ast,
+      emitted.browserCreatorMethods,
+      emitted.sourceMap
+    )
   if (Object.keys(original.fnMap).length !== Object.keys(data.fnMap).length)
     throw new Error(
       `Standard coverage generated and original function counts differ: ${file}`

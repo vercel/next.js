@@ -1,0 +1,100 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "late-source-flags",
+        "trace": [
+          {
+            "phase": "live-A",
+            "kind": "flag",
+            "taskA": true,
+            "taskB": false,
+            "noTask": false
+          },
+          {
+            "phase": "live-B",
+            "kind": "flag",
+            "taskA": false,
+            "taskB": true,
+            "noTask": false
+          },
+          {
+            "phase": "foreign-created-A",
+            "kind": "flag",
+            "taskA": true,
+            "taskB": false,
+            "noTask": false
+          },
+          {
+            "phase": "after-foreign-transfer",
+            "kind": "flag",
+            "taskA": true,
+            "taskB": false,
+            "noTask": false
+          },
+          {
+            "phase": "foreign-transfer",
+            "kind": "matcher",
+            "actual": "foreign-A",
+            "expected": "foreign-A",
+            "taskA": true,
+            "taskB": false,
+            "noTask": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "closed-created-A",
+            "kind": "flag",
+            "taskA": true,
+            "taskB": false,
+            "noTask": false
+          },
+          {
+            "phase": "after-closed-transfer",
+            "kind": "flag",
+            "taskA": true,
+            "taskB": false,
+            "noTask": false
+          },
+          {
+            "phase": "closed-transfer",
+            "kind": "matcher",
+            "actual": "closed-A",
+            "expected": "closed-A",
+            "taskA": true,
+            "taskB": false,
+            "noTask": false,
+            "sameAssertion": true
+          }
+        ],
+        "countA": 3,
+        "countB": 1
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "late source task A",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeaders": []
+    },
+    {
+      "name": "late source task B",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeaders": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

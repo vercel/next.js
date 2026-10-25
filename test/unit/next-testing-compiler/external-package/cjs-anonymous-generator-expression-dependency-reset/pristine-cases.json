@@ -1,0 +1,27 @@
+[
+  {
+    "name": "complete async or generator namespace and dependency lifetime across resets",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "actual helper retains exact async or generator namespace reset ownership",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "held async or generator defaults and dependency mutations stay live",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "local self and outstanding operations retain their actual old function",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "native rejection or generator throw retains its actual error and cause",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

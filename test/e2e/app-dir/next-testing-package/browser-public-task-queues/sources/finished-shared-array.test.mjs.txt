@@ -1,0 +1,18 @@
+import { test, expect, afterEach, afterAll, onTestFinished as globalFinished } from 'vitest'
+const rows = []
+let release = () => {}
+const row = (stage, value = {}) => rows.push({ stage, ...value })
+afterEach(({ task }) => { row('afterEach', { errors: (task.result?.errors ?? []).map(error => error?.message ?? String(error)) }); release() })
+afterAll(() => console.log('TASK_QUEUE_CONSUMER:' + JSON.stringify(rows)))
+let held
+const callback = label => function(context) { row(label, { same: context.task === held, receiverUndefined: this === undefined, args: arguments.length }) }
+test('actual finished array shares context global and manual callbacks', context => {
+  held = context.task
+  row('initial', { absent: held.onFinished === undefined })
+  context.onTestFinished(callback('context-finished'))
+  const actual = held.onFinished
+  globalFinished(callback('global-finished'))
+  actual.push(callback('manual-finished'))
+  row('body-return', { same: held.onFinished === actual, array: Array.isArray(actual), prototype: Object.getPrototypeOf(actual) === Array.prototype, ownPush: Object.hasOwn(actual, 'push'), length: actual.length })
+})
+afterAll(() => row('afterAll-task', { absent: held.onFinished === undefined }))

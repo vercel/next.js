@@ -1,0 +1,2833 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CJS_FUNCTION_KINDS",
+    "value": {
+      "name": "reset",
+      "kind": "generator",
+      "views": [
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "[object GeneratorFunction]",
+            "tag": "GeneratorFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "name": "Named",
+          "length": 0,
+          "functionTag": "[object GeneratorFunction]",
+          "prototype": {
+            "type": "object",
+            "brand": false,
+            "keys": [],
+            "prototype": "[object Generator]",
+            "tag": "Generator",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": []
+          },
+          "prototypeConstructorSame": false,
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "[object GeneratorFunction]",
+            "tag": "GeneratorFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "call": {
+            "type": "[object Generator]",
+            "first": {
+              "value": [1, 1, true, "held", [3, 4]],
+              "done": false
+            },
+            "last": {
+              "value": [1, 1, "closed"],
+              "done": true
+            },
+            "promise": false
+          },
+          "detached": {
+            "type": "[object Generator]",
+            "first": {
+              "value": [1, 1, true, "detached", []],
+              "done": false
+            },
+            "last": {
+              "value": [1, 1, "closed"],
+              "done": true
+            },
+            "promise": false
+          },
+          "constructFailure": {
+            "name": "TypeError",
+            "message": "raw is not a constructor"
+          }
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "[object GeneratorFunction]",
+            "tag": "GeneratorFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "name": "Named",
+          "length": 0,
+          "functionTag": "[object GeneratorFunction]",
+          "prototype": {
+            "type": "object",
+            "brand": false,
+            "keys": [],
+            "prototype": "[object Generator]",
+            "tag": "Generator",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": []
+          },
+          "prototypeConstructorSame": false,
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "[object GeneratorFunction]",
+            "tag": "GeneratorFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "call": {
+            "type": "[object Generator]",
+            "first": {
+              "value": [1, 1, true, "held", [3, 4]],
+              "done": false
+            },
+            "last": {
+              "value": [1, 1, "closed"],
+              "done": true
+            },
+            "promise": false
+          },
+          "detached": {
+            "type": "[object Generator]",
+            "first": {
+              "value": [1, 1, true, "detached", []],
+              "done": false
+            },
+            "last": {
+              "value": [1, 1, "closed"],
+              "done": true
+            },
+            "promise": false
+          },
+          "constructFailure": {
+            "name": "TypeError",
+            "message": "raw is not a constructor"
+          }
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "[object GeneratorFunction]",
+            "tag": "GeneratorFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "name": "Named",
+          "length": 0,
+          "functionTag": "[object GeneratorFunction]",
+          "prototype": {
+            "type": "object",
+            "brand": false,
+            "keys": [],
+            "prototype": "[object Generator]",
+            "tag": "Generator",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": []
+          },
+          "prototypeConstructorSame": false,
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "[object GeneratorFunction]",
+            "tag": "GeneratorFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "call": {
+            "type": "[object Generator]",
+            "first": {
+              "value": [3, 1, true, "held", [3, 4]],
+              "done": false
+            },
+            "last": {
+              "value": [3, 1, "closed"],
+              "done": true
+            },
+            "promise": false
+          },
+          "detached": {
+            "type": "[object Generator]",
+            "first": {
+              "value": [3, 1, true, "detached", []],
+              "done": false
+            },
+            "last": {
+              "value": [3, 1, "closed"],
+              "done": true
+            },
+            "promise": false
+          },
+          "constructFailure": {
+            "name": "TypeError",
+            "message": "raw is not a constructor"
+          }
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "[object GeneratorFunction]",
+            "tag": "GeneratorFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "name": "Named",
+          "length": 0,
+          "functionTag": "[object GeneratorFunction]",
+          "prototype": {
+            "type": "object",
+            "brand": false,
+            "keys": [],
+            "prototype": "[object Generator]",
+            "tag": "Generator",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": []
+          },
+          "prototypeConstructorSame": false,
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "[object GeneratorFunction]",
+            "tag": "GeneratorFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "call": {
+            "type": "[object Generator]",
+            "first": {
+              "value": [4, 1, true, "held", [3, 4]],
+              "done": false
+            },
+            "last": {
+              "value": [4, 1, "closed"],
+              "done": true
+            },
+            "promise": false
+          },
+          "detached": {
+            "type": "[object Generator]",
+            "first": {
+              "value": [4, 1, true, "detached", []],
+              "done": false
+            },
+            "last": {
+              "value": [4, 1, "closed"],
+              "done": true
+            },
+            "promise": false
+          },
+          "constructFailure": {
+            "name": "TypeError",
+            "message": "raw is not a constructor"
+          }
+        }
+      ],
+      "identities": [
+        [true, true, false, false],
+        [true, true, false, false],
+        [false, false, true, false],
+        [false, false, false, true]
+      ],
+      "rawIdentities": [
+        [true, true, false, false],
+        [true, true, false, false],
+        [false, false, true, false],
+        [false, false, false, true]
+      ],
+      "dependencyIdentities": [
+        [true, true, true, true],
+        [true, true, true, true],
+        [true, true, true, true],
+        [true, true, true, true]
+      ],
+      "counts": {
+        "root": 4,
+        "dependency": 1,
+        "unused": 0
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CJS_FUNCTION_KINDS",
+    "value": {
+      "name": "actual",
+      "kind": "generator",
+      "views": [
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "[object GeneratorFunction]",
+            "tag": "GeneratorFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "name": "Named",
+          "length": 0,
+          "functionTag": "[object GeneratorFunction]",
+          "prototype": {
+            "type": "object",
+            "brand": false,
+            "keys": [],
+            "prototype": "[object Generator]",
+            "tag": "Generator",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": []
+          },
+          "prototypeConstructorSame": false,
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "[object GeneratorFunction]",
+            "tag": "GeneratorFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "call": {
+            "type": "[object Generator]",
+            "first": {
+              "value": [5, 1, true, "held", [3, 4]],
+              "done": false
+            },
+            "last": {
+              "value": [5, 1, "closed"],
+              "done": true
+            },
+            "promise": false
+          },
+          "detached": {
+            "type": "[object Generator]",
+            "first": {
+              "value": [5, 1, true, "detached", []],
+              "done": false
+            },
+            "last": {
+              "value": [5, 1, "closed"],
+              "done": true
+            },
+            "promise": false
+          },
+          "constructFailure": {
+            "name": "TypeError",
+            "message": "raw is not a constructor"
+          }
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "[object GeneratorFunction]",
+            "tag": "GeneratorFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "name": "Named",
+          "length": 0,
+          "functionTag": "[object GeneratorFunction]",
+          "prototype": {
+            "type": "object",
+            "brand": false,
+            "keys": [],
+            "prototype": "[object Generator]",
+            "tag": "Generator",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": []
+          },
+          "prototypeConstructorSame": false,
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "[object GeneratorFunction]",
+            "tag": "GeneratorFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "call": {
+            "type": "[object Generator]",
+            "first": {
+              "value": [5, 1, true, "held", [3, 4]],
+              "done": false
+            },
+            "last": {
+              "value": [5, 1, "closed"],
+              "done": true
+            },
+            "promise": false
+          },
+          "detached": {
+            "type": "[object Generator]",
+            "first": {
+              "value": [5, 1, true, "detached", []],
+              "done": false
+            },
+            "last": {
+              "value": [5, 1, "closed"],
+              "done": true
+            },
+            "promise": false
+          },
+          "constructFailure": {
+            "name": "TypeError",
+            "message": "raw is not a constructor"
+          }
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "[object GeneratorFunction]",
+            "tag": "GeneratorFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "name": "Named",
+          "length": 0,
+          "functionTag": "[object GeneratorFunction]",
+          "prototype": {
+            "type": "object",
+            "brand": false,
+            "keys": [],
+            "prototype": "[object Generator]",
+            "tag": "Generator",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": []
+          },
+          "prototypeConstructorSame": false,
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "[object GeneratorFunction]",
+            "tag": "GeneratorFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "call": {
+            "type": "[object Generator]",
+            "first": {
+              "value": [5, 1, true, "held", [3, 4]],
+              "done": false
+            },
+            "last": {
+              "value": [5, 1, "closed"],
+              "done": true
+            },
+            "promise": false
+          },
+          "detached": {
+            "type": "[object Generator]",
+            "first": {
+              "value": [5, 1, true, "detached", []],
+              "done": false
+            },
+            "last": {
+              "value": [5, 1, "closed"],
+              "done": true
+            },
+            "promise": false
+          },
+          "constructFailure": {
+            "name": "TypeError",
+            "message": "raw is not a constructor"
+          }
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "[object GeneratorFunction]",
+            "tag": "GeneratorFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "name": "Named",
+          "length": 0,
+          "functionTag": "[object GeneratorFunction]",
+          "prototype": {
+            "type": "object",
+            "brand": false,
+            "keys": [],
+            "prototype": "[object Generator]",
+            "tag": "Generator",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": []
+          },
+          "prototypeConstructorSame": false,
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "[object GeneratorFunction]",
+            "tag": "GeneratorFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "call": {
+            "type": "[object Generator]",
+            "first": {
+              "value": [6, 1, true, "held", [3, 4]],
+              "done": false
+            },
+            "last": {
+              "value": [6, 1, "closed"],
+              "done": true
+            },
+            "promise": false
+          },
+          "detached": {
+            "type": "[object Generator]",
+            "first": {
+              "value": [6, 1, true, "detached", []],
+              "done": false
+            },
+            "last": {
+              "value": [6, 1, "closed"],
+              "done": true
+            },
+            "promise": false
+          },
+          "constructFailure": {
+            "name": "TypeError",
+            "message": "raw is not a constructor"
+          }
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "[object GeneratorFunction]",
+            "tag": "GeneratorFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "name": "Named",
+          "length": 0,
+          "functionTag": "[object GeneratorFunction]",
+          "prototype": {
+            "type": "object",
+            "brand": false,
+            "keys": [],
+            "prototype": "[object Generator]",
+            "tag": "Generator",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": []
+          },
+          "prototypeConstructorSame": false,
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "[object GeneratorFunction]",
+            "tag": "GeneratorFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "call": {
+            "type": "[object Generator]",
+            "first": {
+              "value": [6, 1, true, "held", [3, 4]],
+              "done": false
+            },
+            "last": {
+              "value": [6, 1, "closed"],
+              "done": true
+            },
+            "promise": false
+          },
+          "detached": {
+            "type": "[object Generator]",
+            "first": {
+              "value": [6, 1, true, "detached", []],
+              "done": false
+            },
+            "last": {
+              "value": [6, 1, "closed"],
+              "done": true
+            },
+            "promise": false
+          },
+          "constructFailure": {
+            "name": "TypeError",
+            "message": "raw is not a constructor"
+          }
+        }
+      ],
+      "identities": [
+        [true, true, true, false, false],
+        [true, true, true, false, false],
+        [true, true, true, false, false],
+        [false, false, false, true, true],
+        [false, false, false, true, true]
+      ],
+      "rawIdentities": [
+        [true, true, true, false, false],
+        [true, true, true, false, false],
+        [true, true, true, false, false],
+        [false, false, false, true, true],
+        [false, false, false, true, true]
+      ],
+      "counts": {
+        "root": 6,
+        "dependency": 1,
+        "unused": 0
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CJS_FUNCTION_KINDS",
+    "value": {
+      "name": "mutation",
+      "kind": "generator",
+      "held": {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": ["default", "Symbol(Symbol.toStringTag)"],
+          "prototype": "null",
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "default",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "raw": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype", "extra"],
+          "prototype": "[object GeneratorFunction]",
+          "tag": "GeneratorFunction",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            },
+            {
+              "key": "extra",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "name": "Named",
+        "length": 0,
+        "functionTag": "[object GeneratorFunction]",
+        "prototype": {
+          "type": "object",
+          "brand": false,
+          "keys": [],
+          "prototype": "[object Generator]",
+          "tag": "Generator",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": []
+        },
+        "prototypeConstructorSame": false,
+        "dependency": {
+          "type": "object",
+          "brand": false,
+          "keys": ["evaluation", "marker", "root"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "evaluation",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "marker",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "root",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "dependencyRoot": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype"],
+          "prototype": "[object GeneratorFunction]",
+          "tag": "GeneratorFunction",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "call": {
+          "type": "[object Generator]",
+          "first": {
+            "value": [7, 731, true, "held", [3, 4]],
+            "done": false
+          },
+          "last": {
+            "value": [7, 731, "closed"],
+            "done": true
+          },
+          "promise": false
+        },
+        "detached": {
+          "type": "[object Generator]",
+          "first": {
+            "value": [7, 731, true, "detached", []],
+            "done": false
+          },
+          "last": {
+            "value": [7, 731, "closed"],
+            "done": true
+          },
+          "promise": false
+        },
+        "constructFailure": {
+          "name": "TypeError",
+          "message": "raw is not a constructor"
+        }
+      },
+      "mutated": {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": ["default", "Symbol(Symbol.toStringTag)"],
+          "prototype": "null",
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "default",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "raw": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype", "extra"],
+          "prototype": "[object GeneratorFunction]",
+          "tag": "GeneratorFunction",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            },
+            {
+              "key": "extra",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "name": "Named",
+        "length": 0,
+        "functionTag": "[object GeneratorFunction]",
+        "prototype": {
+          "type": "object",
+          "brand": false,
+          "keys": [],
+          "prototype": "[object Generator]",
+          "tag": "Generator",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": []
+        },
+        "prototypeConstructorSame": false,
+        "dependency": {
+          "type": "object",
+          "brand": false,
+          "keys": ["evaluation", "marker", "root"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "evaluation",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "marker",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "root",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "dependencyRoot": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype"],
+          "prototype": "[object GeneratorFunction]",
+          "tag": "GeneratorFunction",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "call": {
+          "type": "[object Generator]",
+          "first": {
+            "value": [7, 731, true, "held", [3, 4]],
+            "done": false
+          },
+          "last": {
+            "value": [7, 731, "closed"],
+            "done": true
+          },
+          "promise": false
+        },
+        "detached": {
+          "type": "[object Generator]",
+          "first": {
+            "value": [7, 731, true, "detached", []],
+            "done": false
+          },
+          "last": {
+            "value": [7, 731, "closed"],
+            "done": true
+          },
+          "promise": false
+        },
+        "constructFailure": {
+          "name": "TypeError",
+          "message": "raw is not a constructor"
+        }
+      },
+      "fresh": {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": ["default", "Symbol(Symbol.toStringTag)"],
+          "prototype": "null",
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "default",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "raw": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype"],
+          "prototype": "[object GeneratorFunction]",
+          "tag": "GeneratorFunction",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "name": "Named",
+        "length": 0,
+        "functionTag": "[object GeneratorFunction]",
+        "prototype": {
+          "type": "object",
+          "brand": false,
+          "keys": [],
+          "prototype": "[object Generator]",
+          "tag": "Generator",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": []
+        },
+        "prototypeConstructorSame": false,
+        "dependency": {
+          "type": "object",
+          "brand": false,
+          "keys": ["evaluation", "marker", "root"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "evaluation",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "marker",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "root",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "dependencyRoot": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype"],
+          "prototype": "[object GeneratorFunction]",
+          "tag": "GeneratorFunction",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "call": {
+          "type": "[object Generator]",
+          "first": {
+            "value": [8, 731, true, "held", [3, 4]],
+            "done": false
+          },
+          "last": {
+            "value": [8, 731, "closed"],
+            "done": true
+          },
+          "promise": false
+        },
+        "detached": {
+          "type": "[object Generator]",
+          "first": {
+            "value": [8, 731, true, "detached", []],
+            "done": false
+          },
+          "last": {
+            "value": [8, 731, "closed"],
+            "done": true
+          },
+          "promise": false
+        },
+        "constructFailure": {
+          "name": "TypeError",
+          "message": "raw is not a constructor"
+        }
+      },
+      "heldExtraSame": true,
+      "freshHasExtra": false,
+      "dependencySame": true,
+      "counts": {
+        "root": 8,
+        "dependency": 1,
+        "unused": 0
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CJS_FUNCTION_KINDS",
+    "value": {
+      "name": "self-operation",
+      "kind": "generator",
+      "heldSelf": true,
+      "freshSelf": true,
+      "distinct": true,
+      "continued": {
+        "type": "[object Generator]",
+        "first": {
+          "value": [9, 731, true, "fallback", [7, 8]],
+          "done": false
+        },
+        "last": {
+          "value": [9, 731, "closed"],
+          "done": true
+        },
+        "promise": false
+      },
+      "first": {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": ["default", "Symbol(Symbol.toStringTag)"],
+          "prototype": "null",
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "default",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "raw": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype"],
+          "prototype": "[object GeneratorFunction]",
+          "tag": "GeneratorFunction",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "name": "Named",
+        "length": 0,
+        "functionTag": "[object GeneratorFunction]",
+        "prototype": {
+          "type": "object",
+          "brand": false,
+          "keys": [],
+          "prototype": "[object Generator]",
+          "tag": "Generator",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": []
+        },
+        "prototypeConstructorSame": false,
+        "dependency": {
+          "type": "object",
+          "brand": false,
+          "keys": ["evaluation", "marker", "root"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "evaluation",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "marker",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "root",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "dependencyRoot": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype"],
+          "prototype": "[object GeneratorFunction]",
+          "tag": "GeneratorFunction",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "call": {
+          "type": "[object Generator]",
+          "first": {
+            "value": [9, 731, true, "held", [3, 4]],
+            "done": false
+          },
+          "last": {
+            "value": [9, 731, "closed"],
+            "done": true
+          },
+          "promise": false
+        },
+        "detached": {
+          "type": "[object Generator]",
+          "first": {
+            "value": [9, 731, true, "detached", []],
+            "done": false
+          },
+          "last": {
+            "value": [9, 731, "closed"],
+            "done": true
+          },
+          "promise": false
+        },
+        "constructFailure": {
+          "name": "TypeError",
+          "message": "raw is not a constructor"
+        }
+      },
+      "second": {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": ["default", "Symbol(Symbol.toStringTag)"],
+          "prototype": "null",
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "default",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "raw": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype"],
+          "prototype": "[object GeneratorFunction]",
+          "tag": "GeneratorFunction",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "name": "Named",
+        "length": 0,
+        "functionTag": "[object GeneratorFunction]",
+        "prototype": {
+          "type": "object",
+          "brand": false,
+          "keys": [],
+          "prototype": "[object Generator]",
+          "tag": "Generator",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": []
+        },
+        "prototypeConstructorSame": false,
+        "dependency": {
+          "type": "object",
+          "brand": false,
+          "keys": ["evaluation", "marker", "root"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "evaluation",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "marker",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "root",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "dependencyRoot": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype"],
+          "prototype": "[object GeneratorFunction]",
+          "tag": "GeneratorFunction",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "call": {
+          "type": "[object Generator]",
+          "first": {
+            "value": [10, 731, true, "held", [3, 4]],
+            "done": false
+          },
+          "last": {
+            "value": [10, 731, "closed"],
+            "done": true
+          },
+          "promise": false
+        },
+        "detached": {
+          "type": "[object Generator]",
+          "first": {
+            "value": [10, 731, true, "detached", []],
+            "done": false
+          },
+          "last": {
+            "value": [10, 731, "closed"],
+            "done": true
+          },
+          "promise": false
+        },
+        "constructFailure": {
+          "name": "TypeError",
+          "message": "raw is not a constructor"
+        }
+      },
+      "counts": {
+        "root": 10,
+        "dependency": 1,
+        "unused": 0
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CJS_FUNCTION_KINDS",
+    "value": {
+      "name": "errors",
+      "kind": "generator",
+      "failure": {
+        "name": "Error",
+        "message": "actual expression 11",
+        "cause": "actual cause"
+      },
+      "throwIdentity": true,
+      "counts": {
+        "root": 11,
+        "dependency": 1,
+        "unused": 0
+      }
+    }
+  }
+]

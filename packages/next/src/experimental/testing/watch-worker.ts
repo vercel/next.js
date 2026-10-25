@@ -6,8 +6,11 @@ import type {
 } from './watch-process'
 import { randomUUID } from 'crypto'
 import type { WatchDirectories } from './incremental/watch-files'
+import { getTestRunLockPath } from './run-lock'
 
 const controller = new AbortController()
+const userCancellation = new AbortController()
+let userCancellationAuthorized = false
 let started = false
 const allocations = new Map<
   string,
@@ -59,6 +62,7 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
     return { operation: 'plan', plan }
   }
   if (request.operation === 'run') {
+    userCancellationAuthorized = request.userCancellation === true
     const { createExecutionBrokerClient } = await import(
       './execution/broker.js'
     )
@@ -82,6 +86,9 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
         ? { compilerTransforms: request.compilerTransforms }
         : {}),
       signal: controller.signal,
+      ...(userCancellationAuthorized
+        ? { userCancelSignal: userCancellation.signal }
+        : {}),
       collectOnly: request.collectOnly,
       captureTaskResults: request.captureTaskResults,
       inspect: request.inspect,
@@ -159,6 +166,7 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
   const directories: WatchDirectories = {
     directories: [],
     outputDirectories: [],
+    outputFiles: [getTestRunLockPath(request.projectDir)],
     artifactDirectories: [],
   }
   for (const profile of request.profiles) {
@@ -193,6 +201,7 @@ function finish(message: WatchProcessMessage) {
 function onMessage(
   message:
     | { type: 'cancel' }
+    | { type: 'user-cancel' }
     | { type: 'start'; request: WatchProcessRequest }
     | ArtifactAllocationResponse
 ) {
@@ -206,6 +215,13 @@ function onMessage(
         new Error(message.error ?? 'Missing watch artifact allocation.')
       )
     else pending.resolve(message.allocation)
+    return
+  }
+  if (message.type === 'user-cancel') {
+    if (userCancellationAuthorized)
+      userCancellation.abort(
+        new Error('Test watch scheduling cancelled by user.')
+      )
     return
   }
   if (message.type === 'cancel') {

@@ -1,5 +1,8 @@
+import { SourceMapGenerator } from 'next/dist/compiled/source-map'
 import { decodeCoverageMap } from './maps'
+import { browserJsxChildKey } from './browser-jsx-associations'
 import type { ArrowBindingAssociation } from './arrow-bindings'
+import type { BrowserClassicFactory } from './browser-imports'
 import type { StandardCoverageData, StandardCoverageLocation } from './types'
 
 type Point = { line: number; column: number }
@@ -7,6 +10,7 @@ type Node = {
   type: string
   loc: StandardCoverageLocation
   start?: number
+  end?: number
   extra?: { parenthesized?: boolean; parenStart?: number }
   name?: string
   value?: unknown
@@ -15,8 +19,9 @@ type Node = {
   right?: Node
   body?: Node
   expression?: Node
-  openingElement?: { name?: Node }
-  closingElement?: Node
+  openingElement?: { name?: Node; attributes?: Node[] }
+  closingElement?: { type: string; loc: StandardCoverageLocation; name?: Node }
+  openingFragment?: Node
   closingFragment?: Node
   children?: Node[]
   arguments?: Node[]
@@ -26,8 +31,15 @@ type Node = {
   property?: Node
   computed?: boolean
   callee?: Node
+  object?: Node
+  optional?: boolean
+  test?: Node
+  consequent?: Node
+  alternate?: Node
   expressions?: Node[]
   key?: Node
+  params?: Node[]
+  id?: Node
 }
 const same = (a: Partial<Point> | undefined, b: Partial<Point> | undefined) =>
   !!a && !!b && a.line === b.line && a.column === b.column
@@ -254,7 +266,8 @@ export function bindJsxLogicalChildEnds(
   emitted: unknown,
   sourceMap: unknown,
   mode?: 'development' | 'production',
-  model?: StandardCoverageData
+  model?: StandardCoverageData,
+  browserJsxChildren?: ReadonlySet<string>
 ): void {
   const { mappings, exact, element, terminal } = facts(file, sourceMap)
   const originalNodes = nodes(authored),
@@ -266,6 +279,7 @@ export function bindJsxLogicalChildEnds(
   }[] = []
   const used = new Set<StandardCoverageData['branchMap'][string]>()
   for (const node of originalNodes) {
+    if (browserJsxChildren?.has(browserJsxChildKey(node))) continue
     if (
       node.type !== 'LogicalExpression' ||
       node.operator !== '&&' ||
@@ -605,4 +619,608 @@ export function bindJsxLogicalChildEnds(
   for (const location of repairs)
     location.end = { line: location.end.line!, column: Infinity }
   for (const { location, end } of fragmentRepairs) location.end = { ...end }
+}
+
+function classicFactoryCall(
+  call: Node,
+  factory: BrowserClassicFactory
+): boolean {
+  const callee = call.callee
+  if (factory.namedPragma) {
+    const sequence = callee?.expressions,
+      member = sequence?.[1]
+    return (
+      callee?.type === 'SequenceExpression' &&
+      sequence?.length === 2 &&
+      sequence[0].type === 'Literal' &&
+      sequence[0].value === 0 &&
+      member?.type === 'MemberExpression' &&
+      member.computed === true &&
+      !member.optional &&
+      member.object?.type === 'Identifier' &&
+      member.object.name === factory.binding &&
+      member.property?.type === 'Literal' &&
+      member.property.value === 'createElement'
+    )
+  }
+  const namespace = callee?.object
+  return (
+    callee?.type === 'MemberExpression' &&
+    !callee.computed &&
+    !callee.optional &&
+    callee.property?.type === 'Identifier' &&
+    callee.property.name === 'createElement' &&
+    namespace?.type === 'MemberExpression' &&
+    namespace.computed === true &&
+    !namespace.optional &&
+    namespace.object?.type === 'Identifier' &&
+    namespace.object.name === factory.binding &&
+    namespace.property?.type === 'Literal' &&
+    namespace.property.value === 'default'
+  )
+}
+
+function classicFragmentArgument(
+  node: Node | undefined,
+  factory: BrowserClassicFactory
+): boolean {
+  return (
+    !!factory.namedPragma?.fragment &&
+    node?.type === 'MemberExpression' &&
+    node.computed === true &&
+    !node.optional &&
+    node.object?.type === 'Identifier' &&
+    node.object.name === factory.binding &&
+    node.property?.type === 'Literal' &&
+    node.property.value === 'Fragment'
+  )
+}
+
+/** Only an issued named JSX factory may replace its actual directive's callee role. */
+export function browserNamedJsxRoleMap(
+  file: string,
+  authored: unknown,
+  emitted: unknown,
+  sourceMap: unknown,
+  factories: readonly BrowserClassicFactory[] | undefined
+): object | undefined {
+  if (!factories?.some((factory) => factory.namedPragma)) return undefined
+  const fail = (): never => {
+    throw new Error(
+      `Standard coverage named JSX factory role is ambiguous or absent: ${file}`
+    )
+  }
+  if (factories.length !== 1 || !factories[0].namedPragma) fail()
+  const factory = factories[0],
+    pragma = factory.namedPragma!
+  const decoded = decodeCoverageMap(sourceMap),
+    { exact } = facts(file, sourceMap)
+  const generated = nodes(emitted),
+    originals = nodes(authored)
+  const replacements = new Map<object, Point>(),
+    used = new Set<Node>()
+  for (const owner of originals.filter((node) =>
+    ['JSXElement', 'JSXFragment'].includes(node.type)
+  )) {
+    const fragment = owner.type === 'JSXFragment'
+    const tag = owner.openingElement?.name,
+      child = owner.children?.[0]
+    if (
+      (fragment
+        ? !pragma.fragment ||
+          !same(owner.openingFragment?.loc.start, owner.loc.start)
+        : owner.openingElement?.attributes?.length !== 0 ||
+          tag?.type !== 'JSXIdentifier' ||
+          typeof tag.name !== 'string' ||
+          !/^[a-z][a-z0-9]*$/.test(tag.name)) ||
+      owner.children?.length !== 1
+    )
+      fail()
+    const conditional =
+      child?.type === 'JSXExpressionContainer' &&
+      child.expression?.type === 'ConditionalExpression'
+        ? child.expression
+        : undefined
+    const matches = generated.filter((call) => {
+      const args = call.arguments,
+        actualChild = args?.[2]
+      return (
+        call.type === 'CallExpression' &&
+        !call.optional &&
+        Number.isSafeInteger(call.start) &&
+        Number.isSafeInteger(call.end) &&
+        call.start! >= factory.moduleStart &&
+        call.end! <= factory.moduleEnd &&
+        classicFactoryCall(call, factory) &&
+        args?.length === 3 &&
+        (fragment
+          ? classicFragmentArgument(args[0], factory)
+          : args[0].type === 'Literal' && args[0].value === tag!.name) &&
+        args[1].type === 'Literal' &&
+        args[1].value === null &&
+        exact(call.loc.start, owner.loc.start) &&
+        (fragment || exact(args[0].loc.start, tag!.loc.start)) &&
+        (conditional
+          ? actualChild?.type === 'ConditionalExpression' &&
+            conditional.test?.type === 'Identifier' &&
+            actualChild.test?.type === 'Identifier' &&
+            actualChild.test.name === conditional.test.name &&
+            exact(actualChild.loc.start, conditional.loc.start) &&
+            exact(actualChild.test.loc.start, conditional.test.loc.start) &&
+            conditional.consequent?.type === 'Literal' &&
+            typeof conditional.consequent.value === 'string' &&
+            actualChild.consequent?.type === 'Literal' &&
+            actualChild.consequent.value === conditional.consequent.value &&
+            exact(
+              actualChild.consequent.loc.start,
+              conditional.consequent.loc.start
+            ) &&
+            conditional.alternate?.type === 'Literal' &&
+            typeof conditional.alternate.value === 'string' &&
+            actualChild.alternate?.type === 'Literal' &&
+            actualChild.alternate.value === conditional.alternate.value &&
+            exact(
+              actualChild.alternate.loc.start,
+              conditional.alternate.loc.start
+            )
+          : child?.type === 'JSXText' &&
+            actualChild?.type === 'Literal' &&
+            actualChild.value === child.value &&
+            exact(actualChild.loc.start, child.loc.start))
+      )
+    })
+    if (matches.length !== 1 || used.has(matches[0])) fail()
+    const call = matches[0]
+    const binds = (node: Node | undefined): boolean =>
+      !!node &&
+      ((node.type === 'Identifier' && node.name === factory.binding) ||
+        (node.type === 'AssignmentPattern' && binds(node.left)) ||
+        (node.type === 'RestElement' && binds(node.argument)) ||
+        (node.type === 'ObjectPattern' &&
+          !!node.properties?.some((property) =>
+            binds(
+              property.type === 'RestElement'
+                ? property.argument
+                : (property.value as Node)
+            )
+          )) ||
+        (node.type === 'ArrayPattern' &&
+          !!node.elements?.some((element) => binds(element ?? undefined))))
+    if (
+      generated.some(
+        (scope) =>
+          [
+            'FunctionDeclaration',
+            'FunctionExpression',
+            'ArrowFunctionExpression',
+          ].includes(scope.type) &&
+          scope.start! >= factory.moduleStart &&
+          scope.end! <= factory.moduleEnd &&
+          scope.start! <= call.start! &&
+          scope.end! >= call.end! &&
+          (binds(scope.id) || scope.params?.some(binds))
+      )
+    )
+      fail()
+    const callee = call.callee!,
+      member = callee.expressions![1]
+    const mappings = decoded.mappings.filter((mapping) => {
+      const at = {
+        line: mapping.generatedLine,
+        column: mapping.generatedColumn,
+      }
+      return (
+        compare(at, callee.loc.start) >= 0 && compare(at, callee.loc.end) <= 0
+      )
+    })
+    if (mappings.length !== 2) fail()
+    for (const [index, mapping] of mappings.entries()) {
+      const at = {
+        line: mapping.generatedLine,
+        column: mapping.generatedColumn,
+      }
+      if (
+        mapping.source !== file ||
+        !same(at, index === 0 ? member.loc.start : callee.loc.end) ||
+        !same(
+          { line: mapping.originalLine!, column: mapping.originalColumn! },
+          index === 0 ? pragma.start : pragma.end
+        ) ||
+        replacements.has(mapping)
+      )
+        fail()
+      replacements.set(mapping, {
+        line: owner.loc.start.line!,
+        column: owner.loc.start.column!,
+      })
+    }
+    if (fragment) {
+      const argument = call.arguments![0]
+      const roles = decoded.mappings.filter((mapping) => {
+        const at = {
+          line: mapping.generatedLine,
+          column: mapping.generatedColumn,
+        }
+        return (
+          compare(at, argument.loc.start) >= 0 &&
+          compare(at, argument.loc.end) <= 0
+        )
+      })
+      if (roles.length !== 2) fail()
+      for (const [index, mapping] of roles.entries()) {
+        if (
+          mapping.source !== file ||
+          !same(
+            { line: mapping.generatedLine, column: mapping.generatedColumn },
+            index === 0 ? argument.loc.start : argument.loc.end
+          ) ||
+          !same(
+            { line: mapping.originalLine!, column: mapping.originalColumn! },
+            index === 0 ? pragma.fragment!.start : pragma.fragment!.end
+          ) ||
+          replacements.has(mapping)
+        )
+          fail()
+        replacements.set(mapping, {
+          line: owner.loc.start.line!,
+          column: owner.loc.start.column!,
+        })
+      }
+    }
+    used.add(call)
+  }
+  if (!used.size) fail()
+  const output = new SourceMapGenerator()
+  for (const mapping of decoded.mappings) {
+    const position = {
+      line: mapping.generatedLine,
+      column: mapping.generatedColumn,
+    }
+    if (mapping.source === null)
+      (output.addMapping as (mapping: { generated: Point }) => void)({
+        generated: position,
+      })
+    else
+      output.addMapping({
+        generated: position,
+        source: mapping.source,
+        original: replacements.get(mapping) ?? {
+          line: mapping.originalLine!,
+          column: mapping.originalColumn!,
+        },
+        ...((mapping as { name?: string }).name
+          ? { name: (mapping as { name?: string }).name }
+          : {}),
+      })
+  }
+  for (const [source, content] of decoded.sources)
+    if (content !== null) output.setSourceContent(source, content)
+  return JSON.parse(output.toString())
+}
+
+/** A classic child endpoint belongs to its issued native React factory and JSX close. */
+export function bindJsxClassicConditionalChildEnds(
+  file: string,
+  observed: StandardCoverageData,
+  authored: unknown,
+  emitted: unknown,
+  sourceMap: unknown,
+  factories: readonly BrowserClassicFactory[] | undefined
+): void {
+  if (!factories?.length) return
+  const { exact } = facts(file, sourceMap)
+  const originals = nodes(authored),
+    generated = nodes(emitted)
+  const repairs: {
+    branch: StandardCoverageData['branchMap'][string]
+    end: Point
+    before: string
+    after: string
+    id: number
+  }[] = []
+  const used = new Set<StandardCoverageData['branchMap'][string]>()
+  const key = (branch: StandardCoverageData['branchMap'][string]) =>
+    `b:${branch.locations.flatMap(({ start, end }) => [start.line, start.column, end.line, end.column]).join(':')}`
+  for (const owner of originals) {
+    if (owner.type !== 'JSXElement') continue
+    const container = owner.children?.[0],
+      conditional = container?.expression
+    if (
+      owner.children?.length !== 1 ||
+      container?.type !== 'JSXExpressionContainer' ||
+      conditional?.type !== 'ConditionalExpression' ||
+      conditional.test?.type !== 'Identifier' ||
+      conditional.consequent?.type !== 'Literal' ||
+      typeof conditional.consequent.value !== 'string' ||
+      conditional.alternate?.type !== 'Literal' ||
+      typeof conditional.alternate.value !== 'string' ||
+      conditional.consequent.value === conditional.alternate.value
+    )
+      continue
+    const branches = Object.entries(observed.branchMap).filter(
+      ([, branch]) =>
+        branch.type === 'cond-expr' &&
+        same(branch.loc.start, conditional.loc.start) &&
+        branch.locations.length === 2 &&
+        same(branch.locations[0].start, conditional.consequent!.loc.start) &&
+        same(branch.locations[1].start, conditional.alternate!.loc.start)
+    )
+    if (
+      !branches.length ||
+      branches.every(([, branch]) => branch.loc.end.column !== Infinity)
+    )
+      continue
+    function fail(): never {
+      throw new Error(
+        `Standard coverage classic JSX child association is ambiguous or absent: ${file}:${conditional!.loc.start.line}:${conditional!.loc.start.column}`
+      )
+    }
+    const opening = owner.openingElement,
+      tag = opening?.name,
+      closing = owner.closingElement,
+      closingName = closing?.name
+    if (
+      factories.length !== 1 ||
+      branches.length !== 1 ||
+      used.has(branches[0][1]) ||
+      opening?.attributes?.length !== 0 ||
+      tag?.type !== 'JSXIdentifier' ||
+      typeof tag.name !== 'string' ||
+      !/^[a-z][a-z0-9]*$/.test(tag.name) ||
+      closing?.type !== 'JSXClosingElement' ||
+      closingName?.type !== 'JSXIdentifier' ||
+      closingName.name !== tag.name ||
+      !same(closing.loc.end, owner.loc.end) ||
+      closingName.loc.end.line !== owner.loc.end.line ||
+      closingName.loc.end.column + 1 !== owner.loc.end.column ||
+      owner.loc.start.line !== owner.loc.end.line ||
+      conditional.loc.start.line !== owner.loc.end.line ||
+      conditional.loc.end.line !== owner.loc.end.line ||
+      originals.filter(
+        (node) =>
+          node.type === owner.type && same(node.loc.start, owner.loc.start)
+      ).length !== 1 ||
+      originals.filter(
+        (node) =>
+          node.type === conditional.type &&
+          same(node.loc.start, conditional.loc.start)
+      ).length !== 1
+    )
+      fail()
+    const factory = factories[0]
+    if (
+      typeof factory.binding !== 'string' ||
+      !factory.binding ||
+      !Number.isSafeInteger(factory.moduleStart) ||
+      !Number.isSafeInteger(factory.moduleEnd) ||
+      factory.moduleStart < 0 ||
+      factory.moduleEnd <= factory.moduleStart
+    )
+      fail()
+    const matches = generated.filter((call) => {
+      const args = call.arguments,
+        child = args?.[2]
+      return (
+        call.type === 'CallExpression' &&
+        !call.optional &&
+        Number.isSafeInteger(call.start) &&
+        Number.isSafeInteger(call.end) &&
+        call.start! >= factory.moduleStart &&
+        call.end! <= factory.moduleEnd &&
+        classicFactoryCall(call, factory) &&
+        args?.length === 3 &&
+        args[0].type === 'Literal' &&
+        args[0].value === tag!.name &&
+        args[1].type === 'Literal' &&
+        args[1].value === null &&
+        child?.type === 'ConditionalExpression' &&
+        child.test?.type === 'Identifier' &&
+        child.test.name === conditional.test!.name &&
+        child.consequent?.type === 'Literal' &&
+        child.consequent.value === conditional.consequent!.value &&
+        child.alternate?.type === 'Literal' &&
+        child.alternate.value === conditional.alternate!.value &&
+        exact(call.loc.start, owner.loc.start) &&
+        exact(args[0].loc.start, tag!.loc.start) &&
+        exact(child.loc.start, conditional.loc.start) &&
+        exact(child.test.loc.start, conditional.test!.loc.start) &&
+        exact(child.consequent.loc.start, conditional.consequent!.loc.start) &&
+        exact(child.alternate.loc.start, conditional.alternate!.loc.start)
+      )
+    })
+    if (matches.length !== 1) fail()
+    const [id, branch] = branches[0],
+      end = { ...closingName!.loc.end }
+    if (
+      branch.loc.end.line !== owner.loc.end.line ||
+      branch.loc.end.column !== Infinity ||
+      !same(branch.locations[0].end, conditional.alternate.loc.start) ||
+      branch.locations[1].end.line !== owner.loc.end.line ||
+      branch.locations[1].end.column !== Infinity
+    )
+      fail()
+    const before = key(branch),
+      after = key({
+        ...branch,
+        locations: [branch.locations[0], { ...branch.locations[1], end }],
+      })
+    if (
+      observed.meta &&
+      (observed.meta.seen[before] !== Number(id) ||
+        (Object.hasOwn(observed.meta.seen, after) && before !== after))
+    )
+      fail()
+    repairs.push({ branch, end, before, after, id: Number(id) })
+    used.add(branch)
+  }
+  for (const { branch, end, before, after, id } of repairs) {
+    branch.loc.end = { ...end }
+    branch.locations[1].end = { ...end }
+    if (observed.meta) {
+      delete observed.meta.seen[before]
+      observed.meta.seen[after] = id
+    }
+  }
+}
+
+/** A named fragment child ends only at its actual issued fragment close. */
+export function bindJsxNamedFragmentConditionalChildEnds(
+  file: string,
+  observed: StandardCoverageData,
+  authored: unknown,
+  emitted: unknown,
+  sourceMap: unknown,
+  factories: readonly BrowserClassicFactory[] | undefined
+): void {
+  if (!factories?.some((factory) => factory.namedPragma?.fragment)) return
+  const { exact } = facts(file, sourceMap)
+  const originals = nodes(authored),
+    generated = nodes(emitted)
+  const repairs: {
+    branch: StandardCoverageData['branchMap'][string]
+    end: Point
+    before: string
+    after: string
+    id: number
+  }[] = []
+  const used = new Set<StandardCoverageData['branchMap'][string]>()
+  const key = (branch: StandardCoverageData['branchMap'][string]) =>
+    `b:${branch.locations.flatMap(({ start, end }) => [start.line, start.column, end.line, end.column]).join(':')}`
+  for (const owner of originals) {
+    if (owner.type !== 'JSXFragment') continue
+    const container = owner.children?.[0],
+      conditional = container?.expression
+    if (
+      owner.children?.length !== 1 ||
+      container?.type !== 'JSXExpressionContainer' ||
+      conditional?.type !== 'ConditionalExpression' ||
+      conditional.test?.type !== 'Identifier' ||
+      conditional.consequent?.type !== 'Literal' ||
+      typeof conditional.consequent.value !== 'string' ||
+      conditional.alternate?.type !== 'Literal' ||
+      typeof conditional.alternate.value !== 'string' ||
+      conditional.consequent.value === conditional.alternate.value
+    )
+      continue
+    const branches = Object.entries(observed.branchMap).filter(
+      ([, branch]) =>
+        branch.type === 'cond-expr' &&
+        same(branch.loc.start, conditional.loc.start) &&
+        branch.locations.length === 2 &&
+        same(branch.locations[0].start, conditional.consequent!.loc.start) &&
+        same(branch.locations[1].start, conditional.alternate!.loc.start)
+    )
+    if (
+      !branches.length ||
+      branches.every(([, branch]) => branch.loc.end.column !== Infinity)
+    )
+      continue
+    function fail(): never {
+      throw new Error(
+        `Standard coverage classic JSX fragment child association is ambiguous or absent: ${file}:${conditional!.loc.start.line}:${conditional!.loc.start.column}`
+      )
+    }
+    const opening = owner.openingFragment,
+      closing = owner.closingFragment
+    if (
+      factories.length !== 1 ||
+      branches.length !== 1 ||
+      used.has(branches[0][1]) ||
+      opening?.type !== 'JSXOpeningFragment' ||
+      closing?.type !== 'JSXClosingFragment' ||
+      closing.loc.start.line !== closing.loc.end.line ||
+      closing.loc.end.column - closing.loc.start.column !== 3 ||
+      !Number.isSafeInteger(closing.start) ||
+      !Number.isSafeInteger(closing.end) ||
+      closing.end! - closing.start! !== 3 ||
+      !same(opening.loc.start, owner.loc.start) ||
+      !same(closing.loc.end, owner.loc.end) ||
+      owner.loc.start.line !== owner.loc.end.line ||
+      conditional.loc.start.line !== owner.loc.end.line ||
+      conditional.loc.end.line !== owner.loc.end.line ||
+      originals.filter(
+        (node) =>
+          node.type === owner.type && same(node.loc.start, owner.loc.start)
+      ).length !== 1 ||
+      originals.filter(
+        (node) =>
+          node.type === conditional.type &&
+          same(node.loc.start, conditional.loc.start)
+      ).length !== 1
+    )
+      fail()
+    const factory = factories[0]
+    if (
+      !factory.namedPragma?.fragment ||
+      typeof factory.binding !== 'string' ||
+      !factory.binding ||
+      !Number.isSafeInteger(factory.moduleStart) ||
+      !Number.isSafeInteger(factory.moduleEnd) ||
+      factory.moduleStart < 0 ||
+      factory.moduleEnd <= factory.moduleStart
+    )
+      fail()
+    const matches = generated.filter((call) => {
+      const args = call.arguments,
+        child = args?.[2]
+      return (
+        call.type === 'CallExpression' &&
+        !call.optional &&
+        Number.isSafeInteger(call.start) &&
+        Number.isSafeInteger(call.end) &&
+        call.start! >= factory.moduleStart &&
+        call.end! <= factory.moduleEnd &&
+        classicFactoryCall(call, factory) &&
+        args?.length === 3 &&
+        classicFragmentArgument(args[0], factory) &&
+        args[1].type === 'Literal' &&
+        args[1].value === null &&
+        child?.type === 'ConditionalExpression' &&
+        child.test?.type === 'Identifier' &&
+        child.test.name === conditional.test!.name &&
+        child.consequent?.type === 'Literal' &&
+        child.consequent.value === conditional.consequent!.value &&
+        child.alternate?.type === 'Literal' &&
+        child.alternate.value === conditional.alternate!.value &&
+        exact(call.loc.start, owner.loc.start) &&
+        exact(args[0].loc.start, owner.loc.start) &&
+        exact(child.loc.start, conditional.loc.start) &&
+        exact(child.test.loc.start, conditional.test!.loc.start) &&
+        exact(child.consequent.loc.start, conditional.consequent!.loc.start) &&
+        exact(child.alternate.loc.start, conditional.alternate!.loc.start)
+      )
+    })
+    if (matches.length !== 1) fail()
+    const [id, branch] = branches[0],
+      end = { line: closing!.loc.end.line, column: closing!.loc.end.column - 1 }
+    if (
+      branch.loc.end.line !== owner.loc.end.line ||
+      branch.loc.end.column !== Infinity ||
+      !same(branch.locations[0].end, conditional.alternate.loc.start) ||
+      branch.locations[1].end.line !== owner.loc.end.line ||
+      branch.locations[1].end.column !== Infinity
+    )
+      fail()
+    const before = key(branch),
+      after = key({
+        ...branch,
+        locations: [branch.locations[0], { ...branch.locations[1], end }],
+      })
+    if (
+      observed.meta &&
+      (observed.meta.seen[before] !== Number(id) ||
+        (Object.hasOwn(observed.meta.seen, after) && before !== after))
+    )
+      fail()
+    repairs.push({ branch, end, before, after, id: Number(id) })
+    used.add(branch)
+  }
+  for (const { branch, end, before, after, id } of repairs) {
+    branch.loc.end = { ...end }
+    branch.locations[1].end = { ...end }
+    if (observed.meta) {
+      delete observed.meta.seen[before]
+      observed.meta.seen[after] = id
+    }
+  }
 }

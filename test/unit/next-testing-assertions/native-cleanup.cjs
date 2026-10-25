@@ -51,7 +51,9 @@ async function main() {
         ? new Promise((resolve) => releases.push(() => resolve(1)))
         : Promise.resolve(1)
     const assertion = expect(actual)
-    const task = primitives.chai.util.flag(assertion, 'vitest-test')
+    const task = primitives.getVitestAssertionTaskRuntime(
+      primitives.chai.util.flag(assertion, 'vitest-test')
+    )
     const thenable = assertion.resolves.toBe(2)
     const promise = task.promises.at(-1)
     assert(promise instanceof Promise)

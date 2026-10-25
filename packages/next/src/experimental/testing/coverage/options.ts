@@ -31,19 +31,65 @@ export function parseStandardCoverageOptions(
       throw new Error(`--coverage.${key} requires at least one nonempty value.`)
     return value
   }
-  const reporter = list('reporter') ?? ['json', 'lcov']
+  const provider = flags['coverage.provider']
+  if (provider !== undefined && provider !== 'v8')
+    throw new Error(
+      'Standard coverage CLI currently supports only the V8 provider.'
+    )
+  const requestedReports = list('reporter')
+  const formatterReports =
+    provider === 'v8' ||
+    requestedReports?.some((name) =>
+      [
+        'text',
+        'html',
+        'clover',
+        'cobertura',
+        'html-spa',
+        'teamcity',
+        'text-lcov',
+        'none',
+      ].includes(name)
+    )
+  const reporter = [
+    ...(requestedReports ??
+      (provider === 'v8'
+        ? ['text', 'html', 'clover', 'json']
+        : ['json', 'lcov'])),
+  ]
   for (const value of reporter)
     if (
       value !== 'json' &&
       value !== 'json-summary' &&
       value !== 'text-summary' &&
       value !== 'lcov' &&
-      value !== 'lcovonly'
+      value !== 'lcovonly' &&
+      value !== 'text' &&
+      value !== 'html' &&
+      value !== 'clover' &&
+      value !== 'cobertura' &&
+      value !== 'html-spa' &&
+      value !== 'teamcity' &&
+      value !== 'text-lcov' &&
+      value !== 'none'
     )
       throw new Error(
-        `Standard coverage reporter "${value}" is unsupported; use json, json-summary, text-summary, lcov, or lcovonly.`
+        `Standard coverage reporter "${value}" is unsupported; use json, json-summary, text, text-summary, html, html-spa, clover, cobertura, teamcity, text-lcov, none, lcov, or lcovonly.`
       )
+  if (
+    formatterReports &&
+    agentReports &&
+    reporter.includes('text') &&
+    !reporter.includes('text-summary')
+  )
+    reporter.push('text-summary')
   const thresholds: StandardCoverageOptions['thresholds'] = {}
+  const all = flags['coverage.thresholds.100']
+  if (all !== undefined) {
+    if (![true, false, 'true', 'false'].includes(all as boolean))
+      throw new Error('--coverage.thresholds.100 must be true or false.')
+    thresholds[100] = all === true || all === 'true'
+  }
   for (const metric of [
     'statements',
     'functions',
@@ -68,6 +114,19 @@ export function parseStandardCoverageOptions(
       throw new Error('--coverage.thresholds.perFile must be true or false.')
     thresholds.perFile = perFile === true || perFile === 'true'
   }
+  const autoUpdate = flags['coverage.thresholds.autoUpdate']
+  if (autoUpdate !== undefined) {
+    if (typeof autoUpdate !== 'boolean' && typeof autoUpdate !== 'string')
+      throw new Error('--coverage.thresholds.autoUpdate must be a boolean.')
+    // The pinned CLI also accepts boolean words, numeric zero and a bare flag.
+    thresholds.autoUpdate =
+      autoUpdate === true ||
+      (typeof autoUpdate === 'string' &&
+        !['false', 'no'].includes(autoUpdate) &&
+        (autoUpdate === '' ||
+          Number.isNaN(Number(autoUpdate)) ||
+          Number(autoUpdate) !== 0))
+  }
   const reportsDirectory = flags['coverage.reportsDirectory'] ?? 'coverage'
   if (typeof reportsDirectory !== 'string' || !reportsDirectory.trim())
     throw new Error(
@@ -82,6 +141,15 @@ export function parseStandardCoverageOptions(
   return {
     cleanOnRerun: cleanOnRerun === true || cleanOnRerun === 'true',
     reporter: [...new Set(reporter)] as StandardCoverageOptions['reporter'],
+    ...(formatterReports
+      ? {
+          formatterReports: true as const,
+          clean: true,
+          ...(agentReports && reporter.includes('text')
+            ? { reporterOptions: { text: { skipFull: true } } }
+            : {}),
+        }
+      : {}),
     include: list('include'),
     exclude: list('exclude') ?? [],
     reportsDirectory,
@@ -157,6 +225,11 @@ export function parseProjectStandardCoverage(
         'text',
         'html',
         'clover',
+        'cobertura',
+        'html-spa',
+        'teamcity',
+        'text-lcov',
+        'none',
       ].includes(name) ||
       !options ||
       typeof options !== 'object' ||
@@ -205,6 +278,9 @@ export function parseProjectStandardCoverage(
         continue
       flags[`coverage.${key}`] = config[key]
     }
+  const thresholdGroups: NonNullable<
+    StandardCoverageOptions['thresholdGroups']
+  > = []
   if (config.thresholds !== undefined) {
     if (
       !config.thresholds ||
@@ -214,18 +290,53 @@ export function parseProjectStandardCoverage(
       throw new Error('V8 coverage thresholds must be an object.')
     for (const [key, threshold] of Object.entries(config.thresholds)) {
       if (
-        !['statements', 'functions', 'branches', 'lines', 'perFile'].includes(
-          key
-        )
+        [
+          '100',
+          'statements',
+          'functions',
+          'branches',
+          'lines',
+          'perFile',
+          'autoUpdate',
+        ].includes(key)
+      ) {
+        flags[`coverage.thresholds.${key}`] = threshold
+        continue
+      }
+      if (
+        !threshold ||
+        typeof threshold !== 'object' ||
+        Array.isArray(threshold)
       )
         throw new Error(`Unsupported V8 coverage threshold: ${key}`)
-      flags[`coverage.thresholds.${key}`] = threshold
+      const groupFlags: Record<string, unknown> = {
+        'coverage.reporter': ['json'],
+      }
+      for (const [metric, limit] of Object.entries(threshold)) {
+        if (
+          ![
+            '100',
+            'statements',
+            'functions',
+            'branches',
+            'lines',
+            'perFile',
+          ].includes(metric)
+        )
+          throw new Error(`Unsupported V8 coverage threshold: ${key}.${metric}`)
+        groupFlags[`coverage.thresholds.${metric}`] = limit
+      }
+      thresholdGroups.push({
+        pattern: key,
+        thresholds: parseStandardCoverageOptions(groupFlags)!.thresholds,
+      })
     }
   }
   return {
     enabled: config.enabled === true,
     options: {
       ...parseStandardCoverageOptions(flags)!,
+      ...(thresholdGroups.length ? { thresholdGroups } : {}),
       ...(Array.isArray(config.include) && !config.include.length
         ? { include: [] }
         : {}),
@@ -253,8 +364,8 @@ export function resolveProjectStandardCoverage(
     return { enabled: false, configured: config !== undefined }
   if (!config)
     return {
-      enabled: flags.coverage !== false && (flags.coverage === true || !!cli),
-      ...(flags.coverage !== false && cli ? { options: cli } : {}),
+      enabled: flags.coverage === true,
+      ...(cli && flags.coverage === true ? { options: cli } : {}),
       configured: false,
     }
   if (!selected.every((value) => isDeepStrictEqual(value, config)))
@@ -262,8 +373,7 @@ export function resolveProjectStandardCoverage(
       'Selected projects must share the same V8 coverage configuration.'
     )
   const enabled =
-    flags.coverage !== false &&
-    (flags.coverage === true || !!cli || config.enabled)
+    flags.coverage !== false && (flags.coverage === true || config.enabled)
   if (!enabled) return { enabled: false, configured: true }
   const options = structuredClone(config.options)
   if (cli) {
@@ -277,15 +387,23 @@ export function resolveProjectStandardCoverage(
     ] as const)
       if (flags[`coverage.${key}`] !== undefined)
         Object.assign(options, { [key]: cli[key] })
-    for (const key of [
-      'statements',
-      'functions',
-      'branches',
-      'lines',
-      'perFile',
-    ] as const)
-      if (flags[`coverage.thresholds.${key}`] !== undefined)
-        Object.assign(options.thresholds, { [key]: cli.thresholds[key] })
+    if (flags['coverage.thresholds.100'] !== undefined) {
+      // The pinned CLI's numeric path replaces its whole thresholds object.
+      // Configured shorthand and ordinary metric overrides remain additive.
+      options.thresholds = structuredClone(cli.thresholds)
+      delete options.thresholdGroups
+    } else {
+      for (const key of [
+        'statements',
+        'functions',
+        'branches',
+        'lines',
+        'perFile',
+        'autoUpdate',
+      ] as const)
+        if (flags[`coverage.thresholds.${key}`] !== undefined)
+          Object.assign(options.thresholds, { [key]: cli.thresholds[key] })
+    }
   }
   return { enabled: true, options, configured: true }
 }

@@ -1,0 +1,319 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "chai-chainable-raw-alias",
+        "trace": [
+          {
+            "kind": "native-flag",
+            "name": "include",
+            "actualTask": true
+          },
+          {
+            "kind": "native-flag",
+            "name": "lengthOf",
+            "actualTask": true
+          },
+          {
+            "kind": "native-flag",
+            "name": "a",
+            "actualTask": true
+          },
+          {
+            "phase": "foreign",
+            "name": "include",
+            "kind": "getter",
+            "sameGetterThis": true,
+            "aliasIsPublic": false,
+            "aliasType": "function",
+            "samePrototype": true
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true,
+            "receiverType": "function"
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true,
+            "receiverType": "function"
+          },
+          {
+            "phase": "foreign",
+            "name": "include",
+            "kind": "own-function",
+            "sameFunction": true
+          },
+          {
+            "phase": "foreign",
+            "name": "include",
+            "kind": "own-call",
+            "label": "public",
+            "sameReceiver": true
+          },
+          {
+            "phase": "foreign",
+            "name": "include",
+            "kind": "own-call",
+            "label": "alias",
+            "sameReceiver": true
+          },
+          {
+            "phase": "foreign",
+            "name": "lengthOf",
+            "kind": "getter",
+            "sameGetterThis": true,
+            "aliasIsPublic": false,
+            "aliasType": "function",
+            "samePrototype": true
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true,
+            "receiverType": "function"
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true,
+            "receiverType": "function"
+          },
+          {
+            "phase": "foreign",
+            "name": "lengthOf",
+            "kind": "own-function",
+            "sameFunction": true
+          },
+          {
+            "phase": "foreign",
+            "name": "lengthOf",
+            "kind": "own-call",
+            "label": "public",
+            "sameReceiver": true
+          },
+          {
+            "phase": "foreign",
+            "name": "lengthOf",
+            "kind": "own-call",
+            "label": "alias",
+            "sameReceiver": true
+          },
+          {
+            "phase": "foreign",
+            "name": "a",
+            "kind": "getter",
+            "sameGetterThis": true,
+            "aliasIsPublic": false,
+            "aliasType": "function",
+            "samePrototype": true
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true,
+            "receiverType": "function"
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true,
+            "receiverType": "function"
+          },
+          {
+            "phase": "foreign",
+            "name": "a",
+            "kind": "own-function",
+            "sameFunction": true
+          },
+          {
+            "phase": "foreign",
+            "name": "a",
+            "kind": "own-call",
+            "label": "public",
+            "sameReceiver": true
+          },
+          {
+            "phase": "foreign",
+            "name": "a",
+            "kind": "own-call",
+            "label": "alias",
+            "sameReceiver": true
+          },
+          {
+            "phase": "foreign",
+            "kind": "counts",
+            "owner": 3,
+            "caller": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "include",
+            "kind": "getter",
+            "sameGetterThis": true,
+            "aliasIsPublic": false,
+            "aliasType": "function",
+            "samePrototype": true
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true,
+            "receiverType": "function"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true,
+            "receiverType": "function"
+          },
+          {
+            "phase": "afterAll",
+            "name": "include",
+            "kind": "own-function",
+            "sameFunction": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "include",
+            "kind": "own-call",
+            "label": "public",
+            "sameReceiver": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "include",
+            "kind": "own-call",
+            "label": "alias",
+            "sameReceiver": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "lengthOf",
+            "kind": "getter",
+            "sameGetterThis": true,
+            "aliasIsPublic": false,
+            "aliasType": "function",
+            "samePrototype": true
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true,
+            "receiverType": "function"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true,
+            "receiverType": "function"
+          },
+          {
+            "phase": "afterAll",
+            "name": "lengthOf",
+            "kind": "own-function",
+            "sameFunction": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "lengthOf",
+            "kind": "own-call",
+            "label": "public",
+            "sameReceiver": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "lengthOf",
+            "kind": "own-call",
+            "label": "alias",
+            "sameReceiver": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "a",
+            "kind": "getter",
+            "sameGetterThis": true,
+            "aliasIsPublic": false,
+            "aliasType": "function",
+            "samePrototype": true
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true,
+            "receiverType": "function"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true,
+            "receiverType": "function"
+          },
+          {
+            "phase": "afterAll",
+            "name": "a",
+            "kind": "own-function",
+            "sameFunction": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "a",
+            "kind": "own-call",
+            "label": "public",
+            "sameReceiver": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "a",
+            "kind": "own-call",
+            "label": "alias",
+            "sameReceiver": true
+          },
+          {
+            "phase": "afterAll",
+            "kind": "counts",
+            "owner": 3,
+            "caller": 0
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "creator actual raw native function aliases",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "foreign actual raw native function aliases",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

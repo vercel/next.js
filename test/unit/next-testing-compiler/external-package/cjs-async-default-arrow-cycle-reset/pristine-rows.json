@@ -1,0 +1,2042 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CJS_ARROW",
+    "value": {
+      "name": "reset",
+      "kind": "async",
+      "form": "default",
+      "views": [
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name"],
+            "prototype": "[object AsyncFunction]",
+            "tag": "AsyncFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "name": "",
+          "length": 0,
+          "functionTag": "[object AsyncFunction]",
+          "prototype": {
+            "type": "undefined"
+          },
+          "call": [1, 1, true, "held", []],
+          "empty": [1, 1, true, "fallback", []],
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name"],
+            "prototype": "[object AsyncFunction]",
+            "tag": "AsyncFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "lexical": {
+            "type": "object",
+            "isGlobal": true
+          },
+          "lexicalMatchesDependencyRoot": false,
+          "constructFailure": {
+            "name": "TypeError",
+            "message": "raw is not a constructor"
+          }
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name"],
+            "prototype": "[object AsyncFunction]",
+            "tag": "AsyncFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "name": "",
+          "length": 0,
+          "functionTag": "[object AsyncFunction]",
+          "prototype": {
+            "type": "undefined"
+          },
+          "call": [1, 1, true, "held", []],
+          "empty": [1, 1, true, "fallback", []],
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name"],
+            "prototype": "[object AsyncFunction]",
+            "tag": "AsyncFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "lexical": {
+            "type": "object",
+            "isGlobal": true
+          },
+          "lexicalMatchesDependencyRoot": false,
+          "constructFailure": {
+            "name": "TypeError",
+            "message": "raw is not a constructor"
+          }
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name"],
+            "prototype": "[object AsyncFunction]",
+            "tag": "AsyncFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "name": "",
+          "length": 0,
+          "functionTag": "[object AsyncFunction]",
+          "prototype": {
+            "type": "undefined"
+          },
+          "call": [3, 1, true, "held", []],
+          "empty": [3, 1, true, "fallback", []],
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name"],
+            "prototype": "[object AsyncFunction]",
+            "tag": "AsyncFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "lexical": {
+            "type": "object",
+            "isGlobal": true
+          },
+          "lexicalMatchesDependencyRoot": false,
+          "constructFailure": {
+            "name": "TypeError",
+            "message": "raw is not a constructor"
+          }
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name"],
+            "prototype": "[object AsyncFunction]",
+            "tag": "AsyncFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "name": "",
+          "length": 0,
+          "functionTag": "[object AsyncFunction]",
+          "prototype": {
+            "type": "undefined"
+          },
+          "call": [4, 1, true, "held", []],
+          "empty": [4, 1, true, "fallback", []],
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name"],
+            "prototype": "[object AsyncFunction]",
+            "tag": "AsyncFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "lexical": {
+            "type": "object",
+            "isGlobal": true
+          },
+          "lexicalMatchesDependencyRoot": false,
+          "constructFailure": {
+            "name": "TypeError",
+            "message": "raw is not a constructor"
+          }
+        }
+      ],
+      "identities": [
+        [true, true, false, false],
+        [true, true, false, false],
+        [false, false, true, false],
+        [false, false, false, true]
+      ],
+      "rawIdentities": [
+        [true, true, false, false],
+        [true, true, false, false],
+        [false, false, true, false],
+        [false, false, false, true]
+      ],
+      "dependencyIdentities": [
+        [true, true, true, true],
+        [true, true, true, true],
+        [true, true, true, true],
+        [true, true, true, true]
+      ],
+      "counts": {
+        "root": 4,
+        "dependency": 1
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CJS_ARROW",
+    "value": {
+      "name": "actual",
+      "kind": "async",
+      "form": "default",
+      "views": [
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name"],
+            "prototype": "[object AsyncFunction]",
+            "tag": "AsyncFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "name": "",
+          "length": 0,
+          "functionTag": "[object AsyncFunction]",
+          "prototype": {
+            "type": "undefined"
+          },
+          "call": [5, 1, true, "held", []],
+          "empty": [5, 1, true, "fallback", []],
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name"],
+            "prototype": "[object AsyncFunction]",
+            "tag": "AsyncFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "lexical": {
+            "type": "object",
+            "isGlobal": true
+          },
+          "lexicalMatchesDependencyRoot": false,
+          "constructFailure": {
+            "name": "TypeError",
+            "message": "raw is not a constructor"
+          }
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name"],
+            "prototype": "[object AsyncFunction]",
+            "tag": "AsyncFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "name": "",
+          "length": 0,
+          "functionTag": "[object AsyncFunction]",
+          "prototype": {
+            "type": "undefined"
+          },
+          "call": [5, 1, true, "held", []],
+          "empty": [5, 1, true, "fallback", []],
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name"],
+            "prototype": "[object AsyncFunction]",
+            "tag": "AsyncFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "lexical": {
+            "type": "object",
+            "isGlobal": true
+          },
+          "lexicalMatchesDependencyRoot": false,
+          "constructFailure": {
+            "name": "TypeError",
+            "message": "raw is not a constructor"
+          }
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name"],
+            "prototype": "[object AsyncFunction]",
+            "tag": "AsyncFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "name": "",
+          "length": 0,
+          "functionTag": "[object AsyncFunction]",
+          "prototype": {
+            "type": "undefined"
+          },
+          "call": [5, 1, true, "held", []],
+          "empty": [5, 1, true, "fallback", []],
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name"],
+            "prototype": "[object AsyncFunction]",
+            "tag": "AsyncFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "lexical": {
+            "type": "object",
+            "isGlobal": true
+          },
+          "lexicalMatchesDependencyRoot": false,
+          "constructFailure": {
+            "name": "TypeError",
+            "message": "raw is not a constructor"
+          }
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name"],
+            "prototype": "[object AsyncFunction]",
+            "tag": "AsyncFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "name": "",
+          "length": 0,
+          "functionTag": "[object AsyncFunction]",
+          "prototype": {
+            "type": "undefined"
+          },
+          "call": [6, 1, true, "held", []],
+          "empty": [6, 1, true, "fallback", []],
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name"],
+            "prototype": "[object AsyncFunction]",
+            "tag": "AsyncFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "lexical": {
+            "type": "object",
+            "isGlobal": true
+          },
+          "lexicalMatchesDependencyRoot": false,
+          "constructFailure": {
+            "name": "TypeError",
+            "message": "raw is not a constructor"
+          }
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name"],
+            "prototype": "[object AsyncFunction]",
+            "tag": "AsyncFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "name": "",
+          "length": 0,
+          "functionTag": "[object AsyncFunction]",
+          "prototype": {
+            "type": "undefined"
+          },
+          "call": [6, 1, true, "held", []],
+          "empty": [6, 1, true, "fallback", []],
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name"],
+            "prototype": "[object AsyncFunction]",
+            "tag": "AsyncFunction",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "lexical": {
+            "type": "object",
+            "isGlobal": true
+          },
+          "lexicalMatchesDependencyRoot": false,
+          "constructFailure": {
+            "name": "TypeError",
+            "message": "raw is not a constructor"
+          }
+        }
+      ],
+      "identities": [
+        [true, true, true, false, false],
+        [true, true, true, false, false],
+        [true, true, true, false, false],
+        [false, false, false, true, true],
+        [false, false, false, true, true]
+      ],
+      "rawIdentities": [
+        [true, true, true, false, false],
+        [true, true, true, false, false],
+        [true, true, true, false, false],
+        [false, false, false, true, true],
+        [false, false, false, true, true]
+      ],
+      "counts": {
+        "root": 6,
+        "dependency": 1
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CJS_ARROW",
+    "value": {
+      "name": "mutation",
+      "kind": "async",
+      "form": "default",
+      "held": {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": ["default", "Symbol(Symbol.toStringTag)"],
+          "prototype": "null",
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "default",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "raw": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "extra"],
+          "prototype": "[object AsyncFunction]",
+          "tag": "AsyncFunction",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "extra",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "name": "",
+        "length": 0,
+        "functionTag": "[object AsyncFunction]",
+        "prototype": {
+          "type": "undefined"
+        },
+        "call": [7, 731, true, "held", []],
+        "empty": [7, 731, true, "fallback", []],
+        "dependency": {
+          "type": "object",
+          "brand": false,
+          "keys": ["evaluation", "marker", "root"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "evaluation",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "marker",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "root",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "dependencyRoot": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name"],
+          "prototype": "[object AsyncFunction]",
+          "tag": "AsyncFunction",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            }
+          ]
+        },
+        "lexical": {
+          "type": "object",
+          "isGlobal": true
+        },
+        "lexicalMatchesDependencyRoot": false,
+        "constructFailure": {
+          "name": "TypeError",
+          "message": "raw is not a constructor"
+        }
+      },
+      "mutated": {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": ["default", "Symbol(Symbol.toStringTag)"],
+          "prototype": "null",
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "default",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "raw": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "extra"],
+          "prototype": "[object AsyncFunction]",
+          "tag": "AsyncFunction",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "extra",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "name": "",
+        "length": 0,
+        "functionTag": "[object AsyncFunction]",
+        "prototype": {
+          "type": "undefined"
+        },
+        "call": [7, 731, true, "held", []],
+        "empty": [7, 731, true, "fallback", []],
+        "dependency": {
+          "type": "object",
+          "brand": false,
+          "keys": ["evaluation", "marker", "root"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "evaluation",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "marker",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "root",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "dependencyRoot": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name"],
+          "prototype": "[object AsyncFunction]",
+          "tag": "AsyncFunction",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            }
+          ]
+        },
+        "lexical": {
+          "type": "object",
+          "isGlobal": true
+        },
+        "lexicalMatchesDependencyRoot": false,
+        "constructFailure": {
+          "name": "TypeError",
+          "message": "raw is not a constructor"
+        }
+      },
+      "fresh": {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": ["default", "Symbol(Symbol.toStringTag)"],
+          "prototype": "null",
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "default",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "raw": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name"],
+          "prototype": "[object AsyncFunction]",
+          "tag": "AsyncFunction",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            }
+          ]
+        },
+        "name": "",
+        "length": 0,
+        "functionTag": "[object AsyncFunction]",
+        "prototype": {
+          "type": "undefined"
+        },
+        "call": [8, 731, true, "held", []],
+        "empty": [8, 731, true, "fallback", []],
+        "dependency": {
+          "type": "object",
+          "brand": false,
+          "keys": ["evaluation", "marker", "root"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "evaluation",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "marker",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "root",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "dependencyRoot": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name"],
+          "prototype": "[object AsyncFunction]",
+          "tag": "AsyncFunction",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            }
+          ]
+        },
+        "lexical": {
+          "type": "object",
+          "isGlobal": true
+        },
+        "lexicalMatchesDependencyRoot": false,
+        "constructFailure": {
+          "name": "TypeError",
+          "message": "raw is not a constructor"
+        }
+      },
+      "heldExtraSame": true,
+      "freshHasExtra": false,
+      "dependencySame": true,
+      "counts": {
+        "root": 8,
+        "dependency": 1
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CJS_ARROW",
+    "value": {
+      "name": "errors",
+      "kind": "async",
+      "form": "default",
+      "error": {
+        "name": "Error",
+        "message": "actual arrow 9",
+        "cause": "actual arrow cause"
+      },
+      "continued": [9, 731, true, "completed", []],
+      "distinct": true,
+      "view": {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": ["default", "Symbol(Symbol.toStringTag)"],
+          "prototype": "null",
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "default",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "raw": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name"],
+          "prototype": "[object AsyncFunction]",
+          "tag": "AsyncFunction",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            }
+          ]
+        },
+        "name": "",
+        "length": 0,
+        "functionTag": "[object AsyncFunction]",
+        "prototype": {
+          "type": "undefined"
+        },
+        "call": [9, 731, true, "held", []],
+        "empty": [9, 731, true, "fallback", []],
+        "dependency": {
+          "type": "object",
+          "brand": false,
+          "keys": ["evaluation", "marker", "root"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "evaluation",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "marker",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "root",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "dependencyRoot": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name"],
+          "prototype": "[object AsyncFunction]",
+          "tag": "AsyncFunction",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            }
+          ]
+        },
+        "lexical": {
+          "type": "object",
+          "isGlobal": true
+        },
+        "lexicalMatchesDependencyRoot": false,
+        "constructFailure": {
+          "name": "TypeError",
+          "message": "raw is not a constructor"
+        }
+      },
+      "counts": {
+        "root": 10,
+        "dependency": 1
+      }
+    }
+  }
+]

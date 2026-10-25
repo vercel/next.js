@@ -1,0 +1,76 @@
+[
+  {
+    "type": "init"
+  },
+  {
+    "type": "console",
+    "stream": "stdout",
+    "text": "ALPHA 1"
+  },
+  {
+    "type": "end",
+    "run": 1,
+    "modules": [
+      {
+        "file": "alpha.case.mjs",
+        "state": "passed",
+        "cases": [
+          {
+            "name": "alpha value",
+            "state": "passed"
+          }
+        ]
+      }
+    ],
+    "errors": [],
+    "reason": "passed"
+  },
+  {
+    "type": "ready-start"
+  },
+  {
+    "type": "ready-error"
+  },
+  {
+    "type": "rerun-start",
+    "files": ["beta.case.mjs"],
+    "trigger": "beta.mjs"
+  },
+  {
+    "type": "rerun-after"
+  },
+  {
+    "type": "console",
+    "stream": "stdout",
+    "text": "BETA 2"
+  },
+  {
+    "type": "end",
+    "run": 2,
+    "modules": [
+      {
+        "file": "beta.case.mjs",
+        "state": "passed",
+        "cases": [
+          {
+            "name": "beta value",
+            "state": "passed"
+          }
+        ]
+      }
+    ],
+    "errors": [],
+    "reason": "passed"
+  },
+  {
+    "type": "ready-start",
+    "files": ["beta.case.mjs"]
+  },
+  {
+    "type": "ready-after"
+  },
+  {
+    "type": "close",
+    "runs": 2
+  }
+]

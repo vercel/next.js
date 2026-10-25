@@ -1,0 +1,24 @@
+import { test, beforeEach, afterEach, afterAll } from 'vitest'
+const rows = []
+const row = (stage, context) => rows.push({ stage, aborted: context.signal.aborted })
+let release
+let finish
+const finished = new Promise(resolve => { finish = resolve })
+beforeEach(async context => {
+  row('before-one-start', context)
+  context.onTestFinished(payload => row('finished', payload), 0)
+  context.onTestFailed(payload => row('failed', payload), 0)
+  await new Promise(resolve => { release = resolve })
+  row('before-one-end', context)
+  finish()
+  return () => row('cleanup-one', context)
+}, 20)
+beforeEach(context => { row('before-two', context); return () => row('cleanup-two', context) })
+afterEach(async context => {
+  row('after-each-start', context)
+  release()
+  await finished
+  row('after-each-end', context)
+})
+test('actual hook deadline and released resource', context => row('unexpected-body', context))
+afterAll(() => console.log('HOOK_DEADLINE_ROWS:' + JSON.stringify(rows)))

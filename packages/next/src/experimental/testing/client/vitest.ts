@@ -13,9 +13,9 @@ import { guardedDeclaration, guardedExpect } from './api-scope'
 import { assertBrowserApiScope } from './async-context'
 import { elementExpect } from './browser-context'
 
-export const test = guardedDeclaration(common.test)
+export const test = guardedDeclaration(common.test, true)
 export const it = test
-export const describe = guardedDeclaration(common.describe)
+export const describe = guardedDeclaration(common.describe, true)
 export const suite = describe
 export const expect = new Proxy(guardedExpect(common.expect), {
   get(target, key, receiver) {

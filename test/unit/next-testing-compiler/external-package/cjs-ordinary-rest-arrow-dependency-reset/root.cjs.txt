@@ -1,0 +1,5 @@
+globalThis.__nextArrowRoot=(globalThis.__nextArrowRoot||0)+1
+const evaluation=globalThis.__nextArrowRoot
+const dependency=require('./dependency.cjs')
+const lexical=this
+module.exports=(value,...extra)=>{if(value==='throws')throw new Error('actual arrow '+evaluation,{cause:'actual arrow cause'});return [evaluation,dependency.evaluation,this===lexical,value,extra,dependency,lexical];}

@@ -5,6 +5,7 @@ import {
 } from './select-affected'
 import {
   selectRegistryAdditions,
+  selectRegistryRemovals,
   type WatchRegistrySnapshot,
 } from './registry-additions'
 
@@ -28,6 +29,8 @@ export interface WatchRun<Discovery extends WatchDiscovery> {
   discovery: Discovery
   selection: AffectedSelection
   generation: number
+  /** Coalesced filesystem notifications, separate from compiler dependency facts. */
+  changedPaths?: readonly string[]
   signal: AbortSignal
 }
 
@@ -35,6 +38,10 @@ export interface WatchRunResult {
   status: 'passed' | 'failed' | 'cancelled'
   /** Stop permanently if resource/output ownership could not be released. */
   unsafeCleanup?: boolean
+  /** Parent-sealed user scheduling cancellation; no baseline is implied. */
+  closedUserCancellation?: true
+  /** Every discovered Browser file compiled and closed under the same selection. */
+  retainBaselineOnClosedCancellation?: true
   /** A committed snapshot change needs a complete run after this one settles. */
   rerunAfterSettled?: boolean
 }
@@ -47,6 +54,12 @@ export interface WatchSessionOptions<Discovery extends WatchDiscovery> {
     discovery: Discovery
     previousRegistry: WatchRegistrySnapshot | undefined
     changedPaths: readonly string[] | undefined
+    signal: AbortSignal
+  }): Promise<boolean>
+  /** Handle only proven idle test removals; false preserves ordinary execution. */
+  onRegistryRemoved?(input: {
+    discovery: Discovery
+    files: readonly string[]
     signal: AbortSignal
   }): Promise<boolean>
   /** A closed compiler plan can refine a run without dropping watched entries. */
@@ -62,8 +75,9 @@ export interface WatchSessionOptions<Discovery extends WatchDiscovery> {
   /** Publishes readiness after cleanup, baseline commitment and cancellation release. */
   onRunSettled?(
     status: 'passed' | 'failed' | 'cancelled',
-    discovery: Discovery
-  ): void
+    discovery: Discovery,
+    retainedCancellation?: { retainBaselineOnClosedCancellation: true }
+  ): unknown
   /** Configuration/compilation errors are recoverable on the next invalidation. */
   onError(error: unknown): void
   /** A report owner must replace results when discovery becomes empty. */
@@ -149,18 +163,36 @@ export function createWatchSession<Discovery extends WatchDiscovery>(
                 changedPaths: registryPaths,
               })
             : undefined
-        let unchanged =
+        const removed =
           !globalInvalidation &&
           changes === undefined &&
-          !registrySelection &&
-          discovery.entryIds.length > 0 &&
-          previousDiscoveryRevision === discovery.discoveryRevision &&
-          (await options.canSkipUnchangedRun?.({
+          options.onRegistryRemoved
+            ? selectRegistryRemovals({
+                previous: previousRegistry,
+                current: discovery.registry,
+                changedPaths: registryPaths,
+              })
+            : undefined
+        const removalOnly =
+          removed !== undefined &&
+          (await options.onRegistryRemoved!({
             discovery,
-            previousRegistry,
-            changedPaths: registryPaths,
+            files: removed,
             signal: controller.signal,
-          })) === true
+          }))
+        let unchanged =
+          removalOnly ||
+          (!globalInvalidation &&
+            changes === undefined &&
+            !registrySelection &&
+            discovery.entryIds.length > 0 &&
+            previousDiscoveryRevision === discovery.discoveryRevision &&
+            (await options.canSkipUnchangedRun?.({
+              discovery,
+              previousRegistry,
+              changedPaths: registryPaths,
+              signal: controller.signal,
+            })) === true)
         controller.signal.throwIfAborted()
         if (
           closed ||
@@ -230,6 +262,9 @@ export function createWatchSession<Discovery extends WatchDiscovery>(
                 selection,
                 signal: controller.signal,
                 generation: runGeneration,
+                changedPaths: registryPaths
+                  ? [...new Set(registryPaths)]
+                  : undefined,
               })
             : { status: 'passed' as const }
         if (result.unsafeCleanup) {
@@ -237,7 +272,16 @@ export function createWatchSession<Discovery extends WatchDiscovery>(
           return
         }
         controller.signal.throwIfAborted()
-        retryAll = result.status !== 'passed'
+        if (result.closedUserCancellation && result.status !== 'cancelled')
+          throw new Error('Invalid closed user-cancellation result.')
+        if (
+          result.retainBaselineOnClosedCancellation &&
+          (result.status !== 'cancelled' || !result.closedUserCancellation)
+        )
+          throw new Error('Invalid closed cancellation baseline.')
+        retryAll =
+          result.status !== 'passed' &&
+          !result.retainBaselineOnClosedCancellation
         if (!retryAll) {
           previousEntryIds = [...discovery.entryIds]
           previousDiscoveryRevision = discovery.discoveryRevision
@@ -249,8 +293,19 @@ export function createWatchSession<Discovery extends WatchDiscovery>(
         // only after its baseline is committed, before publishing readiness.
         active = undefined
         try {
-          if (!closed && !pending && result.status !== 'cancelled')
-            options.onRunSettled?.(result.status, discovery)
+          if (
+            !closed &&
+            !pending &&
+            !removalOnly &&
+            (result.status !== 'cancelled' ||
+              result.closedUserCancellation === true)
+          ) {
+            if (result.retainBaselineOnClosedCancellation)
+              await options.onRunSettled?.(result.status, discovery, {
+                retainBaselineOnClosedCancellation: true,
+              })
+            else await options.onRunSettled?.(result.status, discovery)
+          }
         } finally {
           if (result.rerunAfterSettled) invalidate({ invalidateAll: true })
         }

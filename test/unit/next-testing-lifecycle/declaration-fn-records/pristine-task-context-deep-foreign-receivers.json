@@ -1,0 +1,72 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "deep-foreign-receivers",
+        "trace": [
+          {
+            "kind": "bind",
+            "result": "error",
+            "name": "Error",
+            "message": "Invalid Chai property: toEqual.length. See docs for proper usage of \"toEqual\"."
+          },
+          {
+            "kind": "before",
+            "owner": 1,
+            "foreign": 1
+          },
+          {
+            "kind": "returned",
+            "sameAsReceiver": false,
+            "sameAsOriginal": false,
+            "owner": 1,
+            "foreign": 1
+          },
+          {
+            "kind": "undefined-receiver",
+            "name": "TypeError",
+            "message": "Cannot read properties of undefined (reading '__flags')"
+          },
+          {
+            "kind": "adopted",
+            "same": true,
+            "owner": 1,
+            "foreign": 1
+          },
+          {
+            "kind": "afterAll",
+            "owner": 1,
+            "foreign": 1,
+            "ownerState": "pass",
+            "foreignState": "pass"
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "deep method original owner",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeaders": []
+    },
+    {
+      "name": "deep method receiver owner",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeaders": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

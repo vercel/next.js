@@ -1,0 +1,166 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "chai-chainable-functions",
+        "trace": [
+          {
+            "phase": "foreign",
+            "name": "include-keys",
+            "returnedType": "object"
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true
+          },
+          {
+            "phase": "foreign",
+            "name": "length-above",
+            "returnedType": "object"
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true
+          },
+          {
+            "phase": "foreign",
+            "name": "a-not-equal",
+            "returnedType": "object"
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true
+          },
+          {
+            "phase": "foreign",
+            "name": "a-not-equal",
+            "error": {
+              "name": "Error",
+              "message": "chainable native receiver changed"
+            }
+          },
+          {
+            "phase": "foreign",
+            "name": "include-not-keys",
+            "returnedType": "object"
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true
+          },
+          {
+            "phase": "foreign",
+            "name": "include-not-keys",
+            "error": {
+              "name": "Error",
+              "message": "chainable native receiver changed"
+            }
+          },
+          {
+            "phase": "foreign",
+            "kind": "counts",
+            "owner": 4,
+            "caller": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "include-keys",
+            "returnedType": "object"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "length-above",
+            "returnedType": "object"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "a-not-equal",
+            "returnedType": "object"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "a-not-equal",
+            "error": {
+              "name": "Error",
+              "message": "chainable native receiver changed"
+            }
+          },
+          {
+            "phase": "afterAll",
+            "name": "include-not-keys",
+            "returnedType": "object"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "include-not-keys",
+            "error": {
+              "name": "Error",
+              "message": "chainable native receiver changed"
+            }
+          },
+          {
+            "phase": "afterAll",
+            "kind": "counts",
+            "owner": 8,
+            "caller": 0
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "creator native uncalled chainable functions",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "foreign native uncalled chainable functions",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

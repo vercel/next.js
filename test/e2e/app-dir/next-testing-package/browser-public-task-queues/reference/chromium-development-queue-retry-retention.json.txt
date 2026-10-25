@@ -1,0 +1,55 @@
+{
+  "rows": [
+    [
+      {
+        "stage": "body",
+        "attempt": 1,
+        "same": true
+      },
+      {
+        "stage": "body-return",
+        "length": 1
+      },
+      {
+        "stage": "manual-then",
+        "attempt": 1
+      },
+      {
+        "stage": "afterEach",
+        "errors": [
+          "manual first"
+        ]
+      },
+      {
+        "stage": "body",
+        "attempt": 2,
+        "same": true
+      },
+      {
+        "stage": "body-return",
+        "length": 1
+      },
+      {
+        "stage": "manual-then",
+        "attempt": 2
+      },
+      {
+        "stage": "afterEach",
+        "errors": [
+          "manual first"
+        ]
+      }
+    ]
+  ],
+  "cases": [
+    {
+      "name": "actual public retry retains the authored queue",
+      "status": "passed",
+      "failureMessages": [
+        "manual first"
+      ]
+    }
+  ],
+  "success": true,
+  "exit": 0
+}

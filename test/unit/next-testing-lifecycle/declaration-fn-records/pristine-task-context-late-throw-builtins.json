@@ -1,0 +1,875 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "late-throw-builtins",
+        "trace": [
+          {
+            "phase": "foreign",
+            "name": "toThrow",
+            "kind": "absent",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrow",
+            "kind": "absent",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 1,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrow",
+            "kind": "undefined",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrow",
+            "kind": "undefined",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 2,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrow",
+            "kind": "message",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrow",
+            "kind": "message",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 3,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrow",
+            "kind": "regexp",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrow",
+            "kind": "regexp",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 4,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrow",
+            "kind": "class",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrow",
+            "kind": "class",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 5,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrow",
+            "kind": "error",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrow",
+            "kind": "error",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 6,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrow",
+            "kind": "scalar",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrow",
+            "kind": "scalar",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 7,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrow",
+            "kind": "asymmetric",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrow",
+            "kind": "asymmetric",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 8,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrow",
+            "kind": "no-throw-negative",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrow",
+            "kind": "no-throw-negative",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 9,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrow",
+            "kind": "wrong-error-negative",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrow",
+            "kind": "wrong-error-negative",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 10,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrow",
+            "kind": "wrong-message",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrow",
+            "kind": "wrong-message",
+            "error": {
+              "name": "AssertionError",
+              "message": "expected [Function] to throw error including 'missing' but got 'actual throw message'"
+            },
+            "ownerCount": 11,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrow",
+            "kind": "no-throw",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrow",
+            "kind": "no-throw",
+            "error": {
+              "name": "AssertionError",
+              "message": "expected [Function] to throw an error"
+            },
+            "ownerCount": 12,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrow",
+            "kind": "non-callable",
+            "error": {
+              "name": "AssertionError",
+              "message": "expected 42 to be a function"
+            },
+            "ownerCount": 13,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrowError",
+            "kind": "absent",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrowError",
+            "kind": "absent",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 14,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrowError",
+            "kind": "undefined",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrowError",
+            "kind": "undefined",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 15,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrowError",
+            "kind": "message",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrowError",
+            "kind": "message",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 16,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrowError",
+            "kind": "regexp",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrowError",
+            "kind": "regexp",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 17,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrowError",
+            "kind": "class",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrowError",
+            "kind": "class",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 18,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrowError",
+            "kind": "error",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrowError",
+            "kind": "error",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 19,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrowError",
+            "kind": "scalar",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrowError",
+            "kind": "scalar",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 20,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrowError",
+            "kind": "asymmetric",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrowError",
+            "kind": "asymmetric",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 21,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrowError",
+            "kind": "no-throw-negative",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrowError",
+            "kind": "no-throw-negative",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 22,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrowError",
+            "kind": "wrong-error-negative",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrowError",
+            "kind": "wrong-error-negative",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 23,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrowError",
+            "kind": "wrong-message",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrowError",
+            "kind": "wrong-message",
+            "error": {
+              "name": "AssertionError",
+              "message": "expected [Function] to throw error including 'missing' but got 'actual throw message'"
+            },
+            "ownerCount": 24,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrowError",
+            "kind": "no-throw",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrowError",
+            "kind": "no-throw",
+            "error": {
+              "name": "AssertionError",
+              "message": "expected [Function] to throw an error"
+            },
+            "ownerCount": 25,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toThrowError",
+            "kind": "non-callable",
+            "error": {
+              "name": "AssertionError",
+              "message": "expected 42 to be a function"
+            },
+            "ownerCount": 26,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "kind": "counts",
+            "calls": 24,
+            "ownerCount": 26,
+            "callerCount": 0
+          },
+          {
+            "kind": "identities",
+            "sameOwner": true,
+            "differentCaller": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrow",
+            "kind": "absent",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrow",
+            "kind": "absent",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 27,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrow",
+            "kind": "undefined",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrow",
+            "kind": "undefined",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 28,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrow",
+            "kind": "message",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrow",
+            "kind": "message",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 29,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrow",
+            "kind": "regexp",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrow",
+            "kind": "regexp",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 30,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrow",
+            "kind": "class",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrow",
+            "kind": "class",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 31,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrow",
+            "kind": "error",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrow",
+            "kind": "error",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 32,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrow",
+            "kind": "scalar",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrow",
+            "kind": "scalar",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 33,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrow",
+            "kind": "asymmetric",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrow",
+            "kind": "asymmetric",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 34,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrow",
+            "kind": "no-throw-negative",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrow",
+            "kind": "no-throw-negative",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 35,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrow",
+            "kind": "wrong-error-negative",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrow",
+            "kind": "wrong-error-negative",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 36,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrow",
+            "kind": "wrong-message",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrow",
+            "kind": "wrong-message",
+            "error": {
+              "name": "AssertionError",
+              "message": "expected [Function] to throw error including 'missing' but got 'actual throw message'"
+            },
+            "ownerCount": 37,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrow",
+            "kind": "no-throw",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrow",
+            "kind": "no-throw",
+            "error": {
+              "name": "AssertionError",
+              "message": "expected [Function] to throw an error"
+            },
+            "ownerCount": 38,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrow",
+            "kind": "non-callable",
+            "error": {
+              "name": "AssertionError",
+              "message": "expected 42 to be a function"
+            },
+            "ownerCount": 39,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrowError",
+            "kind": "absent",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrowError",
+            "kind": "absent",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 40,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrowError",
+            "kind": "undefined",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrowError",
+            "kind": "undefined",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 41,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrowError",
+            "kind": "message",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrowError",
+            "kind": "message",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 42,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrowError",
+            "kind": "regexp",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrowError",
+            "kind": "regexp",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 43,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrowError",
+            "kind": "class",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrowError",
+            "kind": "class",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 44,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrowError",
+            "kind": "error",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrowError",
+            "kind": "error",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 45,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrowError",
+            "kind": "scalar",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrowError",
+            "kind": "scalar",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 46,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrowError",
+            "kind": "asymmetric",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrowError",
+            "kind": "asymmetric",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 47,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrowError",
+            "kind": "no-throw-negative",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrowError",
+            "kind": "no-throw-negative",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 48,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrowError",
+            "kind": "wrong-error-negative",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrowError",
+            "kind": "wrong-error-negative",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 49,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrowError",
+            "kind": "wrong-message",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrowError",
+            "kind": "wrong-message",
+            "error": {
+              "name": "AssertionError",
+              "message": "expected [Function] to throw error including 'missing' but got 'actual throw message'"
+            },
+            "ownerCount": 50,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrowError",
+            "kind": "no-throw",
+            "callbackThisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrowError",
+            "kind": "no-throw",
+            "error": {
+              "name": "AssertionError",
+              "message": "expected [Function] to throw an error"
+            },
+            "ownerCount": 51,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toThrowError",
+            "kind": "non-callable",
+            "error": {
+              "name": "AssertionError",
+              "message": "expected 42 to be a function"
+            },
+            "ownerCount": 52,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "kind": "counts",
+            "calls": 48,
+            "ownerCount": 52,
+            "callerCount": 0
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "creator throw builtin owner",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeaders": []
+    },
+    {
+      "name": "foreign throw builtin caller",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeaders": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

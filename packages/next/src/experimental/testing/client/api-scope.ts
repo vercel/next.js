@@ -19,7 +19,10 @@ export function guardedExpect<T extends Function>(fn: T): T {
   })
 }
 
-export function guardedDeclaration<T extends Function>(fn: T): T {
+export function guardedDeclaration<T extends Function>(
+  fn: T,
+  preserveIntrinsicFn = false
+): T {
   return new Proxy(fn, {
     apply(target, thisArg, args) {
       assertBrowserApiScope('declaration')
@@ -28,6 +31,19 @@ export function guardedDeclaration<T extends Function>(fn: T): T {
     get(target, key, receiver) {
       assertBrowserApiScope('declaration')
       const selected = Reflect.get(target, key, receiver)
+      if (key === 'fn' && preserveIntrinsicFn) {
+        const descriptor = Reflect.getOwnPropertyDescriptor(target, key)
+        if (
+          descriptor &&
+          'value' in descriptor &&
+          descriptor.value === selected &&
+          descriptor.configurable === false &&
+          descriptor.writable === false
+        )
+          // These exact intrinsic callables check the active collector on use.
+          // Their frozen property must preserve the native Proxy get invariant.
+          return selected
+      }
       return typeof selected === 'function'
         ? guardedDeclaration(selected)
         : selected

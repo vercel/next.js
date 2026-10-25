@@ -1,0 +1,45 @@
+{
+  "rows": [
+    [
+      {
+        "stage": "body-return"
+      },
+      {
+        "stage": "queue-get",
+        "read": 1
+      },
+      {
+        "stage": "queue-get",
+        "read": 2
+      },
+      {
+        "stage": "iterator-get"
+      },
+      {
+        "stage": "iterator-call",
+        "sameThis": true
+      },
+      {
+        "stage": "then-get"
+      },
+      {
+        "stage": "then-call",
+        "sameThis": true,
+        "args": 2
+      },
+      {
+        "stage": "afterEach",
+        "errors": []
+      }
+    ]
+  ],
+  "cases": [
+    {
+      "name": "actual public queue accessor and iterator",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "success": true,
+  "exit": 0
+}

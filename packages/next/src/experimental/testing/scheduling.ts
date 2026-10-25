@@ -1,8 +1,11 @@
+import type { TestResultCache } from './result-cache'
 import type { DiscoveredTestProject } from './discovery'
-import { join, posix } from 'path'
+import { posix } from 'path'
 import { createHash } from 'node:crypto'
 import { stat } from 'node:fs/promises'
 import { availableParallelism } from 'node:os'
+import { shuffleFiles } from './runner/sequence'
+import { getTestRunLockPath } from './run-lock'
 
 /** Keep a public invocation exclusive across compiler/server handoffs and modes. */
 export async function acquireTestRunLock(
@@ -14,7 +17,7 @@ export async function acquireTestRunLock(
   const bindings = await loadBindings()
   if (bindings.isWasm)
     throw new Error('Test scheduling requires native process ownership.')
-  const lock = Lockfile.tryAcquire(join(projectDir, '.next-test-run.lock'))
+  const lock = Lockfile.tryAcquire(getTestRunLockPath(projectDir))
   if (!lock) {
     throw new Error(
       'Another next test invocation owns this application. Run concurrent CI shards in separate checkouts with separate output directories.'
@@ -86,7 +89,8 @@ export function parseTestShard(value: string): TestShard {
 export async function shardTestProjects(
   projects: DiscoveredTestProject[],
   shard: TestShard,
-  projectDir: string
+  projectDir: string,
+  options: { sortFiles?: false } = {}
 ): Promise<DiscoveredTestProject[]> {
   const root = projectDir.replace(/\\/g, '/')
   const files = projects.flatMap((project, projectIndex) =>
@@ -116,7 +120,10 @@ export async function shardTestProjects(
     .slice(start, end)
   const sizes = new Map<string, number>()
   await Promise.all(
-    [...new Set(selected.map(({ entry }) => entry.file))].map(async (file) => {
+    (options.sortFiles === false
+      ? []
+      : [...new Set(selected.map(({ entry }) => entry.file))]
+    ).map(async (file) => {
       try {
         sizes.set(file, (await stat(file)).size)
       } catch {
@@ -132,6 +139,7 @@ export async function shardTestProjects(
         .filter((file) => file.projectIndex === projectIndex)
         .map(({ entry }) => entry)
         .sort((a, b) => {
+          if (options.sortFiles === false) return 0
           const aSize = sizes.get(a.file)
           const bSize = sizes.get(b.file)
           if (aSize === undefined || bSize === undefined)
@@ -148,17 +156,58 @@ export async function shardTestProjects(
     )
 }
 
+/** Actual uncached file order; discovery/specification order remains caller-owned. */
+export async function sortUncachedTestProjects(
+  projects: DiscoveredTestProject[]
+): Promise<DiscoveredTestProject[]> {
+  const sizes = new Map<string, number>()
+  await Promise.all(
+    [
+      ...new Set(
+        projects
+          .filter((project) => !shuffleFiles(project.sequence?.shuffle))
+          .flatMap((project) => project.entries.map((entry) => entry.file))
+      ),
+    ].map(async (file) => {
+      try {
+        sizes.set(file, (await stat(file)).size)
+      } catch {
+        // An unknown file runs first and retains its ordinary compiler failure.
+      }
+    })
+  )
+  return projects.map((project) =>
+    shuffleFiles(project.sequence?.shuffle)
+      ? project
+      : {
+          ...project,
+          entries: [...project.entries].sort((a, b) => {
+            const aSize = sizes.get(a.file)
+            const bSize = sizes.get(b.file)
+            if (aSize === undefined || bSize === undefined)
+              return aSize === undefined && bSize !== undefined
+                ? -1
+                : bSize === undefined && aSize !== undefined
+                  ? 1
+                  : 0
+            return bSize - aSize
+          }),
+        }
+  )
+}
+
 /** Bound the complete file lease, including acquisition and awaited cleanup. */
 export async function forEachTestFile<T>(
   files: readonly T[],
   maxWorkers: number,
   signal: AbortSignal,
-  run: (file: T) => Promise<void>
+  run: (file: T) => Promise<void>,
+  shouldStop?: () => boolean
 ): Promise<void> {
   let next = 0
   const results = await Promise.allSettled(
     Array.from({ length: Math.min(maxWorkers, files.length) }, async () => {
-      while (!signal.aborted && next < files.length) {
+      while (!signal.aborted && !shouldStop?.() && next < files.length) {
         const file = files[next++]
         await run(file)
       }
@@ -172,4 +221,48 @@ export async function forEachTestFile<T>(
       'Test file scheduling failed.'
     )
   }
+}
+
+/** Actual result history changes ordering only; every selected file still runs. */
+export async function sortCachedTestProjects(
+  projects: DiscoveredTestProject[],
+  cache: TestResultCache
+): Promise<DiscoveredTestProject[]> {
+  const sizes = new Map<string, number>()
+  await Promise.all(
+    [
+      ...new Set(
+        projects.flatMap((project) =>
+          project.entries.map((entry) => entry.file)
+        )
+      ),
+    ].map(async (file) => {
+      try {
+        sizes.set(file, (await stat(file)).size)
+      } catch {
+        /* Existing compiler failure remains authoritative. */
+      }
+    })
+  )
+  return projects.map((project) => ({
+    ...project,
+    entries: [...project.entries].sort((a, b) => {
+      const aResult = cache.get(project.displayName ?? '', a.file)
+      const bResult = cache.get(project.displayName ?? '', b.file)
+      if (!aResult || !bResult) {
+        const aSize = sizes.get(a.file),
+          bSize = sizes.get(b.file)
+        if (aSize === undefined || bSize === undefined)
+          return aSize === undefined && bSize !== undefined
+            ? -1
+            : bSize === undefined && aSize !== undefined
+              ? 1
+              : 0
+        return bSize - aSize
+      }
+      if (aResult.failed && !bResult.failed) return -1
+      if (!aResult.failed && bResult.failed) return 1
+      return bResult.duration - aResult.duration
+    }),
+  }))
 }

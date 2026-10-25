@@ -3,6 +3,7 @@ import type { RunnerCaseResult, RunnerSuiteResult } from '../runner/lifecycle'
 import type { FakeTimerOptions } from '../assertions/utilities'
 import type { ClientDeclaration } from './collection'
 import type { TestArtifact } from '../runner/tasks'
+import type { RuntimeModuleCompletion } from '../execution/completed-module'
 import type {
   SnapshotUpdate,
   SnapshotUpdateMode,
@@ -38,8 +39,14 @@ export interface ClientConfiguration extends ClientIdentity {
   testNamePattern?: { source: string; flags: string }
   allowOnly?: boolean
   captureTaskResults?: boolean
+  includeTaskLocation?: boolean
+  captureCompletedModuleResult?: true
+  /** Private scheduling control, independent of the test file's lifetime. */
+  userCancellation?: true
   testTimeout: number
   hookTimeout: number
+  hookSequence?: 'stack' | 'list' | 'parallel'
+  maxConcurrency?: 1
   retry?: number
   fakeTimers?: FakeTimerOptions
   provide?: Record<string, unknown>
@@ -126,6 +133,7 @@ export type ClientMessage = ClientIdentity & { sequence: number } & (
     | { type: 'failure'; error: unknown }
     | {
         type: 'complete'
+        moduleCompletion?: RuntimeModuleCompletion
         status: 'passed' | 'failed'
         interrupted: boolean
         caseCount: number

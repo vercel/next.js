@@ -1,0 +1,2 @@
+globalThis.__nextClassResetUnused=(globalThis.__nextClassResetUnused||0)+1
+module.exports={unused:true}

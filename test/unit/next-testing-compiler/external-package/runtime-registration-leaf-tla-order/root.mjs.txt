@@ -1,0 +1,9 @@
+const plan=globalThis.__ws2GPlans.shift();
+export const value=++globalThis.__ws2GEvals;
+plan.events.push('original-start:'+value);
+plan.enter.resolve();
+await plan.gate.promise;
+plan.events.push('original-complete:'+value);
+export const object={value};
+export function read(){return value}
+export default object;

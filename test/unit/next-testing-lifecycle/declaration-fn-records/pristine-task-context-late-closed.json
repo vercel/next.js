@@ -1,0 +1,132 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "late-closed",
+        "trace": [
+          {
+            "kind": "body",
+            "sameTask": true,
+            "sameContext": true,
+            "sameExpect": true,
+            "contextCount": 1,
+            "localCount": 1,
+            "state": "run",
+            "aborted": false,
+            "turn": 0
+          },
+          {
+            "kind": "finished",
+            "sameTask": true,
+            "sameContext": true,
+            "sameExpect": true,
+            "contextCount": 1,
+            "localCount": 1,
+            "state": "fail",
+            "aborted": true,
+            "turn": 0
+          },
+          {
+            "kind": "body",
+            "sameTask": true,
+            "sameContext": true,
+            "sameExpect": true,
+            "contextCount": 1,
+            "localCount": 1,
+            "state": "run",
+            "aborted": true,
+            "turn": 1
+          },
+          {
+            "kind": "retry-end",
+            "sameTask": true,
+            "sameContext": true,
+            "sameExpect": true,
+            "contextCount": 2,
+            "localCount": 2,
+            "state": "run",
+            "aborted": true
+          },
+          {
+            "kind": "finished",
+            "sameTask": true,
+            "sameContext": true,
+            "sameExpect": true,
+            "contextCount": 2,
+            "localCount": 2,
+            "state": "pass",
+            "aborted": true,
+            "turn": 1
+          },
+          {
+            "kind": "afterAll-before",
+            "sameTask": true,
+            "sameContext": true,
+            "sameExpect": true,
+            "contextCount": 2,
+            "localCount": 2,
+            "state": "pass",
+            "aborted": true
+          },
+          {
+            "kind": "old-before",
+            "sameTask": true,
+            "sameContext": true,
+            "sameExpect": true,
+            "contextCount": 2,
+            "localCount": 2,
+            "state": "pass",
+            "aborted": true
+          },
+          {
+            "kind": "old-after",
+            "sameTask": true,
+            "sameContext": true,
+            "sameExpect": true,
+            "contextCount": 3,
+            "localCount": 3,
+            "state": "pass",
+            "aborted": true
+          },
+          {
+            "kind": "afterAll-after",
+            "sameTask": true,
+            "sameContext": true,
+            "sameExpect": true,
+            "contextCount": 3,
+            "localCount": 3,
+            "state": "pass",
+            "aborted": true
+          }
+        ],
+        "errors": [
+          {
+            "name": "Error",
+            "message": "Test timed out in 60ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\"."
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "same-closed",
+      "status": "passed",
+      "failureCount": 1,
+      "failureHeaders": [
+        "Error: Test timed out in 60ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\"."
+      ]
+    }
+  ],
+  "counts": {
+    "numTotalTests": 1,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

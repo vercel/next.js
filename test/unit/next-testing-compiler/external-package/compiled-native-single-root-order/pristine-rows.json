@@ -1,0 +1,39 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_CROSS_NATIVE_before",
+    "value": {
+      "name": "ordinary",
+      "events": ["root-factory", "patch-after-original"],
+      "read": {
+        "value": "real-peer",
+        "original": true,
+        "patched": false
+      },
+      "same": true,
+      "shape": {
+        "keys": ["read"],
+        "prototypeNull": false,
+        "objectPrototype": true,
+        "extensible": true,
+        "sealed": false,
+        "frozen": false,
+        "tag": "[object Object]",
+        "brand": false,
+        "descriptors": [
+          [
+            "read",
+            {
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "type": "function"
+            }
+          ]
+        ]
+      },
+      "nativeOriginal": true,
+      "nativePatched": false
+    }
+  }
+]

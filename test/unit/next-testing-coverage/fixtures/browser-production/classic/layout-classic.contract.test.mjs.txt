@@ -1,0 +1,3 @@
+import { expect, test } from 'vitest'
+import { Card } from './layout-classic.tsx'
+test('classic JSX owns authored React without automatic helper', () => { expect(Card({ active: true }).props.children).toBe('yes'); expect(Card({ active: false }).props.children).toBe('no') })

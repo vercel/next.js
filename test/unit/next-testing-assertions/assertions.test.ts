@@ -409,3 +409,168 @@ it('retains closed utility guards while disposal restores Boolean flag stubs', (
     else process.env[name] = previous
   }
 })
+
+it.each(['node', 'browser'])(
+  'retains the original %s primitive attempt carrier across actual Test rebinding',
+  async (mode) => {
+    const { stdout, stderr } = await promisify(execFile)(process.execPath, [
+      join(__dirname, 'task-runtime-integration.cjs'),
+      process.cwd(),
+      mode,
+    ])
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toEqual({
+      mode,
+      capturedOutcomes: 3,
+      manualUnchanged: true,
+      lookupReads: 0,
+    })
+  },
+  30000
+)
+
+it('publishes actual global Tasks across hooks, native and custom assertions, and concurrent bodies', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'global-task-flags.cjs')],
+    { timeout: 50000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    results: [
+      { mode: 'development', group: 'flags', cases: 5, rows: 1 },
+      { mode: 'development', group: 'attribution', cases: 4, rows: 1 },
+      { mode: 'production', group: 'flags', cases: 5, rows: 1 },
+      { mode: 'production', group: 'attribution', cases: 4, rows: 1 },
+    ],
+  })
+}, 55000)
+
+it.each(['node', 'browser'] as const)(
+  'publishes genuine native public Promise queues through the %s primitive with captured private ownership',
+  async (mode) => {
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'native-public-promises-primitive.cjs'),
+        join(__dirname, '../../..'),
+        mode,
+      ],
+      { timeout: 10000, maxBuffer: 4 * 1024 * 1024 }
+    )
+    expect(stderr).toBe('')
+    const result = JSON.parse(stdout)
+    expect(result.mode).toBe(mode)
+    expect(result.controls).toBe(11)
+  }
+)
+
+it('retains complete genuine native public Promise field rows through actual Node cases', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'native-public-promises-public.cjs')],
+    { timeout: 50000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    results: [
+      { mode: 'development', group: 'fields', cases: 4, rows: 1 },
+      { mode: 'production', group: 'fields', cases: 4, rows: 1 },
+    ],
+  })
+}, 55000)
+
+it.each([
+  { batch: 'queue', groups: 10 },
+  { batch: 'ownership', groups: 6 },
+  { batch: 'rejections', groups: 3 },
+])(
+  'consumes actual public Promise queues with genuine iteration, retries and native ownership: $batch',
+  async ({ batch, groups }) => {
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [join(__dirname, 'manual-public-promises-public.cjs'), batch],
+      { timeout: 120000, maxBuffer: 4 * 1024 * 1024 }
+    )
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toEqual({
+      profiles: groups * 2,
+      groups,
+      cases: groups * 2,
+      rows: groups * 2,
+    })
+  },
+  125000
+)
+
+it.each([
+  { batch: 'finished-fields', groups: 5, cases: 12 },
+  { batch: 'finished-runtime', groups: 3, cases: 6 },
+  { batch: 'failed-fields', groups: 4, cases: 10 },
+  { batch: 'failed-sequence', groups: 4, cases: 8 },
+  { batch: 'empty', groups: 1, cases: 4 },
+])(
+  'shares real public completion arrays with genuine registration and consumption: $batch',
+  async ({ batch, groups, cases }) => {
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [join(__dirname, 'public-task-listeners.cjs'), batch],
+      { timeout: 120000, maxBuffer: 4 * 1024 * 1024 }
+    )
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toEqual({
+      profiles: groups * 2,
+      groups,
+      cases,
+      rows: groups * 2,
+    })
+  },
+  125000
+)
+
+it.each(['node', 'browser'])(
+  'captures the exact native finished callback without replacing its public array: %s',
+  async (mode) => {
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'public-finished-producer.cjs'),
+        mode,
+        require.resolve(
+          mode === 'browser'
+            ? 'next/dist/compiled/next-test-primitives/browser'
+            : 'next/dist/compiled/next-test-primitives'
+        ),
+      ],
+      { timeout: 15000, maxBuffer: 4 * 1024 * 1024 }
+    )
+    expect(stderr).toBe('')
+    const result = JSON.parse(stdout)
+    expect(result.mode).toBe(mode)
+    expect(result.controls).toBe(11)
+    expect(result.failures).toBe(0)
+  },
+  20000
+)
+
+it('attributes only the captured native body completion check, preserving identical manual and foreign errors', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [
+      join(__dirname, 'public-finished-body-guards.cjs'),
+      require.resolve('next/dist/experimental/testing/runner'),
+    ],
+    { timeout: 15000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    actualScopes: 3,
+    actualLogicalCases: 3,
+    nativeErrorTagged: true,
+    sameExactErrorFromManualCallbackUntagged: true,
+    foreignNativeCallbackUntagged: true,
+    armingBeforeNativeRegistration: true,
+    callbacksObservedWithoutChangingInvocationOrErrorIdentity: true,
+    disposed: true,
+  })
+}, 20000)

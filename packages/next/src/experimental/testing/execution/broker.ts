@@ -1,3 +1,4 @@
+import { isTestCI } from '../config-environment'
 import type { CompiledCoverageSource } from '../coverage/types'
 import type { CustomCoverageCompletion } from '../coverage/custom-types'
 import { randomUUID } from 'node:crypto'
@@ -123,8 +124,16 @@ export interface BrowserApplicationOwnership {
 /** The watch parent owns every detached file worker, including after child crash. */
 export function createExecutionBrokerHost(options: {
   signal: AbortSignal
+  /** Parent-only capture; completion never grants compiler-child rights. */
+  captureCompletedModuleResult?: true
   /** Parent-owned scheduling request, independent of the generation lifetime. */
   userCancelSignal?: AbortSignal
+  /** Actual admitted fork, observed in this host before its launch send. */
+  onWorkerLaunched?: (identity: {
+    entryId: string
+    runId: string
+    revision: string
+  }) => void
   send(message: ExecutionBrokerResponse): Promise<void>
   /** One-shot supervisors only. Watch still rejects coverage. */
   allowCoverage?: boolean
@@ -151,7 +160,12 @@ export function createExecutionBrokerHost(options: {
   /** Parent-discovered registration; child endpoint/fixture metadata is never trusted. */
   browserProjects?: readonly Pick<
     DiscoveredTestProject,
-    'profile' | 'entries' | 'browserFixtures'
+    | 'profile'
+    | 'entries'
+    | 'browserFixtures'
+    | 'browserEngine'
+    | 'browserHeadless'
+    | 'includeTaskLocation'
   >[]
   /** Explicit parent authorization; plans are committed after generation cleanup. */
   onSnapshotUpdates?: (
@@ -329,6 +343,15 @@ export function createExecutionBrokerHost(options: {
                     project.profile,
                     message.artifact.profile
                   ) &&
+                  (project.profile.browserClient === true
+                    ? (project.browserEngine ?? 'chromium') ===
+                        (message.options.browserEngine ?? 'chromium') &&
+                      (project.browserHeadless ?? isTestCI) ===
+                        (message.options.browserHeadless ?? isTestCI)
+                    : message.options.browserEngine === undefined &&
+                      message.options.browserHeadless === undefined) &&
+                  project.includeTaskLocation ===
+                    message.options.includeTaskLocation &&
                   project.entries.some(
                     (entry) =>
                       entry.id === message.artifact.entryId &&
@@ -380,17 +403,62 @@ export function createExecutionBrokerHost(options: {
             throw new Error(
               'Runtime config receipts require parent-authorized standard coverage execution'
             )
+          const notExecuted = async () => {
+            request.controller.signal.throwIfAborted()
+            if (!options.userCancelSignal?.aborted) return false
+            const browser =
+              message.artifact.kind === 'browser' &&
+              message.artifact.profile.browserClient === true &&
+              !message.options.coverage
+            if (
+              (!message.options.coverage && !browser) ||
+              message.options.customCoverage ||
+              message.options.collectOnly ||
+              resolveSnapshotUpdateMode(message.options) === 'all' ||
+              (!browser && message.artifact.kind !== 'node') ||
+              (!browser && message.artifact.profile.environment !== 'node') ||
+              message.artifact.profile.route !== undefined ||
+              (message.artifact.kind === 'node' &&
+                message.artifact.cohort !== undefined)
+            )
+              throw new Error(
+                'User cancellation requires ordinary Node coverage.'
+              )
+            request.leased = false
+            await publish({
+              type: 'execution-broker-response',
+              id: message.id,
+              action: 'result',
+              result: {
+                entryId: message.artifact.entryId,
+                status: 'cancelled',
+                durationMs: 0,
+                notExecuted: true,
+              },
+            })
+            return true
+          }
+          if (options.userCancelSignal?.aborted && (await notExecuted())) return
           const sealRuntimeConfiguration = options.onRuntimeConfiguration
             ? await options.onRuntimeConfiguration(
                 message.artifact,
                 request.controller.signal
               )
             : undefined
+          if (options.userCancelSignal?.aborted && (await notExecuted())) return
+          if (
+            message.options.captureCompletedModuleResult &&
+            !options.captureCompletedModuleResult
+          )
+            throw new Error('Unrequested private module completion capture.')
           executing = true
           const result = await executeBrokerFile(
             message.artifact,
             {
               ...message.options,
+              ...(options.captureCompletedModuleResult
+                ? { captureCompletedModuleResult: true }
+                : {}),
               signal: request.controller.signal,
               userCancelSignal: options.userCancelSignal,
               onEvent(event) {
@@ -451,8 +519,27 @@ export function createExecutionBrokerHost(options: {
                     updates,
                     message.artifact.sourceHash
                   )
+              : undefined,
+            options.onWorkerLaunched
+              ? () =>
+                  options.onWorkerLaunched!({
+                    entryId: message.artifact.entryId,
+                    runId: message.options.runId,
+                    revision: message.artifact.revision,
+                  })
               : undefined
           )
+          if (result.notExecuted !== undefined)
+            throw new Error('A worker cannot authorize non-execution.')
+          if (
+            result.closedUserCancellation !== undefined &&
+            (result.closedUserCancellation !== true ||
+              message.artifact.kind !== 'browser' ||
+              !options.userCancelSignal?.aborted ||
+              request.controller.signal.aborted ||
+              result.status !== 'passed')
+          )
+            throw new Error('Invalid closed Browser scheduling result.')
           executing = false
           request.leased = false
           await sealRuntimeConfiguration?.()
@@ -944,10 +1031,19 @@ async function executeBrokerFile(
   options: ExecuteTestOptions,
   environment: NodeJS.ProcessEnv,
   project:
-    | Pick<DiscoveredTestProject, 'profile' | 'entries' | 'browserFixtures'>
+    | Pick<
+        DiscoveredTestProject,
+        | 'profile'
+        | 'entries'
+        | 'browserFixtures'
+        | 'browserEngine'
+        | 'browserHeadless'
+        | 'includeTaskLocation'
+      >
     | undefined,
   application: BrowserApplicationOwnership | undefined,
-  snapshotUpdates?: Parameters<typeof executeWithEnvironment>[3]
+  snapshotUpdates?: Parameters<typeof executeWithEnvironment>[3],
+  onWorkerLaunched?: () => void
 ): Promise<TestExecutionResult> {
   if (
     artifact.profile.environment !== 'browser' ||
@@ -958,7 +1054,8 @@ async function executeBrokerFile(
       artifact,
       options,
       environment,
-      snapshotUpdates
+      snapshotUpdates,
+      onWorkerLaunched
     )
   if (
     artifact.kind !== 'node' ||

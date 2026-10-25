@@ -1,0 +1,129 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "late-active",
+        "trace": [
+          {
+            "kind": "body",
+            "turn": 0,
+            "sameTask": true,
+            "sameContext": true,
+            "sameExpect": true,
+            "contextCount": 1,
+            "localCount": 1,
+            "state": "run",
+            "aborted": false
+          },
+          {
+            "kind": "finished",
+            "turn": 0,
+            "sameTask": true,
+            "sameContext": true,
+            "sameExpect": true,
+            "contextCount": 1,
+            "localCount": 1,
+            "state": "fail",
+            "aborted": true,
+            "registeredTurn": 0
+          },
+          {
+            "kind": "body",
+            "turn": 1,
+            "sameTask": true,
+            "sameContext": true,
+            "sameExpect": true,
+            "contextCount": 1,
+            "localCount": 1,
+            "state": "run",
+            "aborted": true
+          },
+          {
+            "kind": "old-before",
+            "turn": 1,
+            "sameTask": true,
+            "sameContext": true,
+            "sameExpect": true,
+            "contextCount": 1,
+            "localCount": 1,
+            "state": "run",
+            "aborted": true
+          },
+          {
+            "kind": "old-after",
+            "turn": 1,
+            "sameTask": true,
+            "sameContext": true,
+            "sameExpect": true,
+            "contextCount": 2,
+            "localCount": 2,
+            "state": "run",
+            "aborted": true
+          },
+          {
+            "kind": "retry-end",
+            "turn": 1,
+            "sameTask": true,
+            "sameContext": true,
+            "sameExpect": true,
+            "contextCount": 3,
+            "localCount": 3,
+            "state": "run",
+            "aborted": true
+          },
+          {
+            "kind": "finished",
+            "turn": 1,
+            "sameTask": true,
+            "sameContext": true,
+            "sameExpect": true,
+            "contextCount": 3,
+            "localCount": 3,
+            "state": "pass",
+            "aborted": true,
+            "registeredTurn": 1
+          },
+          {
+            "kind": "afterAll",
+            "turn": 1,
+            "sameTask": true,
+            "sameContext": true,
+            "sameExpect": true,
+            "contextCount": 3,
+            "localCount": 3,
+            "state": "pass",
+            "aborted": true,
+            "signalSame": true
+          }
+        ],
+        "errors": [
+          {
+            "name": "Error",
+            "message": "Test timed out in 60ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\"."
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "same-active",
+      "status": "passed",
+      "failureCount": 1,
+      "failureHeaders": [
+        "Error: Test timed out in 60ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\"."
+      ]
+    }
+  ],
+  "counts": {
+    "numTotalTests": 1,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

@@ -1,0 +1,17 @@
+[
+  {
+    "name": "factory waits after actual original while public fallback completes",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "factory invokes original without awaiting and remains independently pending",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "two actual original callback Promises keep their real adoption order",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

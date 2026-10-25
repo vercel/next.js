@@ -1,0 +1,44 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "custom-unawaited",
+        "trace": [
+          {
+            "kind": "matcher-enter",
+            "actual": 1,
+            "expected": 2,
+            "ownerState": "pass"
+          },
+          {
+            "kind": "matcher-settle",
+            "actual": 1,
+            "expected": 2,
+            "ownerState": "pass"
+          }
+        ],
+        "state": "pass",
+        "count": 1
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "closed custom unawaited source",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeads": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 1,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 1
+}

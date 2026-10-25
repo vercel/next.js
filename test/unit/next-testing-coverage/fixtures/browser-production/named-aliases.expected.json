@@ -1,0 +1,366 @@
+{
+  "mode": "production",
+  "sdks": ["1.64.0", "1.61.0"],
+  "sourceSyntax": "named-jsx-child-shapes",
+  "sourceFiles": {
+    "shape-named-logical.tsx": {
+      "sha256": "9f5d346155b75c0843d270a1f6db31e38f6d9e630e8b5db3ceec5fef06fe6fd1",
+      "runtime": "named",
+      "nativeSpecifiers": [
+        {
+          "kind": "named",
+          "local": "makeNode",
+          "imported": "createElement"
+        }
+      ]
+    },
+    "shape-named-fragment.tsx": {
+      "sha256": "b4a9ef7206299aaf99fb07af511e94f3ecaa2d3db2259bd164a660c7e8960a0d",
+      "runtime": "named",
+      "nativeSpecifiers": [
+        {
+          "kind": "named",
+          "local": "makeNode",
+          "imported": "createElement"
+        },
+        {
+          "kind": "named",
+          "local": "Group",
+          "imported": "Fragment"
+        }
+      ]
+    },
+    "shape-corpus.contract.test.mjs": {
+      "sha256": "4b934485a8faa46cfc5de525cdf5f0c578b5adddfad8c1bebf854be87c3a35f3"
+    }
+  },
+  "coverage": {
+    "shape-named-fragment.tsx": {
+      "path": "shape-named-fragment.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 7,
+            "column": 2
+          },
+          "end": {
+            "line": 7,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 9,
+            "column": 13
+          },
+          "end": {
+            "line": 9,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 9,
+            "column": 28
+          },
+          "end": {
+            "line": 9,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "Card",
+          "decl": {
+            "start": {
+              "line": 6,
+              "column": 16
+            },
+            "end": {
+              "line": 6,
+              "column": 21
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 6,
+              "column": 47
+            },
+            "end": {
+              "line": 8,
+              "column": null
+            }
+          },
+          "line": 6
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 9,
+              "column": 13
+            },
+            "end": {
+              "line": 9,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 9,
+              "column": 28
+            },
+            "end": {
+              "line": 9,
+              "column": null
+            }
+          },
+          "line": 9
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 7,
+              "column": 19
+            },
+            "end": {
+              "line": 7,
+              "column": 41
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 7,
+                "column": 28
+              },
+              "end": {
+                "line": 7,
+                "column": 36
+              }
+            },
+            {
+              "start": {
+                "line": 7,
+                "column": 36
+              },
+              "end": {
+                "line": 7,
+                "column": 41
+              }
+            }
+          ],
+          "line": 7
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 1,
+        "2": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {
+        "0": [1, 1]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 3,
+        "seen": {
+          "f:6:16:6:21": 0,
+          "s:7:2:7:Infinity": 0,
+          "b:7:28:7:36:7:36:7:41": 0,
+          "s:9:13:9:Infinity": 1,
+          "f:9:13:9:28": 1,
+          "s:9:28:9:Infinity": 2
+        },
+        "fnNames": {}
+      }
+    },
+    "shape-named-logical.tsx": {
+      "path": "shape-named-logical.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 7,
+            "column": 2
+          },
+          "end": {
+            "line": 7,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 9,
+            "column": 13
+          },
+          "end": {
+            "line": 9,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 9,
+            "column": 28
+          },
+          "end": {
+            "line": 9,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "Card",
+          "decl": {
+            "start": {
+              "line": 6,
+              "column": 16
+            },
+            "end": {
+              "line": 6,
+              "column": 21
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 6,
+              "column": 47
+            },
+            "end": {
+              "line": 8,
+              "column": null
+            }
+          },
+          "line": 6
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 9,
+              "column": 13
+            },
+            "end": {
+              "line": 9,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 9,
+              "column": 28
+            },
+            "end": {
+              "line": 9,
+              "column": null
+            }
+          },
+          "line": 9
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 7,
+              "column": 19
+            },
+            "end": {
+              "line": 7,
+              "column": 53
+            }
+          },
+          "type": "binary-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 7,
+                "column": 19
+              },
+              "end": {
+                "line": 7,
+                "column": 29
+              }
+            },
+            {
+              "start": {
+                "line": 7,
+                "column": 29
+              },
+              "end": {
+                "line": 7,
+                "column": 53
+              }
+            }
+          ],
+          "line": 7
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 1,
+        "2": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {
+        "0": [2, 1]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 3,
+        "seen": {
+          "f:6:16:6:21": 0,
+          "s:7:2:7:Infinity": 0,
+          "b:7:19:7:29:7:29:7:53": 0,
+          "s:9:13:9:Infinity": 1,
+          "f:9:13:9:28": 1,
+          "s:9:28:9:Infinity": 2
+        },
+        "fnNames": {}
+      }
+    }
+  },
+  "cases": [
+    {
+      "file": "shape-corpus.contract.test.mjs",
+      "status": "passed",
+      "cases": [
+        {
+          "ancestorTitles": [],
+          "fullName": "named logical preserves authored child and prop behavior",
+          "status": "passed",
+          "title": "named logical preserves authored child and prop behavior",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "named fragment preserves authored child and prop behavior",
+          "status": "passed",
+          "title": "named fragment preserves authored child and prop behavior",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ]
+    }
+  ],
+  "numPassedTests": 2
+}

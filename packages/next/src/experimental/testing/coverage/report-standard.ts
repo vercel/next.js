@@ -27,12 +27,14 @@ import { coverageHash, within } from './artifact'
 import { createUncoveredSource } from './istanbul'
 import { writeReports } from '../../../compiled/next-test-coverage'
 import { standardCoverageSourceSelector } from './options'
+import picomatch from 'next/dist/compiled/picomatch'
 import type {
   CompilerSourceCoverage,
   StandardCoverageData,
   StandardCoverageLocation,
   StandardCoverageMetric,
   StandardCoverageOptions,
+  StandardCoverageThresholdUpdate,
   StandardFileCoverage,
 } from './types'
 
@@ -545,10 +547,19 @@ export async function publishStandardCoverage(options: {
   sourceAnalysis?: { facts: CompilerSourceCoverage[]; plan: CoverageSourcePlan }
   runtimeConfiguration?: {
     receipts: readonly RuntimeConfigurationReceipt[]
+    /** Previously closed captures, issued only by the watch generation cache. */
+    retainedEntryIds?: ReadonlySet<string>
     plan?: RuntimeConfigurationPlan
   }
   signal?: AbortSignal
-}) {
+}): Promise<{
+  published: boolean
+  thresholdErrors: string[]
+  summary?: ReturnType<typeof standardCoverageSummary>
+  thresholdUpdates?: StandardCoverageThresholdUpdate[]
+  textSummary?: string
+  files?: string[]
+}> {
   const { config, signal } = options
   signal?.throwIfAborted()
   if (options.status === 'cancelled')
@@ -704,13 +715,26 @@ export async function publishStandardCoverage(options: {
           summary: standardCoverageSummary({ [file]: data[file] }),
         }))
     : [{ summary }]
+  // The configured formatter uses the reference reporter's percentage order.
+  // Legacy CLI, per-file and uncovered-count diagnostics keep their own paths.
+  const configuredGlobalPercentages =
+    config.formatterReports &&
+    metrics.every(
+      (metric) =>
+        (config.thresholds[100] ? 100 : (config.thresholds[metric] ?? 0)) >= 0
+    )
+  const thresholdMetrics: StandardCoverageMetric[] = configuredGlobalPercentages
+    ? ['lines', 'functions', 'statements', 'branches']
+    : metrics
   const thresholdErrors = thresholdGroups.flatMap(
     ({ file, summary: group }) => {
       const suffix = file
         ? ` for ${relative(root, file).split(sep).join('/')}`
         : ''
-      return metrics.flatMap((metric) => {
-        const threshold = config.thresholds[metric]
+      return thresholdMetrics.flatMap((metric) => {
+        const threshold = config.thresholds[100]
+          ? 100
+          : config.thresholds[metric]
         if (threshold === undefined) return []
         if (threshold < 0) {
           const uncovered = group[metric].total - group[metric].covered
@@ -722,12 +746,123 @@ export async function publishStandardCoverage(options: {
         }
         return group[metric].percent < threshold
           ? [
-              `Coverage for ${metric} (${group[metric].percent}%) does not meet global threshold (${threshold}%)${suffix || '.'}`,
+              `Coverage for ${metric} (${group[metric].percent}%) does not meet global threshold (${threshold}%)${suffix || (configuredGlobalPercentages ? '' : '.')}`,
             ]
           : []
       })
     }
   )
+  for (const { pattern, thresholds } of config.thresholdGroups ?? []) {
+    const matches = picomatch(pattern)
+    const matchingFiles = Object.keys(data)
+      .sort()
+      .filter((file) => matches(relative(root, file).split(sep).join('/')))
+    if (!matchingFiles.length) continue
+    const groups = thresholds.perFile
+      ? matchingFiles.map((file) => ({ file, data: { [file]: data[file] } }))
+      : [
+          {
+            file: undefined,
+            data: Object.fromEntries(
+              matchingFiles.map((file) => [file, data[file]])
+            ),
+          },
+        ]
+    for (const group of groups) {
+      const values = standardCoverageSummary(group.data)
+      const suffix = group.file
+        ? ` for ${relative(root, group.file).split(sep).join('/')}`
+        : ''
+      for (const metric of [
+        'lines',
+        'functions',
+        'statements',
+        'branches',
+      ] as const) {
+        const threshold = thresholds[100] ? 100 : thresholds[metric]
+        if (threshold === undefined) continue
+        if (threshold < 0) {
+          const uncovered = values[metric].total - values[metric].covered
+          if (uncovered > -threshold)
+            thresholdErrors.push(
+              `Uncovered ${metric} (${uncovered}) exceed "${pattern}" threshold (${-threshold})${suffix}`
+            )
+        } else if (values[metric].percent < threshold)
+          thresholdErrors.push(
+            `Coverage for ${metric} (${values[metric].percent}%) does not meet "${pattern}" threshold (${threshold}%)${suffix}`
+          )
+      }
+    }
+  }
+  const thresholdUpdates = config.thresholds.autoUpdate
+    ? ([] as StandardCoverageThresholdUpdate[])
+    : undefined
+  const improveThresholds = (
+    thresholds: StandardCoverageOptions['thresholds'],
+    summaries: (typeof summary)[],
+    pattern?: string
+  ) => {
+    if (!thresholdUpdates || !summaries.length) return
+    for (const metric of [
+      'lines',
+      'functions',
+      'statements',
+      'branches',
+    ] as const) {
+      const previous = thresholds[100] ? 100 : (thresholds[metric] ?? 100)
+      if (previous >= 0) {
+        const value = Math.min(
+          ...summaries.map((group) => group[metric].percent)
+        )
+        if (value > previous)
+          thresholdUpdates.push({
+            metric,
+            previous,
+            value,
+            ...(pattern ? { pattern } : {}),
+          })
+      } else {
+        const uncovered = Math.max(
+          ...summaries.map(
+            (group) => group[metric].total - group[metric].covered
+          )
+        )
+        if (uncovered < -previous)
+          thresholdUpdates.push({
+            metric,
+            previous,
+            value: uncovered === 0 ? 100 : -uncovered,
+            ...(pattern ? { pattern } : {}),
+          })
+      }
+    }
+  }
+  // An empty coverage map has Unknown aggregate percentages in Istanbul.
+  if (Object.keys(data).length)
+    improveThresholds(
+      config.thresholds,
+      thresholdGroups.map((group) => group.summary)
+    )
+  for (const { pattern, thresholds } of config.thresholdGroups ?? []) {
+    const matches = picomatch(pattern)
+    const matching = Object.keys(data).filter((file) =>
+      matches(relative(root, file).split(sep).join('/'))
+    )
+    if (!matching.length) continue
+    improveThresholds(
+      thresholds,
+      thresholds.perFile
+        ? matching.map((file) =>
+            standardCoverageSummary({ [file]: data[file] })
+          )
+        : [
+            standardCoverageSummary(
+              Object.fromEntries(matching.map((file) => [file, data[file]]))
+            ),
+          ],
+      pattern
+    )
+  }
   const artifacts: Record<string, string> = {}
   if (config.reporter.includes('json'))
     artifacts['coverage-final.json'] = JSON.stringify(data, null, 2) + '\n'
@@ -837,13 +972,16 @@ export async function publishStandardCoverage(options: {
         analysisSignal
       )
     signal?.throwIfAborted()
-    if (existed) {
-      await rename(output, backup)
-      displaced = true
+    // Stdout-only formatters complete without creating a report directory.
+    if (!config.formatterReports || reportFiles.length) {
+      if (existed) {
+        await rename(output, backup)
+        displaced = true
+      }
+      signal?.throwIfAborted()
+      await rename(staging, output)
+      published = true
     }
-    signal?.throwIfAborted()
-    await rename(staging, output)
-    published = true
     await assertRuntime()
     if (options.sourceAnalysis)
       await assertCompilerSourceCoverage(
@@ -876,6 +1014,7 @@ export async function publishStandardCoverage(options: {
     published: true,
     summary,
     thresholdErrors,
+    ...(thresholdUpdates ? { thresholdUpdates } : {}),
     textSummary: config.formatterReports
       ? formatterText
       : config.reporter.includes('text-summary')

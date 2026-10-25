@@ -48,6 +48,8 @@ use crate::{
 
 #[derive(Default)]
 pub struct CodeGeneration {
+    /// Filled only by the resolved isolated-test adapter's direct-call modifier.
+    pub test_declaration_calls: Option<crate::test_declaration_source_map::CapturedCalls>,
     /// ast nodes matching the span will be visitor by the visitor
     pub visitors: Vec<(AstPathId, Box<dyn AstModifier>)>,
     pub hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
@@ -231,7 +233,17 @@ impl CodeGen {
             Self::CollectReferenceCodeGen(v) => v.code_generation(trie, ctx).await,
             Self::ConstantValueCodeGen(v) => v.code_generation(trie, ctx).await,
             Self::DynamicExpression(v) => v.code_generation(trie, ctx).await,
-            Self::EsmBindings(v) => v.code_generation(trie, ctx, scope_hoisting_context).await,
+            Self::EsmBindings(v) => {
+                let adapter = if let Some(module) =
+                    ResolvedVc::try_downcast_type::<crate::EcmascriptModuleAsset>(module)
+                {
+                    module.await?.options.await?.test_declaration_call_adapter
+                } else {
+                    None
+                };
+                v.code_generation(trie, ctx, scope_hoisting_context, adapter)
+                    .await
+            }
             Self::EsmModuleItem(v) => v.code_generation(trie, ctx).await,
             Self::ExportsInfoBinding(v) => v.code_generation(trie, ctx, module, exports).await,
             Self::ExportsInfoRef(v) => v.code_generation(trie, ctx).await,

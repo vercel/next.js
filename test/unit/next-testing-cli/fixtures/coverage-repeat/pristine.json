@@ -1,0 +1,131 @@
+{
+  "reference": "Vitest5.0.4 with real @vitest/coverage-v8@5.0.4, Node26.1.0",
+  "sourceSHA256": "393adb7ba9639908ece750c70ca6fa2ddd6327f01bc3cd57f0c4e8e3f2baf208",
+  "profiles": [
+    {
+      "name": "baseline",
+      "args": [],
+      "exit": 0,
+      "cases": [
+        {
+          "name": "repeated coverage scalar",
+          "status": "passed"
+        }
+      ],
+      "body": true,
+      "coverage": false,
+      "error": null
+    },
+    {
+      "name": "enabled",
+      "args": ["--coverage"],
+      "exit": 0,
+      "cases": [
+        {
+          "name": "repeated coverage scalar",
+          "status": "passed"
+        }
+      ],
+      "body": true,
+      "coverage": true,
+      "error": null
+    },
+    {
+      "name": "disabled",
+      "args": ["--no-coverage"],
+      "exit": 0,
+      "cases": [
+        {
+          "name": "repeated coverage scalar",
+          "status": "passed"
+        }
+      ],
+      "body": true,
+      "coverage": false,
+      "error": null
+    },
+    {
+      "name": "doubleEnabled",
+      "args": ["--coverage", "--coverage"],
+      "exit": 1,
+      "cases": [],
+      "body": false,
+      "coverage": false,
+      "error": "Expected a single value for option \"--coverage \", received [true, true]"
+    },
+    {
+      "name": "enabledDisabled",
+      "args": ["--coverage", "--no-coverage"],
+      "exit": 0,
+      "cases": [
+        {
+          "name": "repeated coverage scalar",
+          "status": "passed"
+        }
+      ],
+      "body": true,
+      "coverage": false,
+      "error": null
+    },
+    {
+      "name": "disabledEnabled",
+      "args": ["--no-coverage", "--coverage"],
+      "exit": 1,
+      "cases": [],
+      "body": false,
+      "coverage": false,
+      "error": "Expected a single value for option \"--coverage \", received [false, true]"
+    },
+    {
+      "name": "doubleDisabled",
+      "args": ["--no-coverage", "--no-coverage"],
+      "exit": 0,
+      "cases": [
+        {
+          "name": "repeated coverage scalar",
+          "status": "passed"
+        }
+      ],
+      "body": true,
+      "coverage": false,
+      "error": null
+    },
+    {
+      "name": "disabledEnabledDisabled",
+      "args": ["--no-coverage", "--coverage", "--no-coverage"],
+      "exit": 0,
+      "cases": [
+        {
+          "name": "repeated coverage scalar",
+          "status": "passed"
+        }
+      ],
+      "body": true,
+      "coverage": false,
+      "error": null
+    },
+    {
+      "name": "enabledEnabledDisabled",
+      "args": ["--coverage", "--coverage", "--no-coverage"],
+      "exit": 0,
+      "cases": [
+        {
+          "name": "repeated coverage scalar",
+          "status": "passed"
+        }
+      ],
+      "body": true,
+      "coverage": false,
+      "error": null
+    },
+    {
+      "name": "enabledDisabledEnabled",
+      "args": ["--coverage", "--no-coverage", "--coverage"],
+      "exit": 1,
+      "cases": [],
+      "body": false,
+      "coverage": false,
+      "error": "Expected a single value for option \"--coverage \", received [false, true]"
+    }
+  ]
+}

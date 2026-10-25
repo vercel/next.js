@@ -1,0 +1,70 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "id-suite",
+        "trace": [
+          {
+            "phase": "collection-before",
+            "rootReturnUndefined": true,
+            "suiteIdEmpty": true,
+            "fileIdNonempty": true
+          },
+          {
+            "phase": "factory",
+            "suiteIdEmpty": true,
+            "insideIdEmpty": true
+          },
+          {
+            "phase": "manual-collect",
+            "suiteIdEmpty": true,
+            "collectedIdEmpty": true,
+            "insideIdEmpty": true,
+            "suiteSame": true,
+            "sameTask": true
+          },
+          {
+            "phase": "beforeAll",
+            "suiteIdNonempty": true,
+            "insideIdNonempty": true,
+            "collectedSame": true
+          },
+          {
+            "phase": "root-body",
+            "nonemptyId": true,
+            "sameFile": true
+          },
+          {
+            "phase": "inside-body",
+            "sameTask": true,
+            "nonemptyId": true,
+            "suiteSame": true
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "ordinary raw task",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "ordinary raw suite inside raw suite",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

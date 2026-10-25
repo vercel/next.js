@@ -1,0 +1,911 @@
+{
+  "version": 1,
+  "mode": "production",
+  "sdks": ["1.61.0", "1.64.0"],
+  "reference": "Vitest5.0.4 + @vitest/coverage-v8@5.0.4 + actual public Chromium provider; unchanged authored files; complete reports agree on both SDKs",
+  "sourceSyntax": "native-creator-scopes",
+  "sourceFiles": {
+    "wrapped-classic-expression.tsx": {
+      "sha256": "d15ece70875c6b0dee9edb55a7f2ecd0d9a832e563d09b013d53d8f070b5a0f3",
+      "mode": "classic",
+      "shape": "expression"
+    },
+    "wrapped-classic-declaration.tsx": {
+      "sha256": "25e343e5b97fa506a86d1d098e10b52dcce60d6a848c95285cad4c522eb4f526",
+      "mode": "classic",
+      "shape": "declaration"
+    },
+    "wrapped-classic-classexpression.tsx": {
+      "sha256": "c164ee5280a1e4cc1166737207e7c2e885dc9dce583a0963fc79ada0ffa033ad",
+      "mode": "classic",
+      "shape": "classexpression"
+    },
+    "wrapped-automatic-expression.tsx": {
+      "sha256": "9d19ab82fecc84477559079d9ebd9fe30781f8933266af2a040617c286a9f9e1",
+      "mode": "automatic",
+      "shape": "expression"
+    },
+    "wrapped-automatic-declaration.tsx": {
+      "sha256": "ed38a4a386b94fdd321bd7f73271227c9fc9a037361e22d1720767e391906873",
+      "mode": "automatic",
+      "shape": "declaration"
+    },
+    "wrapped-automatic-classexpression.tsx": {
+      "sha256": "518a77d3372bbe589a5b156a7809fb5109312d4c7854425f3a60c35744742eb4",
+      "mode": "automatic",
+      "shape": "classexpression"
+    },
+    "wrapped-corpus.contract.test.mjs": {
+      "sha256": "91f4891ce793df7c5a9a946e3af74f4909df20bb12b4fcf138522acf1488bcee"
+    }
+  },
+  "numPassedTests": 6,
+  "cases": [
+    {
+      "file": "wrapped-corpus.contract.test.mjs",
+      "status": "passed",
+      "cases": [
+        {
+          "ancestorTitles": [],
+          "fullName": "classic expression preserves real callable/class method execution",
+          "status": "passed",
+          "title": "classic expression preserves real callable/class method execution",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "classic declaration preserves real callable/class method execution",
+          "status": "passed",
+          "title": "classic declaration preserves real callable/class method execution",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "classic classexpression preserves real callable/class method execution",
+          "status": "passed",
+          "title": "classic classexpression preserves real callable/class method execution",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "automatic expression preserves real callable/class method execution",
+          "status": "passed",
+          "title": "automatic expression preserves real callable/class method execution",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "automatic declaration preserves real callable/class method execution",
+          "status": "passed",
+          "title": "automatic declaration preserves real callable/class method execution",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "automatic classexpression preserves real callable/class method execution",
+          "status": "passed",
+          "title": "automatic classexpression preserves real callable/class method execution",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ]
+    }
+  ],
+  "coverage": {
+    "wrapped-automatic-classexpression.tsx": {
+      "path": "wrapped-automatic-classexpression.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 1,
+            "column": 7
+          },
+          "end": {
+            "line": 1,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 1,
+            "column": 18
+          },
+          "end": {
+            "line": 1,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 2,
+            "column": 20
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "3": {
+          "start": {
+            "line": 2,
+            "column": 87
+          },
+          "end": {
+            "line": 2,
+            "column": 120
+          }
+        },
+        "4": {
+          "start": {
+            "line": 3,
+            "column": 13
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "5": {
+          "start": {
+            "line": 3,
+            "column": 28
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "render",
+          "decl": {
+            "start": {
+              "line": 2,
+              "column": 77
+            },
+            "end": {
+              "line": 2,
+              "column": 85
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 2,
+              "column": 85
+            },
+            "end": {
+              "line": 2,
+              "column": 122
+            }
+          },
+          "line": 2
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 3,
+              "column": 13
+            },
+            "end": {
+              "line": 3,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 3,
+              "column": 28
+            },
+            "end": {
+              "line": 3,
+              "column": null
+            }
+          },
+          "line": 3
+        }
+      },
+      "branchMap": {},
+      "s": {
+        "0": 1,
+        "1": 1,
+        "2": 1,
+        "3": 2,
+        "4": 1,
+        "5": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {},
+      "meta": {
+        "lastBranch": 0,
+        "lastFunction": 2,
+        "lastStatement": 6,
+        "seen": {
+          "s:1:7:1:Infinity": 0,
+          "s:1:18:1:Infinity": 1,
+          "s:2:20:2:Infinity": 2,
+          "f:2:77:2:85": 0,
+          "s:2:87:2:120": 3,
+          "s:3:13:3:Infinity": 4,
+          "f:3:13:3:28": 1,
+          "s:3:28:3:Infinity": 5
+        },
+        "fnNames": {}
+      }
+    },
+    "wrapped-automatic-declaration.tsx": {
+      "path": "wrapped-automatic-declaration.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 1,
+            "column": 7
+          },
+          "end": {
+            "line": 1,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 1,
+            "column": 18
+          },
+          "end": {
+            "line": 1,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 2,
+            "column": 70
+          },
+          "end": {
+            "line": 2,
+            "column": 103
+          }
+        },
+        "3": {
+          "start": {
+            "line": 3,
+            "column": 13
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "4": {
+          "start": {
+            "line": 3,
+            "column": 28
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "render",
+          "decl": {
+            "start": {
+              "line": 2,
+              "column": 60
+            },
+            "end": {
+              "line": 2,
+              "column": 68
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 2,
+              "column": 68
+            },
+            "end": {
+              "line": 2,
+              "column": 105
+            }
+          },
+          "line": 2
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 3,
+              "column": 13
+            },
+            "end": {
+              "line": 3,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 3,
+              "column": 28
+            },
+            "end": {
+              "line": 3,
+              "column": null
+            }
+          },
+          "line": 3
+        }
+      },
+      "branchMap": {},
+      "s": {
+        "0": 1,
+        "1": 1,
+        "2": 2,
+        "3": 1,
+        "4": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {},
+      "meta": {
+        "lastBranch": 0,
+        "lastFunction": 2,
+        "lastStatement": 5,
+        "seen": {
+          "s:1:7:1:Infinity": 0,
+          "s:1:18:1:Infinity": 1,
+          "f:2:60:2:68": 0,
+          "s:2:70:2:103": 2,
+          "s:3:13:3:Infinity": 3,
+          "f:3:13:3:28": 1,
+          "s:3:28:3:Infinity": 4
+        },
+        "fnNames": {}
+      }
+    },
+    "wrapped-automatic-expression.tsx": {
+      "path": "wrapped-automatic-expression.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 1,
+            "column": 7
+          },
+          "end": {
+            "line": 1,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 1,
+            "column": 18
+          },
+          "end": {
+            "line": 1,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 2,
+            "column": 20
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "3": {
+          "start": {
+            "line": 2,
+            "column": 79
+          },
+          "end": {
+            "line": 2,
+            "column": 86
+          }
+        },
+        "4": {
+          "start": {
+            "line": 2,
+            "column": 86
+          },
+          "end": {
+            "line": 2,
+            "column": 108
+          }
+        },
+        "5": {
+          "start": {
+            "line": 3,
+            "column": 13
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "6": {
+          "start": {
+            "line": 3,
+            "column": 28
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "ViewBody",
+          "decl": {
+            "start": {
+              "line": 2,
+              "column": 29
+            },
+            "end": {
+              "line": 2,
+              "column": 38
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 2,
+              "column": 61
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "line": 2
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 3,
+              "column": 13
+            },
+            "end": {
+              "line": 3,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 3,
+              "column": 28
+            },
+            "end": {
+              "line": 3,
+              "column": null
+            }
+          },
+          "line": 3
+        }
+      },
+      "branchMap": {},
+      "s": {
+        "0": 1,
+        "1": 1,
+        "2": 1,
+        "3": 2,
+        "4": 2,
+        "5": 1,
+        "6": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {},
+      "meta": {
+        "lastBranch": 0,
+        "lastFunction": 2,
+        "lastStatement": 7,
+        "seen": {
+          "s:1:7:1:Infinity": 0,
+          "s:1:18:1:Infinity": 1,
+          "s:2:20:2:Infinity": 2,
+          "f:2:29:2:38": 0,
+          "s:2:79:2:86": 3,
+          "s:2:86:2:108": 4,
+          "s:3:13:3:Infinity": 5,
+          "f:3:13:3:28": 1,
+          "s:3:28:3:Infinity": 6
+        },
+        "fnNames": {}
+      }
+    },
+    "wrapped-classic-classexpression.tsx": {
+      "path": "wrapped-classic-classexpression.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 3,
+            "column": 20
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 3,
+            "column": 87
+          },
+          "end": {
+            "line": 3,
+            "column": 120
+          }
+        },
+        "2": {
+          "start": {
+            "line": 4,
+            "column": 13
+          },
+          "end": {
+            "line": 4,
+            "column": null
+          }
+        },
+        "3": {
+          "start": {
+            "line": 4,
+            "column": 28
+          },
+          "end": {
+            "line": 4,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "render",
+          "decl": {
+            "start": {
+              "line": 3,
+              "column": 77
+            },
+            "end": {
+              "line": 3,
+              "column": 85
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 3,
+              "column": 85
+            },
+            "end": {
+              "line": 3,
+              "column": 122
+            }
+          },
+          "line": 3
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 4,
+              "column": 13
+            },
+            "end": {
+              "line": 4,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 4,
+              "column": 28
+            },
+            "end": {
+              "line": 4,
+              "column": null
+            }
+          },
+          "line": 4
+        }
+      },
+      "branchMap": {},
+      "s": {
+        "0": 1,
+        "1": 2,
+        "2": 1,
+        "3": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {},
+      "meta": {
+        "lastBranch": 0,
+        "lastFunction": 2,
+        "lastStatement": 4,
+        "seen": {
+          "s:3:20:3:Infinity": 0,
+          "f:3:77:3:85": 0,
+          "s:3:87:3:120": 1,
+          "s:4:13:4:Infinity": 2,
+          "f:4:13:4:28": 1,
+          "s:4:28:4:Infinity": 3
+        },
+        "fnNames": {}
+      }
+    },
+    "wrapped-classic-declaration.tsx": {
+      "path": "wrapped-classic-declaration.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 3,
+            "column": 70
+          },
+          "end": {
+            "line": 3,
+            "column": 103
+          }
+        },
+        "1": {
+          "start": {
+            "line": 4,
+            "column": 13
+          },
+          "end": {
+            "line": 4,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 4,
+            "column": 28
+          },
+          "end": {
+            "line": 4,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "render",
+          "decl": {
+            "start": {
+              "line": 3,
+              "column": 60
+            },
+            "end": {
+              "line": 3,
+              "column": 68
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 3,
+              "column": 68
+            },
+            "end": {
+              "line": 3,
+              "column": 105
+            }
+          },
+          "line": 3
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 4,
+              "column": 13
+            },
+            "end": {
+              "line": 4,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 4,
+              "column": 28
+            },
+            "end": {
+              "line": 4,
+              "column": null
+            }
+          },
+          "line": 4
+        }
+      },
+      "branchMap": {},
+      "s": {
+        "0": 2,
+        "1": 1,
+        "2": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {},
+      "meta": {
+        "lastBranch": 0,
+        "lastFunction": 2,
+        "lastStatement": 3,
+        "seen": {
+          "f:3:60:3:68": 0,
+          "s:3:70:3:103": 0,
+          "s:4:13:4:Infinity": 1,
+          "f:4:13:4:28": 1,
+          "s:4:28:4:Infinity": 2
+        },
+        "fnNames": {}
+      }
+    },
+    "wrapped-classic-expression.tsx": {
+      "path": "wrapped-classic-expression.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 3,
+            "column": 20
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 3,
+            "column": 79
+          },
+          "end": {
+            "line": 3,
+            "column": 86
+          }
+        },
+        "2": {
+          "start": {
+            "line": 3,
+            "column": 86
+          },
+          "end": {
+            "line": 3,
+            "column": 108
+          }
+        },
+        "3": {
+          "start": {
+            "line": 4,
+            "column": 13
+          },
+          "end": {
+            "line": 4,
+            "column": null
+          }
+        },
+        "4": {
+          "start": {
+            "line": 4,
+            "column": 28
+          },
+          "end": {
+            "line": 4,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "ViewBody",
+          "decl": {
+            "start": {
+              "line": 3,
+              "column": 29
+            },
+            "end": {
+              "line": 3,
+              "column": 38
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 3,
+              "column": 61
+            },
+            "end": {
+              "line": 3,
+              "column": null
+            }
+          },
+          "line": 3
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 4,
+              "column": 13
+            },
+            "end": {
+              "line": 4,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 4,
+              "column": 28
+            },
+            "end": {
+              "line": 4,
+              "column": null
+            }
+          },
+          "line": 4
+        }
+      },
+      "branchMap": {},
+      "s": {
+        "0": 1,
+        "1": 2,
+        "2": 2,
+        "3": 1,
+        "4": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {},
+      "meta": {
+        "lastBranch": 0,
+        "lastFunction": 2,
+        "lastStatement": 5,
+        "seen": {
+          "s:3:20:3:Infinity": 0,
+          "f:3:29:3:38": 0,
+          "s:3:79:3:86": 1,
+          "s:3:86:3:108": 2,
+          "s:4:13:4:Infinity": 3,
+          "f:4:13:4:28": 1,
+          "s:4:28:4:Infinity": 4
+        },
+        "fnNames": {}
+      }
+    }
+  }
+}

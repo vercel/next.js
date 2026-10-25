@@ -1,0 +1,69 @@
+{
+  "rows": [
+    [
+      {
+        "stage": "body-start",
+        "attempt": 1,
+        "sameTask": true,
+        "sameContext": true,
+        "absent": true
+      },
+      {
+        "stage": "body-return",
+        "attempt": 1,
+        "length": 1,
+        "wrapper": "runWithTimeout"
+      },
+      {
+        "stage": "afterEach",
+        "errors": [
+          "first actual retry"
+        ]
+      },
+      {
+        "stage": "finished",
+        "attempt": 1,
+        "same": true,
+        "length": 1,
+        "aborted": false
+      },
+      {
+        "stage": "body-start",
+        "attempt": 2,
+        "sameTask": true,
+        "sameContext": true,
+        "absent": true
+      },
+      {
+        "stage": "body-return",
+        "attempt": 2,
+        "length": 1,
+        "wrapper": "runWithTimeout"
+      },
+      {
+        "stage": "afterEach",
+        "errors": [
+          "first actual retry"
+        ]
+      },
+      {
+        "stage": "finished",
+        "attempt": 2,
+        "same": true,
+        "length": 1,
+        "aborted": false
+      }
+    ]
+  ],
+  "cases": [
+    {
+      "name": "captured registrar follows real retry reset",
+      "status": "passed",
+      "failureMessages": [
+        "first actual retry"
+      ]
+    }
+  ],
+  "success": true,
+  "exit": 0
+}

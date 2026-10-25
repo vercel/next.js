@@ -1,0 +1,26 @@
+import { afterAll, expect, test } from 'vitest'
+const trace = []
+let local, caller, owner, phase, receiver
+class Token { constructor(value) { this.value = value } }
+expect.addEqualityTesters([function(left, right) {
+  if (left instanceof Token && right instanceof Token) { trace.push({ phase, kind: 'equality', equalsType: typeof this.equals, left: left.value, right: right.value }); return this.equals(left.value.toLowerCase(), right.value.toLowerCase()) }
+}])
+const propertySubject = { get value() { trace.push({ phase, kind: 'property-getter', sameThis: this === propertySubject }); return 3 } }
+class MeasuredClass { static [Symbol.hasInstance](value) { trace.push({ phase, kind: 'has-instance', sameThis: this === MeasuredClass, sameSubject: value === propertySubject }); return value === propertySubject } }
+const regexp = { exec(value) { trace.push({ phase, kind: 'regexp-exec', sameThis: this === regexp, value }); return true } }
+expect.extend({ toInspectFluentCallbacks() { trace.push({ phase, kind: 'state', sameTask: this.task === owner, sameReceiver: this.assertion === receiver }); return { pass: true, message: () => 'fluent callbacks changed' } } })
+const operations = [
+ ['deep-equal', () => local({ nested: new Token('TOKEN') }).to.deep.equal({ nested: new Token('token') })],
+ ['property-getter', () => local(propertySubject).to.have.property('value', 3)],
+ ['class-instance', () => local(propertySubject).to.be.instanceOf(MeasuredClass)],
+ ['regexp-exec', () => local('real exec value').to.match(regexp)],
+ ['object-include', () => local(propertySubject).to.include({ value: 3 })],
+ ['negative-equal', () => local(1).to.equal(2)],
+ ['negative-ok', () => local(0).to.be.ok],
+ ['negative-length', () => local([1]).to.have.lengthOf(2)],
+ ['negative-type', () => local(2).to.be.a('string')],
+]
+function run(label) { phase = label; for (const [name, invoke] of operations) { try { receiver = invoke(); trace.push({ phase, name, type: typeof receiver }); receiver.toInspectFluentCallbacks() } catch (error) { trace.push({ phase, name, error: { name: error.name, message: error.message } }) } } trace.push({ phase, kind: 'counts', owner: local.getState().assertionCalls, caller: caller?.getState().assertionCalls ?? null }) }
+test('creator fluent callback owner', context => { local = context.expect; owner = context.task })
+test('foreign fluent callback caller', context => { caller = context.expect; run('foreign') })
+afterAll(() => { run('afterAll'); console.log('DECLARATION_FN:' + JSON.stringify({ kind: 'fluent-chai-callbacks', trace })) })

@@ -221,6 +221,7 @@ async function browserSelection() {
   let initialized
   const trace = []
   const file = {
+    enableBrowserPublicTaskQueues() {},
     collect: async (load) => load(),
     validateBrowserClient: () => [],
     run: async () => ({ cases: [], errors: [], interrupted: false }),

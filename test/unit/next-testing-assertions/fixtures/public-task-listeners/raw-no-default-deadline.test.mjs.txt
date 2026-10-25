@@ -1,0 +1,10 @@
+import { test, expect, beforeEach, afterEach, afterAll, onTestFinished as globalFinished } from 'vitest'
+const rows = []
+let release = () => {}
+const row = (stage, value = {}) => rows.push({ stage, ...value })
+afterEach(({ task }) => { row('afterEach', { errors: (task.result?.errors ?? []).map(error => error?.message ?? String(error)) }); release() })
+afterAll(() => console.log('TASK_QUEUE_CONSUMER:' + JSON.stringify(rows)))
+test('actual manual raw callback has no invented hook deadline', ({task}) => {
+   task.onFinished = [async function rawFinished(payload) { row('raw-start', { same: payload.task === task, receiverUndefined: this === undefined, args: arguments.length }); await new Promise(resolve => setTimeout(resolve, 1200)); row('raw-end') }]
+   row('body-return', { name: task.onFinished[0].name, length: task.onFinished[0].length })
+ })

@@ -1,0 +1,3 @@
+import { expect, test } from 'vitest'
+import { Card } from './layout-pragmafrag.tsx'
+test('classic fragment uses actual authored pragma factory and fragment', () => { expect(Card({ active: true }).props.children).toBe('yes'); expect(Card({ active: false }).props.children).toBe('no') })

@@ -1,0 +1,1918 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "late-hard-builtin-receivers",
+        "trace": [
+          {
+            "phase": "foreign:toBeTypeOf",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toBeTypeOf",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toBeTypeOf",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toBeTypeOf.length. See docs for proper usage of \"toBeTypeOf\"."
+            }
+          },
+          {
+            "phase": "foreign:toBeTypeOf",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toBeTypeOf",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toBeTypeOf",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "foreign:toBeTypeOf",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "this.assert is not a function"
+            }
+          },
+          {
+            "phase": "foreign:toBeTypeOf",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "foreign:toBeDefined",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toBeDefined",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toBeDefined",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toBeDefined.length. See docs for proper usage of \"toBeDefined\"."
+            }
+          },
+          {
+            "phase": "foreign:toBeDefined",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toBeDefined",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toBeDefined",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "foreign:toBeDefined",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "this.assert is not a function"
+            }
+          },
+          {
+            "phase": "foreign:toBeDefined",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "foreign:toBeUndefined",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toBeUndefined",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toBeUndefined",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toBeUndefined.length. See docs for proper usage of \"toBeUndefined\"."
+            }
+          },
+          {
+            "phase": "foreign:toBeUndefined",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toBeUndefined",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toBeUndefined",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "foreign:toBeUndefined",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "this.assert is not a function"
+            }
+          },
+          {
+            "phase": "foreign:toBeUndefined",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "foreign:toBeNull",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toBeNull",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toBeNull",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toBeNull.length. See docs for proper usage of \"toBeNull\"."
+            }
+          },
+          {
+            "phase": "foreign:toBeNull",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toBeNull",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toBeNull",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "foreign:toBeNull",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "this.assert is not a function"
+            }
+          },
+          {
+            "phase": "foreign:toBeNull",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "foreign:toBeNaN",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toBeNaN",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toBeNaN",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toBeNaN.length. See docs for proper usage of \"toBeNaN\"."
+            }
+          },
+          {
+            "phase": "foreign:toBeNaN",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toBeNaN",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toBeNaN",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "foreign:toBeNaN",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "this.assert is not a function"
+            }
+          },
+          {
+            "phase": "foreign:toBeNaN",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "foreign:toBeTruthy",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toBeTruthy",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toBeTruthy",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toBeTruthy.length. See docs for proper usage of \"toBeTruthy\"."
+            }
+          },
+          {
+            "phase": "foreign:toBeTruthy",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toBeTruthy",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toBeTruthy",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "foreign:toBeTruthy",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "this.assert is not a function"
+            }
+          },
+          {
+            "phase": "foreign:toBeTruthy",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "foreign:toBeFalsy",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toBeFalsy",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toBeFalsy",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toBeFalsy.length. See docs for proper usage of \"toBeFalsy\"."
+            }
+          },
+          {
+            "phase": "foreign:toBeFalsy",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toBeFalsy",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toBeFalsy",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "foreign:toBeFalsy",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "this.assert is not a function"
+            }
+          },
+          {
+            "phase": "foreign:toBeFalsy",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "foreign:toBeGreaterThan",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toBeGreaterThan",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toBeGreaterThan",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toBeGreaterThan.length. See docs for proper usage of \"toBeGreaterThan\"."
+            }
+          },
+          {
+            "phase": "foreign:toBeGreaterThan",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toBeGreaterThan",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toBeGreaterThan",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "foreign:toBeGreaterThan",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "actual value must be number or bigint, received \"undefined\""
+            }
+          },
+          {
+            "phase": "foreign:toBeGreaterThan",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "foreign:toBeGreaterThanOrEqual",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toBeGreaterThanOrEqual",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toBeGreaterThanOrEqual",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toBeGreaterThanOrEqual.length. See docs for proper usage of \"toBeGreaterThanOrEqual\"."
+            }
+          },
+          {
+            "phase": "foreign:toBeGreaterThanOrEqual",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toBeGreaterThanOrEqual",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toBeGreaterThanOrEqual",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "foreign:toBeGreaterThanOrEqual",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "actual value must be number or bigint, received \"undefined\""
+            }
+          },
+          {
+            "phase": "foreign:toBeGreaterThanOrEqual",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "foreign:toBeLessThan",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toBeLessThan",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toBeLessThan",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toBeLessThan.length. See docs for proper usage of \"toBeLessThan\"."
+            }
+          },
+          {
+            "phase": "foreign:toBeLessThan",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toBeLessThan",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toBeLessThan",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "foreign:toBeLessThan",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "actual value must be number or bigint, received \"undefined\""
+            }
+          },
+          {
+            "phase": "foreign:toBeLessThan",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "foreign:toBeLessThanOrEqual",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toBeLessThanOrEqual",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toBeLessThanOrEqual",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toBeLessThanOrEqual.length. See docs for proper usage of \"toBeLessThanOrEqual\"."
+            }
+          },
+          {
+            "phase": "foreign:toBeLessThanOrEqual",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toBeLessThanOrEqual",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toBeLessThanOrEqual",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "foreign:toBeLessThanOrEqual",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "actual value must be number or bigint, received \"undefined\""
+            }
+          },
+          {
+            "phase": "foreign:toBeLessThanOrEqual",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "foreign:toBeCloseTo",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toBeCloseTo",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toBeCloseTo",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toBeCloseTo.length. See docs for proper usage of \"toBeCloseTo\"."
+            }
+          },
+          {
+            "phase": "foreign:toBeCloseTo",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toBeCloseTo",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toBeCloseTo",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "foreign:toBeCloseTo",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "this.assert is not a function"
+            }
+          },
+          {
+            "phase": "foreign:toBeCloseTo",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "foreign:toBeInstanceOf",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toBeInstanceOf",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toBeInstanceOf",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toBeInstanceOf.length. See docs for proper usage of \"toBeInstanceOf\"."
+            }
+          },
+          {
+            "phase": "foreign:toBeInstanceOf",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toBeInstanceOf",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toBeInstanceOf",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "foreign:toBeInstanceOf",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "this.instanceOf is not a function"
+            }
+          },
+          {
+            "phase": "foreign:toBeInstanceOf",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "foreign:toContain",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toContain",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toContain",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toContain.length. See docs for proper usage of \"toContain\"."
+            }
+          },
+          {
+            "phase": "foreign:toContain",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toContain",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toContain",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "foreign:toContain",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "this.contain is not a function"
+            }
+          },
+          {
+            "phase": "foreign:toContain",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "foreign:toContainEqual",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toContainEqual",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toContainEqual",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toContainEqual.length. See docs for proper usage of \"toContainEqual\"."
+            }
+          },
+          {
+            "phase": "foreign:toContainEqual",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toContainEqual",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toContainEqual",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "foreign:toContainEqual",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "undefined is not iterable (cannot read property Symbol(Symbol.iterator))"
+            }
+          },
+          {
+            "phase": "foreign:toContainEqual",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "foreign:toHaveLength",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toHaveLength",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toHaveLength",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toHaveLength.length. See docs for proper usage of \"toHaveLength\"."
+            }
+          },
+          {
+            "phase": "foreign:toHaveLength",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toHaveLength",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toHaveLength",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "foreign:toHaveLength",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading 'length')"
+            }
+          },
+          {
+            "phase": "foreign:toHaveLength",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "foreign:toMatch",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toMatch",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toMatch",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toMatch.length. See docs for proper usage of \"toMatch\"."
+            }
+          },
+          {
+            "phase": "foreign:toMatch",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toMatch",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toMatch",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "foreign:toMatch",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": ".toMatch() expects to receive a string, but got undefined"
+            }
+          },
+          {
+            "phase": "foreign:toMatch",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "foreign",
+            "kind": "counts",
+            "owner": 17,
+            "caller": 17,
+            "reads": 4
+          },
+          {
+            "phase": "afterAll:toBeTypeOf",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toBeTypeOf",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toBeTypeOf",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toBeTypeOf.length. See docs for proper usage of \"toBeTypeOf\"."
+            }
+          },
+          {
+            "phase": "afterAll:toBeTypeOf",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toBeTypeOf",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toBeTypeOf",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "afterAll:toBeTypeOf",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "this.assert is not a function"
+            }
+          },
+          {
+            "phase": "afterAll:toBeTypeOf",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "afterAll:toBeDefined",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toBeDefined",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toBeDefined",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toBeDefined.length. See docs for proper usage of \"toBeDefined\"."
+            }
+          },
+          {
+            "phase": "afterAll:toBeDefined",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toBeDefined",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toBeDefined",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "afterAll:toBeDefined",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "this.assert is not a function"
+            }
+          },
+          {
+            "phase": "afterAll:toBeDefined",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "afterAll:toBeUndefined",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toBeUndefined",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toBeUndefined",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toBeUndefined.length. See docs for proper usage of \"toBeUndefined\"."
+            }
+          },
+          {
+            "phase": "afterAll:toBeUndefined",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toBeUndefined",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toBeUndefined",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "afterAll:toBeUndefined",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "this.assert is not a function"
+            }
+          },
+          {
+            "phase": "afterAll:toBeUndefined",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "afterAll:toBeNull",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toBeNull",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toBeNull",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toBeNull.length. See docs for proper usage of \"toBeNull\"."
+            }
+          },
+          {
+            "phase": "afterAll:toBeNull",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toBeNull",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toBeNull",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "afterAll:toBeNull",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "this.assert is not a function"
+            }
+          },
+          {
+            "phase": "afterAll:toBeNull",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "afterAll:toBeNaN",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toBeNaN",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toBeNaN",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toBeNaN.length. See docs for proper usage of \"toBeNaN\"."
+            }
+          },
+          {
+            "phase": "afterAll:toBeNaN",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toBeNaN",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toBeNaN",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "afterAll:toBeNaN",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "this.assert is not a function"
+            }
+          },
+          {
+            "phase": "afterAll:toBeNaN",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "afterAll:toBeTruthy",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toBeTruthy",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toBeTruthy",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toBeTruthy.length. See docs for proper usage of \"toBeTruthy\"."
+            }
+          },
+          {
+            "phase": "afterAll:toBeTruthy",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toBeTruthy",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toBeTruthy",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "afterAll:toBeTruthy",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "this.assert is not a function"
+            }
+          },
+          {
+            "phase": "afterAll:toBeTruthy",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "afterAll:toBeFalsy",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toBeFalsy",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toBeFalsy",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toBeFalsy.length. See docs for proper usage of \"toBeFalsy\"."
+            }
+          },
+          {
+            "phase": "afterAll:toBeFalsy",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toBeFalsy",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toBeFalsy",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "afterAll:toBeFalsy",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "this.assert is not a function"
+            }
+          },
+          {
+            "phase": "afterAll:toBeFalsy",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "afterAll:toBeGreaterThan",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toBeGreaterThan",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toBeGreaterThan",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toBeGreaterThan.length. See docs for proper usage of \"toBeGreaterThan\"."
+            }
+          },
+          {
+            "phase": "afterAll:toBeGreaterThan",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toBeGreaterThan",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toBeGreaterThan",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "afterAll:toBeGreaterThan",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "actual value must be number or bigint, received \"undefined\""
+            }
+          },
+          {
+            "phase": "afterAll:toBeGreaterThan",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "afterAll:toBeGreaterThanOrEqual",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toBeGreaterThanOrEqual",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toBeGreaterThanOrEqual",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toBeGreaterThanOrEqual.length. See docs for proper usage of \"toBeGreaterThanOrEqual\"."
+            }
+          },
+          {
+            "phase": "afterAll:toBeGreaterThanOrEqual",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toBeGreaterThanOrEqual",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toBeGreaterThanOrEqual",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "afterAll:toBeGreaterThanOrEqual",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "actual value must be number or bigint, received \"undefined\""
+            }
+          },
+          {
+            "phase": "afterAll:toBeGreaterThanOrEqual",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "afterAll:toBeLessThan",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toBeLessThan",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toBeLessThan",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toBeLessThan.length. See docs for proper usage of \"toBeLessThan\"."
+            }
+          },
+          {
+            "phase": "afterAll:toBeLessThan",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toBeLessThan",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toBeLessThan",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "afterAll:toBeLessThan",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "actual value must be number or bigint, received \"undefined\""
+            }
+          },
+          {
+            "phase": "afterAll:toBeLessThan",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "afterAll:toBeLessThanOrEqual",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toBeLessThanOrEqual",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toBeLessThanOrEqual",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toBeLessThanOrEqual.length. See docs for proper usage of \"toBeLessThanOrEqual\"."
+            }
+          },
+          {
+            "phase": "afterAll:toBeLessThanOrEqual",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toBeLessThanOrEqual",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toBeLessThanOrEqual",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "afterAll:toBeLessThanOrEqual",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "actual value must be number or bigint, received \"undefined\""
+            }
+          },
+          {
+            "phase": "afterAll:toBeLessThanOrEqual",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "afterAll:toBeCloseTo",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toBeCloseTo",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toBeCloseTo",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toBeCloseTo.length. See docs for proper usage of \"toBeCloseTo\"."
+            }
+          },
+          {
+            "phase": "afterAll:toBeCloseTo",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toBeCloseTo",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toBeCloseTo",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "afterAll:toBeCloseTo",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "this.assert is not a function"
+            }
+          },
+          {
+            "phase": "afterAll:toBeCloseTo",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "afterAll:toBeInstanceOf",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toBeInstanceOf",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toBeInstanceOf",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toBeInstanceOf.length. See docs for proper usage of \"toBeInstanceOf\"."
+            }
+          },
+          {
+            "phase": "afterAll:toBeInstanceOf",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toBeInstanceOf",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toBeInstanceOf",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "afterAll:toBeInstanceOf",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "this.instanceOf is not a function"
+            }
+          },
+          {
+            "phase": "afterAll:toBeInstanceOf",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "afterAll:toContain",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toContain",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toContain",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toContain.length. See docs for proper usage of \"toContain\"."
+            }
+          },
+          {
+            "phase": "afterAll:toContain",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toContain",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toContain",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "afterAll:toContain",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "this.contain is not a function"
+            }
+          },
+          {
+            "phase": "afterAll:toContain",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "afterAll:toContainEqual",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toContainEqual",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toContainEqual",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toContainEqual.length. See docs for proper usage of \"toContainEqual\"."
+            }
+          },
+          {
+            "phase": "afterAll:toContainEqual",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toContainEqual",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toContainEqual",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "afterAll:toContainEqual",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "undefined is not iterable (cannot read property Symbol(Symbol.iterator))"
+            }
+          },
+          {
+            "phase": "afterAll:toContainEqual",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "afterAll:toHaveLength",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toHaveLength",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toHaveLength",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toHaveLength.length. See docs for proper usage of \"toHaveLength\"."
+            }
+          },
+          {
+            "phase": "afterAll:toHaveLength",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toHaveLength",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toHaveLength",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "afterAll:toHaveLength",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading 'length')"
+            }
+          },
+          {
+            "phase": "afterAll:toHaveLength",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "afterAll:toMatch",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toMatch",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toMatch",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toMatch.length. See docs for proper usage of \"toMatch\"."
+            }
+          },
+          {
+            "phase": "afterAll:toMatch",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toMatch",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toMatch",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "afterAll:toMatch",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": ".toMatch() expects to receive a string, but got undefined"
+            }
+          },
+          {
+            "phase": "afterAll:toMatch",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "afterAll",
+            "kind": "counts",
+            "owner": 17,
+            "caller": 34,
+            "reads": 8
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "creator hard receivers",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "foreign hard receivers",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

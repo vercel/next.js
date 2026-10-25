@@ -1,0 +1,258 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "fluent-chai-callbacks",
+        "trace": [
+          {
+            "phase": "foreign",
+            "name": "deep-equal",
+            "error": {
+              "name": "AssertionError",
+              "message": "expected { nested: Token{ value: 'TOKEN' } } to deeply equal { nested: Token{ value: 'token' } }"
+            }
+          },
+          {
+            "phase": "foreign",
+            "kind": "property-getter",
+            "sameThis": true
+          },
+          {
+            "phase": "foreign",
+            "name": "property-getter",
+            "type": "object"
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true
+          },
+          {
+            "phase": "foreign",
+            "kind": "has-instance",
+            "sameThis": true,
+            "sameSubject": true
+          },
+          {
+            "phase": "foreign",
+            "name": "class-instance",
+            "type": "object"
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true
+          },
+          {
+            "phase": "foreign",
+            "kind": "regexp-exec",
+            "sameThis": true,
+            "value": "real exec value"
+          },
+          {
+            "phase": "foreign",
+            "name": "regexp-exec",
+            "type": "object"
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true
+          },
+          {
+            "phase": "foreign",
+            "kind": "property-getter",
+            "sameThis": true
+          },
+          {
+            "phase": "foreign",
+            "name": "object-include",
+            "type": "object"
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true
+          },
+          {
+            "phase": "foreign",
+            "name": "negative-equal",
+            "error": {
+              "name": "AssertionError",
+              "message": "expected 1 to equal 2"
+            }
+          },
+          {
+            "phase": "foreign",
+            "name": "negative-ok",
+            "error": {
+              "name": "AssertionError",
+              "message": "expected +0 to be truthy"
+            }
+          },
+          {
+            "phase": "foreign",
+            "name": "negative-length",
+            "error": {
+              "name": "AssertionError",
+              "message": "expected [ 1 ] to have a length of 2 but got 1"
+            }
+          },
+          {
+            "phase": "foreign",
+            "name": "negative-type",
+            "error": {
+              "name": "AssertionError",
+              "message": "expected 2 to be a string"
+            }
+          },
+          {
+            "phase": "foreign",
+            "kind": "counts",
+            "owner": 9,
+            "caller": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "deep-equal",
+            "error": {
+              "name": "AssertionError",
+              "message": "expected { nested: Token{ value: 'TOKEN' } } to deeply equal { nested: Token{ value: 'token' } }"
+            }
+          },
+          {
+            "phase": "afterAll",
+            "kind": "property-getter",
+            "sameThis": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "property-getter",
+            "type": "object"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true
+          },
+          {
+            "phase": "afterAll",
+            "kind": "has-instance",
+            "sameThis": true,
+            "sameSubject": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "class-instance",
+            "type": "object"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true
+          },
+          {
+            "phase": "afterAll",
+            "kind": "regexp-exec",
+            "sameThis": true,
+            "value": "real exec value"
+          },
+          {
+            "phase": "afterAll",
+            "name": "regexp-exec",
+            "type": "object"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true
+          },
+          {
+            "phase": "afterAll",
+            "kind": "property-getter",
+            "sameThis": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "object-include",
+            "type": "object"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "negative-equal",
+            "error": {
+              "name": "AssertionError",
+              "message": "expected 1 to equal 2"
+            }
+          },
+          {
+            "phase": "afterAll",
+            "name": "negative-ok",
+            "error": {
+              "name": "AssertionError",
+              "message": "expected +0 to be truthy"
+            }
+          },
+          {
+            "phase": "afterAll",
+            "name": "negative-length",
+            "error": {
+              "name": "AssertionError",
+              "message": "expected [ 1 ] to have a length of 2 but got 1"
+            }
+          },
+          {
+            "phase": "afterAll",
+            "name": "negative-type",
+            "error": {
+              "name": "AssertionError",
+              "message": "expected 2 to be a string"
+            }
+          },
+          {
+            "phase": "afterAll",
+            "kind": "counts",
+            "owner": 18,
+            "caller": 0
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "creator fluent callback owner",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "foreign fluent callback caller",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

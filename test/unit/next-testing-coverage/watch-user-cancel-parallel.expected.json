@@ -1,0 +1,703 @@
+{
+  "reference": {
+    "package": "vitest",
+    "version": "5.0.4",
+    "profiles": 6,
+    "guarantee": "JSON file order follows each run\u2019s selected specifications; concurrent hooks preserve each file\u2019s sequence."
+  },
+  "sources": {
+    "a": "import { test, expect, beforeEach, afterEach, onTestFinished } from 'vitest'\nimport { watch, existsSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs'\nimport { choose } from './subject.mjs'\nconst label = \"a\"\nmkdirSync('parallel-cancel', { recursive: true })\nconst record = (event, data = {}) => appendFileSync('parallel-cancel/trace.jsonl', JSON.stringify({event, label, pid: process.pid, ...data})+'\\n')\nprocess.on('exit', code => record('worker-exit', {code}))\nbeforeEach(context => record('beforeEach', {name: context.task.name}))\nafterEach(context => record('afterEach', {name: context.task.name, state: context.task.result?.state, aborted: context.signal.aborted, reason: context.signal.reason?.message}))\ntest(label+' active', async () => {\n  onTestFinished(context => record('onTestFinished', {state: context.task.result?.state}))\n  choose(true)\n  record('body-start')\n  await new Promise(resolve => {\n    if (existsSync('.next/cancel-controls/'+label+'-release')) { resolve(); return }\n    const watcher = watch('.next/cancel-controls', () => {\n      if (existsSync('.next/cancel-controls/'+label+'-release')) { watcher.close(); resolve() }\n    })\n    writeFileSync('.next/cancel-controls/'+label+'-started', 'ready')\n  })\n  record('body-finished')\n}, 10000)\ntest(label+' queued', () => record('queued-body'))\n",
+    "b": "import { test, expect, beforeEach, afterEach, onTestFinished } from 'vitest'\nimport { watch, existsSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs'\nimport { choose } from './subject.mjs'\nconst label = \"b\"\nmkdirSync('parallel-cancel', { recursive: true })\nconst record = (event, data = {}) => appendFileSync('parallel-cancel/trace.jsonl', JSON.stringify({event, label, pid: process.pid, ...data})+'\\n')\nprocess.on('exit', code => record('worker-exit', {code}))\nbeforeEach(context => record('beforeEach', {name: context.task.name}))\nafterEach(context => record('afterEach', {name: context.task.name, state: context.task.result?.state, aborted: context.signal.aborted, reason: context.signal.reason?.message}))\ntest(label+' active', async () => {\n  onTestFinished(context => record('onTestFinished', {state: context.task.result?.state}))\n  choose(false)\n  record('body-start')\n  await new Promise(resolve => {\n    if (existsSync('.next/cancel-controls/'+label+'-release')) { resolve(); return }\n    const watcher = watch('.next/cancel-controls', () => {\n      if (existsSync('.next/cancel-controls/'+label+'-release')) { watcher.close(); resolve() }\n    })\n    writeFileSync('.next/cancel-controls/'+label+'-started', 'ready')\n  })\n  record('body-finished')\n}, 10000)\ntest(label+' queued', () => record('queued-body'))\n"
+  },
+  "caseReports": {
+    "cancelled": {
+      "a.case.mjs": {
+        "file": "a.case.mjs",
+        "status": "passed",
+        "cases": [
+          {
+            "ancestorTitles": [],
+            "fullName": "a active",
+            "status": "skipped",
+            "title": "a active",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          },
+          {
+            "ancestorTitles": [],
+            "fullName": "a queued",
+            "status": "skipped",
+            "title": "a queued",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          }
+        ]
+      },
+      "b.case.mjs": {
+        "file": "b.case.mjs",
+        "status": "passed",
+        "cases": [
+          {
+            "ancestorTitles": [],
+            "fullName": "b active",
+            "status": "skipped",
+            "title": "b active",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          },
+          {
+            "ancestorTitles": [],
+            "fullName": "b queued",
+            "status": "skipped",
+            "title": "b queued",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          }
+        ]
+      }
+    },
+    "recovery": {
+      "a.case.mjs": {
+        "file": "a.case.mjs",
+        "status": "passed",
+        "cases": [
+          {
+            "ancestorTitles": [],
+            "fullName": "a active",
+            "status": "passed",
+            "title": "a active",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          },
+          {
+            "ancestorTitles": [],
+            "fullName": "a queued",
+            "status": "passed",
+            "title": "a queued",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          }
+        ]
+      },
+      "b.case.mjs": {
+        "file": "b.case.mjs",
+        "status": "passed",
+        "cases": [
+          {
+            "ancestorTitles": [],
+            "fullName": "b active",
+            "status": "passed",
+            "title": "b active",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          },
+          {
+            "ancestorTitles": [],
+            "fullName": "b queued",
+            "status": "passed",
+            "title": "b queued",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          }
+        ]
+      }
+    }
+  },
+  "coverageReports": {
+    "cancelled": {
+      "subject.mjs": {
+        "path": "subject.mjs",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 2,
+              "column": 2
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "1": {
+            "start": {
+              "line": 2,
+              "column": 12
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 3,
+              "column": 2
+            },
+            "end": {
+              "line": 3,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 6,
+              "column": 2
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "choose",
+            "decl": {
+              "start": {
+                "line": 1,
+                "column": 16
+              },
+              "end": {
+                "line": 1,
+                "column": 22
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 29
+              },
+              "end": {
+                "line": 4,
+                "column": null
+              }
+            },
+            "line": 1
+          },
+          "1": {
+            "name": "unused",
+            "decl": {
+              "start": {
+                "line": 5,
+                "column": 16
+              },
+              "end": {
+                "line": 5,
+                "column": 22
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 25
+              },
+              "end": {
+                "line": 7,
+                "column": null
+              }
+            },
+            "line": 5
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "type": "if",
+            "locations": [
+              {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              {
+                "start": {},
+                "end": {}
+              }
+            ],
+            "line": 2
+          }
+        },
+        "s": {
+          "0": 2,
+          "1": 1,
+          "2": 1,
+          "3": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 0
+        },
+        "b": {
+          "0": [1, 1]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 2,
+          "lastStatement": 4,
+          "seen": {
+            "f:1:16:1:22": 0,
+            "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+            "s:2:2:2:Infinity": 0,
+            "s:2:12:2:Infinity": 1,
+            "s:3:2:3:Infinity": 2,
+            "f:5:16:5:22": 1,
+            "s:6:2:6:Infinity": 3
+          },
+          "fnNames": {}
+        }
+      },
+      "unimported.mjs": {
+        "path": "unimported.mjs",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 2,
+              "column": 2
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "untouched",
+            "decl": {
+              "start": {
+                "line": 1,
+                "column": 16
+              },
+              "end": {
+                "line": 1,
+                "column": 25
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 28
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "line": 1
+          }
+        },
+        "branchMap": {},
+        "s": {
+          "0": 0
+        },
+        "f": {
+          "0": 0
+        },
+        "b": {},
+        "meta": {
+          "lastBranch": 0,
+          "lastFunction": 1,
+          "lastStatement": 1,
+          "seen": {
+            "f:1:16:1:25": 0,
+            "s:2:2:2:Infinity": 0
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    "recovery": {
+      "subject.mjs": {
+        "path": "subject.mjs",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 2,
+              "column": 2
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "1": {
+            "start": {
+              "line": 2,
+              "column": 12
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 3,
+              "column": 2
+            },
+            "end": {
+              "line": 3,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 6,
+              "column": 2
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "choose",
+            "decl": {
+              "start": {
+                "line": 1,
+                "column": 16
+              },
+              "end": {
+                "line": 1,
+                "column": 22
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 29
+              },
+              "end": {
+                "line": 4,
+                "column": null
+              }
+            },
+            "line": 1
+          },
+          "1": {
+            "name": "unused",
+            "decl": {
+              "start": {
+                "line": 5,
+                "column": 16
+              },
+              "end": {
+                "line": 5,
+                "column": 22
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 25
+              },
+              "end": {
+                "line": 7,
+                "column": null
+              }
+            },
+            "line": 5
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "type": "if",
+            "locations": [
+              {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              {
+                "start": {},
+                "end": {}
+              }
+            ],
+            "line": 2
+          }
+        },
+        "s": {
+          "0": 2,
+          "1": 1,
+          "2": 1,
+          "3": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 0
+        },
+        "b": {
+          "0": [1, 1]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 2,
+          "lastStatement": 4,
+          "seen": {
+            "f:1:16:1:22": 0,
+            "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+            "s:2:2:2:Infinity": 0,
+            "s:2:12:2:Infinity": 1,
+            "s:3:2:3:Infinity": 2,
+            "f:5:16:5:22": 1,
+            "s:6:2:6:Infinity": 3
+          },
+          "fnNames": {}
+        }
+      },
+      "unimported.mjs": {
+        "path": "unimported.mjs",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 2,
+              "column": 2
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "untouched",
+            "decl": {
+              "start": {
+                "line": 1,
+                "column": 16
+              },
+              "end": {
+                "line": 1,
+                "column": 25
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 28
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "line": 1
+          }
+        },
+        "branchMap": {},
+        "s": {
+          "0": 0
+        },
+        "f": {
+          "0": 0
+        },
+        "b": {},
+        "meta": {
+          "lastBranch": 0,
+          "lastFunction": 1,
+          "lastStatement": 1,
+          "seen": {
+            "f:1:16:1:25": 0,
+            "s:2:2:2:Infinity": 0
+          },
+          "fnNames": {}
+        }
+      }
+    }
+  },
+  "selectedOrders": {
+    "cancelled": [["a.case.mjs", "b.case.mjs"]],
+    "recovery": [
+      ["a.case.mjs", "b.case.mjs"],
+      ["b.case.mjs", "a.case.mjs"]
+    ]
+  },
+  "authoredTraces": {
+    "cancelled": {
+      "a": [
+        {
+          "event": "beforeEach",
+          "label": "a",
+          "name": "a active"
+        },
+        {
+          "event": "body-start",
+          "label": "a"
+        },
+        {
+          "event": "afterEach",
+          "label": "a",
+          "name": "a active",
+          "state": "skip",
+          "aborted": true,
+          "reason": "The test run was aborted by the user."
+        },
+        {
+          "event": "onTestFinished",
+          "label": "a",
+          "state": "skip"
+        }
+      ],
+      "b": [
+        {
+          "event": "beforeEach",
+          "label": "b",
+          "name": "b active"
+        },
+        {
+          "event": "body-start",
+          "label": "b"
+        },
+        {
+          "event": "afterEach",
+          "label": "b",
+          "name": "b active",
+          "state": "skip",
+          "aborted": true,
+          "reason": "The test run was aborted by the user."
+        },
+        {
+          "event": "onTestFinished",
+          "label": "b",
+          "state": "skip"
+        }
+      ]
+    },
+    "recovery": {
+      "a": [
+        {
+          "event": "beforeEach",
+          "label": "a",
+          "name": "a active"
+        },
+        {
+          "event": "body-start",
+          "label": "a"
+        },
+        {
+          "event": "body-finished",
+          "label": "a"
+        },
+        {
+          "event": "afterEach",
+          "label": "a",
+          "name": "a active",
+          "state": "pass",
+          "aborted": false
+        },
+        {
+          "event": "onTestFinished",
+          "label": "a",
+          "state": "pass"
+        },
+        {
+          "event": "beforeEach",
+          "label": "a",
+          "name": "a queued"
+        },
+        {
+          "event": "queued-body",
+          "label": "a"
+        },
+        {
+          "event": "afterEach",
+          "label": "a",
+          "name": "a queued",
+          "state": "pass",
+          "aborted": false
+        }
+      ],
+      "b": [
+        {
+          "event": "beforeEach",
+          "label": "b",
+          "name": "b active"
+        },
+        {
+          "event": "body-start",
+          "label": "b"
+        },
+        {
+          "event": "body-finished",
+          "label": "b"
+        },
+        {
+          "event": "afterEach",
+          "label": "b",
+          "name": "b active",
+          "state": "pass",
+          "aborted": false
+        },
+        {
+          "event": "onTestFinished",
+          "label": "b",
+          "state": "pass"
+        },
+        {
+          "event": "beforeEach",
+          "label": "b",
+          "name": "b queued"
+        },
+        {
+          "event": "queued-body",
+          "label": "b"
+        },
+        {
+          "event": "afterEach",
+          "label": "b",
+          "name": "b queued",
+          "state": "pass",
+          "aborted": false
+        }
+      ]
+    }
+  }
+}

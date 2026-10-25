@@ -1,0 +1,276 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "throw-callbacks",
+        "trace": [
+          {
+            "phase": "foreign",
+            "kind": "subject",
+            "thisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "kind": "has-instance",
+            "sameClass": true,
+            "sameThrown": true
+          },
+          {
+            "phase": "foreign",
+            "kind": "returned:instance",
+            "name": "toThrow",
+            "sameAssertion": false,
+            "returnedType": "object"
+          },
+          {
+            "phase": "foreign",
+            "kind": "subject",
+            "thisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "kind": "asymmetric",
+            "sameThis": true,
+            "sameThrown": true,
+            "testersArray": true,
+            "testerCount": 2
+          },
+          {
+            "phase": "foreign",
+            "kind": "returned:asymmetric",
+            "name": "toThrow",
+            "sameAssertion": false,
+            "returnedType": "object"
+          },
+          {
+            "phase": "foreign",
+            "kind": "subject",
+            "thisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "kind": "custom-tester",
+            "leftSame": true,
+            "rightSame": true,
+            "equalsType": "function"
+          },
+          {
+            "phase": "foreign",
+            "kind": "returned:equality",
+            "name": "toThrow",
+            "sameAssertion": false,
+            "returnedType": "object"
+          },
+          {
+            "phase": "foreign",
+            "kind": "subject",
+            "thisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "kind": "has-instance",
+            "sameClass": true,
+            "sameThrown": true
+          },
+          {
+            "phase": "foreign",
+            "kind": "returned:instance",
+            "name": "toThrowError",
+            "sameAssertion": false,
+            "returnedType": "object"
+          },
+          {
+            "phase": "foreign",
+            "kind": "subject",
+            "thisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "kind": "asymmetric",
+            "sameThis": true,
+            "sameThrown": true,
+            "testersArray": true,
+            "testerCount": 2
+          },
+          {
+            "phase": "foreign",
+            "kind": "returned:asymmetric",
+            "name": "toThrowError",
+            "sameAssertion": false,
+            "returnedType": "object"
+          },
+          {
+            "phase": "foreign",
+            "kind": "subject",
+            "thisUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "kind": "custom-tester",
+            "leftSame": true,
+            "rightSame": true,
+            "equalsType": "function"
+          },
+          {
+            "phase": "foreign",
+            "kind": "returned:equality",
+            "name": "toThrowError",
+            "sameAssertion": false,
+            "returnedType": "object"
+          },
+          {
+            "phase": "foreign",
+            "kind": "counts",
+            "calls": 6,
+            "ownerCount": 6,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "kind": "subject",
+            "thisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "kind": "has-instance",
+            "sameClass": true,
+            "sameThrown": true
+          },
+          {
+            "phase": "afterAll",
+            "kind": "returned:instance",
+            "name": "toThrow",
+            "sameAssertion": false,
+            "returnedType": "object"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "subject",
+            "thisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "kind": "asymmetric",
+            "sameThis": true,
+            "sameThrown": true,
+            "testersArray": true,
+            "testerCount": 2
+          },
+          {
+            "phase": "afterAll",
+            "kind": "returned:asymmetric",
+            "name": "toThrow",
+            "sameAssertion": false,
+            "returnedType": "object"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "subject",
+            "thisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "kind": "custom-tester",
+            "leftSame": true,
+            "rightSame": true,
+            "equalsType": "function"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "returned:equality",
+            "name": "toThrow",
+            "sameAssertion": false,
+            "returnedType": "object"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "subject",
+            "thisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "kind": "has-instance",
+            "sameClass": true,
+            "sameThrown": true
+          },
+          {
+            "phase": "afterAll",
+            "kind": "returned:instance",
+            "name": "toThrowError",
+            "sameAssertion": false,
+            "returnedType": "object"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "subject",
+            "thisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "kind": "asymmetric",
+            "sameThis": true,
+            "sameThrown": true,
+            "testersArray": true,
+            "testerCount": 2
+          },
+          {
+            "phase": "afterAll",
+            "kind": "returned:asymmetric",
+            "name": "toThrowError",
+            "sameAssertion": false,
+            "returnedType": "object"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "subject",
+            "thisUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "kind": "custom-tester",
+            "leftSame": true,
+            "rightSame": true,
+            "equalsType": "function"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "returned:equality",
+            "name": "toThrowError",
+            "sameAssertion": false,
+            "returnedType": "object"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "counts",
+            "calls": 12,
+            "ownerCount": 12,
+            "callerCount": 0
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "creator throw callback identity",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "foreign throw callback identity",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

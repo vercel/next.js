@@ -1,4 +1,4 @@
-import type { TestArtifact } from '../runner/tasks'
+import type { TestArtifact, TaskLocation } from '../runner/tasks'
 import { relative, sep } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import type { createTestReporter } from './reporter'
@@ -23,7 +23,7 @@ interface Task {
   module?: Task
   parent?: Task
   project: { name: string }
-  location?: CaseResult['location']
+  location?: TaskLocation
   options?: { mode: 'run' | 'skip' | 'todo'; tags?: string[] }
   tags?: string[]
   children?: Collection
@@ -248,7 +248,11 @@ export function createCustomReporterModules(
             parent.task.type === 'module'
               ? name
               : `${parent.task.fullName} > ${name}`,
-          location: test.location,
+          location:
+            test.location?.line !== undefined &&
+            test.location.column !== undefined
+              ? { line: test.location.line, column: test.location.column }
+              : undefined,
           module,
           parent: parent.task,
           options: { mode: test.mode ?? 'run', tags: test.tags },

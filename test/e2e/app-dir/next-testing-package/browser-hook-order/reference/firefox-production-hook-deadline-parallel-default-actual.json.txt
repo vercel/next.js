@@ -1,0 +1,45 @@
+{
+  "rows": [
+    [
+      {
+        "stage": "before-one-start",
+        "aborted": false
+      },
+      {
+        "stage": "before-two",
+        "aborted": false
+      },
+      {
+        "stage": "after-each-start",
+        "aborted": true
+      },
+      {
+        "stage": "before-one-end",
+        "aborted": true
+      },
+      {
+        "stage": "after-each-end",
+        "aborted": true
+      },
+      {
+        "stage": "finished",
+        "aborted": true
+      },
+      {
+        "stage": "failed",
+        "aborted": true
+      }
+    ]
+  ],
+  "cases": [
+    {
+      "name": "actual hook deadline and released resource",
+      "status": "failed",
+      "failureMessages": [
+        "beforeEach@http://localhost:63315/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-B98rf27D.js?v=d16a274c:4452:42\n@http://localhost:63315/private/tmp/next-testing-run/work-1/task-buffers/browser-hook-order/.hook-resource-reference-4m2w56c2/hooks.test.mjs?import&browserv=1792867780674:7:11\n"
+      ]
+    }
+  ],
+  "success": false,
+  "exit": 1
+}

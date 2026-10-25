@@ -1,8 +1,16 @@
 import { processError } from '../../../compiled/next-test-primitives/error'
 import type { TestExpect } from '../assertions'
 import type { TestError } from '../../../compiled/next-test-primitives'
-import type { TestCase, TestContext, TestOptions, TestSuite } from './collector'
+import type {
+  TestBody,
+  TestCase,
+  TestContext,
+  TestOptions,
+  TestSuite,
+} from './collector'
 import { basename } from './task-path'
+import { getPublicTestContext } from './invocation-platform'
+import type { AttemptContext } from './lifecycle'
 
 export interface TaskMeta {
   typecheck?: boolean
@@ -93,7 +101,13 @@ export interface TaskResult {
     >
   >
 }
+export interface TaskLocation {
+  line: number
+  column: number
+}
+
 interface TaskBase {
+  location?: TaskLocation
   id: string
   name: string
   fullName: string
@@ -106,6 +120,7 @@ interface TaskBase {
   file: File
   suite?: Suite
   result?: TaskResult
+  promises?: Promise<any>[]
 }
 export interface Test<ExtraContext extends object = object> extends TaskBase {
   type: 'test'
@@ -134,6 +149,163 @@ export type ExpectStatic = TestExpect
 // The runner reuses those real handles without putting private callbacks into
 // the task graph sent to the parent process.
 const collectionTaskViews = new WeakMap<TestCase | TestSuite, Task>()
+
+type CollectionContextOwner = {
+  assertCollecting(): void
+  getExpect(): TestExpect
+}
+const publishedContexts = new WeakMap<
+  Test,
+  {
+    context: TestContext
+    controller: AbortController
+    expect?: TestExpect
+    collection?: CollectionContextOwner
+    resolve?: (api?: string) => AttemptContext
+    listeners?: Pick<AttemptContext, 'onTestFinished' | 'onTestFailed'>
+  }
+>()
+
+/** A real task owns its context before its first attempt, and across every retry. */
+export function getTaskContext(
+  task: Test,
+  collection?: CollectionContextOwner
+) {
+  let published = publishedContexts.get(task)
+  if (!published) {
+    const controller = new AbortController()
+    const owner = (api?: string) => {
+      const resolve = published!.resolve
+      if (!resolve)
+        throw new Error('Test context requires an active Next test attempt.')
+      return resolve(api)
+    }
+    const context = function context() {
+      throw new Error('done() callback is deprecated, use promise instead')
+    } as unknown as TestContext & { onCleanup: AttemptContext['onCleanup'] }
+    Object.defineProperty(context, 'name', {
+      value: 'context',
+      configurable: true,
+    })
+    const methods = {
+      signal: controller.signal,
+      task,
+      skip: function (condition: unknown, _note: unknown) {
+        if (!published!.resolve && condition === false) {
+          published!.collection?.assertCollecting()
+          if (published!.collection) return
+        }
+        return Reflect.apply(owner('skip()').skip, undefined, arguments)
+      } as TestContext['skip'],
+      annotate: function (
+        _message: unknown,
+        _attachment: unknown,
+        _location: unknown
+      ) {
+        return Reflect.apply(owner('annotate()').annotate, undefined, arguments)
+      } as TestContext['annotate'],
+      onTestFailed: function (handler, timeout) {
+        const register = published!.listeners?.onTestFailed
+        return register
+          ? register(handler, timeout)
+          : owner().onTestFailed(handler, timeout)
+      } as TestContext['onTestFailed'],
+      onTestFinished: function (handler, timeout) {
+        const register = published!.listeners?.onTestFinished
+        return register
+          ? register(handler, timeout)
+          : owner().onTestFinished(handler, timeout)
+      } as TestContext['onTestFinished'],
+    }
+    // The primitive publishes anonymous methods, including when they are extracted.
+    for (const method of Object.values(methods))
+      if (typeof method === 'function')
+        Object.defineProperty(method, 'name', { value: '', configurable: true })
+    Object.assign(context, methods)
+    Object.defineProperties(context, {
+      expect: {
+        get() {
+          // Browser publishes a guarded facade and keeps its existing resolver.
+          const retain = published!.context === context
+          if (retain && published!.expect) return published!.expect
+          let local: TestExpect
+          if (published!.resolve) local = owner().expect
+          else {
+            published!.collection?.assertCollecting()
+            if (!published!.collection)
+              throw new Error(
+                'context.expect requires an assertion integration.'
+              )
+            local = published!.collection.getExpect()
+          }
+          if (retain) published!.expect = local
+          return local
+        },
+      },
+      inject: {
+        value: (key: string) => owner().inject(key as never),
+        configurable: true,
+        writable: true,
+      },
+      bench: {
+        value: (...args: Parameters<TestContext['bench']>) =>
+          Reflect.apply(owner().bench, undefined, args),
+        configurable: true,
+        writable: true,
+      },
+      onCleanup: {
+        value: (cleanup: Parameters<AttemptContext['onCleanup']>[0]) =>
+          owner().onCleanup(cleanup),
+        configurable: true,
+        writable: true,
+      },
+    })
+    published = { context: getPublicTestContext(context), controller }
+    publishedContexts.set(task, published)
+    Object.defineProperty(task, 'context', {
+      value: published.context,
+      writable: true,
+      configurable: true,
+    })
+  }
+  if (collection) published.collection = collection
+  const held = published
+  return {
+    context: held.context,
+    controller: held.controller,
+    bind(resolve: (api?: string) => AttemptContext) {
+      held.resolve = resolve
+    },
+    bindListeners(
+      listeners: Pick<AttemptContext, 'onTestFinished' | 'onTestFailed'>
+    ) {
+      held.listeners = listeners
+    },
+    get listeners() {
+      return held.listeners
+    },
+  }
+}
+
+/** Global selection uses the real task while its original registrar stays private. */
+export function registerPublishedTaskListener(
+  task: Test,
+  name: 'onTestFinished' | 'onTestFailed',
+  handler: TestBody,
+  timeout?: number
+) {
+  const published = publishedContexts.get(task)
+  if (!published) throw new Error('Test context has not been published.')
+  const register = published.listeners?.[name] ?? published.context[name]
+  Reflect.apply(register, undefined, [handler, timeout])
+}
+
+const publishedTaskLocations = new WeakMap<Task, TaskLocation | undefined>()
+
+/** The real collection publication precedes runtime mutation of the actual Task. */
+export function getPublishedTaskLocation(task: Task): TaskLocation | undefined {
+  return publishedTaskLocations.get(task)
+}
 
 export function getCollectionTaskView(
   root: TestSuite,
@@ -167,7 +339,9 @@ export function getCollectionTaskView(
     .filter(Boolean)
     .join(' > ')
   const common = {
-    id: node.id,
+    ...(node.location === undefined ? {} : { location: node.location }),
+    // Child IDs are published once the completed file graph is ready to run.
+    id: '',
     name: node.name,
     fullName: [file.fullName, fullTestName].filter(Boolean).join(' > '),
     fullTestName,
@@ -196,13 +370,8 @@ export function getCollectionTaskView(
           artifacts: [],
           benchmarks: [],
         } as unknown as Test)
-  if (node.type === 'test')
-    Object.defineProperty(view, 'context', {
-      value: undefined,
-      writable: true,
-      configurable: true,
-    })
   collectionTaskViews.set(node, view)
+  if (node.type === 'test') getTaskContext(view as Test)
   return view
 }
 
@@ -242,6 +411,9 @@ export function createTaskTree(
       .filter(Boolean)
       .join(' > ')
     const common = {
+      ...(!held && node.location !== undefined
+        ? { location: node.location }
+        : {}),
       id: node.id,
       name: node.name,
       fullName: [file.fullName, fullTestName].filter(Boolean).join(' > '),
@@ -274,7 +446,10 @@ export function createTaskTree(
       const test: Test = {
         ...common,
         type: 'test',
-        context: undefined as unknown as TestContext,
+        context:
+          held?.type === 'test'
+            ? held.context
+            : (undefined as unknown as TestContext),
         timeout: node.options.timeout ?? options.testTimeout,
         retry: node.options.retry,
         repeats: node.options.repeats,
@@ -289,6 +464,17 @@ export function createTaskTree(
     parent.tasks.push(task)
   }
   for (const child of root.children) visit(child, file)
+  for (const task of tasks.values()) {
+    if (publishedTaskLocations.has(task)) continue
+    const descriptor = Object.getOwnPropertyDescriptor(task, 'location')
+    const location = descriptor ? task.location : undefined
+    publishedTaskLocations.set(
+      task,
+      location === undefined
+        ? undefined
+        : { line: location.line, column: location.column }
+    )
+  }
   return { file, tasks }
 }
 

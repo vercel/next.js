@@ -1,0 +1,57 @@
+import { test, expect, chai, beforeEach, afterEach, afterAll } from 'vitest'
+const rows = { 'ordinary global flags': [], 'custom global flags': [], 'foreign raw payload': [], 'concurrent first': [], 'concurrent second': [] }
+const tasks = new Map()
+function probe(task, stage, assertion) {
+  const flagged = chai.util.flag(assertion, 'vitest-test')
+  rows[task.name].push({ stage, sameTask: flagged === task, type: flagged?.type ?? null, name: flagged?.name ?? null, sameFile: flagged?.file === task.file, repeatReadIdentity: chai.util.flag(assertion, 'vitest-test') === flagged })
+}
+beforeEach(context => {
+  tasks.set(context.task.name, context.task)
+  probe(context.task, 'beforeEach-global', expect(0))
+  probe(context.task, 'beforeEach-local', context.expect(0))
+})
+afterEach(context => {
+  probe(context.task, 'afterEach-global', expect(0))
+  probe(context.task, 'afterEach-local', context.expect(0))
+})
+expect.extend({
+  globalFlagProbe(name) { const task = tasks.get(name); probe(task, 'custom-sync', this.assertion); rows[name].push({ stage: 'custom-sync-state', sameTask: this.task === task }); return { pass: true, message: () => 'global flag probe' } },
+  async globalAsyncFlagProbe(name) { const task = tasks.get(name); probe(task, 'custom-async-enter', this.assertion); rows[name].push({ stage: 'custom-async-state', sameTask: this.task === task }); await Promise.resolve(); probe(task, 'custom-async-resume', this.assertion); return { pass: true, message: () => 'global async flag probe' } },
+})
+test('ordinary global flags', async context => {
+  const global = expect(Promise.resolve(1))
+  probe(context.task, 'body-global', global)
+  probe(context.task, 'body-local', context.expect(0))
+  await global.resolves.toBe(1)
+  probe(context.task, 'after-native-await', global)
+})
+test('custom global flags', async context => {
+  expect(context.task.name).globalFlagProbe()
+  await expect(context.task.name).globalAsyncFlagProbe()
+  probe(context.task, 'custom-body-end', expect(0))
+})
+test('foreign raw payload', context => {
+  const assertion = expect(0), foreign = tasks.get('ordinary global flags')
+  chai.util.flag(assertion, 'vitest-test', foreign)
+  rows[context.task.name].push({ stage: 'foreign-get', exactForeignTask: chai.util.flag(assertion, 'vitest-test') === foreign })
+  chai.util.flag(assertion, 'vitest-test', context.task)
+  probe(context.task, 'restored-current', assertion)
+})
+let release
+const gate = new Promise(resolve => { release = resolve })
+test.concurrent('concurrent first', async context => {
+  probe(context.task, 'concurrent-enter-global', expect(0))
+  probe(context.task, 'concurrent-enter-local', context.expect(0))
+  await gate
+  probe(context.task, 'concurrent-resume-global', expect(0))
+  probe(context.task, 'concurrent-resume-local', context.expect(0))
+})
+test.concurrent('concurrent second', async context => {
+  probe(context.task, 'concurrent-enter-global', expect(0))
+  probe(context.task, 'concurrent-enter-local', context.expect(0))
+  release()
+  await Promise.resolve()
+  probe(context.task, 'concurrent-resume-global', expect(0))
+  probe(context.task, 'concurrent-resume-local', context.expect(0))
+})
+afterAll(() => console.log('TASK_GLOBAL_FLAGS:' + JSON.stringify(rows)))

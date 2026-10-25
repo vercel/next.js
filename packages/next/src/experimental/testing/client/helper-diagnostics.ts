@@ -95,7 +95,10 @@ export function mapClientDiagnosticStack(
   >
 ): NonNullable<SerializedDiagnostic['frames']> {
   const raw = stack.split('\n').flatMap((line) => {
-    const match = /(https?:\/\/[^\s)]+):(\d+):(\d+)\)?$/.exec(line)
+    const match =
+      /(https?:\/\/[^\s)]+(?: line [1-9]\d* > srcScript)?):(\d+):(\d+)\)?$/.exec(
+        line
+      )
     if (!match) return []
     const method = line.slice(0, match.index)
     return [

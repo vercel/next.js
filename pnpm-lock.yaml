@@ -48,13 +48,13 @@ patchedDependencies:
     hash: 3d59af991a9f85bbc368d2891b4e965f10dd11c86b9786e79fc4a362bb01401b
     path: patches/@vercel__og@1.0.1.patch
   '@vitest/expect@5.0.4':
-    hash: b1d56074dffed8b224669284d00d13628cef3ef3c152e8774f329ea474e4c1bb
+    hash: 14de10cc8fb37d8632ea47456b2dee682471fcfaa47000c7c97ba1b5ac2e2086
     path: patches/@vitest__expect@5.0.4.patch
   '@vitest/snapshot@5.0.4':
     hash: 19f1ffbdd220454bc8cc8fbb5f8081f9f66dca16f710a6b8a7e92dd86051b39a
     path: patches/@vitest__snapshot@5.0.4.patch
   chai@6.3.0:
-    hash: f4d3c01da32f45a0fa6fff8c76316cbd7a9767b5b82ce6f67d44f75d1809321e
+    hash: 1763a9d16d57b1f3d44d08ebd04561cc9871350a5d4393ce8f550cd12d7e8bf1
     path: patches/chai@6.3.0.patch
   minizlib@3.1.0:
     hash: 587688821244aaee46680929cd869947377a284ac1b30c9ae8660a5ea7d2be67
@@ -1448,7 +1448,7 @@ importers:
         version: link:../../turbopack/crates/turbopack-ecmascript-runtime/js
       '@vitest/expect':
         specifier: 5.0.4
-        version: 5.0.4(patch_hash=b1d56074dffed8b224669284d00d13628cef3ef3c152e8774f329ea474e4c1bb)
+        version: 5.0.4(patch_hash=14de10cc8fb37d8632ea47456b2dee682471fcfaa47000c7c97ba1b5ac2e2086)
       '@vitest/istanbul-lib-coverage':
         specifier: 1.0.2
         version: 1.0.2
@@ -1520,7 +1520,7 @@ importers:
         version: 3.1.1
       chai:
         specifier: 6.3.0
-        version: 6.3.0(patch_hash=f4d3c01da32f45a0fa6fff8c76316cbd7a9767b5b82ce6f67d44f75d1809321e)
+        version: 6.3.0(patch_hash=1763a9d16d57b1f3d44d08ebd04561cc9871350a5d4393ce8f550cd12d7e8bf1)
       ci-info:
         specifier: watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540
         version: https://codeload.github.com/watson/ci-info/tar.gz/f43f6a1cefff47fb361c88cf4b943fdbcaafe540
@@ -24109,13 +24109,13 @@ snapshots:
       chai: 5.3.3
       tinyrainbow: 1.2.0
 
-  '@vitest/expect@5.0.4(patch_hash=b1d56074dffed8b224669284d00d13628cef3ef3c152e8774f329ea474e4c1bb)':
+  '@vitest/expect@5.0.4(patch_hash=14de10cc8fb37d8632ea47456b2dee682471fcfaa47000c7c97ba1b5ac2e2086)':
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@types/chai': 5.2.3
       '@vitest/spy': 5.0.4
       '@vitest/utils': 5.0.4
-      chai: 6.3.0(patch_hash=f4d3c01da32f45a0fa6fff8c76316cbd7a9767b5b82ce6f67d44f75d1809321e)
+      chai: 6.3.0(patch_hash=1763a9d16d57b1f3d44d08ebd04561cc9871350a5d4393ce8f550cd12d7e8bf1)
       tinyrainbow: 3.2.0
 
   '@vitest/istanbul-lib-coverage@1.0.2': {}
@@ -25302,7 +25302,7 @@ snapshots:
       loupe: 3.2.1
       pathval: 2.0.0
 
-  chai@6.3.0(patch_hash=f4d3c01da32f45a0fa6fff8c76316cbd7a9767b5b82ce6f67d44f75d1809321e): {}
+  chai@6.3.0(patch_hash=1763a9d16d57b1f3d44d08ebd04561cc9871350a5d4393ce8f550cd12d7e8bf1): {}
 
   chalk@1.1.3:
     dependencies:
@@ -36743,7 +36743,7 @@ snapshots:
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/mocker': 5.0.4(vite@8.3.4(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(jiti@2.6.1)(sass@1.54.0)(terser@5.39.0)(tsx@4.19.2))
-      chai: 6.3.0(patch_hash=f4d3c01da32f45a0fa6fff8c76316cbd7a9767b5b82ce6f67d44f75d1809321e)
+      chai: 6.3.0(patch_hash=1763a9d16d57b1f3d44d08ebd04561cc9871350a5d4393ce8f550cd12d7e8bf1)
       es-module-lexer: 2.3.2
       expect-type: 1.4.0
       magic-string: 1.4.3

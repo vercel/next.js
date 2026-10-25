@@ -1,0 +1,184 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "suite-task-context",
+        "trace": [
+          {
+            "kind": "collection",
+            "name": "outside",
+            "contextType": "function",
+            "contextKeys": [
+              "signal",
+              "task",
+              "skip",
+              "annotate",
+              "onTestFailed",
+              "onTestFinished"
+            ],
+            "taskIdentity": true,
+            "signalAborted": false,
+            "contextDescriptor": {
+              "enumerable": false,
+              "configurable": true,
+              "writable": true,
+              "getter": false,
+              "setter": false
+            },
+            "expectDescriptor": {
+              "enumerable": false,
+              "configurable": false,
+              "getter": true,
+              "setter": false
+            },
+            "signalDescriptor": {
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "getter": false,
+              "setter": false
+            },
+            "taskDescriptor": {
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "getter": false,
+              "setter": false
+            },
+            "methods": [
+              {
+                "key": "skip",
+                "type": "function",
+                "name": "",
+                "length": 2
+              },
+              {
+                "key": "onTestFinished",
+                "type": "function",
+                "name": "",
+                "length": 2
+              },
+              {
+                "key": "onTestFailed",
+                "type": "function",
+                "name": "",
+                "length": 2
+              },
+              {
+                "key": "annotate",
+                "type": "function",
+                "name": "",
+                "length": 3
+              }
+            ]
+          },
+          {
+            "kind": "collection",
+            "name": "inside",
+            "contextType": "function",
+            "contextKeys": [
+              "signal",
+              "task",
+              "skip",
+              "annotate",
+              "onTestFailed",
+              "onTestFinished"
+            ],
+            "taskIdentity": true,
+            "signalAborted": false,
+            "contextDescriptor": {
+              "enumerable": false,
+              "configurable": true,
+              "writable": true,
+              "getter": false,
+              "setter": false
+            },
+            "expectDescriptor": {
+              "enumerable": false,
+              "configurable": false,
+              "getter": true,
+              "setter": false
+            },
+            "signalDescriptor": {
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "getter": false,
+              "setter": false
+            },
+            "taskDescriptor": {
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "getter": false,
+              "setter": false
+            },
+            "methods": [
+              {
+                "key": "skip",
+                "type": "function",
+                "name": "",
+                "length": 2
+              },
+              {
+                "key": "onTestFinished",
+                "type": "function",
+                "name": "",
+                "length": 2
+              },
+              {
+                "key": "onTestFailed",
+                "type": "function",
+                "name": "",
+                "length": 2
+              },
+              {
+                "key": "annotate",
+                "type": "function",
+                "name": "",
+                "length": 3
+              }
+            ]
+          },
+          {
+            "kind": "body",
+            "name": "outside",
+            "sameContext": true,
+            "taskIdentity": true,
+            "signalSame": true
+          },
+          {
+            "kind": "body",
+            "name": "inside",
+            "sameContext": true,
+            "taskIdentity": true,
+            "signalSame": true
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "outside",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "raw inside",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

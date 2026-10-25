@@ -1,0 +1,222 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "transfer-effects",
+        "trace": [
+          {
+            "phase": "initial-A",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "taskA": true,
+            "taskB": false,
+            "noTask": false,
+            "actual": "A",
+            "expected": "A"
+          },
+          {
+            "phase": "initial-B",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "taskA": false,
+            "taskB": true,
+            "noTask": false,
+            "actual": "B",
+            "expected": "B"
+          },
+          {
+            "phase": "known-to-known",
+            "kind": "return",
+            "undefined": true
+          },
+          {
+            "phase": "known-raw-B",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "taskA": true,
+            "taskB": false,
+            "noTask": false,
+            "actual": "A",
+            "expected": "A"
+          },
+          {
+            "phase": "known-public-B",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "taskA": true,
+            "taskB": false,
+            "noTask": false,
+            "actual": "A",
+            "expected": "A"
+          },
+          {
+            "phase": "unknown-preserves-task",
+            "kind": "return",
+            "undefined": true
+          },
+          {
+            "phase": "unknown-source",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "taskA": true,
+            "taskB": false,
+            "noTask": false,
+            "actual": "unknown",
+            "expected": "unknown"
+          },
+          {
+            "phase": "explicit-undefined-task",
+            "kind": "return",
+            "undefined": true
+          },
+          {
+            "phase": "undefined-source",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "taskA": false,
+            "taskB": false,
+            "noTask": true,
+            "actual": "unknown",
+            "expected": "unknown"
+          },
+          {
+            "phase": "restore-A",
+            "kind": "return",
+            "undefined": true
+          },
+          {
+            "phase": "restored-source",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "taskA": true,
+            "taskB": false,
+            "noTask": false,
+            "actual": "A",
+            "expected": "A"
+          },
+          {
+            "phase": "partial-getter",
+            "kind": "read"
+          },
+          {
+            "phase": "partial-after-task",
+            "kind": "throw",
+            "sameError": true,
+            "name": "Error",
+            "message": "transfer-exact-copy-failure"
+          },
+          {
+            "phase": "partial-task-applied",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "taskA": true,
+            "taskB": false,
+            "noTask": false,
+            "actual": "partial",
+            "expected": "partial"
+          },
+          {
+            "phase": "failed-task-getter",
+            "kind": "read"
+          },
+          {
+            "phase": "failed-task-read",
+            "kind": "throw",
+            "sameError": true,
+            "name": "Error",
+            "message": "transfer-exact-copy-failure"
+          },
+          {
+            "phase": "failed-task-stays",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "taskA": true,
+            "taskB": false,
+            "noTask": false,
+            "actual": "partial",
+            "expected": "partial"
+          },
+          {
+            "phase": "filtered-base-values",
+            "kind": "return",
+            "undefined": true
+          },
+          {
+            "phase": "filtered-object-stays",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "taskA": false,
+            "taskB": true,
+            "noTask": false,
+            "actual": "partial",
+            "expected": "partial"
+          },
+          {
+            "phase": "ordinary-payload",
+            "kind": "return",
+            "undefined": true
+          },
+          {
+            "phase": "payload-result",
+            "flags": {
+              "object": 17,
+              "tag": "payload"
+            }
+          },
+          {
+            "phase": "hook-transfer",
+            "kind": "return",
+            "undefined": true
+          },
+          {
+            "phase": "afterAll-raw-B",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "taskA": true,
+            "taskB": false,
+            "noTask": false,
+            "actual": "A",
+            "expected": "A"
+          },
+          {
+            "phase": "afterAll-public-B",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "taskA": true,
+            "taskB": false,
+            "noTask": false,
+            "actual": "A",
+            "expected": "A"
+          }
+        ],
+        "countA": 1,
+        "countB": 1,
+        "stateA": "pass",
+        "stateB": "pass"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "transfer actual task A",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "transfer ownership and exact partial copies",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

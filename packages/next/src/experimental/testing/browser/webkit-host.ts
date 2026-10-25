@@ -1,6 +1,11 @@
-import type { Browser, BrowserContext, Page } from 'playwright'
+import type { Browser, BrowserContext, Frame, Page } from 'playwright'
 import type { BrowserHost } from './host'
 import { BrowserFixtureError } from './context'
+import {
+  createBrowserFrameOwner,
+  type NativeFrame,
+  type NativePage as NativeFramePage,
+} from './frame-owner'
 
 /** The actual shared page session remains owned by the installed SDK. */
 export interface WebKitPageSession {
@@ -14,10 +19,8 @@ interface NativeContext {
   guid: string
   pages(): NativePage[]
 }
-interface NativePage {
-  guid: string
+interface NativePage extends NativeFramePage {
   browserContext: NativeContext
-  mainFrame(): { _id: string }
   delegate: {
     _session: WebKitPageSession
     _calculateBootstrapScript(): string
@@ -47,7 +50,7 @@ export interface WebKitPageOwner {
 
 /** The local launch owner and the remote driver share this one native browser. */
 export async function createWebKitBrowserHost(
-  options: { signal: AbortSignal },
+  options: { signal: AbortSignal; headless?: boolean },
   playwright: typeof import('playwright')
 ): Promise<BrowserHost> {
   options.signal.throwIfAborted()
@@ -56,6 +59,7 @@ export async function createWebKitBrowserHost(
   let bindingStarted = false
   let closing = false
   let disposal: Promise<void> | undefined
+  const selected = new WeakMap<NativeFramePage, NativeFrame>()
   function dispose(): Promise<void> {
     return (disposal ??= (async () => {
       closing = true
@@ -78,6 +82,21 @@ export async function createWebKitBrowserHost(
           errors
         )
     })())
+  }
+  function frameOwner(context: BrowserContext, page: Page, frame: Frame) {
+    webKitPageOwner(context, page).assertCurrent()
+    return createBrowserFrameOwner({
+      engine: 'webkit',
+      native: native!,
+      context,
+      page,
+      frame,
+      selected,
+      assertHost() {
+        if (closing || !native?.isConnected())
+          throw new Error('WebKit frame host is closed.')
+      },
+    })
   }
   function webKitPageOwner(
     context: BrowserContext,
@@ -152,7 +171,7 @@ export async function createWebKitBrowserHost(
   }
   try {
     browser = (await playwright.webkit.launch({
-      headless: true,
+      headless: options.headless ?? true,
       handleSIGINT: false,
       handleSIGTERM: false,
       handleSIGHUP: false,
@@ -181,7 +200,7 @@ export async function createWebKitBrowserHost(
     options.signal.throwIfAborted()
     if (typeof bound.endpoint !== 'string' || !bound.endpoint)
       throw new Error('WebKit browser binding returned no endpoint.')
-    return { wsEndpoint: bound.endpoint, dispose, webKitPageOwner }
+    return { wsEndpoint: bound.endpoint, dispose, webKitPageOwner, frameOwner }
   } catch (error) {
     try {
       await dispose()

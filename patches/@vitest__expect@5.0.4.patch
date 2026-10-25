@@ -1,6 +1,8 @@
+diff --git a/dist/index.js b/dist/index.js
+index 30caa9b8a5dcfb2b0e2de843f50a363db21b7ee6..1c8724654a7c419e0258b984e9c5585baec1cc7f 100644
 --- a/dist/index.js
 +++ b/dist/index.js
-@@ -4,9 +4,17 @@
+@@ -4,10 +4,28 @@ import { getType, isObject, noop, assertTypes, ordinal } from '@vitest/utils/hel
  import c from 'tinyrainbow';
  import { isMockFunction } from '@vitest/spy';
  import { processError } from '@vitest/utils/error';
@@ -8,7 +10,7 @@
 +import { use, util, getChaiAssertionIdentity as nextGetChaiAssertionIdentity } from 'chai';
  import * as chai from 'chai';
  export { chai };
-+
+ 
 +// Original async wrappers inherit only the genuine Chai constructor token.
 +const nextAsyncAssertionIdentities = new WeakMap();
 +const nextGetAsyncAssertionIdentity = WeakMap.prototype.get.bind(nextAsyncAssertionIdentities);
@@ -16,10 +18,103 @@
 +export function getVitestAssertionIdentity(value) {
 +  return nextGetAsyncAssertionIdentity(value);
 +}
- 
++
++// Next publishes the actual Test flag while an existing real scope owns queues.
++const nextAssertionTaskRuntimes = new WeakMap();
++const nextDefineFunctionProperty = Object.defineProperty;
++export function registerVitestAssertionTaskRuntime(test, runtimeTask, promiseObserver) {
++  nextAssertionTaskRuntimes.set(test, { runtimeTask, promiseObserver });
++}
++export function getVitestAssertionTaskRuntime(value) {
++  return nextAssertionTaskRuntimes.get(value)?.runtimeTask || value;
++}
++
  const ChaiStyleAssertions = (chai, utils) => {
  	function defProperty(name, delegateTo) {
-@@ -1762,6 +1770,8 @@
+ 		utils.addProperty(chai.Assertion.prototype, name, function() {
+@@ -1101,22 +1119,35 @@ function createAssertionMessage(util, assertion, hasArgs) {
+ 	return `expect${soft}(actual)${promise}.${not}${name}`;
+ }
+ function recordAsyncExpect(_test, promise, assertion, error, isSoft) {
+-	const test = _test;
++	const entry = nextAssertionTaskRuntimes.get(_test);
++	const test = entry?.runtimeTask || _test;
++	const registeredPromiseObserver = entry?.promiseObserver;
++	const captureObserver = registeredPromiseObserver?.capture;
++	const promiseObserver = captureObserver
++		? captureObserver.call(registeredPromiseObserver)
++		: registeredPromiseObserver;
++	const promiseOwner = registeredPromiseObserver ? _test : test;
++	const finishedObserver = promiseObserver?.finished;
++	const finishedOwner = captureObserver || finishedObserver ? _test : test;
+ 	// record promise for test, that resolves before test ends
+ 	if (test && promise instanceof Promise) {
+ 		// if promise is explicitly awaited, remove it from the list
+ 		promise = promise.finally(() => {
+-			if (!test.promises) {
+-				return;
+-			}
+-			const index = test.promises.indexOf(promise);
+-			if (index !== -1) {
+-				test.promises.splice(index, 1);
++			try {
++				if (!promiseOwner.promises) {
++					return;
++				}
++				const index = promiseOwner.promises.indexOf(promise);
++				if (index !== -1) {
++					promiseOwner.promises.splice(index, 1);
++				}
++			} finally {
++				promiseObserver?.settled(promise);
+ 			}
+ 		});
+ 		// record promise
+-		if (!test.promises) {
+-			test.promises = [];
++		if (!promiseOwner.promises) {
++			promiseOwner.promises = [];
+ 		}
+ 		// setup `expect.soft` handler here instead of `wrapAssertion`
+ 		// to avoid double error tracking while keeping non-await promise detection.
+@@ -1125,10 +1156,16 @@ function recordAsyncExpect(_test, promise, assertion, error, isSoft) {
+ 				handleTestError(test, err);
+ 			});
+ 		}
+-		test.promises.push(promise);
++		promiseOwner.promises.push(promise);
++		promiseObserver?.recorded(promise);
+ 		let resolved = false;
+-		test.onFinished ??= [];
+-		test.onFinished.push(() => {
++		const captureFinished = (check) => {
++			nextDefineFunctionProperty(check, "name", { value: "" });
++			finishedObserver?.call(promiseObserver, promise, check);
++			return check;
++		};
++		finishedOwner.onFinished ??= [];
++		finishedOwner.onFinished.push(captureFinished(() => {
+ 			if (!resolved) {
+ 				const awaitError = new Error(`Promise returned by \`${assertion}\` was not awaited. This assertion is asynchronous and must be awaited; otherwise, it is not guaranteed to complete before the test finishes:\n\nawait ${assertion}\n`);
+ 				if (error.stack) {
+@@ -1136,7 +1173,7 @@ function recordAsyncExpect(_test, promise, assertion, error, isSoft) {
+ 				}
+ 				throw awaitError;
+ 			}
+-		});
++		}));
+ 		return {
+ 			then(onFulfilled, onRejected) {
+ 				resolved = true;
+@@ -1156,6 +1193,7 @@ function recordAsyncExpect(_test, promise, assertion, error, isSoft) {
+ 	return promise;
+ }
+ function handleTestError(test, err) {
++	test = getVitestAssertionTaskRuntime(test);
+ 	test.result ||= { state: "fail" };
+ 	test.result.state = "fail";
+ 	test.result.errors ||= [];
+@@ -1762,6 +1800,8 @@ const JestChaiExpect = (chai, utils) => {
  				return recordAsyncExpect(test, promise, createAssertionMessage(utils, this, !!args.length), error, utils.flag(this, "soft"));
  			};
  		} });
@@ -28,7 +123,7 @@
  		return proxy;
  	});
  	utils.addProperty(chai.Assertion.prototype, "rejects", function __VITEST_REJECTS__() {
-@@ -1803,6 +1813,8 @@
+@@ -1803,6 +1843,8 @@ const JestChaiExpect = (chai, utils) => {
  				return recordAsyncExpect(test, promise, createAssertionMessage(utils, this, !!args.length), error, utils.flag(this, "soft"));
  			};
  		} });

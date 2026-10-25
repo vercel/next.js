@@ -2,6 +2,7 @@ import {
   queries,
   prettyDOM,
   domMatchers,
+  createBrowserLocatorFormatter,
 } from '../../../compiled/next-test-primitives/browser'
 import * as common from '../vitest'
 import { assertBrowserApiScope, captureAsyncScope } from './async-context'
@@ -118,6 +119,7 @@ async function dispatchBrowserCommandResult(
     resolveElements &&
     (method === 'click' ||
       method === 'fill' ||
+      method === 'clear' ||
       method === 'dblClick' ||
       method === 'tripleClick' ||
       method === 'hover' ||
@@ -162,54 +164,90 @@ function browserElementId(element: Element) {
   return id
 }
 
+const locatorFormatter = createBrowserLocatorFormatter()
+
 /** Queries execute in the actual document. Input commands stay Playwright-owned. */
 class ElementLocator {
-  constructor(private readonly resolve: () => Element[]) {}
+  constructor(
+    private readonly resolve: () => Element[],
+    private readonly description: string | (() => string),
+    readonly container?: Element,
+    private readonly actionElement?: Element
+  ) {}
+  get selector(): string {
+    return typeof this.description === 'function'
+      ? this.description()
+      : this.description
+  }
   elements() {
     assertBrowserApiScope('utility')
     return this.resolve()
   }
-  element(): Element | null {
-    const values = this.elements()
-    if (values.length > 1)
-      throw new Error(
-        `Expected a unique browser element, received ${values.length}.`
+  element(): Element {
+    const value = this.query()
+    if (!value)
+      throw locatorFormatter.missingError(
+        this.selector,
+        this.container ?? document.body
       )
-    return values[0] ?? null
+    return value
   }
   all() {
-    return this.elements().map((value) => new ElementLocator(() => [value]))
+    return this.elements().map(
+      (value, index) =>
+        new ElementLocator(
+          () => [value],
+          `${this.selector} >> nth=${index}`,
+          this.container
+        )
+    )
   }
   nth(index: number) {
-    return new ElementLocator(() =>
-      this.elements().slice(index, index === -1 ? undefined : index + 1)
+    return new ElementLocator(
+      () => this.elements().slice(index, index === -1 ? undefined : index + 1),
+      `${this.selector} >> nth=${index}`,
+      this.container
     )
   }
   first() {
     return this.nth(0)
   }
   last() {
-    return new ElementLocator(() => this.elements().slice(-1))
-  }
-  and(locator: ElementLocator) {
-    return new ElementLocator(() => {
-      const matching = new Set(locator.elements())
-      return this.elements().filter((element) => matching.has(element))
-    })
-  }
-  or(locator: ElementLocator) {
-    return new ElementLocator(() =>
-      [...new Set([...this.elements(), ...locator.elements()])].sort(
-        (left, right) => {
-          const position = left.compareDocumentPosition(right)
-          if (position & Node.DOCUMENT_POSITION_DISCONNECTED) return 0
-          return position & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1
-        }
-      )
+    return new ElementLocator(
+      () => this.elements().slice(-1),
+      `${this.selector} >> nth=-1`,
+      this.container
     )
   }
-  query() {
-    return this.element()
+  and(locator: ElementLocator) {
+    return new ElementLocator(
+      () => {
+        const matching = new Set(locator.elements())
+        return this.elements().filter((element) => matching.has(element))
+      },
+      `${this.selector} >> internal:and=${JSON.stringify(locator.selector)}`,
+      this.container
+    )
+  }
+  or(locator: ElementLocator) {
+    return new ElementLocator(
+      () =>
+        [...new Set([...this.elements(), ...locator.elements()])].sort(
+          (left, right) => {
+            const position = left.compareDocumentPosition(right)
+            if (position & Node.DOCUMENT_POSITION_DISCONNECTED) return 0
+            return position & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1
+          }
+        ),
+      `${this.selector} >> internal:or=${JSON.stringify(locator.selector)}`,
+      this.container
+    )
+  }
+  query(): Element | null {
+    const values = this.elements()
+    if (values.length > 1)
+      throw locatorFormatter.strictError(this.selector, values)
+    return values[0] ?? null
   }
   async click(options?: ClickOptions) {
     await this.dispatch('click', options === undefined ? [] : [options])
@@ -236,8 +274,8 @@ class ElementLocator {
   }
   async dropTo(target: ElementLocator, options?: DragOptions) {
     assertBrowserApiScope('utility')
-    const sourceElement = this.element()
-    const targetElement = target.element()
+    const sourceElement = this.query()
+    const targetElement = target.query()
     if (!sourceElement?.isConnected || !targetElement?.isConnected)
       throw new Error('Browser element is not attached to its document.')
     await dispatchBrowserCommand(() => sourceElement, 'dragAndDrop', [
@@ -258,8 +296,7 @@ class ElementLocator {
     assertBrowserApiScope('utility')
     const values = (Array.isArray(value) ? value : [value]).map((option) => {
       if (typeof option === 'string') return option
-      const element =
-        option instanceof ElementLocator ? option.element() : option
+      const element = option instanceof ElementLocator ? option.query() : option
       if (!element?.isConnected)
         throw new Error(
           'Browser option element is not attached to its document.'
@@ -303,35 +340,35 @@ class ElementLocator {
     args: unknown[]
   ) {
     await dispatchBrowserCommand(
-      () => this.element(),
+      () => this.actionElement ?? this.query(),
       method,
       args,
       () => this.elements()
     )
   }
   getByRole(...args: any[]) {
-    return selector(this, 'Role', args)
+    return createQueryLocator(this, 'Role', args)
   }
   getByText(...args: any[]) {
-    return selector(this, 'Text', args)
+    return createQueryLocator(this, 'Text', args)
   }
   getByLabelText(...args: any[]) {
-    return selector(this, 'LabelText', args)
+    return createQueryLocator(this, 'LabelText', args)
   }
   getByPlaceholder(...args: any[]) {
-    return selector(this, 'PlaceholderText', args)
+    return createQueryLocator(this, 'PlaceholderText', args)
   }
   getByAltText(...args: any[]) {
-    return selector(this, 'AltText', args)
+    return createQueryLocator(this, 'AltText', args)
   }
   getByTitle(...args: any[]) {
-    return selector(this, 'Title', args)
+    return createQueryLocator(this, 'Title', args)
   }
   getByTestId(...args: any[]) {
-    return selector(this, 'TestId', args)
+    return createQueryLocator(this, 'TestId', args)
   }
 }
-function selector(
+function createQueryLocator(
   root: Element | ElementLocator,
   name: string,
   args: unknown[]
@@ -339,30 +376,46 @@ function selector(
   const query = Reflect.get(queries, `queryAllBy${name}`) as Query
   if (typeof query !== 'function')
     throw new Error(`Unsupported browser query ${name}.`)
-  return new ElementLocator(() => {
-    const elements = root instanceof ElementLocator ? root.elements() : [root]
-    return [...new Set(elements.flatMap((value) => query(value, ...args)))]
-  })
+  const parent = root instanceof ElementLocator ? root.selector : ''
+  const description = locatorFormatter.selector(name, args)
+  return new ElementLocator(
+    () => {
+      const elements = root instanceof ElementLocator ? root.elements() : [root]
+      return [...new Set(elements.flatMap((value) => query(value, ...args)))]
+    },
+    parent ? `${parent} >> ${description}` : description,
+    root instanceof ElementLocator ? root.container : root
+  )
 }
 function selectors(root: Element | ElementLocator) {
   return {
-    getByRole: (...args: unknown[]) => selector(root, 'Role', args),
-    getByText: (...args: unknown[]) => selector(root, 'Text', args),
-    getByLabelText: (...args: unknown[]) => selector(root, 'LabelText', args),
+    getByRole: (...args: unknown[]) => createQueryLocator(root, 'Role', args),
+    getByText: (...args: unknown[]) => createQueryLocator(root, 'Text', args),
+    getByLabelText: (...args: unknown[]) =>
+      createQueryLocator(root, 'LabelText', args),
     getByPlaceholder: (...args: unknown[]) =>
-      selector(root, 'PlaceholderText', args),
-    getByAltText: (...args: unknown[]) => selector(root, 'AltText', args),
-    getByTitle: (...args: unknown[]) => selector(root, 'Title', args),
-    getByTestId: (...args: unknown[]) => selector(root, 'TestId', args),
+      createQueryLocator(root, 'PlaceholderText', args),
+    getByAltText: (...args: unknown[]) =>
+      createQueryLocator(root, 'AltText', args),
+    getByTitle: (...args: unknown[]) => createQueryLocator(root, 'Title', args),
+    getByTestId: (...args: unknown[]) =>
+      createQueryLocator(root, 'TestId', args),
   }
 }
-const root = new ElementLocator(() => [document.body])
+const root = new ElementLocator(() => [document.body], '')
 export const page = Object.assign(selectors(root), {
   elementLocator(element: Element) {
     assertBrowserApiScope('utility')
     if (!(element instanceof Element) || element.ownerDocument !== document)
       throw new Error('Browser locator must belong to its owned document.')
-    return new ElementLocator(() => [element])
+    return new ElementLocator(
+      () => (element.isConnected ? [element] : []),
+      element.isConnected
+        ? locatorFormatter.generateSelector(element)
+        : () => locatorFormatter.generateSelector(element),
+      element,
+      element
+    )
   },
   extend(values: Record<PropertyKey, unknown>) {
     assertBrowserApiScope('declaration')
@@ -459,7 +512,7 @@ function createUserEvent() {
       const args: unknown[] = options === undefined ? [text] : [text, options]
       if (unreleased.length) args.splice(1, 2, options ?? {}, unreleased)
       const result = await dispatchBrowserCommandResult(
-        () => eventLocator(element).element(),
+        () => eventLocator(element).query(),
         'type',
         args
       )
@@ -512,7 +565,7 @@ export function elementExpect(
 ) {
   assertBrowserApiScope('assertion')
   return common.expect.poll(
-    () => (value instanceof ElementLocator ? value.element() : value),
+    () => (value instanceof ElementLocator ? value.query() : value),
     options
   )
 }

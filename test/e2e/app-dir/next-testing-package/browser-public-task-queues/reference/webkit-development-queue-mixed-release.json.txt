@@ -1,0 +1,32 @@
+{
+  "rows": [
+    [
+      {
+        "stage": "body-return",
+        "length": 2
+      },
+      {
+        "stage": "manual-then"
+      },
+      {
+        "stage": "release-native"
+      },
+      {
+        "stage": "native-settled"
+      },
+      {
+        "stage": "afterEach",
+        "errors": []
+      }
+    ]
+  ],
+  "cases": [
+    {
+      "name": "actual public manual thenable releases native assertion",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "success": true,
+  "exit": 0
+}

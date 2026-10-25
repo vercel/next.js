@@ -1,0 +1,2 @@
+import { shared } from './shared.mjs'
+export const value = shared + 2

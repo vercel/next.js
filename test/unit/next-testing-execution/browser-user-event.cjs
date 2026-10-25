@@ -11,6 +11,7 @@ async function main() {
   const dom = new JSDOM(
     '<!DOCTYPE html><button>Save</button><input aria-label="Name"><select aria-label="Choice"><option value="one">One</option></select>'
   )
+  const restoreBrowserDomRealm = require('./browser-dom-realm.cjs')(dom.window)
   const saved = new Map(
     ['document', 'Element'].map((key) => [
       key,
@@ -118,6 +119,7 @@ async function main() {
       if (descriptor) Object.defineProperty(globalThis, key, descriptor)
       else Reflect.deleteProperty(globalThis, key)
     }
+    restoreBrowserDomRealm()
   }
 }
 main().catch((error) => {

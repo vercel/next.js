@@ -6,7 +6,190 @@ const { spawn } = require('node:child_process')
 const repo = path.resolve(__dirname, '../../..')
 const { createHash } = require('node:crypto')
 const group = process.argv[2]
+const mode = process.argv[3] ?? 'development'
+assert.ok(mode === 'development' || mode === 'production')
 const ordinaryEsmNamespaceGroups = {
+  'compiled-native-single-root-order': {
+    cases: 1,
+    prefix: 'WS2_CROSS_NATIVE_before:',
+  },
+  'cjs-named-ordinary-object-dependency-reset': {
+    cases: 5,
+    prefix: 'CJS-DESTRUCTURED:',
+  },
+  'cjs-anonymous-ordinary-array-cycle-reset': {
+    cases: 5,
+    prefix: 'CJS-DESTRUCTURED:',
+  },
+  'cjs-named-async-generator-object-cycle-reset': {
+    cases: 5,
+    prefix: 'CJS-DESTRUCTURED:',
+  },
+  'cjs-async-arrow-array-dependency-reset': {
+    cases: 5,
+    prefix: 'CJS-DESTRUCTURED:',
+  },
+  'cjs-named-ordinary-object-string-cycle-reset': {
+    cases: 5,
+    prefix: 'CJS-DESTRUCTURED:',
+  },
+  'cjs-async-arrow-array-hole-dependency-reset': {
+    cases: 5,
+    prefix: 'CJS-DESTRUCTURED:',
+  },
+
+  'cjs-ordinary-plain-arrow-dependency-reset': {
+    cases: 4,
+    prefix: 'WS2_CJS_ARROW:',
+  },
+  'cjs-ordinary-plain-arrow-cycle-reset': {
+    cases: 4,
+    prefix: 'WS2_CJS_ARROW:',
+  },
+  'cjs-ordinary-default-arrow-dependency-reset': {
+    cases: 4,
+    prefix: 'WS2_CJS_ARROW:',
+  },
+  'cjs-ordinary-default-arrow-cycle-reset': {
+    cases: 4,
+    prefix: 'WS2_CJS_ARROW:',
+  },
+  'cjs-ordinary-rest-arrow-dependency-reset': {
+    cases: 4,
+    prefix: 'WS2_CJS_ARROW:',
+  },
+  'cjs-ordinary-rest-arrow-cycle-reset': { cases: 4, prefix: 'WS2_CJS_ARROW:' },
+  'cjs-async-plain-arrow-dependency-reset': {
+    cases: 4,
+    prefix: 'WS2_CJS_ARROW:',
+  },
+  'cjs-async-plain-arrow-cycle-reset': { cases: 4, prefix: 'WS2_CJS_ARROW:' },
+  'cjs-async-default-arrow-dependency-reset': {
+    cases: 4,
+    prefix: 'WS2_CJS_ARROW:',
+  },
+  'cjs-async-default-arrow-cycle-reset': { cases: 4, prefix: 'WS2_CJS_ARROW:' },
+  'cjs-async-rest-arrow-dependency-reset': {
+    cases: 4,
+    prefix: 'WS2_CJS_ARROW:',
+  },
+  'cjs-async-rest-arrow-cycle-reset': { cases: 4, prefix: 'WS2_CJS_ARROW:' },
+  'cjs-ordinary-expression-arrow-dependency-reset': {
+    cases: 4,
+    prefix: 'WS2_CJS_ARROW:',
+  },
+  'cjs-async-expression-arrow-cycle-reset': {
+    cases: 4,
+    prefix: 'WS2_CJS_ARROW:',
+  },
+  'cjs-named-async-expression-dependency-reset': {
+    cases: 5,
+    prefix: 'WS2_CJS_FUNCTION_KINDS:',
+  },
+  'cjs-named-async-expression-cycle-reset': {
+    cases: 5,
+    prefix: 'WS2_CJS_FUNCTION_KINDS:',
+  },
+  'cjs-anonymous-async-expression-dependency-reset': {
+    cases: 5,
+    prefix: 'WS2_CJS_FUNCTION_KINDS:',
+  },
+  'cjs-anonymous-async-expression-cycle-reset': {
+    cases: 5,
+    prefix: 'WS2_CJS_FUNCTION_KINDS:',
+  },
+  'cjs-named-generator-expression-dependency-reset': {
+    cases: 5,
+    prefix: 'WS2_CJS_FUNCTION_KINDS:',
+  },
+  'cjs-named-generator-expression-cycle-reset': {
+    cases: 5,
+    prefix: 'WS2_CJS_FUNCTION_KINDS:',
+  },
+  'cjs-anonymous-generator-expression-dependency-reset': {
+    cases: 5,
+    prefix: 'WS2_CJS_FUNCTION_KINDS:',
+  },
+  'cjs-anonymous-generator-expression-cycle-reset': {
+    cases: 5,
+    prefix: 'WS2_CJS_FUNCTION_KINDS:',
+  },
+  'cjs-named-async-generator-expression-dependency-reset': {
+    cases: 5,
+    prefix: 'WS2_CJS_FUNCTION_KINDS:',
+  },
+  'cjs-named-async-generator-expression-cycle-reset': {
+    cases: 5,
+    prefix: 'WS2_CJS_FUNCTION_KINDS:',
+  },
+  'cjs-anonymous-async-generator-expression-dependency-reset': {
+    cases: 5,
+    prefix: 'WS2_CJS_FUNCTION_KINDS:',
+  },
+  'cjs-anonymous-async-generator-expression-cycle-reset': {
+    cases: 5,
+    prefix: 'WS2_CJS_FUNCTION_KINDS:',
+  },
+  'cjs-named-class-expression-dependency-reset': {
+    cases: 5,
+    prefix: 'WS2_CJS_CLASS_RESET:',
+  },
+  'cjs-named-class-expression-cycle-reset': {
+    cases: 5,
+    prefix: 'WS2_CJS_CLASS_RESET:',
+  },
+  'cjs-anonymous-class-expression-dependency-reset': {
+    cases: 5,
+    prefix: 'WS2_CJS_CLASS_RESET:',
+  },
+  'cjs-anonymous-class-expression-cycle-reset': {
+    cases: 5,
+    prefix: 'WS2_CJS_CLASS_RESET:',
+  },
+  'cjs-empty-class-expression-reset': {
+    cases: 1,
+    prefix: 'WS2_CJS_CLASS_RESET:',
+  },
+  'cjs-anonymous-default-function-expression-dependency-reset': {
+    cases: 4,
+    prefix: 'WS2_CJS_FUNCTION_EXPRESSION:',
+  },
+  'cjs-anonymous-default-function-expression-cycle-reset': {
+    cases: 4,
+    prefix: 'WS2_CJS_FUNCTION_EXPRESSION:',
+  },
+  'cjs-anonymous-rest-function-expression-dependency-reset': {
+    cases: 4,
+    prefix: 'WS2_CJS_FUNCTION_EXPRESSION:',
+  },
+  'cjs-anonymous-rest-function-expression-cycle-reset': {
+    cases: 4,
+    prefix: 'WS2_CJS_FUNCTION_EXPRESSION:',
+  },
+  'cjs-default-function-expression-dependency-reset': {
+    cases: 5,
+    prefix: 'WS2_CJS_FUNCTION_EXPRESSION:',
+  },
+  'cjs-default-function-expression-cycle-reset': {
+    cases: 5,
+    prefix: 'WS2_CJS_FUNCTION_EXPRESSION:',
+  },
+  'cjs-rest-function-expression-dependency-reset': {
+    cases: 5,
+    prefix: 'WS2_CJS_FUNCTION_EXPRESSION:',
+  },
+  'cjs-rest-function-expression-cycle-reset': {
+    cases: 5,
+    prefix: 'WS2_CJS_FUNCTION_EXPRESSION:',
+  },
+  'cjs-named-function-expression-dependency-reset': {
+    cases: 4,
+    prefix: 'WS2_CJS_FUNCTION_EXPRESSION:',
+  },
+  'cjs-named-function-expression-cycle-reset': {
+    cases: 4,
+    prefix: 'WS2_CJS_FUNCTION_EXPRESSION:',
+  },
   'cjs-import-mock-owned-descriptor-callable': {
     cases: 8,
     prefix: 'WS2_CALLABLE_',
@@ -97,6 +280,12 @@ const ordinaryEsmNamespaceGroups = {
     prefix: 'WS2_CJS_FUNCTION_EXPRESSION:',
   },
   'runtime-namespace-ordinary-tla': { cases: 3, prefix: 'WS2_ESM_NAMESPACE:' },
+  'runtime-registration-leaf-tla-order': { cases: 8, prefix: 'WS2_LEAF_TLA:' },
+  'runtime-registration-two-tla-order': { cases: 8, prefix: 'WS2_LEAF_TLA:' },
+  'runtime-registration-original-adoption': {
+    cases: 3,
+    prefix: 'WS2_LEAF_TLA:',
+  },
   'runtime-import-original-callback-shape': {
     cases: 1,
     prefix: 'WS2_CALLBACK_SHAPE:',
@@ -322,6 +511,7 @@ fs.writeFileSync(
       {
         name: group,
         environment: 'node',
+        ...(mode === 'production' ? { mode } : {}),
         include: ['*.test.mjs'],
       },
     ],
@@ -329,7 +519,7 @@ fs.writeFileSync(
 )
 const env = {
   ...process.env,
-  NODE_ENV: 'development',
+  NODE_ENV: mode,
   NEXT_TELEMETRY_DISABLED: '1',
   FORCE_COLOR: '0',
 }

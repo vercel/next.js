@@ -1,0 +1,8 @@
+/** @jsxRuntime classic */
+import React from 'react'
+type Input = { active: boolean; label: string }
+const DisplayKind = function DisplayBody(props: {label:string}) { const {label} = props; return <b>{label}</b> }
+export function MakeRow({ active, label }: Input) {
+  return <section>{active ? <DisplayKind label={label} /> : <DisplayKind label="fallback" />}</section>
+}
+export const Unused = () => <i />

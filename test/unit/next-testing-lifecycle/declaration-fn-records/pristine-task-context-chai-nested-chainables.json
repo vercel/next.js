@@ -1,0 +1,241 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "chai-nested-chainables",
+        "trace": [
+          {
+            "kind": "created",
+            "name": "include-lengthOf",
+            "type": "function",
+            "sourceType": "function",
+            "thenAbsent": true
+          },
+          {
+            "kind": "created",
+            "name": "a-include",
+            "type": "function",
+            "sourceType": "function",
+            "thenAbsent": true
+          },
+          {
+            "kind": "created",
+            "name": "include-include",
+            "type": "function",
+            "sourceType": "function",
+            "thenAbsent": true
+          },
+          {
+            "phase": "foreign",
+            "name": "include-lengthOf",
+            "kind": "method",
+            "returnedType": "object",
+            "sameReturned": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true,
+            "receiverType": "function"
+          },
+          {
+            "phase": "foreign",
+            "name": "include-lengthOf",
+            "kind": "raw",
+            "exact": true,
+            "samePublic": false,
+            "type": "function"
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true,
+            "receiverType": "function"
+          },
+          {
+            "phase": "foreign",
+            "name": "a-include",
+            "kind": "method",
+            "returnedType": "object",
+            "sameReturned": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true,
+            "receiverType": "function"
+          },
+          {
+            "phase": "foreign",
+            "name": "a-include",
+            "kind": "raw",
+            "exact": true,
+            "samePublic": false,
+            "type": "function"
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true,
+            "receiverType": "function"
+          },
+          {
+            "phase": "foreign",
+            "name": "include-include",
+            "kind": "method",
+            "returnedType": "object",
+            "sameReturned": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true,
+            "receiverType": "function"
+          },
+          {
+            "phase": "foreign",
+            "name": "include-include",
+            "kind": "raw",
+            "exact": true,
+            "samePublic": false,
+            "type": "function"
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true,
+            "receiverType": "function"
+          },
+          {
+            "phase": "foreign",
+            "kind": "counts",
+            "owner": 3,
+            "caller": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "include-lengthOf",
+            "kind": "method",
+            "returnedType": "object",
+            "sameReturned": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true,
+            "receiverType": "function"
+          },
+          {
+            "phase": "afterAll",
+            "name": "include-lengthOf",
+            "kind": "raw",
+            "exact": true,
+            "samePublic": false,
+            "type": "function"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true,
+            "receiverType": "function"
+          },
+          {
+            "phase": "afterAll",
+            "name": "a-include",
+            "kind": "method",
+            "returnedType": "object",
+            "sameReturned": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true,
+            "receiverType": "function"
+          },
+          {
+            "phase": "afterAll",
+            "name": "a-include",
+            "kind": "raw",
+            "exact": true,
+            "samePublic": false,
+            "type": "function"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true,
+            "receiverType": "function"
+          },
+          {
+            "phase": "afterAll",
+            "name": "include-include",
+            "kind": "method",
+            "returnedType": "object",
+            "sameReturned": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true,
+            "receiverType": "function"
+          },
+          {
+            "phase": "afterAll",
+            "name": "include-include",
+            "kind": "raw",
+            "exact": true,
+            "samePublic": false,
+            "type": "function"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameTask": true,
+            "sameReceiver": true,
+            "receiverType": "function"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "counts",
+            "owner": 3,
+            "caller": 0
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "creator genuine nested native chainables",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "foreign genuine nested native chainables",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

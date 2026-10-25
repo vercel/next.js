@@ -1,0 +1,52 @@
+{
+  "rows": [
+    {
+      "stage": "before-all-one-start"
+    },
+    {
+      "stage": "before-all-one-end"
+    },
+    {
+      "stage": "before-all-two-start"
+    },
+    {
+      "stage": "before-all-two-end"
+    },
+    {
+      "stage": "body"
+    },
+    {
+      "stage": "after-all-one-start"
+    },
+    {
+      "stage": "after-all-one-end"
+    },
+    {
+      "stage": "after-all-two-start"
+    },
+    {
+      "stage": "after-all-two-end"
+    },
+    {
+      "stage": "cleanup-one-start"
+    },
+    {
+      "stage": "cleanup-one-end"
+    },
+    {
+      "stage": "cleanup-two-start"
+    },
+    {
+      "stage": "cleanup-two-end"
+    }
+  ],
+  "cases": [
+    {
+      "name": "actual asynchronous suite hook sequence",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "success": true,
+  "exit": 0
+}

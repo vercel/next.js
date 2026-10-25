@@ -202,6 +202,11 @@ impl GenerateSourceMap for EcmascriptBrowserChunkContent {
     }
 
     #[turbo_tasks::function]
+    fn native_test_import_coverage_roles(self: Vc<Self>) -> Vc<FileContent> {
+        self.code().native_test_import_coverage_roles()
+    }
+
+    #[turbo_tasks::function]
     async fn by_section(self: Vc<Self>, section: RcStr) -> Result<Vc<FileContent>> {
         // Weirdly, the ContentSource will have already URL decoded the ModuleId, and we
         // can't reparse that via serde.

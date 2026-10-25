@@ -1,0 +1,1 @@
+import{test,expect}from'vitest';import{value}from'./subject.mjs';test('actual value',async()=>{await Promise.resolve();expect(value).toBeGreaterThan(0);console.log('WATCH_VALUE '+value)})

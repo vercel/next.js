@@ -303,7 +303,7 @@ export function initializeDynamicModuleMocking(
     // An ignored rejected import must retain Node's originating rejection path.
     return result.then((exports) => exports)
   }
-  function original(
+  function loadOriginal(
     importer: object,
     id: ModuleId,
     target: Target
@@ -357,6 +357,19 @@ export function initializeDynamicModuleMocking(
     target.original = { id, module, value: loaded }
     return loaded
   }
+  async function original(
+    importer: object,
+    id: ModuleId,
+    target: Target,
+    origin?: ReturnType<typeof captureAsyncScope>
+  ): Promise<Namespace> {
+    if (origin)
+      return origin.run(() => {
+        assertOwner()
+        return loadOriginal(importer, id, target)
+      })
+    return loadOriginal(importer, id, target)
+  }
   function resolveRegistration(
     importer: Importer,
     id: ModuleId,
@@ -380,7 +393,9 @@ export function initializeDynamicModuleMocking(
         }
         throw error
       }
-      tracked = RealPromise.resolve().then(() => {
+      const dispatch = RealPromise.resolve()
+      tracked = (async () => {
+        await dispatch
         let factoryExports: ReturnType<Factory>
         try {
           factoryExports = origin.run(() => {
@@ -388,11 +403,7 @@ export function initializeDynamicModuleMocking(
             try {
               const invoke = () =>
                 registration.factory(() =>
-                  (async () =>
-                    origin.run(() => {
-                      assertOwner()
-                      return original(importer, id, target)
-                    }))()
+                  original(importer, id, target, origin)
                 )
               if (activation) {
                 const scope = createActivation()
@@ -412,44 +423,43 @@ export function initializeDynamicModuleMocking(
         } catch (error) {
           return rejected(error)
         }
-        return RealPromise.resolve(factoryExports).then(
-          (exports) => {
-            try {
-              return origin.run(() => {
-                assertOwner()
-                if (
-                  !exports ||
-                  typeof exports !== 'object' ||
-                  Array.isArray(exports)
-                )
-                  throw factoryFailure(
-                    new TypeError(
-                      'Runtime module mock factory must return an exports object.'
-                    )
-                  )
-                registration.pending = false
-                registration.value = exports
-                if (target.pending?.delete(registration)) {
-                  if (!target.pending.size) target.pending = undefined
-                  target.cached = exports
-                }
-                return exports
-              })
-            } catch (error) {
-              return rejected(error)
-            }
-          },
-          (cause) => {
-            try {
-              // A closed origin owns its raw failure before factory wrapping.
-              origin.run(assertOwner)
-            } catch (error) {
-              return rejected(error)
-            }
-            return rejected(factoryFailure(cause))
+        let exports: Namespace
+        try {
+          exports = await factoryExports
+        } catch (cause) {
+          try {
+            // A closed origin owns its raw failure before factory wrapping.
+            origin.run(assertOwner)
+          } catch (error) {
+            return rejected(error)
           }
-        )
-      })
+          return rejected(factoryFailure(cause))
+        }
+        try {
+          return origin.run(() => {
+            assertOwner()
+            if (
+              !exports ||
+              typeof exports !== 'object' ||
+              Array.isArray(exports)
+            )
+              throw factoryFailure(
+                new TypeError(
+                  'Runtime module mock factory must return an exports object.'
+                )
+              )
+            registration.pending = false
+            registration.value = exports
+            if (target.pending?.delete(registration)) {
+              if (!target.pending.size) target.pending = undefined
+              target.cached = exports
+            }
+            return exports
+          })
+        } catch (error) {
+          return rejected(error)
+        }
+      })()
       registration.result = tracked
     }
     return registration.result
@@ -580,7 +590,7 @@ export function initializeDynamicModuleMocking(
             if (namespace !== undefined)
               return RealPromise.resolve(namespace as Namespace)
           }
-          return RealPromise.resolve(original(this, id, target))
+          return RealPromise.resolve(loadOriginal(this, id, target))
         }
         return own(
           resolveRegistration(this, id, target, registration, origin, true)

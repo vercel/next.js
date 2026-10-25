@@ -1,0 +1,10 @@
+import { test, afterEach, afterAll, onTestFailed as globalFailed } from 'vitest'
+const rows = []
+const row = (stage, value = {}) => rows.push({ stage, ...value })
+afterEach(({ task }) => row('afterEach', { errors: (task.result?.errors ?? []).map(error => error?.message ?? String(error)) }))
+afterAll(() => console.log('TASK_QUEUE_CONSUMER:' + JSON.stringify(rows)))
+const fail = () => { const error = new Error('actual controlled body failure'); error.stack = ''; throw error }
+test('manual failed callback has no invented default deadline',({task})=>{
+ task.onFailed=[async function rawFailed(payload){row('raw-start',{same:payload.task===task,receiverUndefined:this===undefined,args:arguments.length});await new Promise(resolve=>setTimeout(resolve,1200));row('raw-end')}]
+ row('body-return',{name:task.onFailed[0].name,length:task.onFailed[0].length});fail()
+})

@@ -1,0 +1,37 @@
+import {test,expect,vi} from 'vitest'
+import {types} from 'node:util'
+function shape(value) {
+ if (value===null || (typeof value!=='object' && typeof value!=='function')) return {type:typeof value,value}
+ return {type:typeof value,brand:types.isModuleNamespaceObject(value),keys:Reflect.ownKeys(value).map(String),prototype:Object.getPrototypeOf(value)===null?'null':Object.getPrototypeOf(value)===Object.prototype?'Object.prototype':Object.getPrototypeOf(value)===Function.prototype?'Function.prototype':Object.prototype.toString.call(Object.getPrototypeOf(value)),tag:value[Symbol.toStringTag]??null,extensible:Object.isExtensible(value),sealed:Object.isSealed(value),frozen:Object.isFrozen(value),descriptors:Reflect.ownKeys(value).map(key=>{const d=Object.getOwnPropertyDescriptor(value,key);return {key:String(key),valueType:typeof d.value,get:typeof d.get,set:typeof d.set,writable:d.writable??null,enumerable:d.enumerable,configurable:d.configurable}})}
+}
+function view(namespace) {
+ const raw=namespace.default;const result=raw.call(raw,'held',raw);const dependency=result[4];const detached=raw('detached',undefined)
+ return {namespace:shape(namespace),raw:shape(raw),name:raw.name,length:raw.length,functionTag:Object.prototype.toString.call(raw),prototype:shape(raw.prototype),prototypeConstructorSame:raw.prototype.constructor===raw,dependency:shape(dependency),dependencyRoot:dependency.root?shape(dependency.root):null,call:result.slice(0,4),detached:detached.slice(0,4)}
+}
+function same(values){return values.map(value=>values.map(other=>value===other))}
+function counts(){return {root:globalThis.__ws2ExprRoot??0,dependency:globalThis.__ws2ExprDependency??0,unused:globalThis.__ws2ExprUnused??0}}
+function row(name,data){console.log('WS2_CJS_FUNCTION_EXPRESSION:'+JSON.stringify({name,...data}));expect(data).toBeDefined()}
+function clean(){vi.resetModules()}
+test('complete named function namespace and require lifetime across reset',async()=>{
+ clean();const first=await import('./root.cjs');const cached=await import('./root.cjs');vi.resetModules();const second=await import('./root.cjs');vi.resetModules();const third=await import('./root.cjs');const values=[first,cached,second,third];const raws=values.map(value=>value.default);const dependencies=raws.map(value=>value.call(value,'dep',value)[4]);
+ row('reset',{views:values.map(view),identities:same(values),rawIdentities:same(raws),dependencyIdentities:same(dependencies),counts:counts()})
+})
+test('complete named function actual helper shares namespace and reset ownership',async()=>{
+ clean();const first=await vi.importActual('./root.cjs');const ordinary=await import('./root.cjs');const again=await vi.importActual('./root.cjs');vi.resetModules();const second=await vi.importActual('./root.cjs');const later=await import('./root.cjs');const values=[first,ordinary,again,second,later];
+ row('actual',{views:values.map(view),identities:same(values),rawIdentities:same(values.map(value=>value.default)),counts:counts()})
+})
+test('named function held default and dependency mutations remain live',async()=>{
+ clean();const first=await import('./root.cjs');const raw=first.default;const dependency=raw('dependency',undefined)[4];raw.extra={held:true};dependency.evaluation=731;const mutated=view(first);vi.resetModules();const second=await import('./root.cjs');const secondDependency=second.default('dependency',undefined)[4];
+ row('mutation',{held:view(first),mutated,fresh:view(second),heldExtraSame:raw.extra===first.default.extra,freshHasExtra:'extra' in second.default,dependencySame:dependency===secondDependency,counts:counts()})
+})
+
+test('named function expression keeps its local self binding across reset',async()=>{
+ clean();const first=await import('./root.cjs');const held=first.default;const firstSelf=held('self');vi.resetModules();const second=await import('./root.cjs');const fresh=second.default;
+ row('named-self',{first:view(first),second:view(second),heldSelf:firstSelf===held,heldStillSelf:held('self')===held,freshSelf:fresh('self')===fresh,distinct:held!==fresh,counts:counts()});expect(firstSelf).toBe(held);expect(held('self')).toBe(held);expect(fresh('self')).toBe(fresh);expect(fresh).not.toBe(held)
+})
+
+test('ordinary parameter calls keep defaults rest arguments and constructor behavior',async()=>{
+ clean();const namespace=await import('./root.cjs');const raw=namespace.default;const receiver={receiver:true};
+ const noArgs=raw();const missing=raw.call(receiver,undefined,receiver);const extra=raw.call(receiver,'extra',receiver,31,47);const constructed=new raw('constructed',undefined,59);
+ const tail=result=>result.slice(5);row('parameters',{name:raw.name,length:raw.length,noArgs:noArgs.slice(0,4),noArgsTail:tail(noArgs),missing:missing.slice(0,4),missingTail:tail(missing),extra:extra.slice(0,4),extraTail:tail(extra),constructed:constructed.slice(0,4),constructedTail:tail(constructed),self:raw('self')===raw,counts:counts()});expect(raw('self')).toBe(raw)
+})

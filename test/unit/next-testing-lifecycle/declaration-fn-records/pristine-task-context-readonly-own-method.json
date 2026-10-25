@@ -1,0 +1,59 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "readonly-own-method",
+        "trace": [
+          {
+            "kind": "callback",
+            "expected": 1,
+            "sameReceiver": true
+          },
+          {
+            "kind": "live",
+            "result": "ok",
+            "sameReturn": true
+          },
+          {
+            "kind": "descriptor",
+            "writable": false,
+            "configurable": false,
+            "enumerable": false
+          },
+          {
+            "kind": "callback",
+            "expected": 2,
+            "sameReceiver": true
+          },
+          {
+            "kind": "closed",
+            "result": "ok",
+            "sameReturn": true
+          }
+        ],
+        "calls": 2,
+        "count": 1,
+        "state": "pass"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "readonly own assertion method",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeads": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 1,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

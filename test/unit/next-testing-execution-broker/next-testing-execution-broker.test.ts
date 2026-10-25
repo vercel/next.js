@@ -104,6 +104,98 @@ function transport(allowCoverage = false, allowCohorts = false) {
   }
 }
 
+it.each([
+  'closed',
+  'unrequested',
+  'failed',
+  'node',
+  'hard-abort',
+  'forged-option',
+])(
+  'retains direct Browser scheduling result authority for %s',
+  async (kind) => {
+    const execution = await import(
+      'next/dist/experimental/testing/execution/execute'
+    )
+    const browserProfile = {
+      ...profile,
+      environment: 'browser' as const,
+      browserClient: true as const,
+    }
+    const browserEntry = { ...entry, profile: browserProfile }
+    const browserArtifact = {
+      ...artifact,
+      kind: 'browser',
+      profile: browserProfile,
+    } as CompiledTestArtifact
+    const user = new AbortController(),
+      lifetime = new AbortController()
+    const delivered = deferred<void>(),
+      messages: ExecutionBrokerResponse[] = []
+    const returned = {
+      ...result,
+      ...(kind === 'failed' ? { status: 'failed' as const } : {}),
+      ...(kind === 'forged-option'
+        ? {}
+        : { closedUserCancellation: true as const }),
+    }
+    const spy = jest
+      .spyOn(execution, 'executeWithEnvironment')
+      .mockImplementation(async () => {
+        if (kind !== 'unrequested' && kind !== 'forged-option') user.abort()
+        if (kind === 'hard-abort')
+          lifetime.abort(new Error('actual hard owner abort'))
+        return returned
+      })
+    const host = createExecutionBrokerHost({
+      signal: lifetime.signal,
+      userCancelSignal: user.signal,
+      browserProjects: [{ profile: browserProfile, entries: [browserEntry] }],
+      async send(message) {
+        messages.push(message)
+        delivered.resolve()
+      },
+    })
+    try {
+      host.handle({
+        type: 'execution-broker-request',
+        action: 'execute',
+        id: 'closed-browser',
+        artifact: kind === 'node' ? artifact : browserArtifact,
+        options: {
+          ...options,
+          entry: kind === 'node' ? entry : browserEntry,
+          ...(kind === 'forged-option' ? { closedUserCancellation: true } : {}),
+        },
+        env: { ...process.env },
+      })
+      await delivered.promise
+      expect(spy).toHaveBeenCalledTimes(1)
+      const response = messages.find(
+        (message) => message.action === 'result' || message.action === 'error'
+      )!
+      if (kind === 'closed' || kind === 'forged-option') {
+        expect(response.action).toBe('result')
+        if (response.action === 'result') {
+          if (kind === 'closed')
+            expect(response.result.closedUserCancellation).toBe(true)
+          else
+            expect(response.result).not.toHaveProperty('closedUserCancellation')
+        }
+      } else {
+        expect(response.action).toBe('error')
+        if (response.action === 'error')
+          expect(response.error.message).toContain(
+            'Invalid closed Browser scheduling result'
+          )
+      }
+    } finally {
+      await host.close().catch(() => {})
+      spy.mockRestore()
+    }
+  }
+)
+
 it('awaits one-shot coverage processing before releasing the artifact on a terminal result', async () => {
   const channel = transport(true)
   const processing = deferred<void>()
@@ -1321,5 +1413,500 @@ it('uses only the host scheduling signal and retains the worker until actual com
     closed.resolve()
     await host.close()
     spy.mockRestore()
+  }
+})
+
+it('acknowledges a queued file without evaluation when the parent user request already won', async () => {
+  const execution = await import(
+    'next/dist/experimental/testing/execution/execute'
+  )
+  const spy = jest.spyOn(execution, 'executeWithEnvironment')
+  const user = new AbortController()
+  user.abort()
+  const lifetime = new AbortController()
+  const received = deferred<void>()
+  const sent: ExecutionBrokerResponse[] = []
+  const prepare = jest.fn()
+  const launched = jest.fn()
+  const host = createExecutionBrokerHost({
+    signal: lifetime.signal,
+    userCancelSignal: user.signal,
+    onWorkerLaunched: launched,
+    allowCoverage: true,
+    onRuntimeConfiguration: prepare,
+    async send(message) {
+      sent.push(message)
+      if (message.action === 'result') received.resolve()
+    },
+  })
+  try {
+    host.handle({
+      type: 'execution-broker-request',
+      action: 'execute',
+      id: 'cancelled-before-evaluation',
+      artifact,
+      options: { ...options, coverage: { version: 1, kind: 'node-line' } },
+      env: { ...process.env },
+    })
+    await received.promise
+    expect(sent).toEqual([
+      {
+        type: 'execution-broker-response',
+        action: 'result',
+        id: 'cancelled-before-evaluation',
+        result: {
+          entryId: entry.id,
+          status: 'cancelled',
+          durationMs: 0,
+          notExecuted: true,
+        },
+      },
+    ])
+    expect(spy).not.toHaveBeenCalled()
+    expect(prepare).not.toHaveBeenCalled()
+    expect(launched).not.toHaveBeenCalled()
+    expect(lifetime.signal.aborted).toBe(false)
+    await host.close()
+    expect(host.ownershipClosed).toBe(true)
+  } finally {
+    await host.close()
+    spy.mockRestore()
+  }
+})
+
+it('rechecks parent cancellation after actual runtime configuration preparation', async () => {
+  const execution = await import(
+    'next/dist/experimental/testing/execution/execute'
+  )
+  const spy = jest.spyOn(execution, 'executeWithEnvironment')
+  const preparing = deferred<void>()
+  const prepared = deferred<void>()
+  const received = deferred<void>()
+  const sealed = jest.fn(async () => {})
+  const user = new AbortController()
+  const lifetime = new AbortController()
+  const sent: ExecutionBrokerResponse[] = []
+  const launched = jest.fn()
+  const host = createExecutionBrokerHost({
+    signal: lifetime.signal,
+    userCancelSignal: user.signal,
+    onWorkerLaunched: launched,
+    allowCoverage: true,
+    async onRuntimeConfiguration() {
+      preparing.resolve()
+      await prepared.promise
+      return sealed
+    },
+    async send(message) {
+      sent.push(message)
+      if (message.action === 'result') received.resolve()
+    },
+  })
+  try {
+    host.handle({
+      type: 'execution-broker-request',
+      action: 'execute',
+      id: 'cancelled-during-preparation',
+      artifact,
+      options: { ...options, coverage: { version: 1, kind: 'node-line' } },
+      env: { ...process.env },
+    })
+    await preparing.promise
+    user.abort()
+    prepared.resolve()
+    await received.promise
+    expect(sent).toEqual([
+      expect.objectContaining({
+        action: 'result',
+        result: {
+          entryId: entry.id,
+          status: 'cancelled',
+          durationMs: 0,
+          notExecuted: true,
+        },
+      }),
+    ])
+    expect(spy).not.toHaveBeenCalled()
+    expect(launched).not.toHaveBeenCalled()
+    expect(sealed).not.toHaveBeenCalled()
+    expect(lifetime.signal.aborted).toBe(false)
+  } finally {
+    prepared.resolve()
+    await host.close()
+    spy.mockRestore()
+  }
+})
+
+it('keeps an observed fork launched when cancellation arrives inside its ready callback', async () => {
+  const execution = await import(
+    'next/dist/experimental/testing/execution/execute'
+  )
+  const user = new AbortController()
+  const launched: { entryId: string; runId: string; revision: string }[] = []
+  const received = deferred<void>()
+  const sent: ExecutionBrokerResponse[] = []
+  const spy = jest
+    .spyOn(execution, 'executeWithEnvironment')
+    .mockImplementation(async (_artifact, input, _env, _snapshot, onReady) => {
+      onReady?.()
+      expect(input.userCancelSignal?.aborted).toBe(true)
+      expect(input.signal.aborted).toBe(false)
+      return result
+    })
+  const host = createExecutionBrokerHost({
+    signal: new AbortController().signal,
+    userCancelSignal: user.signal,
+    allowCoverage: true,
+    onWorkerLaunched(identity) {
+      launched.push(identity)
+      user.abort()
+    },
+    async send(message) {
+      sent.push(message)
+      if (message.action === 'result') received.resolve()
+    },
+  })
+  try {
+    host.handle({
+      type: 'execution-broker-request',
+      action: 'execute',
+      id: 'cancelled-after-actual-fork',
+      artifact,
+      options: { ...options, coverage: { version: 1, kind: 'node-line' } },
+      env: { ...process.env },
+    })
+    await received.promise
+    expect(launched).toEqual([
+      { entryId: entry.id, runId: options.runId, revision: artifact.revision },
+    ])
+    expect(sent.at(-1)).toMatchObject({ action: 'result', result })
+    expect(sent.at(-1)).not.toHaveProperty('result.notExecuted')
+  } finally {
+    await host.close()
+    spy.mockRestore()
+  }
+})
+
+describe('selected Browser runtime engines', () => {
+  it.each([
+    {
+      name: 'default Chromium',
+      parent: undefined,
+      requested: undefined,
+      client: true,
+      allowed: true,
+    },
+    {
+      name: 'explicit Chromium',
+      parent: undefined,
+      requested: 'chromium',
+      client: true,
+      allowed: true,
+    },
+    {
+      name: 'selected Firefox',
+      parent: 'firefox',
+      requested: 'firefox',
+      client: true,
+      allowed: true,
+    },
+    {
+      name: 'changed Firefox request',
+      parent: 'firefox',
+      requested: 'chromium',
+      client: true,
+      allowed: false,
+    },
+    {
+      name: 'missing Firefox request',
+      parent: 'firefox',
+      requested: undefined,
+      client: true,
+      allowed: false,
+    },
+    {
+      name: 'unselected Firefox',
+      parent: undefined,
+      requested: 'firefox',
+      client: true,
+      allowed: false,
+    },
+    {
+      name: 'changed selected entry',
+      parent: 'firefox',
+      requested: 'firefox',
+      client: true,
+      changedEntry: true,
+      allowed: false,
+    },
+    {
+      name: 'Chromium application driver field',
+      parent: undefined,
+      requested: 'chromium',
+      client: false,
+      allowed: false,
+    },
+    {
+      name: 'Firefox application driver field',
+      parent: undefined,
+      requested: 'firefox',
+      client: false,
+      allowed: false,
+    },
+  ] as const)(
+    'checks $name against its actual parent selection before acquisition',
+    async (row) => {
+      const execution = await import(
+        'next/dist/experimental/testing/execution/execute'
+      )
+      const browser = await import(
+        'next/dist/experimental/testing/browser/host'
+      )
+      const application = await import(
+        'next/dist/experimental/testing/browser/server'
+      )
+      const execute = jest
+        .spyOn(execution, 'executeWithEnvironment')
+        .mockResolvedValue(result)
+      const acquire = jest.spyOn(browser, 'createBrowserHost')
+      const acquireApplication = jest.spyOn(
+        application,
+        'createApplicationServer'
+      )
+      const selectedProfile = {
+        ...profile,
+        environment: 'browser' as const,
+        ...(row.client ? { browserClient: true as const } : {}),
+      }
+      const selectedEntry = { ...entry, profile: selectedProfile }
+      const selectedArtifact = {
+        ...artifact,
+        kind: row.client ? 'browser' : 'node',
+        profile: selectedProfile,
+      }
+      const delivered = deferred<void>(),
+        messages: ExecutionBrokerResponse[] = []
+      const host = createExecutionBrokerHost({
+        signal: options.signal,
+        browserProjects: [
+          {
+            profile: selectedProfile,
+            entries: [selectedEntry],
+            ...(row.parent ? { browserEngine: row.parent } : {}),
+          },
+        ],
+        async send(message) {
+          messages.push(message)
+          delivered.resolve()
+        },
+      })
+      try {
+        host.handle({
+          type: 'execution-broker-request',
+          action: 'execute',
+          id: 'selected-engine',
+          artifact: selectedArtifact,
+          options: {
+            ...options,
+            entry:
+              'changedEntry' in row
+                ? { ...selectedEntry, id: 'foreign-entry' }
+                : selectedEntry,
+            ...(row.requested ? { browserEngine: row.requested } : {}),
+          },
+          env: { ...process.env },
+        })
+        await delivered.promise
+        expect(execute).toHaveBeenCalledTimes(row.allowed ? 1 : 0)
+        expect(messages.map((message) => message.action)).toEqual([
+          row.allowed ? 'result' : 'error',
+        ])
+        expect(acquire).not.toHaveBeenCalled()
+        expect(acquireApplication).not.toHaveBeenCalled()
+        if (row.allowed)
+          expect(execute).toHaveBeenCalledWith(
+            expect.objectContaining({ profile: selectedProfile }),
+            expect.objectContaining(
+              row.requested ? { browserEngine: row.requested } : {}
+            ),
+            expect.any(Object),
+            undefined,
+            undefined
+          )
+      } finally {
+        await host.close()
+        execute.mockRestore()
+        acquire.mockRestore()
+        acquireApplication.mockRestore()
+      }
+    }
+  )
+})
+
+for (const ci of [true, false])
+  describe(
+    'parent-selected Browser launch mode' +
+      (ci ? '' : ' local omitted default'),
+    () => {
+      it.each(
+        ci
+          ? ([
+              [undefined, undefined, true],
+              [undefined, true, true],
+              [undefined, false, false],
+              [true, undefined, true],
+              [true, false, false],
+              [false, false, true],
+              [false, true, false],
+              [false, undefined, false],
+            ] as const)
+          : ([
+              [undefined, undefined, true],
+              [undefined, true, false],
+              [undefined, false, true],
+              [true, undefined, false],
+              [true, false, false],
+              [false, false, true],
+              [false, true, false],
+              [false, undefined, true],
+            ] as const)
+      )(
+        'checks actual headless parent=%s requested=%s',
+        async (parent, requested, allowed) => {
+          jest.doMock(
+            'next/dist/experimental/testing/config-environment',
+            () => ({
+              isTestCI: ci,
+            })
+          )
+          try {
+            await jest.isolateModulesAsync(async () => {
+              const { createExecutionBrokerHost } = await import(
+                'next/dist/experimental/testing/execution/broker'
+              )
+              const execution = await import(
+                'next/dist/experimental/testing/execution/execute'
+              )
+              const invoke = jest
+                .spyOn(execution, 'executeWithEnvironment')
+                .mockResolvedValue(result)
+              const selectedProfile = {
+                ...profile,
+                environment: 'browser' as const,
+                browserClient: true as const,
+              }
+              const selectedEntry = { ...entry, profile: selectedProfile }
+              const delivered = deferred<void>(),
+                messages: ExecutionBrokerResponse[] = []
+              const host = createExecutionBrokerHost({
+                signal: options.signal,
+                browserProjects: [
+                  {
+                    profile: selectedProfile,
+                    entries: [selectedEntry],
+                    ...(parent === undefined
+                      ? {}
+                      : { browserHeadless: parent }),
+                  },
+                ],
+                async send(message) {
+                  messages.push(message)
+                  delivered.resolve()
+                },
+              })
+              try {
+                host.handle({
+                  type: 'execution-broker-request',
+                  action: 'execute',
+                  id: 'headless-selection',
+                  artifact: {
+                    ...artifact,
+                    kind: 'browser',
+                    profile: selectedProfile,
+                  },
+                  options: {
+                    ...options,
+                    entry: selectedEntry,
+                    ...(requested === undefined
+                      ? {}
+                      : { browserHeadless: requested }),
+                  },
+                  env: { ...process.env },
+                })
+                await delivered.promise
+                expect(invoke).toHaveBeenCalledTimes(allowed ? 1 : 0)
+                expect(messages.map((message) => message.action)).toEqual([
+                  allowed ? 'result' : 'error',
+                ])
+                if (allowed) {
+                  const actual = invoke.mock.calls[0][1]
+                  expect(actual.browserHeadless).toBe(requested)
+                }
+              } finally {
+                await host.close()
+                invoke.mockRestore()
+              }
+            })
+          } finally {
+            jest.dontMock('next/dist/experimental/testing/config-environment')
+          }
+        }
+      )
+    }
+  )
+
+it.each([
+  { parent: true, child: false },
+  { parent: false, child: true },
+  { parent: false, child: false },
+])('keeps module capture parent-owned for %j', async ({ parent, child }) => {
+  const execution = await import(
+    'next/dist/experimental/testing/execution/execute'
+  )
+  const execute = jest
+    .spyOn(execution, 'executeWithEnvironment')
+    .mockResolvedValue(result)
+  const delivered = deferred<void>(),
+    messages: ExecutionBrokerResponse[] = []
+  const host = createExecutionBrokerHost({
+    signal: new AbortController().signal,
+    ...(parent ? { captureCompletedModuleResult: true as const } : {}),
+    async send(value) {
+      messages.push(value)
+      delivered.resolve()
+    },
+  })
+  try {
+    host.handle({
+      type: 'execution-broker-request',
+      action: 'execute',
+      id: 'private-capture',
+      artifact,
+      options: {
+        ...options,
+        ...(child ? { captureCompletedModuleResult: true } : {}),
+      },
+      env: { ...process.env },
+    })
+    await delivered.promise
+    if (!parent && child) {
+      expect(execute).not.toHaveBeenCalled()
+      expect(messages[0]).toMatchObject({
+        action: 'error',
+        error: { message: 'Unrequested private module completion capture.' },
+      })
+    } else {
+      expect(execute).toHaveBeenCalledTimes(1)
+      const actual = execute.mock.calls[0][1]
+      expect(actual.captureCompletedModuleResult).toBe(
+        parent ? true : undefined
+      )
+      if (!parent)
+        expect(actual).not.toHaveProperty('captureCompletedModuleResult')
+      expect(messages[0]).toMatchObject({ action: 'result', result })
+    }
+  } finally {
+    await host.close()
+    execute.mockRestore()
   }
 })

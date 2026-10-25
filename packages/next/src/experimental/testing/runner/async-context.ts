@@ -110,6 +110,13 @@ export function getConsoleTask() {
   return undefined
 }
 
+/** Observe the real owner without admitting an API call or reporting late work. */
+export function peekOriginatingScope():
+  | Pick<Scope, 'kind' | 'context' | 'closed'>
+  | undefined {
+  return storage.getStore()
+}
+
 export function getOriginatingAttempt(): AttemptContext | undefined {
   const scope = current()
   return scope?.kind === 'attempt' ? scope.context : undefined

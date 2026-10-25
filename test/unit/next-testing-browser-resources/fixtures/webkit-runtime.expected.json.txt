@@ -1,0 +1,171 @@
+{
+  "referenceVersion": "5.0.4",
+  "comparisonFields": [
+    "cases.name",
+    "cases.status",
+    "cases.failureMessages",
+    "wholeAuthoredRows",
+    "fileSuccess",
+    "exit"
+  ],
+  "profiles": [
+    {
+      "mode": "development",
+      "exit": 0,
+      "success": true,
+      "cases": [
+        {
+          "name": "native and subclass Promises in the actual document",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "name": "actual document and native event dispatch",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "name": "original synchronous retry",
+          "status": "passed",
+          "failureMessages": [
+            "original synchronous retry"
+          ]
+        }
+      ],
+      "rows": [
+        [
+          [
+            "before",
+            "native and subclass Promises in the actual document"
+          ],
+          [
+            "promises",
+            7,
+            11,
+            13
+          ],
+          [
+            "after",
+            "native and subclass Promises in the actual document"
+          ],
+          [
+            "before",
+            "actual document and native event dispatch"
+          ],
+          [
+            "document",
+            1
+          ],
+          [
+            "after",
+            "actual document and native event dispatch"
+          ],
+          [
+            "before",
+            "original synchronous retry"
+          ],
+          [
+            "retry",
+            1
+          ],
+          [
+            "after",
+            "original synchronous retry"
+          ],
+          [
+            "before",
+            "original synchronous retry"
+          ],
+          [
+            "retry",
+            2
+          ],
+          [
+            "after",
+            "original synchronous retry"
+          ]
+        ]
+      ],
+      "allOwnersClosed": true
+    },
+    {
+      "mode": "production",
+      "exit": 0,
+      "success": true,
+      "cases": [
+        {
+          "name": "native and subclass Promises in the actual document",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "name": "actual document and native event dispatch",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "name": "original synchronous retry",
+          "status": "passed",
+          "failureMessages": [
+            "original synchronous retry"
+          ]
+        }
+      ],
+      "rows": [
+        [
+          [
+            "before",
+            "native and subclass Promises in the actual document"
+          ],
+          [
+            "promises",
+            7,
+            11,
+            13
+          ],
+          [
+            "after",
+            "native and subclass Promises in the actual document"
+          ],
+          [
+            "before",
+            "actual document and native event dispatch"
+          ],
+          [
+            "document",
+            1
+          ],
+          [
+            "after",
+            "actual document and native event dispatch"
+          ],
+          [
+            "before",
+            "original synchronous retry"
+          ],
+          [
+            "retry",
+            1
+          ],
+          [
+            "after",
+            "original synchronous retry"
+          ],
+          [
+            "before",
+            "original synchronous retry"
+          ],
+          [
+            "retry",
+            2
+          ],
+          [
+            "after",
+            "original synchronous retry"
+          ]
+        ]
+      ],
+      "allOwnersClosed": true
+    }
+  ]
+}

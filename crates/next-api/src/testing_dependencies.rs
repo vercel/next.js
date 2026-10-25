@@ -110,10 +110,24 @@ pub(crate) async fn dependency_asset(
     entry: FileSystemPath,
     output: FileSystemPath,
 ) -> Result<ResolvedVc<VirtualOutputAsset>> {
+    dependency_asset_from_modules(project, vec![module], entry, output).await
+}
+
+/// Traverse actual processed roots; generated execution wrappers need not be files.
+pub(crate) async fn dependency_asset_from_modules(
+    project: ResolvedVc<Project>,
+    modules: Vec<ResolvedVc<Box<dyn Module>>>,
+    entry: FileSystemPath,
+    output: FileSystemPath,
+) -> Result<ResolvedVc<VirtualOutputAsset>> {
+    anyhow::ensure!(
+        !modules.is_empty(),
+        "Dependency planning requires actual module roots"
+    );
     let root = project.project_path().owned().await?;
     let next_package = next_core::get_next_package(root.clone()).await?;
-    let entry_module = module;
-    let mut queue = vec![module];
+    let root_modules: HashSet<_> = modules.iter().copied().collect();
+    let mut queue = modules;
     let mut visited = HashSet::new();
     let mut sources = BTreeMap::new();
     let mut observed_origins = HashSet::new();
@@ -125,9 +139,9 @@ pub(crate) async fn dependency_asset(
         }
         let ident = module.ident().await?;
         let framework = next_package.get_path_to(&ident.path).is_some();
-        // The root is Next's generated entry wrapper: traverse its actual
-        // internal user-module edges without treating its template as user input.
-        if framework && module != entry_module {
+        // Explicit framework roots retain their actual internal user-module edges;
+        // ordinary framework dependencies are not watched project inputs.
+        if framework && !root_modules.contains(&module) {
             continue;
         }
         if let Some(external) = ResolvedVc::try_downcast_type::<CachedExternalModule>(module) {

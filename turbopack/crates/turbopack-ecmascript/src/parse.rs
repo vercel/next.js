@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
@@ -50,7 +50,7 @@ use crate::{
     analyzer::graph::EvalContext,
     magic_identifier,
     swc_comments::ImmutableComments,
-    transform::{EcmascriptInputTransforms, TransformContext},
+    transform::{BrowserJsxImport, EcmascriptInputTransforms, TransformContext},
 };
 
 /// Collects identifier names and their byte positions from an AST.
@@ -164,6 +164,9 @@ pub enum ParseResult {
         /// error.
         #[turbo_tasks(debug_ignore)]
         program_source: Rope,
+        /// Actual imports introduced by the opted-in React transform of this parse.
+        #[turbo_tasks(debug_ignore, unsafe_ignore)]
+        browser_jsx_imports: Vec<BrowserJsxImport>,
     },
     Unparsable {
         messages: Option<Vec<RcStr>>,
@@ -611,6 +614,18 @@ async fn parse_file_content(
             };
 
             let mut helpers = helpers.data();
+            let browser_jsx_imports = transforms
+                .iter()
+                .any(|transform| {
+                    matches!(
+                        transform,
+                        EcmascriptInputTransform::React {
+                            capture_browser_jsx_imports: true,
+                            ..
+                        }
+                    )
+                })
+                .then(|| Mutex::new(Vec::new()));
             let transform_context = TransformContext {
                 comments: &comments,
                 source_map: &source_map,
@@ -624,6 +639,7 @@ async fn parse_file_content(
                 source,
                 source_text: &fm.src,
                 node_env,
+                browser_jsx_imports: browser_jsx_imports.as_ref(),
             };
             let span = tracing::trace_span!("transforms");
             async {
@@ -675,6 +691,13 @@ async fn parse_file_content(
                 source_map,
                 source_mapping_url: source_mapping_url.map(|s| s.into()),
                 program_source,
+                browser_jsx_imports: browser_jsx_imports
+                    .map(|imports| {
+                        imports
+                            .into_inner()
+                            .expect("owned Browser JSX import collector")
+                    })
+                    .unwrap_or_default(),
             })
         },
         |f, cx| GLOBALS.set(globals_ref, || HANDLER.set(&handler, || f.poll(cx))),

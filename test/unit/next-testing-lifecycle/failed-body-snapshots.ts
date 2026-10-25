@@ -374,7 +374,7 @@ if (process.env.NEXT_TEST_DEFERRED_SNAPSHOT_CONTRACT === '1') {
                 onTestFinished(() => {
                   late = new Promise<void>((resolve) => {
                     releaseLate = resolve
-                  }).then(() => expect(1).toBe(1))
+                  }).then(() => expect(1).resolves.toBe(1))
                 })
               if (kind === 'timeout')
                 await new Promise<void>((resolve) =>

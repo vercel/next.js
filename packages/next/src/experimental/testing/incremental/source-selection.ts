@@ -36,7 +36,9 @@ export async function readSourceDependencyAsset(
 ): Promise<CompiledSourceDependencies> {
   const metadataPath = resolve(
     rootDir,
-    entryPath.replace(/\.js$/, '.dependencies.json')
+    entryPath.endsWith('.client.json')
+      ? entryPath.slice(0, -'.client.json'.length) + '.dependencies.json'
+      : entryPath.replace(/\.js$/, '.dependencies.json')
   )
   const value: CompiledSourceDependencies = JSON.parse(
     await readFile(metadataPath, 'utf8')

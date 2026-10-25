@@ -1,6 +1,12 @@
+import type { BrowserFrameOwner } from '../browser/frame-owner'
+import type { FirefoxFrameOwner } from '../browser/firefox-host'
 import { randomBytes } from 'node:crypto'
 import type { BrowserContext, CDPSession, Page } from 'playwright'
 import { enginePromiseBrandKey } from './engine-brand-contract'
+import { createFirefoxEngineBrand } from '../browser/firefox-engine-brand'
+import type { FirefoxPageOwner } from '../browser/firefox-host'
+import type { WebKitPageOwner } from '../browser/webkit-host'
+import { createWebKitEngineBrand } from '../browser/webkit-engine-brand'
 
 interface Location {
   scriptId: string
@@ -30,6 +36,9 @@ export function createClientEngineBrand(options: {
   url: string
   signal: AbortSignal
   onFailure(error: unknown): void
+  firefoxOwner?: FirefoxPageOwner
+  webKitOwner?: WebKitPageOwner
+  frameOwner?: BrowserFrameOwner | FirefoxFrameOwner
 }) {
   const origin = new URL(options.url).origin
   const url = `next-test-engine-brand://${randomBytes(32).toString('hex')}`
@@ -37,7 +46,9 @@ export function createClientEngineBrand(options: {
   // Subsequent pauses expose just the parameter's RemoteObject engine subtype.
   const sourceLines = [
     '(() => {',
-    '  if (globalThis !== globalThis.top) return;',
+    options.frameOwner
+      ? `  if (globalThis.location.href !== ${JSON.stringify(options.url)}) return;`
+      : '  if (globalThis !== globalThis.top) return;',
     '  const Missing = Error;',
     '  const nativePrototype = Promise.prototype;',
     '  const getPrototype = Object.getPrototypeOf;',
@@ -58,6 +69,22 @@ export function createClientEngineBrand(options: {
   )
   const classificationLine = sourceLines.indexOf('    debugger;')
   const registrationLine = sourceLines.indexOf('  debugger;')
+  if (options.webKitOwner) {
+    return createWebKitEngineBrand({
+      owner: options.webKitOwner,
+      ...(options.frameOwner ? { frameOwner: options.frameOwner } : {}),
+      signal: options.signal,
+      onFailure: options.onFailure,
+      initializer: { source, url, classificationLine, registrationLine },
+    })
+  }
+  if (options.firefoxOwner)
+    return createFirefoxEngineBrand({
+      ...options,
+      owner: options.firefoxOwner,
+      frameOwner: options.frameOwner as FirefoxFrameOwner | undefined,
+      initializer: { source, url, classificationLine, registrationLine },
+    })
   const contexts = new Map<number, ExecutionContext>()
   const scripts = new Map<string, number>()
   const pending = new Set<Promise<unknown>>()
@@ -84,6 +111,7 @@ export function createClientEngineBrand(options: {
     options.signal.throwIfAborted()
     if (closing || options.page.isClosed())
       throw new Error('Browser Mode engine classifier is closed.')
+    options.frameOwner?.assertCurrent()
     if (failure) throw failure
   }
   function post(method: string, params: object = {}): Promise<any> {
@@ -309,7 +337,11 @@ export function createClientEngineBrand(options: {
           })
           listen('Runtime.executionContextsCleared', () => {
             contexts.clear()
-            if (fact && !closing)
+            if (options.frameOwner) {
+              fact = undefined
+              functionLocation = undefined
+              scripts.clear()
+            } else if (fact && !closing)
               fail(
                 new Error('Engine classifier execution realms were cleared.')
               )
@@ -318,10 +350,21 @@ export function createClientEngineBrand(options: {
             'Runtime.executionContextDestroyed',
             ({ executionContextId }) => {
               contexts.delete(executionContextId)
-              if (fact?.executionContextId === executionContextId && !closing)
-                fail(
-                  new Error('Engine classifier execution realm was destroyed.')
-                )
+              if (options.frameOwner)
+                for (const [scriptId, contextId] of scripts) {
+                  if (contextId === executionContextId) scripts.delete(scriptId)
+                }
+              if (fact?.executionContextId === executionContextId && !closing) {
+                if (options.frameOwner) {
+                  fact = undefined
+                  functionLocation = undefined
+                } else
+                  fail(
+                    new Error(
+                      'Engine classifier execution realm was destroyed.'
+                    )
+                  )
+              }
             }
           )
           listen('Debugger.scriptParsed', (script) => {
@@ -351,7 +394,19 @@ export function createClientEngineBrand(options: {
           await post('Debugger.enable')
           await post('Debugger.setSkipAllPauses', { skip: false })
           const tree = await post('Page.getFrameTree')
-          frameId = tree.frameTree.frame.id
+          frameId =
+            options.frameOwner?.nativeFrameId() ?? tree.frameTree.frame.id
+          if (
+            options.frameOwner &&
+            !tree.frameTree.childFrames?.some(
+              (child: any) =>
+                child.frame?.id === frameId &&
+                child.frame?.parentId === tree.frameTree.frame.id
+            )
+          )
+            throw new Error(
+              'Engine classifier selected Frame differs from its actual CDP child.'
+            )
           if (!frameId)
             throw new Error('Missing engine classifier owner frame.')
           const installed = await post(

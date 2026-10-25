@@ -1,0 +1,226 @@
+{
+  "development": [
+    {
+      "stage": "initial",
+      "cases": [
+        {
+          "fullName": "alpha dependency",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "beta dependency",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "outputs": [
+        {
+          "case": "alpha",
+          "value": 41,
+          "shared": 0,
+          "mode": "development"
+        },
+        {
+          "case": "beta",
+          "value": 42,
+          "shared": 0,
+          "mode": "development"
+        }
+      ],
+      "total": 2,
+      "passed": 2,
+      "success": true
+    },
+    {
+      "stage": "beta-edit",
+      "cases": [
+        {
+          "fullName": "beta dependency",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "outputs": [
+        {
+          "case": "beta",
+          "value": 45,
+          "shared": 0,
+          "mode": "development"
+        }
+      ],
+      "total": 1,
+      "passed": 1,
+      "success": true
+    },
+    {
+      "stage": "shared-edit",
+      "cases": [
+        {
+          "fullName": "alpha dependency",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "beta dependency",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "outputs": [
+        {
+          "case": "alpha",
+          "value": 41,
+          "shared": 1,
+          "mode": "development"
+        },
+        {
+          "case": "beta",
+          "value": 45,
+          "shared": 1,
+          "mode": "development"
+        }
+      ],
+      "total": 2,
+      "passed": 2,
+      "success": true
+    },
+    {
+      "stage": "unrelated-edit",
+      "noNewReport": true
+    },
+    {
+      "stage": "alpha-edit",
+      "cases": [
+        {
+          "fullName": "alpha dependency",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "outputs": [
+        {
+          "case": "alpha",
+          "value": 44,
+          "shared": 1,
+          "mode": "development"
+        }
+      ],
+      "total": 1,
+      "passed": 1,
+      "success": true
+    }
+  ],
+  "production": [
+    {
+      "stage": "initial",
+      "cases": [
+        {
+          "fullName": "alpha dependency",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "beta dependency",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "outputs": [
+        {
+          "case": "alpha",
+          "value": 41,
+          "shared": 0,
+          "mode": "production"
+        },
+        {
+          "case": "beta",
+          "value": 42,
+          "shared": 0,
+          "mode": "production"
+        }
+      ],
+      "total": 2,
+      "passed": 2,
+      "success": true
+    },
+    {
+      "stage": "beta-edit",
+      "cases": [
+        {
+          "fullName": "beta dependency",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "outputs": [
+        {
+          "case": "beta",
+          "value": 45,
+          "shared": 0,
+          "mode": "production"
+        }
+      ],
+      "total": 1,
+      "passed": 1,
+      "success": true
+    },
+    {
+      "stage": "shared-edit",
+      "cases": [
+        {
+          "fullName": "alpha dependency",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "fullName": "beta dependency",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "outputs": [
+        {
+          "case": "alpha",
+          "value": 41,
+          "shared": 1,
+          "mode": "production"
+        },
+        {
+          "case": "beta",
+          "value": 45,
+          "shared": 1,
+          "mode": "production"
+        }
+      ],
+      "total": 2,
+      "passed": 2,
+      "success": true
+    },
+    {
+      "stage": "unrelated-edit",
+      "noNewReport": true
+    },
+    {
+      "stage": "alpha-edit",
+      "cases": [
+        {
+          "fullName": "alpha dependency",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "outputs": [
+        {
+          "case": "alpha",
+          "value": 44,
+          "shared": 1,
+          "mode": "production"
+        }
+      ],
+      "total": 1,
+      "passed": 1,
+      "success": true
+    }
+  ]
+}

@@ -1,6 +1,21 @@
 --- a/index.js
 +++ b/index.js
-@@ -1396,6 +1396,14 @@
+@@ -1005,7 +1005,13 @@
+   for (let flag3 in flags) {
+     if (includeAll || flag3 !== "object" && flag3 !== "ssfi" && flag3 !== "lockSsfi" && flag3 != "message") {
+       objFlags[flag3] = flags[flag3];
+-    }
++      if (flag3 === "vitest-test") nextMarkAssertionTaskTransfer(object);
++    }
++  }
++  const sourceIdentity = nextGetAssertionIdentity(source);
++  const objectIdentity = nextGetAssertionIdentity(object);
++  if (sourceIdentity && objectIdentity && sourceIdentity !== objectIdentity && !nextGetAssertionTransferSource(objectIdentity)) {
++    nextSetAssertionTransferSource(objectIdentity, sourceIdentity);
+   }
+ }
+ __name(transferFlags, "transferFlags");
+@@ -1396,6 +1402,30 @@
  __name(getPathInfo, "getPathInfo");
  
  // lib/chai/assertion.js
@@ -9,13 +24,29 @@
 +const nextGetAssertionIdentity = WeakMap.prototype.get.bind(nextAssertionIdentities);
 +const nextSetAssertionIdentity = WeakMap.prototype.set.bind(nextAssertionIdentities);
 +const nextFreezeAssertionIdentity = Object.freeze;
++const nextAssertionTransferSources = new WeakMap();
++const nextGetAssertionTransferSource = WeakMap.prototype.get.bind(nextAssertionTransferSources);
++const nextSetAssertionTransferSource = WeakMap.prototype.set.bind(nextAssertionTransferSources);
++const nextAssertionTaskTransfers = new WeakSet();
++const nextHasAssertionTaskTransfer = WeakSet.prototype.has.bind(nextAssertionTaskTransfers);
++const nextAddAssertionTaskTransfer = WeakSet.prototype.add.bind(nextAssertionTaskTransfers);
++function nextMarkAssertionTaskTransfer(value) {
++  const identity = nextGetAssertionIdentity(value);
++  if (identity) nextAddAssertionTaskTransfer(identity);
++}
 +function getChaiAssertionIdentity(value) {
 +  return nextGetAssertionIdentity(value);
++}
++function getChaiAssertionTransferSourceIdentity(value) {
++  return nextGetAssertionTransferSource(nextGetAssertionIdentity(value) || value);
++}
++function hasChaiAssertionTaskFlagTransfer(value) {
++  return nextHasAssertionTaskTransfer(nextGetAssertionIdentity(value) || value);
 +}
  var _Assertion = class _Assertion {
    /**
     * Creates object for chaining.
-@@ -1440,7 +1448,12 @@
+@@ -1440,7 +1470,12 @@
      flag(this, "object", obj);
      flag(this, "message", msg);
      flag(this, "eql", config.deepEqual || deep_eql_default);
@@ -29,7 +60,7 @@
    }
    /** @returns {boolean} */
    static get includeStack() {
-@@ -1659,7 +1672,7 @@
+@@ -1659,7 +1694,7 @@
  var builtins = ["__flags", "__methods", "_obj", "assert"];
  function proxify(obj, nonChainableMethodName) {
    if (!isProxyEnabled()) return obj;
@@ -38,7 +69,7 @@
      get: /* @__PURE__ */ __name(function proxyGetter(target, property) {
        if (typeof property === "string" && config.proxyExcludedKeys.indexOf(property) === -1 && !Reflect.has(target, property)) {
          if (nonChainableMethodName) {
-@@ -1696,6 +1709,9 @@
+@@ -1696,6 +1731,9 @@
        return Reflect.get(target, property);
      }, "proxyGetter")
    });
@@ -48,7 +79,17 @@
  }
  __name(proxify, "proxify");
  function stringDistanceCapped(strA, strB, cap) {
-@@ -3417,6 +3433,7 @@
+@@ -1890,6 +1928,9 @@
+           }
+         });
+       }
++      const identity = { __proto__: null };
++      nextFreezeAssertionIdentity(identity);
++      nextSetAssertionIdentity(chainableMethodWrapper, identity);
+       transferFlags(this, chainableMethodWrapper);
+       return proxify(chainableMethodWrapper);
+     }, "chainableMethodGetter"),
+@@ -3417,6 +3458,7 @@
    Should: () => Should,
    should: () => should
  });
@@ -56,7 +97,7 @@
  function loadShould() {
    function shouldGetter() {
      if (this instanceof String || this instanceof Number || this instanceof Boolean || typeof Symbol === "function" && this instanceof Symbol || typeof BigInt === "function" && this instanceof BigInt) {
-@@ -3480,9 +3497,12 @@
+@@ -3480,9 +3522,12 @@
    return should2;
  }
  __name(loadShould, "loadShould");
@@ -72,7 +113,7 @@
  // lib/chai/interface/assert.js
  function assert(express, errmsg) {
    let test2 = new Assertion(null, null, assert, true);
-@@ -4260,6 +4280,10 @@
+@@ -4260,6 +4305,10 @@
    assert[as] = assert[name];
  }
  
@@ -83,13 +124,15 @@
  // lib/chai.js
  var used = [];
  function use(fn) {
-@@ -4281,6 +4305,9 @@
+@@ -4281,6 +4330,11 @@
  }
  __name(use, "use");
  export {
 +  createChaiAssertInterface,
 +  createChaiShouldInterface,
 +  getChaiAssertionIdentity,
++  getChaiAssertionTransferSourceIdentity,
++  hasChaiAssertionTaskFlagTransfer,
    Assertion,
    AssertionError,
    Should,

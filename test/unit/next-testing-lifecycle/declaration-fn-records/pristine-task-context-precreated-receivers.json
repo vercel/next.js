@@ -1,0 +1,89 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "precreated-receivers",
+        "trace": [
+          {
+            "kind": "bind-creation",
+            "result": "error",
+            "name": "Error",
+            "message": "Invalid Chai property: toBe.length. See docs for proper usage of \"toBe\"."
+          },
+          {
+            "kind": "direct",
+            "result": "ok",
+            "returnType": "object",
+            "count": 3
+          },
+          {
+            "kind": "extracted",
+            "result": "error",
+            "name": "TypeError",
+            "message": "Cannot read properties of undefined (reading '__flags')",
+            "count": 3
+          },
+          {
+            "kind": "own-receiver",
+            "result": "ok",
+            "returnType": "object",
+            "count": 3
+          },
+          {
+            "kind": "other-receiver",
+            "result": "ok",
+            "returnType": "object",
+            "count": 3
+          },
+          {
+            "kind": "bound-unavailable"
+          },
+          {
+            "kind": "mismatch",
+            "result": "error",
+            "name": "AssertionError",
+            "message": "expected 'first' to be 'other' // Object.is equality",
+            "count": 3
+          },
+          {
+            "kind": "absent-then",
+            "hasThen": false,
+            "value": "undefined"
+          },
+          {
+            "kind": "adopted",
+            "same": true,
+            "count": 3
+          },
+          {
+            "kind": "not",
+            "count": 3
+          }
+        ],
+        "state": "pass",
+        "count": 3
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "retained precreated hard receivers",
+      "status": "passed",
+      "failureCount": 1,
+      "failureHeaders": [
+        "Error: Test timed out in 60ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\"."
+      ]
+    }
+  ],
+  "counts": {
+    "numTotalTests": 1,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

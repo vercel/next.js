@@ -1,0 +1,11 @@
+/** @jsxRuntime classic */
+/** @jsx makeNode */
+/** @jsxFrag Group */
+import { createElement as makeNode, Fragment as Group } from 'react'
+type Input = { active: boolean; label: string }
+function InfoView({children}: {children:string}) { return <b>{children}</b> }
+const views = {Item:InfoView}
+export function Card({ active, label }: Input) {
+  return <views.Item>{label}</views.Item>
+}
+export const Unused = () => <i />

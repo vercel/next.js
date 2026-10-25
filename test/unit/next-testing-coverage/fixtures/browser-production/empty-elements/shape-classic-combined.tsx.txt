@@ -1,0 +1,7 @@
+/** @jsxRuntime classic */
+import React from 'react'
+type Input = { active: boolean; label: string }
+export function Card({ active, label }: Input) {
+  return <input disabled title={active ? 'on' : 'off'} />
+}
+export const Unused = () => <i />

@@ -472,9 +472,32 @@ impl VisitMut for CreatorPass {
         arrow.params.visit_mut_with(self);
         self.in_parameters = false;
         self.repeated = false;
-        self.in_inline_body = matches!(&*arrow.body, ArrowFunctionBody::Expr(_));
         self.function_depth += 1;
-        arrow.body.visit_mut_with(self);
+        if let ArrowFunctionBody::Expr(expression) = &mut *arrow.body
+            && matches!(&**expression, Expr::Fn(_))
+        {
+            // A returned ordinary function is created when this arrow is called.
+            // Keep its creator cell in that invocation, without replacing either
+            // function object or moving capture into the surrounding statement.
+            let outer = self.pending.take();
+            self.in_inline_body = false;
+            expression.visit_mut_with(self);
+            let mut captures = self.pending.take();
+            if !captures.is_empty() {
+                captures.push(Stmt::Return(ReturnStmt {
+                    span: DUMMY_SP,
+                    arg: Some(expression.take()),
+                }));
+                *arrow.body = ArrowFunctionBody::FunctionBody(FunctionBody {
+                    stmts: captures,
+                    ..Default::default()
+                });
+            }
+            self.pending = outer;
+        } else {
+            self.in_inline_body = matches!(&*arrow.body, ArrowFunctionBody::Expr(_));
+            arrow.body.visit_mut_with(self);
+        }
         self.function_depth -= 1;
         self.in_parameters = parameters;
         self.in_inline_body = inline;
@@ -663,6 +686,70 @@ mod tests {
             assert!(output.contains("return function(...args)"));
             assert!(output.contains("finally"));
             assert!(output.contains("captureCreatorScope as __next_creator_capture"));
+        });
+    }
+    #[test]
+    fn concise_returned_functions_capture_on_each_arrow_invocation() {
+        GLOBALS.set(&Default::default(), || {
+            for source in [
+                "export const callback = label => function(payload) { return [label, payload, \
+                 this, arguments.length, new.target] }",
+                "export const callback = label => function named(payload,...rest) { return \
+                 [label, payload, rest, named] }",
+            ] {
+                let (program, count) = transformed(source).unwrap();
+                assert_eq!(count, 1);
+                assert!(validate_creator_import(&program).unwrap());
+                let Program::Module(module) = &program else {
+                    unreachable!()
+                };
+                assert_eq!(module.body.len(), 2, "no eager module capture");
+                let ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export)) = &module.body[1] else {
+                    unreachable!()
+                };
+                let Decl::Var(declaration) = &export.decl else {
+                    unreachable!()
+                };
+                let Expr::Arrow(arrow) = &**declaration.decls[0].init.as_ref().unwrap() else {
+                    unreachable!()
+                };
+                let ArrowFunctionBody::FunctionBody(body) = &*arrow.body else {
+                    unreachable!()
+                };
+                assert_eq!(body.stmts.len(), 2);
+                assert!(matches!(&body.stmts[0], Stmt::Decl(Decl::Var(_))));
+                assert!(matches!(&body.stmts[1], Stmt::Return(returned)
+                    if matches!(returned.arg.as_deref(), Some(Expr::Fn(_)))));
+                let output = to_code(&program);
+                assert!(output.contains("finally"));
+                assert!(output.contains("return function"));
+            }
+        });
+    }
+    #[test]
+    fn concise_function_cells_do_not_escape_nested_arrow_invocations() {
+        GLOBALS.set(&Default::default(), || {
+            let (program, count) = transformed(
+                "export function make(){ const callback = label => function(payload) { return \
+                 [label, payload] }; return callback }",
+            )
+            .unwrap();
+            assert_eq!(count, 1);
+            let Program::Module(module) = &program else {
+                unreachable!()
+            };
+            assert_eq!(module.body.len(), 2, "no module capture");
+            let ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export)) = &module.body[1] else {
+                unreachable!()
+            };
+            let Decl::Fn(make) = &export.decl else {
+                unreachable!()
+            };
+            assert_eq!(
+                make.function.body.as_ref().unwrap().stmts.len(),
+                2,
+                "no factory capture before the arrow is called"
+            );
         });
     }
     #[test]

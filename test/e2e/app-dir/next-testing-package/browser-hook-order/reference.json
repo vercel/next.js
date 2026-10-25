@@ -1,0 +1,2353 @@
+{
+  "reference": {
+    "vitest": "5.0.4",
+    "provider": "@vitest/browser-playwright@5.0.4",
+    "playwright": "1.64.0",
+    "browsers": ["chromium", "firefox"],
+    "sourcesUnchanged": true,
+    "comparisonScope": {
+      "ordering": "complete authored rows and case name/status/failureMessages plus report success and CLI exit",
+      "resources": "complete authored rows, case name/status, exact diagnostic name/message and mapped authored registration line; raw stacks retained separately",
+      "userCancellation": "actual cancellation API, aborted signal, graceful cleanup and interrupted reference run reason; Next direct execution closedUserCancellation receipt",
+      "rawFirefoxReport": "Genuine Firefox standard JSON failureMessages contains native stack without message; separate unchanged public reporter error-object observation retains exact diagnostic name/message."
+    }
+  },
+  "profiles": [
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "order": "stack",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "async-ordering",
+      "label": "chromium-development-async-ordering-stack-default",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/async-hooks.test.mjs.txt",
+        "sha256": "50e83ed1f60b39824655414bd1c083fc9afba07f86fa8dac52af5291b5b6cd1c"
+      },
+      "projected": {
+        "path": "reference/chromium-development-async-ordering-stack-default-actual.json.txt",
+        "sha256": "d84aa743161ec651ebb494545e4c19538e5f61ea76e09e1bcf9b1f5978f4c677"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-development-async-ordering-stack-default-report.json.txt",
+        "sha256": "38678bf9e8071cb2f86b768a6ca4955f00fce487208f13d0f6ab0ac595f8ee3e"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-development-async-ordering-stack-default-console.jsonl.txt",
+        "sha256": "1213c8d4e9925b76eb5541df125188849cc33cc19a6e12b8515a57ccc9c62856"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "order": "stack",
+      "limit": 1,
+      "suite": "ordering",
+      "kind": "async-ordering",
+      "label": "chromium-development-async-ordering-stack-1",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/async-hooks.test.mjs.txt",
+        "sha256": "50e83ed1f60b39824655414bd1c083fc9afba07f86fa8dac52af5291b5b6cd1c"
+      },
+      "projected": {
+        "path": "reference/chromium-development-async-ordering-stack-1-actual.json.txt",
+        "sha256": "d84aa743161ec651ebb494545e4c19538e5f61ea76e09e1bcf9b1f5978f4c677"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-development-async-ordering-stack-1-report.json.txt",
+        "sha256": "8dd70b37fedce1a15f3e6adb9a6391cde2ec1b7f696ece8de45ecff6f66bc5f5"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-development-async-ordering-stack-1-console.jsonl.txt",
+        "sha256": "88336d3121e82547b1b5f10a952e4a2e5b756d1326be3348ad5f3788ff18ab4c"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "order": "list",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "async-ordering",
+      "label": "chromium-development-async-ordering-list-default",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/async-hooks.test.mjs.txt",
+        "sha256": "50e83ed1f60b39824655414bd1c083fc9afba07f86fa8dac52af5291b5b6cd1c"
+      },
+      "projected": {
+        "path": "reference/chromium-development-async-ordering-list-default-actual.json.txt",
+        "sha256": "cb37ee284b3b213f3bd33c97a2fa5597f95ae8d810b1850cc5a95c55fc369589"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-development-async-ordering-list-default-report.json.txt",
+        "sha256": "48765f4a26b99c751f2700cbe3f1de6ba7f09a9049df020977c4c84e9c7499bd"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-development-async-ordering-list-default-console.jsonl.txt",
+        "sha256": "96f47d23deb919ca42587c478a8c5c68177846380292740c2b55b21925ce001d"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "order": "list",
+      "limit": 1,
+      "suite": "ordering",
+      "kind": "async-ordering",
+      "label": "chromium-development-async-ordering-list-1",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/async-hooks.test.mjs.txt",
+        "sha256": "50e83ed1f60b39824655414bd1c083fc9afba07f86fa8dac52af5291b5b6cd1c"
+      },
+      "projected": {
+        "path": "reference/chromium-development-async-ordering-list-1-actual.json.txt",
+        "sha256": "cb37ee284b3b213f3bd33c97a2fa5597f95ae8d810b1850cc5a95c55fc369589"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-development-async-ordering-list-1-report.json.txt",
+        "sha256": "45592e5327f008e65a8c09ba54ea25267fa847defa301ef770f622e0cad929b1"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-development-async-ordering-list-1-console.jsonl.txt",
+        "sha256": "1051c7148c3afaae55006253ca94f618c8ae70c8f20993123674078d9b97c75f"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "order": "parallel",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "async-ordering",
+      "label": "chromium-development-async-ordering-parallel-default",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/async-hooks.test.mjs.txt",
+        "sha256": "50e83ed1f60b39824655414bd1c083fc9afba07f86fa8dac52af5291b5b6cd1c"
+      },
+      "projected": {
+        "path": "reference/chromium-development-async-ordering-parallel-default-actual.json.txt",
+        "sha256": "2d65fdc1785ef792067e9f70a5ffd25e2aff78da255f3cc66494e3d360d03a88"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-development-async-ordering-parallel-default-report.json.txt",
+        "sha256": "88c901b104555a4cb33229ffb95329e804e39e29c6f4bb6b2226b88b48980256"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-development-async-ordering-parallel-default-console.jsonl.txt",
+        "sha256": "c0e8cc33ddb9049219d7b4df9961d2f29acb78eb49fea9c31419562bee5db62b"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "order": "parallel",
+      "limit": 1,
+      "suite": "ordering",
+      "kind": "async-ordering",
+      "label": "chromium-development-async-ordering-parallel-1",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/async-hooks.test.mjs.txt",
+        "sha256": "50e83ed1f60b39824655414bd1c083fc9afba07f86fa8dac52af5291b5b6cd1c"
+      },
+      "projected": {
+        "path": "reference/chromium-development-async-ordering-parallel-1-actual.json.txt",
+        "sha256": "cb37ee284b3b213f3bd33c97a2fa5597f95ae8d810b1850cc5a95c55fc369589"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-development-async-ordering-parallel-1-report.json.txt",
+        "sha256": "055bc0331190aab7a3e45b62624036c18498d88ee5118c5972c0833e21a97603"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-development-async-ordering-parallel-1-console.jsonl.txt",
+        "sha256": "27412b542f066ab2ff634f1076cded86f258f3fcd937bde5d7e789f2e47a87e1"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "order": "list",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "getter-list",
+      "label": "chromium-development-getter-list-list-default",
+      "prefix": "TASK_QUEUE_CONSUMER:",
+      "source": {
+        "path": "sources/failed-registration-list.test.mjs.txt",
+        "sha256": "d3e9fd9eeafae40806fe35b64d321d31a94929070154d1ac40f3487a67b5f474"
+      },
+      "projected": {
+        "path": "reference/chromium-development-getter-list-list-default-actual.json.txt",
+        "sha256": "153e96e7d1370650f28d9639f478c2d60cb1915e70606606244147f1ae741fb2"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-development-getter-list-list-default-report.json.txt",
+        "sha256": "c94ed7931965dada41b73374b355548b3ee8909acfc2d8e1ae18fd2a743e6831"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-development-getter-list-list-default-console.jsonl.txt",
+        "sha256": "85cf6eb94266e25b2bd399315e0d4f2f20247c9acfe1a7c43d1e9d930c4b2e38"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "order": "parallel",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "getter-parallel",
+      "label": "chromium-development-getter-parallel-parallel-default",
+      "prefix": "TASK_QUEUE_CONSUMER:",
+      "source": {
+        "path": "sources/failed-registration-parallel.test.mjs.txt",
+        "sha256": "98b0f09af6daa2fe0883121de358c1cba3a122949f68bc6520fddb998b74baf0"
+      },
+      "projected": {
+        "path": "reference/chromium-development-getter-parallel-parallel-default-actual.json.txt",
+        "sha256": "7790b94b5d068ef8f62d7a7aac65816596e2aa36e5ff8b1a979b31d36234708b"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-development-getter-parallel-parallel-default-report.json.txt",
+        "sha256": "3ff5b3cdc873de5477d1ac80ac3228142b9aadd84b62aefff3f7f9499e4947ed"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-development-getter-parallel-parallel-default-console.jsonl.txt",
+        "sha256": "ad4f334d11be172d0af7b0125b4aa7d679eaa1dad3168f5038f33d6a359ae5fc"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "order": "stack",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "async-ordering",
+      "label": "chromium-production-async-ordering-stack-default",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/async-hooks.test.mjs.txt",
+        "sha256": "50e83ed1f60b39824655414bd1c083fc9afba07f86fa8dac52af5291b5b6cd1c"
+      },
+      "projected": {
+        "path": "reference/chromium-production-async-ordering-stack-default-actual.json.txt",
+        "sha256": "d84aa743161ec651ebb494545e4c19538e5f61ea76e09e1bcf9b1f5978f4c677"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-production-async-ordering-stack-default-report.json.txt",
+        "sha256": "a6234a76b211791135e9e45aa3c93cd3af5f99dd9eb216d1d5afe3203a0971cf"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-production-async-ordering-stack-default-console.jsonl.txt",
+        "sha256": "f872bc80872ab2458422fd37b87af64c6f40f4bbf62f2e50fb00a5f793292667"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "order": "stack",
+      "limit": 1,
+      "suite": "ordering",
+      "kind": "async-ordering",
+      "label": "chromium-production-async-ordering-stack-1",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/async-hooks.test.mjs.txt",
+        "sha256": "50e83ed1f60b39824655414bd1c083fc9afba07f86fa8dac52af5291b5b6cd1c"
+      },
+      "projected": {
+        "path": "reference/chromium-production-async-ordering-stack-1-actual.json.txt",
+        "sha256": "d84aa743161ec651ebb494545e4c19538e5f61ea76e09e1bcf9b1f5978f4c677"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-production-async-ordering-stack-1-report.json.txt",
+        "sha256": "8d22af754a580929caf9da541cc1581c4adc592a8321143679e09d4f86cc2183"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-production-async-ordering-stack-1-console.jsonl.txt",
+        "sha256": "e6d5bc3f8d71e633f5f17562e916e5323e266c86bae3b3c729eadb4985f54a3a"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "order": "list",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "async-ordering",
+      "label": "chromium-production-async-ordering-list-default",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/async-hooks.test.mjs.txt",
+        "sha256": "50e83ed1f60b39824655414bd1c083fc9afba07f86fa8dac52af5291b5b6cd1c"
+      },
+      "projected": {
+        "path": "reference/chromium-production-async-ordering-list-default-actual.json.txt",
+        "sha256": "cb37ee284b3b213f3bd33c97a2fa5597f95ae8d810b1850cc5a95c55fc369589"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-production-async-ordering-list-default-report.json.txt",
+        "sha256": "3ef95a573d6ee5e284db09c8341934f997e84f200255418d701a42954e59737d"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-production-async-ordering-list-default-console.jsonl.txt",
+        "sha256": "7b87cd53a0a2a80ae39c3eda0a7ef7c29f2c53af98d61704e0b7c06fbabc20c7"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "order": "list",
+      "limit": 1,
+      "suite": "ordering",
+      "kind": "async-ordering",
+      "label": "chromium-production-async-ordering-list-1",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/async-hooks.test.mjs.txt",
+        "sha256": "50e83ed1f60b39824655414bd1c083fc9afba07f86fa8dac52af5291b5b6cd1c"
+      },
+      "projected": {
+        "path": "reference/chromium-production-async-ordering-list-1-actual.json.txt",
+        "sha256": "cb37ee284b3b213f3bd33c97a2fa5597f95ae8d810b1850cc5a95c55fc369589"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-production-async-ordering-list-1-report.json.txt",
+        "sha256": "d75f376f63e1d022196d429909452377b6dcedc36fd3dbf5cc7b6804209a89e2"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-production-async-ordering-list-1-console.jsonl.txt",
+        "sha256": "b5b725de1a9cd9cf430dea6b08aeb8c1d6aa3f1a0b5247dd3e16446bfeac8e88"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "order": "parallel",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "async-ordering",
+      "label": "chromium-production-async-ordering-parallel-default",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/async-hooks.test.mjs.txt",
+        "sha256": "50e83ed1f60b39824655414bd1c083fc9afba07f86fa8dac52af5291b5b6cd1c"
+      },
+      "projected": {
+        "path": "reference/chromium-production-async-ordering-parallel-default-actual.json.txt",
+        "sha256": "2d65fdc1785ef792067e9f70a5ffd25e2aff78da255f3cc66494e3d360d03a88"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-production-async-ordering-parallel-default-report.json.txt",
+        "sha256": "0f4a61a80e07d48698582c3fce41188fc4b17eaac99fb3c81cece451806bd683"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-production-async-ordering-parallel-default-console.jsonl.txt",
+        "sha256": "4e2c6dac13a0110be7cbf2336a97ba9f833418a5de87da0e30c862bcd5c98190"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "order": "parallel",
+      "limit": 1,
+      "suite": "ordering",
+      "kind": "async-ordering",
+      "label": "chromium-production-async-ordering-parallel-1",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/async-hooks.test.mjs.txt",
+        "sha256": "50e83ed1f60b39824655414bd1c083fc9afba07f86fa8dac52af5291b5b6cd1c"
+      },
+      "projected": {
+        "path": "reference/chromium-production-async-ordering-parallel-1-actual.json.txt",
+        "sha256": "cb37ee284b3b213f3bd33c97a2fa5597f95ae8d810b1850cc5a95c55fc369589"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-production-async-ordering-parallel-1-report.json.txt",
+        "sha256": "93d2f32ba8b72ec18676cfed5cdfe7a14b4af49e6be756411ecf6af9f9d41102"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-production-async-ordering-parallel-1-console.jsonl.txt",
+        "sha256": "d3ce8f55e2574857b44bc3f946b5f2fe7cc390d06df1ba1ba24be46711942376"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "order": "list",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "getter-list",
+      "label": "chromium-production-getter-list-list-default",
+      "prefix": "TASK_QUEUE_CONSUMER:",
+      "source": {
+        "path": "sources/failed-registration-list.test.mjs.txt",
+        "sha256": "d3e9fd9eeafae40806fe35b64d321d31a94929070154d1ac40f3487a67b5f474"
+      },
+      "projected": {
+        "path": "reference/chromium-production-getter-list-list-default-actual.json.txt",
+        "sha256": "153e96e7d1370650f28d9639f478c2d60cb1915e70606606244147f1ae741fb2"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-production-getter-list-list-default-report.json.txt",
+        "sha256": "d53d6a9c2d5aa7297ff618444a7be96acf3aa772b7c27dbf3654760b08a55ce9"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-production-getter-list-list-default-console.jsonl.txt",
+        "sha256": "f3d99c9c843ee4bdc22ff361f4f61960e0b7249741a814946ff2a8c7c5a841d4"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "order": "parallel",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "getter-parallel",
+      "label": "chromium-production-getter-parallel-parallel-default",
+      "prefix": "TASK_QUEUE_CONSUMER:",
+      "source": {
+        "path": "sources/failed-registration-parallel.test.mjs.txt",
+        "sha256": "98b0f09af6daa2fe0883121de358c1cba3a122949f68bc6520fddb998b74baf0"
+      },
+      "projected": {
+        "path": "reference/chromium-production-getter-parallel-parallel-default-actual.json.txt",
+        "sha256": "7790b94b5d068ef8f62d7a7aac65816596e2aa36e5ff8b1a979b31d36234708b"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-production-getter-parallel-parallel-default-report.json.txt",
+        "sha256": "eac7049b74a18be85c558e834fdb7e3e229a59d1df9b2007b4cd70b5d1e169dc"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-production-getter-parallel-parallel-default-console.jsonl.txt",
+        "sha256": "d6e0e904d48d80beea8404202654f56a29a4b40ffe929aca59dda14c89634445"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "order": "stack",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "async-ordering",
+      "label": "firefox-development-async-ordering-stack-default",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/async-hooks.test.mjs.txt",
+        "sha256": "50e83ed1f60b39824655414bd1c083fc9afba07f86fa8dac52af5291b5b6cd1c"
+      },
+      "projected": {
+        "path": "reference/firefox-development-async-ordering-stack-default-actual.json.txt",
+        "sha256": "d84aa743161ec651ebb494545e4c19538e5f61ea76e09e1bcf9b1f5978f4c677"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-development-async-ordering-stack-default-report.json.txt",
+        "sha256": "21df2795799e4affea9ca1ea3147362071c89c25e4abc115e49d2d175375c06c"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-development-async-ordering-stack-default-console.jsonl.txt",
+        "sha256": "2ba93a243286d6a362958087fae090f770502a634ef3249af9503c2de01778e8"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "order": "stack",
+      "limit": 1,
+      "suite": "ordering",
+      "kind": "async-ordering",
+      "label": "firefox-development-async-ordering-stack-1",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/async-hooks.test.mjs.txt",
+        "sha256": "50e83ed1f60b39824655414bd1c083fc9afba07f86fa8dac52af5291b5b6cd1c"
+      },
+      "projected": {
+        "path": "reference/firefox-development-async-ordering-stack-1-actual.json.txt",
+        "sha256": "d84aa743161ec651ebb494545e4c19538e5f61ea76e09e1bcf9b1f5978f4c677"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-development-async-ordering-stack-1-report.json.txt",
+        "sha256": "e0f6ec16acf166e815b6fed47b0fffa1e6c0f9b735fce123c241dd2acd1088f8"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-development-async-ordering-stack-1-console.jsonl.txt",
+        "sha256": "8a247bd8e365f487202155e78c531c393839303fad41fe240fc414f4fda6dbdd"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "order": "list",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "async-ordering",
+      "label": "firefox-development-async-ordering-list-default",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/async-hooks.test.mjs.txt",
+        "sha256": "50e83ed1f60b39824655414bd1c083fc9afba07f86fa8dac52af5291b5b6cd1c"
+      },
+      "projected": {
+        "path": "reference/firefox-development-async-ordering-list-default-actual.json.txt",
+        "sha256": "cb37ee284b3b213f3bd33c97a2fa5597f95ae8d810b1850cc5a95c55fc369589"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-development-async-ordering-list-default-report.json.txt",
+        "sha256": "2d5137f13a263113a3d4b60717832ae61e1c8a178e1cf030ea1c00e9496ffd4b"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-development-async-ordering-list-default-console.jsonl.txt",
+        "sha256": "90cf012630b4076b6618e543a28ac77c113997265df3bf280b7f561203a6558d"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "order": "list",
+      "limit": 1,
+      "suite": "ordering",
+      "kind": "async-ordering",
+      "label": "firefox-development-async-ordering-list-1",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/async-hooks.test.mjs.txt",
+        "sha256": "50e83ed1f60b39824655414bd1c083fc9afba07f86fa8dac52af5291b5b6cd1c"
+      },
+      "projected": {
+        "path": "reference/firefox-development-async-ordering-list-1-actual.json.txt",
+        "sha256": "cb37ee284b3b213f3bd33c97a2fa5597f95ae8d810b1850cc5a95c55fc369589"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-development-async-ordering-list-1-report.json.txt",
+        "sha256": "16361dee1a2f52e234aeb2bbb6f32bcc5adff7b5715467b746c7ef70b7aa3419"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-development-async-ordering-list-1-console.jsonl.txt",
+        "sha256": "c94f2bc7b55a6c93aa46e7dc0563a75b1c843425c4659e06f976c30b8d6d6393"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "order": "parallel",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "async-ordering",
+      "label": "firefox-development-async-ordering-parallel-default",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/async-hooks.test.mjs.txt",
+        "sha256": "50e83ed1f60b39824655414bd1c083fc9afba07f86fa8dac52af5291b5b6cd1c"
+      },
+      "projected": {
+        "path": "reference/firefox-development-async-ordering-parallel-default-actual.json.txt",
+        "sha256": "2d65fdc1785ef792067e9f70a5ffd25e2aff78da255f3cc66494e3d360d03a88"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-development-async-ordering-parallel-default-report.json.txt",
+        "sha256": "18d1f763233fb6b334e8043484b38c17603696810e88f899e0fe1287e6ba27d3"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-development-async-ordering-parallel-default-console.jsonl.txt",
+        "sha256": "0501bfd952360026ca30d2b7aca171d0699f49b0657ca0cf019796a29907c5ca"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "order": "parallel",
+      "limit": 1,
+      "suite": "ordering",
+      "kind": "async-ordering",
+      "label": "firefox-development-async-ordering-parallel-1",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/async-hooks.test.mjs.txt",
+        "sha256": "50e83ed1f60b39824655414bd1c083fc9afba07f86fa8dac52af5291b5b6cd1c"
+      },
+      "projected": {
+        "path": "reference/firefox-development-async-ordering-parallel-1-actual.json.txt",
+        "sha256": "cb37ee284b3b213f3bd33c97a2fa5597f95ae8d810b1850cc5a95c55fc369589"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-development-async-ordering-parallel-1-report.json.txt",
+        "sha256": "e3af8cec36eee7a196f6191c56770818d0ee499602498251aa07db57c33287aa"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-development-async-ordering-parallel-1-console.jsonl.txt",
+        "sha256": "5724f2963df15166536b0caaaf6a5fc862f0b66806211e718efb0f524ef5b68f"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "order": "list",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "getter-list",
+      "label": "firefox-development-getter-list-list-default",
+      "prefix": "TASK_QUEUE_CONSUMER:",
+      "source": {
+        "path": "sources/failed-registration-list.test.mjs.txt",
+        "sha256": "d3e9fd9eeafae40806fe35b64d321d31a94929070154d1ac40f3487a67b5f474"
+      },
+      "projected": {
+        "path": "reference/firefox-development-getter-list-list-default-actual.json.txt",
+        "sha256": "153e96e7d1370650f28d9639f478c2d60cb1915e70606606244147f1ae741fb2"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-development-getter-list-list-default-report.json.txt",
+        "sha256": "57c9d7248edfb6558e77ba44558b5c01667359c21cff80b09c081b0044a055e1"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-development-getter-list-list-default-console.jsonl.txt",
+        "sha256": "68480a850b563f3fc86149d081c6a388b1b7bad8dd1ce2d87e3c1ec1a91e51f1"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "order": "parallel",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "getter-parallel",
+      "label": "firefox-development-getter-parallel-parallel-default",
+      "prefix": "TASK_QUEUE_CONSUMER:",
+      "source": {
+        "path": "sources/failed-registration-parallel.test.mjs.txt",
+        "sha256": "98b0f09af6daa2fe0883121de358c1cba3a122949f68bc6520fddb998b74baf0"
+      },
+      "projected": {
+        "path": "reference/firefox-development-getter-parallel-parallel-default-actual.json.txt",
+        "sha256": "7790b94b5d068ef8f62d7a7aac65816596e2aa36e5ff8b1a979b31d36234708b"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-development-getter-parallel-parallel-default-report.json.txt",
+        "sha256": "b4a0124bbb46a009a666f9da72f3d3604770892f2d6f5f1194fdba24ba25bfa9"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-development-getter-parallel-parallel-default-console.jsonl.txt",
+        "sha256": "10c92b57dbc9be628dd65a8591e7ed59332fc678c696f11ee8310c4b63961e7e"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "order": "stack",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "async-ordering",
+      "label": "firefox-production-async-ordering-stack-default",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/async-hooks.test.mjs.txt",
+        "sha256": "50e83ed1f60b39824655414bd1c083fc9afba07f86fa8dac52af5291b5b6cd1c"
+      },
+      "projected": {
+        "path": "reference/firefox-production-async-ordering-stack-default-actual.json.txt",
+        "sha256": "d84aa743161ec651ebb494545e4c19538e5f61ea76e09e1bcf9b1f5978f4c677"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-production-async-ordering-stack-default-report.json.txt",
+        "sha256": "03b541d2a047d8c24556144968096262ca34b621aedea1b008c2b11ca157c353"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-production-async-ordering-stack-default-console.jsonl.txt",
+        "sha256": "6843299f3a9dd7bc1ec3650ab47e4f7e29fafb2ea82974142fc3a8132945473c"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "order": "stack",
+      "limit": 1,
+      "suite": "ordering",
+      "kind": "async-ordering",
+      "label": "firefox-production-async-ordering-stack-1",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/async-hooks.test.mjs.txt",
+        "sha256": "50e83ed1f60b39824655414bd1c083fc9afba07f86fa8dac52af5291b5b6cd1c"
+      },
+      "projected": {
+        "path": "reference/firefox-production-async-ordering-stack-1-actual.json.txt",
+        "sha256": "d84aa743161ec651ebb494545e4c19538e5f61ea76e09e1bcf9b1f5978f4c677"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-production-async-ordering-stack-1-report.json.txt",
+        "sha256": "b4e9b005c0af1ef38ac18de2c40a6a60e9da08d5652e8f37cf3438bdd2b4aadf"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-production-async-ordering-stack-1-console.jsonl.txt",
+        "sha256": "43c07333876d07045f2963122fca9ea13b73910f4bf826b21856b044198706cb"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "order": "list",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "async-ordering",
+      "label": "firefox-production-async-ordering-list-default",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/async-hooks.test.mjs.txt",
+        "sha256": "50e83ed1f60b39824655414bd1c083fc9afba07f86fa8dac52af5291b5b6cd1c"
+      },
+      "projected": {
+        "path": "reference/firefox-production-async-ordering-list-default-actual.json.txt",
+        "sha256": "cb37ee284b3b213f3bd33c97a2fa5597f95ae8d810b1850cc5a95c55fc369589"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-production-async-ordering-list-default-report.json.txt",
+        "sha256": "3bc6dd91cbea026e898b677adf452fc8e9d43b8f872e62cfafda1367dafef5f1"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-production-async-ordering-list-default-console.jsonl.txt",
+        "sha256": "5484394eba7018c2c922c6f7a0e15cc658cead8752c3847e17d041a3c32f73e6"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "order": "list",
+      "limit": 1,
+      "suite": "ordering",
+      "kind": "async-ordering",
+      "label": "firefox-production-async-ordering-list-1",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/async-hooks.test.mjs.txt",
+        "sha256": "50e83ed1f60b39824655414bd1c083fc9afba07f86fa8dac52af5291b5b6cd1c"
+      },
+      "projected": {
+        "path": "reference/firefox-production-async-ordering-list-1-actual.json.txt",
+        "sha256": "cb37ee284b3b213f3bd33c97a2fa5597f95ae8d810b1850cc5a95c55fc369589"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-production-async-ordering-list-1-report.json.txt",
+        "sha256": "dde2573fd711f477ebb2c6f20a9b9dd96a9b598b64eb37ad74869f3afe56892f"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-production-async-ordering-list-1-console.jsonl.txt",
+        "sha256": "54fa3ea0bcca6affa5863ea9e8fb7cf1026c49c665f80eee03eb394dba8b3037"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "order": "parallel",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "async-ordering",
+      "label": "firefox-production-async-ordering-parallel-default",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/async-hooks.test.mjs.txt",
+        "sha256": "50e83ed1f60b39824655414bd1c083fc9afba07f86fa8dac52af5291b5b6cd1c"
+      },
+      "projected": {
+        "path": "reference/firefox-production-async-ordering-parallel-default-actual.json.txt",
+        "sha256": "2d65fdc1785ef792067e9f70a5ffd25e2aff78da255f3cc66494e3d360d03a88"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-production-async-ordering-parallel-default-report.json.txt",
+        "sha256": "b8591f6dbc766598d74700fd0931514f79eb6e9a3d21f1ac1b0eb3e7a52988b3"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-production-async-ordering-parallel-default-console.jsonl.txt",
+        "sha256": "ba11f0489048655b408943314d01997d10e07d219e0bba3b3ee4aa65b7daf7e7"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "order": "parallel",
+      "limit": 1,
+      "suite": "ordering",
+      "kind": "async-ordering",
+      "label": "firefox-production-async-ordering-parallel-1",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/async-hooks.test.mjs.txt",
+        "sha256": "50e83ed1f60b39824655414bd1c083fc9afba07f86fa8dac52af5291b5b6cd1c"
+      },
+      "projected": {
+        "path": "reference/firefox-production-async-ordering-parallel-1-actual.json.txt",
+        "sha256": "cb37ee284b3b213f3bd33c97a2fa5597f95ae8d810b1850cc5a95c55fc369589"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-production-async-ordering-parallel-1-report.json.txt",
+        "sha256": "a8843ccf9c9f4b9e95b69182deda666c3b173b814d981a93c194d7bdc2f4c9e9"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-production-async-ordering-parallel-1-console.jsonl.txt",
+        "sha256": "a7833cef8950c392a035561ee1c9c87d76648df4fc964df835c8c3fa9fc23af2"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "order": "list",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "getter-list",
+      "label": "firefox-production-getter-list-list-default",
+      "prefix": "TASK_QUEUE_CONSUMER:",
+      "source": {
+        "path": "sources/failed-registration-list.test.mjs.txt",
+        "sha256": "d3e9fd9eeafae40806fe35b64d321d31a94929070154d1ac40f3487a67b5f474"
+      },
+      "projected": {
+        "path": "reference/firefox-production-getter-list-list-default-actual.json.txt",
+        "sha256": "153e96e7d1370650f28d9639f478c2d60cb1915e70606606244147f1ae741fb2"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-production-getter-list-list-default-report.json.txt",
+        "sha256": "bc570e88c90abc01b4f23256ac286a5d3e8c32536f910b4d88116a792f79c816"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-production-getter-list-list-default-console.jsonl.txt",
+        "sha256": "55dcd7dcbf909be9a19ce512c370a38b82f9970126f4a2ca54815d3d328ba45d"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "order": "parallel",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "getter-parallel",
+      "label": "firefox-production-getter-parallel-parallel-default",
+      "prefix": "TASK_QUEUE_CONSUMER:",
+      "source": {
+        "path": "sources/failed-registration-parallel.test.mjs.txt",
+        "sha256": "98b0f09af6daa2fe0883121de358c1cba3a122949f68bc6520fddb998b74baf0"
+      },
+      "projected": {
+        "path": "reference/firefox-production-getter-parallel-parallel-default-actual.json.txt",
+        "sha256": "7790b94b5d068ef8f62d7a7aac65816596e2aa36e5ff8b1a979b31d36234708b"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-production-getter-parallel-parallel-default-report.json.txt",
+        "sha256": "f44db9941a3b10d36527b0b13c5041c16b90d28c95ce3ea798c3f8a740d8e2e6"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-production-getter-parallel-parallel-default-console.jsonl.txt",
+        "sha256": "7fd44aff2ecf9b04fd2be8bdd028ce77b7b95e058018da3348aeb900bad4a19c"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "order": "stack",
+      "limit": null,
+      "suite": "resources",
+      "kind": "user-cancel",
+      "label": "chromium-development-user-cancel-stack-default",
+      "prefix": "HOOK_CANCEL_ROWS:",
+      "source": {
+        "path": "sources/user-cancel.test.mjs.txt",
+        "sha256": "99004216d4fdc3731e656209dbd9d2d17d6dfc2daeb1c4cb3441097ece50a86f"
+      },
+      "projected": {
+        "path": "reference/chromium-development-user-cancel-stack-default-actual.json.txt",
+        "sha256": "dc2b25394e8eae80a5eaf2c7a433d2ea5de7828fd10d14de07a810d29c704420"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-development-user-cancel-stack-default-report.json.txt",
+        "sha256": "b7a8a37795c8e7214e6fd78601fa1edb3b7921d09fc937d7fe55cb855e117ec2"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-development-user-cancel-stack-default-console.jsonl.txt",
+        "sha256": "6d8a006aae2e36bbe5b5e86d3449c6359679ab17c5a5b2c94008b59929bf8347"
+      },
+      "rawRunCompletion": {
+        "path": "reference/chromium-development-user-cancel-stack-default-completion.json.txt",
+        "sha256": "40de3f4963458ad8c07e0afb9bc94721e33741ec7afc0d6ba5e1fcbc0773ab8f"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "order": "list",
+      "limit": null,
+      "suite": "resources",
+      "kind": "user-cancel",
+      "label": "chromium-development-user-cancel-list-default",
+      "prefix": "HOOK_CANCEL_ROWS:",
+      "source": {
+        "path": "sources/user-cancel.test.mjs.txt",
+        "sha256": "99004216d4fdc3731e656209dbd9d2d17d6dfc2daeb1c4cb3441097ece50a86f"
+      },
+      "projected": {
+        "path": "reference/chromium-development-user-cancel-list-default-actual.json.txt",
+        "sha256": "a238e2616bf76b336875b54468233af0fca35a04d7de46c41d76fca4a0585451"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-development-user-cancel-list-default-report.json.txt",
+        "sha256": "f4ab33adeed27a66b3aa08df3bef199daa41450998b185aaa45bede6a8a32e69"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-development-user-cancel-list-default-console.jsonl.txt",
+        "sha256": "4a76b666e753d685ab975112a7cce683db487cd22403ce2e9e715cca339c4b6c"
+      },
+      "rawRunCompletion": {
+        "path": "reference/chromium-development-user-cancel-list-default-completion.json.txt",
+        "sha256": "40de3f4963458ad8c07e0afb9bc94721e33741ec7afc0d6ba5e1fcbc0773ab8f"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "order": "parallel",
+      "limit": null,
+      "suite": "resources",
+      "kind": "user-cancel",
+      "label": "chromium-development-user-cancel-parallel-default",
+      "prefix": "HOOK_CANCEL_ROWS:",
+      "source": {
+        "path": "sources/user-cancel.test.mjs.txt",
+        "sha256": "99004216d4fdc3731e656209dbd9d2d17d6dfc2daeb1c4cb3441097ece50a86f"
+      },
+      "projected": {
+        "path": "reference/chromium-development-user-cancel-parallel-default-actual.json.txt",
+        "sha256": "f9ddb98dde3b26e079831c62fdc1246fef46e3a5ec754730b83525dd9ca49823"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-development-user-cancel-parallel-default-report.json.txt",
+        "sha256": "2e798a61a7c99e28d99fcef3c0bf06e4057ddf93b7b1b1124917b18321d0c8ef"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-development-user-cancel-parallel-default-console.jsonl.txt",
+        "sha256": "1e4704277b007f9d053c2b9837e5402dfac7abe5ad229238f03e66bab9246005"
+      },
+      "rawRunCompletion": {
+        "path": "reference/chromium-development-user-cancel-parallel-default-completion.json.txt",
+        "sha256": "40de3f4963458ad8c07e0afb9bc94721e33741ec7afc0d6ba5e1fcbc0773ab8f"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "order": "parallel",
+      "limit": 1,
+      "suite": "resources",
+      "kind": "user-cancel",
+      "label": "chromium-development-user-cancel-parallel-1",
+      "prefix": "HOOK_CANCEL_ROWS:",
+      "source": {
+        "path": "sources/user-cancel.test.mjs.txt",
+        "sha256": "99004216d4fdc3731e656209dbd9d2d17d6dfc2daeb1c4cb3441097ece50a86f"
+      },
+      "projected": {
+        "path": "reference/chromium-development-user-cancel-parallel-1-actual.json.txt",
+        "sha256": "a238e2616bf76b336875b54468233af0fca35a04d7de46c41d76fca4a0585451"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-development-user-cancel-parallel-1-report.json.txt",
+        "sha256": "2a9c83b098eee7ce8178c19d617af0b349aefd70171ab8363e3f0359ec415739"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-development-user-cancel-parallel-1-console.jsonl.txt",
+        "sha256": "5eefb0cb78fb62c88686a83e1ce171eb0de12251f4afb55e63e6ce2c64c397ec"
+      },
+      "rawRunCompletion": {
+        "path": "reference/chromium-development-user-cancel-parallel-1-completion.json.txt",
+        "sha256": "40de3f4963458ad8c07e0afb9bc94721e33741ec7afc0d6ba5e1fcbc0773ab8f"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "order": "stack",
+      "limit": null,
+      "suite": "resources",
+      "kind": "hook-deadline",
+      "label": "chromium-development-hook-deadline-stack-default",
+      "prefix": "HOOK_DEADLINE_ROWS:",
+      "source": {
+        "path": "sources/hook-deadline.test.mjs.txt",
+        "sha256": "a610a36f69067ac767988526921a578e0df35371da3f88c8d3b17c74cf73c7cb"
+      },
+      "projected": {
+        "path": "reference/chromium-development-hook-deadline-stack-default-actual.json.txt",
+        "sha256": "a6eb617fa487f1780f3bb32c60b6965eae70512bb59468c1bc0e630ed9bbd993"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-development-hook-deadline-stack-default-report.json.txt",
+        "sha256": "2c811ccea09cb08fbd99faf9c23572af8a581beb702f4668b21563e0362bfd29"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-development-hook-deadline-stack-default-console.jsonl.txt",
+        "sha256": "14aa1096972f9901d3f14270b156b1d62e27ff36a2a7e08e214e83daeee3aeb8"
+      },
+      "rawCaseErrors": {
+        "path": "reference/chromium-development-hook-deadline-stack-default-observation-console.jsonl.errors.txt",
+        "sha256": "ecfe2e56a3026f744788d18cf67c03453b8a4ac077e1171aa246c81bf8c4bdaf"
+      },
+      "rawErrorObservationReport": {
+        "path": "reference/chromium-development-hook-deadline-stack-default-observation-report.json.txt",
+        "sha256": "783076abf0670a81c3f2f6d7e7d0548e43a62d26e78b9d639107402ddfc4843e"
+      },
+      "rawErrorObservationConsole": {
+        "path": "reference/chromium-development-hook-deadline-stack-default-observation-console.jsonl.txt",
+        "sha256": "e206a31d0738641f004f4d7c1957ccf3aa634f39390ac4c9d47347925575ed30"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "order": "list",
+      "limit": null,
+      "suite": "resources",
+      "kind": "hook-deadline",
+      "label": "chromium-development-hook-deadline-list-default",
+      "prefix": "HOOK_DEADLINE_ROWS:",
+      "source": {
+        "path": "sources/hook-deadline.test.mjs.txt",
+        "sha256": "a610a36f69067ac767988526921a578e0df35371da3f88c8d3b17c74cf73c7cb"
+      },
+      "projected": {
+        "path": "reference/chromium-development-hook-deadline-list-default-actual.json.txt",
+        "sha256": "7c4def8e4c89477fd3ac6d1eb0214be765306f64ecb16b29709be79058a85f3a"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-development-hook-deadline-list-default-report.json.txt",
+        "sha256": "916ed8a8f91ead2423d0143aa0587d94c8eeb2fe0c936b6fd148f380df23f814"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-development-hook-deadline-list-default-console.jsonl.txt",
+        "sha256": "dc53d2fbedd5abb5c60395b778139faebb89fb98dcbbff1b7d03ce31143be002"
+      },
+      "rawCaseErrors": {
+        "path": "reference/chromium-development-hook-deadline-list-default-observation-console.jsonl.errors.txt",
+        "sha256": "20c14c86bc892b7e9af6848706fec375f81b9c4fcb4731e22caa1e38c92ac806"
+      },
+      "rawErrorObservationReport": {
+        "path": "reference/chromium-development-hook-deadline-list-default-observation-report.json.txt",
+        "sha256": "1ab50aa595c328d77c3e74a21c8fd2415fbfc7ff714922ce1eb17c3d06ec869d"
+      },
+      "rawErrorObservationConsole": {
+        "path": "reference/chromium-development-hook-deadline-list-default-observation-console.jsonl.txt",
+        "sha256": "c32f4da449f3de63898fb36ef38f02444f3afe9e1ec68139da15b3f4fe566d76"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "order": "parallel",
+      "limit": null,
+      "suite": "resources",
+      "kind": "hook-deadline",
+      "label": "chromium-development-hook-deadline-parallel-default",
+      "prefix": "HOOK_DEADLINE_ROWS:",
+      "source": {
+        "path": "sources/hook-deadline.test.mjs.txt",
+        "sha256": "a610a36f69067ac767988526921a578e0df35371da3f88c8d3b17c74cf73c7cb"
+      },
+      "projected": {
+        "path": "reference/chromium-development-hook-deadline-parallel-default-actual.json.txt",
+        "sha256": "a38ddcc185fe8e95fa394c57e60561e3620fe88b123c79bb81e307ec7743b24c"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-development-hook-deadline-parallel-default-report.json.txt",
+        "sha256": "b53ee12eeeff67a1b607b7ee95d9c6434a1db2dd49447184fa9778bf1bca8939"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-development-hook-deadline-parallel-default-console.jsonl.txt",
+        "sha256": "4388719775007bd9dcdbac6d8ad1c649a80b7a44d43e3532f30e9028a479bf53"
+      },
+      "rawCaseErrors": {
+        "path": "reference/chromium-development-hook-deadline-parallel-default-observation-console.jsonl.errors.txt",
+        "sha256": "99ebb6698f424a9b3d3695923aa09e317fd8a7e79a6bd0db6fb68ecb13613f95"
+      },
+      "rawErrorObservationReport": {
+        "path": "reference/chromium-development-hook-deadline-parallel-default-observation-report.json.txt",
+        "sha256": "ac9b819b52e9ac52da8d2ec59698bf2f470f4bfd95e54c996ccd5f19c6d7ef69"
+      },
+      "rawErrorObservationConsole": {
+        "path": "reference/chromium-development-hook-deadline-parallel-default-observation-console.jsonl.txt",
+        "sha256": "5f9971ae77daa3e29761dd3da26b2fb0028b34adc0c4d60136f28e06d958d516"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "order": "parallel",
+      "limit": 1,
+      "suite": "resources",
+      "kind": "hook-deadline",
+      "label": "chromium-development-hook-deadline-parallel-1",
+      "prefix": "HOOK_DEADLINE_ROWS:",
+      "source": {
+        "path": "sources/hook-deadline.test.mjs.txt",
+        "sha256": "a610a36f69067ac767988526921a578e0df35371da3f88c8d3b17c74cf73c7cb"
+      },
+      "projected": {
+        "path": "reference/chromium-development-hook-deadline-parallel-1-actual.json.txt",
+        "sha256": "34ecbc8c55b6c56671ae62f09baf3433268f7ad118b6b872518ab809a199b2ce"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-development-hook-deadline-parallel-1-report.json.txt",
+        "sha256": "bb4d72069cbb40d8df76ac5197a9b029b961ce553ebde3f4046093fe00822714"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-development-hook-deadline-parallel-1-console.jsonl.txt",
+        "sha256": "a093acb947c605457a4463ba7c788f13aef001690a7037db362bf6d9c7b38ce9"
+      },
+      "rawCaseErrors": {
+        "path": "reference/chromium-development-hook-deadline-parallel-1-observation-console.jsonl.errors.txt",
+        "sha256": "6230f269028ec260aec3d35ce1131adf1f596f2bc4dcc09e275e17849ad3834d"
+      },
+      "rawErrorObservationReport": {
+        "path": "reference/chromium-development-hook-deadline-parallel-1-observation-report.json.txt",
+        "sha256": "cfb1ba653e3c4b5e2101258f35f9ba509a378106db913193498c5703dfcca122"
+      },
+      "rawErrorObservationConsole": {
+        "path": "reference/chromium-development-hook-deadline-parallel-1-observation-console.jsonl.txt",
+        "sha256": "a54702a171cb165f4b3574a11be7505b8d415934f74206a3683c16983409ede7"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "order": "stack",
+      "limit": null,
+      "suite": "resources",
+      "kind": "user-cancel",
+      "label": "chromium-production-user-cancel-stack-default",
+      "prefix": "HOOK_CANCEL_ROWS:",
+      "source": {
+        "path": "sources/user-cancel.test.mjs.txt",
+        "sha256": "99004216d4fdc3731e656209dbd9d2d17d6dfc2daeb1c4cb3441097ece50a86f"
+      },
+      "projected": {
+        "path": "reference/chromium-production-user-cancel-stack-default-actual.json.txt",
+        "sha256": "dc2b25394e8eae80a5eaf2c7a433d2ea5de7828fd10d14de07a810d29c704420"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-production-user-cancel-stack-default-report.json.txt",
+        "sha256": "bff82f42f29cf69d8d76862daff3df44f5b8b51e9878c0cf710082eac9b1cc77"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-production-user-cancel-stack-default-console.jsonl.txt",
+        "sha256": "709c0bcf2f2a99f41b39e22ec7cef27c283e86492cdc6791a57aa555dd536e94"
+      },
+      "rawRunCompletion": {
+        "path": "reference/chromium-production-user-cancel-stack-default-completion.json.txt",
+        "sha256": "40de3f4963458ad8c07e0afb9bc94721e33741ec7afc0d6ba5e1fcbc0773ab8f"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "order": "list",
+      "limit": null,
+      "suite": "resources",
+      "kind": "user-cancel",
+      "label": "chromium-production-user-cancel-list-default",
+      "prefix": "HOOK_CANCEL_ROWS:",
+      "source": {
+        "path": "sources/user-cancel.test.mjs.txt",
+        "sha256": "99004216d4fdc3731e656209dbd9d2d17d6dfc2daeb1c4cb3441097ece50a86f"
+      },
+      "projected": {
+        "path": "reference/chromium-production-user-cancel-list-default-actual.json.txt",
+        "sha256": "a238e2616bf76b336875b54468233af0fca35a04d7de46c41d76fca4a0585451"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-production-user-cancel-list-default-report.json.txt",
+        "sha256": "abbfb45045bfbdfa9042f41a49f9345bd83aa04dc08049ecf0a6c515bfce5073"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-production-user-cancel-list-default-console.jsonl.txt",
+        "sha256": "c101df7e3e7bebbed98c43d27f6626f9bb87515596fb474edf16b4ad5e2a06ea"
+      },
+      "rawRunCompletion": {
+        "path": "reference/chromium-production-user-cancel-list-default-completion.json.txt",
+        "sha256": "40de3f4963458ad8c07e0afb9bc94721e33741ec7afc0d6ba5e1fcbc0773ab8f"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "order": "parallel",
+      "limit": null,
+      "suite": "resources",
+      "kind": "user-cancel",
+      "label": "chromium-production-user-cancel-parallel-default",
+      "prefix": "HOOK_CANCEL_ROWS:",
+      "source": {
+        "path": "sources/user-cancel.test.mjs.txt",
+        "sha256": "99004216d4fdc3731e656209dbd9d2d17d6dfc2daeb1c4cb3441097ece50a86f"
+      },
+      "projected": {
+        "path": "reference/chromium-production-user-cancel-parallel-default-actual.json.txt",
+        "sha256": "f9ddb98dde3b26e079831c62fdc1246fef46e3a5ec754730b83525dd9ca49823"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-production-user-cancel-parallel-default-report.json.txt",
+        "sha256": "484be636cd4818cc52533d9b03d14cca54f1534954e4f183fd7794fe16604fde"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-production-user-cancel-parallel-default-console.jsonl.txt",
+        "sha256": "5ea39a08d336501fde52a52dd3dab7dd6e91680c7bb65701e20eddfef90f5c9d"
+      },
+      "rawRunCompletion": {
+        "path": "reference/chromium-production-user-cancel-parallel-default-completion.json.txt",
+        "sha256": "40de3f4963458ad8c07e0afb9bc94721e33741ec7afc0d6ba5e1fcbc0773ab8f"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "order": "parallel",
+      "limit": 1,
+      "suite": "resources",
+      "kind": "user-cancel",
+      "label": "chromium-production-user-cancel-parallel-1",
+      "prefix": "HOOK_CANCEL_ROWS:",
+      "source": {
+        "path": "sources/user-cancel.test.mjs.txt",
+        "sha256": "99004216d4fdc3731e656209dbd9d2d17d6dfc2daeb1c4cb3441097ece50a86f"
+      },
+      "projected": {
+        "path": "reference/chromium-production-user-cancel-parallel-1-actual.json.txt",
+        "sha256": "a238e2616bf76b336875b54468233af0fca35a04d7de46c41d76fca4a0585451"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-production-user-cancel-parallel-1-report.json.txt",
+        "sha256": "614441ad02a413d8eab18e47284d07784d2d0ee03f890cf0ea07177b1e39e7ed"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-production-user-cancel-parallel-1-console.jsonl.txt",
+        "sha256": "313be51a9a4a82340cd878166926154593610150b39bbbf3359d2174cda0026e"
+      },
+      "rawRunCompletion": {
+        "path": "reference/chromium-production-user-cancel-parallel-1-completion.json.txt",
+        "sha256": "40de3f4963458ad8c07e0afb9bc94721e33741ec7afc0d6ba5e1fcbc0773ab8f"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "order": "stack",
+      "limit": null,
+      "suite": "resources",
+      "kind": "hook-deadline",
+      "label": "chromium-production-hook-deadline-stack-default",
+      "prefix": "HOOK_DEADLINE_ROWS:",
+      "source": {
+        "path": "sources/hook-deadline.test.mjs.txt",
+        "sha256": "a610a36f69067ac767988526921a578e0df35371da3f88c8d3b17c74cf73c7cb"
+      },
+      "projected": {
+        "path": "reference/chromium-production-hook-deadline-stack-default-actual.json.txt",
+        "sha256": "9c081b243454b4151a8a8e88f99cb3256a84aa1615047a886c231a6548ebdd4a"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-production-hook-deadline-stack-default-report.json.txt",
+        "sha256": "69a76d80738cdaefb237834d26b4d57850ef662427b43deaa6b080eca0607e43"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-production-hook-deadline-stack-default-console.jsonl.txt",
+        "sha256": "9ef7e6673ad72cb97db7dce91caee37b794d23dff23ef6cbe9c9130f13c172e3"
+      },
+      "rawCaseErrors": {
+        "path": "reference/chromium-production-hook-deadline-stack-default-observation-console.jsonl.errors.txt",
+        "sha256": "ba004e4d48888f4d4e3d96a3eef2e8e8534473ed324d4e56e6051eb46a1e809f"
+      },
+      "rawErrorObservationReport": {
+        "path": "reference/chromium-production-hook-deadline-stack-default-observation-report.json.txt",
+        "sha256": "79c69a7010f6393b56208b7a0a863b20fe2fe20d2803ebff1e639714cebb4af0"
+      },
+      "rawErrorObservationConsole": {
+        "path": "reference/chromium-production-hook-deadline-stack-default-observation-console.jsonl.txt",
+        "sha256": "51490411afe2fddec0edcc2f08245a72d966d360a6bb350844595ba0d2ca1aaa"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "order": "list",
+      "limit": null,
+      "suite": "resources",
+      "kind": "hook-deadline",
+      "label": "chromium-production-hook-deadline-list-default",
+      "prefix": "HOOK_DEADLINE_ROWS:",
+      "source": {
+        "path": "sources/hook-deadline.test.mjs.txt",
+        "sha256": "a610a36f69067ac767988526921a578e0df35371da3f88c8d3b17c74cf73c7cb"
+      },
+      "projected": {
+        "path": "reference/chromium-production-hook-deadline-list-default-actual.json.txt",
+        "sha256": "bdd8fea834d2f4266c273c13b8fded4552862b45b124ed95cb0013cd4a3c66b7"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-production-hook-deadline-list-default-report.json.txt",
+        "sha256": "61f84b4c8189187466b61eafd92240242ca55a578de39136ba29da9afa6b7859"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-production-hook-deadline-list-default-console.jsonl.txt",
+        "sha256": "a0555ed8867f1cd65b10dbac8ab1a83f44fb0c62fc9a14ccadece9ebfa5af3a6"
+      },
+      "rawCaseErrors": {
+        "path": "reference/chromium-production-hook-deadline-list-default-observation-console.jsonl.errors.txt",
+        "sha256": "bd03a5f57f13e7beb8525471c1337ee137bf6356e7663ee46f3374f6cb8f893c"
+      },
+      "rawErrorObservationReport": {
+        "path": "reference/chromium-production-hook-deadline-list-default-observation-report.json.txt",
+        "sha256": "a7e8b019915066ddc17262cec329ed053434ca19d67fdee9aeb4e3ea488d4c06"
+      },
+      "rawErrorObservationConsole": {
+        "path": "reference/chromium-production-hook-deadline-list-default-observation-console.jsonl.txt",
+        "sha256": "c97f3ebef295ddf7e2453d700c42de9f5caa1e1412af248a868a9316b1abce95"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "order": "parallel",
+      "limit": null,
+      "suite": "resources",
+      "kind": "hook-deadline",
+      "label": "chromium-production-hook-deadline-parallel-default",
+      "prefix": "HOOK_DEADLINE_ROWS:",
+      "source": {
+        "path": "sources/hook-deadline.test.mjs.txt",
+        "sha256": "a610a36f69067ac767988526921a578e0df35371da3f88c8d3b17c74cf73c7cb"
+      },
+      "projected": {
+        "path": "reference/chromium-production-hook-deadline-parallel-default-actual.json.txt",
+        "sha256": "28183c2bb1158211719f24f50d2c544d5e494661dc2e63aa4b234c5fc1fdd38e"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-production-hook-deadline-parallel-default-report.json.txt",
+        "sha256": "3252d9c2e7c15043a488ada9004ccd479177d4dfa8d80804e86a91c1addc146e"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-production-hook-deadline-parallel-default-console.jsonl.txt",
+        "sha256": "8f19052a8863032488d7cb5179a7341ca5fde66457e44269ecfc7b02a38d3e0f"
+      },
+      "rawCaseErrors": {
+        "path": "reference/chromium-production-hook-deadline-parallel-default-observation-console.jsonl.errors.txt",
+        "sha256": "408c203a2667fdc566e7c7961ec878b6cf533bb37cc0e2607b6ffb6a41f54229"
+      },
+      "rawErrorObservationReport": {
+        "path": "reference/chromium-production-hook-deadline-parallel-default-observation-report.json.txt",
+        "sha256": "bbe5eea5ffce9bdede5fa47fe6b7f148c9439af85018cd82034b92a7d33c7995"
+      },
+      "rawErrorObservationConsole": {
+        "path": "reference/chromium-production-hook-deadline-parallel-default-observation-console.jsonl.txt",
+        "sha256": "b16994d4c29b8fa2dfa44c93cd59ac56e2132b3140386c2e8734894d77b002a4"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "order": "parallel",
+      "limit": 1,
+      "suite": "resources",
+      "kind": "hook-deadline",
+      "label": "chromium-production-hook-deadline-parallel-1",
+      "prefix": "HOOK_DEADLINE_ROWS:",
+      "source": {
+        "path": "sources/hook-deadline.test.mjs.txt",
+        "sha256": "a610a36f69067ac767988526921a578e0df35371da3f88c8d3b17c74cf73c7cb"
+      },
+      "projected": {
+        "path": "reference/chromium-production-hook-deadline-parallel-1-actual.json.txt",
+        "sha256": "e7d0cd0010d9be2aa5f0b0762d8498fd3a6d89761dba627bf0fcee95d13208c2"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-production-hook-deadline-parallel-1-report.json.txt",
+        "sha256": "9f15fc9bc598049addb2197c7154e4585d21493a41542b44c2c06b9f28a8be88"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-production-hook-deadline-parallel-1-console.jsonl.txt",
+        "sha256": "04f45170eb867445827b53756841211646302e71225aecb6c7db8549e347c0a0"
+      },
+      "rawCaseErrors": {
+        "path": "reference/chromium-production-hook-deadline-parallel-1-observation-console.jsonl.errors.txt",
+        "sha256": "9f1a641d5f03631e2ba8b36fa7586ce502a23fd15e4d208dc5ac5f0836d1a728"
+      },
+      "rawErrorObservationReport": {
+        "path": "reference/chromium-production-hook-deadline-parallel-1-observation-report.json.txt",
+        "sha256": "f081eb641d9f7ce8ae3efac9cd03a14b29aad8f465cc59fabbfff447383e023f"
+      },
+      "rawErrorObservationConsole": {
+        "path": "reference/chromium-production-hook-deadline-parallel-1-observation-console.jsonl.txt",
+        "sha256": "568a03d87e5dd9f56addd90d0abcb4356225a1ce317cf4d6ed7a5e90ffd89d64"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "order": "stack",
+      "limit": null,
+      "suite": "resources",
+      "kind": "user-cancel",
+      "label": "firefox-development-user-cancel-stack-default",
+      "prefix": "HOOK_CANCEL_ROWS:",
+      "source": {
+        "path": "sources/user-cancel.test.mjs.txt",
+        "sha256": "99004216d4fdc3731e656209dbd9d2d17d6dfc2daeb1c4cb3441097ece50a86f"
+      },
+      "projected": {
+        "path": "reference/firefox-development-user-cancel-stack-default-actual.json.txt",
+        "sha256": "dc2b25394e8eae80a5eaf2c7a433d2ea5de7828fd10d14de07a810d29c704420"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-development-user-cancel-stack-default-report.json.txt",
+        "sha256": "87231bb4456acf34ce1988f11f68738eb543d79dc4908009b75f25deaf36f58d"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-development-user-cancel-stack-default-console.jsonl.txt",
+        "sha256": "1c3c2b9959a611d1ff59f1149392bd8463e8d83b3e8450dda1d14d4da324869c"
+      },
+      "rawRunCompletion": {
+        "path": "reference/firefox-development-user-cancel-stack-default-completion.json.txt",
+        "sha256": "40de3f4963458ad8c07e0afb9bc94721e33741ec7afc0d6ba5e1fcbc0773ab8f"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "order": "list",
+      "limit": null,
+      "suite": "resources",
+      "kind": "user-cancel",
+      "label": "firefox-development-user-cancel-list-default",
+      "prefix": "HOOK_CANCEL_ROWS:",
+      "source": {
+        "path": "sources/user-cancel.test.mjs.txt",
+        "sha256": "99004216d4fdc3731e656209dbd9d2d17d6dfc2daeb1c4cb3441097ece50a86f"
+      },
+      "projected": {
+        "path": "reference/firefox-development-user-cancel-list-default-actual.json.txt",
+        "sha256": "a238e2616bf76b336875b54468233af0fca35a04d7de46c41d76fca4a0585451"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-development-user-cancel-list-default-report.json.txt",
+        "sha256": "0391b4a72aaef987a3d0e73d622b6cf087c1728fd2ef12866c0df941b78ea6e5"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-development-user-cancel-list-default-console.jsonl.txt",
+        "sha256": "47a579c96d7fbc627d701bfb239014fcc4777e986d31c1ada842a75321ae7d67"
+      },
+      "rawRunCompletion": {
+        "path": "reference/firefox-development-user-cancel-list-default-completion.json.txt",
+        "sha256": "40de3f4963458ad8c07e0afb9bc94721e33741ec7afc0d6ba5e1fcbc0773ab8f"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "order": "parallel",
+      "limit": null,
+      "suite": "resources",
+      "kind": "user-cancel",
+      "label": "firefox-development-user-cancel-parallel-default",
+      "prefix": "HOOK_CANCEL_ROWS:",
+      "source": {
+        "path": "sources/user-cancel.test.mjs.txt",
+        "sha256": "99004216d4fdc3731e656209dbd9d2d17d6dfc2daeb1c4cb3441097ece50a86f"
+      },
+      "projected": {
+        "path": "reference/firefox-development-user-cancel-parallel-default-actual.json.txt",
+        "sha256": "f9ddb98dde3b26e079831c62fdc1246fef46e3a5ec754730b83525dd9ca49823"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-development-user-cancel-parallel-default-report.json.txt",
+        "sha256": "5815955c6a69812bbb9daf913dac48bd0c62e0a4c1858640b231f9562133cab9"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-development-user-cancel-parallel-default-console.jsonl.txt",
+        "sha256": "0093c62e19739ea7e5b6f370d7a594ea04761ba1f94eb56aab18c88b15f349cd"
+      },
+      "rawRunCompletion": {
+        "path": "reference/firefox-development-user-cancel-parallel-default-completion.json.txt",
+        "sha256": "40de3f4963458ad8c07e0afb9bc94721e33741ec7afc0d6ba5e1fcbc0773ab8f"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "order": "parallel",
+      "limit": 1,
+      "suite": "resources",
+      "kind": "user-cancel",
+      "label": "firefox-development-user-cancel-parallel-1",
+      "prefix": "HOOK_CANCEL_ROWS:",
+      "source": {
+        "path": "sources/user-cancel.test.mjs.txt",
+        "sha256": "99004216d4fdc3731e656209dbd9d2d17d6dfc2daeb1c4cb3441097ece50a86f"
+      },
+      "projected": {
+        "path": "reference/firefox-development-user-cancel-parallel-1-actual.json.txt",
+        "sha256": "a238e2616bf76b336875b54468233af0fca35a04d7de46c41d76fca4a0585451"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-development-user-cancel-parallel-1-report.json.txt",
+        "sha256": "e0441759f8ec3dbbd12ae23eaa6f4285b411c110a3d8fccd72c5f3d6ded9e571"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-development-user-cancel-parallel-1-console.jsonl.txt",
+        "sha256": "f767d3c39fdeab620bf359fe8f7596d3b368f57cb45b08f187ed8dacbe3239d3"
+      },
+      "rawRunCompletion": {
+        "path": "reference/firefox-development-user-cancel-parallel-1-completion.json.txt",
+        "sha256": "40de3f4963458ad8c07e0afb9bc94721e33741ec7afc0d6ba5e1fcbc0773ab8f"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "order": "stack",
+      "limit": null,
+      "suite": "resources",
+      "kind": "hook-deadline",
+      "label": "firefox-development-hook-deadline-stack-default",
+      "prefix": "HOOK_DEADLINE_ROWS:",
+      "source": {
+        "path": "sources/hook-deadline.test.mjs.txt",
+        "sha256": "a610a36f69067ac767988526921a578e0df35371da3f88c8d3b17c74cf73c7cb"
+      },
+      "projected": {
+        "path": "reference/firefox-development-hook-deadline-stack-default-actual.json.txt",
+        "sha256": "8e34bfb34948d2729658b22c1ce5101ec4aad90a56616cb95fc09ae5563836b1"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-development-hook-deadline-stack-default-report.json.txt",
+        "sha256": "4ab6fb99683433385e39fae1afce9e88ab169894cc44d67c6bb5a2e5e5fe595a"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-development-hook-deadline-stack-default-console.jsonl.txt",
+        "sha256": "782cb3a2d815338b1e581be30076e4fc955d1e8d0dfee2c9fb115db8eb794c3f"
+      },
+      "rawCaseErrors": {
+        "path": "reference/firefox-development-hook-deadline-stack-default-observation-console.jsonl.errors.txt",
+        "sha256": "92a9f81c85285b082fc72cebf5fbad654f197ab38f7182b03ee469cd284ae09e"
+      },
+      "rawErrorObservationReport": {
+        "path": "reference/firefox-development-hook-deadline-stack-default-observation-report.json.txt",
+        "sha256": "703a29762b70996d4b9ff3cffd26ba85909efbb940f424489506a9cc6ac365f0"
+      },
+      "rawErrorObservationConsole": {
+        "path": "reference/firefox-development-hook-deadline-stack-default-observation-console.jsonl.txt",
+        "sha256": "02b1f623aa6d01c74059c2814dc92b76a30230689155da981eed4e6f20a11ada"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "order": "list",
+      "limit": null,
+      "suite": "resources",
+      "kind": "hook-deadline",
+      "label": "firefox-development-hook-deadline-list-default",
+      "prefix": "HOOK_DEADLINE_ROWS:",
+      "source": {
+        "path": "sources/hook-deadline.test.mjs.txt",
+        "sha256": "a610a36f69067ac767988526921a578e0df35371da3f88c8d3b17c74cf73c7cb"
+      },
+      "projected": {
+        "path": "reference/firefox-development-hook-deadline-list-default-actual.json.txt",
+        "sha256": "cba746fa0337bf6738ba16ed0f874433ff7e94f0a8b97be4448ab7cd6774e3eb"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-development-hook-deadline-list-default-report.json.txt",
+        "sha256": "ea294ad4ea6e3f527a165a02586673510b20824b544597b6de8a3e2817e1a185"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-development-hook-deadline-list-default-console.jsonl.txt",
+        "sha256": "a8faf94c05d67e06ba4af24f5f42b6782a3ee0d645ee39ba18c8ffff382de54a"
+      },
+      "rawCaseErrors": {
+        "path": "reference/firefox-development-hook-deadline-list-default-observation-console.jsonl.errors.txt",
+        "sha256": "e2bbf5a83e20232d58b826a11ce0132aaae71c90dc786945d44914d603ab3b5b"
+      },
+      "rawErrorObservationReport": {
+        "path": "reference/firefox-development-hook-deadline-list-default-observation-report.json.txt",
+        "sha256": "8d6eb3baa8304efc53aa44569cc8d1d693e93edfc033eda257c690373d7b27c8"
+      },
+      "rawErrorObservationConsole": {
+        "path": "reference/firefox-development-hook-deadline-list-default-observation-console.jsonl.txt",
+        "sha256": "25c2bb190f9e0a1f458f9d1f1252cd673c4e514cbc9d4109506dfe3cd5726c0d"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "order": "parallel",
+      "limit": null,
+      "suite": "resources",
+      "kind": "hook-deadline",
+      "label": "firefox-development-hook-deadline-parallel-default",
+      "prefix": "HOOK_DEADLINE_ROWS:",
+      "source": {
+        "path": "sources/hook-deadline.test.mjs.txt",
+        "sha256": "a610a36f69067ac767988526921a578e0df35371da3f88c8d3b17c74cf73c7cb"
+      },
+      "projected": {
+        "path": "reference/firefox-development-hook-deadline-parallel-default-actual.json.txt",
+        "sha256": "903a049ccfd935b01340dfa04c9e19f965fe02cb5981c988f4a03e06f20b8e02"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-development-hook-deadline-parallel-default-report.json.txt",
+        "sha256": "7dc1460299a314c79a814f01d81ea053a49cabffaec306c12b7eee0480ac5d1e"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-development-hook-deadline-parallel-default-console.jsonl.txt",
+        "sha256": "4a3b58fc107c681ec336d9e076c3f8dd4e6ebd9db9d669f5dd6a8f8b6c612822"
+      },
+      "rawCaseErrors": {
+        "path": "reference/firefox-development-hook-deadline-parallel-default-observation-console.jsonl.errors.txt",
+        "sha256": "4221c2dfd26432575f4167970f2fb3ccfd46903f94e5f3a4998b25db6b7e8051"
+      },
+      "rawErrorObservationReport": {
+        "path": "reference/firefox-development-hook-deadline-parallel-default-observation-report.json.txt",
+        "sha256": "df561b15ff47c30acb92392b4a6183dc4cdd887cfdb45dd6081ebbb95d1c231a"
+      },
+      "rawErrorObservationConsole": {
+        "path": "reference/firefox-development-hook-deadline-parallel-default-observation-console.jsonl.txt",
+        "sha256": "1d57e9a282bf1d474a9019e7a55f98d831580f524785ec98c75eebebf158b004"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "order": "parallel",
+      "limit": 1,
+      "suite": "resources",
+      "kind": "hook-deadline",
+      "label": "firefox-development-hook-deadline-parallel-1",
+      "prefix": "HOOK_DEADLINE_ROWS:",
+      "source": {
+        "path": "sources/hook-deadline.test.mjs.txt",
+        "sha256": "a610a36f69067ac767988526921a578e0df35371da3f88c8d3b17c74cf73c7cb"
+      },
+      "projected": {
+        "path": "reference/firefox-development-hook-deadline-parallel-1-actual.json.txt",
+        "sha256": "ba98ab80709902684cf56f75a37bf36b28dce4405ebe4b6f8adc5eb048918923"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-development-hook-deadline-parallel-1-report.json.txt",
+        "sha256": "a96e5b1361164d34b13c678f249f1fd86c7b891f143190ed0dd0b84c0ea35d02"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-development-hook-deadline-parallel-1-console.jsonl.txt",
+        "sha256": "04f4bb0e5e402f2a4dfc0a5c6fbad8b559e0bde77924f431eb7bbf0c655c7f80"
+      },
+      "rawCaseErrors": {
+        "path": "reference/firefox-development-hook-deadline-parallel-1-observation-console.jsonl.errors.txt",
+        "sha256": "da75c07a10306d354011e99fc590009518a46d5a14faf5193f84e6576fabc3cb"
+      },
+      "rawErrorObservationReport": {
+        "path": "reference/firefox-development-hook-deadline-parallel-1-observation-report.json.txt",
+        "sha256": "cf5dcf1e61064254b5a3c4032342b2c39e5e974fdf191e569b2362f24cc7a5b3"
+      },
+      "rawErrorObservationConsole": {
+        "path": "reference/firefox-development-hook-deadline-parallel-1-observation-console.jsonl.txt",
+        "sha256": "141d2ab933fdfaa776b71529500803941080a07183d8496ea76bf69cbd3c7141"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "order": "stack",
+      "limit": null,
+      "suite": "resources",
+      "kind": "user-cancel",
+      "label": "firefox-production-user-cancel-stack-default",
+      "prefix": "HOOK_CANCEL_ROWS:",
+      "source": {
+        "path": "sources/user-cancel.test.mjs.txt",
+        "sha256": "99004216d4fdc3731e656209dbd9d2d17d6dfc2daeb1c4cb3441097ece50a86f"
+      },
+      "projected": {
+        "path": "reference/firefox-production-user-cancel-stack-default-actual.json.txt",
+        "sha256": "dc2b25394e8eae80a5eaf2c7a433d2ea5de7828fd10d14de07a810d29c704420"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-production-user-cancel-stack-default-report.json.txt",
+        "sha256": "2813df58efef48887cfcba6bfa32629bb0dd366f2d8befa00d2361f85d4abb69"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-production-user-cancel-stack-default-console.jsonl.txt",
+        "sha256": "606f78ef2cd85c12d863a06f716aaa16ac27ab84302c01e49d056d57b40f05b5"
+      },
+      "rawRunCompletion": {
+        "path": "reference/firefox-production-user-cancel-stack-default-completion.json.txt",
+        "sha256": "40de3f4963458ad8c07e0afb9bc94721e33741ec7afc0d6ba5e1fcbc0773ab8f"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "order": "list",
+      "limit": null,
+      "suite": "resources",
+      "kind": "user-cancel",
+      "label": "firefox-production-user-cancel-list-default",
+      "prefix": "HOOK_CANCEL_ROWS:",
+      "source": {
+        "path": "sources/user-cancel.test.mjs.txt",
+        "sha256": "99004216d4fdc3731e656209dbd9d2d17d6dfc2daeb1c4cb3441097ece50a86f"
+      },
+      "projected": {
+        "path": "reference/firefox-production-user-cancel-list-default-actual.json.txt",
+        "sha256": "a238e2616bf76b336875b54468233af0fca35a04d7de46c41d76fca4a0585451"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-production-user-cancel-list-default-report.json.txt",
+        "sha256": "af6149087329486933a11406f89414970d1d2d25ce66a60a1192ecbced5e720f"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-production-user-cancel-list-default-console.jsonl.txt",
+        "sha256": "c8a2b87dd01a2f8b4fa3676336e32b373c62643cbec1d2f6f26c067ee5ca3bac"
+      },
+      "rawRunCompletion": {
+        "path": "reference/firefox-production-user-cancel-list-default-completion.json.txt",
+        "sha256": "40de3f4963458ad8c07e0afb9bc94721e33741ec7afc0d6ba5e1fcbc0773ab8f"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "order": "parallel",
+      "limit": null,
+      "suite": "resources",
+      "kind": "user-cancel",
+      "label": "firefox-production-user-cancel-parallel-default",
+      "prefix": "HOOK_CANCEL_ROWS:",
+      "source": {
+        "path": "sources/user-cancel.test.mjs.txt",
+        "sha256": "99004216d4fdc3731e656209dbd9d2d17d6dfc2daeb1c4cb3441097ece50a86f"
+      },
+      "projected": {
+        "path": "reference/firefox-production-user-cancel-parallel-default-actual.json.txt",
+        "sha256": "f9ddb98dde3b26e079831c62fdc1246fef46e3a5ec754730b83525dd9ca49823"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-production-user-cancel-parallel-default-report.json.txt",
+        "sha256": "d0ee94b9adb0cc2418accc73e43a0bf25b55acf69b19080c54d87cfe91e2382b"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-production-user-cancel-parallel-default-console.jsonl.txt",
+        "sha256": "d6b341cf419858ad1ef8d8e9edb7b89d481812a6f98b012e9895902ccf4bed5f"
+      },
+      "rawRunCompletion": {
+        "path": "reference/firefox-production-user-cancel-parallel-default-completion.json.txt",
+        "sha256": "40de3f4963458ad8c07e0afb9bc94721e33741ec7afc0d6ba5e1fcbc0773ab8f"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "order": "parallel",
+      "limit": 1,
+      "suite": "resources",
+      "kind": "user-cancel",
+      "label": "firefox-production-user-cancel-parallel-1",
+      "prefix": "HOOK_CANCEL_ROWS:",
+      "source": {
+        "path": "sources/user-cancel.test.mjs.txt",
+        "sha256": "99004216d4fdc3731e656209dbd9d2d17d6dfc2daeb1c4cb3441097ece50a86f"
+      },
+      "projected": {
+        "path": "reference/firefox-production-user-cancel-parallel-1-actual.json.txt",
+        "sha256": "a238e2616bf76b336875b54468233af0fca35a04d7de46c41d76fca4a0585451"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-production-user-cancel-parallel-1-report.json.txt",
+        "sha256": "e2d1e2e091ed6fc0c9b335f1a976cb51672d37d1f3a1b9147c8cf9d6c3fdb2e6"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-production-user-cancel-parallel-1-console.jsonl.txt",
+        "sha256": "96f8005cdd00d160257903c9d4ad462d316ace965afc2c87ab6ddff6569a98fa"
+      },
+      "rawRunCompletion": {
+        "path": "reference/firefox-production-user-cancel-parallel-1-completion.json.txt",
+        "sha256": "40de3f4963458ad8c07e0afb9bc94721e33741ec7afc0d6ba5e1fcbc0773ab8f"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "order": "stack",
+      "limit": null,
+      "suite": "resources",
+      "kind": "hook-deadline",
+      "label": "firefox-production-hook-deadline-stack-default",
+      "prefix": "HOOK_DEADLINE_ROWS:",
+      "source": {
+        "path": "sources/hook-deadline.test.mjs.txt",
+        "sha256": "a610a36f69067ac767988526921a578e0df35371da3f88c8d3b17c74cf73c7cb"
+      },
+      "projected": {
+        "path": "reference/firefox-production-hook-deadline-stack-default-actual.json.txt",
+        "sha256": "70fd6d8209173be6d687fc18526292a3ce3df2bf3e7fc70fe85083db50e32e29"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-production-hook-deadline-stack-default-report.json.txt",
+        "sha256": "169a7bda93925e8fa9b1d1bf0f198a89252e28964fb37f787da9d6029b0d9ffb"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-production-hook-deadline-stack-default-console.jsonl.txt",
+        "sha256": "310768b8585f93d1ba039f0deac5875260f048d95cc169b42f1e5cb34396c28e"
+      },
+      "rawCaseErrors": {
+        "path": "reference/firefox-production-hook-deadline-stack-default-observation-console.jsonl.errors.txt",
+        "sha256": "a951678390d075d0b97a21f71f65ae18cbbb82a1fef5b858b4c4693d6dc574a6"
+      },
+      "rawErrorObservationReport": {
+        "path": "reference/firefox-production-hook-deadline-stack-default-observation-report.json.txt",
+        "sha256": "844b753c7ced55ac84d107d829bf0dd2ceccd15e51b0a4e8cbeccc227ccd658f"
+      },
+      "rawErrorObservationConsole": {
+        "path": "reference/firefox-production-hook-deadline-stack-default-observation-console.jsonl.txt",
+        "sha256": "af16c3d8bc64d96d53aa34e021fe5eb77ca840ee6fd83ce96d8b4e6038eb6699"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "order": "list",
+      "limit": null,
+      "suite": "resources",
+      "kind": "hook-deadline",
+      "label": "firefox-production-hook-deadline-list-default",
+      "prefix": "HOOK_DEADLINE_ROWS:",
+      "source": {
+        "path": "sources/hook-deadline.test.mjs.txt",
+        "sha256": "a610a36f69067ac767988526921a578e0df35371da3f88c8d3b17c74cf73c7cb"
+      },
+      "projected": {
+        "path": "reference/firefox-production-hook-deadline-list-default-actual.json.txt",
+        "sha256": "cd51db0ca40ac67a070a904ed1bf5fc19826db1bdc6b36c9f58a4c8863911b8f"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-production-hook-deadline-list-default-report.json.txt",
+        "sha256": "9b6a0ed2ce5de66a8adef05a60dacd7ff56689c36be2640f4f29d33cb2a3253e"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-production-hook-deadline-list-default-console.jsonl.txt",
+        "sha256": "da5651a7159901b6f0800b2912079f8f25b07e5e78b881d5cfddea6e2d1766f9"
+      },
+      "rawCaseErrors": {
+        "path": "reference/firefox-production-hook-deadline-list-default-observation-console.jsonl.errors.txt",
+        "sha256": "be2594f40eaed7dd03d4989d64084f9b8f0a076fca929a06f3989c05275c56a2"
+      },
+      "rawErrorObservationReport": {
+        "path": "reference/firefox-production-hook-deadline-list-default-observation-report.json.txt",
+        "sha256": "a5bea92ff9782b95d809baefb6057695284506132b488da449e3a2abcda53c33"
+      },
+      "rawErrorObservationConsole": {
+        "path": "reference/firefox-production-hook-deadline-list-default-observation-console.jsonl.txt",
+        "sha256": "1d443951e31e8ecdac55d362c0df6892c93e94b895ee4459cc3361e69166f0e0"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "order": "parallel",
+      "limit": null,
+      "suite": "resources",
+      "kind": "hook-deadline",
+      "label": "firefox-production-hook-deadline-parallel-default",
+      "prefix": "HOOK_DEADLINE_ROWS:",
+      "source": {
+        "path": "sources/hook-deadline.test.mjs.txt",
+        "sha256": "a610a36f69067ac767988526921a578e0df35371da3f88c8d3b17c74cf73c7cb"
+      },
+      "projected": {
+        "path": "reference/firefox-production-hook-deadline-parallel-default-actual.json.txt",
+        "sha256": "201136804b22c1f56e9e47315ca4e47c75a82e33bb0a23d8686dc34546b99cbc"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-production-hook-deadline-parallel-default-report.json.txt",
+        "sha256": "615b398c2b3d3227e49096294c11ce9bcf4ba04645752b2fba6f7af4c13e78a0"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-production-hook-deadline-parallel-default-console.jsonl.txt",
+        "sha256": "20420cef3ece5a9bc3089b5562f62657776dd5076c7c94df3b2025a51b6f0b89"
+      },
+      "rawCaseErrors": {
+        "path": "reference/firefox-production-hook-deadline-parallel-default-observation-console.jsonl.errors.txt",
+        "sha256": "6b5de96b52deea2f10f244581a4f1d753ed488a70c9c16aefa959b0a4773d78c"
+      },
+      "rawErrorObservationReport": {
+        "path": "reference/firefox-production-hook-deadline-parallel-default-observation-report.json.txt",
+        "sha256": "6fdb3f9f0f3e9b8dd3b5a3cc9d044b7a4b9dae92c51079b12d6ee349936673e0"
+      },
+      "rawErrorObservationConsole": {
+        "path": "reference/firefox-production-hook-deadline-parallel-default-observation-console.jsonl.txt",
+        "sha256": "ca50e98ef75ad3b695255ac919df4ba3d87178907cc7b22397b0baa4fbb23225"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "order": "parallel",
+      "limit": 1,
+      "suite": "resources",
+      "kind": "hook-deadline",
+      "label": "firefox-production-hook-deadline-parallel-1",
+      "prefix": "HOOK_DEADLINE_ROWS:",
+      "source": {
+        "path": "sources/hook-deadline.test.mjs.txt",
+        "sha256": "a610a36f69067ac767988526921a578e0df35371da3f88c8d3b17c74cf73c7cb"
+      },
+      "projected": {
+        "path": "reference/firefox-production-hook-deadline-parallel-1-actual.json.txt",
+        "sha256": "a6d6422c37920163351a7722eabf5ad0296e689100f786c918e7c88f9c4aa17d"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-production-hook-deadline-parallel-1-report.json.txt",
+        "sha256": "9391bdde3fe427f74a29305d65dc1b305f6082f549a548ff466dad0a413a157b"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-production-hook-deadline-parallel-1-console.jsonl.txt",
+        "sha256": "1d557c25ed41893ddb10ced340088c478e6a16d08bd0604204e5f0d17e31e3fb"
+      },
+      "rawCaseErrors": {
+        "path": "reference/firefox-production-hook-deadline-parallel-1-observation-console.jsonl.errors.txt",
+        "sha256": "346550b1fc8f3966fbf75374d89fa28a59209647976f91e385376f1df60f8c58"
+      },
+      "rawErrorObservationReport": {
+        "path": "reference/firefox-production-hook-deadline-parallel-1-observation-report.json.txt",
+        "sha256": "28942097f97d2674903a88a2eee78ba24a1849f15d59a9d4598b438cc786f8d3"
+      },
+      "rawErrorObservationConsole": {
+        "path": "reference/firefox-production-hook-deadline-parallel-1-observation-console.jsonl.txt",
+        "sha256": "abcc408fbc1a43387e09cf99e5708fb8ef62a029b9dce05aedc6cdb395a77fb3"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "order": "stack",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "async-suite-ordering",
+      "label": "chromium-development-async-suite-ordering-stack-default",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/suite-hooks.test.mjs.txt",
+        "sha256": "dcb65b842c9bb97eda717317030ed4e04ee9c9a9ad6cf9365404a0b73cff7c4e"
+      },
+      "projected": {
+        "path": "reference/chromium-development-async-suite-ordering-stack-default-actual.json.txt",
+        "sha256": "66ae97a65ebda329e6b57ad8dff7e7e18c1a568c7a2538afebe032e40d24501e"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-development-async-suite-ordering-stack-default-report.json.txt",
+        "sha256": "1ff5e78f83a4e6b121eec1a98eab93d5bde68c84c3e8808b5bcbf466bc0316a9"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-development-async-suite-ordering-stack-default-console.jsonl.txt",
+        "sha256": "d547c7001f6a75d166c8ec9fef82cbb5dd75d98b70af273e20d36bbe97a7ab22"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "order": "list",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "async-suite-ordering",
+      "label": "chromium-development-async-suite-ordering-list-default",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/suite-hooks.test.mjs.txt",
+        "sha256": "dcb65b842c9bb97eda717317030ed4e04ee9c9a9ad6cf9365404a0b73cff7c4e"
+      },
+      "projected": {
+        "path": "reference/chromium-development-async-suite-ordering-list-default-actual.json.txt",
+        "sha256": "695af66e770c97628630c8f1e30861d8f45b433f70db03312428c02404c2f3fe"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-development-async-suite-ordering-list-default-report.json.txt",
+        "sha256": "4a46b0bad8d7c8fdf11291f15befc639704e8ca93f7b46b7275e945173ca0e08"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-development-async-suite-ordering-list-default-console.jsonl.txt",
+        "sha256": "c4077bb1a9a2db347be56ba757f14cd1a2631b071b0a9e48b595a6906e1b2cd3"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "order": "parallel",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "async-suite-ordering",
+      "label": "chromium-development-async-suite-ordering-parallel-default",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/suite-hooks.test.mjs.txt",
+        "sha256": "dcb65b842c9bb97eda717317030ed4e04ee9c9a9ad6cf9365404a0b73cff7c4e"
+      },
+      "projected": {
+        "path": "reference/chromium-development-async-suite-ordering-parallel-default-actual.json.txt",
+        "sha256": "c263c0bf81112e055eaf36543f59438e8c07de10096353592a574f38fa2eb9d5"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-development-async-suite-ordering-parallel-default-report.json.txt",
+        "sha256": "2a9647abd36ca0309ddd1600ac18da1804dbd9382d4055f78ef8f2bf4500b745"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-development-async-suite-ordering-parallel-default-console.jsonl.txt",
+        "sha256": "d54f254991046b0c0ff049dd0eb2e365c6ede6b0e049a40666fc458ccb3697e0"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "order": "parallel",
+      "limit": 1,
+      "suite": "ordering",
+      "kind": "async-suite-ordering",
+      "label": "chromium-development-async-suite-ordering-parallel-1",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/suite-hooks.test.mjs.txt",
+        "sha256": "dcb65b842c9bb97eda717317030ed4e04ee9c9a9ad6cf9365404a0b73cff7c4e"
+      },
+      "projected": {
+        "path": "reference/chromium-development-async-suite-ordering-parallel-1-actual.json.txt",
+        "sha256": "695af66e770c97628630c8f1e30861d8f45b433f70db03312428c02404c2f3fe"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-development-async-suite-ordering-parallel-1-report.json.txt",
+        "sha256": "04eb56675d105432e9f66787237564e4e7c63dc3fc2ca22c76b924cc0d9f3a6a"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-development-async-suite-ordering-parallel-1-console.jsonl.txt",
+        "sha256": "d952bc12d88129752ec765de401c3655c42d7f3cf4e55e5a99a7246ec0bf7bf9"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "order": "stack",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "async-suite-ordering",
+      "label": "chromium-production-async-suite-ordering-stack-default",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/suite-hooks.test.mjs.txt",
+        "sha256": "dcb65b842c9bb97eda717317030ed4e04ee9c9a9ad6cf9365404a0b73cff7c4e"
+      },
+      "projected": {
+        "path": "reference/chromium-production-async-suite-ordering-stack-default-actual.json.txt",
+        "sha256": "66ae97a65ebda329e6b57ad8dff7e7e18c1a568c7a2538afebe032e40d24501e"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-production-async-suite-ordering-stack-default-report.json.txt",
+        "sha256": "1b20fe2637b3360552f5412aa67eb71c5e2bf72e4bd5db8b0dd5009135836944"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-production-async-suite-ordering-stack-default-console.jsonl.txt",
+        "sha256": "f0d175828a3e80fecded1232274ed6326fff911a364a35589daef3c35a31bf94"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "order": "list",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "async-suite-ordering",
+      "label": "chromium-production-async-suite-ordering-list-default",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/suite-hooks.test.mjs.txt",
+        "sha256": "dcb65b842c9bb97eda717317030ed4e04ee9c9a9ad6cf9365404a0b73cff7c4e"
+      },
+      "projected": {
+        "path": "reference/chromium-production-async-suite-ordering-list-default-actual.json.txt",
+        "sha256": "695af66e770c97628630c8f1e30861d8f45b433f70db03312428c02404c2f3fe"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-production-async-suite-ordering-list-default-report.json.txt",
+        "sha256": "ac6ebcb1b7daea2c929bef4742dcb309bc5f031e945c2757881a91b4092306aa"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-production-async-suite-ordering-list-default-console.jsonl.txt",
+        "sha256": "bf6095695efdb7b1303b509079ba1f1b75f94bce547a10b0fd4b90f97dfb3f77"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "order": "parallel",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "async-suite-ordering",
+      "label": "chromium-production-async-suite-ordering-parallel-default",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/suite-hooks.test.mjs.txt",
+        "sha256": "dcb65b842c9bb97eda717317030ed4e04ee9c9a9ad6cf9365404a0b73cff7c4e"
+      },
+      "projected": {
+        "path": "reference/chromium-production-async-suite-ordering-parallel-default-actual.json.txt",
+        "sha256": "c263c0bf81112e055eaf36543f59438e8c07de10096353592a574f38fa2eb9d5"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-production-async-suite-ordering-parallel-default-report.json.txt",
+        "sha256": "0fcfe1dd9c7d1694c5a74a092a2542f310c5450e42b19c1176b2373fc76970bb"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-production-async-suite-ordering-parallel-default-console.jsonl.txt",
+        "sha256": "11b82ba6ac363f13abda57a22ca3da368aa6410914dc8a5b8f18addc3df19aaf"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "order": "parallel",
+      "limit": 1,
+      "suite": "ordering",
+      "kind": "async-suite-ordering",
+      "label": "chromium-production-async-suite-ordering-parallel-1",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/suite-hooks.test.mjs.txt",
+        "sha256": "dcb65b842c9bb97eda717317030ed4e04ee9c9a9ad6cf9365404a0b73cff7c4e"
+      },
+      "projected": {
+        "path": "reference/chromium-production-async-suite-ordering-parallel-1-actual.json.txt",
+        "sha256": "695af66e770c97628630c8f1e30861d8f45b433f70db03312428c02404c2f3fe"
+      },
+      "rawStandardReport": {
+        "path": "reference/chromium-production-async-suite-ordering-parallel-1-report.json.txt",
+        "sha256": "cb82aa86468b011675ff115957c91babff10e956439b9b23190388bb7201dc93"
+      },
+      "rawConsole": {
+        "path": "reference/chromium-production-async-suite-ordering-parallel-1-console.jsonl.txt",
+        "sha256": "a7928b26202659264283c5c4e4585042950fe3810b643f2d41f396881f65c13a"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "order": "stack",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "async-suite-ordering",
+      "label": "firefox-development-async-suite-ordering-stack-default",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/suite-hooks.test.mjs.txt",
+        "sha256": "dcb65b842c9bb97eda717317030ed4e04ee9c9a9ad6cf9365404a0b73cff7c4e"
+      },
+      "projected": {
+        "path": "reference/firefox-development-async-suite-ordering-stack-default-actual.json.txt",
+        "sha256": "66ae97a65ebda329e6b57ad8dff7e7e18c1a568c7a2538afebe032e40d24501e"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-development-async-suite-ordering-stack-default-report.json.txt",
+        "sha256": "20decfd432774ac96912a88b7373dd7288fc55dc177f612b5f634b3dd6ef325b"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-development-async-suite-ordering-stack-default-console.jsonl.txt",
+        "sha256": "912070c864703f04d00d4320c009dfc6f3487a40824a0c99da92fc4466db6553"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "order": "list",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "async-suite-ordering",
+      "label": "firefox-development-async-suite-ordering-list-default",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/suite-hooks.test.mjs.txt",
+        "sha256": "dcb65b842c9bb97eda717317030ed4e04ee9c9a9ad6cf9365404a0b73cff7c4e"
+      },
+      "projected": {
+        "path": "reference/firefox-development-async-suite-ordering-list-default-actual.json.txt",
+        "sha256": "695af66e770c97628630c8f1e30861d8f45b433f70db03312428c02404c2f3fe"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-development-async-suite-ordering-list-default-report.json.txt",
+        "sha256": "6a65ae43a3eeb72400f3c1bc20d5bc49f91aef8df67c69c7fc837fc194d69d0f"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-development-async-suite-ordering-list-default-console.jsonl.txt",
+        "sha256": "79b6698a2a3cfc4a172026e7e052cbc190e68edfc94f4ca715a28d3cd10e4710"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "order": "parallel",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "async-suite-ordering",
+      "label": "firefox-development-async-suite-ordering-parallel-default",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/suite-hooks.test.mjs.txt",
+        "sha256": "dcb65b842c9bb97eda717317030ed4e04ee9c9a9ad6cf9365404a0b73cff7c4e"
+      },
+      "projected": {
+        "path": "reference/firefox-development-async-suite-ordering-parallel-default-actual.json.txt",
+        "sha256": "c263c0bf81112e055eaf36543f59438e8c07de10096353592a574f38fa2eb9d5"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-development-async-suite-ordering-parallel-default-report.json.txt",
+        "sha256": "8fdf8a9526392592d3a0335903408bd8cffae3394579122f6ba43e904ab58a93"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-development-async-suite-ordering-parallel-default-console.jsonl.txt",
+        "sha256": "c19a532dc5129d150436b1548a2fbd02956a706013ea0d3e4c4cd2c01d0d7d4d"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "order": "parallel",
+      "limit": 1,
+      "suite": "ordering",
+      "kind": "async-suite-ordering",
+      "label": "firefox-development-async-suite-ordering-parallel-1",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/suite-hooks.test.mjs.txt",
+        "sha256": "dcb65b842c9bb97eda717317030ed4e04ee9c9a9ad6cf9365404a0b73cff7c4e"
+      },
+      "projected": {
+        "path": "reference/firefox-development-async-suite-ordering-parallel-1-actual.json.txt",
+        "sha256": "695af66e770c97628630c8f1e30861d8f45b433f70db03312428c02404c2f3fe"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-development-async-suite-ordering-parallel-1-report.json.txt",
+        "sha256": "84a26de132e34201c17ecceb6f056a7293cd6966f850e1ad2768e64170cbaeee"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-development-async-suite-ordering-parallel-1-console.jsonl.txt",
+        "sha256": "e7082af6dbc95d2d596e1ddc583e160a72e94815bbc0da0c61cf4fd7c3984f9a"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "order": "stack",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "async-suite-ordering",
+      "label": "firefox-production-async-suite-ordering-stack-default",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/suite-hooks.test.mjs.txt",
+        "sha256": "dcb65b842c9bb97eda717317030ed4e04ee9c9a9ad6cf9365404a0b73cff7c4e"
+      },
+      "projected": {
+        "path": "reference/firefox-production-async-suite-ordering-stack-default-actual.json.txt",
+        "sha256": "66ae97a65ebda329e6b57ad8dff7e7e18c1a568c7a2538afebe032e40d24501e"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-production-async-suite-ordering-stack-default-report.json.txt",
+        "sha256": "da2a6cda1046db03499985cd79f2279a7814008de01e60d0441335dbe1c07768"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-production-async-suite-ordering-stack-default-console.jsonl.txt",
+        "sha256": "eb4b08b4d6737fb424c2b332ecc3cdafa9c6737d00ee267bbbf1e0cb2aa40fb6"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "order": "list",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "async-suite-ordering",
+      "label": "firefox-production-async-suite-ordering-list-default",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/suite-hooks.test.mjs.txt",
+        "sha256": "dcb65b842c9bb97eda717317030ed4e04ee9c9a9ad6cf9365404a0b73cff7c4e"
+      },
+      "projected": {
+        "path": "reference/firefox-production-async-suite-ordering-list-default-actual.json.txt",
+        "sha256": "695af66e770c97628630c8f1e30861d8f45b433f70db03312428c02404c2f3fe"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-production-async-suite-ordering-list-default-report.json.txt",
+        "sha256": "9f1ac18fbc8ab0f509bd17b4abf3c8b1c18726b0b79a1d60c2a53120123b118f"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-production-async-suite-ordering-list-default-console.jsonl.txt",
+        "sha256": "d1944560b094aa12ce0ee374ac26c73ca11c6cbbee25e3dc66ff27ef6dfed76a"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "order": "parallel",
+      "limit": null,
+      "suite": "ordering",
+      "kind": "async-suite-ordering",
+      "label": "firefox-production-async-suite-ordering-parallel-default",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/suite-hooks.test.mjs.txt",
+        "sha256": "dcb65b842c9bb97eda717317030ed4e04ee9c9a9ad6cf9365404a0b73cff7c4e"
+      },
+      "projected": {
+        "path": "reference/firefox-production-async-suite-ordering-parallel-default-actual.json.txt",
+        "sha256": "c263c0bf81112e055eaf36543f59438e8c07de10096353592a574f38fa2eb9d5"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-production-async-suite-ordering-parallel-default-report.json.txt",
+        "sha256": "834f8a4671fe83848df1fb529f01761054b94d635f3751690417b5a6bda16c25"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-production-async-suite-ordering-parallel-default-console.jsonl.txt",
+        "sha256": "b174e0fe9ae1be334b98e633818ae0482caf46610ae80d66f84d465180a527c1"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "order": "parallel",
+      "limit": 1,
+      "suite": "ordering",
+      "kind": "async-suite-ordering",
+      "label": "firefox-production-async-suite-ordering-parallel-1",
+      "prefix": "BROWSER_HOOK_SEQUENCE:",
+      "source": {
+        "path": "sources/suite-hooks.test.mjs.txt",
+        "sha256": "dcb65b842c9bb97eda717317030ed4e04ee9c9a9ad6cf9365404a0b73cff7c4e"
+      },
+      "projected": {
+        "path": "reference/firefox-production-async-suite-ordering-parallel-1-actual.json.txt",
+        "sha256": "695af66e770c97628630c8f1e30861d8f45b433f70db03312428c02404c2f3fe"
+      },
+      "rawStandardReport": {
+        "path": "reference/firefox-production-async-suite-ordering-parallel-1-report.json.txt",
+        "sha256": "7e09ba8f5bdc3498cad3cbc1a89cecda1bfb3dd3dc22a6aaa4141cab0be95df1"
+      },
+      "rawConsole": {
+        "path": "reference/firefox-production-async-suite-ordering-parallel-1-console.jsonl.txt",
+        "sha256": "515dbf0e50e8b61e47013a707cbacb26298bafa65b94fe91c3bd9b079aaff697"
+      }
+    }
+  ]
+}

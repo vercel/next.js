@@ -1,0 +1,55 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "precreated-foreign",
+        "trace": [
+          {
+            "kind": "before",
+            "owner": 1,
+            "foreign": 0,
+            "sameLocal": false
+          },
+          {
+            "kind": "mismatch",
+            "name": "AssertionError",
+            "message": "expected 'owned' to be 'wrong' // Object.is equality"
+          },
+          {
+            "kind": "after",
+            "owner": 1,
+            "foreign": 0,
+            "same": true
+          }
+        ],
+        "ownerState": "pass",
+        "ownerCount": 1
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "owner creates chain",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeaders": []
+    },
+    {
+      "name": "foreign invokes retained chain",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeaders": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

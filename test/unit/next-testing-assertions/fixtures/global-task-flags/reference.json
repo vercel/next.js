@@ -1,0 +1,345 @@
+{
+  "rows": [
+    {
+      "ordinary global flags": [
+        {
+          "stage": "beforeEach-global",
+          "sameTask": true,
+          "type": "test",
+          "name": "ordinary global flags",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "beforeEach-local",
+          "sameTask": true,
+          "type": "test",
+          "name": "ordinary global flags",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "body-global",
+          "sameTask": true,
+          "type": "test",
+          "name": "ordinary global flags",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "body-local",
+          "sameTask": true,
+          "type": "test",
+          "name": "ordinary global flags",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "after-native-await",
+          "sameTask": true,
+          "type": "test",
+          "name": "ordinary global flags",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "afterEach-global",
+          "sameTask": true,
+          "type": "test",
+          "name": "ordinary global flags",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "afterEach-local",
+          "sameTask": true,
+          "type": "test",
+          "name": "ordinary global flags",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        }
+      ],
+      "custom global flags": [
+        {
+          "stage": "beforeEach-global",
+          "sameTask": true,
+          "type": "test",
+          "name": "custom global flags",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "beforeEach-local",
+          "sameTask": true,
+          "type": "test",
+          "name": "custom global flags",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "custom-sync",
+          "sameTask": true,
+          "type": "test",
+          "name": "custom global flags",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "custom-sync-state",
+          "sameTask": true
+        },
+        {
+          "stage": "custom-async-enter",
+          "sameTask": true,
+          "type": "test",
+          "name": "custom global flags",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "custom-async-state",
+          "sameTask": true
+        },
+        {
+          "stage": "custom-async-resume",
+          "sameTask": true,
+          "type": "test",
+          "name": "custom global flags",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "custom-body-end",
+          "sameTask": true,
+          "type": "test",
+          "name": "custom global flags",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "afterEach-global",
+          "sameTask": true,
+          "type": "test",
+          "name": "custom global flags",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "afterEach-local",
+          "sameTask": true,
+          "type": "test",
+          "name": "custom global flags",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        }
+      ],
+      "foreign raw payload": [
+        {
+          "stage": "beforeEach-global",
+          "sameTask": true,
+          "type": "test",
+          "name": "foreign raw payload",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "beforeEach-local",
+          "sameTask": true,
+          "type": "test",
+          "name": "foreign raw payload",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "foreign-get",
+          "exactForeignTask": true
+        },
+        {
+          "stage": "restored-current",
+          "sameTask": true,
+          "type": "test",
+          "name": "foreign raw payload",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "afterEach-global",
+          "sameTask": true,
+          "type": "test",
+          "name": "foreign raw payload",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "afterEach-local",
+          "sameTask": true,
+          "type": "test",
+          "name": "foreign raw payload",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        }
+      ],
+      "concurrent first": [
+        {
+          "stage": "beforeEach-global",
+          "sameTask": false,
+          "type": "test",
+          "name": "concurrent second",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "beforeEach-local",
+          "sameTask": true,
+          "type": "test",
+          "name": "concurrent first",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "concurrent-enter-global",
+          "sameTask": false,
+          "type": "test",
+          "name": "concurrent second",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "concurrent-enter-local",
+          "sameTask": true,
+          "type": "test",
+          "name": "concurrent first",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "concurrent-resume-global",
+          "sameTask": false,
+          "type": "test",
+          "name": "concurrent second",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "concurrent-resume-local",
+          "sameTask": true,
+          "type": "test",
+          "name": "concurrent first",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "afterEach-global",
+          "sameTask": false,
+          "type": "test",
+          "name": "concurrent second",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "afterEach-local",
+          "sameTask": true,
+          "type": "test",
+          "name": "concurrent first",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        }
+      ],
+      "concurrent second": [
+        {
+          "stage": "beforeEach-global",
+          "sameTask": true,
+          "type": "test",
+          "name": "concurrent second",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "beforeEach-local",
+          "sameTask": true,
+          "type": "test",
+          "name": "concurrent second",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "concurrent-enter-global",
+          "sameTask": true,
+          "type": "test",
+          "name": "concurrent second",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "concurrent-enter-local",
+          "sameTask": true,
+          "type": "test",
+          "name": "concurrent second",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "concurrent-resume-global",
+          "sameTask": true,
+          "type": "test",
+          "name": "concurrent second",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "concurrent-resume-local",
+          "sameTask": true,
+          "type": "test",
+          "name": "concurrent second",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "afterEach-global",
+          "sameTask": true,
+          "type": "test",
+          "name": "concurrent second",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        },
+        {
+          "stage": "afterEach-local",
+          "sameTask": true,
+          "type": "test",
+          "name": "concurrent second",
+          "sameFile": true,
+          "repeatReadIdentity": true
+        }
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "name": "ordinary global flags",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "custom global flags",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "foreign raw payload",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "concurrent first",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "concurrent second",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "success": true,
+  "exit": 0
+}

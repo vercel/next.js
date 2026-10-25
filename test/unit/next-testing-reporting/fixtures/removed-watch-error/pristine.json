@@ -1,0 +1,74 @@
+[
+  {
+    "type": "init"
+  },
+  {
+    "type": "console",
+    "stream": "stdout",
+    "text": "WATCH_VALUE 1"
+  },
+  {
+    "type": "end",
+    "run": 1,
+    "modules": [
+      {
+        "file": "contract.case.mjs",
+        "state": "passed",
+        "cases": [
+          {
+            "name": "actual value",
+            "state": "passed"
+          }
+        ]
+      }
+    ],
+    "errors": [],
+    "reason": "passed"
+  },
+  {
+    "type": "ready-start"
+  },
+  {
+    "type": "ready-after"
+  },
+  {
+    "type": "rerun-start",
+    "files": ["added.case.mjs"],
+    "trigger": "added.case.mjs"
+  },
+  {
+    "type": "rerun-after"
+  },
+  {
+    "type": "end",
+    "run": 2,
+    "modules": [
+      {
+        "file": "added.case.mjs",
+        "state": "passed",
+        "cases": [
+          {
+            "name": "added",
+            "state": "passed"
+          }
+        ]
+      }
+    ],
+    "errors": [],
+    "reason": "passed"
+  },
+  {
+    "type": "ready-start",
+    "files": ["added.case.mjs"]
+  },
+  {
+    "type": "ready-after"
+  },
+  {
+    "type": "removed-start",
+    "trigger": "added.case.mjs"
+  },
+  {
+    "type": "removed-error"
+  }
+]

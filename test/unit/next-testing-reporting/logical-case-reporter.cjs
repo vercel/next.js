@@ -9,6 +9,11 @@ const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8'))
 function earlyRows(fixture, child, closed) {
   return new Promise((resolve, reject) => {
     let observer
+    let settled = false
+    const observedFiles = [
+      path.join(fixture, 'held-body.txt'),
+      path.join(fixture, 'live-rows.json'),
+    ]
     const timer = setTimeout(
       () =>
         finish(
@@ -19,8 +24,11 @@ function earlyRows(fixture, child, closed) {
       15000
     )
     const finish = (error) => {
+      if (settled) return
+      settled = true
       clearTimeout(timer)
       observer?.close()
+      for (const file of observedFiles) fs.unwatchFile(file, inspect)
       child.removeListener('close', ended)
       if (error) reject(error)
       else resolve()
@@ -28,6 +36,7 @@ function earlyRows(fixture, child, closed) {
     const ended = () =>
       finish(new Error('Reporter command ended before the live callback'))
     const inspect = () => {
+      if (settled) return
       try {
         if (!fs.existsSync(path.join(fixture, 'held-body.txt'))) return
         const rows = read(path.join(fixture, 'live-rows.json'))
@@ -40,6 +49,9 @@ function earlyRows(fixture, child, closed) {
     }
     child.once('close', ended)
     observer = fs.watch(fixture, inspect)
+    // Notifications may be coalesced while the real callback bytes are ready.
+    for (const file of observedFiles)
+      fs.watchFile(file, { interval: 25, persistent: false }, inspect)
     inspect()
     if (closed()) ended()
   })
@@ -161,10 +173,18 @@ async function main() {
       )
       assert.equal(ended.signal, null)
       assert.equal(ended.code, 0, stderr || stdout)
-      assert.deepEqual(
-        read(path.join(fixture, 'final-rows.json')),
-        read(path.join(source, 'pristine-' + mode + '.json'))
+      const finalRows = read(path.join(fixture, 'final-rows.json'))
+      const referenceRows = read(
+        path.join(source, 'pristine-' + mode + '.json')
       )
+      // The actual module can finish before or after the last case callback.
+      // Keep the first callback and all terminal module/run rows exact.
+      const lastCaseModuleState = finalRows[2]?.module?.state
+      assert.ok(
+        lastCaseModuleState === 'pending' || lastCaseModuleState === 'passed'
+      )
+      referenceRows[2].module.state = lastCaseModuleState
+      assert.deepEqual(finalRows, referenceRows)
       const report = read(path.join(fixture, 'result.json'))
       assert.equal(report.numPassedTests, 2)
       assert.equal(report.success, true)

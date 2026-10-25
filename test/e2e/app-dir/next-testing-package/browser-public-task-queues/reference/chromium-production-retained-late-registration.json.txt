@@ -1,0 +1,47 @@
+{
+  "rows": [
+    [
+      {
+        "stage": "first-body",
+        "absent": true
+      },
+      {
+        "stage": "afterEach",
+        "errors": []
+      },
+      {
+        "stage": "before-retained",
+        "absent": true
+      },
+      {
+        "stage": "after-retained",
+        "resultUndefined": true,
+        "firstArray": true,
+        "firstLength": 1,
+        "currentAbsent": true
+      },
+      {
+        "stage": "afterEach",
+        "errors": []
+      },
+      {
+        "stage": "final-first",
+        "firstLength": 1
+      }
+    ]
+  ],
+  "cases": [
+    {
+      "name": "first logical task retains its original registrar",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "second logical task can append through first retained registrar",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "success": true,
+  "exit": 0
+}

@@ -1,0 +1,8 @@
+/** @jsxRuntime classic */
+import React from 'react'
+export const View = class extends React.Component<{label:string}> {
+  // The last method ends before an actual comment and class boundary.
+  render() { return <b>{this.props.label}</b> }
+  /* retained class comment */
+};
+export const Unused = () => <i />

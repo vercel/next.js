@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events'
 import { promises as customFileSystem } from 'fs'
 import { mkdtemp, writeFile, rm, readFile, realpath } from 'fs/promises'
 import { tmpdir } from 'os'
-import { join } from 'path'
+import { basename, join } from 'path'
 import { pathToFileURL } from 'url'
 import {
   buildCoverageMetadata,
@@ -314,6 +314,102 @@ it('excludes spec, setup and framework sources without hiding project content er
   } finally {
     await rm(f.root, { recursive: true, force: true })
   }
+})
+
+describe('production Browser content-hashed source maps', () => {
+  async function hashedMapFixture(reference = 'content-hash.js.map') {
+    const f = await fixture()
+    const baseline = await remapCoverage(f.artifact, f.capture)
+    const bytes = `${generated}\n//# sourceMappingURL=${reference}\n`
+    await writeFile(join(f.root, 'entry.js'), bytes)
+    await writeFile(
+      join(f.root, 'content-hash.js.map'),
+      JSON.stringify(makeMap(f.subject))
+    )
+    return {
+      ...f,
+      bytes,
+      baseline,
+      options: {
+        rootDir: f.root,
+        files: ['entry.js', 'content-hash.js.map'],
+        projectDir: f.root,
+        sourceRootDir: f.root,
+        entryFile: join(f.root, 'entry.test.ts'),
+        setupFiles: [],
+      },
+    }
+  }
+
+  it('retains the emitted map, source identity and precise counts', async () => {
+    const f = await hashedMapFixture()
+    try {
+      const coverage = await buildCoverageMetadata({
+        ...f.options,
+        browserSourceMapReferences: true,
+      })
+      expect(coverage.scripts[0]).toEqual({
+        path: 'entry.js',
+        sha256: coverageHash(f.bytes),
+        mapPath: 'content-hash.js.map',
+        mapSha256: coverageHash(
+          await readFile(join(f.root, 'content-hash.js.map'))
+        ),
+      })
+      expect(coverage.sources[pathToFileURL(f.subject).href]).toEqual({
+        file: f.subject,
+        sha256: coverageHash(source),
+      })
+      const capture = {
+        ...f.capture,
+        scripts: [{ ...f.capture.scripts[0], sha256: coverageHash(f.bytes) }],
+      }
+      expect(await remapCoverage({ ...f.artifact, coverage }, capture)).toEqual(
+        f.baseline
+      )
+    } finally {
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+
+  it('preserves ordinary metadata discovery without Browser opt-in', async () => {
+    const f = await hashedMapFixture()
+    try {
+      const coverage = await buildCoverageMetadata(f.options)
+      expect(coverage.scripts).toEqual([
+        { path: 'entry.js', sha256: coverageHash(f.bytes) },
+      ])
+      expect(coverage.sources).toEqual({})
+    } finally {
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+
+  it.each([
+    'https://example.invalid/content-hash.js.map',
+    '/content-hash.js.map',
+    '../missing.js.map',
+    'content-hash.js.map?query',
+    'content-hash.js.map#fragment',
+    'content-hash.js.map\\other.js.map',
+  ])(
+    'rejects a map reference outside its emitted closure: %s',
+    async (reference) => {
+      const f = await hashedMapFixture(reference)
+      try {
+        await expect(
+          buildCoverageMetadata({
+            ...f.options,
+            browserSourceMapReferences: true,
+          })
+        ).rejects.toThrow(
+          'Browser coverage source map escaped its output closure'
+        )
+      } finally {
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  )
 })
 
 it('preserves indexed column offsets and separate sources', () => {
@@ -1678,9 +1774,9 @@ it('parses explicit standard coverage flags without changing bare coverage', asy
   expect(() =>
     parseStandardCoverageOptions({ 'coverage.thresholds.lines': '101' })
   ).toThrow('between 0 and 100')
-  expect(() =>
+  expect(
     parseStandardCoverageOptions({ 'coverage.reporter': ['html'] })
-  ).toThrow('unsupported')
+  ).toMatchObject({ formatterReports: true, clean: true, reporter: ['html'] })
 })
 
 it.each([
@@ -1917,6 +2013,97 @@ it.each([
     await rm(f.root, { recursive: true, force: true })
   }
 })
+
+it.each([
+  {
+    name: 'configured global percentages',
+    formatterReports: true as const,
+    thresholds: { statements: 99, functions: 99, branches: 99, lines: 99 },
+    errors: [
+      'Coverage for lines (33.33%) does not meet global threshold (99%)',
+      'Coverage for functions (50%) does not meet global threshold (99%)',
+      'Coverage for statements (50%) does not meet global threshold (99%)',
+      'Coverage for branches (50%) does not meet global threshold (99%)',
+    ],
+  },
+  {
+    name: 'legacy CLI percentages',
+    formatterReports: undefined,
+    thresholds: { statements: 99, functions: 99, branches: 99, lines: 99 },
+    errors: [
+      'Coverage for statements (50%) does not meet global threshold (99%).',
+      'Coverage for functions (50%) does not meet global threshold (99%).',
+      'Coverage for branches (50%) does not meet global threshold (99%).',
+      'Coverage for lines (33.33%) does not meet global threshold (99%).',
+    ],
+  },
+  {
+    name: 'configured per-file percentages',
+    formatterReports: true as const,
+    thresholds: {
+      statements: 99,
+      functions: 99,
+      branches: 99,
+      lines: 99,
+      perFile: true,
+    },
+    errors: [
+      'Coverage for lines (33.33%) does not meet global threshold (99%) for subject.mjs',
+      'Coverage for functions (50%) does not meet global threshold (99%) for subject.mjs',
+      'Coverage for statements (50%) does not meet global threshold (99%) for subject.mjs',
+      'Coverage for branches (50%) does not meet global threshold (99%) for subject.mjs',
+    ],
+  },
+  {
+    name: 'configured negative thresholds',
+    formatterReports: true as const,
+    thresholds: { statements: -1, functions: -0.5, branches: -0.5, lines: -1 },
+    errors: [
+      'Uncovered statements (2) exceed global threshold (1)',
+      'Uncovered functions (1) exceed global threshold (0.5)',
+      'Uncovered branches (1) exceed global threshold (0.5)',
+      'Uncovered lines (2) exceed global threshold (1)',
+    ],
+  },
+  {
+    name: 'configured mixed threshold units',
+    formatterReports: true as const,
+    thresholds: { statements: 99, functions: -0.5, branches: 99, lines: 99 },
+    errors: [
+      'Coverage for statements (50%) does not meet global threshold (99%).',
+      'Uncovered functions (1) exceed global threshold (0.5)',
+      'Coverage for branches (50%) does not meet global threshold (99%).',
+      'Coverage for lines (33.33%) does not meet global threshold (99%).',
+    ],
+  },
+])(
+  'preserves exact standard threshold diagnostics for $name',
+  async ({ formatterReports, thresholds, errors }) => {
+    const { publishStandardCoverage } = await import(
+      'next/dist/experimental/testing/coverage/report-standard'
+    )
+    const f = await standardReportFixture()
+    try {
+      const result = await publishStandardCoverage({
+        projectDir: f.root,
+        ...f,
+        config: {
+          ...f.config,
+          include: ['subject.mjs'],
+          reporter: ['json'],
+          formatterReports,
+          thresholds,
+        },
+        status: 'passed',
+        includeUnimported: false,
+      })
+      expect(result.published).toBe(true)
+      expect(result.thresholdErrors).toEqual(errors)
+    } finally {
+      await rm(f.root, { recursive: true, force: true })
+    }
+  }
+)
 
 it('publishes the full json-summary contract and replaces prior standard artifacts on rerun', async () => {
   const { publishStandardCoverage } = await import(
@@ -3462,6 +3649,340 @@ it.each([
   ).toThrow('Invalid native generated mock source')
 })
 
+describe('mode-specific native Browser coverage certificates', () => {
+  const id = 'b'.repeat(64)
+  const descriptor = `server/next-test/${id}.client.json`
+  const certificate = `server/next-test/${id}.browser-coverage.json`
+  async function browserFixture(
+    version: 1 | 2,
+    fields: Record<string, unknown> = {}
+  ) {
+    const f = await fixture()
+    try {
+      const { mkdir } = await import('fs/promises')
+      await mkdir(join(f.root, 'server/next-test'), { recursive: true })
+      const bootstrap = 'globalThis.nativeCoverageBootstrap = 1;'
+      await writeFile(join(f.root, 'bootstrap.js'), bootstrap)
+      await writeFile(join(f.root, descriptor), JSON.stringify({ version: 1 }))
+      await writeFile(
+        join(f.root, certificate),
+        JSON.stringify({
+          version,
+          ...(version === 2
+            ? {
+                mode: 'production',
+                sourceMaps: 'absolute-file-uri',
+                preserveOriginalSyntax: true,
+              }
+            : {}),
+          scripts: [
+            {
+              path: 'bootstrap.js',
+              sha256: coverageHash(bootstrap),
+              role: 'native-ecmascript-bookkeeping',
+            },
+          ],
+          ...fields,
+        })
+      )
+      const files = [
+        ...f.artifact.files,
+        'bootstrap.js',
+        descriptor,
+        certificate,
+      ]
+      const { buildBrowserCoverageMetadata } = await import(
+        'next/dist/experimental/testing/client/coverage-artifact'
+      )
+      const coverage = await buildBrowserCoverageMetadata({
+        rootDir: f.root,
+        files,
+        projectDir: f.root,
+        sourceRootDir: f.root,
+        entryFile: join(f.root, 'entry.test.ts'),
+        entryPath: descriptor,
+        setupFiles: [],
+      })
+      const artifact = {
+        ...f.artifact,
+        kind: 'browser' as const,
+        sourceHash: coverageHash(''),
+        entryPath: descriptor,
+        files,
+        coverage,
+        profile: {
+          ...profile,
+          mode:
+            version === 2 ? ('production' as const) : ('development' as const),
+          environment: 'browser' as const,
+          browserClient: true as const,
+        },
+        client: {
+          version: 1 as const,
+          asyncScope: 'promise-continuations-v1' as const,
+          sourceFile: join(f.root, 'entry.test.ts'),
+          scripts: ['entry.js', 'bootstrap.js'],
+          styles: [],
+          outputs: await Promise.all(
+            files.map(async (path) => ({
+              path,
+              sha256: coverageHash(await readFile(join(f.root, path))),
+            }))
+          ),
+        },
+      }
+      const capture = {
+        ...f.capture,
+        kind: 'browser-cdp' as const,
+        scripts: [
+          ...f.capture.scripts,
+          {
+            path: 'bootstrap.js',
+            sha256: coverageHash(bootstrap),
+            functions: [
+              {
+                isBlockCoverage: true,
+                ranges: [
+                  { startOffset: 0, endOffset: bootstrap.length, count: 1 },
+                ],
+              },
+            ],
+          },
+        ],
+      }
+      return { ...f, artifact, capture }
+    } catch (error) {
+      await rm(f.root, { recursive: true, force: true })
+      throw error
+    }
+  }
+  it.each([1, 2] as const)(
+    'maps original ranges with a strict version%s Browser certificate',
+    async (version) => {
+      const f = await browserFixture(version)
+      try {
+        const { assertBrowserCoverageArtifact } = await import(
+          'next/dist/experimental/testing/client/coverage-artifact'
+        )
+        await expect(
+          assertBrowserCoverageArtifact(f.artifact)
+        ).resolves.toBeUndefined()
+        const result = await remapCoverage(f.artifact, f.capture)
+        expect(result.complete).toBe(true)
+        expect(result.files).toEqual([
+          {
+            file: f.subject,
+            sha256: coverageHash(source),
+            executableLines: [1, 2, 3, 4],
+            coveredLines: [1, 2, 4],
+          },
+        ])
+        expect(f.artifact.coverage.sourcePreservation).toBeUndefined()
+      } finally {
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  )
+  it.each([1, 2] as const)(
+    'rejects version%s Browser proof reused in the other runtime mode',
+    async (version) => {
+      const f = await browserFixture(version)
+      try {
+        f.artifact.profile.mode = version === 1 ? 'production' : 'development'
+        const { assertBrowserCoverageArtifact } = await import(
+          'next/dist/experimental/testing/client/coverage-artifact'
+        )
+        await expect(assertBrowserCoverageArtifact(f.artifact)).rejects.toThrow(
+          'mode-certified client artifact'
+        )
+        await expect(remapCoverage(f.artifact, f.capture)).rejects.toThrow(
+          'mode-certified client artifact'
+        )
+      } finally {
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  )
+  it.each([
+    { mode: 'development' },
+    { sourceMaps: 'turbopack-uri' },
+    { preserveOriginalSyntax: false },
+    { extra: true },
+  ])(
+    'rejects a production certificate without the exact native source profile (%s)',
+    async (fields) => {
+      await expect(browserFixture(2, fields)).rejects.toThrow(
+        'Invalid native browser coverage certificate'
+      )
+    }
+  )
+  it.each([
+    { version: 1, sectionsByScript: {} },
+    { version: 1, sectionsByScript: { 'entry.js': [] } },
+    { version: 1, sectionsByScript: { 'missing.js': [{}] } },
+    { version: 1, sectionsByScript: { 'entry.js.map': [{}] } },
+    { version: 2, sectionsByScript: { 'entry.js': [{}] } },
+  ])(
+    'rejects empty or foreign Browser import sections (%s)',
+    async (importInitializers) => {
+      await expect(browserFixture(2, { importInitializers })).rejects.toThrow(
+        'Browser import'
+      )
+    }
+  )
+  it('keeps Browser import sections out of the original development certificate', async () => {
+    await expect(
+      browserFixture(1, {
+        importInitializers: {
+          version: 1,
+          sectionsByScript: { 'entry.js': [{}] },
+        },
+      })
+    ).rejects.toThrow('Invalid native browser coverage certificate')
+  })
+  it('validates the separate development import marker schema without granting production mode', async () => {
+    const fields = {
+      developmentImports: {
+        version: 1,
+        mode: 'development',
+        sectionsByScript: { 'entry.js': [{}] },
+      },
+    }
+    const f = await browserFixture(1, fields)
+    try {
+      expect(f.artifact.coverage.browser).toMatchObject({
+        version: 1,
+        developmentImports: { version: 1, mode: 'development' },
+      })
+      const { assertBrowserCoverageArtifact } = await import(
+        'next/dist/experimental/testing/client/coverage-artifact'
+      )
+      f.artifact.profile.mode = 'production'
+      await expect(assertBrowserCoverageArtifact(f.artifact)).rejects.toThrow(
+        'mode-certified client artifact'
+      )
+    } finally {
+      await rm(f.root, { recursive: true, force: true })
+    }
+    await expect(browserFixture(2, fields)).rejects.toThrow(
+      'Invalid native browser coverage certificate'
+    )
+  })
+  it.each([
+    { version: 2, mode: 'development', sectionsByScript: { 'entry.js': [{}] } },
+    { version: 1, mode: 'production', sectionsByScript: { 'entry.js': [{}] } },
+    { version: 1, mode: 'development', sectionsByScript: {} },
+    { version: 1, mode: 'development', sectionsByScript: { 'entry.js': [] } },
+    {
+      version: 1,
+      mode: 'development',
+      sectionsByScript: { 'missing.js': [{}] },
+    },
+    {
+      version: 1,
+      mode: 'development',
+      sectionsByScript: { 'entry.js.map': [{}] },
+    },
+    {
+      version: 1,
+      mode: 'development',
+      sectionsByScript: { 'entry.js': [{}] },
+      extra: true,
+    },
+  ])(
+    'rejects malformed development import marker fields without interpreting counters: %p',
+    async (developmentImports) => {
+      await expect(browserFixture(1, { developmentImports })).rejects.toThrow()
+    }
+  )
+  it('keeps actual development import certificate bytes bound after schema decoding', async () => {
+    const f = await browserFixture(1, {
+      developmentImports: {
+        version: 1,
+        mode: 'development',
+        sectionsByScript: { 'entry.js': [{}] },
+      },
+    })
+    try {
+      const { assertBrowserCoverageArtifact } = await import(
+        'next/dist/experimental/testing/client/coverage-artifact'
+      )
+      await writeFile(join(f.root, certificate), 'changed')
+      await expect(assertBrowserCoverageArtifact(f.artifact)).rejects.toThrow()
+    } finally {
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+  it('refuses development import requests without actual JSX value imports or the exact live plan', () => {
+    const { execFileSync } = require('node:child_process')
+    const stdout = execFileSync(
+      process.execPath,
+      [join(__dirname, 'development-import-plan-controls.mjs')],
+      {
+        encoding: 'utf8',
+        timeout: 90000,
+        env: { ...process.env, NODE_ENV: 'development' },
+      }
+    )
+    const prefix = 'NEXT_DEVELOPMENT_IMPORT_PLAN_CONTROLS='
+    const completion = stdout
+      .split('\n')
+      .filter((line: string) => line.startsWith(prefix))
+    expect(completion).toHaveLength(1)
+    const result = JSON.parse(completion[0].slice(prefix.length))
+    expect(result.rows).toEqual([
+      'no-jsx',
+      'type-only-import',
+      'stale-source',
+      'mutated-plan',
+      'foreign-profile',
+      'missing-coverage',
+      'wrong-mode',
+    ])
+    expect(result.closedSessions).toBe(6)
+  })
+  it('refuses a separate Node source-preservation proof in Browser metadata', async () => {
+    const f = await browserFixture(2)
+    try {
+      f.artifact.coverage.sourcePreservation = {
+        version: 1,
+        nativeMetadata: {
+          path: certificate,
+          sha256: coverageHash(await readFile(join(f.root, certificate))),
+        },
+      }
+      const { assertBrowserCoverageArtifact } = await import(
+        'next/dist/experimental/testing/client/coverage-artifact'
+      )
+      await expect(assertBrowserCoverageArtifact(f.artifact)).rejects.toThrow(
+        'mode-certified client artifact'
+      )
+      await expect(remapCoverage(f.artifact, f.capture)).rejects.toThrow(
+        'Unrequested production source coverage provenance'
+      )
+    } finally {
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+  it.each(['bootstrap.js', 'entry.js.map', certificate])(
+    'rejects changed certified Browser output %s',
+    async (file) => {
+      const f = await browserFixture(2)
+      try {
+        await writeFile(join(f.root, file), 'changed')
+        const { assertBrowserCoverageArtifact } = await import(
+          'next/dist/experimental/testing/client/coverage-artifact'
+        )
+        await expect(assertBrowserCoverageArtifact(f.artifact)).rejects.toThrow(
+          'Browser output changed'
+        )
+      } finally {
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  )
+})
+
 describe('owned browser precise coverage protocol', () => {
   const initializer =
     "(() => {\n      \nif (self.ServiceWorkerContainer) ServiceWorkerContainer.prototype.register = async () => { console.warn('Service Worker registration blocked by Playwright'); };\n\n    })();"
@@ -3481,8 +4002,17 @@ describe('owned browser precise coverage protocol', () => {
   function protocol(
     options: {
       unknownAnonymous?: boolean
+      sdk161Initializer?: boolean
       missingCapture?: boolean
       hold?: string
+      framed?: {
+        sdk161?: boolean
+        borrowed?: 'context' | 'page'
+        tree?: 'extra child' | 'different child' | 'nested child' | 'host URL'
+        hostPrecise?: boolean
+        hostScriptAfterStart?: boolean
+        revokedAfterCapture?: boolean
+      }
       engine?: {
         fact?: Partial<typeof engineFact>
         unissued?: boolean
@@ -3497,12 +4027,20 @@ describe('owned browser precise coverage protocol', () => {
       }
     } = {}
   ) {
+    if (options.framed && !options.engine) options = { ...options, engine: {} }
+    const actualInitializer =
+      options.sdk161Initializer || options.framed?.sdk161
+        ? "(() => {\n      \nif (navigator.serviceWorker) navigator.serviceWorker.register = async () => { console.warn('Service Worker registration blocked by Playwright'); };\n\n    })();"
+        : initializer
+    let frameLive = true,
+      navigated = false
     let rejectHeld!: (reason: unknown) => void
     let heldStarted!: () => void
     const holding = new Promise<void>((resolve) => {
       heldStarted = resolve
     })
     const calls: string[] = []
+    const discoveryFilters: unknown[] = []
     let factLive = !options.engine?.revokedBeforeCapture,
       registrationChanged = false
     const readEngineFact = () => {
@@ -3523,11 +4061,18 @@ describe('owned browser precise coverage protocol', () => {
       })
       session.send = jest.fn(async (method: string, params: any) => {
         calls.push(method)
+        if (method === 'Target.setDiscoverTargets' && params.discover)
+          discoveryFilters.push(params.filter)
         if (
           method === 'Profiler.stopPreciseCoverage' &&
           options.engine?.revokedAfterCapture
         )
           factLive = false
+        if (
+          method === 'Profiler.stopPreciseCoverage' &&
+          options.framed?.revokedAfterCapture
+        )
+          frameLive = false
         if (method === options.hold) {
           heldStarted()
           return await new Promise((_, reject) => {
@@ -3535,10 +4080,84 @@ describe('owned browser precise coverage protocol', () => {
           })
         }
         if (method === 'Target.getTargetInfo')
-          return { targetInfo: { targetId: 'target', type: 'page' } }
-        if (method === 'Page.getFrameTree')
-          return { frameTree: { frame: { id: 'frame' } } }
+          return {
+            targetInfo: {
+              targetId: 'target',
+              type: 'page',
+              ...(options.framed ? { url: `${url}host` } : {}),
+            },
+          }
+        if (method === 'Page.getFrameTree') {
+          if (!options.framed) return { frameTree: { frame: { id: 'frame' } } }
+          const child = {
+            frame: {
+              id:
+                options.framed.tree === 'different child'
+                  ? 'borrowed'
+                  : 'frame',
+              parentId: 'host-frame',
+              url: navigated ? url : 'about:blank',
+            },
+            ...(options.framed.tree === 'nested child'
+              ? { childFrames: [{ frame: { id: 'nested' } }] }
+              : {}),
+          }
+          return {
+            frameTree: {
+              frame: {
+                id: 'host-frame',
+                url:
+                  options.framed.tree === 'host URL'
+                    ? `${url}foreign`
+                    : `${url}host`,
+              },
+              childFrames: [
+                child,
+                ...(options.framed.tree === 'extra child' ? [child] : []),
+              ],
+            },
+          }
+        }
+        if (method === 'Debugger.enable' && options.framed) {
+          for (const [id, uniqueId, frameId] of [
+            [10, 'host-realm', 'host-frame'],
+            [11, 'old-child-realm', 'frame'],
+          ] as const)
+            pageSession.emit('Runtime.executionContextCreated', {
+              context: {
+                id,
+                uniqueId,
+                origin: new URL(url).origin,
+                auxData: { isDefault: true, type: 'default', frameId },
+              },
+            })
+          for (const [scriptId, executionContextId] of [
+            ['setup-host', 10],
+            ['setup-child', 11],
+          ] as const)
+            pageSession.emit('Debugger.scriptParsed', {
+              scriptId,
+              url: '',
+              executionContextId,
+            })
+        }
         if (method === 'Profiler.startPreciseCoverage') {
+          if (options.framed) {
+            pageSession.emit('Runtime.executionContextDestroyed', {
+              executionContextId: 11,
+              executionContextUniqueId: 'old-child-realm',
+            })
+            navigated = true
+            pageSession.emit('Page.frameNavigated', {
+              frame: { id: 'frame', parentId: 'host-frame', url },
+            })
+            if (options.framed.hostScriptAfterStart)
+              pageSession.emit('Debugger.scriptParsed', {
+                scriptId: 'new-host',
+                url: '',
+                executionContextId: 10,
+              })
+          }
           pageSession.emit('Runtime.executionContextCreated', {
             context: {
               id: 1,
@@ -3585,6 +4204,24 @@ describe('owned browser precise coverage protocol', () => {
         if (method === 'Profiler.takePreciseCoverage')
           return {
             result: [
+              ...(options.framed?.hostPrecise
+                ? [
+                    {
+                      scriptId: 'setup-host',
+                      functions: [
+                        {
+                          ranges: [
+                            {
+                              startOffset: 0,
+                              endOffset: emitted.length,
+                              count: 1,
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ]
+                : []),
               {
                 scriptId: 'initializer',
                 functions: [
@@ -3593,7 +4230,7 @@ describe('owned browser precise coverage protocol', () => {
                     ranges: [
                       {
                         startOffset: 0,
-                        endOffset: initializer.length,
+                        endOffset: actualInitializer.length,
                         count: 1,
                       },
                     ],
@@ -3660,8 +4297,8 @@ describe('owned browser precise coverage protocol', () => {
             scriptSource:
               params.scriptId === 'initializer'
                 ? options.unknownAnonymous
-                  ? initializer + ';'
-                  : initializer
+                  ? actualInitializer + ';'
+                  : actualInitializer
                 : params.scriptId === engineFact.scriptId ||
                     params.scriptId === 'engine-copy'
                   ? engineSource
@@ -3700,11 +4337,40 @@ describe('owned browser precise coverage protocol', () => {
       const {
         createClientCoverage,
       } = require('next/dist/experimental/testing/client/coverage')
+      const actualContext = {
+        _guid: 'actual-context',
+        newCDPSession: async () => pageSession,
+      } as any
+      const actualPage = {
+        _guid: 'actual-page',
+        context: () => actualContext,
+      } as any
       coverage = createClientCoverage({
         artifact,
         browser: { newBrowserCDPSession: async () => targetSession } as any,
-        context: { newCDPSession: async () => pageSession } as any,
-        page: {} as any,
+        context: actualContext,
+        page: actualPage,
+        ...(options.framed
+          ? {
+              hostURL: `${url}host`,
+              frameOwner: {
+                engine: 'chromium',
+                contextGuid:
+                  options.framed.borrowed === 'context'
+                    ? 'borrowed'
+                    : 'actual-context',
+                pageGuid:
+                  options.framed.borrowed === 'page'
+                    ? 'borrowed'
+                    : 'actual-page',
+                frameGuid: 'actual-frame',
+                assertCurrent() {
+                  if (!frameLive) throw new Error('Actual child lease revoked')
+                },
+                nativeFrameId: () => 'frame',
+              },
+            }
+          : {}),
         url,
         contextOptions: { serviceWorkers: 'block' },
         ...(options.engine && !options.engine.unissued
@@ -3719,8 +4385,13 @@ describe('owned browser precise coverage protocol', () => {
     return {
       coverage,
       calls,
+      discoveryFilters,
       controller,
       holding,
+      onFailure,
+      emit: (event: string, value: unknown) => pageSession.emit(event, value),
+      emitTarget: (event: string, value: unknown) =>
+        targetSession.emit(event, value),
       rejectHeld: (reason: unknown) => rejectHeld(reason),
       restore: () => {},
     }
@@ -3758,6 +4429,161 @@ describe('owned browser precise coverage protocol', () => {
     } finally {
       p.restore()
     }
+  })
+
+  it('excludes browser chrome discovery while retaining only actual authored page ranges', async () => {
+    const p = protocol()
+    await p.coverage.start()
+    expect(p.discoveryFilters).toEqual([
+      [
+        { type: 'browser', exclude: true },
+        { type: 'tab', exclude: true },
+        { type: 'browser_ui', exclude: true },
+        {},
+      ],
+    ])
+    await p.coverage.take()
+    p.coverage.close()
+    await p.coverage.afterOwnersClosed()
+    expect(
+      (await p.coverage.result()).scripts.map((script) => script.path)
+    ).toEqual(['entry.js'])
+    expect(p.onFailure).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['page', 'about:blank'],
+    ['page', 'http://127.0.0.1:4321/popup'],
+    ['worker', url + 'worker.js'],
+    ['service_worker', url + 'service-worker.js'],
+    ['shared_worker', url + 'shared-worker.js'],
+    ['iframe', url + 'foreign-frame'],
+    ['unknown', 'chrome://omnibox-popup.top-chrome/'],
+  ])(
+    'rejects a discovered %s target outside its exact page owner (%s)',
+    async (type, targetURL) => {
+      const p = protocol()
+      await p.coverage.start()
+      p.emitTarget('Target.targetCreated', {
+        targetInfo: { targetId: 'foreign-target', type, url: targetURL },
+      })
+      expect(p.onFailure).toHaveBeenCalledTimes(1)
+      await expect(p.coverage.take()).rejects.toThrow(
+        'uncaptured worker, popup, or target'
+      )
+      p.coverage.close()
+      await p.coverage.afterOwnersClosed()
+      await expect(p.coverage.result()).rejects.toThrow(
+        'uncaptured worker, popup, or target'
+      )
+    }
+  )
+
+  it.each([false, true])(
+    'captures only the selected child after real setup-realm retirement (SDK161=%s)',
+    async (sdk161) => {
+      const p = protocol({ framed: { sdk161 } })
+      await p.coverage.start()
+      await p.coverage.take()
+      await expect(p.coverage.result()).rejects.toThrow('did not close')
+      p.coverage.close()
+      await p.coverage.afterOwnersClosed()
+      expect(
+        (await p.coverage.result()).scripts.map((script) => script.path)
+      ).toEqual(['entry.js'])
+      expect(p.onFailure).not.toHaveBeenCalled()
+    }
+  )
+
+  it.each(['context', 'page'] as const)(
+    'rejects a borrowed child %s GUID before CDP acquisition',
+    async (borrowed) => {
+      const p = protocol({ framed: { borrowed } })
+      await expect(p.coverage.start()).rejects.toThrow(
+        'differs from its Page or context'
+      )
+      expect(p.calls).toEqual([])
+      p.coverage.close()
+      await p.coverage.afterOwnersClosed()
+      await expect(p.coverage.result()).rejects.toThrow('did not close')
+    }
+  )
+
+  it.each([
+    'extra child',
+    'different child',
+    'nested child',
+    'host URL',
+  ] as const)('rejects an actual child topology with %s', async (tree) => {
+    const p = protocol({ framed: { tree } })
+    await expect(p.coverage.start()).rejects.toThrow('actual inert host tree')
+    p.coverage.close()
+    await p.coverage.afterOwnersClosed()
+    await expect(p.coverage.result()).rejects.toThrow('did not close')
+  })
+
+  it.each([
+    [{ hostPrecise: true }, 'owned default realm'],
+    [{ hostScriptAfterStart: true }, 'outside its selected child'],
+    [{ revokedAfterCapture: true }, 'Actual child lease revoked'],
+  ])(
+    'withholds child capture for a host script or revoked actual lease (%s)',
+    async (framed, diagnostic) => {
+      const p = protocol({ framed })
+      let error: unknown
+      try {
+        await p.coverage.start()
+        await p.coverage.take()
+      } catch (caught) {
+        error = caught
+      }
+      expect(error).toEqual(
+        expect.objectContaining({
+          message: expect.stringContaining(diagnostic as string),
+        })
+      )
+      p.coverage.close()
+      await p.coverage.afterOwnersClosed()
+      await expect(p.coverage.result()).rejects.toThrow()
+    }
+  )
+
+  it.each([
+    ['Page.frameDetached', { frameId: 'frame' }],
+    ['Page.frameAttached', { frameId: 'foreign', parentFrameId: 'host-frame' }],
+    ['Page.frameNavigated', { frame: { id: 'host-frame', url: `${url}host` } }],
+    [
+      'Runtime.executionContextDestroyed',
+      { executionContextId: 1, executionContextUniqueId: 'realm' },
+    ],
+  ])('vetoes a selected child after live %s changes', async (event, value) => {
+    const p = protocol({ framed: {} })
+    await p.coverage.start()
+    p.emit(event as string, value)
+    expect(p.onFailure).toHaveBeenCalledTimes(1)
+    await expect(p.coverage.take()).rejects.toThrow()
+    p.coverage.close()
+    await p.coverage.afterOwnersClosed()
+    await expect(p.coverage.result()).rejects.toThrow()
+  })
+
+  it('drains held child CDP capture after cancellation and actual owner closure', async () => {
+    const p = protocol({ framed: {}, hold: 'Profiler.enable' })
+    const starting = p.coverage.start()
+    await p.holding
+    const reason = new Error('child owner cancelled')
+    p.controller.abort(reason)
+    p.coverage.close()
+    let joined = false
+    const closing = p.coverage.afterOwnersClosed().then(() => {
+      joined = true
+    })
+    await Promise.resolve()
+    expect(joined).toBe(false)
+    p.rejectHeld(new Error('actual child target terminated'))
+    await expect(starting).rejects.toThrow('actual child target terminated')
+    await closing
+    await expect(p.coverage.result()).rejects.toBe(reason)
   })
 
   it('excludes only the live parent-authenticated engine initializer while retaining exact authored bytes and ranges', async () => {
@@ -3868,6 +4694,36 @@ describe('owned browser precise coverage protocol', () => {
       await expect(p.coverage.result()).rejects.toThrow('did not close')
     }
   )
+
+  it('retains only owned top-frame SDK 1.61 ranges through actual closure', async () => {
+    const p = protocol({ sdk161Initializer: true })
+    try {
+      await p.coverage.start()
+      await p.coverage.take()
+      await expect(p.coverage.result()).rejects.toThrow('did not close')
+      p.coverage.close()
+      await p.coverage.afterOwnersClosed()
+      expect(
+        (await p.coverage.result()).scripts.map((script) => script.path)
+      ).toEqual(['entry.js'])
+      expect(p.onFailure).not.toHaveBeenCalled()
+    } finally {
+      p.restore()
+    }
+  })
+
+  it('rejects changed top-frame SDK 1.61 initializer bytes', async () => {
+    const p = protocol({ sdk161Initializer: true, unknownAnonymous: true })
+    try {
+      await p.coverage.start()
+      await expect(p.coverage.take()).rejects.toThrow('unqualified anonymous')
+      p.coverage.close()
+      await p.coverage.afterOwnersClosed()
+      await expect(p.coverage.result()).rejects.toThrow('did not close')
+    } finally {
+      p.restore()
+    }
+  })
 
   it('rejects an anonymous script with changed owned initializer bytes', async () => {
     const p = protocol({ unknownAnonymous: true })
@@ -4481,9 +5337,6 @@ it('rejects selected symbolic typed source paths rather than silently dropping t
 
 it.each([
   'next.config.js',
-  'next.test.config.mjs',
-  'vitest.config.ts',
-  'vite.config.ts',
   'tsconfig.json',
   'jsconfig.json',
   'package.json',
@@ -4664,7 +5517,7 @@ it('retains parent source/profile and absence inventory through JSON transport a
     await expect(
       assertCompilerSourceCoverage(owned.facts, plan, owned.signal)
     ).resolves.toHaveLength(1)
-    await writeFile(join(owned.root, 'vite.config.mts'), 'export default {}')
+    await writeFile(join(owned.root, 'next.config.js'), 'export default {}')
     await expect(
       assertCompilerSourceCoverage(owned.facts, plan, owned.signal)
     ).rejects.toThrow(
@@ -10064,12 +10917,15 @@ describe('project-configured standard V8 coverage', () => {
         undefined
       )
     ).toEqual({ enabled: false, configured: true })
-    expect(() =>
+    expect(
       parseProjectStandardCoverage({
         enabled: true,
         thresholds: { autoUpdate: true },
       })
-    ).toThrow('Unsupported V8 coverage threshold')
+    ).toMatchObject({
+      enabled: true,
+      options: { thresholds: { autoUpdate: true } },
+    })
     expect(() =>
       parseProjectStandardCoverage({
         enabled: true,
@@ -10342,3 +11198,5549 @@ it.each([
   },
   100000
 )
+
+it('keeps only actual captures in an initial cancelled generation with an unlaunched file', async () => {
+  const f = await generationCoverageFixture()
+  try {
+    const prepared = await f.cache.prepare({
+      facts: [f.fact('one', 1)],
+      expected: new Set(['one']),
+      notExecutedEntryIds: new Set(['two']),
+      revisions: new Map([['one', 'one']]),
+      registry: await f.registry(),
+      cleanOnRerun: false,
+    })
+    expect(prepared.facts.map((fact) => fact.entryId)).toEqual(['one'])
+    expect(prepared.retainedEntryIds.size).toBe(0)
+    prepared.commit()
+    await expect(
+      f.cache.prepare({
+        facts: [],
+        expected: new Set(['one']),
+        notExecutedEntryIds: new Set(['one']),
+        revisions: new Map(),
+        registry: await f.registry(),
+      })
+    ).rejects.toThrow('Invalid parent unexecuted')
+    await expect(
+      f.cache.prepare({
+        facts: [],
+        expected: new Set(),
+        notExecutedEntryIds: new Set(['foreign']),
+        revisions: new Map(),
+        registry: await f.registry(),
+      })
+    ).rejects.toThrow('Invalid parent unexecuted')
+  } finally {
+    await rm(f.root, { recursive: true, force: true })
+  }
+})
+
+it('retains original closed source counters across a queued test edit while preserving source and config vetoes', async () => {
+  const f = await runtimeConfigurationGenerationFixture()
+  try {
+    const initial = await f.makePlan()
+    const oldTwo = await f.receipt(initial, 'two')
+    ;(await f.prepared(initial, { one: 1, two: 2 })).commit()
+    await writeFile(f.two, 'test("changed queued title", () => {})\n')
+    const current = await f.makePlan()
+    const one = await f.receipt(current, 'one')
+    const fresh = f.fact('one', 3, one.compiler.revision)
+    const prepare = async () =>
+      f.cache.prepare({
+        facts: [fresh],
+        expected: new Set(['one']),
+        notExecutedEntryIds: new Set(['two']),
+        revisions: new Map([['one', fresh.revision]]),
+        registry: await f.registry(),
+        cleanOnRerun: false,
+        runtimeConfiguration: { plan: current, receipts: [one] },
+      })
+    const retained = await prepare()
+    expect(
+      retained.facts.map((fact) => [fact.entryId, fact.files[0].data.f[0]])
+    ).toEqual([
+      ['two', 2],
+      ['one', 3],
+    ])
+    expect([...retained.retainedEntryIds]).toEqual(['two'])
+    expect(
+      retained.runtimeConfigurationReceipts!.find(
+        (receipt) => receipt.compiler.entryId === 'two'
+      )
+    ).toEqual(oldTwo)
+    const helperBefore = await readFile(f.helper)
+    await writeFile(f.helper, 'export const marker = "changed config"')
+    await expect(prepare()).rejects.toThrow(/changed after|configuration/)
+    await writeFile(f.helper, helperBefore)
+    await writeFile(f.file, f.source + '\n// changed covered source\n')
+    await expect(prepare()).rejects.toThrow('source changed')
+    await writeFile(f.file, f.source)
+    const recovery = await f.prepared(await f.makePlan(), { one: 4, two: 5 })
+    expect(recovery.facts.map((fact) => fact.files[0].data.f[0])).toEqual([
+      4, 5,
+    ])
+    expect(recovery.retainedEntryIds.size).toBe(0)
+    recovery.commit()
+  } finally {
+    await rm(f.root, { recursive: true, force: true })
+  }
+})
+
+it('retains a never-launched file across only scheduling metadata revisions with parent coverage context', async () => {
+  const f = await generationCoverageFixture()
+  try {
+    ;(
+      await f.cache.prepare({
+        facts: [f.fact('one', 1), f.fact('two', 2)],
+        expected: new Set(['one', 'two']),
+        revisions: new Map([
+          ['one', 'one'],
+          ['two', 'two'],
+        ]),
+        registry: await f.registry(undefined, 'before-directory-metadata'),
+        retentionConfigurationRevision: 'same-effective-profile-and-config',
+        cleanOnRerun: false,
+      })
+    ).commit()
+    const registry = await f.registry(undefined, 'after-directory-metadata')
+    const prepare = (
+      retentionConfigurationRevision?: string,
+      current = registry
+    ) =>
+      f.cache.prepare({
+        facts: [f.fact('one', 3, 'fresh')],
+        expected: new Set(['one']),
+        notExecutedEntryIds: new Set(['two']),
+        revisions: new Map([['one', 'fresh']]),
+        registry: current,
+        retentionConfigurationRevision,
+        cleanOnRerun: false,
+      })
+    const retained = await prepare('same-effective-profile-and-config')
+    expect(
+      retained.facts.map((fact) => [fact.entryId, fact.files[0].data.f['0']])
+    ).toEqual([
+      ['two', 2],
+      ['one', 3],
+    ])
+    expect([...retained.retainedEntryIds]).toEqual(['two'])
+    for (const revision of [
+      undefined,
+      'changed-effective-config',
+      'changed-profile',
+    ]) {
+      const refused = await prepare(revision)
+      expect(refused.facts.map((fact) => fact.entryId)).toEqual(['one'])
+      expect(refused.retainedEntryIds.size).toBe(0)
+    }
+    const input = {
+      file: f.one,
+      sourceHash: coverageHash(await readFile(f.one)),
+    }
+    const changedInputs = await prepare('same-effective-profile-and-config', {
+      ...registry,
+      inputs: [input],
+    })
+    expect(changedInputs.retainedEntryIds.size).toBe(0)
+    await expect(
+      f.cache.prepare({
+        facts: [f.fact('one', 3, 'fresh')],
+        expected: new Set(['one']),
+        revisions: new Map([['one', 'fresh']]),
+        registry,
+        retentionConfigurationRevision: 'same-effective-profile-and-config',
+        cleanOnRerun: false,
+      })
+    ).rejects.toThrow('no valid facts')
+    expect(
+      await f.cache.selectEntryIds({
+        registry,
+        entryIds: ['one', 'two'],
+        selected: ['one'],
+        cleanOnRerun: false,
+      })
+    ).toEqual(['one', 'two'])
+  } finally {
+    await rm(f.root, { recursive: true, force: true })
+  }
+})
+
+it('matches pristine cancelled coverage with actually empty interactive new-mode snapshot plans', () => {
+  const { execFileSync } = require('node:child_process')
+  const stdout = execFileSync(
+    process.execPath,
+    [join(__dirname, 'orderly-cancel-producer.cjs'), '--snapshot-mode=new'],
+    { encoding: 'utf8', timeout: 240000 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 10,
+    cases: 20,
+    completeReports: 10,
+    closedWorkers: 10,
+  })
+}, 250000)
+
+it.each(
+  (['development', 'production'] as const).flatMap((mode) =>
+    (['file', 'inline', 'path', 'cleanup-failure'] as const).map((intent) => ({
+      mode,
+      intent,
+    }))
+  )
+)(
+  'vetoes cancelled coverage for an actual $intent snapshot writer in $mode',
+  ({ mode, intent }) => {
+    const { execFileSync } = require('node:child_process')
+    const stdout = execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'orderly-cancel-producer.cjs'),
+        `--mode=${mode}`,
+        '--snapshot-mode=new',
+        `--snapshot-intent=${intent}`,
+      ],
+      {
+        encoding: 'utf8',
+        timeout: 90000,
+        env: { ...process.env, NODE_ENV: mode },
+      }
+    )
+    const rows = stdout
+      .split('\n')
+      .filter((line: string) => line.startsWith('{"mode":'))
+    expect(rows).toHaveLength(1)
+    expect(JSON.parse(rows[0])).toEqual({
+      mode,
+      control: `snapshot-${intent}`,
+      captures: 0,
+      closedWorkers: 1,
+    })
+  },
+  100000
+)
+
+it.each(['development', 'production'] as const)(
+  'retains real read-only inline snapshot assertions during new-mode cancellation in %s',
+  (mode) => {
+    const { execFileSync } = require('node:child_process')
+    const stdout = execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'orderly-cancel-producer.cjs'),
+        `--mode=${mode}`,
+        '--snapshot-mode=new',
+        '--snapshot-intent=read-only',
+      ],
+      {
+        encoding: 'utf8',
+        timeout: 90000,
+        env: { ...process.env, NODE_ENV: mode },
+      }
+    )
+    const rows = stdout
+      .split('\n')
+      .filter((line: string) => line.startsWith('{"mode":'))
+    expect(rows).toHaveLength(1)
+    expect(JSON.parse(rows[0])).toEqual({
+      mode,
+      cases: 2,
+      completeReports: 1,
+      closedWorkers: 1,
+    })
+  },
+  100000
+)
+
+it.each(
+  (['development', 'production'] as const).flatMap((mode) =>
+    (['initial', 'prior'] as const).map((kind) => ({ mode, kind }))
+  )
+)(
+  'matches genuine public $mode watch $kind cancellation reports and recovery',
+  ({ mode, kind }) => {
+    const { execFileSync } = require('node:child_process')
+    const stdout = execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'watch-user-cancel-reports.cjs'),
+        `--mode=${mode}`,
+        `--kind=${kind}`,
+      ],
+      { encoding: 'utf8', timeout: 180000 }
+    )
+    const rows = stdout
+      .split('\n')
+      .filter((line: string) => line.startsWith('{"mode":'))
+    expect(rows).toHaveLength(1)
+    const profiles = kind === 'prior' ? 2 : 1
+    expect(JSON.parse(rows[0])).toEqual({
+      mode,
+      kind,
+      profiles,
+      completeReports: profiles * 2,
+      closedWorkers: profiles,
+    })
+  },
+  190000
+)
+
+it.each(['development', 'production'] as const)(
+  'preserves genuine parallel watch cancellation case, map and selected-file order in %s',
+  (mode) => {
+    const { execFileSync } = require('node:child_process')
+    const stdout = execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'watch-user-cancel-reports.cjs'),
+        `--mode=${mode}`,
+        '--kind=parallel',
+      ],
+      { encoding: 'utf8', timeout: 180000 }
+    )
+    const rows = stdout
+      .split('\n')
+      .filter((line: string) => line.startsWith('{"mode":'))
+    expect(rows).toHaveLength(1)
+    const row = JSON.parse(rows[0])
+    expect(row).toMatchObject({
+      mode,
+      kind: 'parallel',
+      profiles: 1,
+      completeReports: 2,
+      closedWorkers: 2,
+    })
+    expect(
+      row.parallelObservations.map(
+        (observation: { phase: string }) => observation.phase
+      )
+    ).toEqual(['cancelled', 'recovery'])
+    for (const observation of row.parallelObservations) {
+      expect(observation.trace).toEqual(expect.any(Array))
+      expect(observation.processExit).toEqual({
+        reference: expect.any(Array),
+        actual: expect.any(Array),
+        compatible: expect.any(Boolean),
+      })
+    }
+  },
+  190000
+)
+
+describe('actual Browser import statement composition', () => {
+  function body(count: number): StandardCoverageData {
+    return {
+      path: '/subject.tsx',
+      statementMap: {
+        0: { start: { line: 3, column: 2 }, end: { line: 3, column: 18 } },
+      },
+      s: { 0: count },
+      fnMap: {},
+      f: {},
+      branchMap: {},
+      b: {},
+      meta: {
+        lastStatement: 1,
+        lastFunction: 0,
+        lastBranch: 0,
+        seen: {},
+        fnNames: {},
+      },
+    }
+  }
+  it('keeps declaration zeros separate from distinct real initializer counts', async () => {
+    const { bindBrowserImportStatements } = await import(
+      'next/dist/experimental/testing/coverage/browser-imports'
+    )
+    const original = body(0),
+      observed = body(9)
+    bindBrowserImportStatements(original, observed, [
+      { start: { line: 1, column: 7 }, count: 3 },
+      { start: { line: 1, column: 18 }, count: 1 },
+    ])
+    expect(original.s).toEqual({ 0: 0, 1: 0, 2: 0 })
+    expect(observed.s).toEqual({ 0: 3, 1: 1, 2: 9 })
+    expect(observed.statementMap).toEqual({
+      0: { start: { line: 1, column: 7 }, end: { line: 1, column: Infinity } },
+      1: { start: { line: 1, column: 18 }, end: { line: 1, column: Infinity } },
+      2: { start: { line: 3, column: 2 }, end: { line: 3, column: 18 } },
+    })
+    expect(original.meta!.lastStatement).toBe(3)
+    expect(observed.meta!.lastStatement).toBe(3)
+    expect([
+      observed.fnMap,
+      observed.f,
+      observed.branchMap,
+      observed.b,
+    ]).toEqual([{}, {}, {}, {}])
+  })
+  it('preserves no-import models without adding a runtime hit', async () => {
+    const { bindBrowserImportStatements } = await import(
+      'next/dist/experimental/testing/coverage/browser-imports'
+    )
+    const original = body(0),
+      observed = body(9)
+    const before = structuredClone([original, observed])
+    bindBrowserImportStatements(original, observed, [])
+    expect([original, observed]).toEqual(before)
+  })
+  it('refuses a missing real initializer count', async () => {
+    const { bindBrowserImportStatements } = await import(
+      'next/dist/experimental/testing/coverage/browser-imports'
+    )
+    expect(() =>
+      bindBrowserImportStatements(body(0), body(9), [
+        { start: { line: 1, column: 7 }, count: -1 },
+      ])
+    ).toThrow('Browser import coverage ownership')
+  })
+})
+
+describe('native-owned classic JSX conditional child boundaries', () => {
+  async function fixture(zero = false) {
+    const { parse: parseAuthored } = require('next/dist/compiled/babel/parser')
+    const { parse: parseEmitted } = require('next/dist/compiled/acorn')
+    const { SourceMapGenerator } = require('next/dist/compiled/source-map')
+    const source = await readFile(
+      join(
+        __dirname,
+        'fixtures/browser-production/classic/layout-classic.tsx.txt'
+      ),
+      'utf8'
+    )
+    const authored = parseAuthored(source, {
+      sourceType: 'module',
+      plugins: ['estree', 'jsx', 'typescript'],
+    }).program
+    const owner = authored.body
+      .map((node: any) =>
+        node.type === 'ExportNamedDeclaration' ? node.declaration : node
+      )
+      .find((node: any) => node?.type === 'FunctionDeclaration').body
+      .body[0].argument
+    const conditional = owner.children[0].expression
+    const code =
+      '(() => { var nativeReact = context.i(1); function Card({ active }) { return nativeReact["default"].createElement("p", null, active ? "yes" : "no"); } })'
+    const emitted = parseEmitted(code, {
+      ecmaVersion: 'latest',
+      locations: true,
+    })
+    const call = emitted.body[0].expression.body.body[1].body.body[0].argument
+    const file = '/layout-classic.tsx'
+    const mapFor = (identity = file, alternateShift = 0) => {
+      const map = new SourceMapGenerator()
+      for (const [generated, original] of [
+        [call.loc.start, owner.loc.start],
+        [call.arguments[0].loc.start, owner.openingElement.name.loc.start],
+        [call.arguments[2].loc.start, conditional.loc.start],
+        [
+          call.arguments[2].consequent.loc.start,
+          conditional.consequent.loc.start,
+        ],
+        [
+          call.arguments[2].alternate.loc.start,
+          conditional.alternate.loc.start,
+        ],
+      ])
+        map.addMapping({
+          generated,
+          source: identity,
+          original:
+            original === conditional.alternate.loc.start
+              ? {
+                  line: original.line,
+                  column: original.column + alternateShift,
+                }
+              : original,
+        })
+      map.setSourceContent(identity, source)
+      return JSON.parse(map.toString())
+    }
+    const expected = JSON.parse(
+      await readFile(
+        join(__dirname, 'fixtures/browser-production/classic.expected.json'),
+        'utf8'
+      ),
+      (key, value) => (key === 'column' && value === null ? Infinity : value)
+    ).coverage['layout-classic.tsx'] as StandardCoverageData
+    expected.path = file
+    if (zero) {
+      for (const key of ['s', 'f'] as const)
+        for (const id of Object.keys(expected[key])) expected[key][id] = 0
+      for (const id of Object.keys(expected.b))
+        expected.b[id] = expected.b[id].map(() => 0)
+    }
+    const data = structuredClone(expected)
+    data.branchMap['0'].loc.end.column = Infinity
+    data.branchMap['0'].locations[1].end.column = Infinity
+    delete data.meta!.seen['b:5:22:5:30:5:30:5:38']
+    data.meta!.seen['b:5:22:5:30:5:30:5:Infinity'] = 0
+    return {
+      file,
+      authored,
+      emitted,
+      owner,
+      conditional,
+      call,
+      data,
+      expected,
+      map: mapFor(),
+      mapFor,
+      factories: [
+        { binding: 'nativeReact', moduleStart: 0, moduleEnd: code.length },
+      ],
+    }
+  }
+  it.each([false, true])(
+    'preserves every actual count while binding the owned closing name with zero=%s',
+    async (zero) => {
+      const { bindJsxClassicConditionalChildEnds } = await import(
+        'next/dist/experimental/testing/coverage/jsx-owners'
+      )
+      const f = await fixture(zero)
+      const counts = structuredClone([f.data.s, f.data.f, f.data.b])
+      bindJsxClassicConditionalChildEnds(
+        f.file,
+        f.data,
+        f.authored,
+        f.emitted,
+        f.map,
+        f.factories
+      )
+      expect(f.data).toEqual(f.expected)
+      expect([f.data.s, f.data.f, f.data.b]).toEqual(counts)
+    }
+  )
+  it('never grants a source-zero repair from authored syntax without an actual factory lease', async () => {
+    const { bindJsxClassicConditionalChildEnds } = await import(
+      'next/dist/experimental/testing/coverage/jsx-owners'
+    )
+    const f = await fixture(true),
+      before = structuredClone(f.data)
+    bindJsxClassicConditionalChildEnds(
+      f.file,
+      f.data,
+      f.authored,
+      f.emitted,
+      f.map,
+      undefined
+    )
+    expect(f.data).toEqual(before)
+  })
+  it.each([
+    {
+      name: 'foreign binding',
+      mutate(f: any) {
+        f.factories[0].binding = 'foreign'
+      },
+    },
+    {
+      name: 'foreign module bounds',
+      mutate(f: any) {
+        f.factories[0].moduleStart = f.call.end
+      },
+    },
+    {
+      name: 'duplicate factory leases',
+      mutate(f: any) {
+        f.factories.push({ ...f.factories[0] })
+      },
+    },
+    {
+      name: 'foreign mapped source',
+      mutate(f: any) {
+        f.map = f.mapFor('/foreign.tsx')
+      },
+    },
+    {
+      name: 'shifted same-source alternate anchor',
+      mutate(f: any) {
+        f.map = f.mapFor(f.file, 1)
+      },
+    },
+    {
+      name: 'mismatched emitted tag',
+      mutate(f: any) {
+        f.call.arguments[0].value = 'q'
+      },
+    },
+    {
+      name: 'duplicate branch association',
+      mutate(f: any) {
+        f.data.branchMap['1'] = structuredClone(f.data.branchMap['0'])
+      },
+    },
+    {
+      name: 'duplicate emitted call association',
+      mutate(f: any) {
+        f.emitted.duplicate = f.call
+      },
+    },
+    {
+      name: 'mismatched closing name',
+      mutate(f: any) {
+        f.owner.closingElement.name.name = 'q'
+      },
+    },
+    {
+      name: 'unowned closing whitespace',
+      mutate(f: any) {
+        f.owner.closingElement.name.loc.end.column--
+      },
+    },
+    {
+      name: 'changed conditional literal',
+      mutate(f: any) {
+        f.call.arguments[2].alternate.value = 'foreign'
+      },
+    },
+    {
+      name: 'incorrect existing seen identity',
+      mutate(f: any) {
+        f.data.meta.seen['b:5:22:5:30:5:30:5:Infinity'] = 9
+      },
+    },
+  ])(
+    'refuses $name without partially editing the coverage model',
+    async ({ mutate }) => {
+      const { bindJsxClassicConditionalChildEnds } = await import(
+        'next/dist/experimental/testing/coverage/jsx-owners'
+      )
+      const f = await fixture()
+      mutate(f)
+      const before = structuredClone(f.data)
+      expect(() =>
+        bindJsxClassicConditionalChildEnds(
+          f.file,
+          f.data,
+          f.authored,
+          f.emitted,
+          f.map,
+          f.factories
+        )
+      ).toThrow('classic JSX child association')
+      expect(f.data).toEqual(before)
+    }
+  )
+})
+
+describe('native-owned named JSX factory role maps', () => {
+  async function fixture() {
+    const { parse } = require('next/dist/compiled/babel/parser')
+    const { SourceMapGenerator } = require('next/dist/compiled/source-map')
+    const { decodeCoverageMap } = await import(
+      'next/dist/experimental/testing/coverage/maps'
+    )
+    const { browserNamedJsxRoleMap } = await import(
+      'next/dist/experimental/testing/coverage/jsx-owners'
+    )
+    const source = await readFile(
+      join(
+        __dirname,
+        'fixtures/browser-production/pragma/layout-pragma.tsx.txt'
+      ),
+      'utf8'
+    )
+    const parsed = parse(source, {
+      sourceType: 'module',
+      plugins: ['estree', 'jsx', 'typescript'],
+    })
+    const authored = parsed.program
+    const code =
+      '(() => { var nativeReact = context.i(1); function Card({ active }) { return (0, nativeReact["createElement"])("p", null, active ? "yes" : "no"); } const Unused = () => (0, nativeReact["createElement"])("i", null, "unused"); })'
+    const emitted = parse(code, { plugins: ['estree'] }).program
+    const collect = (ast: any, type: string) => {
+      const values: any[] = []
+      function visit(node: any) {
+        if (!node || typeof node !== 'object') return
+        if (Array.isArray(node)) return node.forEach(visit)
+        if (node.type === type) values.push(node)
+        for (const [key, child] of Object.entries(node))
+          if (!['loc', 'comments', 'tokens'].includes(key)) visit(child)
+      }
+      visit(ast)
+      return values
+    }
+    const owners = collect(authored, 'JSXElement')
+    const calls = collect(emitted, 'CallExpression').filter(
+      (node) => node.callee.type === 'SequenceExpression'
+    )
+    const arrow = collect(authored, 'ArrowFunctionExpression')[0],
+      actualArrow = collect(emitted, 'ArrowFunctionExpression')[1]
+    const authoredBinding = collect(authored, 'VariableDeclarator')[0].id,
+      actualBinding = collect(emitted, 'VariableDeclarator').find(
+        (node) => node.id.name === 'Unused'
+      ).id
+    const directive = parsed.comments.find(
+      (comment: any) => comment.value.trim() === '* @jsx h'
+    )
+    const file = '/layout-pragma.tsx'
+    const positions: { generated: any; original: any }[] = []
+    for (const [index, owner] of owners.entries()) {
+      const call = calls[index],
+        child = owner.children[0]
+      positions.push(
+        { generated: call.loc.start, original: owner.loc.start },
+        {
+          generated: call.arguments[0].loc.start,
+          original: owner.openingElement.name.loc.start,
+        },
+        {
+          generated: call.callee.expressions[1].loc.start,
+          original: directive.loc.start,
+        },
+        { generated: call.callee.loc.end, original: directive.loc.end }
+      )
+      if (child.expression)
+        for (const key of ['test', 'consequent', 'alternate'])
+          positions.push({
+            generated: call.arguments[2][key].loc.start,
+            original: child.expression[key].loc.start,
+          })
+      else
+        positions.push({
+          generated: call.arguments[2].loc.start,
+          original: child.loc.start,
+        })
+    }
+    positions.push(
+      {
+        generated: actualBinding.loc.start,
+        original: authoredBinding.loc.start,
+      },
+      { generated: actualArrow.loc.start, original: arrow.loc.start }
+    )
+    const mapFor = (alter = (mapping: any) => mapping) => {
+      const map = new SourceMapGenerator()
+      for (const mapping of positions)
+        map.addMapping(alter({ source: file, ...structuredClone(mapping) }))
+      map.setSourceContent(file, source)
+      return JSON.parse(map.toString())
+    }
+    const factories = [
+      {
+        binding: 'nativeReact',
+        moduleStart: 0,
+        moduleEnd: code.length,
+        namedPragma: {
+          local: 'h',
+          start: { ...directive.loc.start },
+          end: { ...directive.loc.end },
+        },
+      },
+    ]
+    const map = mapFor()
+    return {
+      file,
+      authored,
+      emitted,
+      owners,
+      calls,
+      factories,
+      map,
+      mapFor,
+      decodeCoverageMap,
+      apply: () =>
+        browserNamedJsxRoleMap(file, authored, emitted, map, factories),
+    }
+  }
+  it('repairs only the two actual pragma callee roles per owned call and preserves the retained input map', async () => {
+    const f = await fixture(),
+      before = structuredClone(f.map)
+    const { associateArrowBindings } = await import(
+      'next/dist/experimental/testing/coverage/arrow-bindings'
+    )
+    expect(() =>
+      associateArrowBindings(f.file, f.authored, f.emitted, f.map)
+    ).toThrow('compiler-qualified binding maps')
+    const actual = f.apply()!
+    const beforeMappings = f.decodeCoverageMap(f.map).mappings,
+      after = f.decodeCoverageMap(actual).mappings
+    expect(after).toHaveLength(beforeMappings.length)
+    let changed = 0
+    for (const [index, mapping] of beforeMappings.entries()) {
+      if (mapping.originalLine === f.factories[0].namedPragma.start.line) {
+        changed++
+        expect(after[index].source).toBe(mapping.source)
+        expect([
+          after[index].generatedLine,
+          after[index].generatedColumn,
+        ]).toEqual([mapping.generatedLine, mapping.generatedColumn])
+      } else expect(after[index]).toEqual(mapping)
+    }
+    expect(changed).toBe(4)
+    expect(
+      associateArrowBindings(f.file, f.authored, f.emitted, actual)
+    ).toHaveLength(1)
+    expect(f.map).toEqual(before)
+  })
+  it('keeps the existing default React factory record outside named role mapping', async () => {
+    const f = await fixture(),
+      { browserNamedJsxRoleMap } = await import(
+        'next/dist/experimental/testing/coverage/jsx-owners'
+      )
+    const { namedPragma: _pragma, ...legacy } = f.factories[0]
+    expect(
+      browserNamedJsxRoleMap(f.file, f.authored, f.emitted, f.map, [legacy])
+    ).toBeUndefined()
+  })
+  it.each([
+    [
+      'wrong directive start',
+      (f: any) => {
+        f.factories[0].namedPragma.start.column++
+      },
+    ],
+    [
+      'wrong directive end',
+      (f: any) => {
+        f.factories[0].namedPragma.end.column++
+      },
+    ],
+    [
+      'foreign binding',
+      (f: any) => {
+        f.factories[0].binding = 'foreign'
+      },
+    ],
+    [
+      'foreign module',
+      (f: any) => {
+        f.factories[0].moduleStart = f.calls[0].end
+      },
+    ],
+    [
+      'foreign function scope',
+      (f: any) => {
+        f.emitted.body[0].expression.body.body[1].params.push({
+          type: 'Identifier',
+          name: 'nativeReact',
+        })
+      },
+    ],
+    [
+      'duplicate factory',
+      (f: any) => {
+        f.factories.push(structuredClone(f.factories[0]))
+      },
+    ],
+    [
+      'duplicate emitted call',
+      (f: any) => {
+        f.emitted.body.push(structuredClone(f.calls[0]))
+      },
+    ],
+    [
+      'wrong sequence prefix',
+      (f: any) => {
+        f.calls[0].callee.expressions[0].value = 1
+      },
+    ],
+    [
+      'wrong callee property',
+      (f: any) => {
+        f.calls[0].callee.expressions[1].property.value = 'other'
+      },
+    ],
+    [
+      'wrong tag',
+      (f: any) => {
+        f.calls[0].arguments[0].value = 'other'
+      },
+    ],
+    [
+      'wrong child',
+      (f: any) => {
+        f.calls[0].arguments[2].alternate.value = 'other'
+      },
+    ],
+  ])('refuses %s without changing original map', async (_name, change) => {
+    const f = await fixture(),
+      before = structuredClone(f.map)
+    change(f)
+    expect(f.apply).toThrow('named JSX factory role is ambiguous or absent')
+    expect(f.map).toEqual(before)
+  })
+  it.each(['foreign callee source', 'wrong mapped directive endpoint'])(
+    'refuses %s without rewriting any mapping',
+    async (kind) => {
+      const f = await fixture()
+      const { browserNamedJsxRoleMap } = await import(
+        'next/dist/experimental/testing/coverage/jsx-owners'
+      )
+      const map = f.mapFor((mapping: any) => {
+        if (mapping.original.line === f.factories[0].namedPragma.start.line) {
+          if (kind === 'foreign callee source') mapping.source = '/foreign.tsx'
+          else mapping.original.column++
+        }
+        return mapping
+      })
+      const before = structuredClone(map)
+      expect(() =>
+        browserNamedJsxRoleMap(f.file, f.authored, f.emitted, map, f.factories)
+      ).toThrow('named JSX factory role is ambiguous or absent')
+      expect(map).toEqual(before)
+    }
+  )
+})
+
+describe('native-owned named JSX fragment roles', () => {
+  async function fixture(zero = false) {
+    const { parse } = require('next/dist/compiled/babel/parser'),
+      { SourceMapGenerator } = require('next/dist/compiled/source-map')
+    const { browserNamedJsxRoleMap, bindJsxNamedFragmentConditionalChildEnds } =
+      await import('next/dist/experimental/testing/coverage/jsx-owners')
+    const { decodeCoverageMap } = await import(
+      'next/dist/experimental/testing/coverage/maps'
+    )
+    const source = await readFile(
+      join(
+        __dirname,
+        'fixtures/browser-production/pragmafrag/layout-pragmafrag.tsx.txt'
+      ),
+      'utf8'
+    )
+    const parsed = parse(source, {
+      sourceType: 'module',
+      plugins: ['estree', 'jsx', 'typescript'],
+    })
+    const code =
+      '(() => { var nativeReact = context.i(1); function Card({ active }) { return (0, nativeReact["createElement"])(nativeReact["Fragment"], null, active ? "yes" : "no"); } const Unused = () => (0, nativeReact["createElement"])("i", null, "unused"); })'
+    const authored = parsed.program,
+      emitted = parse(code, { plugins: ['estree'] }).program
+    function collect(ast: any, predicate: (node: any) => boolean) {
+      const values: any[] = []
+      function visit(node: any) {
+        if (!node || typeof node !== 'object') return
+        if (Array.isArray(node)) return node.forEach(visit)
+        if (predicate(node)) values.push(node)
+        for (const [key, child] of Object.entries(node))
+          if (!['loc', 'comments', 'tokens'].includes(key)) visit(child)
+      }
+      visit(ast)
+      return values
+    }
+    const owners = collect(authored, (node) =>
+      ['JSXElement', 'JSXFragment'].includes(node.type)
+    )
+    const calls = collect(
+      emitted,
+      (node) =>
+        node.type === 'CallExpression' &&
+        node.callee.type === 'SequenceExpression'
+    )
+    const directive = parsed.comments.find(
+        (comment: any) => comment.value.trim() === '* @jsx h'
+      ),
+      fragmentDirective = parsed.comments.find(
+        (comment: any) => comment.value.trim() === '* @jsxFrag Frag'
+      )
+    const file = '/layout-pragmafrag.tsx'
+    const positions: { generated: any; original: any; role?: true }[] = []
+    for (const [index, owner] of owners.entries()) {
+      const call = calls[index],
+        child = owner.children[0]
+      positions.push(
+        { generated: call.loc.start, original: owner.loc.start },
+        {
+          generated: call.callee.expressions[1].loc.start,
+          original: directive.loc.start,
+          role: true,
+        },
+        {
+          generated: call.callee.loc.end,
+          original: directive.loc.end,
+          role: true,
+        }
+      )
+      if (owner.type === 'JSXFragment')
+        positions.push(
+          {
+            generated: call.arguments[0].loc.start,
+            original: fragmentDirective.loc.start,
+            role: true,
+          },
+          {
+            generated: call.arguments[0].loc.end,
+            original: fragmentDirective.loc.end,
+            role: true,
+          }
+        )
+      else
+        positions.push({
+          generated: call.arguments[0].loc.start,
+          original: owner.openingElement.name.loc.start,
+        })
+      if (child.expression)
+        for (const key of ['test', 'consequent', 'alternate'])
+          positions.push({
+            generated: call.arguments[2][key].loc.start,
+            original: child.expression[key].loc.start,
+          })
+      else
+        positions.push({
+          generated: call.arguments[2].loc.start,
+          original: child.loc.start,
+        })
+    }
+    const mapFor = (alter = (mapping: any) => mapping) => {
+      const map = new SourceMapGenerator()
+      for (const { role: _role, ...position } of positions)
+        map.addMapping(alter({ source: file, ...structuredClone(position) }))
+      map.setSourceContent(file, source)
+      return JSON.parse(map.toString())
+    }
+    const factories = [
+      {
+        binding: 'nativeReact',
+        moduleStart: 0,
+        moduleEnd: code.length,
+        namedPragma: {
+          local: 'h',
+          start: { ...directive.loc.start },
+          end: { ...directive.loc.end },
+          fragment: {
+            local: 'Frag',
+            start: { ...fragmentDirective.loc.start },
+            end: { ...fragmentDirective.loc.end },
+          },
+        },
+      },
+    ]
+    const expected = JSON.parse(
+      await readFile(
+        join(__dirname, 'fixtures/browser-production/pragmafrag.expected.json'),
+        'utf8'
+      ),
+      (key, value) => (key === 'column' && value === null ? Infinity : value)
+    ).coverage['layout-pragmafrag.tsx'] as StandardCoverageData
+    expected.path = file
+    if (zero) {
+      for (const key of ['s', 'f'] as const)
+        for (const id of Object.keys(expected[key])) expected[key][id] = 0
+      for (const id of Object.keys(expected.b))
+        expected.b[id] = expected.b[id].map(() => 0)
+    }
+    const data = structuredClone(expected),
+      branch = data.branchMap['0']
+    const oldKey = Object.keys(data.meta!.seen).find((key) =>
+      key.startsWith('b:')
+    )!
+    branch.loc.end.column = Infinity
+    branch.locations[1].end.column = Infinity
+    delete data.meta!.seen[oldKey]
+    data.meta!.seen[
+      'b:' +
+        branch.locations
+          .flatMap(({ start, end }) => [
+            start.line,
+            start.column,
+            end.line,
+            end.column,
+          ])
+          .join(':')
+    ] = 0
+    const map = mapFor()
+    return {
+      file,
+      authored,
+      emitted,
+      owners,
+      calls,
+      factories,
+      data,
+      expected,
+      map,
+      mapFor,
+      decodeCoverageMap,
+      roleMap: () =>
+        browserNamedJsxRoleMap(file, authored, emitted, map, factories),
+      bind: (mapped: object) =>
+        bindJsxNamedFragmentConditionalChildEnds(
+          file,
+          data,
+          authored,
+          emitted,
+          mapped,
+          factories
+        ),
+    }
+  }
+  it.each([false, true])(
+    'keeps full genuine maps/counts and uses the real fragment close for zero=%s',
+    async (zero) => {
+      const f = await fixture(zero),
+        before = structuredClone(f.map),
+        counts = structuredClone([f.data.s, f.data.f, f.data.b])
+      const mapped = f.roleMap()!
+      f.bind(mapped)
+      expect(f.data).toEqual(f.expected)
+      expect([f.data.s, f.data.f, f.data.b]).toEqual(counts)
+      expect(f.map).toEqual(before)
+    }
+  )
+  it('changes only both actual factory and fragment directive endpoint mappings', async () => {
+    const f = await fixture(),
+      before = f.decodeCoverageMap(f.map).mappings,
+      after = f.decodeCoverageMap(f.roleMap()).mappings
+    expect(after).toHaveLength(before.length)
+    let changed = 0
+    for (const [index, mapping] of before.entries()) {
+      if (
+        [
+          f.factories[0].namedPragma.start.line,
+          f.factories[0].namedPragma.fragment.start.line,
+        ].includes(mapping.originalLine!)
+      ) {
+        changed++
+        expect(after[index].source).toBe(mapping.source)
+        expect([
+          after[index].generatedLine,
+          after[index].generatedColumn,
+        ]).toEqual([mapping.generatedLine, mapping.generatedColumn])
+      } else expect(after[index]).toEqual(mapping)
+    }
+    expect(changed).toBe(6)
+  })
+  it('does not derive a declaration-zero fragment close without its real native fragment fact', async () => {
+    const f = await fixture(true),
+      { bindJsxNamedFragmentConditionalChildEnds } = await import(
+        'next/dist/experimental/testing/coverage/jsx-owners'
+      )
+    const { fragment: _fragment, ...namedPragma } = f.factories[0].namedPragma
+    const before = structuredClone(f.data)
+    bindJsxNamedFragmentConditionalChildEnds(
+      f.file,
+      f.data,
+      f.authored,
+      f.emitted,
+      f.map,
+      [{ ...f.factories[0], namedPragma }]
+    )
+    expect(f.data).toEqual(before)
+  })
+  it.each([
+    [
+      'absent fragment fact',
+      (f: any) => {
+        delete f.factories[0].namedPragma.fragment
+      },
+    ],
+    [
+      'wrong fragment directive start',
+      (f: any) => {
+        f.factories[0].namedPragma.fragment.start.column++
+      },
+    ],
+    [
+      'wrong fragment directive end',
+      (f: any) => {
+        f.factories[0].namedPragma.fragment.end.column++
+      },
+    ],
+    [
+      'foreign fragment namespace',
+      (f: any) => {
+        f.calls[0].arguments[0].object.name = 'foreign'
+      },
+    ],
+    [
+      'foreign fragment property',
+      (f: any) => {
+        f.calls[0].arguments[0].property.value = 'Other'
+      },
+    ],
+    [
+      'duplicate fragment call',
+      (f: any) => {
+        f.emitted.body.push(structuredClone(f.calls[0]))
+      },
+    ],
+    [
+      'foreign function scope',
+      (f: any) => {
+        f.emitted.body[0].expression.body.body[1].params.push({
+          type: 'Identifier',
+          name: 'nativeReact',
+        })
+      },
+    ],
+  ])(
+    'refuses %s without changing any original mapping',
+    async (_name, change) => {
+      const f = await fixture(),
+        before = structuredClone(f.map)
+      change(f)
+      expect(f.roleMap).toThrow('named JSX factory role is ambiguous or absent')
+      expect(f.map).toEqual(before)
+    }
+  )
+  it.each(['foreign fragment map', 'wrong fragment mapped endpoint'])(
+    'refuses %s',
+    async (kind) => {
+      const f = await fixture(),
+        { browserNamedJsxRoleMap } = await import(
+          'next/dist/experimental/testing/coverage/jsx-owners'
+        )
+      const map = f.mapFor((mapping: any) => {
+          if (
+            mapping.original.line ===
+            f.factories[0].namedPragma.fragment.start.line
+          ) {
+            if (kind === 'foreign fragment map') mapping.source = '/foreign.tsx'
+            else mapping.original.column++
+          }
+          return mapping
+        }),
+        before = structuredClone(map)
+      expect(() =>
+        browserNamedJsxRoleMap(f.file, f.authored, f.emitted, map, f.factories)
+      ).toThrow('named JSX factory role is ambiguous or absent')
+      expect(map).toEqual(before)
+    }
+  )
+  it.each([
+    [
+      'wrong closing fragment',
+      (f: any) => {
+        f.owners[0].closingFragment.loc.end.column--
+      },
+    ],
+    [
+      'duplicate branch',
+      (f: any) => {
+        f.data.branchMap['1'] = structuredClone(f.data.branchMap['0'])
+      },
+    ],
+    [
+      'wrong seen key',
+      (f: any) => {
+        f.data.meta.seen = {}
+      },
+    ],
+  ])(
+    'refuses %s without partially changing counters or model',
+    async (_name, change) => {
+      const f = await fixture(),
+        mapped = f.roleMap()!
+      change(f)
+      const before = structuredClone(f.data)
+      expect(() => f.bind(mapped)).toThrow(
+        'classic JSX fragment child association is ambiguous or absent'
+      )
+      expect(f.data).toEqual(before)
+    }
+  )
+})
+
+describe('native-owned Browser JSX call associations', () => {
+  const profiles =
+    require('./fixtures/browser-production/child-shapes.emission.json').profiles
+  async function fixture(record = profiles[0]) {
+    const { parse: authoredParse } = require('next/dist/compiled/babel/parser')
+    const { parse: emittedParse } = require('next/dist/compiled/acorn')
+    const { associateBrowserJsxCalls } = await import(
+      'next/dist/experimental/testing/coverage/browser-jsx-associations'
+    )
+    const authored = authoredParse(record.source, {
+      sourceType: 'module',
+      plugins: ['estree', 'jsx', 'typescript'],
+    }).program
+    const emitted = emittedParse(record.code, {
+      ecmaVersion: 'latest',
+      locations: true,
+      sourceType: 'module',
+    })
+    function collect(value: any): any[] {
+      if (!value || typeof value !== 'object') return []
+      if (Array.isArray(value)) return value.flatMap(collect)
+      return [
+        ...(value.type ? [value] : []),
+        ...Object.entries(value)
+          .filter(([key]) => !['loc', 'comments', 'tokens'].includes(key))
+          .flatMap(([, child]) => collect(child)),
+      ]
+    }
+    const options: Parameters<typeof associateBrowserJsxCalls>[0] = {
+      file: record.file,
+      code: record.code,
+      authored,
+      emitted,
+      sourceMap: structuredClone(record.map),
+      ...(record.factory.imports
+        ? { automatic: [structuredClone(record.factory)] }
+        : { classic: [structuredClone(record.factory)] }),
+    }
+    return {
+      record,
+      authored,
+      emitted,
+      options,
+      collect,
+      apply: () => associateBrowserJsxCalls(options),
+    }
+  }
+  it.each(
+    profiles.flatMap((record: any) =>
+      [0, 3].map((count) => [record.name, count, record])
+    )
+  )(
+    'preserves all counter identities for actual emitted %s with count=%s',
+    async (_name, count, record) => {
+      const f = await fixture(record)
+      const inputs = JSON.stringify(f.options)
+      const result = f.apply()!
+      expect(result).toBeDefined()
+      expect(JSON.stringify(f.options)).toBe(inputs)
+      const before = decodeCoverageMap(f.options.sourceMap)
+      const after = decodeCoverageMap(result.sourceMap)
+      expect(after.sources).toEqual(before.sources)
+      for (const mapping of before.mappings)
+        expect(after.mappings).toContainEqual(mapping)
+      expect(result.children.size).toBe(
+        /-(logical|conditional)\.tsx$/.test(record.name) ? 1 : 0
+      )
+      const { convert } = require('next/dist/compiled/next-test-coverage')
+      const ast = structuredClone(f.emitted)
+      ast.body[0].expression.body.body =
+        ast.body[0].expression.body.body.filter(
+          (node: any) =>
+            node.type !== 'VariableDeclaration' ||
+            node.declarations[0].id.name !== record.factory.binding
+        )
+      const convertMap = async (sourceMap: unknown) =>
+        (
+          await convert({
+            code: record.code,
+            ast: structuredClone(ast),
+            sourceMap,
+            coverage: {
+              url: 'file:///browser-children/generated.js',
+              functions: [
+                {
+                  isBlockCoverage: true,
+                  ranges: [
+                    { startOffset: 0, endOffset: record.code.length, count },
+                  ],
+                },
+              ],
+            },
+          })
+        )[record.file]
+      const previous = await convertMap(f.options.sourceMap)
+      const actual = await convertMap(result.sourceMap)
+      expect([actual.s, actual.f, actual.b]).toEqual([
+        previous.s,
+        previous.f,
+        previous.b,
+      ])
+      expect(JSON.parse(JSON.stringify(actual.branchMap))).toEqual(
+        record.expected.branchMap
+      )
+      expect(JSON.parse(JSON.stringify(actual.statementMap['0']))).toEqual(
+        record.expected.statementMap['0']
+      )
+    }
+  )
+  it('does not infer a factory from source syntax or a named pragma descriptor', async () => {
+    const f = await fixture(
+      profiles.find((record: any) => record.name === 'shape-classic-props.tsx')
+    )
+    delete f.options.classic
+    expect(f.apply()).toBeUndefined()
+    f.options.classic = [
+      {
+        ...f.record.factory,
+        namedPragma: {
+          local: 'h',
+          start: { line: 1, column: 0 },
+          end: { line: 1, column: 13 },
+        },
+      },
+    ]
+    expect(f.apply()).toBeUndefined()
+  })
+  it.each([
+    'foreign binding',
+    'wrong module',
+    'shadowed namespace',
+    'different child',
+    'different property',
+    'duplicate property',
+    'different closing tag',
+    'foreign map',
+    'conflicting terminal',
+    'duplicated call',
+    'wrong token',
+  ])('rejects %s atomically', async (kind) => {
+    const f = await fixture(
+      profiles.find((record: any) => record.name === 'shape-classic-props.tsx')
+    )
+    const calls = f
+      .collect(f.emitted)
+      .filter(
+        (node: any) =>
+          node.type === 'CallExpression' && node.arguments[0]?.value === 'p'
+      )
+    const call = calls[0]
+    if (kind === 'foreign binding')
+      f.options.classic![0].binding = 'foreignReact'
+    if (kind === 'wrong module') f.options.classic![0].moduleEnd = call.start
+    if (kind === 'shadowed namespace') {
+      const fn = f
+        .collect(f.emitted)
+        .find((node: any) => node.type === 'FunctionDeclaration')
+      fn.params.push({ type: 'Identifier', name: f.record.factory.binding })
+    }
+    if (kind === 'different child') call.arguments[2].name = 'different'
+    if (kind === 'different property')
+      call.arguments[1].properties[0].key.name = 'different'
+    if (kind === 'duplicate property')
+      call.arguments[1].properties.push(
+        structuredClone(call.arguments[1].properties[0])
+      )
+    if (kind === 'different closing tag') {
+      f
+        .collect(f.authored)
+        .find((node: any) => node.type === 'JSXClosingElement').name.name =
+        'foreign'
+    }
+    if (kind === 'foreign map' || kind === 'conflicting terminal') {
+      const { SourceMapGenerator } = require('next/dist/compiled/source-map')
+      const map = new SourceMapGenerator()
+      const decoded = decodeCoverageMap(f.options.sourceMap)
+      for (const mapping of decoded.mappings) {
+        const generated = {
+          line: mapping.generatedLine,
+          column: mapping.generatedColumn,
+        }
+        if (mapping.source === null) map.addMapping({ generated })
+        else
+          map.addMapping({
+            generated,
+            source: mapping.source,
+            original: {
+              line: mapping.originalLine,
+              column: mapping.originalColumn,
+            },
+          })
+      }
+      for (const [source, content] of decoded.sources)
+        if (content !== null) map.setSourceContent(source, content)
+      map.addMapping({
+        generated:
+          kind === 'foreign map'
+            ? call.arguments[2].loc.start
+            : { line: call.loc.end.line, column: call.loc.end.column - 1 },
+        source: '/foreign.tsx',
+        original: { line: 1, column: 0 },
+      })
+      map.setSourceContent('/foreign.tsx', 'foreign')
+      f.options.sourceMap = JSON.parse(map.toString())
+    }
+    if (kind === 'duplicated call')
+      f.emitted.body.push({ type: 'ExpressionStatement', expression: call })
+    if (kind === 'wrong token')
+      f.options.code =
+        f.options.code.slice(0, call.end - 1) +
+        ']' +
+        f.options.code.slice(call.end)
+    const inputs = JSON.stringify(f.options)
+    expect(f.apply).toThrow(
+      'Browser JSX call association is ambiguous or absent'
+    )
+    expect(JSON.stringify(f.options)).toBe(inputs)
+  })
+})
+
+describe('native-owned named Browser JSX child associations', () => {
+  const profiles =
+    require('./fixtures/browser-production/named-child-shapes.emission.json').profiles
+  async function fixture(record = profiles[0]) {
+    const { parse: parseAuthored } = require('next/dist/compiled/babel/parser')
+    const { parse: parseEmitted } = require('next/dist/compiled/acorn')
+    const { associateBrowserJsxCalls } = await import(
+      'next/dist/experimental/testing/coverage/browser-jsx-associations'
+    )
+    const parsed = parseAuthored(record.source, {
+      sourceType: 'module',
+      plugins: ['estree', 'jsx', 'typescript'],
+    })
+    const authored = Object.assign(parsed.program, {
+      comments: parsed.comments,
+    })
+    const emitted = parseEmitted(record.code, {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      locations: true,
+    })
+    function collect(value: any): any[] {
+      if (!value || typeof value !== 'object') return []
+      if (Array.isArray(value)) return value.flatMap(collect)
+      return [
+        ...(value.type ? [value] : []),
+        ...Object.entries(value)
+          .filter(([key]) => !['loc', 'comments', 'tokens'].includes(key))
+          .flatMap(([, child]) => collect(child)),
+      ]
+    }
+    const options: Parameters<typeof associateBrowserJsxCalls>[0] = {
+      file: record.file,
+      code: record.code,
+      authored,
+      emitted,
+      sourceMap: structuredClone(record.map),
+      classic: [structuredClone(record.factory)],
+    }
+    return {
+      record,
+      authored,
+      emitted,
+      options,
+      collect,
+      apply: () => associateBrowserJsxCalls(options),
+    }
+  }
+  it.each(
+    profiles.flatMap((record: any) =>
+      [0, 3].map((count) => [record.name, count, record])
+    )
+  )(
+    'preserves actual source/native role and every counter for %s with count=%s',
+    async (_name, count, record) => {
+      const f = await fixture(record),
+        inputs = JSON.stringify(f.options)
+      expect(coverageHash(record.source)).toBe(record.sourceSHA)
+      const result = f.apply()!
+      expect(result).toBeDefined()
+      expect(JSON.stringify(f.options)).toBe(inputs)
+      const before = decodeCoverageMap(f.options.sourceMap),
+        after = decodeCoverageMap(result.sourceMap)
+      expect(after.sources).toEqual(before.sources)
+      const changed = before.mappings.filter(
+        (mapping) =>
+          !after.mappings.some(
+            (actual) => JSON.stringify(actual) === JSON.stringify(mapping)
+          )
+      )
+      const owners = f
+        .collect(f.authored)
+        .filter((node: any) =>
+          ['JSXElement', 'JSXFragment'].includes(node.type)
+        )
+      expect(changed).toHaveLength(
+        owners.length * 2 +
+          owners.filter((node: any) => node.type === 'JSXFragment').length * 2
+      )
+      const directive = record.factory.namedPragma
+      const permitted = [
+        directive.start,
+        directive.end,
+        directive.fragment?.start,
+        directive.fragment?.end,
+      ].filter(Boolean)
+      for (const mapping of changed) {
+        expect(mapping.source).toBe(record.file)
+        expect(
+          permitted.some(
+            (point: any) =>
+              point.line === mapping.originalLine &&
+              point.column === mapping.originalColumn
+          )
+        ).toBe(true)
+        const actual = after.mappings.filter(
+          (point) =>
+            point.generatedLine === mapping.generatedLine &&
+            point.generatedColumn === mapping.generatedColumn
+        )
+        expect(actual).toHaveLength(1)
+        expect(
+          owners.some(
+            (owner: any) =>
+              owner.loc.start.line === actual[0].originalLine &&
+              owner.loc.start.column === actual[0].originalColumn
+          )
+        ).toBe(true)
+        expect((actual[0] as any).name).toBe((mapping as any).name)
+      }
+      const { convert } = require('next/dist/compiled/next-test-coverage'),
+        ast = structuredClone(f.emitted)
+      ast.body[0].expression.body.body =
+        ast.body[0].expression.body.body.filter(
+          (node: any) =>
+            node.type !== 'VariableDeclaration' ||
+            node.declarations[0].id.name !== record.factory.binding
+        )
+      const convertMap = async (sourceMap: unknown) =>
+        (
+          await convert({
+            code: record.code,
+            ast: structuredClone(ast),
+            sourceMap,
+            coverage: {
+              url: 'file:///browser-children/generated.js',
+              functions: [
+                {
+                  isBlockCoverage: true,
+                  ranges: [
+                    { startOffset: 0, endOffset: record.code.length, count },
+                  ],
+                },
+              ],
+            },
+          })
+        )[record.file]
+      const original = await convertMap(f.options.sourceMap),
+        actual = await convertMap(result.sourceMap)
+      expect([actual.s, actual.f, actual.b]).toEqual([
+        original.s,
+        original.f,
+        original.b,
+      ])
+      expect(JSON.parse(JSON.stringify(actual.branchMap))).toEqual(
+        record.expected.branchMap
+      )
+      expect(JSON.parse(JSON.stringify(actual.statementMap['0']))).toEqual(
+        record.expected.statementMap['0']
+      )
+    }
+  )
+  it.each([
+    'missing factory',
+    'wrong directive',
+    'wrong endpoint',
+    'missing fragment owner',
+  ])('never infers a named role from %s', async (kind) => {
+    const f = await fixture(
+      profiles.find((record: any) => record.name === 'shape-named-fragment.tsx')
+    )
+    if (kind === 'missing factory') delete f.options.classic
+    if (kind === 'wrong directive')
+      f.authored.comments[1].value = '* @jsx foreign'
+    if (kind === 'wrong endpoint')
+      f.options.classic![0].namedPragma!.end.column--
+    if (kind === 'missing fragment owner')
+      delete f.options.classic![0].namedPragma!.fragment
+    expect(f.apply()).toBeUndefined()
+  })
+  it.each([
+    'foreign callee',
+    'foreign fragment',
+    'different child',
+    'duplicate call',
+    'foreign scope',
+    'wrong directive map',
+  ])('rejects %s without changing retained inputs', async (kind) => {
+    const f = await fixture(
+      profiles.find((record: any) => record.name === 'shape-named-fragment.tsx')
+    )
+    const calls = f
+      .collect(f.emitted)
+      .filter(
+        (node: any) =>
+          node.type === 'CallExpression' &&
+          node.callee.type === 'SequenceExpression'
+      )
+    if (kind === 'foreign callee')
+      calls[0].callee.expressions[1].property.value = 'foreign'
+    if (kind === 'foreign fragment')
+      calls[0].arguments[0].object.name = 'foreign'
+    if (kind === 'different child') calls[0].arguments[2].name = 'foreign'
+    if (kind === 'duplicate call')
+      f.emitted.body.push({ type: 'ExpressionStatement', expression: calls[0] })
+    if (kind === 'foreign scope')
+      f.collect(f.emitted)
+        .find((node: any) => node.type === 'FunctionDeclaration')
+        .params.push({ type: 'Identifier', name: f.record.factory.binding })
+    if (kind === 'wrong directive map') {
+      const { SourceMapGenerator } = require('next/dist/compiled/source-map'),
+        map = new SourceMapGenerator(),
+        decoded = decodeCoverageMap(f.options.sourceMap)
+      const target = calls[0].callee.expressions[1].loc.start
+      for (const mapping of decoded.mappings) {
+        const generated = {
+          line: mapping.generatedLine,
+          column: mapping.generatedColumn,
+        }
+        if (mapping.source === null) map.addMapping({ generated })
+        else
+          map.addMapping({
+            generated,
+            source: mapping.source,
+            original: {
+              line: mapping.originalLine,
+              column:
+                mapping.originalColumn! +
+                (generated.line === target.line &&
+                generated.column === target.column
+                  ? 1
+                  : 0),
+            },
+            ...((mapping as any).name ? { name: (mapping as any).name } : {}),
+          })
+      }
+      for (const [source, content] of decoded.sources)
+        if (content !== null) map.setSourceContent(source, content)
+      f.options.sourceMap = JSON.parse(map.toString())
+    }
+    const inputs = JSON.stringify(f.options)
+    expect(f.apply).toThrow(
+      'Browser JSX call association is ambiguous or absent'
+    )
+    expect(JSON.stringify(f.options)).toBe(inputs)
+  })
+})
+
+describe('native-retained unused named JSX Fragment imports', () => {
+  async function fixture(
+    change: string = 'none',
+    aliases = false,
+    defaultMode: 'absent' | 'retained' | 'removed' = 'absent'
+  ) {
+    const { parse: parseAuthored } = require('next/dist/compiled/babel/parser'),
+      { parse: parseEmitted } = require('next/dist/compiled/acorn'),
+      { SourceMapGenerator } = require('next/dist/compiled/source-map')
+    const { buildBrowserCoverageMetadata } = await import(
+      'next/dist/experimental/testing/client/coverage-artifact'
+    )
+    const { prepareBrowserImportInitializers } = await import(
+      'next/dist/experimental/testing/coverage/browser-imports'
+    )
+    const root = await realpath(
+        await mkdtemp(join(tmpdir(), 'next-browser-retained-jsx-'))
+      ),
+      file = join(root, 'subject.tsx'),
+      entryFile = join(root, 'entry.test.tsx')
+    try {
+      let source =
+        "/** @jsxRuntime classic */\n/** @jsx h */\n/** @jsxFrag Frag */\nimport { createElement as h, Fragment as Frag } from 'react'\nexport function Card() { return <i>unused</i> }\n"
+      if (defaultMode !== 'absent')
+        source = source.replace('import {', 'import React, {')
+      if (defaultMode === 'retained' || change === 'live default')
+        source += 'export const Base = React.Component\n'
+      if (change === 'default component tag')
+        source = source.replace('<i>unused</i>', '<React>unused</React>')
+      if (change === 'extra source specifier')
+        source = source.replace(
+          'Fragment as Frag',
+          'Fragment as Frag, createRef as makeRef'
+        )
+      if (change === 'type source specifier')
+        source = source.replace('createElement as h', 'type createElement as h')
+      if (change === 'live reference')
+        source += 'export const retained = Frag\n'
+      if (change === 'real fragment')
+        source = source.replace('<i>unused</i>', '<>unused</>')
+      if (change === 'component tag')
+        source = source.replace('<i>unused</i>', '<Frag>unused</Frag>')
+      if (change === 'reordered source')
+        source = source.replace(
+          'createElement as h, Fragment as Frag',
+          'Fragment as Frag, createElement as h'
+        )
+      if (change === 'duplicate directive') source = '/** @jsx h */\n' + source
+      if (change === 'missing directive')
+        source = source.replace('/** @jsxFrag Frag */\n', '')
+      if (change === 'wrong target')
+        source = source.replace("from 'react'", "from 'other'")
+      if (aliases)
+        source = source
+          .replaceAll(/\bh\b/g, 'makeNode')
+          .replaceAll(/\bFrag\b/g, 'Group')
+          .replaceAll(/\bReact\b/g, 'Foundation')
+      if (change === 'mismatched factory directive')
+        source = source.replace('@jsx makeNode', '@jsx otherFactory')
+      if (change === 'mismatched fragment directive')
+        source = source.replace('@jsxFrag Group', '@jsxFrag otherFragment')
+      const parsed = parseAuthored(source, {
+          sourceType: 'module',
+          plugins: ['estree', 'jsx', 'typescript'],
+        }),
+        imported = parsed.program.body[0]
+      const declaration = 'var nativeReact = context.i(1);',
+        body =
+          declaration +
+          '\nfunction Card() { return (0, nativeReact["createElement"])("i", null, "unused"); }\n',
+        prefix = '["owned", context => {\n',
+        code = prefix + body + '}];\n'
+      const map = new SourceMapGenerator()
+      map.setSourceContent(pathToFileURL(file).href, source)
+      map.addMapping({
+        generated: { line: 2, column: 0 },
+        source: pathToFileURL(file).href,
+        original: imported.loc.start,
+      })
+      map.addMapping({
+        generated: { line: 3, column: 0 },
+        source: pathToFileURL(file).href,
+        original: parsed.program.body[1].loc.start,
+      })
+      const rawMap = JSON.parse(map.toString()),
+        bootstrap = 'globalThis.nativeCoverageBootstrap = 1;',
+        id = 'c'.repeat(64),
+        descriptor = `server/next-test/${id}.client.json`,
+        certificate = `server/next-test/${id}.browser-coverage.json`
+      const { mkdir } = await import('fs/promises')
+      await mkdir(join(root, 'server/next-test'), { recursive: true })
+      await Promise.all([
+        writeFile(file, source),
+        writeFile(entryFile, ''),
+        writeFile(join(root, 'entry.js'), code),
+        writeFile(join(root, 'entry.js.map'), JSON.stringify(rawMap)),
+        writeFile(join(root, 'bootstrap.js'), bootstrap),
+        writeFile(join(root, descriptor), '{"version":1}'),
+      ])
+      const h = {
+          kind: 'named',
+          local: aliases ? 'makeNode' : 'h',
+          imported: 'createElement',
+        },
+        frag = {
+          kind: 'named',
+          local: aliases ? 'Group' : 'Frag',
+          imported: 'Fragment',
+        }
+      const defaultImport = {
+        kind: 'default',
+        local: aliases ? 'Foundation' : 'React',
+        imported: 'default',
+      }
+      const actual =
+        change === 'foreign default binding'
+          ? [{ ...defaultImport, local: 'Foreign' }, h]
+          : change === 'missing live default'
+            ? [h]
+            : defaultMode === 'retained'
+              ? [defaultImport, h]
+              : change === 'mismatched retained binding'
+                ? [{ ...h, local: 'otherFactory' }]
+                : change === 'missing h'
+                  ? [frag]
+                  : change === 'duplicate retained'
+                    ? [h, h]
+                    : [h]
+      const proof = {
+        version: 2,
+        mode: 'production',
+        sourceMaps: 'absolute-file-uri',
+        preserveOriginalSyntax: true,
+        scripts: [
+          {
+            path: 'bootstrap.js',
+            sha256: coverageHash(bootstrap),
+            role: 'native-ecmascript-bookkeeping',
+          },
+        ],
+        importInitializers: {
+          version: 1,
+          sectionsByScript: {
+            'entry.js': [
+              {
+                offset: { line: 1, column: 0 },
+                data: {
+                  version: 1,
+                  kind: 'browser-import-initializers',
+                  issuer: { sha256: coverageHash(source) },
+                  moduleEnd: { line: 2, column: 0 },
+                  roles: [
+                    {
+                      kind: 'esm-namespace-initializer',
+                      start: { line: 0, column: 0 },
+                      end: { line: 0, column: declaration.length },
+                      binding: 'nativeReact',
+                      context: 'context',
+                      target: { kind: 'number', value: 1 },
+                      request: 'react',
+                      resolvedFormat: 'commonjs',
+                      imports: [
+                        {
+                          declarationOrder: 0,
+                          origin: 'authored',
+                          sourceRange: {
+                            start: {
+                              line: imported.loc.start.line,
+                              column: imported.loc.start.column,
+                            },
+                            end: {
+                              line: imported.loc.end.line,
+                              column: imported.loc.end.column,
+                            },
+                          },
+                          specifiers: actual,
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        },
+      }
+      await writeFile(join(root, certificate), JSON.stringify(proof))
+      const files = [
+        'entry.js',
+        'entry.js.map',
+        'bootstrap.js',
+        descriptor,
+        certificate,
+      ]
+      const coverage = await buildBrowserCoverageMetadata({
+        rootDir: root,
+        files,
+        projectDir: root,
+        sourceRootDir: root,
+        entryFile,
+        entryPath: descriptor,
+        setupFiles: [],
+      })
+      const artifact = {
+        version: 2 as const,
+        kind: 'browser' as const,
+        profile: {
+          ...profile,
+          mode: 'production' as const,
+          environment: 'browser' as const,
+          browserClient: true as const,
+        },
+        entryId: 'owned',
+        revision: 'one',
+        rootDir: root,
+        entryPath: descriptor,
+        files,
+        diagnostics: [],
+        sourceHash: coverageHash(''),
+        coverage,
+        client: {
+          version: 1 as const,
+          asyncScope: 'promise-continuations-v1' as const,
+          sourceFile: entryFile,
+          scripts: ['entry.js', 'bootstrap.js'],
+          styles: [],
+          outputs: await Promise.all(
+            files.map(async (path) => ({
+              path,
+              sha256: coverageHash(await readFile(join(root, path))),
+            }))
+          ),
+        },
+      }
+      return {
+        root,
+        file,
+        apply: () =>
+          prepareBrowserImportInitializers({
+            artifact,
+            metadata: coverage.scripts.find(
+              (script) => script.path === 'entry.js'
+            )!,
+            code,
+            rawMap,
+            ast: parseEmitted(code, { ecmaVersion: 'latest', locations: true }),
+            selectedSources: new Map([[file, source]]),
+            generatedCoverage: async () => {
+              throw new Error(
+                'A stripped unused import must not invent initializer counters'
+              )
+            },
+          }),
+      }
+    } catch (error) {
+      await rm(root, { recursive: true, force: true })
+      throw error
+    }
+  }
+  it('accepts only the actually retained h and never manufactures a Fragment owner or counter', async () => {
+    const f = await fixture()
+    try {
+      const actual = await f.apply()
+      expect(actual.statements.get(f.file)).toEqual([])
+      expect(actual.classicFactories.get(f.file)).toEqual([
+        {
+          binding: 'nativeReact',
+          moduleStart: expect.any(Number),
+          moduleEnd: expect.any(Number),
+          namedPragma: {
+            local: 'h',
+            start: expect.objectContaining({ line: 2, column: 0 }),
+            end: expect.objectContaining({ line: 2, column: 13 }),
+          },
+        },
+      ])
+      expect(
+        actual.classicFactories.get(f.file)![0].namedPragma!.fragment
+      ).toBeUndefined()
+    } finally {
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+  it('derives renamed factory and unused Fragment bindings from actual imports and directives', async () => {
+    const f = await fixture('none', true)
+    try {
+      const actual = await f.apply()
+      expect(actual.statements.get(f.file)).toEqual([])
+      expect(actual.classicFactories.get(f.file)![0].namedPragma).toEqual({
+        local: 'makeNode',
+        start: expect.objectContaining({ line: 2, column: 0 }),
+        end: expect.objectContaining({ line: 2, column: 20 }),
+      })
+    } finally {
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+  it.each([
+    'mismatched factory directive',
+    'mismatched fragment directive',
+    'mismatched retained binding',
+  ])('rejects renamed directive or binding mismatch: %s', async (change) => {
+    const f = await fixture(change, true)
+    try {
+      await expect(f.apply()).rejects.toThrow(
+        'Unsupported or ambiguous native Browser import coverage ownership'
+      )
+    } finally {
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+  it.each([
+    'live reference',
+    'real fragment',
+    'component tag',
+    'reordered source',
+    'duplicate directive',
+    'missing directive',
+    'wrong target',
+    'missing h',
+    'duplicate retained',
+  ])('does not accept an absent actual binding for %s', async (change) => {
+    const f = await fixture(change)
+    try {
+      await expect(f.apply()).rejects.toThrow(
+        'Unsupported or ambiguous native Browser import coverage ownership'
+      )
+    } finally {
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+  it.each([
+    ['retained', false],
+    ['removed', false],
+    ['retained', true],
+    ['removed', true],
+  ] as const)(
+    'derives an actual named factory with its default import %s and aliases=%s',
+    async (defaultMode, aliases) => {
+      const f = await fixture('none', aliases, defaultMode)
+      try {
+        const actual = await f.apply()
+        expect(actual.statements.get(f.file)).toEqual([])
+        expect(actual.classicFactories.get(f.file)).toEqual([
+          {
+            binding: 'nativeReact',
+            moduleStart: expect.any(Number),
+            moduleEnd: expect.any(Number),
+            namedPragma: {
+              local: aliases ? 'makeNode' : 'h',
+              start: expect.objectContaining({ line: 2, column: 0 }),
+              end: expect.objectContaining({ line: 2 }),
+            },
+          },
+        ])
+        expect(
+          actual.classicFactories.get(f.file)![0].namedPragma!.fragment
+        ).toBeUndefined()
+      } finally {
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  )
+  it.each([
+    'live default',
+    'default component tag',
+    'extra source specifier',
+    'type source specifier',
+    'live reference',
+    'real fragment',
+    'component tag',
+    'reordered source',
+    'duplicate directive',
+    'missing directive',
+    'wrong target',
+    'missing h',
+    'duplicate retained',
+    'mismatched factory directive',
+    'mismatched fragment directive',
+    'mismatched retained binding',
+  ])(
+    'rejects a dropped default/import composition mismatch: %s',
+    async (change) => {
+      const f = await fixture(change, true, 'removed')
+      try {
+        await expect(f.apply()).rejects.toThrow(
+          'Unsupported or ambiguous native Browser import coverage ownership'
+        )
+      } finally {
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  )
+  it.each(['foreign default binding', 'missing live default'])(
+    'rejects an unowned retained default: %s',
+    async (change) => {
+      const f = await fixture(change, true, 'retained')
+      try {
+        await expect(f.apply()).rejects.toThrow(
+          'Unsupported or ambiguous native Browser import coverage ownership'
+        )
+      } finally {
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  )
+})
+
+describe('native-owned Browser self-closing and boolean JSX associations', () => {
+  const profiles =
+    require('./fixtures/browser-production/self-closing-shapes.emission.json').profiles
+  async function fixture(record = profiles[0]) {
+    const { parse: parseAuthored } = require('next/dist/compiled/babel/parser')
+    const { parse: parseEmitted } = require('next/dist/compiled/acorn')
+    const { associateBrowserJsxCalls } = await import(
+      'next/dist/experimental/testing/coverage/browser-jsx-associations'
+    )
+    const parsed = parseAuthored(record.source, {
+      sourceType: 'module',
+      plugins: ['estree', 'jsx', 'typescript'],
+    })
+    const authored = Object.assign(parsed.program, {
+      comments: parsed.comments,
+    })
+    const emitted = parseEmitted(record.code, {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      locations: true,
+    })
+    function collect(value: any): any[] {
+      if (!value || typeof value !== 'object') return []
+      if (Array.isArray(value)) return value.flatMap(collect)
+      return [
+        ...(value.type ? [value] : []),
+        ...Object.entries(value)
+          .filter(([key]) => !['loc', 'comments', 'tokens'].includes(key))
+          .flatMap(([, child]) => collect(child)),
+      ]
+    }
+    const options: Parameters<typeof associateBrowserJsxCalls>[0] = {
+      file: record.file,
+      code: record.code,
+      authored,
+      emitted,
+      sourceMap: structuredClone(record.map),
+      classic:
+        record.runtime === 'automatic'
+          ? undefined
+          : [structuredClone(record.factory)],
+      automatic:
+        record.runtime === 'automatic'
+          ? [structuredClone(record.factory)]
+          : undefined,
+    }
+    return {
+      record,
+      authored,
+      emitted,
+      options,
+      collect,
+      apply: () => associateBrowserJsxCalls(options),
+    }
+  }
+  it.each(
+    profiles.flatMap((record: any) =>
+      [0, 3].map((count) => [record.name, count, record])
+    )
+  )(
+    'preserves actual source/native role and every counter for %s with count=%s',
+    async (_name, count, record) => {
+      const f = await fixture(record),
+        inputs = JSON.stringify(f.options)
+      expect(coverageHash(record.source)).toBe(record.sourceSHA)
+      const result = f.apply()!
+      expect(result).toBeDefined()
+      expect(JSON.stringify(f.options)).toBe(inputs)
+      const before = decodeCoverageMap(f.options.sourceMap),
+        after = decodeCoverageMap(result.sourceMap)
+      expect(after.sources).toEqual(before.sources)
+      const changed = before.mappings.filter(
+        (mapping) =>
+          !after.mappings.some(
+            (actual) => JSON.stringify(actual) === JSON.stringify(mapping)
+          )
+      )
+      const owners = f
+        .collect(f.authored)
+        .filter((node: any) =>
+          ['JSXElement', 'JSXFragment'].includes(node.type)
+        )
+      expect(changed).toHaveLength(
+        record.runtime === 'named' ? owners.length * 2 : 0
+      )
+      const directive = record.factory.namedPragma
+      const permitted = directive
+        ? [directive.start, directive.end].filter(Boolean)
+        : []
+      for (const mapping of changed) {
+        expect(mapping.source).toBe(record.file)
+        expect(
+          permitted.some(
+            (point: any) =>
+              point.line === mapping.originalLine &&
+              point.column === mapping.originalColumn
+          )
+        ).toBe(true)
+        const actual = after.mappings.filter(
+          (point) =>
+            point.generatedLine === mapping.generatedLine &&
+            point.generatedColumn === mapping.generatedColumn
+        )
+        expect(actual).toHaveLength(1)
+        expect(
+          owners.some(
+            (owner: any) =>
+              owner.loc.start.line === actual[0].originalLine &&
+              owner.loc.start.column === actual[0].originalColumn
+          )
+        ).toBe(true)
+        expect((actual[0] as any).name).toBe((mapping as any).name)
+      }
+      const { convert } = require('next/dist/compiled/next-test-coverage'),
+        ast = structuredClone(f.emitted)
+      ast.body[0].expression.body.body =
+        ast.body[0].expression.body.body.filter(
+          (node: any) =>
+            node.type !== 'VariableDeclaration' ||
+            node.declarations[0].id.name !== record.factory.binding
+        )
+      const convertMap = async (sourceMap: unknown) =>
+        (
+          await convert({
+            code: record.code,
+            ast: structuredClone(ast),
+            sourceMap,
+            coverage: {
+              url: 'file:///browser-children/generated.js',
+              functions: [
+                {
+                  isBlockCoverage: true,
+                  ranges: [
+                    { startOffset: 0, endOffset: record.code.length, count },
+                  ],
+                },
+              ],
+            },
+          })
+        )[record.file]
+      const original = await convertMap(f.options.sourceMap),
+        actual = await convertMap(result.sourceMap)
+      expect([actual.s, actual.f, actual.b]).toEqual([
+        original.s,
+        original.f,
+        original.b,
+      ])
+      expect(JSON.parse(JSON.stringify(actual.branchMap))).toEqual(
+        record.expected.branchMap
+      )
+      expect(JSON.parse(JSON.stringify(actual.statementMap['0']))).toEqual(
+        record.expected.statementMap['0']
+      )
+    }
+  )
+  function mapWith(f: any, change: (mapping: any) => any, extra: any[] = []) {
+    const { SourceMapGenerator } = require('next/dist/compiled/source-map'),
+      map = new SourceMapGenerator(),
+      decoded = decodeCoverageMap(f.options.sourceMap)
+    for (const original of decoded.mappings) {
+      const mapping = change({ ...original })
+      if (!mapping) continue
+      const generated = {
+        line: mapping.generatedLine,
+        column: mapping.generatedColumn,
+      }
+      if (mapping.source === null) map.addMapping({ generated })
+      else
+        map.addMapping({
+          generated,
+          source: mapping.source,
+          original: {
+            line: mapping.originalLine,
+            column: mapping.originalColumn,
+          },
+          ...(mapping.name ? { name: mapping.name } : {}),
+        })
+    }
+    for (const mapping of extra) map.addMapping(mapping)
+    for (const [file, content] of decoded.sources)
+      if (content !== null) map.setSourceContent(file, content)
+    f.options.sourceMap = JSON.parse(map.toString())
+  }
+  it.each([
+    'missing self-closing flag',
+    'wrong opening end',
+    'nonempty children',
+    'extra closing node',
+  ])('does not derive a self-closing terminal for %s', async (kind) => {
+    const f = await fixture(
+      profiles.find((record: any) => record.name === 'shape-named-empty.tsx')
+    )
+    for (const node of f
+      .collect(f.authored)
+      .filter((node: any) => node.type === 'JSXElement')) {
+      if (kind === 'missing self-closing flag')
+        node.openingElement.selfClosing = false
+      if (kind === 'wrong opening end')
+        node.openingElement.loc.end = {
+          ...node.openingElement.loc.end,
+          column: node.openingElement.loc.end.column - 1,
+        }
+      if (kind === 'nonempty children')
+        node.children.push({ type: 'JSXText', value: 'foreign' })
+      if (kind === 'extra closing node')
+        node.closingElement = { type: 'JSXClosingElement' }
+    }
+    const inputs = JSON.stringify(f.options)
+    expect(f.apply()).toBeUndefined()
+    expect(JSON.stringify(f.options)).toBe(inputs)
+  })
+  it.each([
+    'false value',
+    'nonliteral value',
+    'duplicate property',
+    'computed property',
+    'foreign key anchor',
+    'foreign value anchor',
+  ])('rejects ambiguous implicit boolean property %s', async (kind) => {
+    const f = await fixture(
+      profiles.find(
+        (record: any) => record.name === 'shape-classic-boolean.tsx'
+      )
+    )
+    const property = f
+      .collect(f.emitted)
+      .find(
+        (node: any) => node.type === 'Property' && node.key.name === 'disabled'
+      )
+    if (kind === 'false value') property.value.value = false
+    if (kind === 'nonliteral value') property.value.type = 'Identifier'
+    if (kind === 'duplicate property')
+      f.collect(f.emitted)
+        .find(
+          (node: any) =>
+            node.type === 'ObjectExpression' &&
+            node.properties.includes(property)
+        )
+        .properties.push(structuredClone(property))
+    if (kind === 'computed property') property.computed = true
+    if (['foreign key anchor', 'foreign value anchor'].includes(kind)) {
+      const point =
+        kind === 'foreign key anchor'
+          ? property.key.loc.start
+          : property.value.loc.start
+      mapWith(f, (mapping: any) =>
+        mapping.generatedLine === point.line &&
+        mapping.generatedColumn === point.column
+          ? { ...mapping, originalColumn: mapping.originalColumn + 1 }
+          : mapping
+      )
+    }
+    const inputs = JSON.stringify(f.options)
+    expect(f.apply).toThrow(
+      'Browser JSX call association is ambiguous or absent'
+    )
+    expect(JSON.stringify(f.options)).toBe(inputs)
+  })
+  it.each(['missing key end', 'foreign key end', 'conflicting literal anchor'])(
+    'requires the actual automatic boolean mapping boundary: %s',
+    async (kind) => {
+      const f = await fixture(
+        profiles.find(
+          (record: any) => record.name === 'shape-automatic-boolean.tsx'
+        )
+      )
+      const property = f
+          .collect(f.emitted)
+          .find(
+            (node: any) =>
+              node.type === 'Property' && node.key.name === 'disabled'
+          ),
+        point = property.key.loc.end
+      const attribute = f
+        .collect(f.authored)
+        .find(
+          (node: any) =>
+            node.type === 'JSXAttribute' && node.name.name === 'disabled'
+        )
+      mapWith(
+        f,
+        (mapping: any) => {
+          if (
+            mapping.generatedLine !== point.line ||
+            mapping.generatedColumn !== point.column
+          )
+            return mapping
+          if (kind === 'missing key end') return null
+          if (kind === 'foreign key end')
+            return { ...mapping, originalColumn: mapping.originalColumn + 1 }
+          return mapping
+        },
+        kind === 'conflicting literal anchor'
+          ? [
+              {
+                generated: property.value.loc.start,
+                source: f.record.file,
+                original: {
+                  line: attribute.name.loc.start.line,
+                  column: attribute.name.loc.start.column + 1,
+                },
+              },
+            ]
+          : []
+      )
+      const inputs = JSON.stringify(f.options)
+      expect(f.apply).toThrow(
+        'Browser JSX call association is ambiguous or absent'
+      )
+      expect(JSON.stringify(f.options)).toBe(inputs)
+    }
+  )
+  it.each([
+    'wrong tag',
+    'foreign namespace',
+    'duplicate call',
+    'foreign scope',
+    'conflicting terminal',
+  ])('rejects unowned self-closing call %s', async (kind) => {
+    const f = await fixture(
+      profiles.find(
+        (record: any) => record.name === 'shape-named-attributes.tsx'
+      )
+    )
+    const call = f
+      .collect(f.emitted)
+      .find(
+        (node: any) =>
+          node.type === 'CallExpression' &&
+          node.callee.type === 'SequenceExpression'
+      )
+    if (kind === 'wrong tag') call.arguments[0].value = 'foreign'
+    if (kind === 'foreign namespace')
+      call.callee.expressions[1].object.name = 'foreign'
+    if (kind === 'duplicate call')
+      f.emitted.body.push({ type: 'ExpressionStatement', expression: call })
+    if (kind === 'foreign scope')
+      f.collect(f.emitted)
+        .find((node: any) => node.type === 'FunctionDeclaration')
+        .params.push({ type: 'Identifier', name: f.record.factory.binding })
+    if (kind === 'conflicting terminal') {
+      const { SourceMapGenerator } = require('next/dist/compiled/source-map'),
+        decoded = decodeCoverageMap(f.options.sourceMap),
+        map = new SourceMapGenerator()
+      for (const mapping of decoded.mappings) {
+        const generated = {
+          line: mapping.generatedLine,
+          column: mapping.generatedColumn,
+        }
+        if (mapping.source === null) map.addMapping({ generated })
+        else
+          map.addMapping({
+            generated,
+            source: mapping.source,
+            original: {
+              line: mapping.originalLine,
+              column: mapping.originalColumn,
+            },
+            ...((mapping as any).name ? { name: (mapping as any).name } : {}),
+          })
+      }
+      map.addMapping({
+        generated: { line: call.loc.end.line, column: call.loc.end.column - 1 },
+        source: f.record.file,
+        original: { line: 1, column: 0 },
+      })
+      for (const [file, content] of decoded.sources)
+        if (content !== null) map.setSourceContent(file, content)
+      f.options.sourceMap = JSON.parse(map.toString())
+    }
+    const inputs = JSON.stringify(f.options)
+    expect(f.apply).toThrow(
+      'Browser JSX call association is ambiguous or absent'
+    )
+    expect(JSON.stringify(f.options)).toBe(inputs)
+  })
+})
+
+describe('native-owned Browser local component tag associations', () => {
+  const profiles =
+    require('./fixtures/browser-production/component-tags.emission.json').profiles
+  async function fixture(record = profiles[0]) {
+    const { parse: parseAuthored } = require('next/dist/compiled/babel/parser')
+    const { parse: parseEmitted } = require('next/dist/compiled/acorn')
+    const { associateBrowserJsxCalls } = await import(
+      'next/dist/experimental/testing/coverage/browser-jsx-associations'
+    )
+    const parsed = parseAuthored(record.source, {
+      sourceType: 'module',
+      plugins: ['estree', 'jsx', 'typescript'],
+    })
+    const authored = Object.assign(parsed.program, {
+      comments: parsed.comments,
+    })
+    const emitted = parseEmitted(record.code, {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      locations: true,
+    })
+    function collect(value: any): any[] {
+      if (!value || typeof value !== 'object') return []
+      if (Array.isArray(value)) return value.flatMap(collect)
+      return [
+        ...(value.type ? [value] : []),
+        ...Object.entries(value)
+          .filter(([key]) => !['loc', 'comments', 'tokens'].includes(key))
+          .flatMap(([, child]) => collect(child)),
+      ]
+    }
+    const options: Parameters<typeof associateBrowserJsxCalls>[0] = {
+      file: record.file,
+      code: record.code,
+      authored,
+      emitted,
+      sourceMap: structuredClone(record.map),
+      classic:
+        record.runtime === 'automatic'
+          ? undefined
+          : [structuredClone(record.factory)],
+      automatic:
+        record.runtime === 'automatic'
+          ? [structuredClone(record.factory)]
+          : undefined,
+    }
+    return {
+      record,
+      authored,
+      emitted,
+      options,
+      collect,
+      apply: () => associateBrowserJsxCalls(options),
+    }
+  }
+  it.each(
+    profiles.flatMap((record: any) =>
+      [0, 3].map((count) => [record.name, count, record])
+    )
+  )(
+    'preserves actual source/native role and every counter for %s with count=%s',
+    async (_name, count, record) => {
+      const f = await fixture(record),
+        inputs = JSON.stringify(f.options)
+      expect(coverageHash(record.source)).toBe(record.sourceSHA)
+      const result = f.apply()!
+      expect(result).toBeDefined()
+      expect(JSON.stringify(f.options)).toBe(inputs)
+      const before = decodeCoverageMap(f.options.sourceMap),
+        after = decodeCoverageMap(result.sourceMap)
+      expect(after.sources).toEqual(before.sources)
+      const changed = before.mappings.filter(
+        (mapping) =>
+          !after.mappings.some(
+            (actual) => JSON.stringify(actual) === JSON.stringify(mapping)
+          )
+      )
+      const owners = f
+        .collect(f.authored)
+        .filter((node: any) =>
+          ['JSXElement', 'JSXFragment'].includes(node.type)
+        )
+      expect(changed).toHaveLength(
+        record.runtime === 'named' ? owners.length * 2 : 0
+      )
+      const directive = record.factory.namedPragma
+      const permitted = directive
+        ? [directive.start, directive.end].filter(Boolean)
+        : []
+      for (const mapping of changed) {
+        expect(mapping.source).toBe(record.file)
+        expect(
+          permitted.some(
+            (point: any) =>
+              point.line === mapping.originalLine &&
+              point.column === mapping.originalColumn
+          )
+        ).toBe(true)
+        const actual = after.mappings.filter(
+          (point) =>
+            point.generatedLine === mapping.generatedLine &&
+            point.generatedColumn === mapping.generatedColumn
+        )
+        expect(actual).toHaveLength(1)
+        expect(
+          owners.some(
+            (owner: any) =>
+              owner.loc.start.line === actual[0].originalLine &&
+              owner.loc.start.column === actual[0].originalColumn
+          )
+        ).toBe(true)
+        expect((actual[0] as any).name).toBe((mapping as any).name)
+      }
+      const { convert } = require('next/dist/compiled/next-test-coverage'),
+        ast = structuredClone(f.emitted)
+      ast.body[0].expression.body.body =
+        ast.body[0].expression.body.body.filter(
+          (node: any) =>
+            node.type !== 'VariableDeclaration' ||
+            node.declarations[0].id.name !== record.factory.binding
+        )
+      const convertMap = async (sourceMap: unknown) =>
+        (
+          await convert({
+            code: record.code,
+            ast: structuredClone(ast),
+            sourceMap,
+            coverage: {
+              url: 'file:///browser-children/generated.js',
+              functions: [
+                {
+                  isBlockCoverage: true,
+                  ranges: [
+                    { startOffset: 0, endOffset: record.code.length, count },
+                  ],
+                },
+              ],
+            },
+          })
+        )[record.file]
+      const original = await convertMap(f.options.sourceMap),
+        actual = await convertMap(result.sourceMap)
+      expect([actual.s, actual.f, actual.b]).toEqual([
+        original.s,
+        original.f,
+        original.b,
+      ])
+      expect(JSON.parse(JSON.stringify(actual.branchMap))).toEqual(
+        record.expected.branchMap
+      )
+      const card = f
+          .collect(f.authored)
+          .find(
+            (node: any) =>
+              node.type === 'FunctionDeclaration' && node.id.name === 'Card'
+          ),
+        start = card.body.body[0].loc.start,
+        atReturn = (map: any) =>
+          Object.values(map).filter(
+            (location: any) =>
+              location.start.line === start.line &&
+              location.start.column === start.column
+          ),
+        expectedReturn = atReturn(record.expected.statementMap)
+      expect(expectedReturn).toHaveLength(1)
+      expect(JSON.parse(JSON.stringify(atReturn(actual.statementMap)))).toEqual(
+        expectedReturn
+      )
+    }
+  )
+  function changeMap(f: any, point: any) {
+    const { SourceMapGenerator } = require('next/dist/compiled/source-map'),
+      map = new SourceMapGenerator(),
+      decoded = decodeCoverageMap(f.options.sourceMap)
+    for (const mapping of decoded.mappings) {
+      const generated = {
+        line: mapping.generatedLine,
+        column: mapping.generatedColumn,
+      }
+      if (mapping.source === null) map.addMapping({ generated })
+      else
+        map.addMapping({
+          generated,
+          source: mapping.source,
+          original: {
+            line: mapping.originalLine,
+            column:
+              mapping.originalColumn! +
+              (generated.line === point.line &&
+              generated.column === point.column
+                ? 1
+                : 0),
+          },
+          ...((mapping as any).name ? { name: (mapping as any).name } : {}),
+        })
+    }
+    for (const [file, content] of decoded.sources)
+      if (content !== null) map.setSourceContent(file, content)
+    f.options.sourceMap = JSON.parse(map.toString())
+  }
+  it('ignores same-name bindings from a separate static lexical scope', async () => {
+    const f = await fixture(
+      profiles.find((record: any) => record.name === 'shape-named-single.tsx')
+    )
+    const original = f
+      .collect(f.emitted)
+      .find(
+        (node: any) =>
+          node.type === 'FunctionDeclaration' && node.id.name === 'Badge'
+      )
+    f.emitted.body.push({
+      type: 'ClassDeclaration',
+      start: f.record.factory.moduleStart,
+      end: f.record.factory.moduleEnd,
+      body: {
+        type: 'ClassBody',
+        body: [
+          {
+            type: 'StaticBlock',
+            start: f.record.factory.moduleStart + 1,
+            end: f.record.factory.moduleEnd - 1,
+            body: [
+              {
+                type: 'VariableDeclaration',
+                kind: 'const',
+                start: original.start,
+                end: original.end,
+                declarations: [
+                  {
+                    type: 'VariableDeclarator',
+                    id: structuredClone(original.id),
+                    init: {
+                      type: 'ArrowFunctionExpression',
+                      params: [],
+                      body: { type: 'Literal', value: 0 },
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    })
+    const inputs = JSON.stringify(f.options)
+    expect(f.apply()).toBeDefined()
+    expect(JSON.stringify(f.options)).toBe(inputs)
+  })
+  it.each([
+    'missing function',
+    'duplicate function',
+    'wrong function map',
+    'changed function kind',
+    'dynamic object',
+    'computed property',
+    'foreign property value',
+    'wrong object map',
+    'wrong property map',
+  ])('does not infer a local component binding from %s', async (kind) => {
+    const record = profiles.find(
+        (row: any) => row.name === 'shape-named-member.tsx'
+      ),
+      f = await fixture(record),
+      body = f.emitted.body[0].expression.body.body
+    const declaration = body.find(
+        (node: any) =>
+          node.type === 'FunctionDeclaration' && node.id.name === 'Badge'
+      ),
+      object = body.find(
+        (node: any) =>
+          node.type === 'VariableDeclaration' &&
+          node.declarations[0].id.name === 'parts'
+      )
+    if (kind === 'missing function') body.splice(body.indexOf(declaration), 1)
+    if (kind === 'duplicate function') body.push(structuredClone(declaration))
+    if (kind === 'wrong function map') changeMap(f, declaration.id.loc.start)
+    if (kind === 'changed function kind') declaration.async = true
+    if (kind === 'dynamic object')
+      object.declarations[0].init.type = 'CallExpression'
+    if (kind === 'computed property')
+      object.declarations[0].init.properties[0].computed = true
+    if (kind === 'foreign property value') {
+      const property = object.declarations[0].init.properties[0]
+      property.value = { ...property.value, name: 'foreign' }
+    }
+    if (kind === 'wrong object map')
+      changeMap(f, object.declarations[0].id.loc.start)
+    if (kind === 'wrong property map')
+      changeMap(f, object.declarations[0].init.properties[0].key.loc.start)
+    const inputs = JSON.stringify(f.options)
+    expect(f.apply()).toBeUndefined()
+    expect(JSON.stringify(f.options)).toBe(inputs)
+  })
+  it.each([
+    'wrong identifier',
+    'foreign tag map',
+    'wrong member property',
+    'foreign property map',
+    'computed member',
+    'optional member',
+    'wrong closing identifier',
+    'wrong closing member',
+    'foreign emitted scope',
+    'foreign original scope',
+    'duplicate component call',
+  ])('rejects unowned actual component tag %s', async (kind) => {
+    const member = [
+        'wrong member property',
+        'foreign property map',
+        'computed member',
+        'optional member',
+        'wrong closing member',
+      ].includes(kind),
+      record = profiles.find(
+        (row: any) =>
+          row.name === 'shape-named-' + (member ? 'member' : 'paired') + '.tsx'
+      ),
+      f = await fixture(record)
+    const call = f
+      .collect(f.emitted)
+      .find(
+        (node: any) =>
+          node.type === 'CallExpression' &&
+          node.callee.type === 'SequenceExpression' &&
+          (node.arguments[0]?.type === 'Identifier' ||
+            node.arguments[0]?.type === 'MemberExpression')
+      )
+    if (kind === 'wrong identifier') call.arguments[0].name = 'foreign'
+    if (kind === 'foreign tag map') changeMap(f, call.arguments[0].loc.start)
+    if (kind === 'wrong member property')
+      call.arguments[0].property.name = 'foreign'
+    if (kind === 'foreign property map')
+      changeMap(f, call.arguments[0].property.loc.start)
+    if (kind === 'computed member') call.arguments[0].computed = true
+    if (kind === 'optional member') call.arguments[0].optional = true
+    if (kind === 'wrong closing identifier')
+      f
+        .collect(f.authored)
+        .find(
+          (node: any) =>
+            node.type === 'JSXClosingElement' && node.name.name === 'Badge'
+        ).name.name = 'foreign'
+    if (kind === 'wrong closing member') {
+      const owner = f
+        .collect(f.authored)
+        .find(
+          (node: any) =>
+            node.type === 'JSXElement' &&
+            node.openingElement.name.type === 'JSXMemberExpression'
+        )
+      owner.openingElement.selfClosing = false
+      owner.closingElement = {
+        type: 'JSXClosingElement',
+        name: {
+          type: 'JSXMemberExpression',
+          object: { type: 'JSXIdentifier', name: 'parts' },
+          property: { type: 'JSXIdentifier', name: 'foreign' },
+        },
+        loc: { end: owner.loc.end },
+      }
+    }
+    if (kind === 'foreign emitted scope')
+      f.collect(f.emitted)
+        .find(
+          (node: any) =>
+            node.type === 'FunctionDeclaration' && node.id.name === 'Card'
+        )
+        .params.push({ type: 'Identifier', name: member ? 'parts' : 'Badge' })
+    if (kind === 'foreign original scope')
+      f.collect(f.authored)
+        .find(
+          (node: any) =>
+            node.type === 'FunctionDeclaration' && node.id.name === 'Card'
+        )
+        .params.push({ type: 'Identifier', name: 'Badge' })
+    if (kind === 'duplicate component call')
+      f.emitted.body.push({ type: 'ExpressionStatement', expression: call })
+    const inputs = JSON.stringify(f.options)
+    expect(f.apply).toThrow(
+      'Browser JSX call association is ambiguous or absent'
+    )
+    expect(JSON.stringify(f.options)).toBe(inputs)
+  })
+})
+
+describe('native-owned Browser creator coverage geometry', () => {
+  const acorn = require('next/dist/compiled/acorn')
+  const {
+    normalizeBrowserCreatorScopes,
+  } = require('next/dist/experimental/testing/coverage/browser-creator-scope')
+  const emitted = require('./fixtures/browser-production/creator-scopes.emission.json')
+  function nodes(value: any): any[] {
+    if (!value || typeof value !== 'object') return []
+    if (Array.isArray(value)) return value.flatMap(nodes)
+    return [
+      ...(typeof value.type === 'string' ? [value] : []),
+      ...Object.entries(value)
+        .filter(([key]) => !['loc', 'comments', 'tokens'].includes(key))
+        .flatMap(([, child]) => nodes(child)),
+    ]
+  }
+  function state(profile = emitted.profiles[0]) {
+    const ast = acorn.parse(profile.code, {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      locations: true,
+    })
+    for (const block of nodes(ast).filter(
+      (node) => node.type === 'BlockStatement'
+    ))
+      block.body = block.body.filter(
+        (node: any) => !profile.removeNativeDeclarations.includes(node.start)
+      )
+    const all = nodes(ast)
+    const property = (node: any, name: string) =>
+      node?.type === 'CallExpression' &&
+      node.callee?.type === 'SequenceExpression' &&
+      node.callee.expressions[1]?.property?.value === name
+    const capture = all.find(
+      (node) =>
+        node.type === 'VariableDeclaration' &&
+        property(node.declarations[0]?.init, 'captureCreatorScope')
+    )
+    const entry = all.find(
+      (node) =>
+        node.type === 'VariableDeclaration' &&
+        property(node.declarations[0]?.init, 'enterCreatorScope')
+    )
+    const body = all.find(
+      (node) => node.type === 'BlockStatement' && node.body.includes(entry)
+    )
+    const transaction = body.body.at(-1)
+    return {
+      ast,
+      scope: structuredClone(profile.scope),
+      capture,
+      entry,
+      body,
+      transaction,
+    }
+  }
+  for (const profile of emitted.profiles) {
+    it(`preserves actual native ${profile.name} methods and authored return nodes`, () => {
+      const input = state(profile),
+        before = JSON.stringify(input.ast)
+      const scoped = (value: any) =>
+        nodes(value).filter(
+          (node) =>
+            node.start >= input.scope.moduleStart &&
+            node.end <= input.scope.moduleEnd
+        )
+      const returns = scoped(input.ast).filter(
+        (node) => node.type === 'ReturnStatement'
+      )
+      const functions = scoped(input.ast)
+        .filter((node) => /^(Function|ArrowFunction)/.test(node.type))
+        .map((node) => [node.type, node.start, node.end])
+      const actual = normalizeBrowserCreatorScopes(input.ast, [input.scope]).ast
+      expect(JSON.stringify(input.ast)).toBe(before)
+      expect(
+        JSON.stringify(
+          scoped(actual).filter((node) => node.type === 'ReturnStatement')
+        )
+      ).toBe(JSON.stringify(returns))
+      expect(
+        scoped(actual)
+          .filter((node) => /^(Function|ArrowFunction)/.test(node.type))
+          .map((node) => [node.type, node.start, node.end])
+      ).toEqual(functions)
+      expect(
+        scoped(actual).some(
+          (node) =>
+            node.type === 'Identifier' && node.name === input.scope.binding
+        )
+      ).toBe(false)
+      expect(
+        scoped(actual).some(
+          (node) =>
+            node.type === 'Identifier' &&
+            [
+              input.capture.declarations[0].id.name,
+              input.entry.declarations[0].id.name,
+            ].includes(node.name)
+        )
+      ).toBe(false)
+      expect(
+        scoped(actual).filter((node) => node.type === 'TryStatement')
+      ).toHaveLength(0)
+    })
+  }
+  const changes: [string, (input: ReturnType<typeof state>) => void][] = [
+    [
+      'wrong native namespace',
+      (input) => {
+        input.scope.binding += '_foreign'
+      },
+    ],
+    [
+      'wrong native module start',
+      (input) => {
+        input.scope.moduleStart = input.entry.start
+      },
+    ],
+    [
+      'wrong native module end',
+      (input) => {
+        input.scope.moduleEnd = input.capture.end
+      },
+    ],
+    [
+      'mutable capture',
+      (input) => {
+        input.capture.kind = 'let'
+      },
+    ],
+    [
+      'capture argument',
+      (input) => {
+        input.capture.declarations[0].init.arguments.push({
+          type: 'Literal',
+          value: 1,
+        })
+      },
+    ],
+    [
+      'wrong capture helper',
+      (input) => {
+        input.capture.declarations[0].init.callee.expressions[1].property.value =
+          'other'
+      },
+    ],
+    [
+      'optional capture',
+      (input) => {
+        input.capture.declarations[0].init.optional = true
+      },
+    ],
+    [
+      'nonzero sequence receiver',
+      (input) => {
+        input.capture.declarations[0].init.callee.expressions[0].value = 1
+      },
+    ],
+    [
+      'mutable entry',
+      (input) => {
+        input.entry.kind = 'let'
+      },
+    ],
+    [
+      'wrong entry cell',
+      (input) => {
+        input.entry.declarations[0].init.arguments[0].name += '_foreign'
+      },
+    ],
+    [
+      'extra entry argument',
+      (input) => {
+        input.entry.declarations[0].init.arguments.push({
+          type: 'Literal',
+          value: 1,
+        })
+      },
+    ],
+    [
+      'missing entry',
+      (input) => {
+        input.body.body.shift()
+      },
+    ],
+    [
+      'authored statement before entry',
+      (input) => {
+        input.body.body.unshift({ type: 'EmptyStatement' })
+      },
+    ],
+    [
+      'extra statement after transaction',
+      (input) => {
+        input.body.body.push({ type: 'EmptyStatement' })
+      },
+    ],
+    [
+      'catch handler',
+      (input) => {
+        input.transaction.handler = { type: 'CatchClause' }
+      },
+    ],
+    [
+      'missing finalizer',
+      (input) => {
+        input.transaction.finalizer = null
+      },
+    ],
+    [
+      'extra finalizer effect',
+      (input) => {
+        input.transaction.finalizer.body.push({ type: 'EmptyStatement' })
+      },
+    ],
+    [
+      'wrong leave binding',
+      (input) => {
+        input.transaction.finalizer.body[0].expression.callee.name += '_foreign'
+      },
+    ],
+    [
+      'leave argument',
+      (input) => {
+        input.transaction.finalizer.body[0].expression.arguments.push({
+          type: 'Literal',
+          value: 1,
+        })
+      },
+    ],
+    [
+      'optional leave',
+      (input) => {
+        input.transaction.finalizer.body[0].expression.optional = true
+      },
+    ],
+    [
+      'escaped capture cell',
+      (input) => {
+        input.transaction.block.body.push({
+          type: 'ExpressionStatement',
+          expression: { ...input.entry.declarations[0].init.arguments[0] },
+        })
+      },
+    ],
+    [
+      'escaped leave binding',
+      (input) => {
+        input.transaction.block.body.push({
+          type: 'ExpressionStatement',
+          expression: { ...input.entry.declarations[0].id },
+        })
+      },
+    ],
+  ]
+  for (const [name, change] of changes) {
+    it(`refuses ${name}`, () => {
+      const input = state()
+      change(input)
+      expect(() =>
+        normalizeBrowserCreatorScopes(input.ast, [input.scope])
+      ).toThrow(/native Browser creator coverage/)
+    })
+  }
+  it('keeps the exact original AST when no issued creator scope exists', () => {
+    const input = state()
+    expect(normalizeBrowserCreatorScopes(input.ast, []).ast).toBe(input.ast)
+  })
+  it('refuses duplicate native creator scopes', () => {
+    const input = state()
+    expect(() =>
+      normalizeBrowserCreatorScopes(input.ast, [input.scope, input.scope])
+    ).toThrow(/native Browser creator coverage/)
+  })
+})
+
+describe('native-owned Browser creator method endpoints', () => {
+  const acorn = require('next/dist/compiled/acorn')
+  const babel = require('next/dist/compiled/babel/parser')
+  const { SourceMapGenerator } = require('next/dist/compiled/source-map')
+  const { convert } = require('next/dist/compiled/next-test-coverage')
+  const {
+    normalizeBrowserCreatorScopes,
+    bindBrowserCreatorMethodEnds,
+  } = require('next/dist/experimental/testing/coverage/browser-creator-scope')
+  const emitted = require('./fixtures/browser-production/creator-scopes.emission.json')
+  const profiles = emitted.profiles.filter((value: any) => value.map)
+  function visit(value: any, fn: (node: any) => void) {
+    if (!value || typeof value !== 'object') return
+    if (Array.isArray(value)) {
+      value.forEach((child) => visit(child, fn))
+      return
+    }
+    if (value.type) fn(value)
+    for (const [key, child] of Object.entries(value))
+      if (!['loc', 'comments', 'tokens'].includes(key)) visit(child, fn)
+  }
+  async function state(profile = profiles[0]) {
+    const ast = acorn.parse(profile.code, {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      locations: true,
+    })
+    visit(ast, (node) => {
+      if (node.type === 'BlockStatement')
+        node.body = node.body.filter(
+          (value: any) =>
+            !profile.removeNativeDeclarations.includes(value.start)
+        )
+    })
+    const actual = normalizeBrowserCreatorScopes(ast, [
+      structuredClone(profile.scope),
+    ])
+    const authored = babel.parse(profile.source, {
+      sourceType: 'module',
+      plugins: ['estree', 'jsx', 'typescript'],
+    }).program
+    const identity = new SourceMapGenerator()
+    for (const [index, line] of profile.source.split('\n').entries()) {
+      let column = 0
+      for (const token of line.matchAll(/\w+|\s|[^\w\s]/g)) {
+        const point = { line: index + 1, column }
+        identity.addMapping({
+          generated: point,
+          source: profile.file,
+          original: point,
+        })
+        column += token[0].length
+      }
+    }
+    identity.setSourceContent(profile.file, profile.source)
+    const capture = (code: string) => ({
+      url: pathToFileURL(profile.file).href,
+      functions: [
+        {
+          isBlockCoverage: true,
+          ranges: [{ startOffset: 0, endOffset: code.length, count: 0 }],
+        },
+      ],
+    })
+    const model = (
+      await convert({
+        code: profile.source,
+        ast: authored,
+        sourceMap: JSON.parse(identity.toString()),
+        coverage: capture(profile.source),
+      })
+    )[profile.file]
+    const observed = (
+      await convert({
+        code: profile.code,
+        ast: actual.ast,
+        sourceMap: profile.map,
+        coverage: {
+          ...capture(profile.code),
+          url: pathToFileURL(profile.file + '.generated.js').href,
+        },
+      })
+    )[profile.file]
+    return {
+      profile,
+      authored,
+      model,
+      observed,
+      methods: structuredClone(actual.methods),
+      map: structuredClone(profile.map),
+    }
+  }
+  function unchanged(value: any) {
+    const serialized = JSON.stringify(value),
+      names = value.meta.fnNames,
+      entries = [...names]
+    return () => {
+      expect(JSON.stringify(value)).toBe(serialized)
+      expect(value.meta.fnNames).toBe(names)
+      expect(names.size).toBe(entries.length)
+      for (const [key, name] of entries) expect(names.get(key)).toBe(name)
+    }
+  }
+  function apply(input: Awaited<ReturnType<typeof state>>) {
+    bindBrowserCreatorMethodEnds(
+      input.profile.file,
+      input.model,
+      input.observed,
+      input.authored,
+      input.methods,
+      input.map
+    )
+  }
+  for (const profile of profiles) {
+    it(`retains actual native endpoints and counters for ${profile.name}`, async () => {
+      const input = await state(profile),
+        observed = unchanged(input.observed),
+        counts = structuredClone([input.model.s, input.model.f, input.model.b])
+      apply(input)
+      observed()
+      expect([input.model.s, input.model.f, input.model.b]).toEqual(counts)
+      for (const method of input.methods) {
+        const candidates = Object.values(input.model.fnMap).filter(
+          (fn: any) => fn.name === method.method.key.name
+        )
+        const expected = Object.values(profile.expectedCoverage.fnMap).filter(
+          (fn: any) => fn.name === method.method.key.name
+        )
+        expect(candidates).toHaveLength(1)
+        expect(expected).toHaveLength(1)
+        expect(
+          JSON.parse(JSON.stringify((candidates[0] as any).loc.end))
+        ).toEqual((expected[0] as any).loc.end)
+      }
+    })
+  }
+  const changes: [
+    string,
+    (input: Awaited<ReturnType<typeof state>>) => void,
+  ][] = [
+    [
+      'foreign source identity',
+      (input) => {
+        input.map.sources[0] += '.foreign'
+      },
+    ],
+    [
+      'foreign class scope',
+      (input) => {
+        input.methods[0].scope.moduleStart = input.methods[0].owner.start + 1
+      },
+    ],
+    [
+      'wrong actual class kind',
+      (input) => {
+        input.methods[0].owner.type = 'ClassDeclaration'
+      },
+    ],
+    [
+      'computed actual method',
+      (input) => {
+        input.methods[0].method.computed = true
+      },
+    ],
+    [
+      'wrong actual method kind',
+      (input) => {
+        input.methods[0].method.kind = 'get'
+      },
+    ],
+    [
+      'detached actual method',
+      (input) => {
+        input.methods[0].owner.body.body =
+          input.methods[0].owner.body.body.filter(
+            (method: any) => method !== input.methods[0].method
+          )
+      },
+    ],
+    [
+      'wrong actual method staticness',
+      (input) => {
+        input.methods[0].method.static = !input.methods[0].method.static
+      },
+    ],
+    [
+      'wrong actual key name',
+      (input) => {
+        input.methods[0].method.key.name += '_foreign'
+      },
+    ],
+    [
+      'foreign body start',
+      (input) => {
+        input.methods[0].method.value.body.loc.start.column++
+      },
+    ],
+    [
+      'foreign body close',
+      (input) => {
+        input.methods[0].method.value.body.loc.end.column++
+      },
+    ],
+    [
+      'foreign class close',
+      (input) => {
+        input.methods[0].owner.body.loc.end.column++
+      },
+    ],
+    [
+      'duplicate method receipt',
+      (input) => {
+        input.methods.push(structuredClone(input.methods[0]))
+      },
+    ],
+    [
+      'duplicate original descriptor',
+      (input) => {
+        input.model.fnMap.foreign = structuredClone(
+          Object.values(input.model.fnMap)[0]
+        )
+      },
+    ],
+    [
+      'duplicate observed descriptor',
+      (input) => {
+        input.observed.fnMap.foreign = structuredClone(
+          Object.values(input.observed.fnMap)[0]
+        )
+      },
+    ],
+    [
+      'wrong original start',
+      (input) => {
+        ;(Object.values(input.model.fnMap)[0] as any).loc.start.column++
+      },
+    ],
+    [
+      'wrong observed start',
+      (input) => {
+        ;(Object.values(input.observed.fnMap)[0] as any).loc.start.column++
+      },
+    ],
+    [
+      'wrong observed name',
+      (input) => {
+        ;(Object.values(input.observed.fnMap)[0] as any).name += '_foreign'
+      },
+    ],
+    [
+      'observed endpoint before real body',
+      (input) => {
+        ;(Object.values(input.observed.fnMap)[0] as any).loc.end.column = 0
+      },
+    ],
+    [
+      'observed endpoint outside real class',
+      (input) => {
+        ;(Object.values(input.observed.fnMap)[0] as any).loc.end.column += 1000
+      },
+    ],
+    [
+      'unbounded observed endpoint',
+      (input) => {
+        ;(Object.values(input.observed.fnMap)[0] as any).loc.end.column =
+          Infinity
+      },
+    ],
+  ]
+  for (const [name, change] of changes) {
+    it(`refuses ${name} before changing the model`, async () => {
+      const input = await state(),
+        before = structuredClone([input.model.s, input.model.f, input.model.b])
+      change(input)
+      const changed = unchanged(input.model)
+      expect(() => apply(input)).toThrow(/native Browser creator coverage/)
+      changed()
+      expect([input.model.s, input.model.f, input.model.b]).toEqual(before)
+    })
+  }
+  it('does not borrow method endpoint authority without actual creator facts', async () => {
+    const input = await state(),
+      before = unchanged(input.model)
+    input.methods = []
+    apply(input)
+    before()
+  })
+})
+
+describe('production Browser standard coverage profile boundaries', () => {
+  const project = {
+    profile: {
+      id: 'browser',
+      mode: 'production',
+      environment: 'browser',
+      runtime: 'nodejs',
+      bundler: 'turbopack',
+      browserClient: true,
+    },
+    entries: [],
+    setupFiles: [],
+    include: [],
+    exclude: [],
+  } as any
+  it('admits the isolated Chromium client profile with no setup or rendering graph', async () => {
+    const { isProductionBrowserCoverageProject } = await import(
+      'next/dist/experimental/testing/coverage/production-browser'
+    )
+    expect(isProductionBrowserCoverageProject(project)).toBe(true)
+    expect(
+      isProductionBrowserCoverageProject({
+        ...project,
+        browserEngine: 'chromium',
+      })
+    ).toBe(true)
+  })
+  it.each([
+    { browserEngine: 'firefox' },
+    { browserEngine: 'webkit' },
+    { isolate: false },
+    { setupFiles: ['setup.mjs'] },
+    { browserFixtures: [{}] },
+    { typecheck: { enabled: true } },
+    { executionEnvironment: {} },
+    { entries: [{ executionEnvironment: {} }] },
+    { profile: { ...project.profile, route: '/' } },
+    { profile: { ...project.profile, mode: 'development' } },
+    { profile: { ...project.profile, runtime: 'edge' } },
+    { profile: { ...project.profile, bundler: 'webpack' } },
+    { profile: { ...project.profile, browserClient: false } },
+    { profile: { ...project.profile, environment: 'node' } },
+  ])('keeps the unqualified profile closed: %j', async (patch) => {
+    const { isProductionBrowserCoverageProject } = await import(
+      'next/dist/experimental/testing/coverage/production-browser'
+    )
+    expect(isProductionBrowserCoverageProject({ ...project, ...patch })).toBe(
+      false
+    )
+  })
+})
+
+describe('native-owned Browser local creator component bindings', () => {
+  const profiles =
+    require('./fixtures/browser-production/component-creators.emission.json').profiles
+  async function fixture(record = profiles[0]) {
+    const { parse: parseAuthored } = require('next/dist/compiled/babel/parser')
+    const { parse: parseEmitted } = require('next/dist/compiled/acorn')
+    const { normalizeBrowserCreatorScopes } = await import(
+      'next/dist/experimental/testing/coverage/browser-creator-scope'
+    )
+    const { associateBrowserJsxCalls } = await import(
+      'next/dist/experimental/testing/coverage/browser-jsx-associations'
+    )
+    const parsed = parseAuthored(record.source, {
+        sourceType: 'module',
+        plugins: ['estree', 'jsx', 'typescript'],
+      }),
+      authored = Object.assign(parsed.program, { comments: parsed.comments })
+    const native = parseEmitted(record.code, {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      locations: true,
+    })
+    native.body[0].expression.body.body =
+      native.body[0].expression.body.body.filter(
+        (node: any) =>
+          node.type !== 'VariableDeclaration' ||
+          !record.nativeDeclarations.includes(node.declarations[0].id.name)
+      )
+    expect(record.bridgeRole.request).toBe('private-next-test-creator-scope')
+    expect(record.bridgeRole.imports[0].origin).toBe('generated')
+    const emitted = normalizeBrowserCreatorScopes(native, [record.creatorScope])
+      .ast as any
+    function collect(value: any): any[] {
+      if (!value || typeof value !== 'object') return []
+      if (Array.isArray(value)) return value.flatMap(collect)
+      return [
+        ...(value.type ? [value] : []),
+        ...Object.entries(value)
+          .filter(([key]) => !['loc', 'comments', 'tokens'].includes(key))
+          .flatMap(([, child]) => collect(child)),
+      ]
+    }
+    const options: Parameters<typeof associateBrowserJsxCalls>[0] = {
+      file: record.file,
+      code: record.code,
+      authored,
+      emitted,
+      sourceMap: structuredClone(record.map),
+      ...(record.runtime === 'automatic'
+        ? { automatic: [structuredClone(record.factory)] }
+        : { classic: [structuredClone(record.factory)] }),
+    }
+    const convertMap = async (sourceMap: unknown, count = 0) => {
+      const { convert } = require('next/dist/compiled/next-test-coverage')
+      return (
+        await convert({
+          code: record.code,
+          ast: structuredClone(emitted),
+          sourceMap,
+          coverage: {
+            url: 'file:///browser-children/creator-generated.js',
+            functions: [
+              {
+                isBlockCoverage: true,
+                ranges: [
+                  { startOffset: 0, endOffset: record.code.length, count },
+                ],
+              },
+            ],
+          },
+        })
+      )[record.file]
+    }
+    return {
+      record,
+      options,
+      authored,
+      emitted,
+      collect,
+      convertMap,
+      apply: () => associateBrowserJsxCalls(options),
+    }
+  }
+  it.each(
+    profiles.flatMap((profile: any) =>
+      [0, 3].map((count) => [profile.name, count, profile])
+    )
+  )(
+    'associates actual creator component %s while retaining every counter at count=%s',
+    async (_name, count, record) => {
+      const f = await fixture(record),
+        before = JSON.stringify(f.options)
+      expect(coverageHash(record.source)).toBe(record.sourceSHA)
+      const result = f.apply()!
+      expect(result).toBeDefined()
+      expect(JSON.stringify(f.options)).toBe(before)
+      const original = await f.convertMap(f.options.sourceMap, count),
+        actual = await f.convertMap(result.sourceMap, count)
+      expect([actual.s, actual.f, actual.b]).toEqual([
+        original.s,
+        original.f,
+        original.b,
+      ])
+      expect(JSON.parse(JSON.stringify(actual.branchMap))).toEqual(
+        record.expected.branchMap
+      )
+    }
+  )
+  function changeMap(f: any, at: any) {
+    const { SourceMapGenerator } = require('next/dist/compiled/source-map'),
+      map = new SourceMapGenerator(),
+      decoded = decodeCoverageMap(f.options.sourceMap)
+    for (const item of decoded.mappings) {
+      const generated = {
+        line: item.generatedLine,
+        column: item.generatedColumn,
+      }
+      if (item.source === null) map.addMapping({ generated })
+      else
+        map.addMapping({
+          generated,
+          source: item.source,
+          original: {
+            line: item.originalLine,
+            column:
+              item.originalColumn +
+              (generated.line === at.line && generated.column === at.column
+                ? 1
+                : 0),
+          },
+          ...((item as any).name ? { name: (item as any).name } : {}),
+        })
+    }
+    for (const [file, content] of decoded.sources)
+      if (content !== null) map.setSourceContent(file, content)
+    f.options.sourceMap = JSON.parse(map.toString())
+  }
+  const faults = [
+    'missing declaration',
+    'duplicate declaration',
+    'foreign outer name',
+    'foreign inner name',
+    'foreign outer map',
+    'foreign inner map',
+    'foreign value start',
+    'different declaration kind',
+    'foreign method name',
+    'foreign method map',
+    'foreign method body',
+    'computed method',
+    'getter method',
+    'static method mismatch',
+    'foreign class member',
+  ]
+  it.each(faults)(
+    'does not derive a component branch from %s',
+    async (kind) => {
+      const f = await fixture(
+          profiles.find(
+            (row: any) => row.name === 'creator-classic-classexpression.tsx'
+          )
+        ),
+        body = f.emitted.body[0].expression.body.body
+      const declaration = body.find(
+          (node: any) =>
+            node.type === 'VariableDeclaration' &&
+            node.declarations[0].id.name === 'Badge'
+        ),
+        binding = declaration.declarations[0],
+        value = binding.init,
+        method = value.body.body[0]
+      if (kind === 'missing declaration')
+        body.splice(body.indexOf(declaration), 1)
+      if (kind === 'duplicate declaration')
+        body.push(structuredClone(declaration))
+      if (kind === 'foreign outer name') binding.id.name = 'Foreign'
+      if (kind === 'foreign inner name') value.id.name = 'ForeignInner'
+      if (kind === 'foreign outer map') changeMap(f, binding.id.loc.start)
+      if (kind === 'foreign inner map') changeMap(f, value.id.loc.start)
+      if (kind === 'foreign value start') changeMap(f, value.loc.start)
+      if (kind === 'different declaration kind')
+        value.type = 'FunctionExpression'
+      if (kind === 'foreign method name') method.key.name = 'foreign'
+      if (kind === 'foreign method map') changeMap(f, method.key.loc.start)
+      if (kind === 'foreign method body')
+        changeMap(f, method.value.body.loc.start)
+      if (kind === 'computed method') method.computed = true
+      if (kind === 'getter method') method.kind = 'get'
+      if (kind === 'static method mismatch') method.static = !method.static
+      if (kind === 'foreign class member')
+        value.body.body.push({ type: 'StaticBlock', body: [] })
+      const before = JSON.stringify(f.options),
+        result = f.apply()
+      expect(JSON.stringify(f.options)).toBe(before)
+      const actual = await f.convertMap(
+        result?.sourceMap ?? f.options.sourceMap
+      )
+      expect(JSON.parse(JSON.stringify(actual.branchMap))).not.toEqual(
+        f.record.expected.branchMap
+      )
+    }
+  )
+  it.each(['foreign inner name', 'foreign keyword map', 'async', 'generator'])(
+    'refuses an unowned function expression component: %s',
+    async (kind) => {
+      const f = await fixture(
+          profiles.find(
+            (row: any) => row.name === 'creator-classic-expression.tsx'
+          )
+        ),
+        body = f.emitted.body[0].expression.body.body,
+        value = body.find(
+          (node: any) =>
+            node.type === 'VariableDeclaration' &&
+            node.declarations[0].id.name === 'Badge'
+        ).declarations[0].init
+      if (kind === 'foreign inner name') value.id.name = 'Foreign'
+      if (kind === 'foreign keyword map') changeMap(f, value.loc.start)
+      if (kind === 'async') value.async = true
+      if (kind === 'generator') value.generator = true
+      const before = JSON.stringify(f.options),
+        result = f.apply()
+      expect(JSON.stringify(f.options)).toBe(before)
+      const actual = await f.convertMap(
+        result?.sourceMap ?? f.options.sourceMap
+      )
+      expect(JSON.parse(JSON.stringify(actual.branchMap))).not.toEqual(
+        f.record.expected.branchMap
+      )
+    }
+  )
+  it.each([
+    'foreign leaf property',
+    'foreign leaf map',
+    'foreign inner property',
+    'foreign inner map',
+    'foreign this map',
+    'foreign member endpoint',
+    'foreign authored endpoint',
+    'foreign base kind',
+    'optional member',
+    'computed member',
+    'call expression',
+  ])('refuses an unowned named JSX static child: %s', async (kind) => {
+    const f = await fixture(
+      profiles.find(
+        (row: any) => row.name === 'creator-named-classexpression.tsx'
+      )
+    )
+    const leaf = f
+        .collect(f.emitted)
+        .find(
+          (node: any) =>
+            node.type === 'MemberExpression' &&
+            !node.computed &&
+            node.property?.name === 'label'
+        ),
+      inner = leaf.object,
+      base = inner.object
+    expect(base.type).toBe('ThisExpression')
+    if (kind === 'foreign leaf property') leaf.property.name = 'foreign'
+    if (kind === 'foreign leaf map') changeMap(f, leaf.property.loc.start)
+    if (kind === 'foreign inner property') inner.property.name = 'foreign'
+    if (kind === 'foreign inner map') changeMap(f, inner.property.loc.start)
+    if (kind === 'foreign this map') changeMap(f, base.loc.start)
+    if (kind === 'foreign member endpoint') changeMap(f, leaf.loc.end)
+    if (kind === 'foreign authored endpoint') {
+      const original = f
+        .collect(f.authored)
+        .find(
+          (node: any) =>
+            node.type === 'MemberExpression' && node.property?.name === 'label'
+        )
+      original.loc.end.column++
+    }
+    if (kind === 'foreign base kind')
+      Object.assign(base, { type: 'Identifier', name: 'foreign' })
+    if (kind === 'optional member') inner.optional = true
+    if (kind === 'computed member') inner.computed = true
+    if (kind === 'call expression')
+      Object.assign(inner, {
+        type: 'CallExpression',
+        callee: base,
+        arguments: [],
+      })
+    const before = JSON.stringify(f.options)
+    expect(() => f.apply()).toThrow(
+      'Standard coverage Browser JSX call association is ambiguous or absent'
+    )
+    expect(JSON.stringify(f.options)).toBe(before)
+  })
+})
+
+describe('configured development Browser coverage profile boundaries', () => {
+  const project = {
+    profile: {
+      id: 'browser',
+      mode: 'development',
+      environment: 'browser',
+      runtime: 'nodejs',
+      bundler: 'turbopack',
+      browserClient: true,
+    },
+    entries: [],
+    setupFiles: [],
+    include: [],
+    exclude: [],
+  } as any
+  it('admits only the isolated development Chromium client shape', async () => {
+    const { isDevelopmentBrowserCoverageProject } = await import(
+      'next/dist/experimental/testing/coverage/production-browser'
+    )
+    expect(isDevelopmentBrowserCoverageProject(project)).toBe(true)
+    expect(
+      isDevelopmentBrowserCoverageProject({
+        ...project,
+        browserEngine: 'chromium',
+      })
+    ).toBe(true)
+  })
+  it.each([
+    { browserEngine: 'firefox' },
+    { browserEngine: 'webkit' },
+    { isolate: false },
+    { setupFiles: ['setup.mjs'] },
+    { browserFixtures: [{}] },
+    { typecheck: { enabled: true } },
+    { executionEnvironment: {} },
+    { entries: [{ executionEnvironment: {} }] },
+    { profile: { ...project.profile, route: '/' } },
+    { profile: { ...project.profile, mode: 'production' } },
+    { profile: { ...project.profile, runtime: 'edge' } },
+    { profile: { ...project.profile, bundler: 'webpack' } },
+    { profile: { ...project.profile, browserClient: false } },
+    { profile: { ...project.profile, environment: 'node' } },
+  ])('keeps the unqualified development profile closed: %j', async (patch) => {
+    const { isDevelopmentBrowserCoverageProject } = await import(
+      'next/dist/experimental/testing/coverage/production-browser'
+    )
+    expect(isDevelopmentBrowserCoverageProject({ ...project, ...patch })).toBe(
+      false
+    )
+  })
+})
+
+describe('configured coverage threshold 100 shorthand', () => {
+  it('matches complete genuine shorthand CLI reports and exits in both modes', async () => {
+    const { execFileSync } = await import('node:child_process')
+    const root = await mkdtemp(join(tmpdir(), 'next-threshold-100-proof-'))
+    try {
+      for (const mode of ['development', 'production']) {
+        const output = join(root, mode)
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'threshold-100-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            mode,
+          ],
+          { encoding: 'utf8', timeout: 180000 }
+        )
+        const profiles = mode === 'development' ? 12 : 8
+        expect(
+          JSON.parse(await readFile(join(output, 'RESULTS.json'), 'utf8'))
+        ).toMatchObject({
+          status: 'passed',
+          mode,
+          profiles,
+          cases: profiles,
+          completeReports: profiles,
+          fullFileModels: profiles * 2,
+        })
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 370000)
+
+  it('retains shorthand until ordinary overrides merge, and replaces configured groups only for explicit CLI 100', async () => {
+    const {
+      parseProjectStandardCoverage,
+      parseStandardCoverageOptions,
+      resolveProjectStandardCoverage,
+    } = await import('next/dist/experimental/testing/coverage/options')
+    const configured = parseProjectStandardCoverage({
+      enabled: true,
+      thresholds: {
+        100: true,
+        lines: 0,
+        '*.mjs': { 100: true, perFile: true },
+      },
+    })!
+    const before = structuredClone(configured)
+    const flags = { 'coverage.thresholds.lines': '0' }
+    expect(
+      resolveProjectStandardCoverage(
+        [{ standardCoverage: configured }],
+        flags,
+        parseStandardCoverageOptions(flags)
+      ).options
+    ).toMatchObject({
+      thresholds: { 100: true, lines: 0 },
+      thresholdGroups: [
+        { pattern: '*.mjs', thresholds: { 100: true, perFile: true } },
+      ],
+    })
+    const explicit = {
+      'coverage.thresholds.100': 'false',
+      'coverage.thresholds.lines': '0',
+    }
+    const resolved = resolveProjectStandardCoverage(
+      [{ standardCoverage: configured }],
+      explicit,
+      parseStandardCoverageOptions(explicit)
+    ).options!
+    expect(resolved.thresholds).toEqual({ 100: false, lines: 0 })
+    expect(resolved.thresholdGroups).toBeUndefined()
+    expect(configured).toEqual(before)
+  })
+
+  it.each([true, false, 'true', 'false'])(
+    'parses the explicit CLI shorthand %p',
+    async (value) => {
+      const { parseStandardCoverageOptions } = await import(
+        'next/dist/experimental/testing/coverage/options'
+      )
+      expect(
+        parseStandardCoverageOptions({ 'coverage.thresholds.100': value })!
+          .thresholds
+      ).toEqual({ 100: value === true || value === 'true' })
+    }
+  )
+  it.each([0, 1, 'sometimes', {}, []])(
+    'rejects invalid shorthand booleans %p',
+    async (value) => {
+      const { parseProjectStandardCoverage, parseStandardCoverageOptions } =
+        await import('next/dist/experimental/testing/coverage/options')
+      expect(() =>
+        parseStandardCoverageOptions({ 'coverage.thresholds.100': value })
+      ).toThrow('must be true or false')
+      expect(() =>
+        parseProjectStandardCoverage({
+          enabled: true,
+          thresholds: { 100: value },
+        })
+      ).toThrow('must be true or false')
+      expect(() =>
+        parseProjectStandardCoverage({
+          enabled: true,
+          thresholds: { '*.mjs': { 100: value } },
+        })
+      ).toThrow('must be true or false')
+    }
+  )
+})
+
+describe('configured coverage threshold glob groups', () => {
+  it('matches complete genuine development and production CLI reports, cases and threshold exits', async () => {
+    const { execFileSync } = await import('node:child_process')
+    const root = await mkdtemp(join(tmpdir(), 'next-threshold-glob-cli-proof-'))
+    try {
+      for (const mode of ['development', 'production']) {
+        const output = join(root, mode)
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'threshold-glob-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            mode,
+          ],
+          { encoding: 'utf8', timeout: 180000 }
+        )
+        const result = JSON.parse(
+          await readFile(join(output, 'RESULTS.json'), 'utf8')
+        )
+        expect(result).toMatchObject({
+          status: 'passed',
+          mode,
+          profiles: 12,
+          cases: 12,
+          completeReports: 12,
+          fullFileModels: 24,
+        })
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 370000)
+
+  const pristine = require('./fixtures/threshold-globs/pristine.json') as {
+    sourceFiles: Record<string, { source: string; sha256: string }>
+    coverage: Record<string, Pick<StandardCoverageData, 's' | 'f' | 'b'>>
+    rows: {
+      name: string
+      thresholds: Record<string, unknown>
+      thresholdErrors: string[]
+    }[]
+  }
+
+  it.each(pristine.rows)(
+    'matches genuine threshold groups without changing complete file reports: $name',
+    async ({ thresholds, thresholdErrors }) => {
+      const { parseProjectStandardCoverage } = await import(
+        'next/dist/experimental/testing/coverage/options'
+      )
+      const { createUncoveredJavaScript } = await import(
+        'next/dist/experimental/testing/coverage/istanbul'
+      )
+      const { publishStandardCoverage } = await import(
+        'next/dist/experimental/testing/coverage/report-standard'
+      )
+      const f = await standardReportFixture()
+      try {
+        const files = []
+        for (const [name, reference] of Object.entries(pristine.coverage)) {
+          const source = pristine.sourceFiles[name]
+          const file = join(f.root, name)
+          expect(coverageHash(source.source)).toBe(source.sha256)
+          await writeFile(file, source.source)
+          const data = await createUncoveredJavaScript(file, source.source)
+          // Publisher-only inputs use saved genuine counters. Public CLI
+          // execution independently verifies their compiler/runtime origin.
+          data.s = structuredClone(reference.s)
+          data.f = structuredClone(reference.f)
+          data.b = structuredClone(reference.b)
+          expect(JSON.parse(JSON.stringify({ ...data, path: name }))).toEqual(
+            reference
+          )
+          files.push({ file, sha256: source.sha256, data })
+        }
+        const config = parseProjectStandardCoverage({
+          provider: 'v8',
+          enabled: true,
+          include: ['subject.mjs', 'unimported.mjs'],
+          reporter: ['json', 'json-summary', 'lcovonly'],
+          reportsDirectory: 'glob-reports',
+          thresholds,
+        })!.options
+        const result = await publishStandardCoverage({
+          projectDir: f.root,
+          facts: [{ ...f.facts[0], files }],
+          expected: f.expected,
+          excludedFiles: [],
+          config,
+          status: 'passed',
+          includeUnimported: false,
+        })
+        expect(result.published).toBe(true)
+        expect(result.thresholdErrors).toEqual(thresholdErrors)
+        const report = JSON.parse(
+          await readFile(
+            join(f.root, 'glob-reports/coverage-final.json'),
+            'utf8'
+          )
+        )
+        expect(
+          Object.fromEntries(
+            Object.entries(report).map(([file, data]) => [
+              file.slice(f.root.length + 1),
+              { ...(data as object), path: file.slice(f.root.length + 1) },
+            ])
+          )
+        ).toEqual(pristine.coverage)
+      } finally {
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('keeps independent ordered patterns through explicit global CLI overrides', async () => {
+    const {
+      parseProjectStandardCoverage,
+      parseStandardCoverageOptions,
+      resolveProjectStandardCoverage,
+    } = await import('next/dist/experimental/testing/coverage/options')
+    const configured = parseProjectStandardCoverage({
+      enabled: true,
+      thresholds: {
+        lines: 100,
+        perFile: true,
+        'subject.mjs': { lines: 50 },
+        '*.mjs': { functions: -1, perFile: false },
+      },
+    })!
+    const before = structuredClone(configured)
+    const flags = {
+      'coverage.thresholds.lines': '0',
+      'coverage.thresholds.perFile': false,
+    }
+    const resolved = resolveProjectStandardCoverage(
+      [{ standardCoverage: configured }],
+      flags,
+      parseStandardCoverageOptions(flags)
+    )
+    expect(resolved.options!.thresholds).toEqual({ lines: 0, perFile: false })
+    expect(resolved.options!.thresholdGroups).toEqual([
+      { pattern: 'subject.mjs', thresholds: { lines: 50 } },
+      { pattern: '*.mjs', thresholds: { functions: -1, perFile: false } },
+    ])
+    expect(configured).toEqual(before)
+    expect(() =>
+      resolveProjectStandardCoverage(
+        [
+          { standardCoverage: configured },
+          {
+            standardCoverage: {
+              ...configured,
+              options: {
+                ...configured.options,
+                thresholdGroups: configured.options
+                  .thresholdGroups!.slice()
+                  .reverse(),
+              },
+            },
+          },
+        ],
+        {},
+        undefined
+      )
+    ).toThrow('must share the same V8 coverage configuration')
+  })
+
+  it.each([
+    { '*.mjs': 1 },
+    { '*.mjs': [] },
+    { '*.mjs': { lines: 101 } },
+    { '*.mjs': { functions: Infinity } },
+    { '*.mjs': { perFile: 'sometimes' } },
+    { '*.mjs': { nested: { lines: 100 } } },
+    { '*.mjs': { autoUpdate: true } },
+    { '*.mjs': { '100': 'sometimes' } },
+  ])(
+    'rejects invalid or unimplemented nested threshold settings: %p',
+    async (thresholds) => {
+      const { parseProjectStandardCoverage } = await import(
+        'next/dist/experimental/testing/coverage/options'
+      )
+      expect(() =>
+        parseProjectStandardCoverage({ enabled: true, thresholds })
+      ).toThrow()
+    }
+  )
+})
+
+it('maps native development JSX generated import owners to complete genuine models and case rows', async () => {
+  const { execFileSync } = require('node:child_process')
+  const { resolve } = await import('path')
+  const root = await mkdtemp(join(tmpdir(), 'next-development-jsx-models-'))
+  try {
+    for (const kind of ['tsx', 'jsx']) {
+      const output = join(root, kind)
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'development-browser-source-models.mjs'),
+          resolve(__dirname, '../../..'),
+          output,
+          kind,
+        ],
+        { encoding: 'utf8', timeout: 200000 }
+      )
+      const result = JSON.parse(
+        await readFile(join(output, 'RESULTS.json'), 'utf8')
+      )
+      expect(result.status).toBe(
+        'private whole declaration/runtime/published data equal'
+      )
+      expect(result.declarations).toBe(2)
+      expect(result.cases).toBe(kind === 'tsx' ? 2 : 1)
+      expect(result.nativeVersion).toBe(1)
+      expect(result.controls).toEqual(
+        kind === 'tsx'
+          ? [
+              'arity',
+              'namespace',
+              'fragment',
+              'duplicate-owner',
+              'source-owner',
+              'mode',
+              'filename',
+            ]
+          : ['arity', 'namespace', 'source-owner', 'mode', 'filename']
+      )
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+}, 420000)
+
+it('routes configured development Browser JSX coverage through the actual CLI', async () => {
+  const { execFileSync } = require('node:child_process')
+  const { resolve } = await import('path')
+  const project = resolve(__dirname, '../../..')
+  const root = await mkdtemp(join(tmpdir(), 'next-development-jsx-cli-'))
+  try {
+    for (const kind of ['tsx', 'jsx']) {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'browser-development-jsx-cli-reports.mjs'),
+          project,
+          project,
+          join(root, kind),
+          kind,
+          'development',
+          '--source',
+        ],
+        { encoding: 'utf8', timeout: 240000 }
+      )
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+}, 600000)
+
+describe('configured coverage threshold autoUpdate', () => {
+  const pristine = require('./fixtures/threshold-autoupdate/pristine.json')
+  const rows = [...pristine.rows, ...pristine.sharedCliRows] as any[]
+  const global = rows.find((row) => row.name === 'global')
+  const metrics = ['lines', 'functions', 'statements', 'branches']
+  const candidates = rows.filter((row) =>
+    [
+      'global',
+      'unchanged',
+      'per-file-minimum',
+      'negative',
+      'negative-zero',
+      'overlapping-globs',
+      'empty-per-file',
+      'threshold-failure',
+      'cli-enable',
+      'cli-disable',
+      'cli-add-metric',
+      'cli-100',
+      'cli-100-then-update',
+      'cli-update-then-100',
+      'name-filter',
+      'file-filter',
+      'compact-insert',
+      'trailing-comma-insert',
+      'empty-object-insert',
+      'cli-auto-yes',
+      'cli-auto-no',
+      'cli-auto-maybe',
+      'cli-auto-0',
+      'cli-auto-empty',
+    ].includes(row.name)
+  )
+
+  it('matches complete genuine one-shot development CLI config edits and coverage reports', async () => {
+    const { execFileSync } = await import('node:child_process')
+    const output = await mkdtemp(
+      join(tmpdir(), 'next-coverage-autoupdate-cli-')
+    )
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'threshold-autoupdate-reports.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          'development',
+          '--source',
+          '--writer',
+        ],
+        { encoding: 'utf8', timeout: 600000 }
+      )
+      const result = JSON.parse(
+        await readFile(join(output, 'RESULTS.json'), 'utf8')
+      )
+      expect(result).toMatchObject({
+        status: 'passed',
+        mode: 'development',
+        profiles: 34,
+      })
+      expect(result.unqualifiedPrerequisites).toEqual([
+        pristine.originalNonSharedCliBoundary,
+      ])
+    } catch (error) {
+      const evidence = process.env.NEXT_TESTING_AUTOUPDATE_EVIDENCE
+      if (evidence) {
+        try {
+          const { cp } = await import('fs/promises')
+          await cp(output, join(evidence, 'maintained-cli-failure'), {
+            recursive: true,
+          })
+        } catch {}
+      }
+      throw error
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 610000)
+
+  it.each(candidates)(
+    'derives improvements from the complete genuine file model: $name',
+    async (row) => {
+      const {
+        parseProjectStandardCoverage,
+        parseStandardCoverageOptions,
+        resolveProjectStandardCoverage,
+      } = await import('next/dist/experimental/testing/coverage/options')
+      const { createUncoveredJavaScript } = await import(
+        'next/dist/experimental/testing/coverage/istanbul'
+      )
+      const { publishStandardCoverage } = await import(
+        'next/dist/experimental/testing/coverage/report-standard'
+      )
+      const f = await standardReportFixture()
+      try {
+        const files = []
+        for (const [name, reference] of Object.entries(row.coverage) as [
+          string,
+          any,
+        ][]) {
+          const source = pristine.sourceFiles[name]
+          const file = join(f.root, name)
+          expect(coverageHash(source.source)).toBe(source.sha256)
+          await writeFile(file, source.source)
+          const data = await createUncoveredJavaScript(file, source.source)
+          // Complete saved provider counters are publisher-only inputs. The
+          // real CLI qualification separately proves their execution origin.
+          for (const field of ['s', 'f', 'b'] as const)
+            data[field] = structuredClone(reference[field])
+          expect(JSON.parse(JSON.stringify({ ...data, path: name }))).toEqual(
+            reference
+          )
+          files.push({ file, sha256: source.sha256, data })
+        }
+        const configured = parseProjectStandardCoverage({
+          enabled: true,
+          provider: 'v8',
+          reporter: ['json', 'json-summary', 'lcovonly'],
+          include: Object.keys(row.coverage),
+          thresholds: row.profile.thresholds,
+        })!
+        const flags = Object.fromEntries(
+          (row.profile.flags ?? [])
+            .filter((flag: string) => flag.startsWith('--coverage.'))
+            .map((flag: string) => {
+              const [key, value] = flag.slice(2).split('=')
+              return [key, value]
+            })
+        )
+        const config = resolveProjectStandardCoverage(
+          [{ standardCoverage: configured }],
+          flags,
+          parseStandardCoverageOptions(flags)
+        ).options!
+        const result = await publishStandardCoverage({
+          projectDir: f.root,
+          facts: [{ ...f.facts[0], files }],
+          expected: f.expected,
+          excludedFiles: [],
+          config,
+          status: 'passed',
+          includeUnimported: false,
+        })
+        expect(result.published).toBe(true)
+        expect(result.thresholdUpdates ?? []).toEqual(row.measuredUpdates)
+        const actual = JSON.parse(
+          await readFile(join(f.root, 'coverage/coverage-final.json'), 'utf8')
+        )
+        expect(
+          Object.fromEntries(
+            Object.entries(actual).map(([file, data]: [string, any]) => [
+              basename(file),
+              { ...data, path: basename(file) },
+            ])
+          )
+        ).toEqual(row.coverage)
+      } finally {
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it.each(
+    rows.filter(
+      (row) => row.configChanged && row.name !== 'body-failure-report-enabled'
+    )
+  )('matches the entire genuine configuration edit: $name', async (row) => {
+    const { updateCoverageThresholds } = await import(
+      'next/dist/experimental/testing/coverage/threshold-update'
+    )
+    const directory = await mkdtemp(
+      join(tmpdir(), 'next-coverage-threshold-update-')
+    )
+    const file = join(directory, 'vitest.config.mjs')
+    try {
+      await writeFile(file, row.before)
+      expect(
+        await updateCoverageThresholds({
+          configFile: file,
+          updates: row.measuredUpdates,
+        })
+      ).toBe(true)
+      expect(await readFile(file, 'utf8')).toBe(row.after)
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('reads actual edits made after config evaluation and retains their comments', async () => {
+    const { updateCoverageThresholds } = await import(
+      'next/dist/experimental/testing/coverage/threshold-update'
+    )
+    const row = pristine.currentEditRows.find(
+      (row: any) => row.name === 'disk-edit-numeric'
+    )
+    const directory = await mkdtemp(
+      join(tmpdir(), 'next-coverage-current-threshold-')
+    )
+    const file = join(directory, 'vitest.config.mjs')
+    try {
+      const current =
+        row.before.replace('"lines": 0', '"lines": 90') +
+        '\n// actual on-disk user edit retained\n'
+      await writeFile(file, current)
+      expect(
+        await updateCoverageThresholds({
+          configFile: file,
+          updates: global.measuredUpdates,
+        })
+      ).toBe(true)
+      expect(await readFile(file, 'utf8')).toBe(row.after)
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  it.each(['complex-config', 'missing-threshold-object', 'missing-config'])(
+    'keeps the genuine config writer failure separate from published reports: %s',
+    async (name) => {
+      const { updateCoverageThresholds } = await import(
+        'next/dist/experimental/testing/coverage/threshold-update'
+      )
+      const row = rows.find((row) => row.name === name)
+      const directory = await mkdtemp(
+        join(tmpdir(), 'next-coverage-config-shape-')
+      )
+      const file = join(directory, 'vitest.config.mjs')
+      try {
+        if (row.before !== null) await writeFile(file, row.before)
+        const message = row.diagnostics.match(/Error: ([^\n]+)/)?.[1]
+        expect(message).toBeDefined()
+        await expect(
+          updateCoverageThresholds({
+            configFile: row.before === null ? undefined : file,
+            updates: global.measuredUpdates,
+          })
+        ).rejects.toThrow(message)
+        if (row.before !== null)
+          expect(await readFile(file, 'utf8')).toBe(row.before)
+      } finally {
+        await rm(directory, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('preserves JSON config syntax and skips a cancelled writer without touching its current source', async () => {
+    const { updateCoverageThresholds } = await import(
+      'next/dist/experimental/testing/coverage/threshold-update'
+    )
+    const directory = await mkdtemp(
+      join(tmpdir(), 'next-coverage-json-threshold-')
+    )
+    const file = join(directory, 'next.test.config.json')
+    try {
+      const before =
+        JSON.stringify(
+          {
+            test: { coverage: { thresholds: { autoUpdate: true, lines: 0 } } },
+          },
+          null,
+          2
+        ) + '\n'
+      await writeFile(file, before)
+      const controller = new AbortController()
+      controller.abort(new Error('actual writer cancellation'))
+      await expect(
+        updateCoverageThresholds({
+          configFile: file,
+          updates: global.measuredUpdates,
+          signal: controller.signal,
+        })
+      ).rejects.toBe(controller.signal.reason)
+      expect(await readFile(file, 'utf8')).toBe(before)
+      expect(
+        await updateCoverageThresholds({
+          configFile: file,
+          updates: global.measuredUpdates,
+        })
+      ).toBe(true)
+      const updated = JSON.parse(await readFile(file, 'utf8')).test.coverage
+        .thresholds
+      expect(updated.autoUpdate).toBe(true)
+      for (const update of global.measuredUpdates)
+        expect(updated[update.metric]).toBe(update.value)
+      expect(Object.keys(updated).sort()).toEqual(
+        ['autoUpdate', ...metrics].sort()
+      )
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('explicit V8 provider and formatter CLI routes', () => {
+  it('keeps legacy standard flags intact while explicit provider selects existing configured formatters', async () => {
+    const { parseStandardCoverageOptions } = await import(
+      'next/dist/experimental/testing/coverage/options'
+    )
+    expect(parseStandardCoverageOptions({ coverage: true })).toBeUndefined()
+    expect(
+      parseStandardCoverageOptions({ 'coverage.reporter': ['json'] })
+    ).not.toHaveProperty('formatterReports')
+    expect(
+      parseStandardCoverageOptions({ 'coverage.provider': 'v8' })
+    ).toMatchObject({
+      formatterReports: true,
+      clean: true,
+      reporter: expect.arrayContaining(['text', 'html', 'clover', 'json']),
+    })
+    const flags = { 'coverage.reporter': ['text', 'json', 'text'] }
+    const before = structuredClone(flags)
+    expect(parseStandardCoverageOptions(flags)).toMatchObject({
+      formatterReports: true,
+      reporter: expect.arrayContaining(['text', 'json']),
+    })
+    expect(flags).toEqual(before)
+    expect(() =>
+      parseStandardCoverageOptions({ 'coverage.provider': 'istanbul' })
+    ).toThrow('only the V8 provider')
+  })
+
+  it('matches actual pristine V8 provider/text/default/HTML/Clover CLI reports and disabled omission', async () => {
+    const { execFileSync } = await import('node:child_process')
+    const output = await mkdtemp(join(tmpdir(), 'next-provider-text-cli-'))
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'provider-text-cli-reports.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          '--source',
+        ],
+        { encoding: 'utf8', timeout: 240000 }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'RESULTS.json'), 'utf8'))
+      ).toMatchObject({ status: 'passed', profiles: 8 })
+    } catch (error) {
+      if (process.env.NEXT_TESTING_PROVIDER_EVIDENCE) {
+        try {
+          const { cp } = await import('fs/promises')
+          await cp(
+            output,
+            join(
+              process.env.NEXT_TESTING_PROVIDER_EVIDENCE,
+              'maintained-failure'
+            ),
+            { recursive: true }
+          )
+        } catch {}
+      }
+      throw error
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 250000)
+})
+
+it.each(['next.test.config.mjs', 'vitest.config.mjs', 'vite.config.mjs'])(
+  'separates test configuration edits from actual compiler inputs: %s',
+  async (name) => {
+    const {
+      createCoverageSourcePlan,
+      assertCoverageSourcePlan,
+      assertCompilerSourceCoverage,
+    } = await import(
+      'next/dist/experimental/testing/coverage/source-analysis-plan'
+    )
+    const { createRuntimeConfigurationPlan, assertRuntimeConfigurationPlan } =
+      await import(
+        'next/dist/experimental/testing/coverage/runtime-configuration'
+      )
+    const source = await compilerSourcePlanFixture()
+    const runtime = await runtimeConfigurationFixture()
+    try {
+      const sourceFile = join(source.root, name)
+      const runtimeFile = join(runtime.root, name)
+      await writeFile(
+        sourceFile,
+        'export default {test:{coverage:{thresholds:{lines:0}}}}'
+      )
+      await writeFile(
+        runtimeFile,
+        'export default {test:{coverage:{thresholds:{lines:0}}}}'
+      )
+      const sourceOptions = {
+        projectDir: source.root,
+        projects: source.projects,
+        config: source.config,
+        signal: source.signal,
+      }
+      const runtimeOptions = {
+        projectDir: runtime.root,
+        projects: [
+          {
+            profile,
+            entries: [
+              {
+                id: runtime.artifact.entryId,
+                file: runtime.entry.file,
+                profile,
+              },
+            ],
+          },
+        ],
+        signal: source.signal,
+      }
+      const sourcePlan = await createCoverageSourcePlan(sourceOptions)
+      const runtimePlan = await createRuntimeConfigurationPlan(runtimeOptions)
+      const compilerSourcePlan = await createCoverageSourcePlan({
+        ...sourceOptions,
+        inputs: [sourceFile],
+      })
+      const compilerRuntimePlan = await createRuntimeConfigurationPlan({
+        ...runtimeOptions,
+        inputs: [runtimeFile],
+      })
+      expect(sourcePlan.inputs.map((input) => input.file)).not.toContain(
+        sourceFile
+      )
+      expect(runtimePlan.inputs.map((input) => input.file)).not.toContain(
+        runtimeFile
+      )
+      await writeFile(
+        sourceFile,
+        '// authored edit\nexport default {test:{coverage:{thresholds:{lines:90}}}}'
+      )
+      await writeFile(
+        runtimeFile,
+        '// authored edit\nexport default {test:{coverage:{thresholds:{lines:90}}}}'
+      )
+      await expect(
+        assertCoverageSourcePlan(sourcePlan, source.signal)
+      ).resolves.toBeUndefined()
+      await expect(
+        assertRuntimeConfigurationPlan(runtimePlan, source.signal)
+      ).resolves.toBeUndefined()
+      await expect(
+        assertCompilerSourceCoverage(source.facts, source.plan, source.signal)
+      ).resolves.toHaveLength(1)
+      await expect(
+        assertCoverageSourcePlan(compilerSourcePlan, source.signal)
+      ).rejects.toThrow('inputs changed after selection')
+      await expect(
+        assertRuntimeConfigurationPlan(compilerRuntimePlan, source.signal)
+      ).rejects.toThrow('inputs changed after selection')
+      await writeFile(
+        join(source.root, 'next.config.mjs'),
+        'export default {trailingSlash:true}'
+      )
+      await writeFile(
+        join(runtime.root, 'next.config.mjs'),
+        'export default {trailingSlash:true}'
+      )
+      await expect(
+        assertCoverageSourcePlan(sourcePlan, source.signal)
+      ).rejects.toThrow('inputs changed after selection')
+      await expect(
+        assertRuntimeConfigurationPlan(runtimePlan, source.signal)
+      ).rejects.toThrow('inputs changed after selection')
+    } finally {
+      await rm(source.root, { recursive: true, force: true })
+      await rm(runtime.root, { recursive: true, force: true })
+    }
+  }
+)
+
+describe('retained coverage threshold formatter closures', () => {
+  it('retains the actual closure and normalizes only its IPC flag without mutating the authored value', async () => {
+    const { retainCoverageThresholdFormatter, formatCoverageThresholdUpdates } =
+      await import('next/dist/experimental/testing/coverage/threshold-format')
+    let calls = 0
+    const receivers: unknown[] = []
+    const formatter = function (
+      this: unknown,
+      value: number,
+      previous: number
+    ) {
+      receivers.push(this)
+      calls++
+      return Math.floor(value) - previous - calls / 10
+    }
+    const config = {
+      test: { coverage: { thresholds: { autoUpdate: formatter, lines: 0 } } },
+    }
+    const retained = retainCoverageThresholdFormatter(config)
+    expect(config.test.coverage.thresholds.autoUpdate).toBe(formatter)
+    expect(retained.value).toEqual({
+      test: { coverage: { thresholds: { autoUpdate: true, lines: 0 } } },
+    })
+    expect(structuredClone(retained.value)).toEqual(retained.value)
+    const updates = [
+      { metric: 'lines' as const, value: 28.57, previous: 0 },
+      {
+        pattern: 'subject.mjs',
+        metric: 'functions' as const,
+        value: -3,
+        previous: -20,
+      },
+    ]
+    expect(formatCoverageThresholdUpdates(retained.formatter, updates)).toEqual(
+      [
+        { ...updates[0], value: 27.9 },
+        { ...updates[1], value: 16.8 },
+      ]
+    )
+    expect(updates[0].value).toBe(28.57)
+    expect(receivers).toEqual([undefined, undefined])
+    const ordinary = {
+      test: { coverage: { thresholds: { autoUpdate: true } } },
+    }
+    expect(retainCoverageThresholdFormatter(ordinary)).toEqual({
+      value: ordinary,
+    })
+    expect(retainCoverageThresholdFormatter(ordinary).value).toBe(ordinary)
+  })
+
+  it('selects one effective inline owner and keeps multiple/external formatter ownership explicit', async () => {
+    const { retainCoverageThresholdFormatter, formatCoverageThresholdUpdates } =
+      await import('next/dist/experimental/testing/coverage/threshold-format')
+    const first = () => 1
+    const second = () => 2
+    const coverage = (autoUpdate: boolean | (() => number)) => ({
+      thresholds: { autoUpdate },
+    })
+    expect(
+      retainCoverageThresholdFormatter({
+        projects: [{ coverage: coverage(first) }],
+      }).formatter
+    ).toBe(first)
+    expect(
+      retainCoverageThresholdFormatter({
+        test: {
+          coverage: coverage(first),
+          projects: [{ test: { coverage: coverage(second) } }],
+        },
+      }).formatter
+    ).toBe(second)
+    expect(
+      retainCoverageThresholdFormatter({
+        test: {
+          coverage: coverage(first),
+          projects: [{ coverage: coverage(false) }],
+        },
+      }).formatter
+    ).toBeUndefined()
+    expect(() =>
+      retainCoverageThresholdFormatter({
+        test: {
+          projects: [
+            { coverage: coverage(first) },
+            { coverage: coverage(second) },
+          ],
+        },
+      })
+    ).toThrow('one inline project')
+    expect(() =>
+      retainCoverageThresholdFormatter({
+        test: { coverage: coverage(first), projects: ['./vitest.project.mjs'] },
+      })
+    ).toThrow('one inline project')
+    expect(() =>
+      retainCoverageThresholdFormatter(
+        { test: { coverage: coverage(first) } },
+        true
+      )
+    ).toThrow('one inline project')
+    expect(() => formatCoverageThresholdUpdates(undefined, [])).toThrow(
+      'No coverage threshold formatter belongs'
+    )
+  })
+
+  it('uses the real child closure across requests and closes it after formatter errors and global teardown', async () => {
+    const { openTestConfigModule } = await import(
+      'next/dist/experimental/testing/config-modules'
+    )
+    const root = await mkdtemp(
+      join(tmpdir(), 'next-threshold-formatter-realm-')
+    )
+    const trace = join(root, 'trace.jsonl')
+    const config = join(root, 'vitest.config.mjs')
+    const source = `import { appendFileSync } from 'node:fs'\nlet calls = 0\nexport default { test: { coverage: { thresholds: { autoUpdate: function(value, previous) { calls++; appendFileSync(${JSON.stringify(trace)}, JSON.stringify({ kind: 'format', calls, value, previous, receiver: this === undefined }) + '\\n'); if (calls === 2) throw new Error('actual retained formatter error'); return value - 0.25 } } } } }\n`
+    await writeFile(config, source)
+    const setup = join(root, 'setup.mjs')
+    await writeFile(
+      setup,
+      `import { appendFileSync } from 'node:fs'\nconst emit = kind => appendFileSync(${JSON.stringify(trace)}, JSON.stringify({kind})+'\\n')\nexport default function() { emit('setup'); return () => emit('teardown') }\n`
+    )
+    let realm: Awaited<ReturnType<typeof openTestConfigModule>> | undefined
+    try {
+      realm = await openTestConfigModule(config, root)
+      expect(realm.value).toEqual({
+        test: { coverage: { thresholds: { autoUpdate: true } } },
+      })
+      await realm.setup([
+        { name: 'control', globalSetup: [setup], provide: {} },
+      ])
+      expect(
+        await realm.formatCoverageThresholdUpdates!([
+          { metric: 'lines', previous: 0, value: 28.57 },
+        ])
+      ).toEqual([{ metric: 'lines', previous: 0, value: 28.32 }])
+      await expect(
+        realm.formatCoverageThresholdUpdates!([
+          { metric: 'functions', previous: -20, value: -3 },
+        ])
+      ).rejects.toThrow('actual retained formatter error')
+      await realm.dispose()
+      await expect(realm.formatCoverageThresholdUpdates!([])).rejects.toThrow(
+        'session is unavailable'
+      )
+      expect(
+        (await readFile(trace, 'utf8'))
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line))
+      ).toEqual([
+        { kind: 'setup' },
+        { kind: 'format', calls: 1, value: 28.57, previous: 0, receiver: true },
+        { kind: 'format', calls: 2, value: -3, previous: -20, receiver: true },
+        { kind: 'teardown' },
+      ])
+      expect(await readFile(config, 'utf8')).toBe(source)
+    } finally {
+      await realm?.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('preserves actual formatter and nested teardown errors and causes across the existing config IPC', async () => {
+    const { openTestConfigModule } = await import(
+      'next/dist/experimental/testing/config-modules'
+    )
+    const root = await mkdtemp(join(tmpdir(), 'next-threshold-error-tree-'))
+    const trace = join(root, 'trace.json')
+    const config = join(root, 'vitest.config.mjs')
+    await writeFile(
+      config,
+      `export const cause = new Error('actual formatter cause')\nexport const leaf = new TypeError('actual formatter leaf', {cause})\nexport const noStack = new Error('actual error without stack')\ndelete noStack.stack\nexport const originalStack = leaf.stack\nexport const originalKeys = Object.getOwnPropertyNames(leaf)\nexport default {test:{coverage:{thresholds:{autoUpdate:()=>{throw leaf}}}}}\n`
+    )
+    const setup = join(root, 'setup.mjs')
+    await writeFile(
+      setup,
+      `import {writeFileSync} from 'node:fs'\nimport {leaf,noStack,cause,originalStack,originalKeys} from './vitest.config.mjs'\nexport default function() { return () => {writeFileSync(${JSON.stringify(trace)}, JSON.stringify({sameCause:leaf.cause===cause,stackUnchanged:leaf.stack===originalStack,keysUnchanged:JSON.stringify(Object.getOwnPropertyNames(leaf))===JSON.stringify(originalKeys)}));throw new AggregateError([leaf,noStack],'actual nested teardown',{cause:new Error('actual group cause')})} }\n`
+    )
+    let realm: Awaited<ReturnType<typeof openTestConfigModule>> | undefined
+    try {
+      realm = await openTestConfigModule(config, root)
+      await realm.setup([
+        { name: 'control', globalSetup: [setup], provide: {} },
+      ])
+      const formatterError = await realm.formatCoverageThresholdUpdates!([
+        { metric: 'lines', previous: 0, value: 20 },
+      ]).catch((error: Error) => error)
+      expect(formatterError).toMatchObject({
+        name: 'TypeError',
+        message: 'actual formatter leaf',
+        cause: { message: 'actual formatter cause' },
+      })
+      const teardownError = await realm.dispose().catch((error: Error) => error)
+      expect(teardownError).toBeInstanceOf(AggregateError)
+      expect(teardownError).toMatchObject({
+        message: 'Global setup teardown failed.',
+        errors: [
+          {
+            name: 'AggregateError',
+            message: 'actual nested teardown',
+            cause: { message: 'actual group cause' },
+            errors: [formatterError, { message: 'actual error without stack' }],
+          },
+        ],
+      })
+      if (
+        !(formatterError instanceof Error) ||
+        !(teardownError instanceof AggregateError)
+      )
+        throw new Error(
+          'The actual formatter and aggregate errors were not retained.'
+        )
+      expect(teardownError.errors[0].errors[0].stack).toBe(formatterError.stack)
+      expect(teardownError.errors[0].errors[1].stack).toBeUndefined()
+      expect(JSON.parse(await readFile(trace, 'utf8'))).toEqual({
+        sameCause: true,
+        stackUnchanged: true,
+        keysUnchanged: true,
+      })
+    } finally {
+      await realm?.dispose().catch(() => {})
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('matches pristine complete reports, current configuration bytes and callback/setup/teardown order', async () => {
+    const { execFileSync } = await import('node:child_process')
+    const output = await mkdtemp(
+      join(tmpdir(), 'next-threshold-formatter-cli-')
+    )
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'threshold-formatter-reports.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          '--source',
+        ],
+        { encoding: 'utf8', timeout: 240000 }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'RESULTS.json'), 'utf8'))
+      ).toMatchObject({ status: 'passed', profiles: 8 })
+    } catch (error) {
+      if (process.env.NEXT_TESTING_FORMATTER_EVIDENCE) {
+        try {
+          const { cp } = await import('fs/promises')
+          await cp(
+            output,
+            join(
+              process.env.NEXT_TESTING_FORMATTER_EVIDENCE,
+              'maintained-failure'
+            ),
+            { recursive: true }
+          )
+        } catch {}
+      }
+      throw error
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 250000)
+})
+
+describe('disabled formatter configuration cleanup before ordinary result cache publication', () => {
+  it('retains the passing case and original teardown failure without publishing cached facts', async () => {
+    const { execFileSync } = await import('node:child_process')
+    const output = await mkdtemp(
+      join(tmpdir(), 'next-disabled-formatter-cache-')
+    )
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'threshold-formatter-cache-reports.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          '--source',
+        ],
+        { encoding: 'utf8', timeout: 150000 }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+      ).toEqual({
+        status: 'passed',
+        casePassed: true,
+        teardownFailed: true,
+        formatterNotCalled: true,
+        cacheNotPublished: true,
+        noCoveragePublished: true,
+        teardownOnce: true,
+      })
+    } catch (error) {
+      if (process.env.NEXT_TESTING_FORMATTER_CACHE_EVIDENCE) {
+        try {
+          const { cp } = await import('fs/promises')
+          await cp(
+            output,
+            join(
+              process.env.NEXT_TESTING_FORMATTER_CACHE_EVIDENCE,
+              'maintained-failure'
+            ),
+            { recursive: true }
+          )
+        } catch {}
+      }
+      throw error
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 160000)
+})
+
+describe('explicit CLI V8 configured provider overrides', () => {
+  it('applies the parent-selected provider before provider-specific parsing without changing authored objects', async () => {
+    const { applyCoverageProviderOverride } = await import(
+      'next/dist/experimental/testing/coverage/provider-override'
+    )
+    const formatter = (value: number) => Math.floor(value)
+    const coverage = {
+      provider: 'custom',
+      customProviderModule: './missing-provider.mjs',
+      enabled: false,
+      clean: false,
+      reportsDirectory: 'selected',
+      reportOnFailure: true,
+      thresholds: { autoUpdate: formatter, lines: 0 },
+    }
+    const input = {
+      test: {
+        include: ['*.test.mjs'],
+        coverage,
+        projects: [{ test: { coverage: { ...coverage, enabled: true } } }],
+      },
+    }
+    expect(applyCoverageProviderOverride(input, undefined)).toBe(input)
+    const normalized = applyCoverageProviderOverride(
+      input,
+      'v8'
+    ) as typeof input
+    expect(normalized.test.coverage).toEqual({
+      provider: 'v8',
+      enabled: false,
+      clean: false,
+      reportsDirectory: 'selected',
+      reportOnFailure: true,
+      thresholds: { autoUpdate: formatter, lines: 0 },
+    })
+    expect(normalized.test.projects[0].test.coverage).toEqual({
+      ...normalized.test.coverage,
+      enabled: true,
+    })
+    expect(input.test.coverage).toBe(coverage)
+    expect(input.test.coverage.customProviderModule).toBe(
+      './missing-provider.mjs'
+    )
+    expect(normalized.test.coverage.thresholds.autoUpdate).toBe(formatter)
+    expect(
+      applyCoverageProviderOverride({ projects: [{ coverage }] }, 'v8')
+    ).toEqual({ projects: [{ coverage: normalized.test.coverage }] })
+    expect(
+      applyCoverageProviderOverride({ test: { include: ['*.mjs'] } }, 'v8')
+    ).toEqual({ test: { include: ['*.mjs'] } })
+  })
+
+  it('preserves explicit provider enable/disable precedence and leaves legacy flag absence unchanged', async () => {
+    const {
+      parseProjectStandardCoverage,
+      parseStandardCoverageOptions,
+      resolveProjectStandardCoverage,
+    } = await import('next/dist/experimental/testing/coverage/options')
+    const flags = { 'coverage.provider': 'v8' },
+      cli = parseStandardCoverageOptions(flags)
+    const configured = parseProjectStandardCoverage({
+      provider: 'v8',
+      enabled: false,
+    })!
+    expect(
+      resolveProjectStandardCoverage(
+        [{ standardCoverage: configured }],
+        flags,
+        cli
+      )
+    ).toEqual({ enabled: false, configured: true })
+    expect(resolveProjectStandardCoverage([{}], flags, cli)).toEqual({
+      enabled: false,
+      configured: false,
+    })
+    expect(
+      resolveProjectStandardCoverage(
+        [{ standardCoverage: configured }],
+        { ...flags, coverage: true },
+        cli
+      )
+    ).toMatchObject({
+      enabled: true,
+      configured: true,
+      options: { reporter: expect.arrayContaining(['json']) },
+    })
+    configured.enabled = true
+    expect(
+      resolveProjectStandardCoverage(
+        [{ standardCoverage: configured }],
+        { ...flags, coverage: false },
+        cli
+      )
+    ).toEqual({ enabled: false, configured: true })
+    const legacy = { 'coverage.reporter': ['json'] },
+      old = parseStandardCoverageOptions(legacy)
+    expect(resolveProjectStandardCoverage([{}], legacy, old)).toEqual({
+      enabled: false,
+      configured: false,
+    })
+  })
+
+  it.each(['mjs', 'json'])(
+    'normalizes actual %s configuration after evaluation while preserving its raw provider bytes',
+    async (extension) => {
+      const { openTestConfiguration } = await import(
+        'next/dist/experimental/testing/config'
+      )
+      const root = await mkdtemp(
+        join(tmpdir(), 'next-provider-override-config-')
+      )
+      const filename = join(
+        root,
+        extension === 'json' ? 'next.test.config.json' : 'vitest.config.mjs'
+      )
+      const value = {
+        test: {
+          include: ['*.test.mjs'],
+          coverage: {
+            enabled: false,
+            provider: 'custom',
+            customProviderModule: './deliberately-missing.mjs',
+            clean: false,
+            reportsDirectory: 'configured-reports',
+            reportOnFailure: true,
+          },
+        },
+      }
+      const source =
+        (extension === 'json' ? '' : 'export default ') +
+        JSON.stringify(value) +
+        '\n'
+      await writeFile(filename, source)
+      let config: Awaited<ReturnType<typeof openTestConfiguration>> | undefined
+      try {
+        config = await openTestConfiguration(root, undefined, 'v8')
+        expect(config.config.projects[0].standardCoverage).toMatchObject({
+          enabled: false,
+          options: {
+            clean: false,
+            reportsDirectory: 'configured-reports',
+            reportOnFailure: true,
+          },
+        })
+        expect(config.config.projects[0].customCoverage).toBeUndefined()
+        expect(await readFile(filename, 'utf8')).toBe(source)
+      } finally {
+        await config?.dispose()
+        await rm(root, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('matches thirteen actual pristine configured/custom/missing-module and no-config CLI provider profiles', async () => {
+    const { execFileSync } = await import('node:child_process')
+    const output = await mkdtemp(join(tmpdir(), 'next-provider-override-cli-'))
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'provider-override-cli-reports.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          '--source',
+        ],
+        { encoding: 'utf8', timeout: 360000 }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'RESULTS.json'), 'utf8'))
+      ).toMatchObject({ status: 'passed', profiles: 13 })
+    } catch (error) {
+      if (process.env.NEXT_TESTING_PROVIDER_OVERRIDE_EVIDENCE) {
+        try {
+          const { cp } = await import('fs/promises')
+          await cp(
+            output,
+            join(
+              process.env.NEXT_TESTING_PROVIDER_OVERRIDE_EVIDENCE,
+              'maintained-failure'
+            ),
+            { recursive: true }
+          )
+        } catch {}
+      }
+      throw error
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 375000)
+})
+
+describe('production retained coverage threshold formatter closures', () => {
+  it('matches all eight genuine complete production reports, configuration bytes and lifecycle rows', async () => {
+    const { execFileSync } = await import('node:child_process')
+    const output = await mkdtemp(
+      join(tmpdir(), 'next-production-threshold-formatter-cli-')
+    )
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'threshold-formatter-reports.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          '--mode=production',
+          '--source',
+        ],
+        { encoding: 'utf8', timeout: 240000 }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'RESULTS.json'), 'utf8'))
+      ).toMatchObject({ status: 'passed', mode: 'production', profiles: 8 })
+    } catch (error) {
+      if (process.env.NEXT_TESTING_PRODUCTION_FORMATTER_EVIDENCE) {
+        try {
+          const { cp } = await import('fs/promises')
+          await cp(
+            output,
+            join(
+              process.env.NEXT_TESTING_PRODUCTION_FORMATTER_EVIDENCE,
+              'maintained-failure'
+            ),
+            { recursive: true }
+          )
+        } catch {}
+      }
+      throw error
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 250000)
+})
+
+describe('dotted standard coverage flags configure collection without activating it', () => {
+  it.each([
+    { 'coverage.reporter': ['json'] },
+    { 'coverage.include': ['subject.mjs'] },
+    { 'coverage.thresholds.lines': '99' },
+    { 'coverage.provider': 'v8' },
+  ])(
+    'resolves actual collection intent independently of standard options: %j',
+    async (flags) => {
+      const {
+        parseStandardCoverageOptions,
+        parseProjectStandardCoverage,
+        resolveProjectStandardCoverage,
+      } = await import('next/dist/experimental/testing/coverage/options')
+      const cli = parseStandardCoverageOptions(flags),
+        disabled = parseProjectStandardCoverage({ enabled: false })!,
+        enabled = parseProjectStandardCoverage({ enabled: true })!
+      expect(resolveProjectStandardCoverage([{}], flags, cli)).toEqual({
+        enabled: false,
+        configured: false,
+      })
+      expect(
+        resolveProjectStandardCoverage(
+          [{ standardCoverage: disabled }],
+          flags,
+          cli
+        )
+      ).toEqual({ enabled: false, configured: true })
+      expect(
+        resolveProjectStandardCoverage(
+          [{ standardCoverage: enabled }],
+          flags,
+          cli
+        )
+      ).toMatchObject({ enabled: true, configured: true })
+      expect(
+        resolveProjectStandardCoverage([{}], { ...flags, coverage: true }, cli)
+      ).toMatchObject({ enabled: true, options: cli, configured: false })
+      expect(
+        resolveProjectStandardCoverage(
+          [{ standardCoverage: enabled }],
+          { ...flags, coverage: false },
+          cli
+        )
+      ).toEqual({ enabled: false, configured: true })
+    }
+  )
+  it('matches eleven actual genuine activation/report/include/threshold and explicit enable/disable profiles', async () => {
+    const { execFileSync } = await import('node:child_process')
+    const output = await mkdtemp(join(tmpdir(), 'next-coverage-enable-cli-'))
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'coverage-enable-cli-reports.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          '--source',
+        ],
+        { encoding: 'utf8', timeout: 300000 }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'RESULTS.json'), 'utf8'))
+      ).toMatchObject({ status: 'passed', profiles: 11 })
+    } catch (error) {
+      if (process.env.NEXT_TESTING_ENABLE_EVIDENCE) {
+        try {
+          const { cp } = await import('fs/promises')
+          await cp(
+            output,
+            join(
+              process.env.NEXT_TESTING_ENABLE_EVIDENCE,
+              'maintained-failure'
+            ),
+            { recursive: true }
+          )
+        } catch {}
+      }
+      throw error
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 315000)
+})
+
+describe('formatter current AST preparation before caller-owned commit', () => {
+  const rows = require('./fixtures/formatter-ast/pristine.json').rows as {
+    name: string
+    before: string
+    profile: { edit?: string; glob?: boolean }
+    calls: number[][]
+    diagnostics: string
+  }[]
+  it.each(rows)(
+    'retains genuine calls and error ordering for $name in the actual configuration realm',
+    async (row) => {
+      const { openTestConfigModule } = await import(
+        'next/dist/experimental/testing/config-modules'
+      )
+      const root = await mkdtemp(join(tmpdir(), 'next-formatter-ast-realm-')),
+        trace = join(root, 'trace.jsonl'),
+        file = join(root, 'vitest.config.mjs')
+      const before = row.before.replaceAll(
+        '<TRACE_DIR>/' + row.name + '/trace.jsonl',
+        trace
+      )
+      await writeFile(file, before)
+      const realm = await openTestConfigModule(file, root)
+      try {
+        const alternate = join(root, 'next.test.config.mjs')
+        const alternateSource =
+          'export default {test:{coverage:{thresholds:{lines:123}}}}\n'
+        await writeFile(alternate, alternateSource)
+        if (row.profile.edit) await writeFile(file, row.profile.edit)
+        const current = await readFile(file, 'utf8')
+        const updates: import('next/dist/experimental/testing/coverage/types').StandardCoverageThresholdUpdate[] =
+          row.profile.glob
+            ? [
+                { metric: 'lines', previous: 0, value: 28.57 },
+                ...(
+                  ['lines', 'functions', 'statements', 'branches'] as const
+                ).map((metric) => ({
+                  pattern: 'fully.mjs',
+                  metric,
+                  previous: 0,
+                  value: 100,
+                })),
+              ]
+            : [
+                { metric: 'lines', previous: 0, value: 28.57 },
+                { metric: 'functions', previous: 0, value: 40 },
+                { metric: 'statements', previous: 0, value: 33.33 },
+                { metric: 'branches', previous: 0, value: 25 },
+              ]
+        const error = await realm.prepareCoverageThresholdUpdate!(
+          updates
+        ).catch((error) => error)
+        expect(error).toBeInstanceOf(Error)
+        const expected =
+          row.name === 'current-glob-missing'
+            ? "Cannot set properties of undefined (setting 'lines')"
+            : row.name === 'current-thresholds-null'
+              ? 'Unable to parse thresholds from configuration file: Expected config.test.coverage.thresholds to be an object'
+              : 'Failed to update coverage thresholds. Configuration file is too complex.'
+        expect(error.message).toBe(expected)
+        expect(error.name).toBe(
+          row.name === 'current-glob-missing' ? 'TypeError' : 'Error'
+        )
+        const { existsSync, readFileSync } = await import('fs')
+        expect(
+          existsSync(trace)
+            ? readFileSync(trace, 'utf8')
+                .trim()
+                .split('\n')
+                .map((line) => JSON.parse(line))
+            : []
+        ).toEqual(row.calls)
+        expect(await readFile(file, 'utf8')).toBe(current)
+        expect(await readFile(alternate, 'utf8')).toBe(alternateSource)
+      } finally {
+        await realm.dispose()
+        await rm(root, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('keeps callback preparation synchronous and defers every write to the cancellable caller', async () => {
+    const { openTestConfigModule } = await import(
+      'next/dist/experimental/testing/config-modules'
+    )
+    const { commitCoverageThresholdUpdate } = await import(
+      'next/dist/experimental/testing/coverage/threshold-update'
+    )
+    const root = await mkdtemp(
+        join(tmpdir(), 'next-formatter-sync-preparation-')
+      ),
+      file = join(root, 'vitest.config.mjs'),
+      trace = join(root, 'trace.jsonl')
+    const original = `import {appendFileSync}from'node:fs'\nlet value=0\nexport default {test:{coverage:{thresholds:{autoUpdate:function(next,previous){appendFileSync(${JSON.stringify(trace)},JSON.stringify([next,previous,value,this===undefined])+'\\n');queueMicrotask(()=>value++);return next+value},lines:0,functions:0}}}}\n`
+    await writeFile(file, original)
+    const realm = await openTestConfigModule(file, root)
+    try {
+      const source = await realm.prepareCoverageThresholdUpdate!([
+        { metric: 'lines', previous: 0, value: 10 },
+        { metric: 'functions', previous: 0, value: 20 },
+      ])
+      expect(source).toContain('lines:10')
+      expect(source).toContain('functions:20')
+      expect(
+        (await readFile(trace, 'utf8'))
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line))
+      ).toEqual([
+        [10, 0, 0, true],
+        [20, 0, 0, true],
+      ])
+      expect(await readFile(file, 'utf8')).toBe(original)
+      const controller = new AbortController()
+      controller.abort(new Error('actual abort before prepared commit'))
+      expect(() =>
+        commitCoverageThresholdUpdate({
+          configFile: file,
+          source,
+          signal: controller.signal,
+        })
+      ).toThrow('actual abort before prepared commit')
+      expect(await readFile(file, 'utf8')).toBe(original)
+      expect(commitCoverageThresholdUpdate({ configFile: file, source })).toBe(
+        true
+      )
+      expect(await readFile(file, 'utf8')).toBe(source)
+      await expect(
+        realm.formatCoverageThresholdUpdates!([
+          { metric: 'lines', previous: 0, value: 1 },
+        ])
+      ).resolves.toEqual([{ metric: 'lines', previous: 0, value: 3 }])
+    } finally {
+      await realm.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('retains the complete preparation and original selected bytes when the caller cannot write', async () => {
+    const { openTestConfigModule } = await import(
+      'next/dist/experimental/testing/config-modules'
+    )
+    const { commitCoverageThresholdUpdate } = await import(
+      'next/dist/experimental/testing/coverage/threshold-update'
+    )
+    const { chmod } = await import('fs/promises')
+    const root = await mkdtemp(join(tmpdir(), 'next-formatter-write-error-')),
+      file = join(root, 'vitest.config.mjs'),
+      trace = join(root, 'trace.jsonl')
+    const original = `import {appendFileSync,chmodSync}from'node:fs'\nexport default {test:{coverage:{thresholds:{autoUpdate:function(next,previous){appendFileSync(${JSON.stringify(trace)},JSON.stringify([next,previous])+'\\n');chmodSync(${JSON.stringify(file)},0o444);return next},lines:0,functions:0}}}}\n`
+    await writeFile(file, original)
+    const realm = await openTestConfigModule(file, root)
+    try {
+      const source = await realm.prepareCoverageThresholdUpdate!([
+        { metric: 'lines', previous: 0, value: 10 },
+        { metric: 'functions', previous: 0, value: 20 },
+      ])
+      expect(source).toContain('lines:10')
+      expect(source).toContain('functions:20')
+      expect(
+        (await readFile(trace, 'utf8'))
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line))
+      ).toEqual([
+        [10, 0],
+        [20, 0],
+      ])
+      expect(() =>
+        commitCoverageThresholdUpdate({ configFile: file, source })
+      ).toThrow(/EACCES/)
+      expect(await readFile(file, 'utf8')).toBe(original)
+    } finally {
+      await realm.dispose()
+      await chmod(file, 0o644)
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('remaining built-in standard coverage reporters', () => {
+  it.each(['cobertura', 'html-spa', 'teamcity', 'text-lcov', 'none'])(
+    'routes %s through the actual formatter without enabling collection',
+    async (reporter) => {
+      const {
+        parseStandardCoverageOptions,
+        parseProjectStandardCoverage,
+        resolveProjectStandardCoverage,
+      } = await import('next/dist/experimental/testing/coverage/options')
+      const flags = { 'coverage.reporter': [reporter] }
+      const options = parseStandardCoverageOptions(flags)!
+      expect(options).toMatchObject({
+        reporter: [reporter],
+        formatterReports: true,
+      })
+      expect(resolveProjectStandardCoverage([{}], flags, options)).toEqual({
+        enabled: false,
+        configured: false,
+      })
+      expect(
+        parseProjectStandardCoverage({
+          enabled: true,
+          reporter: [reporter],
+        })
+      ).toMatchObject({
+        enabled: true,
+        options: { reporter: [reporter], formatterReports: true },
+      })
+    }
+  )
+
+  it('matches all thirty-four genuine report, stdout, cleanup, disable, failure and no-file update profiles', async () => {
+    const { execFileSync } = await import('node:child_process')
+    const output = await mkdtemp(join(tmpdir(), 'next-standard-reporters-'))
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'standard-reporter-reports.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          '--source',
+        ],
+        { encoding: 'utf8', timeout: 600000 }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'RESULTS.json'), 'utf8'))
+      ).toMatchObject({ status: 'passed', profiles: 34 })
+    } catch (error) {
+      if (process.env.NEXT_TESTING_STANDARD_REPORTERS_EVIDENCE) {
+        try {
+          const { cp } = await import('fs/promises')
+          await cp(
+            output,
+            join(
+              process.env.NEXT_TESTING_STANDARD_REPORTERS_EVIDENCE,
+              'maintained-failure'
+            ),
+            { recursive: true }
+          )
+        } catch {}
+      }
+      throw error
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 615000)
+})

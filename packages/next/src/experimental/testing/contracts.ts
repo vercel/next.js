@@ -118,6 +118,10 @@ export interface TestCompilerSessionOptions {
   testingDefaultConfiguration?: import('../../server/config-testing-policy').TestingDefaultConfiguration
   /** Private producer qualification only; not a public config or capability claim. */
   nativeImportCoverageRoles?: boolean
+  /** Private actual Browser declaration analysis; never a Node analysis permission. */
+  browserCoverageDeclarations?: true
+  /** Private planned development JSX imports; never enabled by a filename alone. */
+  browserDevelopmentImportPlan?: import('./coverage/source-analysis-plan').CoverageSourcePlan
   /** Validated config data translated into the actual Next resolver. */
   compilerAliases?: import('./compiler/aliases').CompilerAliases
   /** Exact retained executable configuration realm; never a public config value. */
@@ -378,9 +382,18 @@ export interface TestFileCollection {
 }
 
 export type TestExecutionResult = FileResult & {
+  /** Private runtime data; closed cache publication requires separate owner proof. */
+  moduleExecution?: import('./execution/completed-module').ModuleExecutionResult
+  /** Parent broker scheduling acknowledgment; never a worker execution event. */
+  notExecuted?: true
+  /** Direct Browser owner only, after delivered cancellation and clean closure. */
+  closedUserCancellation?: true
   /** Available only after successful collection and authoritative cleanup. */
   collection?: TestFileCollection
 }
+
+/** Actual Browser Mode runtime engine; independent of compiler profiles. */
+export type TestBrowserEngine = 'chromium' | 'firefox' | 'webkit'
 
 export interface BrowserViewport {
   width: number
@@ -388,6 +401,8 @@ export interface BrowserViewport {
 }
 
 export interface ExecuteTestOptions {
+  /** Private opt-in actual fulfilled module timing and selection provenance. */
+  captureCompletedModuleResult?: true
   /** Opt-in live reporter snapshots from actual logical-case producers. */
   captureTaskResults?: boolean
   /** Address for an explicitly requested inspector on this file worker. */
@@ -421,6 +436,7 @@ export interface ExecuteTestOptions {
   strictTags?: boolean
   attachmentsDir?: string
   globals?: boolean
+  includeTaskLocation?: boolean
   fakeTimers?: import('./assertions/utilities').FakeTimerOptions
   clearMocks?: boolean
   mockReset?: boolean
@@ -437,6 +453,10 @@ export interface ExecuteTestOptions {
   env?: Record<string, string>
   /** Resolved viewport for Browser Mode clients, independent of app drivers. */
   browserViewport?: BrowserViewport
+  /** Explicit actual Browser client launch mode. */
+  browserHeadless?: boolean
+  /** Normalized enabled-client instance; omission preserves Chromium. */
+  browserEngine?: TestBrowserEngine
   testTimeout: number
   hookTimeout: number
   /** Outer process deadline, independent of the case/hook timeout. */

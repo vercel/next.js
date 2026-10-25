@@ -21,6 +21,11 @@ export function getChaiAssertionIdentity(value) {
 }
 
 // Pure literal upstream interfaces; origin is supplied only by Next construction.
-export { createChaiAssertInterface, createChaiShouldInterface } from 'chai'
+export {
+  createChaiAssertInterface,
+  createChaiShouldInterface,
+  getChaiAssertionTransferSourceIdentity,
+  hasChaiAssertionTaskFlagTransfer,
+} from 'chai'
 
 export { stringify } from '@vitest/utils/display'

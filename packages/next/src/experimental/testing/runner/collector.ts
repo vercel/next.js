@@ -1,5 +1,6 @@
 import type {
   TaskMeta,
+  TaskLocation,
   Test,
   TestAnnotation,
   TestAttachment,
@@ -8,7 +9,7 @@ import type {
   Suite,
   File,
 } from './tasks'
-import { getCollectionTaskView } from './tasks'
+import { getCollectionTaskView, getTaskContext } from './tasks'
 import type { TestExpect } from '../assertions'
 import type { ProvidedContext } from '../vitest'
 import type { TestError } from '../../../compiled/next-test-primitives'
@@ -175,6 +176,7 @@ export interface SuiteOptions extends TestOptions {
 }
 
 export interface TestCase {
+  location?: TaskLocation
   /** Actual declaration stack; kept off the public task and enumerable data. */
   readonly registrationError?: Error
   type: 'test'
@@ -190,6 +192,7 @@ export interface TestCase {
 }
 
 export interface TestSuite {
+  location?: TaskLocation
   type: 'suite'
   meta: TaskMeta
   tags: string[]
@@ -742,6 +745,7 @@ export function createCollector(
   fileId: string,
   config: {
     filePath?: string
+    getTaskLocation?(error: Error): TaskLocation | undefined
     tags?: readonly TestTagDefinition[]
     strictTags?: boolean
     sequence?: TestSequenceOptions
@@ -750,6 +754,7 @@ export function createCollector(
     getSuiteAlias?: () => SuiteDeclaration | undefined
     getActiveCollector?: () => CollectorDispatch | undefined
     isCollectingScope?: () => boolean
+    getTaskExpect?: (task: Test) => TestContext['expect']
   } = {}
 ) {
   const root = suite(fileId, '', 'run', undefined, {
@@ -780,11 +785,22 @@ export function createCollector(
       )
   }
 
-  const publicTask = (node: TestSuite | TestCase) =>
-    getCollectionTaskView(root, node, {
+  const publicTask = (node: TestSuite | TestCase) => {
+    const task = getCollectionTaskView(root, node, {
       filePath: config.filePath,
       testTimeout: config.getRuntimeConfig?.().testTimeout ?? 5000,
     })
+    if (task.type === 'test')
+      getTaskContext(task, {
+        assertCollecting,
+        getExpect() {
+          if (!config.getTaskExpect)
+            throw new Error('context.expect requires an assertion integration.')
+          return config.getTaskExpect(task)
+        },
+      })
+    return task
+  }
 
   function publishSuite(node: TestSuite): Suite {
     const view = publicTask(node) as Suite
@@ -873,9 +889,32 @@ export function createCollector(
       fixtures,
       fn,
     }
-    Object.defineProperty(test, 'registrationError', { value: new Error() })
+    let registrationError: Error
+    if (config.getTaskLocation) {
+      const previousLimit = Error.stackTraceLimit
+      Error.stackTraceLimit = 10
+      registrationError = new Error()
+      Error.stackTraceLimit = previousLimit
+    } else {
+      registrationError = new Error()
+    }
+    Object.defineProperty(test, 'registrationError', {
+      value: registrationError,
+    })
+    const location = config.getTaskLocation?.(registrationError)
+    if (location) test.location = location
     container.children.push(test)
     return test
+  }
+
+  function captureSuiteLocation(node: TestSuite) {
+    if (!config.getTaskLocation) return
+    const previousLimit = Error.stackTraceLimit
+    Error.stackTraceLimit = 15
+    const error = new Error()
+    Error.stackTraceLimit = previousLimit
+    const location = config.getTaskLocation(error)
+    if (location) node.location = location
   }
 
   function rawSuite(
@@ -888,6 +927,7 @@ export function createCollector(
     const parent = currentSuite()
     const id = `${parent.id}/${parent.children.length}`
     let node = suite(id, formatName(name), mode, parent, options)
+    captureSuiteLocation(node)
     parent.children.push(node)
     let staged = node.children
     const registrationContainer = {
@@ -1135,6 +1175,7 @@ export function createCollector(
           current,
           inheritedOptions
         )
+        captureSuiteLocation(child)
         current.children.push(child)
         const result = fn
           ? suiteStorage.run(child, () => fn(declaration('test', 'run')))

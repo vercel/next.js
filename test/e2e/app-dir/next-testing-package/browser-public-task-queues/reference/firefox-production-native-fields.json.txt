@@ -1,0 +1,228 @@
+{
+  "rows": [
+    [
+      {
+        "name": "native fulfilled field",
+        "stage": "before",
+        "promises": null
+      },
+      {
+        "name": "native fulfilled field",
+        "stage": "created",
+        "promises": {
+          "writable": true,
+          "enumerable": true,
+          "configurable": true,
+          "array": true,
+          "ownPush": false,
+          "nativeArrayPrototype": true,
+          "keys": [
+            "0",
+            "length"
+          ],
+          "length": 1,
+          "nativePromises": [
+            true
+          ]
+        },
+        "returnedQueuedIdentity": false,
+        "returnedTag": "[object Promise]"
+      },
+      {
+        "name": "native fulfilled field",
+        "stage": "awaited",
+        "promises": {
+          "writable": true,
+          "enumerable": true,
+          "configurable": true,
+          "array": true,
+          "ownPush": false,
+          "nativeArrayPrototype": true,
+          "keys": [
+            "length"
+          ],
+          "length": 0,
+          "nativePromises": []
+        },
+        "sameQueue": true
+      },
+      {
+        "name": "native fulfilled field",
+        "stage": "afterEach",
+        "promises": {
+          "writable": true,
+          "enumerable": true,
+          "configurable": true,
+          "array": true,
+          "ownPush": false,
+          "nativeArrayPrototype": true,
+          "keys": [
+            "length"
+          ],
+          "length": 0,
+          "nativePromises": []
+        }
+      },
+      {
+        "name": "native rejected field",
+        "stage": "before",
+        "promises": null
+      },
+      {
+        "name": "native rejected field",
+        "stage": "created",
+        "promises": {
+          "writable": true,
+          "enumerable": true,
+          "configurable": true,
+          "array": true,
+          "ownPush": false,
+          "nativeArrayPrototype": true,
+          "keys": [
+            "0",
+            "length"
+          ],
+          "length": 1,
+          "nativePromises": [
+            true
+          ]
+        },
+        "returnedQueuedIdentity": false
+      },
+      {
+        "name": "native rejected field",
+        "stage": "awaited",
+        "promises": {
+          "writable": true,
+          "enumerable": true,
+          "configurable": true,
+          "array": true,
+          "ownPush": false,
+          "nativeArrayPrototype": true,
+          "keys": [
+            "length"
+          ],
+          "length": 0,
+          "nativePromises": []
+        },
+        "sameQueue": true
+      },
+      {
+        "name": "native rejected field",
+        "stage": "afterEach",
+        "promises": {
+          "writable": true,
+          "enumerable": true,
+          "configurable": true,
+          "array": true,
+          "ownPush": false,
+          "nativeArrayPrototype": true,
+          "keys": [
+            "length"
+          ],
+          "length": 0,
+          "nativePromises": []
+        }
+      },
+      {
+        "name": "public queue reassignment preserves actual operation",
+        "stage": "reassigned",
+        "promises": {
+          "writable": true,
+          "enumerable": true,
+          "configurable": true,
+          "array": true,
+          "ownPush": false,
+          "nativeArrayPrototype": true,
+          "keys": [
+            "length"
+          ],
+          "length": 0,
+          "nativePromises": []
+        },
+        "oldLength": 1,
+        "oldNativeIdentity": true
+      },
+      {
+        "name": "public queue reassignment preserves actual operation",
+        "stage": "awaited",
+        "promises": {
+          "writable": true,
+          "enumerable": true,
+          "configurable": true,
+          "array": true,
+          "ownPush": false,
+          "nativeArrayPrototype": true,
+          "keys": [
+            "length"
+          ],
+          "length": 0,
+          "nativePromises": []
+        },
+        "oldLength": 1,
+        "oldNativeIdentity": true
+      },
+      {
+        "name": "public queue reassignment preserves actual operation",
+        "stage": "afterEach",
+        "promises": {
+          "writable": true,
+          "enumerable": true,
+          "configurable": true,
+          "array": true,
+          "ownPush": false,
+          "nativeArrayPrototype": true,
+          "keys": [
+            "length"
+          ],
+          "length": 0,
+          "nativePromises": []
+        }
+      },
+      {
+        "name": "plain custom matcher keeps native field absent",
+        "stage": "before",
+        "promises": null
+      },
+      {
+        "name": "plain custom matcher keeps native field absent",
+        "stage": "created",
+        "promises": null
+      },
+      {
+        "name": "plain custom matcher keeps native field absent",
+        "stage": "awaited",
+        "promises": null
+      },
+      {
+        "name": "plain custom matcher keeps native field absent",
+        "stage": "afterEach",
+        "promises": null
+      }
+    ]
+  ],
+  "cases": [
+    {
+      "name": "native fulfilled field",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "native rejected field",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "public queue reassignment preserves actual operation",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "plain custom matcher keeps native field absent",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "success": true,
+  "exit": 0
+}

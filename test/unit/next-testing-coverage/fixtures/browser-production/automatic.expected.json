@@ -1,0 +1,185 @@
+{
+  "version": 1,
+  "mode": "production",
+  "sdks": ["1.61.0", "1.64.0"],
+  "reference": "Vitest5.0.4 + @vitest/coverage-v8@5.0.4 + actual public Chromium provider; complete automatic JSX reports/cases match both SDKs",
+  "sourceSyntax": "automatic-jsx-without-react",
+  "sourceFiles": {
+    "layout-automatic.tsx": {
+      "sha256": "860691bda0ca41a72e8ea9755ec12241299531c9d6d1c4cf6c7b81ae8446a736"
+    },
+    "layout-automatic.contract.test.mjs": {
+      "sha256": "708144fd52ecbfba00da802c67310df89e0da52305b6ee3e30059f21cf1606dd"
+    }
+  },
+  "numPassedTests": 1,
+  "cases": [
+    {
+      "file": "layout-automatic.contract.test.mjs",
+      "status": "passed",
+      "cases": [
+        {
+          "ancestorTitles": [],
+          "fullName": "automatic JSX has no unrelated authored React owner",
+          "status": "passed",
+          "title": "automatic JSX has no unrelated authored React owner",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ]
+    }
+  ],
+  "coverage": {
+    "layout-automatic.tsx": {
+      "path": "layout-automatic.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 3,
+            "column": 2
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 5,
+            "column": 13
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 5,
+            "column": 28
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "Card",
+          "decl": {
+            "start": {
+              "line": 2,
+              "column": 16
+            },
+            "end": {
+              "line": 2,
+              "column": 21
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 2,
+              "column": 39
+            },
+            "end": {
+              "line": 4,
+              "column": null
+            }
+          },
+          "line": 2
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 5,
+              "column": 13
+            },
+            "end": {
+              "line": 5,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 5,
+              "column": 28
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          },
+          "line": 5
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 3,
+              "column": 13
+            },
+            "end": {
+              "line": 3,
+              "column": 38
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 3,
+                "column": 22
+              },
+              "end": {
+                "line": 3,
+                "column": 30
+              }
+            },
+            {
+              "start": {
+                "line": 3,
+                "column": 30
+              },
+              "end": {
+                "line": 3,
+                "column": 38
+              }
+            }
+          ],
+          "line": 3
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 1,
+        "2": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {
+        "0": [1, 1]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 3,
+        "seen": {
+          "f:2:16:2:21": 0,
+          "s:3:2:3:Infinity": 0,
+          "b:3:22:3:30:3:30:3:38": 0,
+          "s:5:13:5:Infinity": 1,
+          "f:5:13:5:28": 1,
+          "s:5:28:5:Infinity": 2
+        },
+        "fnNames": {}
+      }
+    }
+  }
+}

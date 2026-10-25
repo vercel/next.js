@@ -1,5 +1,6 @@
 import { captureReporterTaskTree } from '../reporting/live-tasks'
 import { createReporterTaskUpdates } from '../reporting/task-updates'
+import type { RuntimeModuleCompletion } from '../execution/completed-module'
 import { initializeTestFile, getConsoleTask } from '../runner'
 import { configureBrowserEnv } from './env'
 import { getFinalCaseResults } from '../reporting/final-cases'
@@ -14,6 +15,7 @@ import {
 } from './browser-context'
 import { installClientConsole } from './console'
 import { getClientArtifactLocation } from './artifact-location'
+import { getClientDeclarationLocation } from './declaration-location'
 import type { TestArtifact } from '../runner/tasks'
 
 /** Called only by the actual native evaluated client entry, before its spec. */
@@ -38,8 +40,17 @@ export async function startClientTest(
   if (!configResponse.ok) throw new Error('Browser Mode configuration failed.')
   const config = (await configResponse.json()) as ClientConfiguration
   if (
+    (config.includeTaskLocation !== undefined &&
+      typeof config.includeTaskLocation !== 'boolean') ||
     (config.captureTaskResults !== undefined &&
       typeof config.captureTaskResults !== 'boolean') ||
+    (config.captureCompletedModuleResult !== undefined &&
+      config.captureCompletedModuleResult !== true) ||
+    (config.userCancellation !== undefined &&
+      config.userCancellation !== true) ||
+    (config.hookSequence !== undefined &&
+      !['stack', 'list', 'parallel'].includes(config.hookSequence)) ||
+    (config.maxConcurrency !== undefined && config.maxConcurrency !== 1) ||
     config.version !== 1 ||
     !config.ownerToken ||
     !config.authorization ||
@@ -69,6 +80,11 @@ export async function startClientTest(
     nativeReply: Promise<void> | undefined,
     transportFailure: unknown
   const pendingFailures: unknown[] = []
+  let moduleCompletion: RuntimeModuleCompletion | undefined
+  let moduleFailurePhase: 'collection' | 'run' | undefined
+  let unavailableModule:
+    | { phase: 'collection' | 'run'; error: unknown }
+    | undefined
   const failures = new Set<unknown>()
   const payload = (message: ClientPayload) => ({
     ...message,
@@ -221,13 +237,106 @@ export async function startClientTest(
       },
     }).catch(report)
   })
+  const lifetimeController = config.userCancellation
+    ? new AbortController()
+    : undefined
+  let userCancellation:
+    | {
+        signal: AbortSignal
+        finishRun(): void
+        close(): Promise<void>
+      }
+    | undefined
+  async function openUserCancellation() {
+    const controlFetch = globalThis.fetch.bind(globalThis)
+    const controller = new AbortController()
+    let active = true,
+      delivered = false,
+      disposal: Promise<void> | undefined
+    const identity = {
+      version: config.version,
+      runId: config.runId,
+      entryId: config.entryId,
+      revision: config.revision,
+      ownerToken: config.ownerToken,
+    }
+    async function requestControl(
+      message: { type: 'wait' } | { type: 'close'; delivered: boolean }
+    ) {
+      const response = await controlFetch(
+        config.rpcURL + '/user-cancellation',
+        {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            Authorization: config.authorization,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ ...identity, ...message }),
+        }
+      )
+      if (!response.ok)
+        throw new Error('Browser Mode scheduling control failed.')
+      return response
+    }
+    function cancelledReply(value: unknown) {
+      if (
+        !value ||
+        typeof value !== 'object' ||
+        Object.keys(value).join(',') !== 'cancelled' ||
+        typeof (value as { cancelled?: unknown }).cancelled !== 'boolean'
+      )
+        throw new Error('Invalid Browser Mode scheduling control reply.')
+      return (value as { cancelled: boolean }).cancelled
+    }
+    // Headers admit this actual owner before collection; the JSON body waits
+    // independently of authored fetches and the ordinary result/action FIFO.
+    const response = await requestControl({ type: 'wait' })
+    const waiting = response.json().then((value) => {
+      if (cancelledReply(value) && active) {
+        delivered = true
+        controller.abort()
+      }
+    })
+    void waiting.catch((error) => {
+      report(error)
+      lifetimeController!.abort(error)
+    })
+    return {
+      signal: controller.signal,
+      finishRun() {
+        active = false
+      },
+      close() {
+        return (disposal ??= (async () => {
+          const acknowledged = delivered
+          const closing = await requestControl({
+            type: 'close',
+            delivered: acknowledged,
+          })
+          await waiting
+          if (cancelledReply(await closing.json()) !== acknowledged)
+            throw new Error('Browser Mode scheduling control close mismatch.')
+        })())
+      },
+    }
+  }
   try {
     try {
+      if (config.userCancellation)
+        userCancellation = await openUserCancellation()
       configureBrowserEnv(config.env, getEnv?.())
       imports = createImports?.()
       file = initializeTestFile({
+        publicTaskSelection: true,
         fileId: config.entryId,
         filePath: config.filePath,
+        ...(config.includeTaskLocation
+          ? {
+              getTaskLocation: (error: Error) =>
+                getClientDeclarationLocation(error, mapper),
+            }
+          : {}),
         snapshotUpdateMode: config.snapshotUpdateMode,
         resourceLifetime: 'file',
         waitForImports: imports?.waitForImports,
@@ -243,12 +352,15 @@ export async function startClientTest(
         onUnhandledRejection: report,
       })
       mocks = moduleMocks?.initialize(report)
+      file.enableBrowserPublicTaskQueues()
+      if (config.captureCompletedModuleResult) moduleFailurePhase = 'collection'
       await file.collect(async () => {
         browserContext.install()
         await moduleMocks?.register()
         await loadSetupModules?.()
         return load()
       })
+      moduleFailurePhase = undefined
       const declarations = file.validateBrowserClient({
         testNamePattern:
           config.testNamePattern === undefined
@@ -261,14 +373,27 @@ export async function startClientTest(
         retry: config.retry,
       })
       if (!taskUpdates) await send({ type: 'collected', declarations })
+      if (config.captureCompletedModuleResult) moduleFailurePhase = 'run'
       const runResult = await file.run({
+        ...(config.captureCompletedModuleResult
+          ? { captureCompletedModuleResult: true as const }
+          : {}),
         runId: config.runId,
         ...(config.projectName === undefined
           ? {}
           : { projectName: config.projectName }),
-        signal: new AbortController().signal,
+        signal: lifetimeController?.signal ?? new AbortController().signal,
+        ...(userCancellation
+          ? { userCancelSignal: userCancellation.signal }
+          : {}),
         testTimeout: config.testTimeout,
         hookTimeout: config.hookTimeout,
+        ...(config.hookSequence === undefined
+          ? {}
+          : { sequence: { hooks: config.hookSequence } }),
+        ...(config.maxConcurrency === undefined
+          ? {}
+          : { maxConcurrency: config.maxConcurrency }),
         testNamePattern:
           config.testNamePattern === undefined
             ? undefined
@@ -375,12 +500,28 @@ export async function startClientTest(
           }).catch(report)
         },
       })
+      moduleFailurePhase = undefined
       const finalCases = [...getFinalCaseResults(runResult.cases).values()]
+      if (config.captureCompletedModuleResult) {
+        const completed = file.getCompletedModuleResult()
+        if (!completed)
+          throw new Error('Actual fulfilled module completion is missing.')
+        moduleCompletion = {
+          ...completed,
+          version: 1,
+          resultVersion: completed.version,
+          kind: 'fulfilled',
+          runId: config.runId,
+          entryId: config.entryId,
+          revision: config.revision,
+        }
+      }
       caseCount = finalCases.length
-      interrupted = runResult.interrupted
+      interrupted =
+        runResult.interrupted || userCancellation?.signal.aborted === true
       for (const failure of runResult.errors) report(failure.error)
       status =
-        !interrupted &&
+        (!interrupted || userCancellation?.signal.aborted) &&
         !runResult.errors.length &&
         finalCases.every(
           (test) => test.status === 'passed' || test.status === 'skipped'
@@ -388,7 +529,11 @@ export async function startClientTest(
           ? 'passed'
           : 'failed'
     } catch (error) {
+      if (moduleFailurePhase)
+        unavailableModule = { phase: moduleFailurePhase, error }
       report(error)
+    } finally {
+      userCancellation?.finishRun()
     }
     for (const dispose of [
       ...(taskUpdates
@@ -398,6 +543,7 @@ export async function startClientTest(
       cleanupBrowserKeyboard,
       () => file?.dispose(),
       () => imports?.dispose(),
+      ...(userCancellation ? [() => userCancellation!.close()] : []),
     ]) {
       try {
         await dispose()
@@ -414,7 +560,7 @@ export async function startClientTest(
     }
     browserContext.dispose()
     snapshotSummary = file?.getSnapshotSummary()
-    if (!pendingFailures.length && status === 'passed') {
+    if (!pendingFailures.length && status === 'passed' && !interrupted) {
       try {
         updates = file?.takeSnapshotUpdates() ?? []
       } catch (error) {
@@ -429,12 +575,25 @@ export async function startClientTest(
       status = 'failed'
       updates = []
     }
-    for (const error of pendingFailures)
-      await send({ type: 'failure', error: processError(error) })
+    for (const error of pendingFailures) {
+      const failure = processError(error)
+      if (unavailableModule && unavailableModule.error === error)
+        moduleCompletion = {
+          version: 1,
+          runId: config.runId,
+          entryId: config.entryId,
+          revision: config.revision,
+          kind: 'unavailable',
+          phase: unavailableModule.phase,
+          failure,
+        }
+      await send({ type: 'failure', error: failure })
+    }
     restoreConsole()
     terminalPublished = true
     await send({
       type: 'complete',
+      ...(moduleCompletion ? { moduleCompletion } : {}),
       status,
       interrupted,
       caseCount,

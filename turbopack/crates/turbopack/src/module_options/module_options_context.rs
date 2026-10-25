@@ -11,7 +11,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     chunk::SourceMapsType, compile_time_info::CompileTimeInfo, condition::ContextCondition,
-    environment::Environment, resolve::options::ImportMapping,
+    environment::Environment, resolve::options::ImportMapping, source::Source,
 };
 use turbopack_ecmascript::{
     AnalyzeMode, ImportMetaEnvRuntime, TypeofWindow,
@@ -283,8 +283,16 @@ pub struct EcmascriptOptionsContext {
 
     /// Lower async functions and generated module wrappers to observable Promise continuations.
     pub lower_async_to_generator: bool,
+    /// Exact Next-owned authoring source selected by a private test compiler context.
+    pub test_declaration_call_adapter: Option<ResolvedVc<Box<dyn Source>>>,
+    /// Private Node-test admission for direct, resolved injected CommonJS writes.
+    /// Ordinary application and Browser contexts leave this disabled.
+    pub test_injected_commonjs_exports: bool,
     /// Native browser-test creator pass selected; not a public config value.
     pub browser_creator_scope: bool,
+    /// Private Browser source coverage retains actual JSX pragma import usage.
+    /// Default application, Node test and ordinary TypeScript paths stay off.
+    pub browser_coverage_jsx_imports: bool,
     /// Selected Browser test entry with an ESM import contract.
     pub browser_test_entry: Option<ResolvedVc<FileSystemPath>>,
     /// Runtime module/export supplying mutable import.meta.env values, when configured.

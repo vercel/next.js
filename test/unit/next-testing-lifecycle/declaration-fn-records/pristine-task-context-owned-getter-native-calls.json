@@ -1,0 +1,103 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "owned-getter-native-calls",
+        "trace": [
+          {
+            "phase": "A",
+            "kind": "returned",
+            "sameAlias": false
+          },
+          {
+            "phase": "A",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "taskA": true,
+            "taskB": false,
+            "hasTask": true,
+            "actual": "A",
+            "expected": "A"
+          },
+          {
+            "phase": "B",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "taskA": false,
+            "taskB": true,
+            "hasTask": true,
+            "actual": "B",
+            "expected": "B"
+          },
+          {
+            "phase": "B",
+            "kind": "bind",
+            "name": "Error",
+            "message": "Invalid Chai property: toBe.length. See docs for proper usage of \"toBe\"."
+          },
+          {
+            "phase": "B",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "taskA": true,
+            "taskB": false,
+            "hasTask": true,
+            "actual": "A",
+            "expected": "A"
+          },
+          {
+            "phase": "B",
+            "kind": "bare",
+            "name": "TypeError",
+            "message": "Cannot read properties of undefined (reading '__flags')"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "taskA": false,
+            "taskB": true,
+            "hasTask": true,
+            "actual": "B",
+            "expected": "B"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "bind",
+            "name": "Error",
+            "message": "Invalid Chai property: toBe.length. See docs for proper usage of \"toBe\"."
+          }
+        ],
+        "callsA": 1,
+        "callsB": 1,
+        "stateA": "pass",
+        "stateB": "pass"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "native source A",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeads": []
+    },
+    {
+      "name": "native foreign receiver B",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeads": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

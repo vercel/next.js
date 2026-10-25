@@ -28,7 +28,9 @@ export async function planSourceSelection(
     for (const project of projects) {
       signal.throwIfAborted()
       const supported =
-        project.profile.environment === 'node' &&
+        (project.profile.environment === 'node' ||
+          (project.profile.environment === 'browser' &&
+            project.profile.browserClient === true)) &&
         project.isolate !== false &&
         (!project.globalSetup?.length ||
           (retainedGlobalSetup &&

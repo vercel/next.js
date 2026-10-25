@@ -1,0 +1,27 @@
+[
+  {
+    "name": "full namespace and dependency lifetime across reset",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "actual helper shares actual namespace and reset ownership",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "held callable and dependency mutations survive fresh root reset",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "native binding getter iterator close and original throw identity",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "native receiver local self and returned identity remain exact",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

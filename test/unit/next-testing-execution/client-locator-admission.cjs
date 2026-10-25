@@ -16,7 +16,8 @@ assert(
     'registration-cancel',
   ].includes(mode)
 )
-if (family !== undefined) assert(['dblClick', 'tripleClick'].includes(family))
+if (family !== undefined)
+  assert(['dblClick', 'tripleClick', 'clear'].includes(family))
 const trace = [],
   actions = [],
   selectors = [],
@@ -45,6 +46,7 @@ page.locator = (selector) => {
     click: (options) => perform('click', [options]),
     dblclick: (options) => perform('dblclick', [options]),
     fill: (value, options) => perform('fill', [value, options]),
+    clear: (options) => perform('clear', [options]),
   }
 }
 async function perform(method, args) {
@@ -250,9 +252,14 @@ const artifact = {
       assert.equal(admissions, mode === 'native-error' ? 2 : 1)
       if (family) {
         assert.deepEqual(actions[0], {
-          method: family === 'dblClick' ? 'dblclick' : 'click',
+          method:
+            family === 'clear'
+              ? 'clear'
+              : family === 'dblClick'
+                ? 'dblclick'
+                : 'click',
           args: [
-            family === 'dblClick'
+            family === 'dblClick' || family === 'clear'
               ? { timeout: 50 }
               : { timeout: 50, clickCount: 3 },
           ],

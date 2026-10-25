@@ -1,0 +1,3122 @@
+{
+  "mode": "production",
+  "sdks": ["1.64.0", "1.61.0"],
+  "sourceSyntax": "named-jsx-child-shapes",
+  "sourceFiles": {
+    "shape-classic-props.tsx": {
+      "sha256": "1c56b29f4aa35b67365ed804aff2cf909a4915f8de790072b1f728f0ebefca95",
+      "runtime": "classic"
+    },
+    "shape-classic-multiple.tsx": {
+      "sha256": "649af66b057f10cf6024b93679a2966f5336c208451ce7bc98f109869d3eb697",
+      "runtime": "classic"
+    },
+    "shape-classic-logical.tsx": {
+      "sha256": "5c8e869e99e0aff363bb57203e7d704b2a8ff4bf40043104a5c76ac4f615c5b2",
+      "runtime": "classic"
+    },
+    "shape-classic-conditional.tsx": {
+      "sha256": "4f0afc8614e61580a91f8ba0df6a42562f2956fe0188d7ebe26333bf05f7eaa4",
+      "runtime": "classic"
+    },
+    "shape-classic-multiline.tsx": {
+      "sha256": "39388044d8e0d7ee49ef7f5dc056fd12caed2ec00a51d6aa5943af08be211631",
+      "runtime": "classic"
+    },
+    "shape-classic-fragment.tsx": {
+      "sha256": "2810a1aa37e9788b38ae5c90cc874d8b697b7e2a84007a056c73f33163cf41c3",
+      "runtime": "classic"
+    },
+    "shape-named-props.tsx": {
+      "sha256": "cb5267037d805406e685f114725c3da051380c6b26bce403dc51c3e45f40cca8",
+      "runtime": "named",
+      "nativeSpecifiers": [
+        {
+          "kind": "named",
+          "local": "h",
+          "imported": "createElement"
+        }
+      ]
+    },
+    "shape-named-multiple.tsx": {
+      "sha256": "0696b064c7476b25e30784d1ebd72200bb94a7bd983ff8a391ed62beaed31bae",
+      "runtime": "named",
+      "nativeSpecifiers": [
+        {
+          "kind": "named",
+          "local": "h",
+          "imported": "createElement"
+        }
+      ]
+    },
+    "shape-named-logical.tsx": {
+      "sha256": "5041728947f2750df4bd7f0def8edffd7f19d364af24d61ee6b81dcee36a7a8c",
+      "runtime": "named",
+      "nativeSpecifiers": [
+        {
+          "kind": "named",
+          "local": "h",
+          "imported": "createElement"
+        }
+      ]
+    },
+    "shape-named-conditional.tsx": {
+      "sha256": "b64fcfa1ce051bf9e09c6199f28bf2c310cfd8edd4d4e983d5d9b9359fb6ab72",
+      "runtime": "named",
+      "nativeSpecifiers": [
+        {
+          "kind": "named",
+          "local": "h",
+          "imported": "createElement"
+        }
+      ]
+    },
+    "shape-named-multiline.tsx": {
+      "sha256": "4e11e10e245c0d87c022813d661f1d10db131d2f8d1e3349bf8e7130c3c949f6",
+      "runtime": "named",
+      "nativeSpecifiers": [
+        {
+          "kind": "named",
+          "local": "h",
+          "imported": "createElement"
+        }
+      ]
+    },
+    "shape-named-fragment.tsx": {
+      "sha256": "058f9868a8df8c9b7b064bfd30de19e4af418dff89bd22908bdf32200512ae35",
+      "runtime": "named",
+      "nativeSpecifiers": [
+        {
+          "kind": "named",
+          "local": "h",
+          "imported": "createElement"
+        },
+        {
+          "kind": "named",
+          "local": "Frag",
+          "imported": "Fragment"
+        }
+      ]
+    },
+    "shape-automatic-props.tsx": {
+      "sha256": "7f0990cb101759d18e648ff74050eb181168bcbbfda282ff8e6a15c5ebb62a28",
+      "runtime": "automatic",
+      "runtimeImports": ["jsx"]
+    },
+    "shape-automatic-multiple.tsx": {
+      "sha256": "eee47a8baab9e0ee578bf5fbdd6c0ce6ec6e32e9b4bf816155fc2ff0e872ca7e",
+      "runtime": "automatic",
+      "runtimeImports": ["jsx", "jsxs"]
+    },
+    "shape-automatic-logical.tsx": {
+      "sha256": "0803f45f7cffa1758bd5e88e72a641c328dc58d62e54a751245c7adbc69c3106",
+      "runtime": "automatic",
+      "runtimeImports": ["jsx"]
+    },
+    "shape-automatic-conditional.tsx": {
+      "sha256": "2f333d6ea6f83c604e7b22aceefbd107e5e632b7e3013f5f3f307a6b629cf0a1",
+      "runtime": "automatic",
+      "runtimeImports": ["jsx"]
+    },
+    "shape-automatic-multiline.tsx": {
+      "sha256": "3f8a388e526200a9b6b4f32040e6742f7cad80adb602f0b1973d7cdc6f1bf95f",
+      "runtime": "automatic",
+      "runtimeImports": ["jsx", "jsxs"]
+    },
+    "shape-automatic-fragment.tsx": {
+      "sha256": "a038d2d0071ae2526904a7ba180930d4096dee5950ba10165b3ea9e6905e93df",
+      "runtime": "automatic",
+      "runtimeImports": ["Fragment", "jsx", "jsxs"]
+    },
+    "shape-corpus.contract.test.mjs": {
+      "sha256": "76636ab420a868d264c88ab65b96ca88424b2eb3de9861c7dd2c339aa890f8f0"
+    }
+  },
+  "coverage": {
+    "shape-automatic-conditional.tsx": {
+      "path": "shape-automatic-conditional.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 3,
+            "column": 2
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 5,
+            "column": 13
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 5,
+            "column": 28
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "Card",
+          "decl": {
+            "start": {
+              "line": 2,
+              "column": 16
+            },
+            "end": {
+              "line": 2,
+              "column": 21
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 2,
+              "column": 47
+            },
+            "end": {
+              "line": 4,
+              "column": null
+            }
+          },
+          "line": 2
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 5,
+              "column": 13
+            },
+            "end": {
+              "line": 5,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 5,
+              "column": 28
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          },
+          "line": 5
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 3,
+              "column": 19
+            },
+            "end": {
+              "line": 3,
+              "column": 70
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 3,
+                "column": 28
+              },
+              "end": {
+                "line": 3,
+                "column": 45
+              }
+            },
+            {
+              "start": {
+                "line": 3,
+                "column": 45
+              },
+              "end": {
+                "line": 3,
+                "column": 70
+              }
+            }
+          ],
+          "line": 3
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 1,
+        "2": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {
+        "0": [1, 1]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 3,
+        "seen": {
+          "f:2:16:2:21": 0,
+          "s:3:2:3:Infinity": 0,
+          "b:3:28:3:45:3:45:3:70": 0,
+          "s:5:13:5:Infinity": 1,
+          "f:5:13:5:28": 1,
+          "s:5:28:5:Infinity": 2
+        },
+        "fnNames": {}
+      }
+    },
+    "shape-automatic-fragment.tsx": {
+      "path": "shape-automatic-fragment.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 3,
+            "column": 2
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 5,
+            "column": 13
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 5,
+            "column": 28
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "Card",
+          "decl": {
+            "start": {
+              "line": 2,
+              "column": 16
+            },
+            "end": {
+              "line": 2,
+              "column": 21
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 2,
+              "column": 47
+            },
+            "end": {
+              "line": 4,
+              "column": null
+            }
+          },
+          "line": 2
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 5,
+              "column": 13
+            },
+            "end": {
+              "line": 5,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 5,
+              "column": 28
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          },
+          "line": 5
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 3,
+              "column": 19
+            },
+            "end": {
+              "line": 3,
+              "column": 41
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 3,
+                "column": 28
+              },
+              "end": {
+                "line": 3,
+                "column": 36
+              }
+            },
+            {
+              "start": {
+                "line": 3,
+                "column": 36
+              },
+              "end": {
+                "line": 3,
+                "column": 41
+              }
+            }
+          ],
+          "line": 3
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 1,
+        "2": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {
+        "0": [1, 1]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 3,
+        "seen": {
+          "f:2:16:2:21": 0,
+          "s:3:2:3:Infinity": 0,
+          "b:3:28:3:36:3:36:3:41": 0,
+          "s:5:13:5:Infinity": 1,
+          "f:5:13:5:28": 1,
+          "s:5:28:5:Infinity": 2
+        },
+        "fnNames": {}
+      }
+    },
+    "shape-automatic-logical.tsx": {
+      "path": "shape-automatic-logical.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 3,
+            "column": 2
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 5,
+            "column": 13
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 5,
+            "column": 28
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "Card",
+          "decl": {
+            "start": {
+              "line": 2,
+              "column": 16
+            },
+            "end": {
+              "line": 2,
+              "column": 21
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 2,
+              "column": 47
+            },
+            "end": {
+              "line": 4,
+              "column": null
+            }
+          },
+          "line": 2
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 5,
+              "column": 13
+            },
+            "end": {
+              "line": 5,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 5,
+              "column": 28
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          },
+          "line": 5
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 3,
+              "column": 19
+            },
+            "end": {
+              "line": 3,
+              "column": 53
+            }
+          },
+          "type": "binary-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 3,
+                "column": 19
+              },
+              "end": {
+                "line": 3,
+                "column": 29
+              }
+            },
+            {
+              "start": {
+                "line": 3,
+                "column": 29
+              },
+              "end": {
+                "line": 3,
+                "column": 53
+              }
+            }
+          ],
+          "line": 3
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 1,
+        "2": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {
+        "0": [2, 1]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 3,
+        "seen": {
+          "f:2:16:2:21": 0,
+          "s:3:2:3:Infinity": 0,
+          "b:3:19:3:29:3:29:3:53": 0,
+          "s:5:13:5:Infinity": 1,
+          "f:5:13:5:28": 1,
+          "s:5:28:5:Infinity": 2
+        },
+        "fnNames": {}
+      }
+    },
+    "shape-automatic-multiline.tsx": {
+      "path": "shape-automatic-multiline.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 3,
+            "column": 2
+          },
+          "end": {
+            "line": 7,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 10,
+            "column": 13
+          },
+          "end": {
+            "line": 10,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 10,
+            "column": 28
+          },
+          "end": {
+            "line": 10,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "Card",
+          "decl": {
+            "start": {
+              "line": 2,
+              "column": 16
+            },
+            "end": {
+              "line": 2,
+              "column": 21
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 2,
+              "column": 47
+            },
+            "end": {
+              "line": 9,
+              "column": null
+            }
+          },
+          "line": 2
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 10,
+              "column": 13
+            },
+            "end": {
+              "line": 10,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 10,
+              "column": 28
+            },
+            "end": {
+              "line": 10,
+              "column": null
+            }
+          },
+          "line": 10
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 4,
+              "column": 25
+            },
+            "end": {
+              "line": 4,
+              "column": null
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 4,
+                "column": 34
+              },
+              "end": {
+                "line": 4,
+                "column": 42
+              }
+            },
+            {
+              "start": {
+                "line": 4,
+                "column": 42
+              },
+              "end": {
+                "line": 4,
+                "column": null
+              }
+            }
+          ],
+          "line": 4
+        },
+        "1": {
+          "loc": {
+            "start": {
+              "line": 6,
+              "column": 7
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 6,
+                "column": 16
+              },
+              "end": {
+                "line": 6,
+                "column": 23
+              }
+            },
+            {
+              "start": {
+                "line": 6,
+                "column": 23
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          ],
+          "line": 6
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 1,
+        "2": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {
+        "0": [1, 1],
+        "1": [1, 1]
+      },
+      "meta": {
+        "lastBranch": 2,
+        "lastFunction": 2,
+        "lastStatement": 3,
+        "seen": {
+          "f:2:16:2:21": 0,
+          "s:3:2:7:Infinity": 0,
+          "b:4:34:4:42:4:42:4:Infinity": 0,
+          "b:6:16:6:23:6:23:6:Infinity": 1,
+          "s:10:13:10:Infinity": 1,
+          "f:10:13:10:28": 1,
+          "s:10:28:10:Infinity": 2
+        },
+        "fnNames": {}
+      }
+    },
+    "shape-automatic-multiple.tsx": {
+      "path": "shape-automatic-multiple.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 3,
+            "column": 2
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 5,
+            "column": 13
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 5,
+            "column": 28
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "Card",
+          "decl": {
+            "start": {
+              "line": 2,
+              "column": 16
+            },
+            "end": {
+              "line": 2,
+              "column": 21
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 2,
+              "column": 47
+            },
+            "end": {
+              "line": 4,
+              "column": null
+            }
+          },
+          "line": 2
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 5,
+              "column": 13
+            },
+            "end": {
+              "line": 5,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 5,
+              "column": 28
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          },
+          "line": 5
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 3,
+              "column": 30
+            },
+            "end": {
+              "line": 3,
+              "column": 55
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 3,
+                "column": 39
+              },
+              "end": {
+                "line": 3,
+                "column": 47
+              }
+            },
+            {
+              "start": {
+                "line": 3,
+                "column": 47
+              },
+              "end": {
+                "line": 3,
+                "column": 55
+              }
+            }
+          ],
+          "line": 3
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 1,
+        "2": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {
+        "0": [1, 1]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 3,
+        "seen": {
+          "f:2:16:2:21": 0,
+          "s:3:2:3:Infinity": 0,
+          "b:3:39:3:47:3:47:3:55": 0,
+          "s:5:13:5:Infinity": 1,
+          "f:5:13:5:28": 1,
+          "s:5:28:5:Infinity": 2
+        },
+        "fnNames": {}
+      }
+    },
+    "shape-automatic-props.tsx": {
+      "path": "shape-automatic-props.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 3,
+            "column": 2
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 5,
+            "column": 13
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 5,
+            "column": 28
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "Card",
+          "decl": {
+            "start": {
+              "line": 2,
+              "column": 16
+            },
+            "end": {
+              "line": 2,
+              "column": 21
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 2,
+              "column": 47
+            },
+            "end": {
+              "line": 4,
+              "column": null
+            }
+          },
+          "line": 2
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 5,
+              "column": 13
+            },
+            "end": {
+              "line": 5,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 5,
+              "column": 28
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          },
+          "line": 5
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 3,
+              "column": 19
+            },
+            "end": {
+              "line": 3,
+              "column": 43
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 3,
+                "column": 28
+              },
+              "end": {
+                "line": 3,
+                "column": 35
+              }
+            },
+            {
+              "start": {
+                "line": 3,
+                "column": 35
+              },
+              "end": {
+                "line": 3,
+                "column": 43
+              }
+            }
+          ],
+          "line": 3
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 1,
+        "2": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {
+        "0": [1, 1]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 3,
+        "seen": {
+          "f:2:16:2:21": 0,
+          "s:3:2:3:Infinity": 0,
+          "b:3:28:3:35:3:35:3:43": 0,
+          "s:5:13:5:Infinity": 1,
+          "f:5:13:5:28": 1,
+          "s:5:28:5:Infinity": 2
+        },
+        "fnNames": {}
+      }
+    },
+    "shape-classic-conditional.tsx": {
+      "path": "shape-classic-conditional.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 5,
+            "column": 2
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 7,
+            "column": 13
+          },
+          "end": {
+            "line": 7,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 7,
+            "column": 28
+          },
+          "end": {
+            "line": 7,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "Card",
+          "decl": {
+            "start": {
+              "line": 4,
+              "column": 16
+            },
+            "end": {
+              "line": 4,
+              "column": 21
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 4,
+              "column": 47
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          },
+          "line": 4
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 7,
+              "column": 13
+            },
+            "end": {
+              "line": 7,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 7,
+              "column": 28
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          },
+          "line": 7
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 5,
+              "column": 19
+            },
+            "end": {
+              "line": 5,
+              "column": 70
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 5,
+                "column": 28
+              },
+              "end": {
+                "line": 5,
+                "column": 45
+              }
+            },
+            {
+              "start": {
+                "line": 5,
+                "column": 45
+              },
+              "end": {
+                "line": 5,
+                "column": 70
+              }
+            }
+          ],
+          "line": 5
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 1,
+        "2": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {
+        "0": [1, 1]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 3,
+        "seen": {
+          "f:4:16:4:21": 0,
+          "s:5:2:5:Infinity": 0,
+          "b:5:28:5:45:5:45:5:70": 0,
+          "s:7:13:7:Infinity": 1,
+          "f:7:13:7:28": 1,
+          "s:7:28:7:Infinity": 2
+        },
+        "fnNames": {}
+      }
+    },
+    "shape-classic-fragment.tsx": {
+      "path": "shape-classic-fragment.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 5,
+            "column": 2
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 7,
+            "column": 13
+          },
+          "end": {
+            "line": 7,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 7,
+            "column": 28
+          },
+          "end": {
+            "line": 7,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "Card",
+          "decl": {
+            "start": {
+              "line": 4,
+              "column": 16
+            },
+            "end": {
+              "line": 4,
+              "column": 21
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 4,
+              "column": 47
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          },
+          "line": 4
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 7,
+              "column": 13
+            },
+            "end": {
+              "line": 7,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 7,
+              "column": 28
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          },
+          "line": 7
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 5,
+              "column": 19
+            },
+            "end": {
+              "line": 5,
+              "column": 41
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 5,
+                "column": 28
+              },
+              "end": {
+                "line": 5,
+                "column": 36
+              }
+            },
+            {
+              "start": {
+                "line": 5,
+                "column": 36
+              },
+              "end": {
+                "line": 5,
+                "column": 41
+              }
+            }
+          ],
+          "line": 5
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 1,
+        "2": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {
+        "0": [1, 1]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 3,
+        "seen": {
+          "f:4:16:4:21": 0,
+          "s:5:2:5:Infinity": 0,
+          "b:5:28:5:36:5:36:5:41": 0,
+          "s:7:13:7:Infinity": 1,
+          "f:7:13:7:28": 1,
+          "s:7:28:7:Infinity": 2
+        },
+        "fnNames": {}
+      }
+    },
+    "shape-classic-logical.tsx": {
+      "path": "shape-classic-logical.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 5,
+            "column": 2
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 7,
+            "column": 13
+          },
+          "end": {
+            "line": 7,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 7,
+            "column": 28
+          },
+          "end": {
+            "line": 7,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "Card",
+          "decl": {
+            "start": {
+              "line": 4,
+              "column": 16
+            },
+            "end": {
+              "line": 4,
+              "column": 21
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 4,
+              "column": 47
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          },
+          "line": 4
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 7,
+              "column": 13
+            },
+            "end": {
+              "line": 7,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 7,
+              "column": 28
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          },
+          "line": 7
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 5,
+              "column": 19
+            },
+            "end": {
+              "line": 5,
+              "column": 53
+            }
+          },
+          "type": "binary-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 5,
+                "column": 19
+              },
+              "end": {
+                "line": 5,
+                "column": 29
+              }
+            },
+            {
+              "start": {
+                "line": 5,
+                "column": 29
+              },
+              "end": {
+                "line": 5,
+                "column": 53
+              }
+            }
+          ],
+          "line": 5
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 1,
+        "2": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {
+        "0": [2, 1]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 3,
+        "seen": {
+          "f:4:16:4:21": 0,
+          "s:5:2:5:Infinity": 0,
+          "b:5:19:5:29:5:29:5:53": 0,
+          "s:7:13:7:Infinity": 1,
+          "f:7:13:7:28": 1,
+          "s:7:28:7:Infinity": 2
+        },
+        "fnNames": {}
+      }
+    },
+    "shape-classic-multiline.tsx": {
+      "path": "shape-classic-multiline.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 5,
+            "column": 2
+          },
+          "end": {
+            "line": 9,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 12,
+            "column": 13
+          },
+          "end": {
+            "line": 12,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 12,
+            "column": 28
+          },
+          "end": {
+            "line": 12,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "Card",
+          "decl": {
+            "start": {
+              "line": 4,
+              "column": 16
+            },
+            "end": {
+              "line": 4,
+              "column": 21
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 4,
+              "column": 47
+            },
+            "end": {
+              "line": 11,
+              "column": null
+            }
+          },
+          "line": 4
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 12,
+              "column": 13
+            },
+            "end": {
+              "line": 12,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 12,
+              "column": 28
+            },
+            "end": {
+              "line": 12,
+              "column": null
+            }
+          },
+          "line": 12
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 6,
+              "column": 25
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 6,
+                "column": 34
+              },
+              "end": {
+                "line": 6,
+                "column": 42
+              }
+            },
+            {
+              "start": {
+                "line": 6,
+                "column": 42
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          ],
+          "line": 6
+        },
+        "1": {
+          "loc": {
+            "start": {
+              "line": 8,
+              "column": 7
+            },
+            "end": {
+              "line": 8,
+              "column": null
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 8,
+                "column": 16
+              },
+              "end": {
+                "line": 8,
+                "column": 23
+              }
+            },
+            {
+              "start": {
+                "line": 8,
+                "column": 23
+              },
+              "end": {
+                "line": 8,
+                "column": null
+              }
+            }
+          ],
+          "line": 8
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 1,
+        "2": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {
+        "0": [1, 1],
+        "1": [1, 1]
+      },
+      "meta": {
+        "lastBranch": 2,
+        "lastFunction": 2,
+        "lastStatement": 3,
+        "seen": {
+          "f:4:16:4:21": 0,
+          "s:5:2:9:Infinity": 0,
+          "b:6:34:6:42:6:42:6:Infinity": 0,
+          "b:8:16:8:23:8:23:8:Infinity": 1,
+          "s:12:13:12:Infinity": 1,
+          "f:12:13:12:28": 1,
+          "s:12:28:12:Infinity": 2
+        },
+        "fnNames": {}
+      }
+    },
+    "shape-classic-multiple.tsx": {
+      "path": "shape-classic-multiple.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 5,
+            "column": 2
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 7,
+            "column": 13
+          },
+          "end": {
+            "line": 7,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 7,
+            "column": 28
+          },
+          "end": {
+            "line": 7,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "Card",
+          "decl": {
+            "start": {
+              "line": 4,
+              "column": 16
+            },
+            "end": {
+              "line": 4,
+              "column": 21
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 4,
+              "column": 47
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          },
+          "line": 4
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 7,
+              "column": 13
+            },
+            "end": {
+              "line": 7,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 7,
+              "column": 28
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          },
+          "line": 7
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 5,
+              "column": 30
+            },
+            "end": {
+              "line": 5,
+              "column": 55
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 5,
+                "column": 39
+              },
+              "end": {
+                "line": 5,
+                "column": 47
+              }
+            },
+            {
+              "start": {
+                "line": 5,
+                "column": 47
+              },
+              "end": {
+                "line": 5,
+                "column": 55
+              }
+            }
+          ],
+          "line": 5
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 1,
+        "2": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {
+        "0": [1, 1]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 3,
+        "seen": {
+          "f:4:16:4:21": 0,
+          "s:5:2:5:Infinity": 0,
+          "b:5:39:5:47:5:47:5:55": 0,
+          "s:7:13:7:Infinity": 1,
+          "f:7:13:7:28": 1,
+          "s:7:28:7:Infinity": 2
+        },
+        "fnNames": {}
+      }
+    },
+    "shape-classic-props.tsx": {
+      "path": "shape-classic-props.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 5,
+            "column": 2
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 7,
+            "column": 13
+          },
+          "end": {
+            "line": 7,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 7,
+            "column": 28
+          },
+          "end": {
+            "line": 7,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "Card",
+          "decl": {
+            "start": {
+              "line": 4,
+              "column": 16
+            },
+            "end": {
+              "line": 4,
+              "column": 21
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 4,
+              "column": 47
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          },
+          "line": 4
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 7,
+              "column": 13
+            },
+            "end": {
+              "line": 7,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 7,
+              "column": 28
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          },
+          "line": 7
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 5,
+              "column": 19
+            },
+            "end": {
+              "line": 5,
+              "column": 43
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 5,
+                "column": 28
+              },
+              "end": {
+                "line": 5,
+                "column": 35
+              }
+            },
+            {
+              "start": {
+                "line": 5,
+                "column": 35
+              },
+              "end": {
+                "line": 5,
+                "column": 43
+              }
+            }
+          ],
+          "line": 5
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 1,
+        "2": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {
+        "0": [1, 1]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 3,
+        "seen": {
+          "f:4:16:4:21": 0,
+          "s:5:2:5:Infinity": 0,
+          "b:5:28:5:35:5:35:5:43": 0,
+          "s:7:13:7:Infinity": 1,
+          "f:7:13:7:28": 1,
+          "s:7:28:7:Infinity": 2
+        },
+        "fnNames": {}
+      }
+    },
+    "shape-named-conditional.tsx": {
+      "path": "shape-named-conditional.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 7,
+            "column": 2
+          },
+          "end": {
+            "line": 7,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 9,
+            "column": 13
+          },
+          "end": {
+            "line": 9,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 9,
+            "column": 28
+          },
+          "end": {
+            "line": 9,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "Card",
+          "decl": {
+            "start": {
+              "line": 6,
+              "column": 16
+            },
+            "end": {
+              "line": 6,
+              "column": 21
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 6,
+              "column": 47
+            },
+            "end": {
+              "line": 8,
+              "column": null
+            }
+          },
+          "line": 6
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 9,
+              "column": 13
+            },
+            "end": {
+              "line": 9,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 9,
+              "column": 28
+            },
+            "end": {
+              "line": 9,
+              "column": null
+            }
+          },
+          "line": 9
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 7,
+              "column": 19
+            },
+            "end": {
+              "line": 7,
+              "column": 70
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 7,
+                "column": 28
+              },
+              "end": {
+                "line": 7,
+                "column": 45
+              }
+            },
+            {
+              "start": {
+                "line": 7,
+                "column": 45
+              },
+              "end": {
+                "line": 7,
+                "column": 70
+              }
+            }
+          ],
+          "line": 7
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 1,
+        "2": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {
+        "0": [1, 1]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 3,
+        "seen": {
+          "f:6:16:6:21": 0,
+          "s:7:2:7:Infinity": 0,
+          "b:7:28:7:45:7:45:7:70": 0,
+          "s:9:13:9:Infinity": 1,
+          "f:9:13:9:28": 1,
+          "s:9:28:9:Infinity": 2
+        },
+        "fnNames": {}
+      }
+    },
+    "shape-named-fragment.tsx": {
+      "path": "shape-named-fragment.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 7,
+            "column": 2
+          },
+          "end": {
+            "line": 7,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 9,
+            "column": 13
+          },
+          "end": {
+            "line": 9,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 9,
+            "column": 28
+          },
+          "end": {
+            "line": 9,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "Card",
+          "decl": {
+            "start": {
+              "line": 6,
+              "column": 16
+            },
+            "end": {
+              "line": 6,
+              "column": 21
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 6,
+              "column": 47
+            },
+            "end": {
+              "line": 8,
+              "column": null
+            }
+          },
+          "line": 6
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 9,
+              "column": 13
+            },
+            "end": {
+              "line": 9,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 9,
+              "column": 28
+            },
+            "end": {
+              "line": 9,
+              "column": null
+            }
+          },
+          "line": 9
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 7,
+              "column": 19
+            },
+            "end": {
+              "line": 7,
+              "column": 41
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 7,
+                "column": 28
+              },
+              "end": {
+                "line": 7,
+                "column": 36
+              }
+            },
+            {
+              "start": {
+                "line": 7,
+                "column": 36
+              },
+              "end": {
+                "line": 7,
+                "column": 41
+              }
+            }
+          ],
+          "line": 7
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 1,
+        "2": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {
+        "0": [1, 1]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 3,
+        "seen": {
+          "f:6:16:6:21": 0,
+          "s:7:2:7:Infinity": 0,
+          "b:7:28:7:36:7:36:7:41": 0,
+          "s:9:13:9:Infinity": 1,
+          "f:9:13:9:28": 1,
+          "s:9:28:9:Infinity": 2
+        },
+        "fnNames": {}
+      }
+    },
+    "shape-named-logical.tsx": {
+      "path": "shape-named-logical.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 7,
+            "column": 2
+          },
+          "end": {
+            "line": 7,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 9,
+            "column": 13
+          },
+          "end": {
+            "line": 9,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 9,
+            "column": 28
+          },
+          "end": {
+            "line": 9,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "Card",
+          "decl": {
+            "start": {
+              "line": 6,
+              "column": 16
+            },
+            "end": {
+              "line": 6,
+              "column": 21
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 6,
+              "column": 47
+            },
+            "end": {
+              "line": 8,
+              "column": null
+            }
+          },
+          "line": 6
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 9,
+              "column": 13
+            },
+            "end": {
+              "line": 9,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 9,
+              "column": 28
+            },
+            "end": {
+              "line": 9,
+              "column": null
+            }
+          },
+          "line": 9
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 7,
+              "column": 19
+            },
+            "end": {
+              "line": 7,
+              "column": 53
+            }
+          },
+          "type": "binary-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 7,
+                "column": 19
+              },
+              "end": {
+                "line": 7,
+                "column": 29
+              }
+            },
+            {
+              "start": {
+                "line": 7,
+                "column": 29
+              },
+              "end": {
+                "line": 7,
+                "column": 53
+              }
+            }
+          ],
+          "line": 7
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 1,
+        "2": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {
+        "0": [2, 1]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 3,
+        "seen": {
+          "f:6:16:6:21": 0,
+          "s:7:2:7:Infinity": 0,
+          "b:7:19:7:29:7:29:7:53": 0,
+          "s:9:13:9:Infinity": 1,
+          "f:9:13:9:28": 1,
+          "s:9:28:9:Infinity": 2
+        },
+        "fnNames": {}
+      }
+    },
+    "shape-named-multiline.tsx": {
+      "path": "shape-named-multiline.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 7,
+            "column": 2
+          },
+          "end": {
+            "line": 11,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 14,
+            "column": 13
+          },
+          "end": {
+            "line": 14,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 14,
+            "column": 28
+          },
+          "end": {
+            "line": 14,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "Card",
+          "decl": {
+            "start": {
+              "line": 6,
+              "column": 16
+            },
+            "end": {
+              "line": 6,
+              "column": 21
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 6,
+              "column": 47
+            },
+            "end": {
+              "line": 13,
+              "column": null
+            }
+          },
+          "line": 6
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 14,
+              "column": 13
+            },
+            "end": {
+              "line": 14,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 14,
+              "column": 28
+            },
+            "end": {
+              "line": 14,
+              "column": null
+            }
+          },
+          "line": 14
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 8,
+              "column": 25
+            },
+            "end": {
+              "line": 8,
+              "column": null
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 8,
+                "column": 34
+              },
+              "end": {
+                "line": 8,
+                "column": 42
+              }
+            },
+            {
+              "start": {
+                "line": 8,
+                "column": 42
+              },
+              "end": {
+                "line": 8,
+                "column": null
+              }
+            }
+          ],
+          "line": 8
+        },
+        "1": {
+          "loc": {
+            "start": {
+              "line": 10,
+              "column": 7
+            },
+            "end": {
+              "line": 10,
+              "column": null
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 10,
+                "column": 16
+              },
+              "end": {
+                "line": 10,
+                "column": 23
+              }
+            },
+            {
+              "start": {
+                "line": 10,
+                "column": 23
+              },
+              "end": {
+                "line": 10,
+                "column": null
+              }
+            }
+          ],
+          "line": 10
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 1,
+        "2": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {
+        "0": [1, 1],
+        "1": [1, 1]
+      },
+      "meta": {
+        "lastBranch": 2,
+        "lastFunction": 2,
+        "lastStatement": 3,
+        "seen": {
+          "f:6:16:6:21": 0,
+          "s:7:2:11:Infinity": 0,
+          "b:8:34:8:42:8:42:8:Infinity": 0,
+          "b:10:16:10:23:10:23:10:Infinity": 1,
+          "s:14:13:14:Infinity": 1,
+          "f:14:13:14:28": 1,
+          "s:14:28:14:Infinity": 2
+        },
+        "fnNames": {}
+      }
+    },
+    "shape-named-multiple.tsx": {
+      "path": "shape-named-multiple.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 7,
+            "column": 2
+          },
+          "end": {
+            "line": 7,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 9,
+            "column": 13
+          },
+          "end": {
+            "line": 9,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 9,
+            "column": 28
+          },
+          "end": {
+            "line": 9,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "Card",
+          "decl": {
+            "start": {
+              "line": 6,
+              "column": 16
+            },
+            "end": {
+              "line": 6,
+              "column": 21
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 6,
+              "column": 47
+            },
+            "end": {
+              "line": 8,
+              "column": null
+            }
+          },
+          "line": 6
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 9,
+              "column": 13
+            },
+            "end": {
+              "line": 9,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 9,
+              "column": 28
+            },
+            "end": {
+              "line": 9,
+              "column": null
+            }
+          },
+          "line": 9
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 7,
+              "column": 30
+            },
+            "end": {
+              "line": 7,
+              "column": 55
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 7,
+                "column": 39
+              },
+              "end": {
+                "line": 7,
+                "column": 47
+              }
+            },
+            {
+              "start": {
+                "line": 7,
+                "column": 47
+              },
+              "end": {
+                "line": 7,
+                "column": 55
+              }
+            }
+          ],
+          "line": 7
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 1,
+        "2": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {
+        "0": [1, 1]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 3,
+        "seen": {
+          "f:6:16:6:21": 0,
+          "s:7:2:7:Infinity": 0,
+          "b:7:39:7:47:7:47:7:55": 0,
+          "s:9:13:9:Infinity": 1,
+          "f:9:13:9:28": 1,
+          "s:9:28:9:Infinity": 2
+        },
+        "fnNames": {}
+      }
+    },
+    "shape-named-props.tsx": {
+      "path": "shape-named-props.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 7,
+            "column": 2
+          },
+          "end": {
+            "line": 7,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 9,
+            "column": 13
+          },
+          "end": {
+            "line": 9,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 9,
+            "column": 28
+          },
+          "end": {
+            "line": 9,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "Card",
+          "decl": {
+            "start": {
+              "line": 6,
+              "column": 16
+            },
+            "end": {
+              "line": 6,
+              "column": 21
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 6,
+              "column": 47
+            },
+            "end": {
+              "line": 8,
+              "column": null
+            }
+          },
+          "line": 6
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 9,
+              "column": 13
+            },
+            "end": {
+              "line": 9,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 9,
+              "column": 28
+            },
+            "end": {
+              "line": 9,
+              "column": null
+            }
+          },
+          "line": 9
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 7,
+              "column": 19
+            },
+            "end": {
+              "line": 7,
+              "column": 43
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 7,
+                "column": 28
+              },
+              "end": {
+                "line": 7,
+                "column": 35
+              }
+            },
+            {
+              "start": {
+                "line": 7,
+                "column": 35
+              },
+              "end": {
+                "line": 7,
+                "column": 43
+              }
+            }
+          ],
+          "line": 7
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 1,
+        "2": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {
+        "0": [1, 1]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 3,
+        "seen": {
+          "f:6:16:6:21": 0,
+          "s:7:2:7:Infinity": 0,
+          "b:7:28:7:35:7:35:7:43": 0,
+          "s:9:13:9:Infinity": 1,
+          "f:9:13:9:28": 1,
+          "s:9:28:9:Infinity": 2
+        },
+        "fnNames": {}
+      }
+    }
+  },
+  "cases": [
+    {
+      "file": "shape-corpus.contract.test.mjs",
+      "status": "passed",
+      "cases": [
+        {
+          "ancestorTitles": [],
+          "fullName": "classic props preserves authored child and prop behavior",
+          "status": "passed",
+          "title": "classic props preserves authored child and prop behavior",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "classic multiple preserves authored child and prop behavior",
+          "status": "passed",
+          "title": "classic multiple preserves authored child and prop behavior",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "classic logical preserves authored child and prop behavior",
+          "status": "passed",
+          "title": "classic logical preserves authored child and prop behavior",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "classic conditional preserves authored child and prop behavior",
+          "status": "passed",
+          "title": "classic conditional preserves authored child and prop behavior",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "classic multiline preserves authored child and prop behavior",
+          "status": "passed",
+          "title": "classic multiline preserves authored child and prop behavior",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "classic fragment preserves authored child and prop behavior",
+          "status": "passed",
+          "title": "classic fragment preserves authored child and prop behavior",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "named props preserves authored child and prop behavior",
+          "status": "passed",
+          "title": "named props preserves authored child and prop behavior",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "named multiple preserves authored child and prop behavior",
+          "status": "passed",
+          "title": "named multiple preserves authored child and prop behavior",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "named logical preserves authored child and prop behavior",
+          "status": "passed",
+          "title": "named logical preserves authored child and prop behavior",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "named conditional preserves authored child and prop behavior",
+          "status": "passed",
+          "title": "named conditional preserves authored child and prop behavior",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "named multiline preserves authored child and prop behavior",
+          "status": "passed",
+          "title": "named multiline preserves authored child and prop behavior",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "named fragment preserves authored child and prop behavior",
+          "status": "passed",
+          "title": "named fragment preserves authored child and prop behavior",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "automatic props preserves authored child and prop behavior",
+          "status": "passed",
+          "title": "automatic props preserves authored child and prop behavior",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "automatic multiple preserves authored child and prop behavior",
+          "status": "passed",
+          "title": "automatic multiple preserves authored child and prop behavior",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "automatic logical preserves authored child and prop behavior",
+          "status": "passed",
+          "title": "automatic logical preserves authored child and prop behavior",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "automatic conditional preserves authored child and prop behavior",
+          "status": "passed",
+          "title": "automatic conditional preserves authored child and prop behavior",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "automatic multiline preserves authored child and prop behavior",
+          "status": "passed",
+          "title": "automatic multiline preserves authored child and prop behavior",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "automatic fragment preserves authored child and prop behavior",
+          "status": "passed",
+          "title": "automatic fragment preserves authored child and prop behavior",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ]
+    }
+  ],
+  "numPassedTests": 18
+}

@@ -135,7 +135,10 @@ use crate::{
             ImportMetaRef, UrlAssetReference, UrlRewriteBehavior, base::EsmAssetReferences,
             binding::EsmBindingsBuilder, module_id::EsmModuleIdAssetReference,
         },
-        exports::{EcmascriptExportsAnalysis, compute_ecmascript_module_exports},
+        exports::{
+            EcmascriptExportsAnalysis, compute_ecmascript_module_exports,
+            read_test_injected_commonjs_exports_role,
+        },
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
         hot_module::{ModuleHotReferenceAssetReference, ModuleHotReferenceCodeGen},
         ident::IdentReplacement,
@@ -149,8 +152,8 @@ use crate::{
         },
     },
     runtime_functions::{
-        TURBOPACK_EXPORTS, TURBOPACK_GLOBAL, TURBOPACK_REQUIRE_REAL, TURBOPACK_REQUIRE_STUB,
-        TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS,
+        TURBOPACK_EXPORTS, TURBOPACK_GLOBAL, TURBOPACK_MODULE, TURBOPACK_REQUIRE_REAL,
+        TURBOPACK_REQUIRE_STUB, TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS,
     },
     source_map::parse_source_map_comment,
     utils::{AstPathRange, js_value_to_pattern, module_value_to_well_known_object},
@@ -748,6 +751,7 @@ async fn analyze_ecmascript_module_internal(
         source_map,
         source_mapping_url,
         program_source: _,
+        browser_jsx_imports: _,
     } = &*parsed
     else {
         return analysis.build(Default::default(), false).await;
@@ -761,10 +765,20 @@ async fn analyze_ecmascript_module_internal(
     }
 
     let is_esm = eval_context.is_esm(specified_type);
+    let injected_commonjs_exports = read_test_injected_commonjs_exports_role(
+        program,
+        globals,
+        eval_context,
+        specified_type,
+        options.test_injected_commonjs_exports,
+        raw_module.compile_time_info,
+    )
+    .await?;
 
     let compile_time_info = compile_time_info_for_module_options(
         *raw_module.compile_time_info,
         is_esm,
+        injected_commonjs_exports,
         options.enable_typeof_window_inlining,
     )
     .to_resolved()
@@ -1660,6 +1674,7 @@ async fn analyze_ecmascript_module_internal(
 async fn compile_time_info_for_module_options(
     compile_time_info: Vc<CompileTimeInfo>,
     is_esm: bool,
+    injected_commonjs_exports: bool,
     enable_typeof_window_inlining: Option<TypeofWindow>,
 ) -> Result<Vc<CompileTimeInfo>> {
     let compile_time_info = compile_time_info.await?;
@@ -1684,6 +1699,11 @@ async fn compile_time_info_for_module_options(
             TURBOPACK_REQUIRE_REAL,
         )
     };
+    let (typeof_exports, typeof_module) = if injected_commonjs_exports {
+        (rcstr!("object"), rcstr!("object"))
+    } else {
+        (typeof_exports, typeof_module)
+    };
     let typeofs: [(&[RcStr], RcStr); _] = [
         (&[rcstr!("import"), rcstr!("meta")], rcstr!("object")),
         (&[rcstr!("exports")], typeof_exports),
@@ -1704,6 +1724,17 @@ async fn compile_time_info_for_module_options(
             .entry(name.clone())
             .or_insert(typeof_value.clone().into());
         defines.entry(name).or_insert(typeof_value.into());
+    }
+
+    if injected_commonjs_exports {
+        free_var_references.insert(
+            vec![DefinableNameSegment::Name(rcstr!("module"))],
+            TURBOPACK_MODULE.into(),
+        );
+        free_var_references.insert(
+            vec![DefinableNameSegment::Name(rcstr!("exports"))],
+            TURBOPACK_EXPORTS.into(),
+        );
     }
 
     free_var_references

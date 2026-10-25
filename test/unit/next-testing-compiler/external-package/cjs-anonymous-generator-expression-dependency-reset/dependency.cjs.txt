@@ -1,0 +1,2 @@
+globalThis.__nextKindDependency=(globalThis.__nextKindDependency||0)+1
+module.exports={evaluation:globalThis.__nextKindDependency,marker:{}}

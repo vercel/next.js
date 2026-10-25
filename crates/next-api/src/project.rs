@@ -58,6 +58,7 @@ use turbopack::{
     ModuleAssetContext, evaluate_context::node_build_environment, externals_tracing_module_context,
     global_module_ids::get_global_module_id_strategy, transition::TransitionOptions,
 };
+use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME,
     changed::content_changed,
@@ -1734,7 +1735,7 @@ impl Project {
     ) -> Result<Vc<Box<dyn ChunkingContext>>> {
         let css_url_suffix = self.next_config().asset_suffix_path();
         let turbopack_chunking = self.next_config().turbopack_chunking().await?;
-        Ok(get_client_chunking_context(ClientChunkingContextOptions {
+        let context = get_client_chunking_context(ClientChunkingContextOptions {
             mode: self.next_mode(),
             root_path: self.project_root_path().owned().await?,
             client_root: self.client_relative_path().owned().await?,
@@ -1778,7 +1779,16 @@ impl Project {
             chunking_max_merge_chunk_size: turbopack_chunking.max_merge_chunk_size,
             chunking_min_component_chunk_size: turbopack_chunking.min_component_chunk_size,
             generate_component_chunks: self.next_config().turbopack_generate_component_chunks(),
-        }))
+        });
+        if *self.browser_source_coverage().await? {
+            let concrete = ResolvedVc::try_downcast_type::<BrowserChunkingContext>(
+                context.to_resolved().await?,
+            )
+            .context("Browser source coverage requires its actual Browser chunking context")?;
+            Ok(Vc::upcast(concrete.with_source_coverage()))
+        } else {
+            Ok(context)
+        }
     }
 
     #[turbo_tasks::function]
@@ -2452,6 +2462,27 @@ impl Project {
         }))
     }
 
+    /// This opt-in never enables the separate Node coverage proof or endpoint.
+    #[turbo_tasks::function]
+    pub(crate) async fn browser_source_coverage(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(match self.test_entry {
+            Some(entry) => entry.await?.browser_source_coverage,
+            None => false,
+        }))
+    }
+
+    /// Both explicit test modes retain denominators without changing their runtime.
+    #[turbo_tasks::function]
+    pub(crate) async fn preserve_test_sources(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(match self.test_entry {
+            Some(entry) => {
+                let entry = entry.await?;
+                entry.source_coverage || entry.browser_source_coverage
+            }
+            None => false,
+        }))
+    }
+
     /// A non-RSC Node module context for explicit unit and browser-driver specs.
     #[turbo_tasks::function]
     pub(crate) async fn node_test_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
@@ -2497,7 +2528,11 @@ impl Project {
                     self.client_compile_time_info().environment(),
                     false,
                 ),
-                *self.source_coverage().await?,
+                *self.preserve_test_sources().await?,
+                *crate::testing::test_authoring_source(self.project_path().owned().await?, false)
+                    .to_resolved()
+                    .await?,
+                true,
             ),
             crate::testing_aliases::alias_resolve_options_context(
                 crate::testing::test_resolve_options_context(
@@ -2907,7 +2942,7 @@ impl Project {
     /// Compute the used exports for each module.
     #[turbo_tasks::function]
     pub async fn export_usage(self: Vc<Self>) -> Result<Vc<OptionBindingUsageInfo>> {
-        if !*self.source_coverage().await?
+        if !*self.preserve_test_sources().await?
             && *self
                 .next_config()
                 .turbopack_remove_unused_exports(self.next_mode())
@@ -2924,7 +2959,7 @@ impl Project {
     /// Compute the unused references that were removed (inner graph tree shaking).
     #[turbo_tasks::function]
     pub async fn unused_references(self: Vc<Self>) -> Result<Vc<UnusedReferences>> {
-        if !*self.source_coverage().await?
+        if !*self.preserve_test_sources().await?
             && *self
                 .next_config()
                 .turbopack_remove_unused_imports(self.next_mode())
@@ -3049,7 +3084,7 @@ async fn whole_app_module_graph_operation(
 
         let base = ModuleGraph::from_graphs(vec![base_single_module_graph], None);
 
-        let turbopack_remove_unused_imports = !*project.source_coverage().await?
+        let turbopack_remove_unused_imports = !*project.preserve_test_sources().await?
             && *project
                 .next_config()
                 .turbopack_remove_unused_imports(next_mode)

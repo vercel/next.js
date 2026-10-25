@@ -7,7 +7,9 @@ const mode = process.argv[3]
 const { createAssertionRuntime } = require(path.join(base, 'assertions'))
 const asyncScopes = require(path.join(base, 'runner/async-context'))
 const runner = require(path.join(base, 'runner'))
-const { chai } = require(path.join(base, '../../compiled/next-test-primitives'))
+const { chai, getVitestAssertionTaskRuntime } = require(
+  path.join(base, '../../compiled/next-test-primitives')
+)
 async function main() {
   const directory = await fs.mkdtemp(
     path.join(os.tmpdir(), 'next-around-retained-')
@@ -97,7 +99,9 @@ async function main() {
                       release = () => resolve(1)
                     })
                   )
-                  const task = chai.util.flag(assertion, 'vitest-test')
+                  const task = getVitestAssertionTaskRuntime(
+                    chai.util.flag(assertion, 'vitest-test')
+                  )
                   const thenable = assertion.resolves.toBe(2)
                   promise = task.promises.at(-1)
                   assert(promise instanceof Promise)

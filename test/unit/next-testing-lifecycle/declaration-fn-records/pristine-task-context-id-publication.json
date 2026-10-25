@@ -1,0 +1,104 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "id-publication",
+        "trace": [
+          {
+            "scenario": "different-name",
+            "phase": "old-created",
+            "emptyId": true,
+            "contextTaskSame": true
+          },
+          {
+            "scenario": "different-name",
+            "phase": "current-created",
+            "oldEmpty": true,
+            "currentEmpty": true,
+            "sameId": true
+          },
+          {
+            "scenario": "different-name",
+            "phase": "manual-collect",
+            "oldEmpty": true,
+            "currentEmpty": true,
+            "sameTask": true,
+            "discardedAbsent": true
+          },
+          {
+            "scenario": "same-name",
+            "phase": "old-created",
+            "emptyId": true,
+            "contextTaskSame": true
+          },
+          {
+            "scenario": "same-name",
+            "phase": "current-created",
+            "oldEmpty": true,
+            "currentEmpty": true,
+            "sameId": true
+          },
+          {
+            "scenario": "same-name",
+            "phase": "manual-collect",
+            "oldEmpty": true,
+            "currentEmpty": true,
+            "sameTask": true,
+            "discardedAbsent": true
+          },
+          {
+            "scenario": "different-name",
+            "phase": "running",
+            "oldEmpty": true,
+            "currentNonempty": true,
+            "sameId": false,
+            "oldContextTaskSame": true,
+            "currentContextSame": true,
+            "currentContextTaskSame": true,
+            "distinctContext": true,
+            "distinctExpect": true,
+            "oldCount": 1,
+            "currentCount": 0
+          },
+          {
+            "scenario": "same-name",
+            "phase": "running",
+            "oldEmpty": true,
+            "currentNonempty": true,
+            "sameId": false,
+            "oldContextTaskSame": true,
+            "currentContextSame": true,
+            "currentContextTaskSame": true,
+            "distinctContext": true,
+            "distinctExpect": true,
+            "oldCount": 1,
+            "currentCount": 0
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "current",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "shared",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

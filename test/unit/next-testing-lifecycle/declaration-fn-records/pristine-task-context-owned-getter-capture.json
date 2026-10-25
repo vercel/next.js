@@ -1,0 +1,102 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "owned-getter-capture",
+        "trace": [
+          {
+            "phase": "body",
+            "kind": "getter",
+            "sameOriginal": false
+          },
+          {
+            "phase": "body",
+            "kind": "capture",
+            "aliasSameCaptured": true,
+            "aliasSameOriginal": false
+          },
+          {
+            "phase": "body",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "sameTask": true,
+            "actual": "owned",
+            "expected": "owned"
+          },
+          {
+            "phase": "body",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "sameTask": true,
+            "actual": "owned",
+            "expected": "owned"
+          },
+          {
+            "phase": "body",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "sameTask": true,
+            "actual": "owned",
+            "expected": "owned"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "getter",
+            "sameOriginal": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "capture",
+            "sameAlias": true,
+            "aliasSameCaptured": true
+          },
+          {
+            "phase": "afterAll",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "sameTask": true,
+            "actual": "owned",
+            "expected": "owned"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "sameTask": true,
+            "actual": "owned",
+            "expected": "owned"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "sameTask": true,
+            "actual": "owned",
+            "expected": "owned"
+          }
+        ],
+        "count": 1,
+        "state": "pass"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "owned getter captured source",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeads": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 1,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

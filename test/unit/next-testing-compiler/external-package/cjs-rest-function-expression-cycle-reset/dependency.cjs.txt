@@ -1,0 +1,2 @@
+globalThis.__ws2ExprDependency=(globalThis.__ws2ExprDependency||0)+1
+module.exports={evaluation:globalThis.__ws2ExprDependency,marker:{},root:require('./root.cjs')}

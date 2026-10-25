@@ -10,6 +10,7 @@ const context = require('next/dist/experimental/testing/client/async-context')
 const api = require('next/dist/experimental/testing/client/browser-context')
 const key = Symbol.for('next.testing.browser.locators')
 const dom = new JSDOM('<!DOCTYPE html><body></body>')
+const restoreBrowserDomRealm = require('./browser-dom-realm.cjs')(dom.window)
 const saved = new Map(
   ['document', 'Element'].map((name) => [
     name,
@@ -121,6 +122,7 @@ function lookup(root, id) {
       if (descriptor) Object.defineProperty(globalThis, name, descriptor)
       else Reflect.deleteProperty(globalThis, name)
     }
+    restoreBrowserDomRealm()
   }
 })().catch((error) => {
   console.error(error)

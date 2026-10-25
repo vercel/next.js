@@ -1,0 +1,46 @@
+import { afterEach, expect, test } from 'vitest'
+import { page } from 'vitest/browser'
+import { createElement, useState } from 'react'
+import { createRoot } from 'react-dom/client'
+import { flushSync } from 'react-dom'
+let reactRoot
+const roots = []
+afterEach(() => { if (reactRoot) { flushSync(() => reactRoot.unmount()); reactRoot = undefined } document.body.replaceChildren() })
+function trace(element) { const events = []; for (const type of ['focus','focusin','beforeinput','input','change','blur','focusout']) element.addEventListener(type, event => events.push({ type, constructor:event.constructor.name, target:event.target===element, currentTarget:event.currentTarget===element, trusted:event.isTrusted, bubbles:event.bubbles, cancelable:event.cancelable, composed:event.composed, inputType:event.inputType??null, data:event.data??null, value:element.value??null, text:element.textContent, active:document.activeElement===element, selectionStart:element.selectionStart??null, selectionEnd:element.selectionEnd??null })); return events }
+function record(name, element, events, outcome, extra={}) { console.log('CLEAR_RAW '+JSON.stringify({ name, mode:process.env.NODE_ENV, connected:element.isConnected, value:element.value??null, text:element.textContent, active:document.activeElement===element, events, outcome, ...extra })) }
+function settled(promise) { return promise.then(value=>({returnedUndefined:value===undefined}),error=>({errorName:error.name,errorMessage:error.message})) }
+for(const tag of ['input','textarea']) test('clear waits for a late '+tag+' query',async()=>{
+ const label='Late '+tag,query=page.getByLabelText(label),call=settled(query.clear({timeout:1000}));await Promise.resolve()
+ const input=document.createElement(tag);input.setAttribute('aria-label',label);input.value='A😀 value';const events=trace(input);document.body.append(input)
+ const outcome=await call;record('late '+tag,input,events,outcome);expect(outcome).toEqual({returnedUndefined:true});expect(input.value).toBe('')
+})
+test('clear updates a late controlled React input through native input',async()=>{
+ const values=[],query=page.getByRole('textbox',{name:'Late React',exact:true}),call=settled(query.clear({timeout:1000}));await Promise.resolve()
+ function Controlled(){const[value,setValue]=useState('React 😀');return createElement('input',{'aria-label':'Late React',value,onChange:event=>{values.push(event.target.value);setValue(event.target.value)}})}
+ const container=document.createElement('div');document.body.append(container);reactRoot=createRoot(container);flushSync(()=>reactRoot.render(createElement(Controlled)));const input=container.querySelector('input'),events=trace(input)
+ const outcome=await call;record('late React',input,events,outcome,{values});expect(outcome).toEqual({returnedUndefined:true});expect(input.value).toBe('');expect(values).toEqual([''])
+})
+for(const value of ['value',''])test('clear an existing '+(value?'nonempty':'empty')+' input',async()=>{
+ const input=document.createElement('input');input.setAttribute('aria-label','Existing');input.value=value;document.body.append(input);const events=trace(input)
+ const outcome=await settled(page.getByLabelText('Existing').clear({force:true,timeout:1000}));record('existing '+(value?'nonempty':'empty'),input,events,outcome);expect(outcome).toEqual({returnedUndefined:true});expect(input.value).toBe('')
+})
+test('clear a contenteditable through native events',async()=>{
+ const input=document.createElement('div');input.contentEditable='true';input.setAttribute('role','textbox');input.setAttribute('aria-label','Editable');input.textContent='Editable 😀';document.body.append(input);const events=trace(input)
+ const outcome=await settled(page.getByRole('textbox',{name:'Editable',exact:true}).clear({timeout:1000}));record('contenteditable',input,events,outcome);expect(outcome).toEqual({returnedUndefined:true});expect(input.textContent).toBe('')
+})
+for(const property of ['disabled','readOnly'])test('clear retains native '+property+' actionability',async()=>{
+ const input=document.createElement('input');input.setAttribute('aria-label',property);input.value='held';input[property]=true;document.body.append(input);const events=trace(input)
+ const call=settled(page.getByLabelText(property).clear({timeout:1000}));await Promise.resolve();input[property]=false
+ const outcome=await call;record(property,input,events,outcome);expect(outcome).toEqual({returnedUndefined:true});expect(input.value).toBe('')
+})
+test('clear retains a scoped late label query',async()=>{
+ const container=document.createElement('section');container.setAttribute('role','group');container.setAttribute('aria-label','Scope');document.body.append(container)
+ const query=page.getByRole('group',{name:'Scope',exact:true}).getByLabelText('Scoped'),call=settled(query.clear({timeout:1000}));await Promise.resolve()
+ const input=document.createElement('input');input.setAttribute('aria-label','Scoped');input.value='scoped';const events=trace(input);container.append(input)
+ const outcome=await call;record('scoped late',input,events,outcome);expect(outcome).toEqual({returnedUndefined:true});expect(input.value).toBe('')
+})
+test('clear retains a late test-id query',async()=>{
+ const query=page.getByTestId('late-clear'),call=settled(query.clear({timeout:1000}));await Promise.resolve()
+ const input=document.createElement('input');input.dataset.testid='late-clear';input.value='test id';const events=trace(input);document.body.append(input)
+ const outcome=await call;record('test id late',input,events,outcome);expect(outcome).toEqual({returnedUndefined:true});expect(input.value).toBe('')
+})

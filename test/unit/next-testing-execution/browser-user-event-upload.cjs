@@ -16,6 +16,7 @@ async function main() {
     Element: dom.window.Element,
     FileReader: dom.window.FileReader,
   }
+  const restoreBrowserDomRealm = require('./browser-dom-realm.cjs')(dom.window)
   const saved = new Map(
     Object.keys(values).map((key) => [
       key,
@@ -112,6 +113,7 @@ async function main() {
       if (descriptor) Object.defineProperty(globalThis, key, descriptor)
       else Reflect.deleteProperty(globalThis, key)
     }
+    restoreBrowserDomRealm()
   }
 }
 main().catch((error) => {

@@ -1,0 +1,96 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "late-hard-chain",
+        "trace": [
+          {
+            "kind": "body",
+            "turn": 0,
+            "count": 1
+          },
+          {
+            "kind": "body",
+            "turn": 1,
+            "count": 1
+          },
+          {
+            "kind": "afterAll-before",
+            "state": "pass",
+            "count": 2
+          },
+          {
+            "kind": "late-before",
+            "state": "pass",
+            "sameExpect": true,
+            "count": 2
+          },
+          {
+            "kind": "action",
+            "action": "not",
+            "result": "ok",
+            "count": 3
+          },
+          {
+            "kind": "action",
+            "action": "extracted",
+            "result": "error",
+            "name": "TypeError",
+            "message": "Cannot read properties of undefined (reading '__flags')",
+            "count": 4
+          },
+          {
+            "kind": "action",
+            "action": "call",
+            "result": "error",
+            "name": "TypeError",
+            "message": "Cannot read properties of undefined (reading '__flags')",
+            "count": 5
+          },
+          {
+            "kind": "adopted",
+            "same": true
+          },
+          {
+            "kind": "action",
+            "action": "adoption",
+            "result": "ok",
+            "count": 6
+          },
+          {
+            "kind": "afterAll-after",
+            "state": "pass",
+            "count": 6
+          }
+        ],
+        "errors": [
+          {
+            "name": "Error",
+            "message": "Test timed out in 60ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\"."
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "closed owner plain hard chains",
+      "status": "passed",
+      "failureCount": 1,
+      "failureHeaders": [
+        "Error: Test timed out in 60ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\"."
+      ]
+    }
+  ],
+  "counts": {
+    "numTotalTests": 1,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

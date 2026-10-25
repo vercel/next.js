@@ -1,0 +1,71 @@
+{
+  "rows": [
+    [
+      {
+        "stage": "retry-body",
+        "attempt": 1
+      },
+      {
+        "stage": "retry-body",
+        "attempt": 2
+      },
+      {
+        "stage": "retry-finished"
+      },
+      {
+        "stage": "queue-body"
+      },
+      {
+        "stage": "queue-get",
+        "reads": 1
+      },
+      {
+        "stage": "queue-get",
+        "reads": 2
+      },
+      {
+        "stage": "queue-finished",
+        "reads": 2
+      },
+      {
+        "stage": "return-body"
+      },
+      {
+        "stage": "body-then-get"
+      },
+      {
+        "stage": "body-then-get"
+      },
+      {
+        "stage": "body-then-get"
+      },
+      {
+        "stage": "body-then-get"
+      },
+      {
+        "stage": "body-then-get"
+      }
+    ]
+  ],
+  "cases": [
+    {
+      "name": "zero deadline preserves synchronous throw retry",
+      "status": "passed",
+      "failureMessages": [
+        "zero body synchronous retry control"
+      ]
+    },
+    {
+      "name": "zero deadline reads the actual public queue",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "zero deadline preserves raw body return observation",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "success": true,
+  "exit": 0
+}

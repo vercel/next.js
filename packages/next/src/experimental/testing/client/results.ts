@@ -1,5 +1,6 @@
 import {
   assertReporterTaskParents,
+  isTaskLocation,
   type ReporterTaskSnapshot,
 } from '../reporting/live-tasks'
 import { basename, dirname, join } from 'node:path'
@@ -15,6 +16,10 @@ import { getFinalCaseResults } from '../reporting/final-cases'
 import type { ClientMessage } from './protocol'
 import type { SnapshotUpdate } from '../assertions/snapshots'
 import { resolveClientDeclarations } from './collection'
+import {
+  assertRuntimeModuleCompletion,
+  type RuntimeModuleCompletion,
+} from '../execution/completed-module'
 
 type EventPayload<T> = T extends unknown
   ? Omit<T, 'version' | 'runId' | 'timestamp'>
@@ -57,10 +62,16 @@ function failures(value: unknown): asserts value is RunnerFailure[] {
 /** Facts are retained until the page, connection, browser process and HTTP owner close. */
 export function createClientResultCollector(
   artifact: CompiledBrowserClientTestArtifact,
-  options: ExecuteTestOptions,
+  options: ExecuteTestOptions & {
+    isUserCancellationFinalized?: () => boolean
+  },
   mapStack?: (stack: string) => NonNullable<SerializedDiagnostic['frames']>
 ) {
   const events: ResultEvent[] = []
+  let moduleCompletion: RuntimeModuleCompletion | undefined
+  const moduleFailures = options.captureCompletedModuleResult
+    ? ([] as unknown[])
+    : undefined
   const snapshotPaths = new Set([
     artifact.client.sourceFile,
     join(
@@ -116,7 +127,8 @@ export function createClientResultCollector(
   let active: string | undefined,
     complete = false,
     fileFailed = false,
-    requiresInterruption = false
+    requiresInterruption = false,
+    requiresUserCancellation = false
   let updates: SnapshotUpdate[] = []
   let status: 'passed' | 'failed' = 'failed'
   const hasFailedOutcomes = () =>
@@ -186,6 +198,7 @@ export function createClientResultCollector(
           value.parentSuiteId !==
             (declaredParent === artifact.entryId ? null : declaredParent)) ||
         (!root && value.id !== `${parentId}/${index}`) ||
+        (value.location !== undefined && !isTaskLocation(value.location)) ||
         value.type !== (suite ? 'suite' : 'test') ||
         value.name !== name ||
         value.fullTestName !== fullTestName ||
@@ -219,6 +232,7 @@ export function createClientResultCollector(
               'fullName',
               'fullTestName',
               'parentSuiteId',
+              'location',
               'mode',
               'meta',
               'tags',
@@ -453,6 +467,16 @@ export function createClientResultCollector(
           String(result.status)
         ) ||
         !['run', 'skip', 'todo'].includes(String(mode)) ||
+        (result.location !== undefined &&
+          (!record(result.location) ||
+            result.location.file !== artifact.client.sourceFile ||
+            !isTaskLocation({
+              line: result.location.line,
+              column: result.location.column,
+            }) ||
+            Object.keys(result.location).some(
+              (key) => !['file', 'line', 'column'].includes(key)
+            ))) ||
         !duration(result.durationMs) ||
         (result.pending !== undefined && typeof result.pending !== 'boolean') ||
         (result.note !== undefined && typeof result.note !== 'string') ||
@@ -463,6 +487,13 @@ export function createClientResultCollector(
         )
       failures(result.errors)
       if (state?.started) {
+        const userCancelled =
+          options.isUserCancellationFinalized !== undefined &&
+          declared.mode === 'run' &&
+          mode === 'run' &&
+          result.status === 'skipped' &&
+          !result.errors.length &&
+          !result.pending
         if (
           result.status === 'cancelled' ||
           (mode !== declared.mode &&
@@ -472,12 +503,14 @@ export function createClientResultCollector(
               result.status === 'skipped'
             )) ||
           (result.status === 'skipped' &&
-            !(mode === 'skip' && result.pending === true)) ||
+            !(mode === 'skip' && result.pending === true) &&
+            !userCancelled) ||
           (result.status === 'passed' && result.errors.length)
         )
           throw new Error(
             'Browser Mode case result does not match its immutable attempt.'
           )
+        requiresUserCancellation ||= userCancelled
       } else {
         const inactive =
           declared.mode !== 'run' &&
@@ -694,10 +727,32 @@ export function createClientResultCollector(
         errors: result.errors.map((failure) => diagnostic(failure.error)),
       })
     } else if (message.type === 'failure') {
+      moduleFailures?.push(message.error)
       fileFailed = true
       fileFailure(message.error)
     } else if (message.type === 'complete') {
+      if (message.moduleCompletion !== undefined) {
+        if (!options.captureCompletedModuleResult)
+          throw new Error('Unsolicited private module completion.')
+        assertRuntimeModuleCompletion(
+          message.moduleCompletion,
+          {
+            version: 1,
+            runId: options.runId,
+            entryId: artifact.entryId,
+            revision: artifact.revision,
+          },
+          message.status,
+          moduleFailures!
+        )
+        moduleCompletion = message.moduleCompletion
+      } else if (options.captureCompletedModuleResult)
+        throw new Error(
+          'Browser Mode omitted requested private module completion.'
+        )
       const failed = hasFailedOutcomes()
+      const finalizedUserCancellation =
+        message.interrupted && options.isUserCancellationFinalized?.() === true
       if (
         !['passed', 'failed'].includes(message.status) ||
         typeof message.interrupted !== 'boolean' ||
@@ -716,7 +771,8 @@ export function createClientResultCollector(
             logicalResults.size !== declarations.cases.size) ||
           [...blockedCases].some((id) => !blocked(caseAncestors(id))) ||
           [...blockedSuites].some((id) => !blocked(suiteAncestors(id))) ||
-          (requiresInterruption && !message.interrupted)
+          (requiresInterruption && !message.interrupted) ||
+          (requiresUserCancellation && !finalizedUserCancellation)
         )
           throw new Error(
             'Browser Mode completion omitted declared tasks or their suite failure.'
@@ -732,7 +788,9 @@ export function createClientResultCollector(
         )
       if (
         (message.status === 'passed' &&
-          (failed || message.interrupted || !declarations?.cases.size)) ||
+          (failed ||
+            (message.interrupted && !finalizedUserCancellation) ||
+            !declarations?.cases.size)) ||
         (message.status === 'failed' && !failed && !message.interrupted)
       )
         throw new Error(
@@ -812,6 +870,7 @@ export function createClientResultCollector(
         status: hasFailedOutcomes() ? ('failed' as const) : status,
         updates: hasFailedOutcomes() ? [] : updates,
         events: visibleEvents(),
+        ...(moduleCompletion ? { moduleCompletion } : {}),
       }
     },
     get events() {

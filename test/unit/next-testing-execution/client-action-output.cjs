@@ -55,6 +55,7 @@ const failure =
     : new SyntaxError('actual native response JSON rejected')
 const tick = () => new Promise((resolve) => setImmediate(resolve))
 const file = {
+  enableBrowserPublicTaskQueues() {},
   collect: async (load) => load(),
   validateBrowserClient: () => [],
   async run(options) {

@@ -1,0 +1,14 @@
+import {describe,afterAll} from'vitest';
+const trace=[];
+for(const scenario of ['different-name','same-name']) {
+ const collector=describe.fn.call({concurrent:false,shuffle:false},scenario,{},()=>{});
+ const oldName=scenario==='same-name'?'shared':'discarded',newName=scenario==='same-name'?'shared':'current';
+ const old=collector.task(oldName,{handler(){throw new Error('cleared task executed')}}),oldContext=old.context,oldExpect=oldContext.expect;
+ trace.push({scenario,phase:'old-created',emptyId:old.id==='',contextTaskSame:oldContext.task===old});oldExpect(true).toBe(true);
+ collector.clear();
+ const current=collector.task(newName,{handler(context){trace.push({scenario,phase:'running',oldEmpty:old.id==='',currentNonempty:current.id!=='',sameId:old.id===current.id,oldContextTaskSame:oldContext.task===old,currentContextSame:context===current.context,currentContextTaskSame:context.task===current,distinctContext:context!==oldContext,distinctExpect:context.expect!==oldExpect,oldCount:oldExpect.getState().assertionCalls,currentCount:context.expect.getState().assertionCalls});context.expect(true).toBe(true);}});
+ trace.push({scenario,phase:'current-created',oldEmpty:old.id==='',currentEmpty:current.id==='',sameId:old.id===current.id});
+ const collected=await collector.collect(collector.file);
+ trace.push({scenario,phase:'manual-collect',oldEmpty:old.id==='',currentEmpty:current.id==='',sameTask:collected.tasks.includes(current),discardedAbsent:!collected.tasks.includes(old)});
+}
+afterAll(()=>console.log('DECLARATION_FN:'+JSON.stringify({kind:'id-publication',trace})));

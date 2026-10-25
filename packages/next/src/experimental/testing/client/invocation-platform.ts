@@ -3,6 +3,8 @@ import type { TestContext } from '../runner/collector'
 import { invokeClientAttempt, assertBrowserApiScope } from './async-context'
 import { guardedExpect } from './api-scope'
 
+export { NativePromise, nativePromiseThen } from './async-context'
+
 const contexts = new WeakMap<TestContext, TestContext>()
 const expectations = new WeakMap<TestContext['expect'], TestContext['expect']>()
 

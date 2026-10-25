@@ -1,0 +1,6 @@
+import {test,afterAll} from 'vitest';
+const trace=[];let softTask,unawaitedTask,awaitedTask;
+test('actual Task native soft',context=>{softTask=context.task;context.expect.soft(1).toBe(2);trace.push({phase:'soft-body',count:context.expect.getState().assertionCalls});});
+test('actual Task native unawaited',context=>{unawaitedTask=context.task;context.expect(Promise.resolve(3)).resolves.toBe(3);trace.push({phase:'unawaited-body',count:context.expect.getState().assertionCalls});});
+test('actual Task native awaited',async context=>{awaitedTask=context.task;await context.expect(Promise.resolve(4)).resolves.toBe(4);context.expect([1,2]).not.toEqual([2,1]);trace.push({phase:'awaited-body',count:context.expect.getState().assertionCalls});});
+afterAll(()=>console.log('DECLARATION_FN:'+JSON.stringify({kind:'actual-Task-native-async',trace,results:[softTask,unawaitedTask,awaitedTask].map(task=>({name:task.name,state:task.result.state,errorCount:task.result.errors?.length??0}))})));

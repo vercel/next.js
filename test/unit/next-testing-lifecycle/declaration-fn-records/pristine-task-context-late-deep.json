@@ -1,0 +1,120 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "late-deep",
+        "trace": [
+          {
+            "kind": "deep",
+            "result": "ok",
+            "sameReturn": false,
+            "count": 9
+          },
+          {
+            "kind": "strict",
+            "result": "ok",
+            "sameReturn": false,
+            "count": 9
+          },
+          {
+            "kind": "sparse",
+            "result": "ok",
+            "sameReturn": false,
+            "count": 9
+          },
+          {
+            "kind": "not-strict",
+            "result": "ok",
+            "sameReturn": false,
+            "count": 9
+          },
+          {
+            "kind": "subset",
+            "result": "ok",
+            "sameReturn": false,
+            "count": 9
+          },
+          {
+            "kind": "property",
+            "result": "ok",
+            "sameReturn": false,
+            "count": 9
+          },
+          {
+            "kind": "property-path",
+            "path": ["a.b", "c"]
+          },
+          {
+            "kind": "getter",
+            "ownReceiver": true
+          },
+          {
+            "kind": "getter",
+            "ownReceiver": true
+          },
+          {
+            "kind": "getter-property",
+            "result": "ok",
+            "sameReturn": false,
+            "count": 9
+          },
+          {
+            "kind": "extracted",
+            "result": "error",
+            "name": "TypeError",
+            "message": "Cannot read properties of undefined (reading '__flags')",
+            "count": 9
+          },
+          {
+            "kind": "receiver-call",
+            "result": "ok",
+            "sameReturn": false,
+            "count": 9
+          },
+          {
+            "kind": "returned-chain",
+            "result": "ok",
+            "sameReturn": false,
+            "count": 9
+          },
+          {
+            "kind": "mismatch",
+            "result": "error",
+            "name": "AssertionError",
+            "message": "expected { different: [ 5 ] } to deeply equal { different: [ 6 ] }",
+            "count": 9
+          },
+          {
+            "kind": "adopted",
+            "same": true,
+            "getterCalls": 2,
+            "count": 9
+          }
+        ],
+        "state": "pass",
+        "count": 9
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "closed owner deep hard chains",
+      "status": "passed",
+      "failureCount": 1,
+      "failureHeaders": [
+        "Error: Test timed out in 60ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\"."
+      ]
+    }
+  ],
+  "counts": {
+    "numTotalTests": 1,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

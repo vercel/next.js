@@ -1,0 +1,53 @@
+{
+  "rows": [
+    [
+      {
+        "stage": "initial",
+        "absent": true
+      },
+      {
+        "stage": "body-return",
+        "same": true,
+        "array": true,
+        "prototype": true,
+        "ownPush": false,
+        "length": 3
+      },
+      {
+        "stage": "afterEach",
+        "errors": []
+      },
+      {
+        "stage": "manual-finished",
+        "same": true,
+        "receiverUndefined": true,
+        "args": 1
+      },
+      {
+        "stage": "global-finished",
+        "same": true,
+        "receiverUndefined": true,
+        "args": 1
+      },
+      {
+        "stage": "context-finished",
+        "same": true,
+        "receiverUndefined": true,
+        "args": 1
+      },
+      {
+        "stage": "afterAll-task",
+        "absent": true
+      }
+    ]
+  ],
+  "cases": [
+    {
+      "name": "actual finished array shares context global and manual callbacks",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "success": true,
+  "exit": 0
+}

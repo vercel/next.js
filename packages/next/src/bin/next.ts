@@ -682,6 +682,18 @@ program
     )
   })
 
+let testCoverageArgument: boolean | boolean[] | undefined
+function appendTestCoverageArgument(value: boolean) {
+  testCoverageArgument =
+    testCoverageArgument === undefined
+      ? value
+      : [
+          ...(Array.isArray(testCoverageArgument)
+            ? testCoverageArgument
+            : [testCoverageArgument]),
+          value,
+        ]
+}
 program
   .command('test')
   .description(
@@ -706,6 +718,26 @@ program
   )
   .option('--watch', 'Watch for changes (requires watch capability).')
   .option(
+    '--includeTaskLocation [boolean]',
+    'Collect actual test and suite declaration locations.'
+  )
+  .addOption(
+    new Option(
+      '--no-includeTaskLocation',
+      'Disable test and suite declaration locations.'
+    ).default(undefined)
+  )
+  .option(
+    '--browser.headless [boolean]',
+    'Run enabled Browser projects without a graphical window.'
+  )
+  .addOption(
+    new Option(
+      '--no-browser.headless',
+      'Run enabled Browser projects in a graphical window.'
+    ).default(undefined)
+  )
+  .option(
     '--update',
     'Update snapshots in an explicitly requested one-shot run.'
   )
@@ -716,9 +748,13 @@ program
   .option('--capabilities', 'Print the supported test capabilities as JSON.')
   .option('--coverage', 'Collect one-shot development Node line coverage.')
   .option('--no-coverage', 'Disable configured V8 coverage collection.')
+  .addOption(new Option('--coverage=true').hideHelp())
+  .addOption(new Option('--coverage=false').hideHelp())
+  .addOption(new Option('--coverage=').hideHelp())
+  .option('--coverage.provider <name>', 'Standard coverage provider: v8.')
   .option(
     '--coverage.reporter <name>',
-    'Standard coverage reporter: json, json-summary, text-summary, or lcov.',
+    'Standard coverage reporter: json, json-summary, text, text-summary, html, clover, lcov, or lcovonly.',
     (value: string, previous?: string[]) => [...(previous ?? []), value]
   )
   .option(
@@ -744,8 +780,16 @@ program
     'Publish complete standard coverage after failed test execution.'
   )
   .option(
+    '--coverage.thresholds.100 [boolean]',
+    'Require all four standard coverage metrics to reach 100 percent.'
+  )
+  .option(
     '--coverage.thresholds.perFile [boolean]',
     'Apply global standard coverage thresholds to each source file.'
+  )
+  .option(
+    '--coverage.thresholds.autoUpdate [boolean]',
+    'Update configured standard coverage thresholds after a complete one-shot run.'
   )
   .option(
     '--coverage.thresholds.statements <number>',
@@ -799,6 +843,17 @@ program
   .option('--no-allowOnly', 'Fail focused tests and suites.')
   .option('--passWithNoTests', 'Succeed when no test files or tests are found.')
   .option('--no-passWithNoTests', 'Fail when no test files or tests are found.')
+  .option(
+    '--cache',
+    'Store test results to run failed and longer files first.',
+    true
+  )
+  .addOption(new Option('--cache=true').hideHelp())
+  .addOption(new Option('--cache=false').hideHelp())
+  .option(
+    '--no-cache',
+    'Run isolated one-shot tests without test result caching.'
+  )
   .option('--project <name>', 'Select a project from next.test.config.json.')
   .option(
     '--max-workers <count>',
@@ -835,12 +890,63 @@ program
     '--merge-reports <directory>',
     'Merge Next test result blobs without executing tests.'
   )
-  .action(async (directory, options) => {
+  .on('option:cache=true', function (this: Command) {
+    this.setOptionValueWithSource('cache', true, 'cli')
+  })
+  .on('option:cache=false', function (this: Command) {
+    this.setOptionValueWithSource('cache', false, 'cli')
+  })
+  .on('option:coverage', () => {
+    appendTestCoverageArgument(true)
+  })
+  .on('option:coverage=true', function (this: Command) {
+    this.setOptionValueWithSource('coverage', true, 'cli')
+    appendTestCoverageArgument(true)
+  })
+  .on('option:coverage=false', function (this: Command) {
+    this.setOptionValueWithSource('coverage', false, 'cli')
+    appendTestCoverageArgument(false)
+  })
+  .on('option:coverage=', function (this: Command) {
+    this.setOptionValueWithSource('coverage', true, 'cli')
+    appendTestCoverageArgument(true)
+  })
+  .on('option:no-coverage', () => {
+    testCoverageArgument = false
+  })
+  .action(async (directory, options, command: Command) => {
     try {
+      if (Array.isArray(testCoverageArgument))
+        throw new Error(
+          `Expected a single value for option "--coverage ", received [${testCoverageArgument.join(', ')}]`
+        )
       const { nextTestRunner } = await import('../cli/next-test-runner.js')
-      await nextTestRunner(directory, options)
+      const explicitCache = command.getOptionValueSource('cache') === 'cli'
+      await nextTestRunner(directory, {
+        ...options,
+        cache: explicitCache ? options.cache : undefined,
+        cacheDefault: explicitCache ? undefined : options.cache,
+      })
     } catch (error) {
-      console.error(error instanceof Error ? error.message : String(error))
+      if (
+        error instanceof Error &&
+        (error instanceof AggregateError || error.cause !== undefined)
+      ) {
+        const { serializeDiagnostic } = await import(
+          '../experimental/testing/reporting/diagnostics.js'
+        )
+        const { formatDiagnostic } = await import(
+          '../experimental/testing/reporting/reporter.js'
+        )
+        console.error(
+          formatDiagnostic(
+            serializeDiagnostic(error, { phase: 'configuration' }),
+            directory
+          )
+        )
+      } else {
+        console.error(error instanceof Error ? error.message : String(error))
+      }
       process.exitCode = 1
     }
   })
@@ -1111,4 +1217,25 @@ internal
   )
   .usage('[directory] [options]')
 
-program.parse(process.argv)
+const argv = process.argv
+if (argv[2] === 'test') {
+  const testArgv = argv.slice(0, 3)
+  for (let index = 3; index < argv.length; index++) {
+    const argument = argv[index]
+    if (argument === '--') {
+      testArgv.push(...argv.slice(index))
+      break
+    }
+    if (
+      argument === '--coverage' &&
+      (argv[index + 1] === 'true' || argv[index + 1] === 'false')
+    ) {
+      testArgv.push(`--coverage=${argv[++index]}`)
+    } else {
+      testArgv.push(argument)
+    }
+  }
+  program.parse(testArgv)
+} else {
+  program.parse(argv)
+}

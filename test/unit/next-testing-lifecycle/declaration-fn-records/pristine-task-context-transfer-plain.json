@@ -1,0 +1,31 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "transfer-plain",
+        "returnedUndefined": true,
+        "subject": "ok",
+        "sourceSubject": "ok",
+        "count": 0
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "copies original flags to ordinary caller payload",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 1,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

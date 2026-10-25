@@ -1,0 +1,124 @@
+{
+  "reference": {
+    "vitest": "5.0.4",
+    "playwright": "1.64.0",
+    "caseProjectionFields": ["name", "status", "failureMessages"],
+    "wholeStandardReportEqualityClaim": false
+  },
+  "genuine": {
+    "source": "sources/zero.test.mjs.txt",
+    "sha256": "2344911ed26cb57bf4d0f050d2c9042194195ecdaab7f2bc9f7fe4bc8392f7cb",
+    "prefix": "TASK_ZERO_BODY:",
+    "profiles": {
+      "chromium-development": {
+        "browser": "chromium",
+        "mode": "development",
+        "projected": {
+          "path": "reference/chromium-development-actual.json.txt",
+          "sha256": "e521718493ebf50d30862f1a5d1ae21dde29988255d3b1e8072b42df3a7e61d8"
+        },
+        "rawStandardReport": {
+          "path": "reference/chromium-development-report.json.txt",
+          "sha256": "022cc7e5d8bb4a72b1f871301ccdcf78ba3e9997e322d19847710aff57c64a00"
+        },
+        "rawConsole": {
+          "path": "reference/chromium-development-console.jsonl.txt",
+          "sha256": "42ce9937db56cc0c305ee94f73e4782e56df29a2e4c712ec71f5fed51d62e36a"
+        }
+      },
+      "chromium-production": {
+        "browser": "chromium",
+        "mode": "production",
+        "projected": {
+          "path": "reference/chromium-production-actual.json.txt",
+          "sha256": "e521718493ebf50d30862f1a5d1ae21dde29988255d3b1e8072b42df3a7e61d8"
+        },
+        "rawStandardReport": {
+          "path": "reference/chromium-production-report.json.txt",
+          "sha256": "eaacb01437acabc35d8d8a03f97ac707549063bc4c3129022af512deeedf2825"
+        },
+        "rawConsole": {
+          "path": "reference/chromium-production-console.jsonl.txt",
+          "sha256": "33e64237d168ceb20b81249c4d448863ae1cd6d569ece53de96374aa02fadcea"
+        }
+      },
+      "firefox-development": {
+        "browser": "firefox",
+        "mode": "development",
+        "projected": {
+          "path": "reference/firefox-development-actual.json.txt",
+          "sha256": "e521718493ebf50d30862f1a5d1ae21dde29988255d3b1e8072b42df3a7e61d8"
+        },
+        "rawStandardReport": {
+          "path": "reference/firefox-development-report.json.txt",
+          "sha256": "a995ab203bb4798763ffeee6ab0b73fac8822ebfe3d29bdf951e708c6fbb3e7c"
+        },
+        "rawConsole": {
+          "path": "reference/firefox-development-console.jsonl.txt",
+          "sha256": "bb8fa25b497c4a6217ddf124d60350b55922232e64ec37d0437e96892fdb83cc"
+        }
+      },
+      "firefox-production": {
+        "browser": "firefox",
+        "mode": "production",
+        "projected": {
+          "path": "reference/firefox-production-actual.json.txt",
+          "sha256": "e521718493ebf50d30862f1a5d1ae21dde29988255d3b1e8072b42df3a7e61d8"
+        },
+        "rawStandardReport": {
+          "path": "reference/firefox-production-report.json.txt",
+          "sha256": "c9c85814b4d64688dce6bbfc220557fbb5d4999d0eca8f5a7bd9ade85c9e82af"
+        },
+        "rawConsole": {
+          "path": "reference/firefox-production-console.jsonl.txt",
+          "sha256": "a39477d3eb38f16740e39391e6b5c031677c99faa570cb6f61a4a5adfcd0bab8"
+        }
+      }
+    }
+  },
+  "internalGuard": {
+    "source": "sources/native-guard.test.mjs.txt",
+    "sha256": "3d0a5891cd9c599b14e0cf265415dbc8c6c3535230ae54a9b09a97287f0782db",
+    "prefix": "ZERO_NATIVE_GUARD:",
+    "expected": {
+      "rows": [
+        [
+          {
+            "stage": "body",
+            "hookCalls": 1,
+            "ctorCalls": 0,
+            "thenCalls": 0,
+            "replacedCtor": true,
+            "replacedThen": true
+          },
+          {
+            "stage": "queue-get",
+            "reads": 1,
+            "sameTask": true
+          },
+          {
+            "stage": "queue-get",
+            "reads": 2,
+            "sameTask": true
+          },
+          {
+            "stage": "finished",
+            "reads": 2,
+            "sameContext": true,
+            "sameTask": true
+          }
+        ]
+      ],
+      "cases": [
+        {
+          "name": "captured native zero facilities retain original scope",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "success": true,
+      "exit": 0
+    },
+    "purpose": "Captured native ctor/then and same live scope; an internal guard, not a genuine mutable-global compatibility claim"
+  }
+}

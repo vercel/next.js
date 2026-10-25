@@ -1,0 +1,4 @@
+globalThis.__ws2ExprRoot=(globalThis.__ws2ExprRoot||0)+1
+const evaluation=globalThis.__ws2ExprRoot
+const dependency=require('./dependency.cjs')
+module.exports=function named(value='fallback',receiver){if(value==='self')return named;return [evaluation,dependency.evaluation,this===receiver,value,dependency,{argumentValues:Array.from(arguments),defaulted:value==='fallback'}]}

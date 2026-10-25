@@ -1,0 +1,2588 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "CJS-DESTRUCTURED",
+    "value": {
+      "name": "reset",
+      "views": [
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "Function.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "name": "named",
+          "length": 2,
+          "functionTag": "[object Function]",
+          "prototype": {
+            "type": "object",
+            "brand": false,
+            "keys": ["constructor"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "constructor",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "prototypeConstructorSame": true,
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "Function.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "held": [1, 1, true, "held"],
+          "detached": [1, 1, true, "detached"]
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "Function.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "name": "named",
+          "length": 2,
+          "functionTag": "[object Function]",
+          "prototype": {
+            "type": "object",
+            "brand": false,
+            "keys": ["constructor"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "constructor",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "prototypeConstructorSame": true,
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "Function.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "held": [1, 1, true, "held"],
+          "detached": [1, 1, true, "detached"]
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "Function.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "name": "named",
+          "length": 2,
+          "functionTag": "[object Function]",
+          "prototype": {
+            "type": "object",
+            "brand": false,
+            "keys": ["constructor"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "constructor",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "prototypeConstructorSame": true,
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "Function.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "held": [3, 1, true, "held"],
+          "detached": [3, 1, true, "detached"]
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "Function.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "name": "named",
+          "length": 2,
+          "functionTag": "[object Function]",
+          "prototype": {
+            "type": "object",
+            "brand": false,
+            "keys": ["constructor"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "constructor",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "prototypeConstructorSame": true,
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "Function.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "held": [4, 1, true, "held"],
+          "detached": [4, 1, true, "detached"]
+        }
+      ],
+      "namespaces": [
+        [true, true, false, false],
+        [true, true, false, false],
+        [false, false, true, false],
+        [false, false, false, true]
+      ],
+      "raws": [
+        [true, true, false, false],
+        [true, true, false, false],
+        [false, false, true, false],
+        [false, false, false, true]
+      ],
+      "dependencies": [
+        [true, true, true, true],
+        [true, true, true, true],
+        [true, true, true, true],
+        [true, true, true, true]
+      ],
+      "counts": {
+        "root": 4,
+        "dependency": 1,
+        "unused": 0
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "CJS-DESTRUCTURED",
+    "value": {
+      "name": "actual",
+      "views": [
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "Function.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "name": "named",
+          "length": 2,
+          "functionTag": "[object Function]",
+          "prototype": {
+            "type": "object",
+            "brand": false,
+            "keys": ["constructor"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "constructor",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "prototypeConstructorSame": true,
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "Function.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "held": [5, 1, true, "held"],
+          "detached": [5, 1, true, "detached"]
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "Function.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "name": "named",
+          "length": 2,
+          "functionTag": "[object Function]",
+          "prototype": {
+            "type": "object",
+            "brand": false,
+            "keys": ["constructor"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "constructor",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "prototypeConstructorSame": true,
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "Function.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "held": [5, 1, true, "held"],
+          "detached": [5, 1, true, "detached"]
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "Function.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "name": "named",
+          "length": 2,
+          "functionTag": "[object Function]",
+          "prototype": {
+            "type": "object",
+            "brand": false,
+            "keys": ["constructor"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "constructor",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "prototypeConstructorSame": true,
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "Function.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "held": [5, 1, true, "held"],
+          "detached": [5, 1, true, "detached"]
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "Function.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "name": "named",
+          "length": 2,
+          "functionTag": "[object Function]",
+          "prototype": {
+            "type": "object",
+            "brand": false,
+            "keys": ["constructor"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "constructor",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "prototypeConstructorSame": true,
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "Function.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "held": [6, 1, true, "held"],
+          "detached": [6, 1, true, "detached"]
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["default", "Symbol(Symbol.toStringTag)"],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "default",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "raw": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "Function.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "name": "named",
+          "length": 2,
+          "functionTag": "[object Function]",
+          "prototype": {
+            "type": "object",
+            "brand": false,
+            "keys": ["constructor"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "constructor",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          },
+          "prototypeConstructorSame": true,
+          "dependency": {
+            "type": "object",
+            "brand": false,
+            "keys": ["evaluation", "marker", "root"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "evaluation",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "marker",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "root",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "dependencyRoot": {
+            "type": "function",
+            "brand": false,
+            "keys": ["length", "name", "prototype"],
+            "prototype": "Function.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "length",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "name",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "prototype",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "held": [6, 1, true, "held"],
+          "detached": [6, 1, true, "detached"]
+        }
+      ],
+      "namespaces": [
+        [true, true, true, false, false],
+        [true, true, true, false, false],
+        [true, true, true, false, false],
+        [false, false, false, true, true],
+        [false, false, false, true, true]
+      ],
+      "raws": [
+        [true, true, true, false, false],
+        [true, true, true, false, false],
+        [true, true, true, false, false],
+        [false, false, false, true, true],
+        [false, false, false, true, true]
+      ],
+      "counts": {
+        "root": 6,
+        "dependency": 1,
+        "unused": 0
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "CJS-DESTRUCTURED",
+    "value": {
+      "name": "mutation",
+      "held": {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": ["default", "Symbol(Symbol.toStringTag)"],
+          "prototype": "null",
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "default",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "raw": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype", "extra"],
+          "prototype": "Function.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            },
+            {
+              "key": "extra",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "name": "named",
+        "length": 2,
+        "functionTag": "[object Function]",
+        "prototype": {
+          "type": "object",
+          "brand": false,
+          "keys": ["constructor"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "constructor",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            }
+          ]
+        },
+        "prototypeConstructorSame": true,
+        "dependency": {
+          "type": "object",
+          "brand": false,
+          "keys": ["evaluation", "marker", "root"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "evaluation",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "marker",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "root",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "dependencyRoot": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype"],
+          "prototype": "Function.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "held": [7, 731, true, "held"],
+        "detached": [7, 731, true, "detached"]
+      },
+      "mutated": {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": ["default", "Symbol(Symbol.toStringTag)"],
+          "prototype": "null",
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "default",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "raw": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype", "extra"],
+          "prototype": "Function.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            },
+            {
+              "key": "extra",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "name": "named",
+        "length": 2,
+        "functionTag": "[object Function]",
+        "prototype": {
+          "type": "object",
+          "brand": false,
+          "keys": ["constructor"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "constructor",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            }
+          ]
+        },
+        "prototypeConstructorSame": true,
+        "dependency": {
+          "type": "object",
+          "brand": false,
+          "keys": ["evaluation", "marker", "root"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "evaluation",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "marker",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "root",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "dependencyRoot": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype"],
+          "prototype": "Function.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "held": [7, 731, true, "held"],
+        "detached": [7, 731, true, "detached"]
+      },
+      "fresh": {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": ["default", "Symbol(Symbol.toStringTag)"],
+          "prototype": "null",
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "default",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "raw": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype"],
+          "prototype": "Function.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "name": "named",
+        "length": 2,
+        "functionTag": "[object Function]",
+        "prototype": {
+          "type": "object",
+          "brand": false,
+          "keys": ["constructor"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "constructor",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            }
+          ]
+        },
+        "prototypeConstructorSame": true,
+        "dependency": {
+          "type": "object",
+          "brand": false,
+          "keys": ["evaluation", "marker", "root"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "evaluation",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "marker",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "root",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "dependencyRoot": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype"],
+          "prototype": "Function.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "held": [8, 731, true, "held"],
+        "detached": [8, 731, true, "detached"]
+      },
+      "sameExtra": true,
+      "freshHasExtra": false,
+      "dependencySame": true,
+      "counts": {
+        "root": 8,
+        "dependency": 1,
+        "unused": 0
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "CJS-DESTRUCTURED",
+    "value": {
+      "name": "parameter-effects",
+      "events": ["get:source", "throw:get"],
+      "output": [9, 731, true, "parameter"],
+      "sameError": true,
+      "nullError": "TypeError"
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "CJS-DESTRUCTURED",
+    "value": {
+      "name": "identity",
+      "first": {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": ["default", "Symbol(Symbol.toStringTag)"],
+          "prototype": "null",
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "default",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "raw": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype"],
+          "prototype": "Function.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "name": "named",
+        "length": 2,
+        "functionTag": "[object Function]",
+        "prototype": {
+          "type": "object",
+          "brand": false,
+          "keys": ["constructor"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "constructor",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            }
+          ]
+        },
+        "prototypeConstructorSame": true,
+        "dependency": {
+          "type": "object",
+          "brand": false,
+          "keys": ["evaluation", "marker", "root"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "evaluation",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "marker",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "root",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "dependencyRoot": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype"],
+          "prototype": "Function.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "held": [10, 731, true, "held"],
+        "detached": [10, 731, true, "detached"]
+      },
+      "second": {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": ["default", "Symbol(Symbol.toStringTag)"],
+          "prototype": "null",
+          "tag": "Module",
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "default",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "raw": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype"],
+          "prototype": "Function.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "name": "named",
+        "length": 2,
+        "functionTag": "[object Function]",
+        "prototype": {
+          "type": "object",
+          "brand": false,
+          "keys": ["constructor"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "constructor",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": true
+            }
+          ]
+        },
+        "prototypeConstructorSame": true,
+        "dependency": {
+          "type": "object",
+          "brand": false,
+          "keys": ["evaluation", "marker", "root"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "evaluation",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "marker",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "root",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "dependencyRoot": {
+          "type": "function",
+          "brand": false,
+          "keys": ["length", "name", "prototype"],
+          "prototype": "Function.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "length",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "name",
+              "valueType": "string",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": false,
+              "enumerable": false,
+              "configurable": true
+            },
+            {
+              "key": "prototype",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": false,
+              "configurable": false
+            }
+          ]
+        },
+        "held": [11, 731, true, "held"],
+        "detached": [11, 731, true, "detached"]
+      },
+      "namedSelf": {
+        "held": true,
+        "heldStill": true,
+        "fresh": true
+      },
+      "distinct": true,
+      "counts": {
+        "root": 11,
+        "dependency": 1,
+        "unused": 0
+      }
+    }
+  }
+]

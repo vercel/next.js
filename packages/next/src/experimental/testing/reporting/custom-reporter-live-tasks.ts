@@ -17,6 +17,7 @@ const stateOf = (state?: string): State =>
 interface View {
   type: 'module' | 'suite' | 'test'
   id: string
+  location?: ReporterTaskSnapshot['location']
   name?: string
   fullName?: string
   moduleId?: string
@@ -188,6 +189,7 @@ export function createLiveReporterTaskStore(projectDir: string) {
         const view: View = {
           type: isRoot ? 'module' : value.type,
           id: value.id,
+          location: value.location,
           project,
           ...(!isRoot
             ? {

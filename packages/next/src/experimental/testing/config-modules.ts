@@ -13,6 +13,7 @@ import type {
   CompilerTransformInput,
   CompilerTransformResult,
 } from './compiler/transform-hooks'
+import type { StandardCoverageThresholdUpdate } from './coverage/types'
 
 interface SetupProject {
   name: string
@@ -22,13 +23,18 @@ interface SetupProject {
 }
 
 interface RemoteError {
-  name: string
+  name?: string
   message: string
   stack?: string
+  errors?: RemoteError[]
+  cause?: RemoteError
 }
 function remoteError(value: RemoteError): Error {
-  const error = new Error(value.message)
-  error.name = value.name
+  const options = value.cause ? { cause: remoteError(value.cause) } : undefined
+  const error = value.errors
+    ? new AggregateError(value.errors.map(remoteError), value.message, options)
+    : new Error(value.message, options)
+  error.name = value.name ?? 'Error'
   error.stack = value.stack
   return error
 }
@@ -158,6 +164,7 @@ export async function openTestConfigModule(
                 value: message.value,
                 compilerTransforms: message.compilerTransforms,
                 compilerAliases: message.compilerAliases,
+                coverageThresholdFormatter: message.coverageThresholdFormatter,
               }
             : message.value
         )
@@ -237,6 +244,7 @@ export async function openTestConfigModule(
     const result = (await loaded) as {
       value: unknown
       compilerAliases?: CompilerAliases
+      coverageThresholdFormatter?: true
       compilerTransforms?: {
         realm: string
         names: string[]
@@ -297,6 +305,20 @@ export async function openTestConfigModule(
       compilerAliases: result.compilerAliases,
       compilerTransform: transformBroker?.descriptor,
       compilerTransformNames: result.compilerTransforms?.names ?? [],
+      ...(result.coverageThresholdFormatter
+        ? {
+            prepareCoverageThresholdUpdate(
+              updates: readonly StandardCoverageThresholdUpdate[]
+            ): Promise<string | undefined> {
+              return request({ type: 'coverage-threshold-prepare', updates })
+            },
+            formatCoverageThresholdUpdates(
+              updates: readonly StandardCoverageThresholdUpdate[]
+            ): Promise<StandardCoverageThresholdUpdate[]> {
+              return request({ type: 'coverage-threshold-format', updates })
+            },
+          }
+        : {}),
       get compilerTransformInputs() {
         return [...transformInputs]
       },
@@ -575,8 +597,29 @@ export async function openTestProjectModules(
       owners.set(project.profile.id, realm)
     if (!configs.length)
       throw new Error('No test projects matched the project definitions.')
+    function compilerInputsForProjects(projects: readonly TestProjectConfig[]) {
+      const selected = new Set(
+        projects.flatMap((project) => {
+          const realm = owners.get(project.profile.id)
+          return realm ? [realm] : []
+        })
+      )
+      return [
+        ...new Set(
+          [...selected].flatMap((realm) => [
+            ...realm.compilerTransformInputs,
+            ...(realm.compilerAliases?.inputs ?? []),
+          ])
+        ),
+      ]
+    }
     return {
       config: { ...validated, projects: configs },
+      compilerInputsForProjects,
+      /** Compiler dependencies of all configured external project owners. */
+      get compilerInputs() {
+        return compilerInputsForProjects(configs)
+      },
       /** Exact project configuration sources, not their transitive imports. */
       get watchInputs() {
         return [

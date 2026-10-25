@@ -1,3 +1,4 @@
+import type { RuntimeModuleCompletion } from './execution/completed-module'
 import {
   createRuntimeConfigurationPlan,
   assertRuntimeConfigurationPlan,
@@ -14,6 +15,11 @@ import {
   type CoverageSourcePlan,
 } from './coverage/source-analysis-plan'
 import { analyzeCompiledCoverageSource } from './coverage/source-analysis'
+import { analyzeCompiledBrowserCoverageSource } from './coverage/browser-source-analysis'
+import {
+  isProductionBrowserCoverageProject,
+  isDevelopmentBrowserCoverageProject,
+} from './coverage/production-browser'
 import type {
   CustomCoverageRequest,
   CustomCoverageFact,
@@ -67,11 +73,15 @@ interface PreparedTest {
 
 export interface RunTestsOptions {
   captureTaskResults?: boolean
+  /** Private direct-parent facts, published after compiler and runtime cleanup. */
+  onCompletedModules?: (facts: readonly RuntimeModuleCompletion[]) => void
   compilerTransforms?: Record<
     string,
     import('./compiler/transform-broker').CompilerTransformDescriptor
   >
   signal: AbortSignal
+  /** Private scheduling cancellation; never aborts compiler/output ownership. */
+  userCancelSignal?: AbortSignal
   collectOnly?: boolean
   write(text: string): void
   reporter?: Omit<TestReporterOptions, 'write' | 'projectDir' | 'fileCount'>
@@ -125,6 +135,63 @@ export async function runTests(
   projects: DiscoveredTestProject[],
   options: RunTestsOptions
 ) {
+  if (
+    options.onCompletedModules &&
+    (!options.isolateProjects ||
+      options.execute ||
+      options.executeCohort ||
+      options.collectOnly ||
+      options.coverage ||
+      options.standardCoverageOptions ||
+      options.customCoverageRequests ||
+      options.userCancelSignal ||
+      projects.length !== 1 ||
+      projects.some(
+        (project) =>
+          project.isolate === false ||
+          project.typecheck?.enabled ||
+          project.executionEnvironment ||
+          project.profile.environment !== 'node' ||
+          project.profile.route !== undefined
+      ))
+  )
+    throw new Error(
+      'Module result capture requires one isolated ordinary Node execution project.'
+    )
+  const completedModules = options.onCompletedModules
+    ? ([] as RuntimeModuleCompletion[])
+    : undefined
+  const browserUserCancellation =
+    options.userCancelSignal !== undefined &&
+    !options.coverage &&
+    !options.standardCoverageOptions &&
+    projects.length > 0 &&
+    projects.every(
+      (project) =>
+        project.profile.browserClient === true &&
+        project.profile.environment === 'browser'
+    )
+  if (
+    options.userCancelSignal &&
+    (!options.execute ||
+      (!browserUserCancellation &&
+        (!options.coverage ||
+          !options.standardCoverageOptions?.formatterReports)) ||
+      options.collectOnly ||
+      options.customCoverageRequests ||
+      resolveSnapshotUpdateMode(options) === 'all' ||
+      projects.some(
+        (project) =>
+          project.isolate === false ||
+          (!browserUserCancellation &&
+            project.profile.environment !== 'node') ||
+          project.profile.route !== undefined ||
+          project.executionEnvironment
+      ))
+  )
+    throw new Error(
+      'User cancellation requires configured isolated Node watch coverage.'
+    )
   if (options.standardCoverageOptions && !options.coverage)
     throw new Error('Standard coverage options require coverage collection.')
   if (options.collectOnly && options.coverage)
@@ -290,6 +357,51 @@ export async function runTests(
   ) {
     requireTestCapability('browserComponents')
   }
+  const unsupportedCoverageBrowser =
+    options.coverage &&
+    projects.find(
+      (project) =>
+        project.entries.length > 0 &&
+        (project.browserEngine === 'firefox' ||
+          project.browserEngine === 'webkit') &&
+        !options.customCoverageRequests?.[project.profile.id]
+    )
+  if (unsupportedCoverageBrowser)
+    throw new Error(
+      `${unsupportedCoverageBrowser.browserEngine === 'webkit' ? 'WebKit' : 'Firefox'} Browser Mode V8 coverage is not implemented.`
+    )
+  const productionBrowserCoverage =
+    options.standardCoverageOptions !== undefined &&
+    projects.length === 1 &&
+    isProductionBrowserCoverageProject(projects[0])
+  const developmentBrowserCoverage =
+    options.standardCoverageOptions !== undefined &&
+    projects.length === 1 &&
+    isDevelopmentBrowserCoverageProject(projects[0])
+  if (
+    productionBrowserCoverage &&
+    coverageSourcePlan.requests.some(
+      (request) =>
+        request.profile.id === projects[0].profile.id &&
+        (!/\.(?:tsx?|jsx)$/.test(request.source.file) ||
+          /\.d\.tsx?$/.test(request.source.file))
+    )
+  )
+    throw new Error(
+      'Production Browser coverage currently requires JavaScript, TypeScript, or TSX source files.'
+    )
+  if (
+    developmentBrowserCoverage &&
+    coverageSourcePlan.requests.some(
+      (request) =>
+        request.profile.id === projects[0].profile.id &&
+        (!/\.(?:ts|mts|[jt]sx)$/.test(request.source.file) ||
+          /\.d\.(?:ts|mts|tsx)$/.test(request.source.file))
+    )
+  )
+    throw new Error(
+      'Development Browser coverage currently requires JavaScript or TypeScript source files.'
+    )
   if (options.coverage) {
     requireTestCapability('coverage')
     if (
@@ -302,7 +414,8 @@ export async function runTests(
                 !project.profile.browserClient) ||
               (project.profile.environment === 'browser' &&
                 project.profile.browserClient === true &&
-                project.profile.mode === 'development')
+                project.profile.mode === 'development') ||
+              productionBrowserCoverage
             ))
       )
     ) {
@@ -529,6 +642,8 @@ export async function runTests(
       | undefined
     let acquiringResource = false
     let executing = false
+    let notExecuted = false
+    let receivedExecutionEvent = false
     const ownsFileEnd =
       project.profile.environment === 'browser' && !options.collectOnly
     const executionStarted = performance.now()
@@ -541,6 +656,7 @@ export async function runTests(
     let customCoverageReceived = false
     let stagedSnapshotUpdates: SnapshotUpdate[] | undefined
     const executionEvent = (event: ResultEvent) => {
+      receivedExecutionEvent = true
       if (!ownsFileEnd || event.type !== 'file-end') {
         onEvent(event)
         return
@@ -757,6 +873,7 @@ export async function runTests(
                   const {
                     remapStandardCoverage,
                     remapPlannedStandardCoverage,
+                    remapPlannedBrowserStandardCoverage,
                   } = await import('./coverage/istanbul.js')
                   const { standardCoverageSourceSelector } = await import(
                     './coverage/options.js'
@@ -776,20 +893,33 @@ export async function runTests(
                     const receipt = await stagedRuntimeConfiguration.seal()
                     stagedRuntimeConfiguration = undefined
                     runtimeConfigurationReceipts.push(receipt)
-                    remapped = await remapPlannedStandardCoverage(
-                      artifact,
-                      completion,
-                      {
-                        runId,
-                        entry,
-                        sourcePlan: coverageSourcePlan,
-                        runtimeConfigurationPlan,
-                        runtimeConfigurationReceipt: receipt,
-                        assertLease: coverageLease,
-                      },
-                      controller.signal,
-                      selectSource
-                    )
+                    const authorization = {
+                      runId,
+                      entry,
+                      sourcePlan: coverageSourcePlan,
+                      runtimeConfigurationPlan,
+                      runtimeConfigurationReceipt: receipt,
+                      assertLease: coverageLease,
+                    }
+                    remapped =
+                      artifact.kind === 'browser'
+                        ? await remapPlannedBrowserStandardCoverage(
+                            artifact,
+                            completion,
+                            {
+                              ...authorization,
+                              sourceDeclarations: compilerSourceCoverage,
+                            },
+                            controller.signal,
+                            selectSource
+                          )
+                        : await remapPlannedStandardCoverage(
+                            artifact,
+                            completion,
+                            authorization,
+                            controller.signal,
+                            selectSource
+                          )
                   } else {
                     remapped = await remapStandardCoverage(
                       artifact,
@@ -817,6 +947,7 @@ export async function runTests(
           ? {}
           : { attachmentsDir: project.attachmentsDir }),
         globals: project.globals,
+        includeTaskLocation: project.includeTaskLocation,
         fakeTimers: project.fakeTimers,
         clearMocks: project.clearMocks,
         mockReset: project.mockReset,
@@ -832,6 +963,12 @@ export async function runTests(
         provide: project.provide,
         env: project.env,
         browserViewport: project.browserViewport,
+        ...(project.browserEngine === undefined
+          ? {}
+          : { browserEngine: project.browserEngine }),
+        ...(project.browserHeadless === undefined
+          ? {}
+          : { browserHeadless: project.browserHeadless }),
         testTimeout: project.testTimeout,
         hookTimeout: project.hookTimeout,
         testNamePattern: options.testNamePattern ?? project.testNamePattern,
@@ -839,10 +976,31 @@ export async function runTests(
         inspectBrk: options.inspectBrk,
         fileTimeout: project.fileTimeout,
         signal: controller.signal,
+        ...(options.userCancelSignal
+          ? { userCancelSignal: options.userCancelSignal }
+          : {}),
         onEvent: executionEvent,
         ...(browser ? { browser } : {}),
       })
       executing = false
+      if (result.notExecuted) {
+        if (
+          !options.execute ||
+          !options.userCancelSignal?.aborted ||
+          result.entryId !== entry.id ||
+          result.status !== 'cancelled' ||
+          result.durationMs !== 0 ||
+          result.collection !== undefined ||
+          coverageReceived ||
+          customCoverageReceived ||
+          receivedExecutionEvent ||
+          startedFiles.has(entry.id) ||
+          pendingFileEnd !== undefined
+        )
+          throw new Error('Invalid parent non-execution acknowledgment.')
+        notExecuted = true
+        return
+      }
       if (
         (coverageReport || options.standardCoverageOptions) &&
         !coverageReceived &&
@@ -950,7 +1108,7 @@ export async function runTests(
           diagnostic(error, 'cleanup', entry)
         }
       }
-      if (ownsFileEnd) {
+      if (ownsFileEnd && !notExecuted) {
         if (!startedFiles.has(entry.id)) {
           onEvent({ ...envelope(), type: 'file-start', entry })
         }
@@ -1040,6 +1198,13 @@ export async function runTests(
           write: options.write,
           writeError: options.reporter?.writeError,
           report: false,
+          ...(completedModules
+            ? {
+                onCompletedModules(facts: readonly RuntimeModuleCompletion[]) {
+                  completedModules.push(...facts)
+                },
+              }
+            : {}),
           onCustomCoverageSuite: options.onCustomCoverageSuite,
           onEvent(event) {
             if (
@@ -1314,6 +1479,17 @@ export async function runTests(
             | undefined
           let projectPhase: SerializedDiagnostic['phase'] = 'compilation'
           let sessionClosed = false
+          const plannedBrowserDeclarations =
+            (productionBrowserCoverage || developmentBrowserCoverage) &&
+            sourceRequests.length > 0
+          const plannedDevelopmentBrowserImports =
+            developmentBrowserCoverage &&
+            plannedBrowserDeclarations &&
+            sourceRequests.some(
+              (request) =>
+                isDeepStrictEqual(request.profile, project.profile) &&
+                /\.[jt]sx$/.test(request.source.file)
+            )
           const plannedJsx =
             project.profile.environment === 'node' &&
             sourceRequests.some((request) =>
@@ -1342,6 +1518,12 @@ export async function runTests(
               project.profile,
               {
                 allocateArtifact: options.allocateArtifact,
+                ...(plannedBrowserDeclarations
+                  ? { browserCoverageDeclarations: true }
+                  : {}),
+                ...(plannedDevelopmentBrowserImports
+                  ? { browserDevelopmentImportPlan: coverageSourcePlan }
+                  : {}),
                 ...(plannedJsx || plannedTypeScriptImports
                   ? { nativeImportCoverageRoles: true }
                   : {}),
@@ -1378,28 +1560,51 @@ export async function runTests(
                   throw new Error(
                     'Compiler source analysis requires a parent broker consumer'
                   )
-                compilerSourceCoverage.push(
-                  await analyzeCompiledCoverageSource(
-                    compiled,
-                    {
-                      projectDir,
-                      artifactRoot: compiled.artifact.rootDir,
-                      profile: request.profile,
-                      source: request.source,
-                      revision: request.revision,
-                      configurationImports: request.configurationImports,
-                      ...(plannedJsx || plannedTypeScriptImports
-                        ? {
-                            nativeImportCoverageRoles: {
-                              version: 1 as const,
-                              assertLease: assertCoverageLease,
-                            },
-                          }
-                        : {}),
-                    },
-                    controller.signal
+                if (plannedBrowserDeclarations) {
+                  const configurationImports = request.configurationImports
+                  if (!configurationImports)
+                    throw new Error(
+                      'Planned Browser coverage requires current configuration imports'
+                    )
+                  compilerSourceCoverage.push(
+                    await analyzeCompiledBrowserCoverageSource(
+                      compiled,
+                      {
+                        projectDir,
+                        artifactRoot: compiled.artifact.rootDir,
+                        profile: request.profile,
+                        source: request.source,
+                        revision: request.revision,
+                        configurationImports,
+                        assertLease: assertCoverageLease,
+                      },
+                      controller.signal
+                    )
                   )
-                )
+                } else {
+                  compilerSourceCoverage.push(
+                    await analyzeCompiledCoverageSource(
+                      compiled,
+                      {
+                        projectDir,
+                        artifactRoot: compiled.artifact.rootDir,
+                        profile: request.profile,
+                        source: request.source,
+                        revision: request.revision,
+                        configurationImports: request.configurationImports,
+                        ...(plannedJsx || plannedTypeScriptImports
+                          ? {
+                              nativeImportCoverageRoles: {
+                                version: 1 as const,
+                                assertLease: assertCoverageLease,
+                              },
+                            }
+                          : {}),
+                      },
+                      controller.signal
+                    )
+                  )
+                }
               }
             }
             if (project.isolate === false && runtimeEntries.length) {
@@ -1443,6 +1648,7 @@ export async function runTests(
                     strictTags: project.strictTags,
                     attachmentsDir: project.attachmentsDir,
                     globals: project.globals,
+                    includeTaskLocation: project.includeTaskLocation,
                     fakeTimers: project.fakeTimers,
                     clearMocks: project.clearMocks,
                     mockReset: project.mockReset,
@@ -1505,7 +1711,8 @@ export async function runTests(
               project.profile.environment === 'browser' ? 1 : maxWorkers,
               controller.signal,
               async (entry) => {
-                if (bailReached(project)) return
+                if (bailReached(project) || options.userCancelSignal?.aborted)
+                  return
                 const fileStarted = performance.now()
                 try {
                   const runtimeRequest =
@@ -1551,11 +1758,14 @@ export async function runTests(
                     return
                   }
                   controller.signal.throwIfAborted()
+                  if (options.userCancelSignal?.aborted) return
                   const prepared = {
                     entry,
                     artifact,
                     started: fileStarted,
-                    ...(plannedJsx || plannedTypeScriptImports
+                    ...(plannedJsx ||
+                    plannedTypeScriptImports ||
+                    plannedBrowserDeclarations
                       ? { coverageLease: assertCoverageLease }
                       : {}),
                   }
@@ -1572,7 +1782,8 @@ export async function runTests(
                     diagnostic(error, 'compilation', entry)
                   finishFailedFile(entry, fileStarted)
                 }
-              }
+              },
+              () => options.userCancelSignal?.aborted === true
             )
             if (browserTests.length && !controller.signal.aborted) {
               projectPhase = 'cleanup'
@@ -1696,6 +1907,8 @@ export async function runTests(
     }
   }
   if (reporterFailed) throw reporterFailure
+  if (completedModules && !controller.signal.aborted && !unsafeCleanup)
+    options.onCompletedModules!(completedModules)
   return {
     ...reporter.getSummary(),
     unsafeCleanup,

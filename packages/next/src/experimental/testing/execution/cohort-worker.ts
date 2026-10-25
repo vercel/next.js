@@ -19,6 +19,7 @@ import {
   serializeSourceMappedDiagnostic as serializeDiagnostic,
 } from '../reporting/source-mapped-diagnostics'
 import { mapTestArtifactLocation } from '../reporting/artifact-location'
+import { mapTestDeclarationLocation } from '../reporting/declaration-location'
 import { getFinalCaseResults } from '../reporting/final-cases'
 import { installTestConsole } from './console'
 import { setBundlerFindSourceMapImplementation } from '../../../server/patch-error-inspect'
@@ -215,6 +216,7 @@ async function runFile(requestId: number, input: WorkerInput) {
     })
   const taskUpdates = options.captureTaskResults
     ? createReporterTaskUpdates<CaseResult>({
+        getTaskLocation: (task) => owner.file?.getPublishedTaskLocation(task),
         onUpdate: (update) =>
           event(owner, {
             type: 'task-update',
@@ -255,8 +257,15 @@ async function runFile(requestId: number, input: WorkerInput) {
       })
     }
     const file = (owner.file = worker!.createFile({
+      publicTaskSelection: true,
       fileId: artifact.entryId,
       filePath: options.entry.file,
+      ...(options.includeTaskLocation
+        ? {
+            getTaskLocation: (error: Error) =>
+              mapTestDeclarationLocation(error, options.entry.file),
+          }
+        : {}),
       collectOnly: options.collectOnly,
       updateSnapshots: options.updateSnapshots,
       snapshotUpdateMode: options.snapshotUpdateMode,
@@ -368,7 +377,11 @@ async function runFile(requestId: number, input: WorkerInput) {
                 type: 'file-collected',
                 entryId: artifact.entryId,
                 revision: artifact.revision,
-                taskTree: captureReporterTaskTree(actualFile),
+                taskTree: captureReporterTaskTree(
+                  actualFile,
+                  undefined,
+                  file.getPublishedTaskLocation
+                ),
               })
               taskUpdates.collected(actualFile)
             }

@@ -167,7 +167,9 @@ const deadline = setTimeout(() => {
             target.startsWith('compiled-cjs-runtime-negative-')) &&
             event.text.includes('WS2_CJS_NEGATIVE_BODY')) ||
           (target === 'cross-foreign-literal' &&
-            event.text.includes('WS2_CROSS_FOREIGN:')))
+            event.text.includes('WS2_CROSS_FOREIGN:')) ||
+          (target === 'cjs-actual-reset-negative-leaf' &&
+            event.text.includes('WS2_CJS_NEGATIVE_BODY')))
     )
     process.stdout.write(
       JSON.stringify({
@@ -179,6 +181,52 @@ const deadline = setTimeout(() => {
         diagnostics,
       }) + '\n'
     )
+    if (target === 'cjs-actual-reset-negative-leaf') {
+      assert.deepEqual(close, { code: 0, signal: null })
+      assert.equal(forced, false)
+      assert.equal(report.success, true)
+      assert.equal(report.numTotalTests, 1)
+      assert.equal(report.numPassedTests, 1)
+      assert.equal(report.numFailedTests, 0)
+      assert.equal(bodyOutput, true)
+      assert.deepEqual(diagnostics, [])
+      assert.deepEqual(
+        report.testResults.flatMap((file) =>
+          file.assertionResults.map((test) => ({
+            name: test.fullName,
+            status: test.status,
+            failureMessages: test.failureMessages,
+          }))
+        ),
+        [
+          {
+            name: 'does not execute an uncertified CommonJS actual reset graph',
+            status: 'passed',
+            failureMessages: [],
+          },
+        ]
+      )
+      assert.deepEqual(
+        report.next.events
+          .filter((event) => event.type === 'output')
+          .flatMap((event) =>
+            event.text
+              .split('\n')
+              .filter((line) => line === 'WS2_CJS_NEGATIVE_BODY')
+              .map((text) => ({ stream: event.stream, text }))
+          ),
+        [{ stream: 'stdout', text: 'WS2_CJS_NEGATIVE_BODY' }]
+      )
+      for (const [destination, digest] of pins) {
+        assert.equal(
+          createHash('sha256')
+            .update(fs.readFileSync(destination))
+            .digest('hex'),
+          digest
+        )
+      }
+      return
+    }
     if (target === 'cross-target') {
       const rows = report.next.events
         .filter((event) => event.type === 'output')

@@ -1,0 +1,4 @@
+globalThis.__cjsDestructureRoot=(globalThis.__cjsDestructureRoot||0)+1
+const evaluation=globalThis.__cjsDestructureRoot
+const dependency=require('./dependency.cjs')
+module.exports=async ([value],receiver)=>[evaluation,dependency.evaluation,this===receiver,value,dependency]

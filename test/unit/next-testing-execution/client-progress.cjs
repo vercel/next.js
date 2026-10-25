@@ -62,6 +62,7 @@ const result = (name, index) => ({
   attempt: { id: `run/entry/${index}/0/0`, retry: 0, repeat: 0 },
 })
 const file = {
+  enableBrowserPublicTaskQueues() {},
   collect: async (load) => load(),
   validateBrowserClient: () => [],
   async run(options) {

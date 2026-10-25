@@ -1,0 +1,13 @@
+import { test, afterEach, afterAll } from 'vitest'
+const rows = []
+const row = (stage,value={}) => rows.push({stage,...value})
+afterEach(({task})=>row('afterEach',{name:task.name,errors:(task.result?.errors??[]).map(e=>e.message)}))
+afterAll(()=>console.log('TASK_QUEUE_CONSUMER:'+JSON.stringify(rows)))
+for(const kind of ['array','object']) test('empty '+kind+' listener fields',({task})=>{
+ for(const field of ['onFinished','onFailed']){
+  let value=kind==='array'?[]:{length:0};let reads=0
+  value.slice=function(){row('unexpected-slice',{kind,field});return []}
+  Object.defineProperty(task,field,{configurable:true,get(){row('get',{kind,field,reads:++reads});return value},set(next){row('set',{kind,field,absent:next===undefined});value=next}})
+ }
+ const error=new Error('empty field controlled body failure');error.stack='';throw error
+})

@@ -1,0 +1,886 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "fluent-chai-receivers",
+        "trace": [
+          {
+            "phase": "foreign",
+            "name": "equal",
+            "kind": "call-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "equal",
+            "kind": "apply-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "equal",
+            "kind": "bound-owner",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: equal.length. See docs for proper usage of \"equal\"."
+            }
+          },
+          {
+            "phase": "foreign",
+            "name": "equal",
+            "kind": "call-foreign",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "equal",
+            "kind": "bare",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "foreign",
+            "name": "property",
+            "kind": "call-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "property",
+            "kind": "apply-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "property",
+            "kind": "bound-owner",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: property.length. See docs for proper usage of \"property\"."
+            }
+          },
+          {
+            "phase": "foreign",
+            "name": "property",
+            "kind": "call-foreign",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "property",
+            "kind": "bare",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "foreign",
+            "name": "lengthOf",
+            "kind": "call-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "lengthOf",
+            "kind": "apply-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "lengthOf",
+            "kind": "bound-owner",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: bind. Did you mean \"and\"?"
+            }
+          },
+          {
+            "phase": "foreign",
+            "name": "lengthOf",
+            "kind": "call-foreign",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "lengthOf",
+            "kind": "bare",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "foreign",
+            "name": "instanceOf",
+            "kind": "call-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "instanceOf",
+            "kind": "apply-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "instanceOf",
+            "kind": "bound-owner",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: instanceOf.length. See docs for proper usage of \"instanceOf\"."
+            }
+          },
+          {
+            "phase": "foreign",
+            "name": "instanceOf",
+            "kind": "call-foreign",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "instanceOf",
+            "kind": "bare",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "foreign",
+            "name": "include",
+            "kind": "call-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "include",
+            "kind": "apply-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "include",
+            "kind": "bound-owner",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: bind. Did you mean \"and\"?"
+            }
+          },
+          {
+            "phase": "foreign",
+            "name": "include",
+            "kind": "call-foreign",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "include",
+            "kind": "bare",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "foreign",
+            "name": "match",
+            "kind": "call-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "match",
+            "kind": "apply-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "match",
+            "kind": "bound-owner",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: match.length. See docs for proper usage of \"match\"."
+            }
+          },
+          {
+            "phase": "foreign",
+            "name": "match",
+            "kind": "call-foreign",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "match",
+            "kind": "bare",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "foreign",
+            "name": "a",
+            "kind": "call-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "a",
+            "kind": "apply-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "a",
+            "kind": "bound-owner",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: bind. Did you mean \"and\"?"
+            }
+          },
+          {
+            "phase": "foreign",
+            "name": "a",
+            "kind": "call-foreign",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "a",
+            "kind": "bare",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "foreign",
+            "kind": "counts",
+            "owner": 35,
+            "caller": 7
+          },
+          {
+            "phase": "afterAll",
+            "name": "equal",
+            "kind": "call-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "equal",
+            "kind": "apply-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "equal",
+            "kind": "bound-owner",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: equal.length. See docs for proper usage of \"equal\"."
+            }
+          },
+          {
+            "phase": "afterAll",
+            "name": "equal",
+            "kind": "call-foreign",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "equal",
+            "kind": "bare",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "afterAll",
+            "name": "property",
+            "kind": "call-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "property",
+            "kind": "apply-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "property",
+            "kind": "bound-owner",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: property.length. See docs for proper usage of \"property\"."
+            }
+          },
+          {
+            "phase": "afterAll",
+            "name": "property",
+            "kind": "call-foreign",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "property",
+            "kind": "bare",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "afterAll",
+            "name": "lengthOf",
+            "kind": "call-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "lengthOf",
+            "kind": "apply-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "lengthOf",
+            "kind": "bound-owner",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: bind. Did you mean \"and\"?"
+            }
+          },
+          {
+            "phase": "afterAll",
+            "name": "lengthOf",
+            "kind": "call-foreign",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "lengthOf",
+            "kind": "bare",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "afterAll",
+            "name": "instanceOf",
+            "kind": "call-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "instanceOf",
+            "kind": "apply-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "instanceOf",
+            "kind": "bound-owner",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: instanceOf.length. See docs for proper usage of \"instanceOf\"."
+            }
+          },
+          {
+            "phase": "afterAll",
+            "name": "instanceOf",
+            "kind": "call-foreign",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "instanceOf",
+            "kind": "bare",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "afterAll",
+            "name": "include",
+            "kind": "call-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "include",
+            "kind": "apply-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "include",
+            "kind": "bound-owner",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: bind. Did you mean \"and\"?"
+            }
+          },
+          {
+            "phase": "afterAll",
+            "name": "include",
+            "kind": "call-foreign",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "include",
+            "kind": "bare",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "afterAll",
+            "name": "match",
+            "kind": "call-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "match",
+            "kind": "apply-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "match",
+            "kind": "bound-owner",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: match.length. See docs for proper usage of \"match\"."
+            }
+          },
+          {
+            "phase": "afterAll",
+            "name": "match",
+            "kind": "call-foreign",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "match",
+            "kind": "bare",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "afterAll",
+            "name": "a",
+            "kind": "call-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "a",
+            "kind": "apply-owner",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "a",
+            "kind": "bound-owner",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: bind. Did you mean \"and\"?"
+            }
+          },
+          {
+            "phase": "afterAll",
+            "name": "a",
+            "kind": "call-foreign",
+            "type": "object",
+            "sameAssertion": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "a",
+            "kind": "bare",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "afterAll",
+            "kind": "counts",
+            "owner": 63,
+            "caller": 14
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "creator captured fluent callables",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "foreign captured fluent receivers",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

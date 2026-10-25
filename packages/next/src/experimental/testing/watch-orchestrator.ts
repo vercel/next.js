@@ -12,8 +12,8 @@ import {
   publishStandardCoverage,
 } from './coverage/report-standard'
 import { resolveProjectStandardCoverage } from './coverage/options'
-import { readdir } from 'node:fs/promises'
-import { dirname, resolve } from 'path'
+import { lstat, readdir, realpath } from 'node:fs/promises'
+import { dirname, isAbsolute, relative, resolve } from 'path'
 import { serialize } from 'node:v8'
 import type { SnapshotUpdateMode } from './assertions/snapshots'
 import {
@@ -43,7 +43,15 @@ import {
 } from './incremental/watch-files'
 import { runWatchProcess, WatchOwnershipError } from './watch-process'
 import type { ResultEvent } from './reporting/events'
-import { createMachineReporter, type ResultReporter } from './reporting/machine'
+import {
+  createMachineReporter,
+  type ClosedMachineFileRecord,
+  type ResultReporter,
+} from './reporting/machine'
+import {
+  isCustomResultReporter,
+  openCustomReporters,
+} from './reporting/custom-reporter'
 import {
   formatWatchStatus,
   type TestReporterOptions,
@@ -60,6 +68,27 @@ interface Discovery extends WatchDiscovery {
   customCoverageDisabled?: true
   coverageInputs: string[]
   coverageConfigurationRevision: string
+}
+
+/** Only actual regular-file notifications can narrow a default watch run. */
+async function regularSourceIdentity(file: string) {
+  if (!isAbsolute(file) || resolve(file) !== file) return
+  try {
+    const before = await lstat(file, { bigint: true })
+    if (!before.isFile() || (await realpath(file)) !== file) return
+    const after = await lstat(file, { bigint: true })
+    if (!after.isFile() || before.dev !== after.dev || before.ino !== after.ino)
+      return
+    return { dev: after.dev, ino: after.ino }
+  } catch (error) {
+    if (
+      ['ENOENT', 'ENOTDIR', 'ELOOP'].includes(
+        (error as NodeJS.ErrnoException).code ?? ''
+      )
+    )
+      return
+    throw error
+  }
 }
 
 /** Fresh compilation/execution per generation; the scheduler owns no output writer. */
@@ -100,7 +129,10 @@ export async function watchTests(
   const cliCoverageOptions = options.standardCoverageOptions
     ? structuredClone(options.standardCoverageOptions)
     : undefined
-  const coverageFlags = structuredClone(options.coverageFlags ?? {})
+  const coverageFlags = structuredClone(
+    options.coverageFlags ??
+      (options.standardCoverageOptions ? { coverage: true } : {})
+  )
   let activeDiscovery: Discovery | undefined
   let coverageConfigurationRevision: string | undefined
   const controller = new AbortController()
@@ -131,15 +163,23 @@ export async function watchTests(
   let hasFailedRun = false
   let quitting = false
   let keyboardCancelled = false
+  let activeUserCancellation:
+    | { controller: AbortController; activeCases: Set<string> }
+    | undefined
+  const closedFileHistory = new Map<string, ClosedMachineFileRecord>()
   let keyboard: ReturnType<typeof createWatchKeyboard> | undefined
   let fatal = false
   let hasRun = false
+  let customReadyInitial: boolean | undefined
   let editorFileRerun: string | undefined
   let coverageHasPublished = false
   let coverageAllTestsRun = false
   let coverageCache = createStandardCoverageGenerationCache(projectDir)
   const failures: unknown[] = []
   let watcher: Awaited<ReturnType<typeof watchTestFiles>> | undefined
+  let customReporters:
+    | Awaited<ReturnType<typeof openCustomReporters>>
+    | undefined
   let session: ReturnType<typeof createWatchSession<Discovery>> | undefined
   let editorApi:
     | Awaited<ReturnType<typeof import('./editor-api').openTestDiscoveryApi>>
@@ -176,7 +216,10 @@ export async function watchTests(
     if (!configuration || !(await retainConfigurationForWatch())) {
       await configuration?.dispose()
       configuration = undefined
-      configuration = await openTestConfiguration(projectDir, signal)
+      configuration =
+        coverageFlags['coverage.provider'] === 'v8'
+          ? await openTestConfiguration(projectDir, signal, 'v8')
+          : await openTestConfiguration(projectDir, signal)
       await retainConfigurationForWatch(true)
     }
     const config = applyTestConfigOverrides(
@@ -192,6 +235,8 @@ export async function watchTests(
       coverageFlags,
       cliCoverageOptions
     )
+    if (coverage.options?.thresholds.autoUpdate)
+      throw new Error('Watch coverage threshold autoUpdate is not implemented.')
     const customCoverageDisabled = coverageFlags.coverage === false
     if (
       !customCoverageDisabled &&
@@ -224,8 +269,21 @@ export async function watchTests(
       throw new Error(
         'Configured V8 changed-watch coverage source filtering is not implemented.'
       )
+    if (
+      coverage.enabled &&
+      coverage.options &&
+      projects.some(
+        (project) =>
+          project.profile.environment === 'browser' &&
+          project.profile.browserClient === true &&
+          project.profile.mode === 'production'
+      )
+    )
+      throw new Error(
+        'Production Browser coverage currently requires one-shot JavaScript execution.'
+      )
     const standardCoverageOptions = coverage.options
-    const coverageInputs = [...configuration.watchInputs]
+    const coverageInputs = configuration.compilerInputsForProjects(projects)
     if (failedOnly) {
       const selectedFailures = failedSelection
       for (const project of projects) {
@@ -435,7 +493,9 @@ export async function watchTests(
     switch (command.type) {
       case 'cancel':
         keyboardCancelled = true
-        session?.cancelCurrent()
+        if (activeUserCancellation?.activeCases.size)
+          activeUserCancellation.controller.abort()
+        else session?.cancelCurrent()
         return
       case 'update':
         if (activeDiscovery?.coverage.options) {
@@ -515,6 +575,18 @@ export async function watchTests(
       })
     }
     const initial = await discover(controller.signal)
+    const customReporterNames = options.resultReporters?.filter(
+      isCustomResultReporter
+    )
+    if (customReporterNames?.length)
+      customReporters = await openCustomReporters({
+        projectDir,
+        reporters: customReporterNames,
+        watch: true,
+        signal: controller.signal,
+        write: options.writeReport ?? options.write,
+        writeError: options.writeError,
+      })
     if (options.apiPort !== undefined) {
       const { openTestDiscoveryApi } = await import('./editor-api.js')
       editorApi = await openTestDiscoveryApi(
@@ -558,7 +630,10 @@ export async function watchTests(
         if (committingSnapshots) changedDuringCommit = true
         else
           session?.invalidate({
-            registryPaths: change.removed.length ? undefined : change.changed,
+            registryPaths:
+              change.removed.length && !customReporters
+                ? undefined
+                : [...change.changed, ...change.removed],
             invalidateAll: activeConfigReload,
           })
       },
@@ -580,64 +655,119 @@ export async function watchTests(
       initialRelatedSources !== undefined &&
       (discovery.customCoverageDisabled === true ||
         !discovery.projects.some((project) => project.customCoverage))
+    const registryReporters = customReporters
     session = createWatchSession<Discovery>({
       signal: controller.signal,
       runEmpty: (discovery) => machineEnabled || !!discovery.coverage.options,
       publishInitialEmptySelection,
-      ...(initialRelatedSources
+      ...(registryReporters
         ? {
-            async selectTests({
+            async onRegistryRemoved({
               discovery,
-              changedPaths,
-              invalidateAll,
-              signal,
-            }: Parameters<
-              NonNullable<WatchSessionOptions<Discovery>['selectTests']>
-            >[0]) {
-              // Related paths constrain the initial settled generation only.
-              // Later filesystem edits use their own actual compiler consumers.
-              const sources = initialRelatedPending
-                ? [...initialRelatedSources, ...(changedPaths ?? [])]
-                : !invalidateAll && changedPaths?.length
-                  ? changedPaths
-                  : undefined
-              if (!sources) return undefined
-              const result = await runWatchProcess(
-                {
-                  operation: 'plan',
-                  projectDir,
-                  projects: discovery.projects,
-                  certifiedTestConfig:
-                    configuration?.watchInputs.every((file) =>
-                      file.endsWith('.json')
-                    ) ?? false,
-                },
-                { signal, write: options.write, reporter: options.reporter }
-              ).catch((error) => {
-                if (error instanceof WatchOwnershipError) {
-                  fatal = true
-                  controller.abort(error)
+              files,
+            }: {
+              discovery: Discovery
+              files: readonly string[]
+            }) {
+              if (
+                discovery.coverage.options ||
+                editorApi ||
+                (discovery.customCoverageDisabled !== true &&
+                  discovery.projects.some((project) => project.customCoverage))
+              )
+                return false
+              try {
+                await registryReporters.removeWatchTests([...files])
+                return true
+              } catch (error) {
+                fatal = true
+                controller.abort(error)
+                try {
+                  report(error)
+                } catch (reporterError) {
+                  failures.push(reporterError)
                 }
                 throw error
-              })
-              signal.throwIfAborted()
-              if (result.operation !== 'plan')
-                throw new Error('Invalid watch source selection plan.')
-              const selected = await selectSourceRelatedProjects(
-                discovery.projects,
-                sources,
-                result.plan
-              )
-              signal.throwIfAborted()
-              return {
-                entryIds: selected.flatMap((project) =>
-                  project.entries.map((entry) => entry.id)
-                ),
-                reason: 'compiler-dependencies' as const,
               }
             },
           }
         : {}),
+      async selectTests({
+        discovery,
+        selection,
+        changedPaths,
+        invalidateAll,
+        signal,
+      }: Parameters<
+        NonNullable<WatchSessionOptions<Discovery>['selectTests']>
+      >[0]) {
+        // Related paths constrain the initial settled generation only.
+        // Later filesystem edits use their own actual compiler consumers.
+        const sources =
+          initialRelatedPending && initialRelatedSources
+            ? [...initialRelatedSources, ...(changedPaths ?? [])]
+            : !invalidateAll && changedPaths?.length
+              ? changedPaths
+              : undefined
+        if (!sources) return undefined
+        const defaultSelection = initialRelatedSources === undefined
+        if (
+          defaultSelection &&
+          (selection.reason === 'test-registry-addition' ||
+            discovery.coverage.options ||
+            (discovery.customCoverageDisabled !== true &&
+              discovery.projects.some((project) => project.customCoverage)))
+        )
+          return undefined
+        const sourceIdentities = []
+        if (defaultSelection) {
+          for (const file of sources) {
+            signal.throwIfAborted()
+            const identity = await regularSourceIdentity(file)
+            if (!identity) return undefined
+            sourceIdentities.push({ file, ...identity })
+          }
+        }
+        const result = await runWatchProcess(
+          {
+            operation: 'plan',
+            projectDir,
+            projects: discovery.projects,
+            certifiedTestConfig:
+              configuration?.watchInputs.every((file) =>
+                file.endsWith('.json')
+              ) ?? false,
+          },
+          { signal, write: options.write, reporter: options.reporter }
+        ).catch((error) => {
+          if (error instanceof WatchOwnershipError) {
+            fatal = true
+            controller.abort(error)
+          }
+          throw error
+        })
+        signal.throwIfAborted()
+        if (result.operation !== 'plan')
+          throw new Error('Invalid watch source selection plan.')
+        for (const before of sourceIdentities) {
+          const after = await regularSourceIdentity(before.file)
+          signal.throwIfAborted()
+          if (!after || after.dev !== before.dev || after.ino !== before.ino)
+            return undefined
+        }
+        const selected = await selectSourceRelatedProjects(
+          discovery.projects,
+          sources,
+          result.plan
+        )
+        signal.throwIfAborted()
+        return {
+          entryIds: selected.flatMap((project) =>
+            project.entries.map((entry) => entry.id)
+          ),
+          reason: 'compiler-dependencies' as const,
+        }
+      },
       async canSkipUnchangedRun({
         discovery,
         previousRegistry,
@@ -720,9 +850,34 @@ export async function watchTests(
           return false
         }
       },
-      onRunSettled(status, discovery) {
+      async onRunSettled(status, discovery, retainedCancellation) {
+        if (
+          status === 'passed' ||
+          status === 'failed' ||
+          (status === 'cancelled' &&
+            retainedCancellation?.retainBaselineOnClosedCancellation === true)
+        )
+          initialRelatedPending = false
+        const initialReadiness = customReadyInitial
+        customReadyInitial = undefined
+        if (initialReadiness !== undefined) {
+          try {
+            const error = await customReporters?.readyWatchRun(initialReadiness)
+            if (error) {
+              report(error)
+              return
+            }
+          } catch (error) {
+            fatal = true
+            controller.abort(error)
+            throw error
+          }
+        }
+        if (status === 'cancelled') {
+          options.write('Test run cancelled. Watching for file changes...\n')
+          return
+        }
         if (status !== 'passed' && status !== 'failed') return
-        initialRelatedPending = false
         if (!discovery.entryIds.length) {
           options.write(
             `No test files matched. Watching for file changes.${keyboard?.enabled ? ' Press h for help.' : ''}\n`
@@ -780,15 +935,45 @@ export async function watchTests(
           }
         }
       },
-      async run({ discovery, selection, signal }) {
+      async run({ discovery, selection, signal, changedPaths }) {
         running = true
         const requestedEditorFile = editorFileRerun
         editorFileRerun = undefined
         const coverageConfig = discovery.coverage.options
+        const browserUserCancellation =
+          !discovery.coverage.configured &&
+          !coverageConfig &&
+          discovery.projects.length > 0 &&
+          discovery.projects.every(
+            (project) =>
+              project.profile.browserClient === true &&
+              project.profile.environment === 'browser' &&
+              project.isolate !== false &&
+              project.profile.route === undefined &&
+              project.executionEnvironment === undefined
+          )
+        const userCancellation =
+          (browserUserCancellation ||
+            (discovery.coverage.configured &&
+              coverageConfig?.formatterReports)) &&
+          !discovery.updateSnapshots &&
+          (options.resultReporters ?? ['default']).every(
+            (reporter) => reporter === 'default' || reporter === 'json'
+          )
+            ? new AbortController()
+            : undefined
+        const userCancellationOwner = userCancellation
+          ? { controller: userCancellation, activeCases: new Set<string>() }
+          : undefined
+        activeUserCancellation = userCancellationOwner
+        let orderlyCancellation:
+          | { launchedEntryIds: string[]; notExecutedEntryIds: string[] }
+          | undefined
         const configurationRestarted =
           coverageConfigurationRevision !==
           discovery.coverageConfigurationRevision
         if (configurationRestarted) {
+          closedFileHistory.clear()
           coverageCache = createStandardCoverageGenerationCache(projectDir)
           coverageHasPublished = false
           coverageAllTestsRun = true
@@ -866,6 +1051,9 @@ export async function watchTests(
         const machine = machineEnabled
           ? createMachineReporter({
               projectDir,
+              ...(customReporters
+                ? { customReporterSession: customReporters }
+                : {}),
               reporters: options.resultReporters!,
               outputFile: options.outputFile,
               ...(initialEmptySelection
@@ -899,6 +1087,19 @@ export async function watchTests(
         >()
         const forwardEvent = (event: ResultEvent) => {
           try {
+            if (
+              userCancellationOwner &&
+              (event.type === 'case-start' || event.type === 'case-end')
+            ) {
+              const key = JSON.stringify([
+                event.entryId,
+                event.caseId,
+                event.attempt,
+              ])
+              if (event.type === 'case-start')
+                userCancellationOwner.activeCases.add(key)
+              else userCancellationOwner.activeCases.delete(key)
+            }
             machine?.onEvent(event)
             if (
               event.type === 'file-start' &&
@@ -956,9 +1157,20 @@ export async function watchTests(
           if (!coverageConfig) return false
           const prepared = await coverageCache.prepare({
             facts,
-            expected: selected,
+            expected: orderlyCancellation
+              ? new Set(orderlyCancellation.launchedEntryIds)
+              : selected,
+            ...(orderlyCancellation
+              ? {
+                  notExecutedEntryIds: new Set(
+                    orderlyCancellation.notExecutedEntryIds
+                  ),
+                }
+              : {}),
             revisions: coverageRevisions,
             registry: discovery.registry,
+            retentionConfigurationRevision:
+              discovery.coverageConfigurationRevision,
             cleanOnRerun: coverageConfig.cleanOnRerun,
             runtimeConfiguration: {
               plan: runtimeConfigurationPlan!,
@@ -979,6 +1191,7 @@ export async function watchTests(
             includeUnimported,
             runtimeConfiguration: {
               receipts: prepared.runtimeConfigurationReceipts!,
+              retainedEntryIds: prepared.retainedEntryIds,
             },
             ...(coverageSourcePlan
               ? {
@@ -1001,11 +1214,38 @@ export async function watchTests(
           signal.throwIfAborted()
           prepared.commit()
           // Initial related zero maps do not consume the first actual test run.
-          coverageHasPublished = !initialEmptySelection
-          coverageAllTestsRun = false
+          if (!orderlyCancellation) {
+            coverageHasPublished = !initialEmptySelection
+            coverageAllTestsRun = false
+          }
           return coverage.thresholdErrors.length > 0
         }
         try {
+          customReadyInitial = undefined
+          const initialCustomRun = !hasRun
+          await customReporters?.beginWatchRun(
+            hasRun
+              ? {
+                  rerun: {
+                    files: [
+                      ...new Set(
+                        projects.flatMap((project) =>
+                          project.entries.map((entry) => entry.file)
+                        )
+                      ),
+                    ],
+                    ...(changedPaths?.length
+                      ? {
+                          trigger: relative(
+                            projectDir,
+                            changedPaths[changedPaths.length - 1]
+                          ),
+                        }
+                      : {}),
+                  },
+                }
+              : undefined
+          )
           await machine?.initialize({ signal })
           if (
             missingEditorFile ||
@@ -1037,6 +1277,7 @@ export async function watchTests(
             releaseTerminal(status)
             publicationStarted = true
             await machine?.finish({ signal })
+            if (customReporters) customReadyInitial = initialCustomRun
             latestStatus = status
             hasFailedRun ||= status === 'failed'
             completedResult = { status }
@@ -1055,7 +1296,9 @@ export async function watchTests(
               ...(discovery.customCoverageDisabled
                 ? { customCoverageDisabled: true }
                 : {}),
-              captureTaskResults: machine?.captureTaskResults,
+              captureTaskResults:
+                (browserUserCancellation && !!userCancellation) ||
+                machine?.captureTaskResults,
               projectDir,
               projects,
               ...(configuration?.compilerTransformNames.length
@@ -1104,6 +1347,9 @@ export async function watchTests(
               write: options.write,
               report: human,
               reporter: { ...options.reporter, rerun },
+              ...(userCancellation
+                ? { userCancelSignal: userCancellation.signal }
+                : {}),
               onEvent,
             }
           )
@@ -1130,6 +1376,9 @@ export async function watchTests(
           if (response.operation !== 'run')
             throw new Error('Invalid watch execution result.')
           const result = response.result
+          orderlyCancellation = response.orderlyCancellation
+          if (orderlyCancellation && !userCancellation?.signal.aborted)
+            throw new Error('Unrequested orderly watch cancellation.')
           compilerSourceCoverage = result.compilerSourceCoverage ?? []
           runtimeConfigurationReceipts =
             result.runtimeConfigurationReceipts ?? []
@@ -1159,10 +1408,48 @@ export async function watchTests(
               result.status
             )
           }
+          if (orderlyCancellation && machine) {
+            const launched = new Set(orderlyCancellation.launchedEntryIds)
+            const unexecuted = discovery.projects
+              .flatMap((project) => project.entries)
+              .filter((entry) => !launched.has(entry.id))
+            const unexecutedIds = new Set(unexecuted.map((entry) => entry.id))
+            machine.retainUnexecutedFiles(
+              unexecuted,
+              [...closedFileHistory.values()].filter((record) =>
+                unexecutedIds.has(record.result.entry.entry.id)
+              ),
+              [...closedFileHistory.keys()]
+                .filter(
+                  (id) => !selected.has(id) && discovery.entryIds.includes(id)
+                )
+                .concat([...selected])
+            )
+          }
           releaseTerminal(coverageFailed ? 'failed' : result.status)
           publicationStarted = true
           await machine?.finish({ signal })
-          for (const [entryId, status] of fileOutcomes) {
+          if (customReporters) customReadyInitial = initialCustomRun
+          const closed =
+            machine?.snapshotClosedFiles(
+              orderlyCancellation
+                ? new Set(orderlyCancellation.launchedEntryIds)
+                : new Set(coverageRevisions.keys())
+            ) ?? []
+          const currentRecords = new Map(
+            closed.map((record) => [record.result.entry.entry.id, record])
+          )
+          const previousRecords = new Map(closedFileHistory)
+          for (const id of closedFileHistory.keys())
+            if (selected.has(id) || !discovery.entryIds.includes(id))
+              closedFileHistory.delete(id)
+          for (const id of selected) {
+            const record = currentRecords.get(id) ?? previousRecords.get(id)
+            if (record) closedFileHistory.set(id, record)
+          }
+          for (const [entryId, status] of orderlyCancellation
+            ? []
+            : fileOutcomes) {
             if (status === 'failed') failedEntries.add(entryId)
             else if (status === 'passed') failedEntries.delete(entryId)
           }
@@ -1174,8 +1461,29 @@ export async function watchTests(
             latestStatus = coverageFailed ? 'failed' : result.status
             hasFailedRun ||= latestStatus === 'failed'
           }
+          if (orderlyCancellation) hasFailedRun = true
+          const cancelledBrowserEntries = orderlyCancellation?.launchedEntryIds
           completedResult = {
-            status: coverageFailed ? 'failed' : result.status,
+            status: orderlyCancellation
+              ? 'cancelled'
+              : coverageFailed
+                ? 'failed'
+                : result.status,
+            ...(orderlyCancellation
+              ? { closedUserCancellation: true as const }
+              : {}),
+            ...(browserUserCancellation &&
+            orderlyCancellation &&
+            result.status === 'passed' &&
+            orderlyCancellation.notExecutedEntryIds.length === 0 &&
+            discovery.entryIds.length > 0 &&
+            selected.size === discovery.entryIds.length &&
+            cancelledBrowserEntries?.length === discovery.entryIds.length &&
+            discovery.entryIds.every((id) =>
+              cancelledBrowserEntries.includes(id)
+            )
+              ? { retainBaselineOnClosedCancellation: true as const }
+              : {}),
             unsafeCleanup: result.unsafeCleanup,
           }
           return completedResult
@@ -1218,10 +1526,17 @@ export async function watchTests(
           throw failure
         } finally {
           await machine?.dispose()
-          if (signal.aborted) editorApi?.cancelledRunSettled()
+          if (signal.aborted || orderlyCancellation)
+            editorApi?.cancelledRunSettled()
+          if (activeUserCancellation === userCancellationOwner)
+            activeUserCancellation = undefined
           running = false
           committingSnapshots = false
-          if (keyboardCancelled && !controller.signal.aborted) {
+          if (
+            keyboardCancelled &&
+            !controller.signal.aborted &&
+            !orderlyCancellation
+          ) {
             options.write('Test run cancelled. Watching for file changes...\n')
           }
           if (changedDuringCommit) {
@@ -1272,6 +1587,11 @@ export async function watchTests(
         failures.push(error)
       } finally {
         configurationLifetime.abort()
+      }
+      try {
+        await customReporters?.dispose()
+      } catch (error) {
+        failures.push(error)
       }
       options.signal.removeEventListener('abort', cancel)
     }

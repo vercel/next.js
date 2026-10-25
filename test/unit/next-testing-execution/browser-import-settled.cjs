@@ -94,6 +94,7 @@ const finish = async (scope, handle) => {
   scope.boundary.close()
 }
 const file = {
+  enableBrowserPublicTaskQueues() {},
   async collect(load) {
     collection = makeScope('collection', 'entry')
     assertions = await collection.boundary.run(() =>

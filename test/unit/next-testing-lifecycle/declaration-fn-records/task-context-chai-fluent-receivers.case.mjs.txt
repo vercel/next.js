@@ -1,0 +1,46 @@
+import { afterAll, expect, test } from 'vitest'
+const trace = []
+let local, caller, owner, phase, receiver, expectedOwner
+const methods = [
+  ['equal', () => 2, [2]],
+  ['property', () => ({ n: 1 }), ['n', 1]],
+  ['lengthOf', () => [1, 2], [2]],
+  ['instanceOf', () => new Map(), [Map]],
+  ['include', () => [1, 2], [2]],
+  ['match', () => 'receiver fluent', [/fluent/]],
+  ['a', () => 2, ['number']],
+]
+const captured = new Map()
+expect.extend({ toInspectFluentReceiver() {
+  trace.push({ phase, kind: 'state', sameReceiver: this.assertion === receiver, sameTask: this.task === expectedOwner, isNot: this.isNot, promise: this.promise })
+  return { pass: true, message: () => 'native receiver changed' }
+} })
+function run(label) {
+  phase = label
+  for (const [name, make, args] of methods) {
+    const fn = captured.get(name)
+    for (const kind of ['call-owner', 'apply-owner', 'bound-owner', 'call-foreign', 'bare']) {
+      const assertion = (kind === 'call-foreign' ? caller : local)(make())
+      expectedOwner = kind === 'call-foreign' ? caller.getState().currentTestName : owner
+      try {
+        let returned
+        if (kind === 'bare') returned = fn(...args)
+        else if (kind === 'apply-owner') returned = fn.apply(assertion, args)
+        else if (kind === 'bound-owner') returned = fn.bind(assertion)(...args)
+        else returned = fn.call(assertion, ...args)
+        trace.push({ phase, name, kind, type: typeof returned, sameAssertion: returned === assertion })
+        receiver = returned
+        expectedOwner = kind === 'call-foreign' ? foreignTask : owner
+        returned.toInspectFluentReceiver()
+      } catch (error) { trace.push({ phase, name, kind, error: { name: error.name, message: error.message } }) }
+    }
+  }
+  trace.push({ phase, kind: 'counts', owner: local.getState().assertionCalls, caller: caller.getState().assertionCalls })
+}
+let foreignTask
+test('creator captured fluent callables', context => {
+  local = context.expect; owner = context.task
+  for (const [name, make] of methods) captured.set(name, local(make())[name])
+})
+test('foreign captured fluent receivers', context => { caller = context.expect; foreignTask = context.task; run('foreign') })
+afterAll(() => { run('afterAll'); console.log('DECLARATION_FN:' + JSON.stringify({ kind: 'fluent-chai-receivers', trace })) })

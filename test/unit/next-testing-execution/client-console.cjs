@@ -150,6 +150,7 @@ async function main() {
     },
   }
   const file = {
+    enableBrowserPublicTaskQueues() {},
     collect: async (load) => {
       if (setupMode) setupOrder.push('collect')
       collecting = true

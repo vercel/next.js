@@ -1,0 +1,6 @@
+import { test, expect, afterAll } from 'vitest';
+const trace = []; let task, local, alias, receiver, phase = 'collection';
+expect.extend({ toNativePropertyOwner(actual, expected) { trace.push({ phase, kind: 'matcher', sameAssertion: this.assertion === receiver, sameTask: this.task === task, actual, expected, isNot: this.isNot }); return { pass: actual === expected, message: () => 'native property value differs' }; } });
+const call = (assertion, value) => { receiver = assertion; assertion.toNativePropertyOwner(value); };
+test('native property lineage', context => { phase = 'body'; task = context.task; local = context.expect; const original = local('value'); Object.defineProperty(original, 'not', { configurable: true, get() { return this; } }); alias = original.not; const returned = alias.toBe('value').to.be; trace.push({ phase, kind: 'identity', sameAlias: returned === alias }); call(returned, 'value'); call(alias.toBe('value').not, 'other'); });
+afterAll(() => { phase = 'afterAll'; call(alias.toBe('value').to.be, 'value'); call(alias.toBe('value').not, 'other'); console.log('DECLARATION_FN:' + JSON.stringify({ kind: 'owned-getter-native-properties', trace, calls: local.getState().assertionCalls, state: task.result?.state ?? null })); });

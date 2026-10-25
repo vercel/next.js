@@ -1,0 +1,14 @@
+import { test, expect, afterEach, afterAll, onTestFinished as globalFinished } from 'vitest'
+const rows = []
+let release = () => {}
+const row = (stage, value = {}) => rows.push({ stage, ...value })
+afterEach(({ task }) => { row('afterEach', { errors: (task.result?.errors ?? []).map(error => error?.message ?? String(error)) }); release() })
+afterAll(() => console.log('TASK_QUEUE_CONSUMER:' + JSON.stringify(rows)))
+let firstTask, retained
+ test('first logical task retains its original registrar', context => { firstTask = context.task; retained = context.onTestFinished; row('first-body', { absent: firstTask.onFinished === undefined }) })
+ test('second logical task can append through first retained registrar', context => {
+   row('before-retained', { absent: firstTask.onFinished === undefined })
+   const result = retained(function lateUnusedCallback() { row('unexpected-late-callback') })
+   row('after-retained', { resultUndefined: result === undefined, firstArray: Array.isArray(firstTask.onFinished), firstLength: firstTask.onFinished.length, currentAbsent: context.task.onFinished === undefined })
+ })
+ afterAll(() => row('final-first', { firstLength: firstTask.onFinished.length }))

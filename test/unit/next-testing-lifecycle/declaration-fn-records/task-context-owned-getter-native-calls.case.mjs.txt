@@ -1,0 +1,19 @@
+import { test, expect, afterAll, chai } from 'vitest';
+const trace = []; let taskA, taskB, localA, localB, aliasA, aliasB, method, receiver, phase = 'collection';
+expect.extend({ toOwnedNativeReceiver(actual, expected) {
+  trace.push({ phase, kind: 'matcher', sameAssertion: this.assertion === receiver, taskA: this.task === taskA, taskB: this.task === taskB, hasTask: this.task !== undefined, actual, expected });
+  return { pass: actual === expected, message: () => 'native returned receiver differs' };
+} });
+const alias = assertion => { Object.defineProperty(assertion, 'not', { configurable: true, get() { return this; } }); return assertion.not; };
+const call = (assertion, value) => { receiver = assertion; assertion.toOwnedNativeReceiver(value); };
+const observeBind = (assertion, value) => { try { call(method.bind(assertion)(value), value); } catch (error) { trace.push({ phase, kind: 'bind', name: error.name, message: error.message }); } };
+test('native source A', context => {
+  phase = 'A'; taskA = context.task; localA = context.expect; aliasA = alias(localA('A')); method = aliasA.toBe;
+  const result = method.call(aliasA, 'A'); trace.push({ phase, kind: 'returned', sameAlias: result === aliasA }); call(result, 'A');
+});
+test('native foreign receiver B', context => {
+  phase = 'B'; taskB = context.task; localB = context.expect; aliasB = alias(localB('B'));
+  call(method.call(aliasB, 'B'), 'B'); observeBind(aliasA, 'A'); call(method.call(aliasA, 'A'), 'A');
+  try { method('A'); } catch (error) { trace.push({ phase, kind: 'bare', name: error.name, message: error.message }); }
+});
+afterAll(() => { phase = 'afterAll'; call(method.call(aliasB, 'B'), 'B'); observeBind(aliasA, 'A'); console.log('DECLARATION_FN:' + JSON.stringify({ kind: 'owned-getter-native-calls', trace, callsA: localA.getState().assertionCalls, callsB: localB.getState().assertionCalls, stateA: taskA.result?.state ?? null, stateB: taskB.result?.state ?? null })); });

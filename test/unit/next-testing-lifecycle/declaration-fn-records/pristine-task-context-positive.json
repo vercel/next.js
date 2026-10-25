@@ -1,0 +1,170 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "task-context-positive",
+        "trace": [
+          {
+            "kind": "collection",
+            "name": "outside",
+            "contextType": "function",
+            "contextName": "context",
+            "contextLength": 0,
+            "taskIdentity": true,
+            "signalAborted": false,
+            "contextDescriptor": {
+              "enumerable": false,
+              "configurable": true,
+              "writable": true,
+              "getter": false,
+              "setter": false
+            },
+            "expectDescriptor": {
+              "enumerable": false,
+              "configurable": false,
+              "getter": true,
+              "setter": false
+            },
+            "assertionCalls": 0,
+            "done": {
+              "error": {
+                "name": "Error",
+                "message": "done() callback is deprecated, use promise instead"
+              }
+            },
+            "skipFalse": {
+              "value": null
+            },
+            "result": null
+          },
+          {
+            "kind": "collection-expect",
+            "name": "outside",
+            "assertionCalls": 1
+          },
+          {
+            "kind": "collection",
+            "name": "inside",
+            "contextType": "function",
+            "contextName": "context",
+            "contextLength": 0,
+            "taskIdentity": true,
+            "signalAborted": false,
+            "contextDescriptor": {
+              "enumerable": false,
+              "configurable": true,
+              "writable": true,
+              "getter": false,
+              "setter": false
+            },
+            "expectDescriptor": {
+              "enumerable": false,
+              "configurable": false,
+              "getter": true,
+              "setter": false
+            },
+            "assertionCalls": 0,
+            "done": {
+              "error": {
+                "name": "Error",
+                "message": "done() callback is deprecated, use promise instead"
+              }
+            },
+            "skipFalse": {
+              "value": null
+            },
+            "result": null
+          },
+          {
+            "kind": "collection-expect",
+            "name": "inside",
+            "assertionCalls": 1
+          },
+          {
+            "kind": "body",
+            "name": "outside",
+            "sameContext": true,
+            "contextType": "function",
+            "taskIdentity": true,
+            "signalSame": true,
+            "expectSame": true,
+            "assertionCalls": 1,
+            "done": {
+              "error": {
+                "name": "Error",
+                "message": "done() callback is deprecated, use promise instead"
+              }
+            }
+          },
+          {
+            "kind": "body-finished",
+            "name": "outside",
+            "sameContext": true,
+            "taskIdentity": true,
+            "assertionCalls": 2
+          },
+          {
+            "kind": "body",
+            "name": "inside",
+            "sameContext": true,
+            "contextType": "function",
+            "taskIdentity": true,
+            "signalSame": true,
+            "expectSame": true,
+            "assertionCalls": 1,
+            "done": {
+              "error": {
+                "name": "Error",
+                "message": "done() callback is deprecated, use promise instead"
+              }
+            }
+          },
+          {
+            "kind": "body-finished",
+            "name": "inside",
+            "sameContext": true,
+            "taskIdentity": true,
+            "assertionCalls": 2
+          }
+        ],
+        "contexts": [
+          {
+            "name": "outside",
+            "contextType": "function",
+            "signalAborted": false,
+            "assertionCalls": 2
+          },
+          {
+            "name": "inside",
+            "contextType": "function",
+            "signalAborted": false,
+            "assertionCalls": 2
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "outside",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "raw inside",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

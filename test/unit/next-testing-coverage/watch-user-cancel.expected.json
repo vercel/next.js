@@ -1,0 +1,993 @@
+{
+  "reference": "Vitest 5.0.4 with @vitest/coverage-v8 5.0.4",
+  "sources": {
+    "initial": "import { test, expect, beforeEach, afterEach, onTestFinished } from 'vitest'\nimport { watch, existsSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs'\nimport { threadId } from 'node:worker_threads'\nimport { choose } from './subject.mjs'\nmkdirSync('cancel-settlement', { recursive: true })\nconst record = (event, data = {}) => appendFileSync('cancel-settlement/trace.jsonl', JSON.stringify({event, pid: process.pid, threadId, ...data})+'\\n')\nprocess.on('exit', code => record('worker-exit', {code}))\nbeforeEach(context => record('beforeEach', {name: context.task.name}))\nafterEach(context => record('afterEach', {name: context.task.name, state: context.task.result?.state}))\ntest('controlled cancellation body', async () => {\n  onTestFinished(context => record('onTestFinished', {state: context.task.result?.state}))\n  expect(choose(true)).toBe(1)\n  record('body-start')\n  await new Promise(resolve => {\n    const watcher = watch('.next/cancel-controls', () => {\n      if (existsSync('.next/cancel-controls/gate-release')) { watcher.close(); resolve() }\n    })\n    writeFileSync('.next/cancel-controls/gate-started', 'ready')\n  })\n  record('body-finished')\n}, 10000)\ntest('queued after controlled cancellation', () => {\n  record('queued-body')\n  expect(true).toBe(true)\n})\n",
+    "prior": "import { test, expect, beforeEach, afterEach, onTestFinished } from 'vitest'\nimport { watch, existsSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs'\nimport { threadId } from 'node:worker_threads'\nimport { choose } from './subject.mjs'\nmkdirSync('cancel-settlement', { recursive: true })\nconst record = (event, data = {}) => appendFileSync('cancel-settlement/trace.jsonl', JSON.stringify({event, pid: process.pid, threadId, ...data})+'\\n')\nprocess.on('exit', code => record('worker-exit', {code}))\nbeforeEach(context => record('beforeEach', {name: context.task.name}))\nafterEach(context => record('afterEach', {name: context.task.name, state: context.task.result?.state}))\ntest('controlled cancellation body', async () => {\n  onTestFinished(context => record('onTestFinished', {state: context.task.result?.state}))\n  expect(choose(true)).toBe(1)\n  record('body-start')\n  if (!existsSync('.next/cancel-controls/gate-mode')) return\n  await new Promise(resolve => {\n    const watcher = watch('.next/cancel-controls', () => {\n      if (existsSync('.next/cancel-controls/gate-release')) { watcher.close(); resolve() }\n    })\n    writeFileSync('.next/cancel-controls/gate-started', 'ready')\n  })\n  record('body-finished')\n}, 10000)\ntest('queued after controlled cancellation', () => {\n  record('queued-body')\n  expect(true).toBe(true)\n})\n",
+    "priorSecond": "import {test} from 'vitest'\nimport {appendFileSync,mkdirSync} from 'node:fs'\nimport {second} from './second-subject.mjs'\nconst record=event=>{mkdirSync('cancel-settlement',{recursive:true});appendFileSync('cancel-settlement/trace.jsonl',JSON.stringify({event,pid:process.pid})+'\\n')}\nrecord('second-module-evaluated')\ntest('queued second file',()=>{record('second-body');second()})\n"
+  },
+  "profiles": [
+    {
+      "mode": "development",
+      "kind": "initial",
+      "cleanOnRerun": true,
+      "cases": 0,
+      "coverage": 0,
+      "trace": 0,
+      "recovery": {
+        "cases": 1,
+        "coverage": 0
+      }
+    },
+    {
+      "mode": "production",
+      "kind": "initial",
+      "cleanOnRerun": true,
+      "cases": 0,
+      "coverage": 0,
+      "trace": 0,
+      "recovery": {
+        "cases": 1,
+        "coverage": 0
+      }
+    },
+    {
+      "mode": "development",
+      "kind": "prior",
+      "cleanOnRerun": true,
+      "cases": 2,
+      "coverage": 1,
+      "trace": 0,
+      "recovery": {
+        "cases": 1,
+        "coverage": 2
+      }
+    },
+    {
+      "mode": "development",
+      "kind": "prior",
+      "cleanOnRerun": false,
+      "cases": 2,
+      "coverage": 2,
+      "trace": 0,
+      "recovery": {
+        "cases": 1,
+        "coverage": 2
+      }
+    },
+    {
+      "mode": "production",
+      "kind": "prior",
+      "cleanOnRerun": true,
+      "cases": 2,
+      "coverage": 1,
+      "trace": 0,
+      "recovery": {
+        "cases": 1,
+        "coverage": 2
+      }
+    },
+    {
+      "mode": "production",
+      "kind": "prior",
+      "cleanOnRerun": false,
+      "cases": 2,
+      "coverage": 2,
+      "trace": 0,
+      "recovery": {
+        "cases": 1,
+        "coverage": 2
+      }
+    }
+  ],
+  "coverageReports": [
+    {
+      "subject.mjs": {
+        "path": "subject.mjs",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 2,
+              "column": 2
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "1": {
+            "start": {
+              "line": 2,
+              "column": 12
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 3,
+              "column": 2
+            },
+            "end": {
+              "line": 3,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 6,
+              "column": 2
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "choose",
+            "decl": {
+              "start": {
+                "line": 1,
+                "column": 16
+              },
+              "end": {
+                "line": 1,
+                "column": 22
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 29
+              },
+              "end": {
+                "line": 4,
+                "column": null
+              }
+            },
+            "line": 1
+          },
+          "1": {
+            "name": "unused",
+            "decl": {
+              "start": {
+                "line": 5,
+                "column": 16
+              },
+              "end": {
+                "line": 5,
+                "column": 22
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 25
+              },
+              "end": {
+                "line": 7,
+                "column": null
+              }
+            },
+            "line": 5
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "type": "if",
+            "locations": [
+              {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              {
+                "start": {},
+                "end": {}
+              }
+            ],
+            "line": 2
+          }
+        },
+        "s": {
+          "0": 1,
+          "1": 1,
+          "2": 0,
+          "3": 0
+        },
+        "f": {
+          "0": 1,
+          "1": 0
+        },
+        "b": {
+          "0": [1, 0]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 2,
+          "lastStatement": 4,
+          "seen": {
+            "f:1:16:1:22": 0,
+            "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+            "s:2:2:2:Infinity": 0,
+            "s:2:12:2:Infinity": 1,
+            "s:3:2:3:Infinity": 2,
+            "f:5:16:5:22": 1,
+            "s:6:2:6:Infinity": 3
+          },
+          "fnNames": {}
+        }
+      },
+      "unimported.mjs": {
+        "path": "unimported.mjs",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 2,
+              "column": 2
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "untouched",
+            "decl": {
+              "start": {
+                "line": 1,
+                "column": 16
+              },
+              "end": {
+                "line": 1,
+                "column": 25
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 28
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "line": 1
+          }
+        },
+        "branchMap": {},
+        "s": {
+          "0": 0
+        },
+        "f": {
+          "0": 0
+        },
+        "b": {},
+        "meta": {
+          "lastBranch": 0,
+          "lastFunction": 1,
+          "lastStatement": 1,
+          "seen": {
+            "f:1:16:1:25": 0,
+            "s:2:2:2:Infinity": 0
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "second-subject.mjs": {
+        "path": "second-subject.mjs",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 1,
+              "column": 27
+            },
+            "end": {
+              "line": 1,
+              "column": 35
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "second",
+            "decl": {
+              "start": {
+                "line": 1,
+                "column": 16
+              },
+              "end": {
+                "line": 1,
+                "column": 22
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 25
+              },
+              "end": {
+                "line": 1,
+                "column": null
+              }
+            },
+            "line": 1
+          }
+        },
+        "branchMap": {},
+        "s": {
+          "0": 0
+        },
+        "f": {
+          "0": 0
+        },
+        "b": {},
+        "meta": {
+          "lastBranch": 0,
+          "lastFunction": 1,
+          "lastStatement": 1,
+          "seen": {
+            "f:1:16:1:22": 0,
+            "s:1:27:1:35": 0
+          },
+          "fnNames": {}
+        }
+      },
+      "subject.mjs": {
+        "path": "subject.mjs",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 2,
+              "column": 2
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "1": {
+            "start": {
+              "line": 2,
+              "column": 12
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 3,
+              "column": 2
+            },
+            "end": {
+              "line": 3,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 6,
+              "column": 2
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "choose",
+            "decl": {
+              "start": {
+                "line": 1,
+                "column": 16
+              },
+              "end": {
+                "line": 1,
+                "column": 22
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 29
+              },
+              "end": {
+                "line": 4,
+                "column": null
+              }
+            },
+            "line": 1
+          },
+          "1": {
+            "name": "unused",
+            "decl": {
+              "start": {
+                "line": 5,
+                "column": 16
+              },
+              "end": {
+                "line": 5,
+                "column": 22
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 25
+              },
+              "end": {
+                "line": 7,
+                "column": null
+              }
+            },
+            "line": 5
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "type": "if",
+            "locations": [
+              {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              {
+                "start": {},
+                "end": {}
+              }
+            ],
+            "line": 2
+          }
+        },
+        "s": {
+          "0": 1,
+          "1": 1,
+          "2": 0,
+          "3": 0
+        },
+        "f": {
+          "0": 1,
+          "1": 0
+        },
+        "b": {
+          "0": [1, 0]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 2,
+          "lastStatement": 4,
+          "seen": {
+            "f:1:16:1:22": 0,
+            "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+            "s:2:2:2:Infinity": 0,
+            "s:2:12:2:Infinity": 1,
+            "s:3:2:3:Infinity": 2,
+            "f:5:16:5:22": 1,
+            "s:6:2:6:Infinity": 3
+          },
+          "fnNames": {}
+        }
+      },
+      "unimported.mjs": {
+        "path": "unimported.mjs",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 2,
+              "column": 2
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "untouched",
+            "decl": {
+              "start": {
+                "line": 1,
+                "column": 16
+              },
+              "end": {
+                "line": 1,
+                "column": 25
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 28
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "line": 1
+          }
+        },
+        "branchMap": {},
+        "s": {
+          "0": 0
+        },
+        "f": {
+          "0": 0
+        },
+        "b": {},
+        "meta": {
+          "lastBranch": 0,
+          "lastFunction": 1,
+          "lastStatement": 1,
+          "seen": {
+            "f:1:16:1:25": 0,
+            "s:2:2:2:Infinity": 0
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "second-subject.mjs": {
+        "path": "second-subject.mjs",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 1,
+              "column": 27
+            },
+            "end": {
+              "line": 1,
+              "column": 35
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "second",
+            "decl": {
+              "start": {
+                "line": 1,
+                "column": 16
+              },
+              "end": {
+                "line": 1,
+                "column": 22
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 25
+              },
+              "end": {
+                "line": 1,
+                "column": null
+              }
+            },
+            "line": 1
+          }
+        },
+        "branchMap": {},
+        "s": {
+          "0": 1
+        },
+        "f": {
+          "0": 1
+        },
+        "b": {},
+        "meta": {
+          "lastBranch": 0,
+          "lastFunction": 1,
+          "lastStatement": 1,
+          "seen": {
+            "f:1:16:1:22": 0,
+            "s:1:27:1:35": 0
+          },
+          "fnNames": {}
+        }
+      },
+      "subject.mjs": {
+        "path": "subject.mjs",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 2,
+              "column": 2
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "1": {
+            "start": {
+              "line": 2,
+              "column": 12
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 3,
+              "column": 2
+            },
+            "end": {
+              "line": 3,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 6,
+              "column": 2
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "choose",
+            "decl": {
+              "start": {
+                "line": 1,
+                "column": 16
+              },
+              "end": {
+                "line": 1,
+                "column": 22
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 29
+              },
+              "end": {
+                "line": 4,
+                "column": null
+              }
+            },
+            "line": 1
+          },
+          "1": {
+            "name": "unused",
+            "decl": {
+              "start": {
+                "line": 5,
+                "column": 16
+              },
+              "end": {
+                "line": 5,
+                "column": 22
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 25
+              },
+              "end": {
+                "line": 7,
+                "column": null
+              }
+            },
+            "line": 5
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "type": "if",
+            "locations": [
+              {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              {
+                "start": {},
+                "end": {}
+              }
+            ],
+            "line": 2
+          }
+        },
+        "s": {
+          "0": 1,
+          "1": 1,
+          "2": 0,
+          "3": 0
+        },
+        "f": {
+          "0": 1,
+          "1": 0
+        },
+        "b": {
+          "0": [1, 0]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 2,
+          "lastStatement": 4,
+          "seen": {
+            "f:1:16:1:22": 0,
+            "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+            "s:2:2:2:Infinity": 0,
+            "s:2:12:2:Infinity": 1,
+            "s:3:2:3:Infinity": 2,
+            "f:5:16:5:22": 1,
+            "s:6:2:6:Infinity": 3
+          },
+          "fnNames": {}
+        }
+      },
+      "unimported.mjs": {
+        "path": "unimported.mjs",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 2,
+              "column": 2
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "untouched",
+            "decl": {
+              "start": {
+                "line": 1,
+                "column": 16
+              },
+              "end": {
+                "line": 1,
+                "column": 25
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 28
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "line": 1
+          }
+        },
+        "branchMap": {},
+        "s": {
+          "0": 0
+        },
+        "f": {
+          "0": 0
+        },
+        "b": {},
+        "meta": {
+          "lastBranch": 0,
+          "lastFunction": 1,
+          "lastStatement": 1,
+          "seen": {
+            "f:1:16:1:25": 0,
+            "s:2:2:2:Infinity": 0
+          },
+          "fnNames": {}
+        }
+      }
+    }
+  ],
+  "caseReports": [
+    [
+      {
+        "file": "contract.case.mjs",
+        "status": "passed",
+        "cases": [
+          {
+            "ancestorTitles": [],
+            "fullName": "controlled cancellation body",
+            "status": "skipped",
+            "title": "controlled cancellation body",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          },
+          {
+            "ancestorTitles": [],
+            "fullName": "queued after controlled cancellation",
+            "status": "skipped",
+            "title": "queued after controlled cancellation",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          }
+        ]
+      },
+      {
+        "file": "z-queued.case.mjs",
+        "status": "passed",
+        "cases": []
+      }
+    ],
+    [
+      {
+        "file": "contract.case.mjs",
+        "status": "passed",
+        "cases": [
+          {
+            "ancestorTitles": [],
+            "fullName": "controlled cancellation body",
+            "status": "passed",
+            "title": "controlled cancellation body",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          },
+          {
+            "ancestorTitles": [],
+            "fullName": "queued after controlled cancellation",
+            "status": "passed",
+            "title": "queued after controlled cancellation",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          }
+        ]
+      },
+      {
+        "file": "z-queued.case.mjs",
+        "status": "passed",
+        "cases": [
+          {
+            "ancestorTitles": [],
+            "fullName": "queued second file",
+            "status": "passed",
+            "title": "queued second file",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "file": "contract.case.mjs",
+        "status": "passed",
+        "cases": [
+          {
+            "ancestorTitles": [],
+            "fullName": "controlled cancellation body",
+            "status": "skipped",
+            "title": "controlled cancellation body",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          },
+          {
+            "ancestorTitles": [],
+            "fullName": "queued after controlled cancellation",
+            "status": "skipped",
+            "title": "queued after controlled cancellation",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          }
+        ]
+      },
+      {
+        "file": "z-queued.case.mjs",
+        "status": "passed",
+        "cases": [
+          {
+            "ancestorTitles": [],
+            "fullName": "queued second file",
+            "status": "passed",
+            "title": "queued second file",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          }
+        ]
+      }
+    ]
+  ],
+  "authoredTraces": [
+    [
+      {
+        "event": "beforeEach",
+        "name": "controlled cancellation body"
+      },
+      {
+        "event": "body-start"
+      },
+      {
+        "event": "afterEach",
+        "name": "controlled cancellation body",
+        "state": "skip"
+      },
+      {
+        "event": "onTestFinished",
+        "state": "skip"
+      }
+    ]
+  ]
+}

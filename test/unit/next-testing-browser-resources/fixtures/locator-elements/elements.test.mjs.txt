@@ -1,0 +1,34 @@
+import { afterEach, beforeEach, expect, test } from 'vitest'
+import { page } from 'vitest/browser'
+beforeEach(() => document.body.replaceChildren())
+afterEach(() => document.body.replaceChildren())
+function caught(callback) { try { const value=callback(); return { returnedNull:value===null, returnedUndefined:value===undefined } } catch(error) { return { name:error.name, constructor:error.constructor.name, message:error.message, string:String(error), keys:Object.keys(error) } } }
+function record(name,values) { console.log('ELEMENT_RAW '+JSON.stringify({name,...values})) }
+function button(name) { const value=document.createElement('button');value.textContent=name;document.body.append(value);return value }
+for(const kind of ['role','text','label','testId'])test('missing '+kind+' retains nullable query and concrete element error',()=>{
+ document.body.innerHTML='<main><p>Visible text</p><label>Existing<input aria-label="Actual"></label></main>'
+ const query=kind==='role'?page.getByRole('button',{name:'Missing',exact:true}):kind==='text'?page.getByText('Missing',{exact:true}):kind==='label'?page.getByLabelText('Missing',{exact:true}):page.getByTestId('Missing')
+ const queryValue=query.query(),elementResult=caught(()=>query.element());record('missing '+kind,{queryNull:queryValue===null,element:elementResult});expect(queryValue).toBeNull();expect(elementResult.name).toBe('VitestBrowserElementError')
+})
+test('missing scoped query retains actual container and selector',()=>{
+ document.body.innerHTML='<section aria-label="Scope" role="group"><p>Inside</p></section><p>Outside</p>'
+ const query=page.getByRole('group',{name:'Scope',exact:true}).getByText('Missing',{exact:true}),value=query.query(),elementResult=caught(()=>query.element());record('scoped missing',{queryNull:value===null,element:elementResult});expect(value).toBeNull();expect(elementResult.name).toBe('VitestBrowserElementError')
+})
+test('missing nth query retains actual index and selector',()=>{
+ button('Only');const query=page.getByRole('button').nth(1),value=query.query(),elementResult=caught(()=>query.element());record('nth missing',{queryNull:value===null,element:elementResult});expect(value).toBeNull();expect(elementResult.name).toBe('VitestBrowserElementError')
+})
+test('query and element preserve the same actual connected node',()=>{
+ const target=button('Actual'),query=page.getByRole('button',{name:'Actual',exact:true});const first=query.query(),second=query.element();target.dataset.observed='changed';record('actual identity',{querySame:first===target,elementSame:second===target,same:first===second,attribute:second.dataset.observed,connected:second.isConnected});expect(first).toBe(target);expect(second).toBe(target)
+})
+test('query and element expose the same actual SVG node',()=>{
+ const target=document.createElementNS('http://www.w3.org/2000/svg','svg');target.setAttribute('role','img');target.setAttribute('aria-label','Drawing');document.body.append(target);const query=page.getByRole('img',{name:'Drawing',exact:true});record('SVG identity',{querySame:query.query()===target,elementSame:query.element()===target,svg:query.element() instanceof SVGElement});expect(query.element()).toBe(target)
+})
+test('duplicate query and element retain complete strict error information',()=>{
+ button('Duplicate');button('Duplicate');const query=page.getByRole('button',{name:'Duplicate',exact:true});record('duplicates',{query:caught(()=>query.query()),element:caught(()=>query.element()),elements:query.elements().length});expect(query.elements()).toHaveLength(2)
+})
+test('bound element retains actual identity after detaching',()=>{
+ const target=button('Bound'),query=page.elementLocator(target);target.remove();const a=caught(()=>query.query()),b=caught(()=>query.element());record('detached bound',{query:a,element:b,querySame:query.query()===target,connected:target.isConnected})
+})
+test('foreign-document element records actual public binding behavior',()=>{
+ const foreign=document.implementation.createHTMLDocument('foreign'),target=foreign.createElement('button');target.textContent='Foreign';foreign.body.append(target);let locator;const binding=caught(()=>{locator=page.elementLocator(target);return locator});record('foreign',{binding,query:locator?caught(()=>locator.query()):null,element:locator?caught(()=>locator.element()):null,querySame:locator?locator.query()===target:false})
+})

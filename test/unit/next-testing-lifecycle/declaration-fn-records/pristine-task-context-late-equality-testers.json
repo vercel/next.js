@@ -1,0 +1,98 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "late-equality-testers",
+        "trace": [
+          {
+            "kind": "tester",
+            "hasEquals": true,
+            "left": "FIRST",
+            "right": "first"
+          },
+          {
+            "kind": "deep",
+            "result": "ok",
+            "sameReturn": false,
+            "count": 4
+          },
+          {
+            "kind": "tester",
+            "hasEquals": true,
+            "left": "SECOND",
+            "right": "second"
+          },
+          {
+            "kind": "strict",
+            "result": "ok",
+            "sameReturn": false,
+            "count": 4
+          },
+          {
+            "kind": "tester",
+            "hasEquals": true,
+            "left": "THIRD",
+            "right": "third"
+          },
+          {
+            "kind": "tester",
+            "hasEquals": true,
+            "left": "THIRD",
+            "right": "third"
+          },
+          {
+            "kind": "subset",
+            "result": "ok",
+            "sameReturn": false,
+            "count": 4
+          },
+          {
+            "kind": "tester",
+            "hasEquals": true,
+            "left": "fourth",
+            "right": "FOURTH"
+          },
+          {
+            "kind": "property",
+            "result": "ok",
+            "sameReturn": false,
+            "count": 4
+          },
+          {
+            "kind": "tester",
+            "hasEquals": true,
+            "left": "FIFTH",
+            "right": "fifth"
+          },
+          {
+            "kind": "new-local",
+            "result": "ok",
+            "sameReturn": false,
+            "count": 5
+          }
+        ],
+        "state": "pass",
+        "count": 5
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "closed owner registered equality testers",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeaders": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 1,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

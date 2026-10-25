@@ -1,0 +1,70 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "custom-assertion-view",
+        "trace": [
+          {
+            "phase": "owner",
+            "actual": "A",
+            "expected": "A",
+            "assertionSameReceiver": true,
+            "taskSameReceiver": true,
+            "currentTestName": "custom view original owner"
+          },
+          {
+            "phase": "borrowed",
+            "actual": "B",
+            "expected": "B",
+            "assertionSameReceiver": true,
+            "taskSameReceiver": true,
+            "currentTestName": "custom view borrowed receiver"
+          },
+          {
+            "kind": "returned",
+            "sameReceiver": false,
+            "ownerCount": 1,
+            "receiverCount": 1
+          },
+          {
+            "phase": "afterAll",
+            "actual": "A",
+            "expected": "A",
+            "assertionSameReceiver": true,
+            "taskSameReceiver": true,
+            "currentTestName": "custom view original owner"
+          }
+        ],
+        "aState": "pass",
+        "bState": "pass",
+        "aCount": 1,
+        "bCount": 1
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "custom view original owner",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeads": []
+    },
+    {
+      "name": "custom view borrowed receiver",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeads": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

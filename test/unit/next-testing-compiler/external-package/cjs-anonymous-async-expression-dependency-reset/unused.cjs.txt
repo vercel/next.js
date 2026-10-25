@@ -1,0 +1,2 @@
+globalThis.__nextKindUnused=(globalThis.__nextKindUnused||0)+1
+module.exports={}

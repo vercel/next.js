@@ -1,0 +1,8 @@
+import React from 'react'
+type Input = { active: boolean; label: string }
+class ItemLeaf extends React.Component<{label:string}> { render(){ return <b>{this.props.label}</b> } }
+const registry = {Current: ItemLeaf}
+export function BuildOutput({ active, label }: Input) {
+  return <section>{active ? <registry.Current label={label} /> : <registry.Current label="fallback" />}</section>
+}
+export const Unused = () => <i />

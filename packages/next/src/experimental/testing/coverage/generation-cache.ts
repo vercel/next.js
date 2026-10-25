@@ -14,18 +14,28 @@ import type { StandardFileCoverage } from './types'
 
 interface Generation {
   registry?: WatchRegistrySnapshot
+  retentionConfigurationRevision?: string
   facts: Map<string, StandardFileCoverage>
   runtimeConfiguration?: Map<string, RuntimeConfigurationReceipt>
 }
 
-function sameInputs(left: WatchRegistrySnapshot, right: WatchRegistrySnapshot) {
+function sameInputFiles(
+  left: WatchRegistrySnapshot,
+  right: WatchRegistrySnapshot
+) {
   const inputs = new Map(
     right.inputs.map((input) => [input.file, input.sourceHash])
   )
   return (
-    left.configurationRevision === right.configurationRevision &&
     left.inputs.length === right.inputs.length &&
     left.inputs.every((input) => inputs.get(input.file) === input.sourceHash)
+  )
+}
+
+function sameInputs(left: WatchRegistrySnapshot, right: WatchRegistrySnapshot) {
+  return (
+    left.configurationRevision === right.configurationRevision &&
+    sameInputFiles(left, right)
   )
 }
 
@@ -50,16 +60,41 @@ export function createStandardCoverageGenerationCache(projectDir: string) {
 
   function retained(
     registry: WatchRegistrySnapshot | undefined,
-    selected: ReadonlySet<string>
+    selected: ReadonlySet<string>,
+    notExecuted?: ReadonlySet<string>,
+    retentionConfigurationRevision?: string
   ) {
     const previous = generation?.registry
-    if (!registry || !previous || !sameInputs(previous, registry))
+    if (!registry || !previous) return undefined
+    const unchangedInputs = sameInputs(previous, registry)
+    if (
+      !unchangedInputs &&
+      !(
+        notExecuted?.size &&
+        retentionConfigurationRevision !== undefined &&
+        generation?.retentionConfigurationRevision ===
+          retentionConfigurationRevision &&
+        sameInputFiles(previous, registry)
+      )
+    )
       return undefined
     const facts = new Map<string, StandardFileCoverage>()
     for (const entry of registry.entries) {
       if (selected.has(entry.id)) continue
+      if (!unchangedInputs && !notExecuted?.has(entry.id)) return undefined
       const fact = generation!.facts.get(entry.id)
-      if (!fact || !sameEntry(previous, registry, entry.id)) return undefined
+      if (!fact && notExecuted?.has(entry.id)) continue
+      if (
+        !fact ||
+        (!sameEntry(previous, registry, entry.id) &&
+          !(
+            notExecuted?.has(entry.id) &&
+            previous.entries.some(
+              (before) => before.id === entry.id && before.file === entry.file
+            )
+          ))
+      )
+        return undefined
       facts.set(entry.id, fact)
     }
     return facts
@@ -146,6 +181,10 @@ export function createStandardCoverageGenerationCache(projectDir: string) {
       revisions: ReadonlyMap<string, string>
       registry?: WatchRegistrySnapshot
       cleanOnRerun?: boolean
+      /** Canonical parent selected IDs whose actual forks never launched. */
+      notExecutedEntryIds?: ReadonlySet<string>
+      /** Parent Discovery coverage settings/config revision, independent of selection metadata. */
+      retentionConfigurationRevision?: string
       runtimeConfiguration?: {
         plan: RuntimeConfigurationPlan
         receipts: readonly RuntimeConfigurationReceipt[]
@@ -153,6 +192,16 @@ export function createStandardCoverageGenerationCache(projectDir: string) {
       signal?: AbortSignal
     }) {
       options.signal?.throwIfAborted()
+      if (
+        options.notExecutedEntryIds &&
+        (!options.registry ||
+          [...options.notExecutedEntryIds].some(
+            (id) =>
+              options.expected.has(id) ||
+              !options.registry!.entries.some((entry) => entry.id === id)
+          ))
+      )
+        throw new Error('Invalid parent unexecuted coverage selection.')
       const incoming = await assertStandardCoverageFacts(
         options.facts,
         projectDir,
@@ -172,7 +221,12 @@ export function createStandardCoverageGenerationCache(projectDir: string) {
         })
       const previous =
         options.cleanOnRerun === false
-          ? retained(options.registry, options.expected)
+          ? retained(
+              options.registry,
+              options.expected,
+              options.notExecutedEntryIds,
+              options.retentionConfigurationRevision
+            )
           : new Map<string, StandardFileCoverage>()
       // A full generation needs no older evidence, including after config changes.
       const allSelected =
@@ -180,10 +234,22 @@ export function createStandardCoverageGenerationCache(projectDir: string) {
         options.registry.entries.every((entry) =>
           options.expected.has(entry.id)
         )
-      if (!previous && !allSelected)
+      const firstCancelledSelection =
+        options.notExecutedEntryIds &&
+        options.registry?.entries.every(
+          (entry) =>
+            options.expected.has(entry.id) ||
+            options.notExecutedEntryIds!.has(entry.id)
+        )
+      if (!previous && !allSelected && !firstCancelledSelection)
         throw new Error(
           'Watch coverage has no valid facts for an unselected entry.'
         )
+      const retainedEntryIds = new Set(
+        [...(previous?.keys() ?? [])].filter((id) =>
+          options.notExecutedEntryIds?.has(id)
+        )
+      )
       const facts = new Map(previous ?? [])
       for (const fact of incoming) facts.set(fact.entryId, fact)
       await validateRegistry(options.registry, options.signal)
@@ -214,12 +280,14 @@ export function createStandardCoverageGenerationCache(projectDir: string) {
         await assertRuntimeConfigurationReceipts({
           receipts: [...runtimeConfiguration.values()],
           facts: [...facts.values()],
+          retainedEntryIds,
           signal: runtimeSignal,
         })
       }
       options.signal?.throwIfAborted()
       // Both the staged state and published facts have independent byte/value ownership.
       const next: Generation = {
+        retentionConfigurationRevision: options.retentionConfigurationRevision,
         ...(runtimeConfiguration
           ? {
               runtimeConfiguration: new Map(
@@ -242,6 +310,7 @@ export function createStandardCoverageGenerationCache(projectDir: string) {
       return {
         facts: [...facts.values()].map((fact) => structuredClone(fact)),
         expected: new Set(facts.keys()),
+        retainedEntryIds: new Set(retainedEntryIds),
         ...(runtimeConfiguration
           ? {
               runtimeConfigurationReceipts: [

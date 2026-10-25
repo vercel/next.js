@@ -1,0 +1,22 @@
+[
+  {
+    "name": "complete arrow namespace and lexical dependency lifetime across resets",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "actual helper retains complete arrow namespaces and reset ownership",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "held arrow defaults and actual dependency mutations remain live",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "arrow native failures and pending async operations retain actual identities",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

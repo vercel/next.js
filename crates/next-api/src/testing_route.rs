@@ -4,7 +4,7 @@
 use anyhow::{Context, Result, bail};
 use next_core::{
     app_structure::{AppPageLoaderTree, Entrypoint, Entrypoints},
-    next_app::{AppPage, AppPath},
+    next_app::{AppPage, AppPath, PageSegment, PageType},
     parse_segment_config_from_loader_tree,
     segment_config::{
         NextRevalidate, NextSegmentConfig, NextSegmentDynamic, NextSegmentFetchCache,
@@ -31,16 +31,43 @@ pub(crate) struct TestRoute {
     pub config: ResolvedVc<NextSegmentConfig>,
 }
 
+fn canonical_page<'a>(path: &AppPath, pages: &'a [AppPage]) -> Result<&'a AppPage> {
+    if path.contains_interception() {
+        bail!("RSC test routes do not yet support interception routing");
+    }
+    let mut canonical = None;
+    for page in pages {
+        let page_path = AppPath::from(page.clone());
+        if page_path.contains_interception() {
+            bail!("RSC test routes do not yet support interception routing");
+        }
+        if page_path != *path
+            || !matches!(page.0.last(), Some(PageSegment::PageType(PageType::Page)))
+        {
+            bail!("RSC test routes require an unambiguous App Router page");
+        }
+        if !page
+            .0
+            .iter()
+            .any(|segment| matches!(segment, PageSegment::Parallel(_)))
+        {
+            if canonical.replace(page).is_some() {
+                bail!("RSC test routes require an unambiguous App Router page");
+            }
+        }
+    }
+    canonical.context("RSC test routes require an unambiguous App Router page")
+}
+
 #[turbo_tasks::function]
 pub(crate) async fn resolve_route(
     entrypoints: Vc<Entrypoints>,
     pathname: RcStr,
 ) -> Result<Vc<TestRoute>> {
     let entrypoints = entrypoints.await?;
-    let entry = entrypoints
+    let (app_path, entry) = entrypoints
         .iter()
         .find(|(path, _)| path.to_string() == pathname.as_str())
-        .map(|(_, entry)| entry)
         .context("The selected RSC test route does not exist in the App Router")?;
     let Entrypoint::AppPage {
         pages,
@@ -53,13 +80,11 @@ pub(crate) async fn resolve_route(
             "RSC test routes must select an App Router page, not a route handler or metadata route"
         );
     };
-    if pages.len() != 1 || AppPath::from(pages[0].clone()).to_string() != pathname.as_str() {
-        bail!("RSC test routes require an unambiguous App Router page");
-    }
-    // Interception/parallel routing needs a full router state and is outside this
-    // dynamic subtree slice. A pathname match alone must never invent that state.
-    if pages[0].to_string().contains('@') || pathname.contains("(..") || pathname.contains("(.") {
-        bail!("RSC test routes do not yet support interception or parallel routing");
+    let page = canonical_page(app_path, pages)?;
+    // A direct initial request can render matched same-path named pages from
+    // this actual tree. Interception still needs navigation state.
+    if loader_tree.await?.is_intercepting() {
+        bail!("RSC test routes do not yet support interception routing");
     }
     let config = parse_segment_config_from_loader_tree(**loader_tree)
         .to_resolved()
@@ -70,12 +95,9 @@ pub(crate) async fn resolve_route(
     if config.await?.dynamic_params == Some(false) {
         bail!("RSC test routes do not yet support dynamicParams=false static-path enforcement");
     }
-    // Default-only named slots belong to this same actual loader tree. The
-    // unique page and interception checks above still exclude named slot pages
-    // and route selection that would require navigation state.
     Ok(TestRoute {
         pathname,
-        page: pages[0].clone(),
+        page: page.clone(),
         loader_tree: *loader_tree,
         root_params: root_params.await?.as_ref().cloned().unwrap_or_default(),
         config,
@@ -184,4 +206,121 @@ pub(crate) async fn metadata_asset(
             FileContent::Content(File::from(serde_json::to_string(&metadata)?)).cell(),
         ),
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use next_core::next_app::{AppPage, AppPath};
+
+    use super::canonical_page;
+
+    fn pages(values: &[&str]) -> Vec<AppPage> {
+        values
+            .iter()
+            .map(|value| AppPage::parse(value).unwrap())
+            .collect()
+    }
+
+    fn path(value: &str) -> AppPath {
+        AppPath::from(AppPage::parse(value).unwrap())
+    }
+
+    #[test]
+    fn canonical_ordinary_page_is_selected_from_the_actual_same_path_pages() {
+        for (pathname, candidates, expected) in [
+            ("/", vec!["/page"], "/page"),
+            (
+                "/[tenant]/panel",
+                vec!["/[tenant]/panel/page"],
+                "/[tenant]/panel/page",
+            ),
+            (
+                "/[tenant]/panel",
+                vec!["/(app)/[tenant]/panel/page"],
+                "/(app)/[tenant]/panel/page",
+            ),
+            (
+                "/[tenant]/panel",
+                vec![
+                    "/[tenant]/panel/@activity/page",
+                    "/[tenant]/panel/page",
+                    "/[tenant]/panel/@metrics/page",
+                ],
+                "/[tenant]/panel/page",
+            ),
+            (
+                "/[tenant]/panel/[item]",
+                vec![
+                    "/[tenant]/panel/@metrics/[item]/page",
+                    "/[tenant]/panel/@activity/[item]/page",
+                    "/[tenant]/panel/[item]/page",
+                ],
+                "/[tenant]/panel/[item]/page",
+            ),
+            (
+                "/",
+                vec!["/@metrics/page", "/page", "/@activity/page"],
+                "/page",
+            ),
+        ] {
+            let candidates = pages(&candidates);
+            let selected = canonical_page(&path(pathname), &candidates).unwrap();
+            assert_eq!(selected.to_string(), expected);
+            let reversed = candidates.into_iter().rev().collect::<Vec<_>>();
+            assert_eq!(
+                canonical_page(&path(pathname), &reversed)
+                    .unwrap()
+                    .to_string(),
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn canonical_page_rejects_absent_ambiguous_foreign_or_nonpage_candidates() {
+        for candidates in [
+            vec![],
+            vec!["/[tenant]/panel/@activity/page"],
+            vec!["/[tenant]/panel/page", "/[tenant]/panel/page"],
+            vec!["/(one)/[tenant]/panel/page", "/(two)/[tenant]/panel/page"],
+            vec!["/[tenant]/panel/page", "/[tenant]/other/@activity/page"],
+            vec!["/[tenant]/other/page"],
+            vec!["/[tenant]/panel/route"],
+            vec!["/[tenant]/panel"],
+            vec!["/[tenant]/panel/page", "/[tenant]/panel/@activity/route"],
+        ] {
+            assert!(
+                canonical_page(&path("/[tenant]/panel"), &pages(&candidates)).is_err(),
+                "{candidates:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn canonical_page_rejects_interception_and_descendants() {
+        for (pathname, candidates) in [
+            (
+                "/[tenant]/panel",
+                vec![
+                    "/[tenant]/panel/page",
+                    "/[tenant]/panel/@activity/(.)report/page",
+                ],
+            ),
+            (
+                "/[tenant]/panel",
+                vec![
+                    "/[tenant]/panel/page",
+                    "/[tenant]/panel/@activity/(..)report/detail/page",
+                ],
+            ),
+            ("/[tenant]/(..)panel", vec!["/[tenant]/(..)panel/page"]),
+            (
+                "/[tenant]/(...)panel/detail",
+                vec!["/[tenant]/(...)panel/detail/page"],
+            ),
+        ] {
+            let error = canonical_page(&path(pathname), &pages(&candidates)).unwrap_err();
+            assert!(error.to_string().contains("interception"));
+        }
+    }
 }

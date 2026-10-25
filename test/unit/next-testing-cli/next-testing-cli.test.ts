@@ -1,3 +1,4 @@
+import { TestResultCache } from 'next/dist/experimental/testing/result-cache'
 import { requestCompilerTransform } from 'next/dist/experimental/testing/compiler/transform-broker'
 import { createHash } from 'crypto'
 import { getDefineEnv } from 'next/dist/build/define-env'
@@ -15,7 +16,7 @@ import {
   defineProject,
   mergeConfig,
 } from 'next/dist/experimental/testing/config-api'
-import { spawn } from 'node:child_process'
+import { spawn, execFile } from 'node:child_process'
 import { once } from 'node:events'
 import { retry } from 'next-test-utils'
 import {
@@ -28,6 +29,7 @@ import {
   mkdir,
   readFile,
   realpath,
+  rename,
   rm,
   symlink,
   writeFile,
@@ -52,6 +54,9 @@ import {
   parseMaxWorkers,
   parseTestShard,
   shardTestProjects,
+  sortUncachedTestProjects,
+  sortCachedTestProjects,
+  forEachTestFile,
 } from 'next/dist/experimental/testing/scheduling'
 import { nextTestRunner } from 'next/dist/cli/next-test-runner'
 import * as capabilities from 'next/dist/experimental/testing/capabilities'
@@ -868,7 +873,115 @@ describe('Next-owned test discovery and configuration', () => {
     }
   }, 30000)
 
-  it('diagnoses unimplemented root-to-external plugin inheritance without dropping a hook', async () => {
+  it('retains external project closures without giving unused root transforms a child dependency role', async () => {
+    const rootHelper = path.join(directory, 'root-helper.mjs')
+    const childHelper = path.join(directory, 'child-helper.mjs')
+    await writeFile(rootHelper, 'export const value = 99')
+    await writeFile(
+      path.join(directory, 'vitest.config.mjs'),
+      `import {value} from './root-helper.mjs';export default {plugins:[{name:'captured',transform(){throw new Error('unused root '+value)}}],test:{projects:['./vitest.child.config.mjs']}}`
+    )
+    await writeFile(
+      path.join(directory, 'vitest.child.config.mjs'),
+      `import {value} from './child-helper.mjs';let calls=0;export default {plugins:[{name:'captured',transform(code){return code.replace('value = 1','value = '+(value+ ++calls))}}],test:{name:'child',include:['*.case.mjs']}}`
+    )
+    const input = {
+      file: path.join(directory, 'subject.mjs'),
+      query: '',
+      moduleType: 'js' as const,
+      code: 'export const value = 1',
+    }
+    let previousRevision: string | undefined
+    for (const value of [2, 4]) {
+      await writeFile(childHelper, `export const value = ${value}`)
+      const session = await openTestConfiguration(directory)
+      const descriptor = session.compilerTransforms(session.config.projects)[
+        session.config.projects[0].profile.id
+      ]
+      try {
+        expect(descriptor.revision).not.toBe(previousRevision)
+        previousRevision = descriptor.revision
+        expect(descriptor.configFile).toBe(
+          await realpath(path.join(directory, 'vitest.child.config.mjs'))
+        )
+        expect(descriptor.configDependencies).toContain(
+          await realpath(childHelper)
+        )
+        expect(descriptor.configDependencies).not.toContain(
+          await realpath(rootHelper)
+        )
+        expect(session.watchInputs).toContain(await realpath(rootHelper))
+        expect(session.watchInputs).toContain(await realpath(childHelper))
+        for (const call of [1, 2]) {
+          const result = await requestCompilerTransform(descriptor, input)
+          expect(result.code).toBe(`export const value = ${value + call}`)
+          expect(result.dependencies).toContain(await realpath(childHelper))
+          expect(result.dependencies).not.toContain(await realpath(rootHelper))
+        }
+      } finally {
+        await session.dispose()
+      }
+      await expect(
+        requestCompilerTransform(descriptor, input)
+      ).rejects.toThrow()
+    }
+  }, 30000)
+
+  it('keeps the root inline transform and external child transform in their distinct retained realms', async () => {
+    await writeFile(
+      path.join(directory, 'vitest.config.mjs'),
+      `export default {plugins:[{name:'same-name',transform(code){return code.replace('value = 1','value = 99')}}],test:{projects:[{test:{name:'inline',include:['*.case.mjs']}},'./vitest.child.config.mjs']}}`
+    )
+    await writeFile(
+      path.join(directory, 'vitest.child.config.mjs'),
+      `export default {plugins:[{name:'same-name',transform(code){return code.replace('value = 1','value = 2')}}],test:{name:'child',include:['*.case.mjs']}}`
+    )
+    const session = await openTestConfiguration(directory)
+    try {
+      const descriptors = session.compilerTransforms(session.config.projects)
+      const results = []
+      for (const project of session.config.projects)
+        results.push(
+          await requestCompilerTransform(descriptors[project.profile.id], {
+            file: path.join(directory, 'subject.mjs'),
+            query: '',
+            moduleType: 'js',
+            code: 'export const value = 1',
+          })
+        )
+      expect(results.map((result) => result.code)).toEqual([
+        'export const value = 99',
+        'export const value = 2',
+      ])
+      expect(Object.values(descriptors)[0].realm).not.toBe(
+        Object.values(descriptors)[1].realm
+      )
+    } finally {
+      await session.dispose()
+    }
+  }, 30000)
+
+  it('does not assign the root transform to an external project without its own transform', async () => {
+    const helper = path.join(directory, 'unused-root-helper.mjs')
+    await writeFile(helper, 'export const value = 99')
+    await writeFile(
+      path.join(directory, 'vitest.config.mjs'),
+      `import {value} from './unused-root-helper.mjs';export default {plugins:[{name:'unused-root',transform(){throw new Error('unused '+value)}}],test:{projects:['./vitest.child.config.mjs']}}`
+    )
+    await writeFile(
+      path.join(directory, 'vitest.child.config.mjs'),
+      `export default {test:{name:'child',include:['*.case.mjs']}}`
+    )
+    const session = await openTestConfiguration(directory)
+    try {
+      expect(session.compilerTransforms(session.config.projects)).toEqual({})
+      expect(session.watchInputs).toContain(await realpath(helper))
+    } finally {
+      await session.dispose()
+    }
+  }, 30000)
+
+  it('does not inherit root transform plugins into an independent external project', async () => {
     await writeFile(
       path.join(directory, 'vitest.config.mjs'),
       `export default {plugins:[{name:'root-hook',transform(code){return code}}],test:{projects:['./vitest.child.config.mjs']}}`
@@ -877,9 +990,14 @@ describe('Next-owned test discovery and configuration', () => {
       path.join(directory, 'vitest.child.config.mjs'),
       `export default {test:{name:'child',include:['*.case.mjs']}}`
     )
-    await expect(openTestConfiguration(directory)).rejects.toThrow(
-      'Root transform plugins cannot yet be inherited'
-    )
+    const session = await openTestConfiguration(directory)
+    try {
+      expect(session.config.projects).toHaveLength(1)
+      expect(session.config.projects[0].profile.id).toBe('child')
+      expect(session.compilerTransforms(session.config.projects)).toEqual({})
+    } finally {
+      await session.dispose()
+    }
   }, 30000)
 
   it.each([false, true])(
@@ -1299,6 +1417,60 @@ describe('Next-owned test discovery and configuration', () => {
     ])
   })
 
+  it('preserves the actual shard partition before explicit uncached file shuffle', async () => {
+    const sizes = [0, 100, 100, 200, 300]
+    const names = ['a', 'b', 'c', 'm', 'z']
+    await Promise.all(
+      names.map((name, index) =>
+        writeFile(
+          path.join(directory, `${name}.uncached-shard.mjs`),
+          'x'.repeat(sizes[index])
+        )
+      )
+    )
+    const projects = await discoverTests(
+      directory,
+      parseTestConfig({
+        projects: [
+          {
+            name: 'seeded',
+            include: ['*.uncached-shard.mjs'],
+            sequence: { seed: 17, shuffle: { files: true, tests: false } },
+          },
+        ],
+      })
+    )
+    const root = await realpath(directory)
+    const partition = await shardTestProjects(
+      projects,
+      { index: 1, count: 2 },
+      root,
+      { sortFiles: false }
+    )
+    const ordered = await sortUncachedTestProjects(partition)
+    expect(ordered[0]).toBe(partition[0])
+    expect(ordered[0].entries).toBe(partition[0].entries)
+    // Direct published 5.0.4 BaseSequencer.shard output before random sorting.
+    expect(
+      ordered[0].entries.map((entry) => path.basename(entry.file))
+    ).toEqual([
+      'b.uncached-shard.mjs',
+      'z.uncached-shard.mjs',
+      'm.uncached-shard.mjs',
+    ])
+    const rest = await shardTestProjects(
+      projects,
+      { index: 2, count: 2 },
+      root,
+      { sortFiles: false }
+    )
+    expect(
+      [...ordered[0].entries, ...rest[0].entries]
+        .map((entry) => entry.id)
+        .sort()
+    ).toEqual(projects[0].entries.map((entry) => entry.id).sort())
+  })
+
   it('keeps unknown source sizes visible ahead of known sizes', async () => {
     const projects = await discoverTests(directory, parseTestConfig({}))
     const project = projects[0]
@@ -1314,6 +1486,419 @@ describe('Next-owned test discovery and configuration', () => {
     )
     expect(selected[0].entries[0].id).toBe('default:missing.spec.ts')
   })
+
+  it('orders uncached source sizes while preserving equal and unknown input order', async () => {
+    await Promise.all([
+      writeFile(path.join(directory, 'a.uncached.mjs'), 'one'),
+      writeFile(path.join(directory, 'b.uncached.mjs'), 'a larger source'),
+      writeFile(path.join(directory, 'c.uncached.mjs'), 'two'),
+      writeFile(path.join(directory, 'd.uncached.mjs'), ''),
+    ])
+    const projects = await discoverTests(
+      directory,
+      parseTestConfig({
+        projects: [{ name: 'uncached', include: ['*.uncached.mjs'] }],
+      })
+    )
+    const project = projects[0]
+    const [a, b, c, d] = project.entries
+    const absent = (name: string) => ({
+      ...a,
+      id: name,
+      file: path.join(directory, name),
+    })
+    project.entries = [
+      c,
+      absent('missing-b.mjs'),
+      a,
+      b,
+      absent('missing-a.mjs'),
+      d,
+    ]
+    const before = [...project.entries]
+    const sorted = await sortUncachedTestProjects(projects)
+    expect(sorted[0].entries.map((entry) => path.basename(entry.file))).toEqual(
+      [
+        'missing-b.mjs',
+        'missing-a.mjs',
+        'b.uncached.mjs',
+        'c.uncached.mjs',
+        'a.uncached.mjs',
+        'd.uncached.mjs',
+      ]
+    )
+    expect(project.entries).toEqual(before)
+  })
+
+  it('retains exact explicit file-shuffle input before the runtime applies its seed', async () => {
+    const projects = await discoverTests(
+      directory,
+      parseTestConfig({
+        projects: [
+          {
+            name: 'seeded',
+            sequence: { seed: 17, shuffle: { files: true, tests: false } },
+          },
+        ],
+      })
+    )
+    const sorted = await sortUncachedTestProjects(projects)
+    expect(sorted[0]).toBe(projects[0])
+    expect(sorted[0].entries).toBe(projects[0].entries)
+    expect(sorted[0].sequence).toEqual(projects[0].sequence)
+  })
+
+  it.each([{ watch: true }, { list: true }, { capabilities: true }])(
+    'holds unsupported no-cache non-execution scope %j before compilation',
+    async (options) => {
+      await expect(
+        nextTestRunner(directory, { ...options, cache: false })
+      ).rejects.toThrow(
+        '--no-cache currently requires one-shot test execution.'
+      )
+      expect(createTestCompilerSession).not.toHaveBeenCalled()
+    }
+  )
+
+  it('holds no-cache mixed projects before compilation', async () => {
+    await writeFile(
+      path.join(directory, 'next.test.config.json'),
+      JSON.stringify({ projects: [{ name: 'a' }, { name: 'b' }] })
+    )
+    await expect(
+      nextTestRunner(directory, { run: true, cache: false })
+    ).rejects.toThrow(
+      '--no-cache currently requires one isolated test project.'
+    )
+    expect(createTestCompilerSession).not.toHaveBeenCalled()
+  })
+
+  it('holds uncached typecheck ordering before compiler acquisition', async () => {
+    await writeFile(
+      path.join(directory, 'next.test.config.json'),
+      JSON.stringify({
+        projects: [{ name: 'typed', typecheck: { enabled: true } }],
+      })
+    )
+    await expect(
+      nextTestRunner(directory, { run: true, cache: false })
+    ).rejects.toThrow('--no-cache does not yet support typecheck projects.')
+    expect(createTestCompilerSession).not.toHaveBeenCalled()
+  })
+
+  it('does not create a result-cache directory when loading absent history', async () => {
+    const target = path.join(directory, '.next-test-cache', 'results.json')
+    const cache = new TestResultCache(directory, target)
+    await cache.read()
+    expect(cache.get('', path.join(directory, 'math.spec.ts'))).toBeUndefined()
+    await expect(readFile(target)).rejects.toHaveProperty('code', 'ENOENT')
+  })
+
+  it('records whole-file failure and pass history with root-relative keys', async () => {
+    const target = path.join(directory, '.next-test-cache', 'results.json')
+    const cache = new TestResultCache(directory, target)
+    const file = path.join(directory, 'nested', 'history.mjs')
+    expect(
+      await cache.update(
+        [{ projectName: '', file, failed: true, duration: 11, partial: false }],
+        100
+      )
+    ).toBe(true)
+    expect(cache.get('', file)).toEqual({
+      failed: true,
+      duration: 11,
+      lastRun: 100,
+    })
+    expect(
+      await cache.update(
+        [
+          {
+            projectName: '',
+            file,
+            failed: false,
+            duration: -2,
+            partial: false,
+          },
+        ],
+        200
+      )
+    ).toBe(true)
+    expect(JSON.parse(await readFile(target, 'utf8'))).toEqual({
+      version: 1,
+      projects: {
+        '': {
+          files: {
+            'nested/history.mjs': { failed: false, duration: 0, lastRun: 200 },
+          },
+        },
+      },
+    })
+  })
+
+  it('retains exact prior failed bytes after a partial pass', async () => {
+    const target = path.join(directory, 'results.json')
+    const file = path.join(directory, 'history.mjs')
+    const cache = new TestResultCache(directory, target)
+    await cache.update(
+      [
+        {
+          projectName: 'named',
+          file,
+          failed: true,
+          duration: 11,
+          partial: false,
+        },
+      ],
+      100
+    )
+    const before = await readFile(target)
+    expect(
+      await cache.update(
+        [
+          {
+            projectName: 'named',
+            file,
+            failed: false,
+            duration: 99,
+            partial: true,
+          },
+        ],
+        200
+      )
+    ).toBe(false)
+    expect(await readFile(target)).toEqual(before)
+    expect(cache.get('named', file)).toEqual({
+      failed: true,
+      duration: 11,
+      lastRun: 100,
+    })
+  })
+
+  it('keeps prior duration and whole-run timestamp when a partial run fails', async () => {
+    const target = path.join(directory, 'results.json')
+    const file = path.join(directory, 'history.mjs')
+    const cache = new TestResultCache(directory, target)
+    await cache.update(
+      [
+        {
+          projectName: 'named',
+          file,
+          failed: false,
+          duration: 11,
+          partial: false,
+        },
+      ],
+      100
+    )
+    await cache.update(
+      [
+        {
+          projectName: 'named',
+          file,
+          failed: true,
+          duration: 99,
+          partial: true,
+        },
+      ],
+      200
+    )
+    expect(cache.get('named', file)).toEqual({
+      failed: true,
+      duration: 11,
+      lastRun: 100,
+    })
+  })
+
+  it.each([false, true])(
+    'records first partial history without a whole-file timestamp: failed=%s',
+    async (failed) => {
+      const target = path.join(directory, 'results.json')
+      const file = path.join(directory, 'history.mjs')
+      const cache = new TestResultCache(directory, target)
+      await cache.update(
+        [{ projectName: 'named', file, failed, duration: 11, partial: true }],
+        100
+      )
+      expect(cache.get('named', file)).toEqual({ failed, duration: 11 })
+      expect(
+        JSON.parse(await readFile(target, 'utf8')).projects.named.files[
+          'history.mjs'
+        ]
+      ).not.toHaveProperty('lastRun')
+    }
+  )
+
+  it.each([
+    '{',
+    JSON.stringify({
+      version: 999,
+      projects: {
+        foreign: {
+          files: { 'old.mjs': { failed: true, duration: 999, lastRun: 1 } },
+        },
+      },
+    }),
+  ])(
+    'ignores unusable old result-cache input before real completed updates: %s',
+    async (old) => {
+      const target = path.join(directory, 'results.json')
+      await writeFile(target, old)
+      const cache = new TestResultCache(directory, target)
+      await cache.read()
+      expect(
+        cache.get('foreign', path.join(directory, 'old.mjs'))
+      ).toBeUndefined()
+      await cache.update(
+        [
+          {
+            projectName: 'named',
+            file: path.join(directory, 'history.mjs'),
+            failed: false,
+            duration: 11,
+            partial: false,
+          },
+        ],
+        100
+      )
+      expect(JSON.parse(await readFile(target, 'utf8'))).toEqual({
+        version: 1,
+        projects: {
+          named: {
+            files: {
+              'history.mjs': { failed: false, duration: 11, lastRun: 100 },
+            },
+          },
+        },
+      })
+    }
+  )
+
+  it('merges an actual replaced cache and retains other project and typecheck records', async () => {
+    const target = path.join(directory, 'results.json')
+    const cache = new TestResultCache(directory, target)
+    await cache.update(
+      [
+        {
+          projectName: 'named',
+          file: path.join(directory, 'history.mjs'),
+          failed: false,
+          duration: 11,
+          partial: false,
+        },
+      ],
+      100
+    )
+    const foreign = {
+      files: { 'other.mjs': { failed: true, duration: 22, lastRun: 200 } },
+      typecheck: { 'other.test-d.ts': { failed: false, duration: 3 } },
+    }
+    const external = path.join(directory, 'external.json')
+    await writeFile(
+      external,
+      JSON.stringify({ version: 1, projects: { foreign } })
+    )
+    await rename(external, target)
+    await cache.update(
+      [
+        {
+          projectName: 'named',
+          file: path.join(directory, 'next.mjs'),
+          failed: false,
+          duration: 4,
+          partial: false,
+        },
+      ],
+      300
+    )
+    expect(JSON.parse(await readFile(target, 'utf8'))).toEqual({
+      version: 1,
+      projects: {
+        foreign,
+        named: {
+          files: { 'next.mjs': { failed: false, duration: 4, lastRun: 300 } },
+        },
+      },
+    })
+    expect(
+      cache.get('named', path.join(directory, 'history.mjs'))
+    ).toBeUndefined()
+  })
+
+  it('tolerates an unwritable result-cache hint and preserves existing files', async () => {
+    const occupied = path.join(directory, 'occupied')
+    await writeFile(occupied, 'existing authored file')
+    const cache = new TestResultCache(
+      directory,
+      path.join(occupied, 'results.json')
+    )
+    await expect(
+      cache.update(
+        [
+          {
+            projectName: 'named',
+            file: path.join(directory, 'history.mjs'),
+            failed: false,
+            duration: 11,
+            partial: false,
+          },
+        ],
+        100
+      )
+    ).resolves.toBe(false)
+    expect(await readFile(occupied, 'utf8')).toBe('existing authored file')
+  })
+
+  it.each(['fresh', 'failed', 'duration', 'tie', 'missing'] as const)(
+    'uses real cached/fresh file facts for %s scheduling without changing input',
+    async (kind) => {
+      directory = await realpath(directory)
+      const first = path.join(directory, 'cache-alpha.case.mjs')
+      const second = path.join(directory, 'cache-beta.case.mjs')
+      await writeFile(first, '// first')
+      await writeFile(second, '// second is physically larger')
+      const projects = await discoverTests(
+        directory,
+        parseTestConfig({
+          projects: [{ name: 'cache', include: ['cache-*.case.mjs'] }],
+        })
+      )
+      if (kind === 'missing')
+        projects[0].entries[0].file = path.join(directory, 'missing.case.mjs')
+      const original = [...projects[0].entries]
+      const cache = new TestResultCache(
+        directory,
+        path.join(directory, '.next-test-cache', 'results.json')
+      )
+      if (kind === 'failed' || kind === 'duration' || kind === 'tie')
+        await cache.update(
+          [
+            {
+              projectName: 'cache',
+              file: first,
+              failed: kind === 'failed',
+              duration: kind === 'tie' ? 1 : 2,
+              partial: false,
+            },
+            {
+              projectName: 'cache',
+              file: second,
+              failed: false,
+              duration: kind === 'tie' ? 1 : 8,
+              partial: false,
+            },
+          ],
+          100
+        )
+      const sorted = await sortCachedTestProjects(projects, cache)
+      expect(sorted[0].entries.map((entry) => entry.file)).toEqual(
+        kind === 'failed' || kind === 'tie' || kind === 'missing'
+          ? [original[0].file, second]
+          : [second, first]
+      )
+      expect(projects[0].entries).toEqual(original)
+      expect(sorted[0].entries).not.toBe(projects[0].entries)
+    }
+  )
 
   it('uses the canonical application root for CLI hash selection', async () => {
     const alias = `${directory}-alias`
@@ -1850,6 +2435,124 @@ describe('Next-owned test discovery and configuration', () => {
       nextTestRunner(directory, { list: true, filter: ['missing'] })
     ).rejects.toThrow('No test files matched')
   })
+  it('selects external transform compiler inputs without borrowing an unused root realm', async () => {
+    const rootHelper = path.join(directory, 'root-input.mjs')
+    const childHelper = path.join(directory, 'child-input.mjs')
+    await writeFile(rootHelper, 'export const value = 99')
+    await writeFile(childHelper, 'export const value = 2')
+    await writeFile(
+      path.join(directory, 'vitest.config.mjs'),
+      `import {value}from'./root-input.mjs';export default {plugins:[{name:'same-name',transform(code){return code+value}}],test:{projects:['./vitest.child.config.mjs']}}`
+    )
+    await writeFile(
+      path.join(directory, 'vitest.child.config.mjs'),
+      `import {value}from'./child-input.mjs';export default {plugins:[{name:'same-name',transform(code){return code+value}}],test:{name:'child',include:['*.case.mjs']}}`
+    )
+    const session = await openTestConfiguration(directory)
+    try {
+      const selected = session.compilerInputsForProjects(
+        session.config.projects
+      )
+      expect(selected).toContain(await realpath(childHelper))
+      expect(selected).not.toContain(await realpath(rootHelper))
+      expect(session.compilerInputs).toEqual(selected)
+      expect(session.compilerInputsForProjects([])).toEqual([])
+      expect(session.watchInputs).toContain(await realpath(rootHelper))
+      expect(session.watchInputs).toContain(await realpath(childHelper))
+    } finally {
+      await session.dispose()
+    }
+  }, 30000)
+
+  it('selects transform compiler inputs by actual project owner with duplicate selection and mixed inline roots', async () => {
+    const rootHelper = path.join(directory, 'root-input.mjs')
+    const firstHelper = path.join(directory, 'first-input.mjs')
+    const secondHelper = path.join(directory, 'second-input.mjs')
+    await writeFile(rootHelper, 'export const value = 99')
+    await writeFile(firstHelper, 'export const value = 2')
+    await writeFile(secondHelper, 'export const value = 3')
+    await writeFile(
+      path.join(directory, 'vitest.config.mjs'),
+      `import {value}from'./root-input.mjs';export default {plugins:[{name:'same-name',transform(code){return code+value}}],test:{projects:[{test:{name:'inline',include:['*.case.mjs']}},'./vitest.first.config.mjs','./vitest.second.config.mjs']}}`
+    )
+    for (const name of ['first', 'second'])
+      await writeFile(
+        path.join(directory, `vitest.${name}.config.mjs`),
+        `import {value}from'./${name}-input.mjs';export default {plugins:[{name:'same-name',transform(code){return code+value}}],test:{name:'${name}',include:['*.case.mjs']}}`
+      )
+    const session = await openTestConfiguration(directory)
+    try {
+      const inline = session.config.projects.find(
+        (project) => project.profile.id === 'inline'
+      )!
+      const first = session.config.projects.find(
+        (project) => project.profile.id === 'first'
+      )!
+      const second = session.config.projects.find(
+        (project) => project.profile.id === 'second'
+      )!
+      const firstInputs = session.compilerInputsForProjects([first])
+      expect(firstInputs).toContain(await realpath(firstHelper))
+      expect(firstInputs).not.toContain(await realpath(rootHelper))
+      expect(firstInputs).not.toContain(await realpath(secondHelper))
+      expect(session.compilerInputsForProjects([first, first])).toEqual(
+        firstInputs
+      )
+      const secondInputs = session.compilerInputsForProjects([second])
+      expect(secondInputs).toContain(await realpath(secondHelper))
+      expect(secondInputs).not.toContain(await realpath(rootHelper))
+      expect(secondInputs).not.toContain(await realpath(firstHelper))
+      const inlineInputs = session.compilerInputsForProjects([inline])
+      expect(inlineInputs).toContain(await realpath(rootHelper))
+      expect(inlineInputs).not.toContain(await realpath(firstHelper))
+      expect(inlineInputs).not.toContain(await realpath(secondHelper))
+      expect(session.compilerInputs).toEqual(
+        session.compilerInputsForProjects(session.config.projects)
+      )
+      for (const helper of [rootHelper, firstHelper, secondHelper]) {
+        expect(session.compilerInputs).toContain(await realpath(helper))
+        expect(session.watchInputs).toContain(await realpath(helper))
+      }
+      expect(new Set(session.compilerInputs).size).toBe(
+        session.compilerInputs.length
+      )
+    } finally {
+      await session.dispose()
+    }
+  }, 30000)
+
+  it('preserves root-only transform and alias compiler inputs while an empty selection grants neither', async () => {
+    const transformHelper = path.join(directory, 'transform-input.mjs')
+    const aliasHelper = path.join(directory, 'alias-input.mjs')
+    const aliasTarget = path.join(directory, 'alias-target.mjs')
+    await writeFile(transformHelper, 'export const value = 4')
+    await writeFile(aliasTarget, 'export const value = 6')
+    await writeFile(
+      aliasHelper,
+      `export const replacement = ${JSON.stringify(aliasTarget)}`
+    )
+    await writeFile(
+      path.join(directory, 'vitest.config.mjs'),
+      `import {value}from'./transform-input.mjs';import{replacement}from'./alias-input.mjs';export default {resolve:{alias:{'root-owner-value':replacement}},plugins:[{name:'root-owner',transform(code){return code+value}}],test:{include:['*.case.mjs']}}`
+    )
+    const session = await openTestConfiguration(directory)
+    try {
+      const selected = session.compilerInputsForProjects(
+        session.config.projects
+      )
+      expect(selected).toContain(await realpath(transformHelper))
+      expect(selected).toContain(await realpath(aliasHelper))
+      expect(session.config.projects[0].compilerAliases?.inputs).toContain(
+        await realpath(aliasHelper)
+      )
+      expect(session.compilerInputs).toEqual(selected)
+      expect(session.compilerInputsForProjects([])).toEqual([])
+      expect(session.watchInputs).toContain(await realpath(transformHelper))
+      expect(session.watchInputs).toContain(await realpath(aliasHelper))
+    } finally {
+      await session.dispose()
+    }
+  }, 30000)
 })
 
 // These test orchestration with real K reporting and controlled producer seams.
@@ -1984,6 +2687,114 @@ describe('Next test orchestration', () => {
   ) {
     return runTests('/application', [project], { signal, write, onEvent })
   }
+
+  it.each(['.mts', '.cts', '.tsx', '.jsx', '.d.tsx'])(
+    'validates selected development Browser %s declarations before runtime execution',
+    async (extension) => {
+      const directory = await realpath(
+        await mkdtemp(
+          path.join(os.tmpdir(), 'next-testing-dev-browser-source-')
+        )
+      )
+      try {
+        const config = normalizeTestConfig({
+          test: { browser: { enabled: true } },
+        })
+        const selected = {
+          ...config.projects[0],
+          entries: [
+            {
+              id: 'default:entry.test.mjs',
+              file: path.join(directory, 'entry.test.mjs'),
+              profile: config.projects[0].profile,
+            },
+          ],
+        }
+        await writeFile(selected.entries[0].file, '')
+        await writeFile(
+          path.join(directory, 'subject' + extension),
+          'export const value = 1\n'
+        )
+        const completion = runTests(directory, [selected], {
+          signal: new AbortController().signal,
+          write: jest.fn(),
+          coverage: true,
+          standardCoverageOptions: {
+            formatterReports: true,
+            reporter: ['json'],
+            include: ['subject' + extension],
+            exclude: [],
+            reportsDirectory: 'coverage',
+            reportOnFailure: false,
+            thresholds: {},
+          },
+        })
+        if (extension === '.cts' || extension === '.d.tsx') {
+          await expect(completion).rejects.toThrow(
+            'Development Browser coverage currently requires JavaScript or TypeScript source files.'
+          )
+          expect(createSession).not.toHaveBeenCalled()
+        } else {
+          const result = await completion
+          // The existing controlled producer supplies no declaration artifact.
+          // Admission must reach that producer without certifying its output.
+          expect(result).toMatchObject({
+            status: 'failed',
+            unsafeCleanup: false,
+            errors: 2,
+            compilerSourceCoverage: [],
+            standardCoverage: [],
+          })
+          expect(result.coverageSourcePlan!.requests).toHaveLength(1)
+          const request = result.coverageSourcePlan!.requests[0]
+          expect(request).toEqual({
+            profile: selected.profile,
+            source: {
+              file: path.join(directory, 'subject' + extension),
+              sha256: createHash('sha256')
+                .update('export const value = 1\n')
+                .digest('hex'),
+            },
+            revision: expect.any(String),
+            configurationImports: {
+              configFile: null,
+              id: expect.any(String),
+            },
+          })
+          expect(createSession).toHaveBeenCalledTimes(1)
+          expect(createSession).toHaveBeenCalledWith(
+            directory,
+            selected.profile,
+            {
+              allocateArtifact: undefined,
+              browserCoverageDeclarations: true,
+              ...(extension === '.mts'
+                ? {}
+                : { browserDevelopmentImportPlan: result.coverageSourcePlan }),
+            }
+          )
+          const session = await createSession.mock.results[0].value
+          expect(session.compileCoverageSource).toHaveBeenCalledTimes(1)
+          expect(session.compileCoverageSource).toHaveBeenCalledWith(
+            request.source,
+            {
+              signal: expect.any(AbortSignal),
+              revision: request.revision,
+              configurationImports: request.configurationImports,
+            }
+          )
+          expect(compile).not.toHaveBeenCalled()
+          expect(shutdownCompilation).not.toHaveBeenCalled()
+          expect(dispose).toHaveBeenCalledTimes(1)
+        }
+        expect(executeFile).not.toHaveBeenCalled()
+        expect(createBrowser).not.toHaveBeenCalled()
+        expect(createServer).not.toHaveBeenCalled()
+      } finally {
+        await rm(directory, { recursive: true, force: true })
+      }
+    }
+  )
 
   it('validates explicit isolation without changing unspecified project defaults', () => {
     expect(
@@ -5146,6 +5957,27 @@ describe('Node watch machine generations', () => {
     }
   })
 
+  it.each(['missing', 'symlink'] as const)(
+    'keeps a conservative default generation for a %s notification without planning',
+    async (kind) => {
+      const changed = path.join(directory, 'uncertain-source.mjs')
+      if (kind === 'symlink')
+        await symlink(path.join(directory, 'first.spec.ts'), changed)
+      start()
+      await expectGeneration('watch-1')
+      jest
+        .mocked(watchTestFiles)
+        .mock.calls[0][0].onChange({ changed: [changed], removed: [] })
+      await expectGeneration('watch-2')
+      expect(requests).toHaveLength(2)
+      expect(
+        jest
+          .mocked(runWatchProcess)
+          .mock.calls.some(([request]) => request.operation === 'plan')
+      ).toBe(false)
+    }
+  )
+
   it('retains actual production Node profiles and fresh generations through source invalidation', async () => {
     const savedEnv = process.env
     process.env = { ...savedEnv, NODE_ENV: 'production' }
@@ -7469,8 +8301,8 @@ describe('independent Chromium Browser instances', () => {
   it.each([
     { instances: [] },
     { instances: ['chromium'] },
-    { instances: [{ browser: 'firefox' }] },
-    { instances: [{ browser: 'webkit' }] },
+    { instances: [{ browser: 'invalid-browser' }] },
+    { instances: [{ browser: 'unknown-browser' }] },
     { instances: [{ browser: 'chromium', name: 1 }] },
     {
       instances: [
@@ -9414,3 +10246,651 @@ it('fails a removed acknowledged editor file without running another file or app
     )
   }
 }, 100000)
+
+it('stops claiming files on user cancellation while already claimed owners settle', async () => {
+  let entered!: () => void
+  const bothEntered = new Promise<void>((resolve) => {
+    entered = resolve
+  })
+  let release!: () => void
+  const closed = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const lifetime = new AbortController()
+  const user = new AbortController()
+  const claimed: number[] = []
+  const settled: number[] = []
+  let finished = false
+  const run = forEachTestFile(
+    [0, 1, 2, 3],
+    2,
+    lifetime.signal,
+    async (file) => {
+      claimed.push(file)
+      if (claimed.length === 2) entered()
+      await closed
+      settled.push(file)
+    },
+    () => user.signal.aborted
+  ).then(() => {
+    finished = true
+  })
+  await bothEntered
+  user.abort()
+  expect(claimed).toEqual([0, 1])
+  expect(settled).toEqual([])
+  expect(finished).toBe(false)
+  expect(lifetime.signal.aborted).toBe(false)
+  release()
+  await run
+  expect(claimed).toEqual([0, 1])
+  expect(settled).toEqual([0, 1])
+})
+
+describe('execution-only Firefox Browser instances', () => {
+  it.each(['development', 'production'] as const)(
+    'separates mixed %s instance names, compiler identities and actual engines',
+    (mode) => {
+      const projects = parseTestConfig({
+        projects: [
+          { name: 'browser-instance-0' },
+          {
+            name: 'parent',
+            mode,
+            browser: {
+              enabled: true,
+              instances: [
+                { browser: 'chromium' },
+                { browser: 'firefox' },
+                { browser: 'firefox', name: 'second / fox' },
+              ],
+            },
+          },
+        ],
+      }).projects
+      expect(projects.map((project) => project.profile.id)).toEqual([
+        'browser-instance-0',
+        'browser-instance-1',
+        'browser-instance-2',
+        'browser-instance-3',
+      ])
+      expect(projects.map((project) => project.displayName)).toEqual([
+        'browser-instance-0',
+        'parent (chromium)',
+        'parent (firefox)',
+        'second / fox',
+      ])
+      expect(projects[1]).not.toHaveProperty('browserEngine')
+      expect(projects.slice(2).map((project) => project.browserEngine)).toEqual(
+        ['firefox', 'firefox']
+      )
+      for (const project of projects.slice(1)) {
+        expect(project.profile).not.toHaveProperty('browserEngine')
+        expect(project.profile).toMatchObject({ mode, browserClient: true })
+      }
+      expect(() =>
+        normalizeTestConfig({
+          test: {
+            browser: {
+              enabled: true,
+              instances: [
+                { browser: 'chromium', name: 'repeated' },
+                { browser: 'firefox', name: 'repeated' },
+              ],
+            },
+          },
+        })
+      ).toThrow('Duplicate project name "repeated"')
+    }
+  )
+
+  it('keeps inactive Firefox selection in its original Node profile', () => {
+    const project = normalizeTestConfig({
+      test: {
+        name: 'inactive',
+        browser: {
+          enabled: false,
+          instances: [{ browser: 'firefox' }],
+        },
+      },
+    }).projects[0]
+    expect(project.profile).toEqual({
+      id: 'inactive',
+      mode: 'development',
+      environment: 'node',
+      runtime: 'nodejs',
+      bundler: 'turbopack',
+    })
+    expect(project).not.toHaveProperty('browserEngine')
+    expect(project).not.toHaveProperty('browserInstance')
+  })
+
+  it('keeps raw runtime engine fields out of the authored configuration', () => {
+    expect(() =>
+      parseTestConfig({ projects: [{ name: 'raw', browserEngine: 'firefox' }] })
+    ).toThrow(/browserEngine/)
+  })
+})
+
+describe('Browser parent non-execution completion', () => {
+  it.each([
+    'valid',
+    'no-request',
+    'started',
+    'terminal',
+    'output',
+    'malformed',
+    'cleanup',
+  ] as const)(
+    'preserves actual non-execution and cleanup for %s',
+    async (kind) => {
+      const config = parseTestConfig({
+        projects: [
+          {
+            name: 'client',
+            browser: { enabled: true, instances: [{ browser: 'chromium' }] },
+          },
+        ],
+      }).projects[0]
+      const entry: TestEntry = {
+        id: 'client:queued.case.mjs',
+        file: '/application/queued.case.mjs',
+        profile: config.profile,
+      }
+      const project: DiscoveredTestProject = { ...config, entries: [entry] }
+      const artifact = {
+        version: 2,
+        kind: 'browser',
+        entryId: entry.id,
+        profile: config.profile,
+        revision: 'queued-revision',
+        rootDir: '/queued-artifact',
+        entryPath: 'queued.client.json',
+        files: [],
+        diagnostics: [],
+        client: { sourceFile: entry.file },
+      } as CompiledTestArtifact
+      const user = new AbortController()
+      const events: ResultEvent[] = []
+      const dispose = jest.fn(async () => {
+        if (kind === 'cleanup')
+          throw new Error('Actual compiler cleanup failed')
+      })
+      const session = {
+        compile: jest.fn(async () => artifact),
+        shutdownCompilation: jest.fn(async () => {}),
+        dispose,
+      }
+      const compiler = jest.mocked(createTestCompilerSession)
+      const capability = jest.mocked(capabilities.requireTestCapability)
+      const previousCompiler = compiler.getMockImplementation()
+      const previousCapability = capability.getMockImplementation()
+      const previousMode = process.env.NODE_ENV
+      try {
+        ;(process.env as any).NODE_ENV = 'development'
+        capability.mockImplementation(() => {})
+        compiler.mockResolvedValue(session as any)
+        const result = await runTests('/application', [project], {
+          signal: new AbortController().signal,
+          userCancelSignal: user.signal,
+          brokerOwnsBrowser: true,
+          write: () => {},
+          onEvent: (event) => events.push(event),
+          execute: async (_artifact, options) => {
+            if (kind !== 'no-request') user.abort()
+            const envelope = {
+              version: 1 as const,
+              runId: options.runId,
+              timestamp: Date.now(),
+              revision: artifact.revision,
+            }
+            if (kind === 'started')
+              options.onEvent({ ...envelope, type: 'file-start', entry })
+            if (kind === 'terminal')
+              options.onEvent({
+                ...envelope,
+                type: 'file-end',
+                entryId: entry.id,
+                status: 'passed',
+                durationMs: 0,
+              })
+            if (kind === 'output')
+              options.onEvent({
+                ...envelope,
+                type: 'output',
+                entryId: entry.id,
+                stream: 'stdout',
+                text: 'Contradictory authored output',
+              })
+            return {
+              entryId: entry.id,
+              status: 'cancelled',
+              durationMs: kind === 'malformed' ? 1 : 0,
+              notExecuted: true,
+            }
+          },
+        })
+        expect(dispose).toHaveBeenCalledTimes(1)
+        if (kind === 'valid' || kind === 'cleanup') {
+          if (kind === 'valid') {
+            expect(
+              events.filter(
+                (event) =>
+                  event.type === 'file-start' || event.type === 'file-end'
+              )
+            ).toEqual([])
+            expect(result.status).toBe('passed')
+            expect(
+              events.filter((event) => event.type === 'diagnostic')
+            ).toEqual([])
+          } else {
+            expect(result.status).toBe('failed')
+            expect(result.unsafeCleanup).toBe(true)
+            expect(
+              events.filter(
+                (event) =>
+                  event.type === 'case-start' || event.type === 'case-end'
+              )
+            ).toEqual([])
+            expect(events).toEqual(
+              expect.arrayContaining([
+                expect.objectContaining({
+                  type: 'file-end',
+                  entryId: entry.id,
+                  status: 'cancelled',
+                }),
+              ])
+            )
+            expect(events).toEqual(
+              expect.arrayContaining([
+                expect.objectContaining({
+                  type: 'diagnostic',
+                  diagnostic: expect.objectContaining({
+                    message: 'Actual compiler cleanup failed',
+                  }),
+                }),
+              ])
+            )
+          }
+        } else {
+          expect(result.status).toBe('failed')
+          expect(events).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                type: 'diagnostic',
+                diagnostic: expect.objectContaining({
+                  message: 'Invalid parent non-execution acknowledgment.',
+                }),
+              }),
+            ])
+          )
+          expect(events).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                type: 'file-end',
+                entryId: entry.id,
+                status: 'failed',
+              }),
+            ])
+          )
+        }
+      } finally {
+        compiler.mockImplementation(previousCompiler!)
+        capability.mockImplementation(previousCapability!)
+        if (previousMode === undefined) delete (process.env as any).NODE_ENV
+        else (process.env as any).NODE_ENV = previousMode
+      }
+    }
+  )
+})
+
+describe('explicit enabled Browser headless configuration', () => {
+  it.each([false, true])(
+    'preserves headless=%s across real selected engine instances',
+    (headless) => {
+      const config = normalizeTestConfig({
+        test: {
+          browser: {
+            enabled: true,
+            headless,
+            instances: [{ browser: 'chromium' }, { browser: 'firefox' }],
+          },
+        },
+      })
+      expect(config.projects.map((project) => project.browserHeadless)).toEqual(
+        [headless, headless]
+      )
+      expect(
+        config.projects.map((project) => project.browserEngine ?? 'chromium')
+      ).toEqual(['chromium', 'firefox'])
+      expect(
+        config.projects.every(
+          (project) => !('browserHeadless' in project.profile)
+        )
+      ).toBe(true)
+      expect(
+        new Set(config.projects.map((project) => project.profile.id)).size
+      ).toBe(2)
+    }
+  )
+
+  it('keeps omission and disabled Browser settings absent from execution', () => {
+    for (const browser of [
+      { enabled: true },
+      { enabled: false, headless: true },
+      { enabled: false, headless: false },
+    ]) {
+      const project = normalizeTestConfig({ test: { browser } }).projects[0]
+      expect(Object.hasOwn(project, 'browserHeadless')).toBe(false)
+    }
+  })
+
+  it.each([null, 0, 1, 'true', 'false', {}, []])(
+    'rejects malformed authored headless mode %j',
+    (headless) => {
+      expect(() =>
+        normalizeTestConfig({ test: { browser: { enabled: true, headless } } })
+      ).toThrow('browser.headless must be a boolean')
+    }
+  )
+
+  it.each([false, true])(
+    'applies CLI headless=%s only to enabled Browser projects without mutating original config',
+    (headless) => {
+      const original = normalizeTestConfig({
+        test: {
+          projects: [
+            { name: 'node' },
+            { name: 'disabled', browser: { enabled: false, headless: true } },
+            {
+              name: 'browser',
+              browser: { enabled: true, headless: !headless },
+            },
+          ],
+        },
+      })
+      const resolved = applyTestConfigOverrides(original, {
+        browserHeadless: headless,
+      })
+      expect(
+        resolved.projects.map((project) => project.browserHeadless)
+      ).toEqual([undefined, undefined, headless])
+      expect(original.projects[2].browserHeadless).toBe(!headless)
+      expect(
+        resolved.projects
+          .slice(0, 2)
+          .every((project) => !Object.hasOwn(project, 'browserHeadless'))
+      ).toBe(true)
+      expect(
+        applyTestConfigOverrides(original, { browserHeadless: undefined })
+      ).toEqual(original)
+    }
+  )
+})
+
+describe('Browser launch defaults use the pinned configuration environment', () => {
+  it.each([
+    ['local', {}, false],
+    ['empty CI', { CI: '' }, false],
+    ['false string CI', { CI: 'false' }, true],
+    ['zero string CI', { CI: '0' }, true],
+    ['CI', { CI: 'true' }, true],
+    ['provider', { GITHUB_ACTIONS: 'true' }, true],
+    ['local provider', { VERCEL: '1' }, false],
+    ['local provider with CI', { VERCEL: '1', CI: 'false' }, true],
+    ['provider precedence', { NETLIFY: '1', NETLIFY_LOCAL: '1' }, true],
+    ['local provider precedence', { NETLIFY_LOCAL: '1', TRAVIS: '1' }, false],
+  ] as const)(
+    'preserves the actual CI default for %s',
+    (_name, values, expected) => {
+      const previous = process.env
+      const environment = { NODE_ENV: previous.NODE_ENV, PATH: previous.PATH }
+      process.env = { ...environment, ...values }
+      try {
+        jest.isolateModules(() => {
+          const { isTestCI } = jest.requireActual(
+            'next/dist/experimental/testing/config-environment'
+          )
+          const { configDefaults: defaults } = jest.requireActual(
+            'next/dist/experimental/testing/config-api'
+          )
+          expect(isTestCI).toBe(expected)
+          expect(defaults.allowOnly).toBe(!expected)
+        })
+      } finally {
+        process.env = previous
+      }
+    }
+  )
+})
+
+it.each(['development', 'production'] as const)(
+  'uses actual persistent cache history through the default-worker %s CLI',
+  async (mode) => {
+    const repo = path.resolve(__dirname, '../../..')
+    const stdout = await new Promise<string>((resolve, reject) => {
+      execFile(
+        process.execPath,
+        [path.join(__dirname, 'result-cache-integration.cjs'), repo, mode],
+        {
+          cwd: repo,
+          env: { ...process.env, NODE_ENV: mode },
+          timeout: 260000,
+        },
+        (error, output, stderr) =>
+          error
+            ? reject(new Error(String(error) + '\n' + stderr))
+            : resolve(output)
+      )
+    })
+    expect(JSON.parse(stdout.trim())).toEqual({
+      mode,
+      profiles: 2,
+      cases: 12,
+      rows: 12,
+      wholeReports: true,
+      actualCache: true,
+      ownersClosed: true,
+    })
+  },
+  270000
+)
+
+it.each(['development', 'production'] as const)(
+  'persists actual two/three-worker result history through the %s CLI',
+  async (mode) => {
+    const repo = path.resolve(__dirname, '../../..')
+    const stdout = await new Promise<string>((resolve, reject) => {
+      execFile(
+        process.execPath,
+        [path.join(__dirname, 'result-cache-concurrency.cjs'), repo, mode],
+        {
+          cwd: repo,
+          env: { ...process.env, NODE_ENV: mode },
+          timeout: 260000,
+        },
+        (error, output, stderr) =>
+          error
+            ? reject(new Error(String(error) + '\n' + stderr))
+            : resolve(output)
+      )
+    })
+    expect(JSON.parse(stdout.trim())).toEqual({
+      mode,
+      profiles: 2,
+      cases: 12,
+      rows: 12,
+      wholeReports: true,
+      actualCache: true,
+      perFileOrder: true,
+      workers: [2, 3],
+      ownersClosed: true,
+    })
+  },
+  270000
+)
+
+it.each([undefined, false, true])(
+  'preserves explicit declaration location setting %s through project overrides',
+  (includeTaskLocation) => {
+    const config = parseTestConfig({
+      projects: [{ name: 'locations', includeTaskLocation }],
+    })
+    expect(config.projects[0].includeTaskLocation).toBe(includeTaskLocation)
+    expect(Object.hasOwn(config.projects[0], 'includeTaskLocation')).toBe(
+      includeTaskLocation !== undefined
+    )
+    expect(
+      applyTestConfigOverrides(config, { includeTaskLocation: false })
+        .projects[0].includeTaskLocation
+    ).toBe(false)
+    expect(
+      applyTestConfigOverrides(config, { includeTaskLocation: true })
+        .projects[0].includeTaskLocation
+    ).toBe(true)
+  }
+)
+
+it('rejects nonboolean authored declaration location settings', () => {
+  expect(() =>
+    parseTestConfig({
+      projects: [{ name: 'locations', includeTaskLocation: 'false' }],
+    })
+  ).toThrow('includeTaskLocation must be a boolean')
+})
+
+it.each(['development', 'production'] as const)(
+  'applies authored result cache and explicit CLI precedence through actual %s runs',
+  async (mode) => {
+    const repo = path.resolve(__dirname, '../../..')
+    const stdout = await new Promise<string>((resolve, reject) => {
+      execFile(
+        process.execPath,
+        [path.join(__dirname, 'result-cache-config.cjs'), repo, mode],
+        {
+          cwd: repo,
+          env: { ...process.env, NODE_ENV: mode },
+          timeout: 1080000,
+        },
+        (error, output, stderr) =>
+          error
+            ? reject(new Error(String(error) + '\n' + stderr))
+            : resolve(output)
+      )
+    })
+    expect(JSON.parse(stdout.trim())).toEqual({
+      mode,
+      profiles: 8,
+      cases: 48,
+      rows: 48,
+      wholeReports: true,
+      cacheRules: true,
+      realResultIO: true,
+      ownersClosed: true,
+    })
+  },
+  1100000
+)
+
+it('retains test configuration watch inputs separately from evaluated compiler roles', async () => {
+  const directory = await realpath(
+    await mkdtemp(path.join(os.tmpdir(), 'next-test-config-roles-'))
+  )
+  const file = path.join(directory, 'vitest.config.mjs')
+  const helper = path.join(directory, 'compiler-value.mjs')
+  try {
+    for (const kind of ['test-only', 'alias', 'transform', 'projects']) {
+      await writeFile(helper, 'export const value = 42')
+      await writeFile(
+        file,
+        kind === 'test-only'
+          ? 'export default {test:{coverage:{enabled:true,thresholds:{autoUpdate:true}},include:["*.case.mjs"]}}'
+          : kind === 'alias'
+            ? 'import {fileURLToPath} from "node:url";import {value} from "./compiler-value.mjs";export default {resolve:{alias:{"@value":fileURLToPath(new URL("./value-"+value+".mjs",import.meta.url))}},test:{include:["*.case.mjs"]}}'
+            : kind === 'transform'
+              ? 'import {value} from "./compiler-value.mjs";export default {plugins:[{name:"retained",transform(code){return code.replace("VALUE",String(value))}}],test:{include:["*.case.mjs"]}}'
+              : 'export default {test:{projects:[{test:{name:"first",include:["*.case.mjs"]}},{test:{name:"second",include:["*.case.mjs"]}}]}}'
+      )
+      const session = await openTestConfiguration(directory)
+      try {
+        expect(session.watchInputs).toContain(file)
+        if (kind === 'alias' || kind === 'transform') {
+          expect(session.compilerInputs).toContain(file)
+          expect(session.compilerInputs).toContain(helper)
+        } else {
+          expect(session.compilerInputs).toEqual([])
+        }
+      } finally {
+        await session.dispose()
+      }
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+}, 30000)
+
+it('matches genuine ordered repeated coverage scalars before actual case allocation', async () => {
+  const { promisify } = await import('node:util')
+  const output = await mkdtemp(
+    path.join(os.tmpdir(), 'next-coverage-repeat-cli-')
+  )
+  try {
+    await promisify(execFile)(
+      process.execPath,
+      [
+        path.join(__dirname, 'coverage-repeat-reports.mjs'),
+        path.join(__dirname, '../../..'),
+        path.join(output, 'evidence'),
+        '--source',
+      ],
+      { timeout: 240000, maxBuffer: 1024 * 1024 }
+    )
+    const result = JSON.parse(
+      await readFile(path.join(output, 'evidence/verified.json'), 'utf8')
+    )
+    expect(result).toMatchObject({
+      profiles: 10,
+      allEqual: true,
+      allOwnersClosed: true,
+    })
+  } finally {
+    await rm(output, { recursive: true, force: true })
+  }
+}, 250000)
+
+it.each(['before', 'after'] as const)(
+  'matches genuine Boolean coverage arguments with the directory %s options',
+  async (directoryPlacement) => {
+    const { promisify } = await import('node:util')
+    const output = await mkdtemp(
+      path.join(os.tmpdir(), 'next-coverage-boolean-cli-')
+    )
+    try {
+      await promisify(execFile)(
+        process.execPath,
+        [
+          path.join(__dirname, 'coverage-repeat-reports.mjs'),
+          path.join(__dirname, '../../..'),
+          path.join(output, 'evidence'),
+          '--source',
+          '--typed',
+          ...(directoryPlacement === 'after'
+            ? ['--directory-after-flags']
+            : []),
+        ],
+        { timeout: 240000, maxBuffer: 1024 * 1024 }
+      )
+      const result = JSON.parse(
+        await readFile(path.join(output, 'evidence/verified.json'), 'utf8')
+      )
+      expect(result).toMatchObject({
+        profiles: 9,
+        allEqual: true,
+        allOwnersClosed: true,
+      })
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  },
+  250000
+)

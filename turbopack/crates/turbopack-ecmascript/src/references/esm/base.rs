@@ -49,7 +49,8 @@ use crate::{
     export::Liveness,
     magic_identifier,
     module_fragments::{TURBOPACK_PART_IMPORT_SOURCE, part::module::EcmascriptModulePartAsset},
-    native_import_coverage::NativeImportCoverageRole,
+    native_import_coverage::{NativeImportCoverageRole, capture_browser_import_coverage},
+    parse::ParseResult,
     references::{
         esm::{
             EsmExport,
@@ -967,8 +968,55 @@ impl EsmAssetReference {
                                             && *chunking_context
                                                 .native_test_import_coverage_roles()
                                                 .await?;
+                                    let mut browser_import_coverage = None;
                                     let (key, mut call_expr) = match import_source {
                                         ImportSource::Module { asset } => {
+                                            if *chunking_context
+                                                .native_browser_import_coverage_roles()
+                                                .await?
+                                            {
+                                                let module = this.module.await?;
+                                                if module.origin_path.path.ends_with(".tsx")
+                                                    || module.origin_path.path.ends_with(".jsx")
+                                                {
+                                                    let parsed = module.parse().await?;
+                                                    let parsed = parsed.await?;
+                                                    let ParseResult::Ok {
+                                                        program,
+                                                        source_map,
+                                                        program_source,
+                                                        browser_jsx_imports,
+                                                        ..
+                                                    } = &*parsed
+                                                    else {
+                                                        bail!(
+                                                            "Browser import ownership requires \
+                                                             its actual parsed issuer"
+                                                        );
+                                                    };
+                                                    let resolved_format = match &*asset
+                                                        .get_exports()
+                                                        .await?
+                                                    {
+                                                        EcmascriptExports::EsmExports(_) => "esm",
+                                                        EcmascriptExports::CommonJs(_)
+                                                        | EcmascriptExports::EmptyCommonJs => {
+                                                            "commonjs"
+                                                        }
+                                                        _ => "opaque",
+                                                    };
+                                                    browser_import_coverage =
+                                                        capture_browser_import_coverage(
+                                                            program,
+                                                            source_map,
+                                                            &program_source.to_str()?,
+                                                            &this.request,
+                                                            name.sym.to_string(),
+                                                            resolved_format,
+                                                            browser_jsx_imports,
+                                                        )?;
+                                                }
+                                            }
                                             if let Some(native) = runtime_native {
                                                 anyhow::ensure!(
                                                     ResolvedVc::upcast::<Box<dyn Module>>(asset)
@@ -1074,11 +1122,13 @@ impl EsmAssetReference {
                                     {
                                         call_expr.set_span(PURE_SP);
                                     }
-                                    let native_role =
-                                        native_import_coverage.then(|| NativeImportCoverageRole {
-                                            span,
-                                            call: call_expr.clone(),
-                                        });
+                                    let native_role = (native_import_coverage
+                                        || browser_import_coverage.is_some())
+                                    .then(|| NativeImportCoverageRole {
+                                        span,
+                                        call: call_expr.clone(),
+                                        browser: browser_import_coverage,
+                                    });
                                     let mut statement = CodeGenerationHoistedStmt::new(
                                         key,
                                         var_decl_with_span(

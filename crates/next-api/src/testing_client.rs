@@ -49,6 +49,7 @@ use turbopack_core::{
         options::{ImportMap, ImportMapping, ResolvedMap},
     },
     source::Source,
+    source_map::GenerateSourceMap,
     virtual_output::VirtualOutputAsset,
 };
 use turbopack_ecmascript::{
@@ -264,12 +265,21 @@ async fn resolve_context(
 async fn module_options(
     options: Vc<ModuleOptionsContext>,
     lower_async: bool,
+    browser_coverage_jsx_imports: bool,
     project_path: FileSystemPath,
     framework_path: FileSystemPath,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let mut options = options.owned().await?;
     options.ecmascript.lower_async_to_generator = lower_async;
     options.ecmascript.browser_creator_scope = lower_async;
+    options.ecmascript.browser_coverage_jsx_imports = browser_coverage_jsx_imports;
+    // Test runs recompile their own cohort instead of using React Refresh.
+    // Keep development JSX output while omitting refresh-only declarations.
+    if let Some(jsx) = options.ecmascript.enable_jsx {
+        let mut jsx = jsx.owned().await?;
+        jsx.react_refresh = false;
+        options.ecmascript.enable_jsx = Some(jsx.resolved_cell());
+    }
     options.ecmascript.import_meta_env_runtime = lower_async.then(|| {
         ImportMetaEnvRuntime {
             request: rcstr!("next/dist/experimental/testing/client/env"),
@@ -323,6 +333,7 @@ async fn module_options(
         *nested = module_options(
             **nested,
             lower_async,
+            browser_coverage_jsx_imports,
             project_path.clone(),
             framework_path.clone(),
         )
@@ -570,6 +581,10 @@ pub(crate) async fn context(project: ResolvedVc<Project>) -> Result<Vc<ModuleAss
             project.next_config(),
             project.encryption_key(),
         ),
+        *project.browser_source_coverage().await?,
+        *crate::testing::test_authoring_source(project.project_path().owned().await?, true)
+            .to_resolved()
+            .await?,
         false,
     );
     let resolve = resolve_context(
@@ -590,6 +605,7 @@ pub(crate) async fn context(project: ResolvedVc<Project>) -> Result<Vc<ModuleAss
         module_options(
             base_options,
             false,
+            *project.browser_source_coverage().await?,
             project.project_path().owned().await?,
             get_next_package(project.project_path().owned().await?).await?,
         ),
@@ -619,6 +635,7 @@ pub(crate) async fn context(project: ResolvedVc<Project>) -> Result<Vc<ModuleAss
         module_options(
             base_options,
             true,
+            *project.browser_source_coverage().await?,
             project.project_path().owned().await?,
             get_next_package(project.project_path().owned().await?).await?,
         ),
@@ -651,6 +668,13 @@ pub(crate) struct ClientTestEndpoint {
     pub path: FileSystemPath,
     pub id: RcStr,
     pub setup_paths: Vec<FileSystemPath>,
+    pub dependency_plan: bool,
+}
+
+#[turbo_tasks::value]
+struct ClientTestEntry {
+    module: ResolvedVc<Box<dyn Module>>,
+    source_modules: Vec<ResolvedVc<Box<dyn Module>>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -661,18 +685,25 @@ impl ClientTestEndpoint {
         path: FileSystemPath,
         id: RcStr,
         setup_paths: Vec<FileSystemPath>,
+        dependency_plan: bool,
     ) -> Vc<Self> {
         Self {
             project,
             path,
             id,
             setup_paths,
+            dependency_plan,
         }
         .cell()
     }
 
     #[turbo_tasks::function]
     async fn entry_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
+        Ok(*self.entry_modules().await?.module)
+    }
+
+    #[turbo_tasks::function]
+    async fn entry_modules(self: Vc<Self>) -> Result<Vc<ClientTestEntry>> {
         let this = self.await?;
         let base_context = this.project.client_test_context().to_resolved().await?;
         let base = base_context.await?;
@@ -707,6 +738,7 @@ impl ClientTestEndpoint {
             .module()
             .to_resolved()
             .await?;
+        let mut source_modules = vec![module];
         let mut internal_assets = fxindexmap! { rcstr!("INNER_TEST_MODULE") => module };
         let mock_runtime = if let Some(registration) = prepared.registration {
             internal_assets.insert(rcstr!("INNER_TEST_MOCKS"), registration);
@@ -731,6 +763,7 @@ impl ClientTestEndpoint {
                 .module()
                 .to_resolved()
                 .await?;
+            source_modules.push(module);
             let source = crate::testing::setup_module_source(path.clone()).await?;
             let wrapper = prepared
                 .setup_context
@@ -765,12 +798,19 @@ impl ClientTestEndpoint {
         )
         .await?;
         let source = crate::testing::test_entry_source(source).await?;
-        Ok(context
+        let module = context
             .process(
                 source,
                 ReferenceType::Internal(ResolvedVc::cell(internal_assets)),
             )
-            .module())
+            .module()
+            .to_resolved()
+            .await?;
+        Ok(ClientTestEntry {
+            module,
+            source_modules,
+        }
+        .cell())
     }
 
     #[turbo_tasks::function]
@@ -804,6 +844,8 @@ impl ClientTestEndpoint {
         let group = self.chunk_group().await?;
         let client_root = this.project.client_relative_path().owned().await?;
         let mut assets = group.assets.owned().await?;
+        let browser_source_coverage = *this.project.browser_source_coverage().await?;
+        let mut source_coverage_bootstrap: Option<ResolvedVc<Box<dyn OutputAsset>>> = None;
         if let Some(params) = &group.chunk_group_bootstrap_params {
             // Shared-runtime production entries normally inline these params in the app HTML.
             // The isolated test document instead loads an owned script before the final runtime,
@@ -820,6 +862,9 @@ impl ClientTestEndpoint {
             )
             .to_resolved()
             .await?;
+            if browser_source_coverage {
+                source_coverage_bootstrap = Some(ResolvedVc::upcast(bootstrap));
+            }
             let runtime_index = assets
                 .len()
                 .checked_sub(1)
@@ -849,11 +894,48 @@ impl ClientTestEndpoint {
         assets.extend(group.referenced_assets.await?.iter().copied());
         let mut generated_scripts = Vec::new();
         let mut generated_paths = HashSet::new();
+        let mut import_sections = std::collections::BTreeMap::new();
         for asset in all_assets_from_entries(Vc::cell(assets.clone()))
             .await?
             .iter()
         {
-            if !is_ecmascript_bookkeeping_asset(*asset).await? {
+            if browser_source_coverage {
+                if let Some(generator) =
+                    ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(*asset)
+                {
+                    let owned = generator.native_test_import_coverage_roles().await?;
+                    if let FileContent::Content(file) = &*owned {
+                        let sections: serde_json::Value =
+                            serde_json::from_slice(&file.content().to_bytes())?;
+                        let Some(values) = sections.as_array() else {
+                            bail!("Browser import coverage requires actual generated map sections");
+                        };
+                        if values.iter().any(|section| {
+                            section["data"]["kind"] != "browser-import-initializers"
+                                || section["data"]["version"] != 1
+                        }) {
+                            bail!("Browser import coverage received a foreign native role section");
+                        }
+                        if !values.is_empty() {
+                            let path = asset.path().await?;
+                            let relative = client_root
+                                .get_path_to(&path)
+                                .context("Browser import role script escaped output root")?;
+                            if relative.is_empty()
+                                || !relative.ends_with(".js")
+                                || import_sections
+                                    .insert(relative.to_string(), sections)
+                                    .is_some()
+                            {
+                                bail!("Invalid or duplicate Browser import role script");
+                            }
+                        }
+                    }
+                }
+            }
+            if !is_ecmascript_bookkeeping_asset(*asset).await?
+                && source_coverage_bootstrap != Some(*asset)
+            {
                 continue;
             }
             let path = asset.path().await?;
@@ -881,6 +963,37 @@ impl ClientTestEndpoint {
             }));
         }
         generated_scripts.sort_by(|left, right| left["path"].as_str().cmp(&right["path"].as_str()));
+        let coverage_certificate = if browser_source_coverage
+            && this.project.next_mode().await?.is_production()
+        {
+            let mut certificate = serde_json::json!({
+                "version": 2,
+                "mode": "production",
+                "sourceMaps": "absolute-file-uri",
+                "preserveOriginalSyntax": true,
+                "scripts": generated_scripts,
+            });
+            if !import_sections.is_empty() {
+                certificate["importInitializers"] =
+                    serde_json::json!({"version":1,"sectionsByScript":import_sections});
+            }
+            certificate
+        } else {
+            let mut certificate = serde_json::json!({"version": 1, "scripts": generated_scripts});
+            if browser_source_coverage {
+                if !this.project.next_mode().await?.is_development() {
+                    bail!("Development Browser imports require the actual development project");
+                }
+                if !import_sections.is_empty() {
+                    certificate["developmentImports"] = serde_json::json!({
+                        "version": 1,
+                        "mode": "development",
+                        "sectionsByScript": import_sections,
+                    });
+                }
+            }
+            certificate
+        };
         assets.push(ResolvedVc::upcast(
             VirtualOutputAsset::new(
                 this.project.node_root().await?.join(&format!(
@@ -888,10 +1001,7 @@ impl ClientTestEndpoint {
                     this.id
                 ))?,
                 AssetContent::file(
-                    FileContent::Content(File::from(
-                        serde_json::json!({"version": 1, "scripts": generated_scripts}).to_string(),
-                    ))
-                    .cell(),
+                    FileContent::Content(File::from(coverage_certificate.to_string())).cell(),
                 ),
             )
             .to_resolved()
@@ -908,6 +1018,20 @@ impl ClientTestEndpoint {
             .to_resolved()
             .await?,
         ));
+        if this.dependency_plan {
+            assets.push(ResolvedVc::upcast(
+                crate::testing_dependencies::dependency_asset_from_modules(
+                    this.project,
+                    self.entry_modules().await?.source_modules.clone(),
+                    this.path.clone(),
+                    this.project
+                        .node_root()
+                        .await?
+                        .join(&format!("server/next-test/{}.dependencies.json", this.id))?,
+                )
+                .await?,
+            ));
+        }
         assets.push(ResolvedVc::upcast(
             crate::testing_in_source::source_hash_asset(
                 this.path.clone(),

@@ -1,0 +1,5 @@
+import { expect, test } from 'vitest'
+import { Card as Card0 } from './shape-named-boolean.tsx'
+import { Card as Card1 } from './shape-named-nested.tsx'
+test('named boolean preserves authored child and prop behavior',()=>{const yes=Card0({active:true,label:'hello'}),no=Card0({active:false,label:'world'});expect(yes.props).toEqual({disabled:true,children:'hello'});expect(no.props).toEqual({disabled:true,children:'world'})})
+test('named nested preserves authored child and prop behavior',()=>{const yes=Card1({active:true,label:'hello'}),no=Card1({active:false,label:'world'});expect(yes.props.children.type).toBe('input');expect(yes.props.children.props.title).toBe('hello');expect(no.props.children.type).toBe('br');expect(no.props.children.props).toEqual({})})

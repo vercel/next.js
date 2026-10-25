@@ -1,0 +1,5 @@
+type Input = { active: boolean; label: string }
+export function Card({ active, label }: Input) {
+  return <input title={active ? 'on' : 'off'} value={label} />
+}
+export const Unused = () => <i />

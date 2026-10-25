@@ -1,0 +1,57 @@
+{
+  "rows": [
+    [
+      {
+        "stage": "initial",
+        "absent": true
+      },
+      {
+        "stage": "body-return",
+        "same": true,
+        "array": true,
+        "prototype": true,
+        "ownPush": false,
+        "length": 3
+      },
+      {
+        "stage": "afterEach",
+        "errors": [
+          "actual controlled body failure"
+        ]
+      },
+      {
+        "stage": "manual-failed",
+        "same": true,
+        "receiverUndefined": true,
+        "args": 1
+      },
+      {
+        "stage": "global-failed",
+        "same": true,
+        "receiverUndefined": true,
+        "args": 1
+      },
+      {
+        "stage": "context-failed",
+        "same": true,
+        "receiverUndefined": true,
+        "args": 1
+      },
+      {
+        "stage": "final-task",
+        "absent": true
+      }
+    ]
+  ],
+  "cases": [
+    {
+      "name": "actual failed context global manual callbacks share one array",
+      "status": "failed",
+      "failureMessages": [
+        "actual controlled body failure"
+      ]
+    }
+  ],
+  "success": false,
+  "exit": 1
+}

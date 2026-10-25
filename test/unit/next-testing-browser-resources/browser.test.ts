@@ -1,8 +1,11 @@
+import { createServer as createNetServer } from 'node:net'
 import { createComponentMount } from 'next/dist/experimental/testing/browser/component-host'
 import { createServer, type Server } from 'node:http'
-import { mkdtemp, stat } from 'node:fs/promises'
+import { mkdtemp, stat, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
 import type { Browser } from 'playwright'
 import { instant } from '@next/playwright'
 import {
@@ -20,6 +23,74 @@ import {
   browser as getBrowserFixture,
   initializeBrowserTesting,
 } from 'next/dist/experimental/testing/browser'
+
+it('classifies actual WebKit Promises without authored getters or proxy effects', async () => {
+  const output = await mkdtemp(join(tmpdir(), 'next-webkit-engine-brand-'))
+  try {
+    const project = join(__dirname, '../../..')
+    const { stdout } = await promisify(execFile)(
+      process.execPath,
+      [join(__dirname, 'webkit-engine-brand.cjs'), project, project, output],
+      { timeout: 60000 }
+    )
+    expect(JSON.parse(stdout)).toMatchObject({
+      nativeContext: true,
+      sameNativeFrame: true,
+      allOwnersClosed: true,
+      result: { tagReads: 0, proxyTraps: 0, thenReads: 0 },
+    })
+  } finally {
+    await rm(output, { recursive: true, force: true })
+  }
+}, 90000)
+
+it('joins a throwing WebKit failure observer without an unhandled pause promise', async () => {
+  const { EventEmitter } = await import('node:events')
+  const { createWebKitEngineBrand } = await import(
+    'next/dist/experimental/testing/browser/webkit-engine-brand'
+  )
+  const original = new Error('actual paused owner failed')
+  const observer = new Error('failure observer failed')
+  let failOwner = false
+  const session = Object.assign(new EventEmitter(), {
+    send: jest.fn(async () => ({})),
+    isDisposed: () => false,
+  })
+  const onFailure = jest.fn(() => {
+    throw observer
+  })
+  const brand = createWebKitEngineBrand({
+    owner: {
+      session,
+      pageGuid: 'owned-page',
+      contextGuid: 'owned-context',
+      assertCurrent() {
+        if (failOwner) throw original
+      },
+      mainFrameId: () => 'owned-frame',
+      bootstrapSource: () => '/* retained SDK initializer */',
+    },
+    signal: new AbortController().signal,
+    onFailure,
+    initializer: {
+      source: '/* owned classifier */',
+      url: 'next-test-engine-brand://observer-control',
+      registrationLine: 0,
+      classificationLine: 1,
+    },
+  })
+  await brand.start()
+  failOwner = true
+  session.emit('Debugger.paused', { callFrames: [] })
+  await expect(brand.afterOwnersClosed()).rejects.toMatchObject({
+    errors: [observer],
+  })
+  expect(onFailure).toHaveBeenCalledTimes(1)
+  expect(onFailure).toHaveBeenCalledWith(original)
+  expect(session.send).toHaveBeenCalledWith('Debugger.resume')
+  expect(session.send).toHaveBeenCalledWith('Debugger.disable', undefined)
+  expect(() => brand.fact()).toThrow(original)
+})
 
 // Resource tests use a trivial HTTP document; the separate e2e suite is the
 // oracle for actual Next compilation, streaming, and instant shell behavior.
@@ -737,3 +808,552 @@ describe('owned WebKit browser binding', () => {
     expect(fixture.session.send).not.toHaveBeenCalled()
   })
 })
+
+describe('Gecko debugger transport ownership', () => {
+  const { connectFirefoxRdp } =
+    require('next/dist/experimental/testing/browser/firefox-host') as typeof import('next/dist/experimental/testing/browser/firefox-host')
+
+  function frame(packet: object) {
+    const bytes = Buffer.from(JSON.stringify(packet))
+    return Buffer.concat([Buffer.from(bytes.length + ':'), bytes])
+  }
+
+  async function connection(greeting = true) {
+    const directory = await mkdtemp(join(tmpdir(), 'ntr-'))
+    const socketPath = join(directory, 'rdp')
+    let socket!: import('node:net').Socket
+    let accepted!: () => void
+    const ready = new Promise<void>((resolve) => {
+      accepted = resolve
+    })
+    const server = createNetServer((client) => {
+      socket = client
+      if (greeting)
+        socket.write(frame({ from: 'root', applicationType: 'browser' }))
+      accepted()
+    })
+    await new Promise<void>((resolve) => server.listen(socketPath, resolve))
+    let rdp: Awaited<ReturnType<typeof connectFirefoxRdp>> | undefined
+    const controller = new AbortController()
+    const acquiring = connectFirefoxRdp(socketPath, controller.signal).then(
+      (value) => {
+        rdp = value
+        return value
+      }
+    )
+    await ready
+    return {
+      socket,
+      controller,
+      acquiring,
+      async dispose() {
+        await rdp?.dispose()
+        socket.destroy()
+        await new Promise<void>((resolve) => server.close(() => resolve()))
+        await rm(directory, { recursive: true, force: true })
+      },
+    }
+  }
+
+  it('separates byte-framed FIFO responses from unsolicited events and actor queues', async () => {
+    const fixture = await connection()
+    try {
+      const rdp = await fixture.acquiring
+      const events: string[] = []
+      rdp.onPacket((packet) => {
+        events.push(packet.type!)
+        return false
+      })
+      const first = rdp.request('console', 'evaluateJSAsync')
+      const second = rdp.request('console', 'evaluateJSAsync')
+      const other = rdp.request('other', 'source')
+      // A multibyte string split in the middle of its UTF-8 sequence exercises
+      // actual byte length rather than JavaScript string length.
+      const bytes = Buffer.concat([
+        frame({
+          from: 'console',
+          type: 'evaluationResult',
+          resultID: 'early',
+          result: 'λ😀',
+        }),
+        frame({ from: 'other', source: 'actual other source' }),
+        frame({ from: 'console', resultID: 'one' }),
+        frame({ from: 'console', resultID: 'two' }),
+      ])
+      const split = bytes.indexOf(Buffer.from('😀')) + 1
+      fixture.socket.write(bytes.subarray(0, split))
+      fixture.socket.write(bytes.subarray(split))
+      await expect(first).resolves.toMatchObject({ resultID: 'one' })
+      await expect(second).resolves.toMatchObject({ resultID: 'two' })
+      await expect(other).resolves.toMatchObject({
+        source: 'actual other source',
+      })
+      expect(events).toEqual(['evaluationResult'])
+    } finally {
+      await fixture.dispose()
+    }
+  })
+
+  it('receives a typed lexical environment form as its frame request reply', async () => {
+    const fixture = await connection()
+    try {
+      const rdp = await fixture.acquiring
+      const events: string[] = []
+      rdp.onPacket((packet) => {
+        events.push(packet.type!)
+        return false
+      })
+      const environment = rdp.request('frame', 'getEnvironment')
+      fixture.socket.write(
+        Buffer.concat([
+          frame({
+            from: 'thread',
+            type: 'newSource',
+            source: { actor: 'source' },
+          }),
+          frame({
+            from: 'frame',
+            actor: 'environment',
+            type: 'block',
+            scopeKind: 'function lexical',
+            bindings: {
+              arguments: [],
+              variables: {
+                publishDecision: {
+                  value: { type: 'object', class: 'Function', actor: 'setter' },
+                },
+              },
+            },
+          }),
+        ])
+      )
+      await expect(environment).resolves.toMatchObject({
+        actor: 'environment',
+        type: 'block',
+        bindings: {
+          variables: { publishDecision: { value: { actor: 'setter' } } },
+        },
+      })
+      expect(events).toEqual(['newSource'])
+    } finally {
+      await fixture.dispose()
+    }
+  })
+
+  it('keeps thread events separate from a resume reply and the next queued request', async () => {
+    const fixture = await connection()
+    try {
+      const rdp = await fixture.acquiring
+      const events: string[] = []
+      rdp.onPacket((packet) => {
+        events.push(packet.type!)
+        return packet.type === 'paused'
+      })
+      const settled = jest.fn()
+      const resumed = rdp.request('thread', 'resume').then((packet) => {
+        settled()
+        return packet
+      })
+      const frames = rdp.request('thread', 'frames')
+      const checkpoint = rdp.request('root', 'listTabs')
+      fixture.socket.write(
+        Buffer.concat([
+          frame({ from: 'thread', type: 'resumed' }),
+          frame({ from: 'root', tabs: [] }),
+        ])
+      )
+      await checkpoint
+      expect(settled).not.toHaveBeenCalled()
+      expect(events).toEqual(['resumed'])
+      fixture.socket.write(
+        Buffer.concat([
+          frame({ from: 'thread' }),
+          frame({
+            from: 'thread',
+            type: 'paused',
+            why: { type: 'debuggerStatement' },
+          }),
+          frame({ from: 'thread', frames: [{ actor: 'actual-frame' }] }),
+        ])
+      )
+      await expect(resumed).resolves.toEqual({ from: 'thread' })
+      await expect(frames).resolves.toMatchObject({
+        frames: [{ actor: 'actual-frame' }],
+      })
+      expect(events).toEqual(['resumed', 'paused'])
+    } finally {
+      await fixture.dispose()
+    }
+  })
+
+  it('keeps an unclaimed pause resumable and duplicate resume errors actor-local', async () => {
+    const fixture = await connection()
+    try {
+      const rdp = await fixture.acquiring
+      const resumed = new Promise<void>((resolve) => {
+        fixture.socket.once('data', (bytes) => {
+          expect(bytes.toString()).toContain('"type":"resume"')
+          fixture.socket.write(
+            Buffer.concat([
+              frame({ from: 'thread', type: 'resumed' }),
+              frame({ from: 'thread' }),
+            ])
+          )
+          resolve()
+        })
+      })
+      fixture.socket.write(
+        frame({
+          from: 'thread',
+          type: 'paused',
+          why: { type: 'debuggerStatement' },
+        })
+      )
+      await resumed
+      const duplicate = rdp.request('thread', 'resume')
+      fixture.socket.write(
+        frame({
+          from: 'thread',
+          error: 'wrongState',
+          message: 'already running',
+        })
+      )
+      await expect(duplicate).rejects.toThrow('already running')
+      const next = rdp.request('root', 'listTabs')
+      fixture.socket.write(frame({ from: 'root', tabs: [] }))
+      await expect(next).resolves.toMatchObject({ tabs: [] })
+    } finally {
+      await fixture.dispose()
+    }
+  })
+
+  it('rejects pending requests and notifies loss once after unexpected transport exit', async () => {
+    const fixture = await connection()
+    try {
+      const rdp = await fixture.acquiring
+      const closed = jest.fn()
+      rdp.onClosed(closed)
+      const first = rdp.request('one', 'source').catch((error) => error)
+      const second = rdp.request('two', 'source').catch((error) => error)
+      fixture.socket.end()
+      expect(await first).toBeInstanceOf(Error)
+      expect(await second).toBeInstanceOf(Error)
+      expect(closed).toHaveBeenCalledTimes(1)
+      await rdp.dispose()
+      await rdp.dispose()
+      expect(closed).toHaveBeenCalledTimes(1)
+    } finally {
+      await fixture.dispose()
+    }
+  })
+
+  it('joins an acquisition cancelled before its greeting', async () => {
+    const fixture = await connection(false)
+    try {
+      const result = fixture.acquiring.catch((error) => error)
+      fixture.controller.abort()
+      expect(await result).toEqual(
+        expect.objectContaining({
+          message: 'Firefox debugger acquisition cancelled.',
+        })
+      )
+    } finally {
+      await fixture.dispose()
+    }
+  })
+
+  it('releases evaluation-event observers when its owner closes after a result ID', async () => {
+    const fixture = await connection()
+    try {
+      const rdp = await fixture.acquiring
+      const evaluation = rdp.request('console', 'evaluateJSAsync')
+      fixture.socket.write(frame({ from: 'console', resultID: 'owned-result' }))
+      await expect(evaluation).resolves.toMatchObject({
+        resultID: 'owned-result',
+      })
+      const closed = jest.fn()
+      const unavailable = new Promise<Error>((resolve) => {
+        rdp.onClosed((error) => {
+          closed(error)
+          resolve(error)
+        })
+      })
+      const disposal = rdp.dispose()
+      expect(rdp.dispose()).toBe(disposal)
+      await expect(unavailable).resolves.toEqual(
+        expect.objectContaining({
+          message: 'Firefox debugger closed by its owner.',
+        })
+      )
+      await disposal
+      expect(closed).toHaveBeenCalledTimes(1)
+      await expect(rdp.request('console', 'evaluateJSAsync')).rejects.toThrow(
+        'closed by its owner'
+      )
+    } finally {
+      await fixture.dispose()
+    }
+  })
+})
+
+describe('selected native test Frame ownership', () => {
+  const {
+    createBrowserFrameOwner,
+  } = require('next/dist/experimental/testing/browser/frame-owner')
+  function harness() {
+    const state = {
+      connected: true,
+      closed: false,
+      detached: false,
+      hostClosed: false,
+    }
+    const context: any = { _guid: 'context' }
+    const page: any = {
+      _guid: 'page',
+      context: () => context,
+      isClosed: () => state.closed,
+      mainFrame: () => main,
+    }
+    const main: any = { _guid: 'main', page: () => page }
+    const frame: any = {
+      _guid: 'selected',
+      page: () => page,
+      parentFrame: () => main,
+      isDetached: () => state.detached,
+    }
+    const nativeContext: any = { guid: 'context', pages: () => nativePages }
+    const nativePage: any = {
+      guid: 'page',
+      browserContext: nativeContext,
+      mainFrame: () => nativeMain,
+      frames: () => nativeFrames,
+    }
+    const nativeMain: any = {
+      guid: 'main',
+      _id: 'actual-main',
+      _page: nativePage,
+      parentFrame: () => null,
+    }
+    const nativeFrame: any = {
+      guid: 'selected',
+      _id: 'actual-child',
+      _page: nativePage,
+      parentFrame: () => nativeMain,
+    }
+    const nativePages = [nativePage],
+      nativeFrames = [nativeMain, nativeFrame]
+    const native = {
+      isConnected: () => state.connected,
+      contexts: () => [nativeContext],
+    }
+    const options = {
+      engine: 'chromium',
+      native,
+      context,
+      page,
+      frame,
+      selected: new WeakMap(),
+      assertHost() {
+        if (state.hostClosed) throw new Error('host closed')
+      },
+    }
+    return {
+      state,
+      options,
+      nativePage,
+      nativeFrame,
+      nativePages,
+      nativeFrames,
+      acquire: (overrides = {}) =>
+        createBrowserFrameOwner({ ...options, ...overrides }),
+    }
+  }
+  it('retains one actual native child independently of its current document', () => {
+    const h = harness(),
+      owner = h.acquire()
+    expect(owner.nativeFrameId()).toBe('actual-child')
+    expect(h.acquire().nativeFrameId()).toBe('actual-child')
+    expect(owner.frameGuid).toBe('selected')
+    expect(owner.contextGuid).toBe('context')
+    expect(owner.pageGuid).toBe('page')
+    expect(() => h.acquire({ frame: h.options.page.mainFrame() })).toThrow()
+    expect(() => h.acquire({ context: { _guid: 'context' } })).toThrow()
+    expect(() => h.acquire({ page: { ...h.options.page } })).toThrow()
+    owner.assertCurrent()
+  })
+  it('refuses replacement native objects even with identical frame identifiers', () => {
+    const h = harness(),
+      owner = h.acquire()
+    h.nativeFrames[1] = { ...h.nativeFrame }
+    expect(() => owner.assertCurrent()).toThrow(/ownership/)
+    expect(() => h.acquire()).toThrow(/different selected/)
+  })
+  it.each<[string, (value: ReturnType<typeof harness>) => void]>([
+    [
+      'browser disconnect',
+      (h: any) => {
+        h.state.connected = false
+      },
+    ],
+    [
+      'host closure',
+      (h: any) => {
+        h.state.hostClosed = true
+      },
+    ],
+    [
+      'Page closure',
+      (h: any) => {
+        h.state.closed = true
+      },
+    ],
+    [
+      'Frame detach',
+      (h: any) => {
+        h.state.detached = true
+      },
+    ],
+    [
+      'native Page removal',
+      (h: any) => {
+        h.nativePages.splice(0)
+      },
+    ],
+    [
+      'native Frame removal',
+      (h: any) => {
+        h.nativeFrames.splice(1)
+      },
+    ],
+    [
+      'native Frame id replacement',
+      (h: any) => {
+        h.nativeFrame._id = 'another-child'
+      },
+    ],
+    [
+      'native Page membership change',
+      (h: any) => {
+        h.nativeFrame._page = {}
+      },
+    ],
+  ])('revokes held Frame access after %s', (_label, change) => {
+    const h = harness(),
+      owner = h.acquire()
+    change(h)
+    expect(() => owner.nativeFrameId()).toThrow()
+  })
+})
+
+describe('explicit actual Browser host launch mode', () => {
+  it.each([undefined, false, true])(
+    'forwards Chromium server headless=%s and joins the lease',
+    async (headless) => {
+      const projectDir = join(__dirname, '../../..')
+      const { createRequire } = require('node:module')
+      const playwright = createRequire(join(projectDir, 'package.json'))(
+        'playwright'
+      )
+      const close = jest.fn().mockResolvedValue(undefined)
+      const launch = jest
+        .spyOn(playwright.chromium, 'launchServer')
+        .mockResolvedValue({
+          wsEndpoint: () => 'ws://owned-headless-unit',
+          close,
+        } as any)
+      try {
+        const host = await createBrowserHost({
+          projectDir,
+          signal: new AbortController().signal,
+          ...(headless === undefined ? {} : { headless }),
+        })
+        expect(launch).toHaveBeenCalledWith(
+          expect.objectContaining({
+            headless: headless ?? true,
+            handleSIGINT: false,
+            handleSIGTERM: false,
+            handleSIGHUP: false,
+          })
+        )
+        await host.dispose()
+        await host.dispose()
+        expect(close).toHaveBeenCalledTimes(1)
+      } finally {
+        launch.mockRestore()
+      }
+    }
+  )
+
+  it.each(['chromium', 'firefox', 'webkit'] as const)(
+    'forwards explicit modes to the actual private %s launch producer before acquisition errors',
+    async (engine) => {
+      const { createChromiumFrameHost } = await import(
+        'next/dist/experimental/testing/browser/frame-host'
+      )
+      const { createFirefoxBrowserHost } = await import(
+        'next/dist/experimental/testing/browser/firefox-host'
+      )
+      const { createWebKitBrowserHost } = await import(
+        'next/dist/experimental/testing/browser/webkit-host'
+      )
+      const create =
+        engine === 'chromium'
+          ? createChromiumFrameHost
+          : engine === 'firefox'
+            ? createFirefoxBrowserHost
+            : createWebKitBrowserHost
+      for (const headless of [undefined, false, true]) {
+        const error = new Error('owned launch probe failed')
+        const launch = jest.fn().mockRejectedValue(error)
+        const playwright = { [engine]: { launch } } as any
+        await expect(
+          create(
+            {
+              signal: new AbortController().signal,
+              ...(headless === undefined ? {} : { headless }),
+            },
+            playwright
+          )
+        ).rejects.toBe(error)
+        expect(launch).toHaveBeenCalledWith(
+          expect.objectContaining({
+            headless: headless ?? true,
+            handleSIGINT: false,
+            handleSIGTERM: false,
+            handleSIGHUP: false,
+          })
+        )
+      }
+    }
+  )
+})
+
+it('classifies actual WebKit Promises in the owned child frame', async () => {
+  const output = await mkdtemp(
+    join(tmpdir(), 'next-webkit-frame-engine-brand-')
+  )
+  try {
+    const project = join(__dirname, '../../..')
+    const { stdout } = await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'webkit-frame-engine-brand.cjs'),
+        project,
+        project,
+        output,
+      ],
+      { timeout: 60000 }
+    )
+    expect(JSON.parse(stdout)).toMatchObject({
+      nativeContext: true,
+      sameNativeFrame: true,
+      allOwnersClosed: true,
+      actualOwnedChild: true,
+      parentAndSiblingUnchanged: true,
+      detachedOwnerRejected: true,
+      result: { tagReads: 0, proxyTraps: 0, thenReads: 0 },
+    })
+  } finally {
+    await rm(output, { recursive: true, force: true })
+  }
+}, 90000)

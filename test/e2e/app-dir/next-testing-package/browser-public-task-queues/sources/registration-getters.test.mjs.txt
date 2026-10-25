@@ -1,0 +1,16 @@
+import { test, expect, afterEach, afterAll, onTestFinished as globalFinished } from 'vitest'
+const rows = []
+let release = () => {}
+const row = (stage, value = {}) => rows.push({ stage, ...value })
+afterEach(({ task }) => { row('afterEach', { errors: (task.result?.errors ?? []).map(error => error?.message ?? String(error)) }); release() })
+afterAll(() => console.log('TASK_QUEUE_CONSUMER:' + JSON.stringify(rows)))
+let held, value, reads = 0
+ test('actual finished registration and consumption use authored getters', context => {
+   held = context.task; value = []
+   Object.defineProperty(held, 'onFinished', { configurable: true, get() { row('finished-get', { count: ++reads }); return value }, set(next) { row('finished-set', { absent: next === undefined }); value = next } })
+   const callback = label => function(payload) { row(label, { same: payload.task === held, receiverUndefined: this === undefined, args: arguments.length }) }
+   context.onTestFinished(callback('context-finished'))
+   globalFinished(callback('global-finished'))
+   row('body-return', { length: value.length })
+ })
+ afterAll(() => row('final-task', { absent: value === undefined }))

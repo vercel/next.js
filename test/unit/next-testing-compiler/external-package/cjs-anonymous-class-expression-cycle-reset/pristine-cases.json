@@ -1,0 +1,27 @@
+[
+  {
+    "name": "class expression namespaces and held constructors through complete resets",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "class expression actual imports retain namespace and constructor identities",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "held class constructor prototype and dependency mutations remain observable",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "class expression static and instance self identities survive held resets",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "class expressions preserve real alternate new target and native call refusal",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

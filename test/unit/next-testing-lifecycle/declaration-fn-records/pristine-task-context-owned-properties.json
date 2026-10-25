@@ -1,0 +1,68 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "owned-property",
+        "trace": [
+          {
+            "phase": "body",
+            "kind": "getter",
+            "sameReceiver": false
+          },
+          {
+            "phase": "body",
+            "kind": "method",
+            "sameReceiver": true
+          },
+          {
+            "phase": "body",
+            "kind": "read",
+            "sameAssertion": false,
+            "sameMethod": true,
+            "sameReturn": true
+          },
+          {
+            "phase": "afterAll",
+            "kind": "getter",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "method",
+            "sameReceiver": true
+          },
+          {
+            "phase": "afterAll",
+            "kind": "read",
+            "sameAssertion": false,
+            "sameMethod": true,
+            "sameReturn": true
+          }
+        ],
+        "getCount": 2,
+        "methodCount": 2,
+        "count": 1,
+        "state": "pass"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "owned custom property source",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeads": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 1,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

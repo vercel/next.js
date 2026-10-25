@@ -1,0 +1,196 @@
+{
+  "version": 1,
+  "mode": "production",
+  "sdks": ["1.61.0", "1.64.0"],
+  "reference": "Vitest5.0.4 + @vitest/coverage-v8@5.0.4 + actual public Chromium Browser provider; unchanged authored files; complete reports agree on both SDKs",
+  "sourceFiles": {
+    "contract.case.mjs": {
+      "sha256": "f18060764dad3aec9fd48ad5610b4427dc844aaef831b95228b0400720c500fc"
+    },
+    "subject.mjs": {
+      "sha256": "b4146f033135465d48b732cc0a8fa9066d5853d2ce21829d6b9e2149efa70a91"
+    },
+    "unimported.mjs": {
+      "sha256": "8fee6b72a4521826fd1c71a6c8d11d2f0e99eeb003a4b0b6e8e43434cd187817"
+    },
+    "excluded.mjs": {
+      "sha256": "81fdf4b4d4a583a90fe253cf6a2657dbe4d19cdcf15198133d7b36764bc4ad36"
+    }
+  },
+  "numPassedTests": 1,
+  "cases": [
+    {
+      "file": "contract.case.mjs",
+      "status": "passed",
+      "cases": [
+        {
+          "ancestorTitles": [],
+          "fullName": "browser original source",
+          "status": "passed",
+          "title": "browser original source",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ]
+    }
+  ],
+  "coverage": {
+    "subject.mjs": {
+      "path": "subject.mjs",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 2,
+            "column": 2
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 2,
+            "column": 13
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 3,
+            "column": 2
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "3": {
+          "start": {
+            "line": 6,
+            "column": 2
+          },
+          "end": {
+            "line": 6,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "choose",
+          "decl": {
+            "start": {
+              "line": 1,
+              "column": 16
+            },
+            "end": {
+              "line": 1,
+              "column": 22
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 30
+            },
+            "end": {
+              "line": 4,
+              "column": null
+            }
+          },
+          "line": 1
+        },
+        "1": {
+          "name": "unused",
+          "decl": {
+            "start": {
+              "line": 5,
+              "column": 16
+            },
+            "end": {
+              "line": 5,
+              "column": 22
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 5,
+              "column": 25
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          },
+          "line": 5
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 2,
+              "column": 2
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "type": "if",
+          "locations": [
+            {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            {
+              "start": {},
+              "end": {}
+            }
+          ],
+          "line": 2
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 1,
+        "2": 1,
+        "3": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {
+        "0": [1, 1]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 4,
+        "seen": {
+          "f:1:16:1:22": 0,
+          "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+          "s:2:2:2:Infinity": 0,
+          "s:2:13:2:Infinity": 1,
+          "s:3:2:3:Infinity": 2,
+          "f:5:16:5:22": 1,
+          "s:6:2:6:Infinity": 3
+        },
+        "fnNames": {}
+      }
+    }
+  }
+}

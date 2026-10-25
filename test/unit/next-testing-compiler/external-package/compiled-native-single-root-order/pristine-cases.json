@@ -1,0 +1,7 @@
+[
+  {
+    "name": "native static import source order remains observable around factory demand",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

@@ -1,0 +1,37 @@
+import { expect, test } from 'vitest'
+import { Card as Card0 } from './shape-classic-single.tsx'
+import { Card as Card1 } from './shape-classic-paired.tsx'
+import { Card as Card2 } from './shape-classic-conditional.tsx'
+import { Card as Card3 } from './shape-classic-nested.tsx'
+import { Card as Card4 } from './shape-classic-arrow.tsx'
+import { Card as Card5 } from './shape-classic-member.tsx'
+import { Card as Card6 } from './shape-named-single.tsx'
+import { Card as Card7 } from './shape-named-paired.tsx'
+import { Card as Card8 } from './shape-named-conditional.tsx'
+import { Card as Card9 } from './shape-named-nested.tsx'
+import { Card as Card10 } from './shape-named-arrow.tsx'
+import { Card as Card11 } from './shape-named-member.tsx'
+import { Card as Card12 } from './shape-automatic-single.tsx'
+import { Card as Card13 } from './shape-automatic-paired.tsx'
+import { Card as Card14 } from './shape-automatic-conditional.tsx'
+import { Card as Card15 } from './shape-automatic-nested.tsx'
+import { Card as Card16 } from './shape-automatic-arrow.tsx'
+import { Card as Card17 } from './shape-automatic-member.tsx'
+test('classic single preserves authored child and prop behavior',()=>{const yes=Card0({active:true,label:'hello'}),no=Card0({active:false,label:'world'});expect(yes.type.name).toBe('Badge');expect(yes.type(yes.props).props.children).toBe('hello');expect(no.type(no.props).props.children).toBe('world')})
+test('classic paired preserves authored child and prop behavior',()=>{const yes=Card1({active:true,label:'hello'}),no=Card1({active:false,label:'world'});expect(yes.type.name).toBe('Badge');expect(yes.type(yes.props).props.children).toBe('hello');expect(no.type(no.props).props.children).toBe('world')})
+test('classic conditional preserves authored child and prop behavior',()=>{const yes=Card2({active:true,label:'hello'}),no=Card2({active:false,label:'world'});expect(yes.props.children.type.name).toBe('Badge');expect(yes.props.children.type(yes.props.children.props).props.children).toBe('hello');expect(no.props.children.type(no.props.children.props).props.children).toBe('fallback')})
+test('classic nested preserves authored child and prop behavior',()=>{const yes=Card3({active:true,label:'hello'}),no=Card3({active:false,label:'world'});expect(yes.props.children.map(node=>node.type(node.props).props.children)).toEqual(['hello','yes']);expect(no.props.children.map(node=>node.type(node.props).props.children)).toEqual(['world','no'])})
+test('classic arrow preserves authored child and prop behavior',()=>{const yes=Card4({active:true,label:'hello'}),no=Card4({active:false,label:'world'});expect(yes.type.name).toBe('Badge');expect(yes.type(yes.props).props.children).toBe('on');expect(no.type(no.props).props.children).toBe('off')})
+test('classic member preserves authored child and prop behavior',()=>{const yes=Card5({active:true,label:'hello'}),no=Card5({active:false,label:'world'});expect(yes.type.name).toBe('Badge');expect(yes.type(yes.props).props.children).toBe('hello');expect(no.type(no.props).props.children).toBe('world')})
+test('named single preserves authored child and prop behavior',()=>{const yes=Card6({active:true,label:'hello'}),no=Card6({active:false,label:'world'});expect(yes.type.name).toBe('Badge');expect(yes.type(yes.props).props.children).toBe('hello');expect(no.type(no.props).props.children).toBe('world')})
+test('named paired preserves authored child and prop behavior',()=>{const yes=Card7({active:true,label:'hello'}),no=Card7({active:false,label:'world'});expect(yes.type.name).toBe('Badge');expect(yes.type(yes.props).props.children).toBe('hello');expect(no.type(no.props).props.children).toBe('world')})
+test('named conditional preserves authored child and prop behavior',()=>{const yes=Card8({active:true,label:'hello'}),no=Card8({active:false,label:'world'});expect(yes.props.children.type.name).toBe('Badge');expect(yes.props.children.type(yes.props.children.props).props.children).toBe('hello');expect(no.props.children.type(no.props.children.props).props.children).toBe('fallback')})
+test('named nested preserves authored child and prop behavior',()=>{const yes=Card9({active:true,label:'hello'}),no=Card9({active:false,label:'world'});expect(yes.props.children.map(node=>node.type(node.props).props.children)).toEqual(['hello','yes']);expect(no.props.children.map(node=>node.type(node.props).props.children)).toEqual(['world','no'])})
+test('named arrow preserves authored child and prop behavior',()=>{const yes=Card10({active:true,label:'hello'}),no=Card10({active:false,label:'world'});expect(yes.type.name).toBe('Badge');expect(yes.type(yes.props).props.children).toBe('on');expect(no.type(no.props).props.children).toBe('off')})
+test('named member preserves authored child and prop behavior',()=>{const yes=Card11({active:true,label:'hello'}),no=Card11({active:false,label:'world'});expect(yes.type.name).toBe('Badge');expect(yes.type(yes.props).props.children).toBe('hello');expect(no.type(no.props).props.children).toBe('world')})
+test('automatic single preserves authored child and prop behavior',()=>{const yes=Card12({active:true,label:'hello'}),no=Card12({active:false,label:'world'});expect(yes.type.name).toBe('Badge');expect(yes.type(yes.props).props.children).toBe('hello');expect(no.type(no.props).props.children).toBe('world')})
+test('automatic paired preserves authored child and prop behavior',()=>{const yes=Card13({active:true,label:'hello'}),no=Card13({active:false,label:'world'});expect(yes.type.name).toBe('Badge');expect(yes.type(yes.props).props.children).toBe('hello');expect(no.type(no.props).props.children).toBe('world')})
+test('automatic conditional preserves authored child and prop behavior',()=>{const yes=Card14({active:true,label:'hello'}),no=Card14({active:false,label:'world'});expect(yes.props.children.type.name).toBe('Badge');expect(yes.props.children.type(yes.props.children.props).props.children).toBe('hello');expect(no.props.children.type(no.props.children.props).props.children).toBe('fallback')})
+test('automatic nested preserves authored child and prop behavior',()=>{const yes=Card15({active:true,label:'hello'}),no=Card15({active:false,label:'world'});expect(yes.props.children.map(node=>node.type(node.props).props.children)).toEqual(['hello','yes']);expect(no.props.children.map(node=>node.type(node.props).props.children)).toEqual(['world','no'])})
+test('automatic arrow preserves authored child and prop behavior',()=>{const yes=Card16({active:true,label:'hello'}),no=Card16({active:false,label:'world'});expect(yes.type.name).toBe('Badge');expect(yes.type(yes.props).props.children).toBe('on');expect(no.type(no.props).props.children).toBe('off')})
+test('automatic member preserves authored child and prop behavior',()=>{const yes=Card17({active:true,label:'hello'}),no=Card17({active:false,label:'world'});expect(yes.type.name).toBe('Badge');expect(yes.type(yes.props).props.children).toBe('hello');expect(no.type(no.props).props.children).toBe('world')})

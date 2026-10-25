@@ -3,6 +3,7 @@ import {
   type RawSourceMap,
 } from 'next/dist/compiled/source-map'
 import type { StandardCoverageData, StandardCoverageLocation } from './types'
+import { browserJsxChildKey } from './browser-jsx-associations'
 
 type Point = { line: number; column: number }
 type Node = {
@@ -42,7 +43,8 @@ export function bindJsxConditionalEnds(
   data: StandardCoverageData,
   authored: unknown,
   emitted: unknown,
-  sourceMap: RawSourceMap
+  sourceMap: RawSourceMap,
+  browserJsxChildren?: ReadonlySet<string>
 ): void {
   const consumer = new SourceMapConsumer(sourceMap)
   const mappings: {
@@ -85,6 +87,7 @@ export function bindJsxConditionalEnds(
     end: Point
   }[] = []
   for (const node of authoredConditionals) {
+    if (browserJsxChildren?.has(browserJsxChildKey(node))) continue
     if (
       node.type !== 'ConditionalExpression' ||
       node.test?.type !== 'Identifier' ||

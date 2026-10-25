@@ -1,0 +1,167 @@
+{
+  "report": {
+    "numTotalTestSuites": 3,
+    "numPassedTestSuites": 3,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 6,
+    "numPassedTests": 6,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "snapshot": {
+      "added": 0,
+      "failure": false,
+      "filesAdded": 0,
+      "filesRemoved": 0,
+      "filesRemovedList": [],
+      "filesUnmatched": 0,
+      "filesUpdated": 0,
+      "matched": 0,
+      "total": 0,
+      "unchecked": 0,
+      "uncheckedKeysByFile": [],
+      "unmatched": 0,
+      "updated": 0,
+      "didUpdate": false
+    },
+    "success": true,
+    "testResults": [
+      {
+        "assertionResults": [
+          {
+            "ancestorTitles": [],
+            "fullName": "selected",
+            "status": "passed",
+            "title": "selected",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          },
+          {
+            "ancestorTitles": [],
+            "fullName": "other",
+            "status": "passed",
+            "title": "other",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          }
+        ],
+        "status": "passed",
+        "message": "",
+        "name": "a-small.case.mjs"
+      },
+      {
+        "assertionResults": [
+          {
+            "ancestorTitles": [],
+            "fullName": "selected",
+            "status": "passed",
+            "title": "selected",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          },
+          {
+            "ancestorTitles": [],
+            "fullName": "other",
+            "status": "passed",
+            "title": "other",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          }
+        ],
+        "status": "passed",
+        "message": "",
+        "name": "b-medium.case.mjs"
+      },
+      {
+        "assertionResults": [
+          {
+            "ancestorTitles": [],
+            "fullName": "selected",
+            "status": "passed",
+            "title": "selected",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          },
+          {
+            "ancestorTitles": [],
+            "fullName": "other",
+            "status": "passed",
+            "title": "other",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          }
+        ],
+        "status": "passed",
+        "message": "",
+        "name": "z-large.case.mjs"
+      }
+    ]
+  },
+  "rows": {
+    "fresh": [
+      {
+        "stream": "stdout",
+        "text": "CACHE:z-large.case.mjs:selected\n"
+      },
+      {
+        "stream": "stdout",
+        "text": "CACHE:z-large.case.mjs:other\n"
+      },
+      {
+        "stream": "stdout",
+        "text": "CACHE:b-medium.case.mjs:selected\n"
+      },
+      {
+        "stream": "stdout",
+        "text": "CACHE:b-medium.case.mjs:other\n"
+      },
+      {
+        "stream": "stdout",
+        "text": "CACHE:a-small.case.mjs:selected\n"
+      },
+      {
+        "stream": "stdout",
+        "text": "CACHE:a-small.case.mjs:other\n"
+      }
+    ],
+    "failed-history": [
+      {
+        "stream": "stdout",
+        "text": "CACHE:b-medium.case.mjs:selected\n"
+      },
+      {
+        "stream": "stdout",
+        "text": "CACHE:b-medium.case.mjs:other\n"
+      },
+      {
+        "stream": "stdout",
+        "text": "CACHE:a-small.case.mjs:selected\n"
+      },
+      {
+        "stream": "stdout",
+        "text": "CACHE:a-small.case.mjs:other\n"
+      },
+      {
+        "stream": "stdout",
+        "text": "CACHE:z-large.case.mjs:selected\n"
+      },
+      {
+        "stream": "stdout",
+        "text": "CACHE:z-large.case.mjs:other\n"
+      }
+    ]
+  }
+}

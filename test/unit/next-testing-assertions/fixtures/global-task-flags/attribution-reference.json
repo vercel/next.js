@@ -1,0 +1,108 @@
+{
+  "rows": [
+    {
+      "running first": [
+        {
+          "stage": "enter",
+          "sameTask": false,
+          "name": "running second",
+          "noTask": false
+        },
+        {
+          "stage": "native-awaited",
+          "sameTask": false,
+          "name": "running second",
+          "noTask": false
+        },
+        {
+          "stage": "custom-enter",
+          "name": "running second",
+          "rawSameState": true
+        },
+        {
+          "stage": "custom-resume",
+          "name": "running second",
+          "sameActual": false
+        },
+        {
+          "stage": "after-gate",
+          "sameTask": false,
+          "name": "running second",
+          "noTask": false
+        }
+      ],
+      "running second": [
+        {
+          "stage": "enter",
+          "sameTask": true,
+          "name": "running second",
+          "noTask": false
+        },
+        {
+          "stage": "after-first",
+          "sameTask": true,
+          "name": "running second",
+          "noTask": false
+        }
+      ],
+      "retained first": [
+        {
+          "stage": "enter",
+          "sameTask": false,
+          "name": "closing second",
+          "noTask": false
+        },
+        {
+          "stage": "after-second-close",
+          "sameTask": false,
+          "name": null,
+          "noTask": true
+        },
+        {
+          "stage": "local-after-second-close",
+          "sameTask": true,
+          "name": "retained first",
+          "noTask": false
+        },
+        {
+          "stage": "after-native",
+          "sameTask": false,
+          "name": null,
+          "noTask": true
+        }
+      ],
+      "closing second": [
+        {
+          "stage": "enter",
+          "sameTask": true,
+          "name": "closing second",
+          "noTask": false
+        }
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "name": "running owner running first",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "running owner running second",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "closed owner retained first",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "closed owner closing second",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "success": true,
+  "exit": 0
+}

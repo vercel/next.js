@@ -1,0 +1,2 @@
+import { setupValue } from './setup-subject.mjs'
+globalThis.__browserDependencySetup = setupValue

@@ -220,7 +220,7 @@ pub async fn test_endpoint_operation(
     cohort_files: Vec<RcStr>,
     runtime_env: bool,
     route: Option<RcStr>,
-    compiler_features: (bool, bool, bool, Vec<RcStr>, bool, Option<RcStr>),
+    compiler_features: (bool, bool, bool, Vec<RcStr>, bool, Option<RcStr>, bool),
 ) -> Result<Vc<OptionEndpoint>> {
     // Keep the operation within turbo-tasks' twelve-argument input tuple limit.
     let (
@@ -230,6 +230,7 @@ pub async fn test_endpoint_operation(
         alias_finds,
         import_coverage_roles,
         tsconfig_input_revision,
+        browser_source_coverage,
     ) = compiler_features;
     let entry = TestEntryOptions {
         file,
@@ -246,6 +247,7 @@ pub async fn test_endpoint_operation(
         alias_finds,
         import_coverage_roles,
         tsconfig_input_revision,
+        browser_source_coverage,
     }
     .resolved_cell();
     let project = container
@@ -272,6 +274,7 @@ pub(crate) struct TestEntryOptions {
     pub dependency_plan: bool,
     pub browser_client: bool,
     pub source_coverage: bool,
+    pub browser_source_coverage: bool,
     pub import_coverage_roles: bool,
     pub tsconfig_input_revision: Option<RcStr>,
     pub alias_finds: Vec<RcStr>,
@@ -294,6 +297,7 @@ pub(crate) async fn test_endpoint(
         dependency_plan,
         browser_client,
         source_coverage,
+        browser_source_coverage,
         alias_finds,
         import_coverage_roles,
         tsconfig_input_revision,
@@ -340,7 +344,30 @@ pub(crate) async fn test_endpoint(
             "Source coverage requires an isolated production Node entry",
         ));
     }
-    if *dependency_plan && (&**environment != "node" || !cohort_files.is_empty()) {
+    if *browser_source_coverage
+        && (!*browser_client
+            || &**environment != "browser"
+            || !(project.next_mode().await?.is_production()
+                || project.next_mode().await?.is_development())
+            || *source_coverage
+            || *runtime_env
+            || *dependency_plan
+            || *import_coverage_roles
+            || route.is_some()
+            || !setup_files.is_empty()
+            || !snapshot_serializers.is_empty()
+            || !cohort_files.is_empty())
+    {
+        return Err(test_input_error(
+            project.project_path().owned().await?,
+            "Browser source coverage requires an isolated development or production Browser \
+             client entry",
+        ));
+    }
+    if *dependency_plan
+        && ((&**environment != "node" && !(*browser_client && &**environment == "browser"))
+            || !cohort_files.is_empty())
+    {
         return Err(test_input_error(
             project.project_path().owned().await?,
             "Dependency planning currently requires isolated Node entries",
@@ -351,7 +378,6 @@ pub(crate) async fn test_endpoint(
             || !snapshot_serializers.is_empty()
             || !cohort_files.is_empty()
             || *runtime_env
-            || *dependency_plan
             || route.is_some())
     {
         return Err(test_input_error(
@@ -468,7 +494,7 @@ pub(crate) async fn test_endpoint(
             || !(if *browser_client {
                 production_browser_mock_plan(&production_plan)
             } else {
-                production_factory_plan(&production_plan)
+                production_factory_plan(&production_plan) || production_reset_plan(&production_plan)
             }))
     {
         return Err(test_input_error(
@@ -515,6 +541,7 @@ pub(crate) async fn test_endpoint(
             path,
             id,
             setup_paths,
+            *dependency_plan,
         )));
     }
     if &*environment != "rsc" {
@@ -579,6 +606,15 @@ pub(crate) fn production_factory_plan(plan: &StaticMockPlan) -> bool {
 
 pub(crate) fn production_browser_mock_plan(plan: &StaticMockPlan) -> bool {
     production_static_mock_plan(plan, true)
+}
+
+fn production_reset_plan(plan: &StaticMockPlan) -> bool {
+    plan.reset_modules
+        && plan.declarations.is_empty()
+        && plan.hoisted.is_empty()
+        && plan.mock_imports.is_empty()
+        && plan.unmocks.is_empty()
+        && plan.runtime_requests.is_empty()
 }
 
 fn production_static_mock_plan(plan: &StaticMockPlan, browser_spies: bool) -> bool {
@@ -749,15 +785,34 @@ pub(crate) async fn test_source(
     ))
 }
 
+/// This is the same FileSource selected by the protected authoring import map.
+#[turbo_tasks::function]
+pub(crate) async fn test_authoring_source(
+    project_path: FileSystemPath,
+    browser: bool,
+) -> Result<Vc<Box<dyn Source>>> {
+    let next = get_next_package(project_path).await?;
+    let target = if browser {
+        "dist/experimental/testing/client/vitest.js"
+    } else {
+        "dist/experimental/testing/vitest.js"
+    };
+    Ok(Vc::upcast(FileSource::new(next.join(target)?)))
+}
+
 /// Explicit test entries consume whole modules. Module fragments can publish
 /// incomplete exports through this entry graph, including in an unmocked file.
 #[turbo_tasks::function]
 pub(crate) async fn test_module_options_context(
     options: Vc<ModuleOptionsContext>,
     preserve_coverage_source: bool,
+    authoring_adapter: ResolvedVc<Box<dyn Source>>,
+    inject_commonjs_exports: bool,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let mut options = options.owned().await?;
     options.module_fragments_enabled = false;
+    options.ecmascript.test_declaration_call_adapter = Some(authoring_adapter);
+    options.ecmascript.test_injected_commonjs_exports = inject_commonjs_exports;
     // Test modules observe the window supplied by their actual execution realm.
     // Normal application server/client contexts keep their own constant folding.
     options.ecmascript.enable_typeof_window_inlining = None;
@@ -771,9 +826,14 @@ pub(crate) async fn test_module_options_context(
         options.side_effect_free_packages = None;
     }
     for (_, nested) in &mut options.rules {
-        *nested = test_module_options_context(**nested, preserve_coverage_source)
-            .to_resolved()
-            .await?;
+        *nested = test_module_options_context(
+            **nested,
+            preserve_coverage_source,
+            *authoring_adapter,
+            inject_commonjs_exports,
+        )
+        .to_resolved()
+        .await?;
     }
     Ok(options.cell())
 }
@@ -989,6 +1049,46 @@ pub(crate) async fn rsc_mock_metadata(
     )))
 }
 
+/// Use the same actual full leaf owner at manifest production and final codegen.
+/// The module type/extension never supplies an executable-dependency exemption.
+async fn commonjs_leaf_promise_namespace(
+    module: ResolvedVc<Box<dyn Module>>,
+    enabled: bool,
+) -> Result<Option<ResolvedVc<RuntimeImportNamespaceCertificate>>> {
+    if !enabled {
+        return Ok(None);
+    }
+    let Some(full) = ResolvedVc::try_downcast_type::<EcmascriptModuleAsset>(module) else {
+        return Ok(None);
+    };
+    if !matches!(*full.get_exports().await?, EcmascriptExports::CommonJs(_))
+        || !primary_chunkable_referenced_modules(*module, false, false)
+            .await?
+            .is_empty()
+    {
+        return Ok(None);
+    }
+    let analysis = full.analyze().await?;
+    if !analysis.successful
+        || analysis
+            .code_generation
+            .await?
+            .code_gens
+            .iter()
+            .any(|code| matches!(code, CodeGen::DynamicExpression(_)))
+    {
+        return Ok(None);
+    }
+    Ok(Some(
+        RuntimeImportNamespaceCertificate {
+            kind: RuntimeImportNamespaceKind::CommonJsLeafPromise,
+            module,
+            export_order: Vec::new(),
+        }
+        .resolved_cell(),
+    ))
+}
+
 /// Produce IDs from the actual processed graph without evaluating any user module.
 /// Framework boundaries are resolved compiler paths, never runtime ID text patterns.
 async fn module_reset_manifest(
@@ -1001,7 +1101,11 @@ async fn module_reset_manifest(
     compiled_modules: &[ResolvedVc<Box<dyn Module>>],
     static_pairs: &[crate::testing_static_runtime::StaticMockPair],
     commonjs_reset: Option<&crate::testing_cjs_reset::CommonJsResetPreparation>,
-) -> Result<ResolvedVc<Box<dyn Module>>> {
+    publish_leaf_promises: bool,
+) -> Result<(
+    ResolvedVc<Box<dyn Module>>,
+    Vec<ResolvedVc<RuntimeImportNamespaceCertificate>>,
+)> {
     let root = project.project_path().owned().await?;
     let next_package = get_next_package(root.clone()).await?;
     let mut queue = vec![root_module];
@@ -1038,6 +1142,7 @@ async fn module_reset_manifest(
     let mut seen = HashSet::new();
     let mut resettable = Vec::new();
     let mut protected = Vec::new();
+    let mut namespaces = Vec::new();
     while let Some(module) = queue.pop() {
         if !seen.insert(module) {
             continue;
@@ -1208,6 +1313,11 @@ async fn module_reset_manifest(
                 "Module reset operations must currently belong to the explicit test entry",
             ));
         }
+        if let Some(namespace) =
+            commonjs_leaf_promise_namespace(module, publish_leaf_promises).await?
+        {
+            namespaces.push(namespace);
+        }
         resettable.push(module);
         queue.extend(primary_referenced_modules(*module).await?.iter().copied());
     }
@@ -1281,11 +1391,12 @@ async fn module_reset_manifest(
         code,
     )
     .await?;
-    Ok(context
+    let manifest = context
         .process(*source, ReferenceType::Internal(ResolvedVc::cell(assets)))
         .module()
         .to_resolved()
-        .await?)
+        .await?;
+    Ok((manifest, namespaces))
 }
 
 #[derive(serde::Serialize)]
@@ -3580,6 +3691,9 @@ impl NodeTestEndpoint {
         let static_pairs = native_runtime
             .as_ref()
             .map_or(&[][..], |native| native.2.as_slice());
+        let production_reset = isolated_node_runtime
+            && self.project.next_mode().await?.is_production()
+            && production_reset_plan(&plan);
         let commonjs_reset = if commonjs_runtime.is_some() {
             commonjs_runtime
         } else if prepared.module_reset
@@ -3589,8 +3703,8 @@ impl NodeTestEndpoint {
             && plan.hoisted.is_empty()
             && plan.mock_imports.is_empty()
             && plan.unmocks.is_empty()
-            && self.project.next_mode().await?.is_development()
-            && self.runtime_env
+            && (self.project.next_mode().await?.is_development() || production_reset)
+            && (self.runtime_env || production_reset)
             && self.setup_paths.is_empty()
             && self.snapshot_serializers.is_empty()
             && self.cohort_paths.is_empty()
@@ -3647,8 +3761,19 @@ impl NodeTestEndpoint {
         let native_resettable = dynamic_manifest
             .as_ref()
             .map_or(&[][..], |manifest| manifest.native_resettable.as_slice());
+        let mut leaf_promise_namespaces = Vec::new();
         let module_runtime = if prepared.module_reset {
-            let manifest = module_reset_manifest(
+            let publish_leaf_promises = isolated_node_runtime
+                && (self.runtime_env || production_reset)
+                && prepared.runtime_requests.is_empty()
+                && prepared.registration.is_none()
+                && plan.declarations.is_empty()
+                && plan.hoisted.is_empty()
+                && plan.mock_imports.is_empty()
+                && plan.actual_imports.is_empty()
+                && plan.unmocks.is_empty()
+                && commonjs_reset.is_none();
+            let (manifest, namespaces) = module_reset_manifest(
                 self.project,
                 context,
                 module,
@@ -3662,8 +3787,10 @@ impl NodeTestEndpoint {
                     .map_or(&[][..], |manifest| manifest.compiled_resettable.as_slice()),
                 static_pairs,
                 commonjs_reset.as_ref(),
+                publish_leaf_promises,
             )
             .await?;
+            leaf_promise_namespaces = namespaces;
             internal_assets.insert(rcstr!("INNER_TEST_MODULE_CACHE"), manifest);
             "export const moduleTesting = \
              require('next/dist/experimental/testing/mocking/module-cache');\nexport function \
@@ -3716,6 +3843,27 @@ impl NodeTestEndpoint {
                     .resolved_cell(),
                 );
             }
+        }
+        if !leaf_promise_namespaces.is_empty() {
+            let (edges, native_imports, mut namespaces) = if let Some(graph) = demand_graph {
+                let graph = graph.await?;
+                (
+                    graph.edges.clone(),
+                    graph.native_imports.clone(),
+                    graph.namespaces.clone(),
+                )
+            } else {
+                (Vec::new(), Vec::new(), Vec::new())
+            };
+            namespaces.extend(leaf_promise_namespaces);
+            demand_graph = Some(
+                RuntimeImportDemandGraph {
+                    edges,
+                    native_imports,
+                    namespaces,
+                }
+                .resolved_cell(),
+            );
         }
         let dynamic_runtime = if let Some(manifest) = dynamic_manifest {
             internal_assets.insert(rcstr!("INNER_TEST_DYNAMIC_MOCKS"), manifest.module);
@@ -3833,6 +3981,16 @@ impl NodeTestEndpoint {
         } else {
             graph
         };
+        let mut native_test_commonjs_promise_namespaces = false;
+        if let Some(demands) = prepared.demand_graph {
+            let demands = demands.await?;
+            for namespace in &demands.namespaces {
+                if namespace.await?.kind == RuntimeImportNamespaceKind::CommonJsLeafPromise {
+                    native_test_commonjs_promise_namespaces = true;
+                    break;
+                }
+            }
+        }
         let chunking_context = this.project.server_chunking_context(false);
         let chunking_context = if this.source_coverage {
             chunking_context.with_source_coverage()
@@ -3841,6 +3999,11 @@ impl NodeTestEndpoint {
         };
         let chunking_context = if this.import_coverage_roles {
             chunking_context.with_native_test_import_coverage_roles()
+        } else {
+            chunking_context
+        };
+        let chunking_context = if native_test_commonjs_promise_namespaces {
+            chunking_context.with_native_test_commonjs_promise_namespaces()
         } else {
             chunking_context
         };
@@ -4270,7 +4433,43 @@ pub async fn snapshot_endpoint_operation(
 mod production_factory_tests {
     use crate::testing::{
         extract_test_mocks, production_browser_mock_plan, production_factory_plan,
+        production_reset_plan,
     };
+
+    #[test]
+    fn admits_production_reset_plans_without_mock_registrations() {
+        for body in [
+            "vi.resetModules()",
+            "vi.resetModules(); const actual = await vi.importActual('./dependency.cjs')",
+            "const actual = await vi.importActual('../dependency.cjs'); vi.resetModules()",
+        ] {
+            let source = format!("import {{ vi }} from 'vitest'; {body}");
+            let plan = extract_test_mocks(&source, "entry.js").unwrap();
+            assert!(production_reset_plan(&plan), "{body}");
+            assert!(!production_factory_plan(&plan), "{body}");
+            assert!(!production_browser_mock_plan(&plan), "{body}");
+        }
+        for body in [
+            "const actual = await vi.importActual('./dependency.cjs')",
+            "vi.resetModules(); vi.mock('./dependency', () => ({ value: 42 }))",
+            "vi.resetModules(); vi.mock('./dependency', { spy: true })",
+            "vi.resetModules(); vi.doMock('./dependency', () => ({ value: 42 }))",
+            "vi.resetModules(); vi.unmock('./dependency')",
+            "vi.resetModules(); const mocked = await vi.importMock('./dependency')",
+            "const value = vi.hoisted(() => 42); vi.resetModules()",
+        ] {
+            let source = format!("import {{ vi }} from 'vitest'; {body}");
+            match extract_test_mocks(&source, "entry.js") {
+                Ok(plan) => assert!(!production_reset_plan(&plan), "{body}"),
+                Err(error) => assert!(
+                    error
+                        .to_string()
+                        .contains("vi.resetModules cannot currently combine"),
+                    "{body}: {error}"
+                ),
+            }
+        }
+    }
 
     #[test]
     fn admits_relative_browser_spies_and_factory_composition() {
@@ -4656,6 +4855,352 @@ mod typescript_fallback_tests {
                  Object.defineProperty(exported,'default',{value:function nested(value){return \
                  value+1},writable:true,configurable:true}); exported.default=7; \
                  module.exports=exported;\n",
+            ),
+        ] {
+            std::fs::write(directory.path().join(file), source)?;
+        }
+        let disk_root = repository
+            .canonicalize()?
+            .to_str()
+            .context("UTF-8 repository")?
+            .into();
+        let project_name = directory
+            .path()
+            .file_name()
+            .context("fixture name")?
+            .to_str()
+            .context("UTF-8 fixture name")?
+            .into();
+        let tasks = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tasks
+            .run_once(async move {
+                operation(disk_root, project_name)
+                    .read_strongly_consistent()
+                    .await
+            })
+            .await?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod injected_commonjs_producer_tests {
+    use anyhow::{Context, Result};
+    use turbo_rcstr::{RcStr, rcstr};
+    use turbo_tasks::{TurboTasks, ValueToString, Vc};
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+    use turbo_tasks_fs::{DiskFileSystem, FileSystem};
+    use turbopack::{
+        ModuleAssetContext, module_options::ModuleOptionsContext, transition::TransitionOptions,
+    };
+    use turbopack_core::{
+        compile_time_info::{
+            CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefinableNameSegment,
+            FreeVarReferences,
+        },
+        context::AssetContext,
+        environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+        file_source::FileSource,
+        ident::Layer,
+        reference::primary_chunkable_referenced_modules,
+        reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+        resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request},
+    };
+    use turbopack_ecmascript::{
+        EcmascriptOptions,
+        chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
+        code_gen::CodeGen,
+        references::esm::{EsmAssetReference, EsmAsyncAssetReference},
+    };
+    use turbopack_resolve::{
+        ecmascript::esm_resolve, resolve_options_context::ResolveOptionsContext,
+    };
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn injected_commonjs_producer_keeps_actual_graph_owner_and_context() -> Result<()> {
+        #[turbo_tasks::function(operation, root)]
+        async fn operation(disk_root: RcStr, project_name: RcStr) -> Result<()> {
+            assert!(!EcmascriptOptions::default().test_injected_commonjs_exports);
+            let root = DiskFileSystem::new(
+                rcstr!("test-injected-commonjs-producer"),
+                Vc::cell(disk_root),
+            )
+            .root()
+            .owned()
+            .await?;
+            let project = root.join(&project_name)?;
+            let info = CompileTimeInfo::new(Environment::new(ExecutionEnvironment::NodeJsLambda(
+                NodeJsEnvironment::default().resolved_cell(),
+            )))
+            .to_resolved()
+            .await?;
+            let authoring = FileSource::new(project.join("authoring.mjs")?)
+                .to_resolved()
+                .await?;
+            for injected in [false, true] {
+                let options = crate::testing::test_module_options_context(
+                    ModuleOptionsContext::default().cell(),
+                    false,
+                    *turbo_tasks::ResolvedVc::upcast(authoring),
+                    injected,
+                )
+                .to_resolved()
+                .await?;
+                assert_eq!(
+                    options.await?.ecmascript.test_injected_commonjs_exports,
+                    injected
+                );
+                let context = ModuleAssetContext::new(
+                    TransitionOptions::default().cell(),
+                    *info,
+                    *options,
+                    ResolveOptionsContext::default().cell(),
+                    Layer::new(rcstr!("test-injected-commonjs-producer")),
+                )
+                .to_resolved()
+                .await?;
+                for (request, ordinary_cjs, injected_cjs, leaf) in [
+                    ("./plain.mjs", false, true, true),
+                    ("./shadow.mjs", false, false, true),
+                    ("./named.mjs", false, false, true),
+                    ("./marker.mjs", false, false, true),
+                    ("./dynamic.mjs", false, false, true),
+                    ("./require.mjs", false, false, true),
+                    ("./plain.cjs", true, true, true),
+                    ("./nonleaf.cjs", true, true, false),
+                ] {
+                    let origin = PlainResolveOrigin::new(
+                        Vc::upcast(*context),
+                        project.join("entry.test.mjs")?,
+                    );
+                    let resolved = esm_resolve(
+                        Vc::upcast(origin),
+                        Request::parse_string(request.into()),
+                        EcmaScriptModulesReferenceSubType::Import,
+                        ResolveErrorMode::Ignore,
+                        None,
+                    )
+                    .await?;
+                    let modules = resolved.await?.primary_modules().await?;
+                    assert_eq!(modules.len(), 1, "{injected}: {request}");
+                    let full = crate::testing::commonjs_full_owner(modules[0])
+                        .await?
+                        .context("actual full analysis owner")?;
+                    assert_eq!(
+                        turbo_tasks::ResolvedVc::upcast::<Box<dyn turbopack_core::module::Module>>(
+                            full
+                        ),
+                        modules[0]
+                    );
+                    let commonjs =
+                        matches!(*full.get_exports().await?, EcmascriptExports::CommonJs(_));
+                    assert_eq!(
+                        commonjs,
+                        if injected { injected_cjs } else { ordinary_cjs },
+                        "{injected}: {request}"
+                    );
+                    let namespace =
+                        crate::testing::commonjs_leaf_promise_namespace(modules[0], true).await?;
+                    assert_eq!(
+                        namespace.is_some(),
+                        commonjs && leaf,
+                        "{injected}: {request}: namespace producer"
+                    );
+                    assert!(
+                        crate::testing::commonjs_leaf_promise_namespace(modules[0], false)
+                            .await?
+                            .is_none()
+                    );
+                    if let Some(namespace) = namespace {
+                        let namespace = namespace.await?;
+                        assert_eq!(namespace.module, modules[0]);
+                        assert_eq!(namespace.kind, turbopack_core::module_graph::runtime_import_demands::RuntimeImportNamespaceKind::CommonJsLeafPromise);
+                        assert!(namespace.export_order.is_empty());
+                    }
+                    let analysis = full.analyze().await?;
+                    assert!(analysis.successful, "{injected}: {request}");
+                    if request == "./plain.mjs" {
+                        assert!(
+                            primary_chunkable_referenced_modules(*modules[0], false, false)
+                                .await?
+                                .is_empty()
+                        );
+                        let bound_module = analysis
+                            .code_generation
+                            .await?
+                            .code_gens
+                            .iter()
+                            .filter(|code| matches!(code, CodeGen::MemberReplacement(_)))
+                            .count();
+                        assert_eq!(
+                            bound_module,
+                            usize::from(injected),
+                            "actual injected module binding"
+                        );
+                        let consumer = context
+                            .process(
+                                Vc::upcast(FileSource::new(project.join("consumer.mjs")?)),
+                                ReferenceType::EcmaScriptModules(
+                                    EcmaScriptModulesReferenceSubType::Undefined,
+                                ),
+                            )
+                            .module()
+                            .to_resolved()
+                            .await?;
+                        let readsites =
+                            primary_chunkable_referenced_modules(*consumer, false, false).await?;
+                        let mut observed_references = Vec::new();
+                        for (reference, resolved) in readsites.iter() {
+                            observed_references.push((
+                                reference.to_string().await?.to_string(),
+                                resolved.modules.len(),
+                            ));
+                        }
+                        assert_eq!(
+                            readsites.len(),
+                            3,
+                            "actual static and dynamic consumer references: \
+                             {observed_references:?}"
+                        );
+                        let mut static_count = 0;
+                        let mut dynamic_count = 0;
+                        for (reference, resolved) in readsites.iter() {
+                            assert_eq!(resolved.modules.as_slice(), [modules[0]]);
+                            static_count += usize::from(
+                                turbo_tasks::ResolvedVc::try_downcast_type::<EsmAssetReference>(
+                                    *reference,
+                                )
+                                .is_some(),
+                            );
+                            dynamic_count +=
+                                usize::from(
+                                    turbo_tasks::ResolvedVc::try_downcast_type::<
+                                        EsmAsyncAssetReference,
+                                    >(*reference)
+                                    .is_some(),
+                                );
+                        }
+                        // Static evaluation and the namespace binding have separate references.
+                        assert_eq!((static_count, dynamic_count), (2, 1));
+                    }
+                }
+                if injected {
+                    for (free_var, root_name, member, eligible) in [
+                        (false, "module", false, false),
+                        (false, "module", true, false),
+                        (false, "exports", false, false),
+                        (true, "module", false, false),
+                        (true, "exports", true, false),
+                        (false, "unrelated", true, true),
+                    ] {
+                        let mut key = vec![DefinableNameSegment::Name(root_name.into())];
+                        if member {
+                            key.push(DefinableNameSegment::Name("exports".into()));
+                        }
+                        let original = info.await?;
+                        let mut defines = original.defines.owned().await?;
+                        let mut free_vars = original.free_var_references.owned().await?;
+                        if free_var {
+                            free_vars.insert(key, CompileTimeDefineValue::Null.into());
+                        } else {
+                            defines.insert(key, CompileTimeDefineValue::Null);
+                        }
+                        let authority = CompileTimeInfo {
+                            defines: CompileTimeDefines(defines).resolved_cell(),
+                            free_var_references: FreeVarReferences(free_vars).resolved_cell(),
+                            ..(*original).clone()
+                        }
+                        .resolved_cell();
+                        let defined_context = ModuleAssetContext::new(
+                            TransitionOptions::default().cell(),
+                            *authority,
+                            *options,
+                            ResolveOptionsContext::default().cell(),
+                            Layer::new(rcstr!("test-injected-commonjs-defined-authority")),
+                        )
+                        .to_resolved()
+                        .await?;
+                        let origin = PlainResolveOrigin::new(
+                            Vc::upcast(*defined_context),
+                            project.join("entry.test.mjs")?,
+                        );
+                        let resolved = esm_resolve(
+                            Vc::upcast(origin),
+                            Request::parse_string("./plain.mjs".into()),
+                            EcmaScriptModulesReferenceSubType::Import,
+                            ResolveErrorMode::Ignore,
+                            None,
+                        )
+                        .await?;
+                        let modules = resolved.await?.primary_modules().await?;
+                        assert_eq!(modules.len(), 1);
+                        let full = crate::testing::commonjs_full_owner(modules[0])
+                            .await?
+                            .context("defined actual full owner")?;
+                        assert_eq!(
+                            matches!(*full.get_exports().await?, EcmascriptExports::CommonJs(_)),
+                            eligible,
+                            "existing compiler authority: {free_var}/{root_name}/{member}"
+                        );
+                        assert_eq!(
+                            crate::testing::commonjs_leaf_promise_namespace(modules[0], true)
+                                .await?
+                                .is_some(),
+                            eligible
+                        );
+                    }
+                }
+            }
+            Ok(())
+        }
+        let repository = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .context("crates directory")?
+            .parent()
+            .context("repository directory")?;
+        let directory = tempfile::Builder::new()
+            .prefix(".next-test-injected-cjs-")
+            .tempdir_in(repository)?;
+        for (file, source) in [
+            ("package.json", "{\"private\":true,\"type\":\"module\"}\n"),
+            ("authoring.mjs", "export {};\n"),
+            ("entry.test.mjs", "export {};\n"),
+            (
+                "consumer.mjs",
+                "import * as value from './plain.mjs';globalThis.value=value;export function \
+                 later(){return import('./plain.mjs')}\n",
+            ),
+            ("nonleaf.cjs", "module.exports=require('./plain.cjs');\n"),
+            (
+                "plain.mjs",
+                "const value=Promise.resolve(1);module.exports=value;\n",
+            ),
+            (
+                "plain.cjs",
+                "const value=Promise.resolve(1);module.exports=value;\n",
+            ),
+            (
+                "shadow.mjs",
+                "const module={};module.exports=Promise.resolve(1);\n",
+            ),
+            (
+                "named.mjs",
+                "export const named=1;module.exports=Promise.resolve(1);\n",
+            ),
+            (
+                "marker.mjs",
+                "export {};module.exports=Promise.resolve(1);\n",
+            ),
+            (
+                "dynamic.mjs",
+                "const value=import('./plain.mjs');module.exports=value;\n",
+            ),
+            (
+                "require.mjs",
+                "const value=require('./plain.cjs');module.exports=value;\n",
             ),
         ] {
             std::fs::write(directory.path().join(file), source)?;

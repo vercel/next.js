@@ -4,7 +4,8 @@ const provider = createRequire(require.resolve('jest-environment-jsdom'))
 const { JSDOM } = require(provider.resolve('jsdom'))
 const mode = process.argv[2]
 const family = process.argv[3]
-if (family !== undefined) assert(['dblClick', 'tripleClick'].includes(family))
+if (family !== undefined)
+  assert(['dblClick', 'tripleClick', 'clear'].includes(family))
 assert(
   [
     'click',
@@ -22,17 +23,29 @@ const client = require('next/dist/experimental/testing/client/async-context')
 const api = require('next/dist/experimental/testing/client/browser-context')
 const key = Symbol.for('next.testing.browser.locators')
 const dom = new JSDOM('<!DOCTYPE html><body></body>')
+const globals = [
+  'document',
+  'Element',
+  'window',
+  'Node',
+  'HTMLInputElement',
+  'HTMLTextAreaElement',
+  'HTMLFormElement',
+  'HTMLIFrameElement',
+  'ShadowRoot',
+  'XPathResult',
+]
 const saved = new Map(
-  ['document', 'Element'].map((name) => [
+  globals.map((name) => [
     name,
     Object.getOwnPropertyDescriptor(globalThis, name),
   ])
 )
-for (const [name, value] of [
-  ['document', dom.window.document],
-  ['Element', dom.window.Element],
-])
-  Object.defineProperty(globalThis, name, { configurable: true, value })
+for (const name of globals)
+  Object.defineProperty(globalThis, name, {
+    configurable: true,
+    value: name === 'window' ? dom.window : dom.window[name],
+  })
 const late = [],
   commands = [],
   gates = []

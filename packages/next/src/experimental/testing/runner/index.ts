@@ -1,13 +1,20 @@
 import { validateSynchronousClient } from '../client/validate'
 import { loadGlobalTestApi } from './invocation-platform'
 export { createModuleImportTracker } from './imports'
-export { getConsoleTask } from './async-context'
-import type { TestTagDefinition } from './tasks'
+import {
+  getPublishedTaskLocation,
+  getTaskContext,
+  type TestTagDefinition,
+  type Test,
+  type Task,
+} from './tasks'
 import type { RuntimeOptions } from '../assertions/utilities'
 import {
   createAsyncScope,
+  getConsoleTask as getOriginatingConsoleTask,
   assertScopeActive,
   getOriginatingAttempt,
+  peekOriginatingScope,
   getOriginatingCasePhase,
   runWithCasePhase,
   getOriginatingHook,
@@ -22,6 +29,8 @@ import {
   collectTestCases,
   type CollectorDispatch,
   type SuiteDeclaration,
+  type TestBody,
+  type TestContext,
 } from './collector'
 import { createAssertionRuntime } from '../assertions'
 import { assertAssertionRuntimeAccess } from '../assertions/assertion-platform'
@@ -35,6 +44,10 @@ import {
   runCollected,
   type AttemptContext,
   type RunnerOptions,
+  type CompletedModuleResult,
+  type RunnerOperationObservation,
+  type RunnerModuleResultObservation,
+  type OperationSettlement,
   type SuiteHookContext,
 } from './lifecycle'
 
@@ -47,6 +60,38 @@ export function getProvidedValue(key: string): unknown {
 let activeFile: ReturnType<typeof createCollector> | undefined
 let publicSuiteAlias: SuiteDeclaration | undefined
 let assertions: Awaited<ReturnType<typeof createAssertionRuntime>> | undefined
+
+let publicSelectionEnabled = false
+let currentTest: Test | undefined
+let consoleTask: { taskId: string; caseId?: string } | undefined
+
+/** Public task selection is separate from the origin that owns private resources. */
+export function isPublicTaskSelectionEnabled(): boolean {
+  return publicSelectionEnabled
+}
+
+export function getCurrentTest(): Test | undefined {
+  return publicSelectionEnabled ? currentTest : getOriginatingAttempt()?.task
+}
+
+export function getConsoleTask() {
+  if (!publicSelectionEnabled) return getOriginatingConsoleTask()
+  if (!consoleTask) return undefined
+  const origin = getOriginatingConsoleTask()
+  return {
+    ...consoleTask,
+    ...(origin?.caseId === consoleTask.caseId && origin?.attempt
+      ? { attempt: origin.attempt }
+      : {}),
+  }
+}
+
+function selectConsoleTask(task: Task) {
+  consoleTask = {
+    taskId: task.id,
+    ...(task.type === 'test' ? { caseId: task.id } : {}),
+  }
+}
 
 export function registerTestSuiteAlias(alias: SuiteDeclaration): void {
   publicSuiteAlias = alias
@@ -82,11 +127,14 @@ export function getActiveHook(): SuiteHookContext | undefined {
 }
 
 export interface TestFileOptions {
+  /** Enabled only by actual compiled execution hosts; private callers retain their scopes. */
+  publicTaskSelection?: true
   fileId: string
   filePath: string
   tags?: readonly TestTagDefinition[]
   strictTags?: boolean
   globals?: boolean
+  getTaskLocation?(error: Error): import('./tasks').TaskLocation | undefined
   onUnhandledRejection?(
     reason: unknown,
     promise?: Promise<unknown>,
@@ -241,6 +289,7 @@ export function initializeTestFile(options: TestFileOptions) {
 
 function initializeFile(
   {
+    publicTaskSelection,
     fileId,
     filePath,
     updateSnapshots = false,
@@ -254,6 +303,7 @@ function initializeFile(
     tags,
     strictTags,
     globals = false,
+    getTaskLocation,
     onUnhandledRejection,
     provide = {},
     resourceLifetime = 'file',
@@ -300,6 +350,7 @@ function initializeFile(
   }
   const collector = createCollector(fileId, {
     filePath,
+    getTaskLocation,
     tags,
     strictTags,
     sequence: collectionSequence,
@@ -308,14 +359,30 @@ function initializeFile(
     getSuiteAlias: () => publicSuiteAlias,
     getActiveCollector: worker ? () => worker.collector : undefined,
     isCollectingScope: () => getOriginatingCollection()?.id === fileId,
+    getTaskExpect(task) {
+      if (!fileAssertions)
+        throw new Error(
+          'Task expectations require their file assertion runtime.'
+        )
+      return fileAssertions.prepareTaskExpect(task)
+    },
   })
   if (defaultRetry !== undefined) collector.root.options.retry = defaultRetry
   activeFile = collector
+  publicSelectionEnabled = publicTaskSelection === true
   if (worker) worker.collector = collector
   providedContext = provide
   const globalDescriptors = new Map<string, PropertyDescriptor | undefined>()
   const lateErrors: unknown[] = []
   let reportedLateErrors = 0
+  let completedModuleResult: CompletedModuleResult | undefined
+  let operationObservation: RunnerOperationObservation | undefined
+  let nativeBodyObservation:
+    | {
+        source: 'node-await-body'
+        invocations: Set<{ attemptId: string; settled: boolean }>
+      }
+    | undefined
   let lateFailureSink: RunnerOptions['onLateFailure']
   const onLateFailure = (error: Error) => {
     lateErrors.push(error)
@@ -359,6 +426,7 @@ function initializeFile(
     if (reason instanceof Error) lateFailureSink?.(reason)
   }
   let fileAssertions: typeof assertions
+  let browserPublicTaskQueues = false
   let snapshotExecutionComplete = false
   let disposalSucceeded = false
   let runSignal: AbortSignal | undefined
@@ -380,12 +448,22 @@ function initializeFile(
   const canPublishSnapshots = () =>
     updateMode !== 'none' && hasCompletedBodyExecution()
   return {
+    enableBrowserPublicTaskQueues() {
+      if (state !== 'initialized')
+        throw new Error(
+          'Browser public task queues must be enabled before collection.'
+        )
+      browserPublicTaskQueues = true
+    },
     api: collector.api,
     filePath,
+    getPublishedTaskLocation,
     async collect(load: () => Promise<unknown>) {
       if (state !== 'initialized')
         throw new Error(`Cannot collect test file in ${state} state.`)
       state = 'collecting'
+      currentTest = undefined
+      consoleTask = { taskId: fileId }
       const scope = createAsyncScope(
         { kind: 'collection', context: { id: fileId, name: filePath } },
         onLateFailure,
@@ -396,6 +474,7 @@ function initializeFile(
           testPath: filePath,
           observeNativeUnhandledAssertions:
             snapshotBodyFailures && onUnhandledRejection !== undefined,
+          observePublicTaskQueues: browserPublicTaskQueues,
           observeNativeBeforeEachAssertions:
             nativeBeforeEachAssertions &&
             snapshotBodyFailures &&
@@ -422,6 +501,8 @@ function initializeFile(
           snapshotUpdateMode: updateMode,
           mapSnapshotLocation,
           getCurrentAttempt: getActiveAttempt,
+          ...(publicTaskSelection ? { getCurrentTest } : {}),
+          peekCurrentScope: peekOriginatingScope,
           getCurrentCasePhase: getOriginatingCasePhase,
           getCurrentHook: getActiveHook,
           getCurrentCollection: getOriginatingCollection,
@@ -549,12 +630,46 @@ function initializeFile(
       state = 'running'
       runSignal = options.signal
       lateFailureSink = options.onLateFailure
+      let rootDuration: number | undefined
       try {
+        const captureCompletedModuleResult =
+          options.captureCompletedModuleResult === true
+        if (captureCompletedModuleResult)
+          operationObservation = { bounded: new Set(), around: new Set() }
+        const moduleObservation: RunnerModuleResultObservation | undefined =
+          captureCompletedModuleResult ? {} : undefined
+        const executionOptions = captureCompletedModuleResult
+          ? { ...options }
+          : options
+        const onSuiteEnd = captureCompletedModuleResult
+          ? executionOptions.onSuiteEnd
+          : undefined
         const runtime = getAssertionRuntime()
         const result = await runCollected(
           collector.root,
           {
-            ...options,
+            ...executionOptions,
+            ...(publicTaskSelection
+              ? {
+                  setCurrentTest(task: Test | undefined) {
+                    currentTest = task
+                    executionOptions.setCurrentTest?.(task)
+                  },
+                  setCurrentTask(task: Task) {
+                    selectConsoleTask(task)
+                    executionOptions.setCurrentTask?.(task)
+                  },
+                }
+              : {}),
+            ...(captureCompletedModuleResult
+              ? {
+                  onSuiteEnd(suite, task) {
+                    if (suite.suiteId === collector.root.id)
+                      rootDuration = suite.durationMs
+                    return onSuiteEnd?.(suite, task)
+                  },
+                }
+              : {}),
             get allowOnly() {
               return runtimeConfig.allowOnly ?? options.allowOnly
             },
@@ -577,6 +692,23 @@ function initializeFile(
             runWithCasePhase,
             async beginAttempt(context) {
               const assertionScope = runtime.beginAttempt(context)
+              if (
+                captureCompletedModuleResult &&
+                assertionScope.observeBodySettlement
+              ) {
+                nativeBodyObservation ??= {
+                  source: 'node-await-body',
+                  invocations: new Set(),
+                }
+                assertionScope.observeBodySettlement(
+                  nativeBodyObservation.invocations
+                )
+              }
+              if (assertionScope.invokeFinishedCallback)
+                getTaskContext(context.task).bindListeners({
+                  onTestFinished: context.onTestFinished,
+                  onTestFailed: context.onTestFailed,
+                })
               let integration:
                 | Awaited<
                     ReturnType<NonNullable<RunnerOptions['beginAttempt']>>
@@ -597,8 +729,37 @@ function initializeFile(
               }
               let bodyAssertionFailure: unknown
               return {
+                ...(assertionScope.resetPublicTestState
+                  ? { beforeTry: assertionScope.resetPublicTestState }
+                  : {}),
                 ...(assertionScope.awaitBodyAssertions
                   ? { awaitBodyAssertions: assertionScope.awaitBodyAssertions }
+                  : {}),
+                ...(assertionScope.consumePublicTaskPromises
+                  ? {
+                      consumePublicTaskPromises:
+                        assertionScope.consumePublicTaskPromises,
+                    }
+                  : {}),
+                ...(assertionScope.invokeFinishedCallback
+                  ? {
+                      async invokeFinishedCallback(
+                        fn: TestBody,
+                        payload: TestContext
+                      ) {
+                        bodyAssertionFailure = undefined
+                        try {
+                          return await assertionScope.invokeFinishedCallback!(
+                            fn,
+                            payload
+                          )
+                        } catch (error) {
+                          if (assertionScope.consumeBodyFailure(error))
+                            bodyAssertionFailure = error
+                          throw error
+                        }
+                      },
+                    }
                   : {}),
                 get expect() {
                   return assertionScope.expect
@@ -705,7 +866,9 @@ function initializeFile(
             beginFileFixtures: (context) => runtime.beginFileFixtures(context),
             setActiveHook: () => {},
           },
-          workerFixtures
+          workerFixtures,
+          operationObservation,
+          moduleObservation
         )
         if (worker && (result.interrupted || options.signal.aborted))
           worker.fail(
@@ -757,13 +920,61 @@ function initializeFile(
             hasFocusedTests(collector.root),
           complete: snapshotExecutionComplete,
         })
+        if (captureCompletedModuleResult) {
+          if (rootDuration === undefined || !Number.isFinite(rootDuration))
+            throw new Error(
+              'Completed module has no actual root suite duration.'
+            )
+          completedModuleResult = Object.freeze({
+            version: 2,
+            durationMs: Math.max(rootDuration, 0),
+            containsOnly: hasFocusedTests(collector.root),
+            interrupted: result.interrupted,
+            finalState: moduleObservation!.finalState ?? null,
+          })
+        }
         return result
       } catch (error) {
         worker?.fail(error, fileId)
         throw error
       } finally {
+        currentTest = undefined
+        consoleTask = undefined
         state = 'finished'
       }
+    },
+    getCompletedModuleResult(): CompletedModuleResult | undefined {
+      return completedModuleResult
+    },
+    getNativeBodySettlement() {
+      if (!nativeBodyObservation) return undefined
+      return Object.freeze({
+        version: 1 as const,
+        source: nativeBodyObservation.source,
+        invocations: Object.freeze(
+          [...nativeBodyObservation.invocations].map((operation) =>
+            Object.freeze({
+              attemptId: operation.attemptId,
+              settled: operation.settled,
+            })
+          )
+        ),
+      })
+    },
+    getOperationSettlement(): OperationSettlement | undefined {
+      if (!operationObservation) return undefined
+      const read = (operations: RunnerOperationObservation['bounded']) =>
+        Object.freeze({
+          observed: operations.size,
+          pending: [...operations].filter((operation) => !operation.settled)
+            .length,
+        })
+      return Object.freeze({
+        version: 1,
+        bounded: read(operationObservation.bounded),
+        around: read(operationObservation.around),
+        pendingHooks: operationObservation.pendingHooks?.size ?? 0,
+      })
     },
     async dispose() {
       if (state === 'running' || state === 'collecting')
@@ -771,6 +982,8 @@ function initializeFile(
       if (state === 'disposed') return
       collector.close()
       state = 'disposed'
+      currentTest = undefined
+      consoleTask = undefined
       const errors: unknown[] = []
       let result
       try {
@@ -787,6 +1000,7 @@ function initializeFile(
       } finally {
         assertions = undefined
         activeFile = undefined
+        publicSelectionEnabled = false
         if (worker?.collector === collector) worker.collector = undefined
         providedContext = {}
         for (const [name, descriptor] of globalDescriptors) {

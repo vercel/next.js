@@ -1,0 +1,13 @@
+import { expect, test } from 'vitest'
+import { View as View0 } from './wrapped-classic-expression.tsx'
+import { View as View1 } from './wrapped-classic-declaration.tsx'
+import { View as View2 } from './wrapped-classic-classexpression.tsx'
+import { View as View3 } from './wrapped-automatic-expression.tsx'
+import { View as View4 } from './wrapped-automatic-declaration.tsx'
+import { View as View5 } from './wrapped-automatic-classexpression.tsx'
+test('classic expression preserves real callable/class method execution',()=>{for(const label of ['hello','world']){const output=View0({label});expect(output.type).toBe('b');expect(output.props.children).toBe(label)}})
+test('classic declaration preserves real callable/class method execution',()=>{for(const label of ['hello','world']){const output=new View1({label}).render();expect(output.type).toBe('b');expect(output.props.children).toBe(label)}})
+test('classic classexpression preserves real callable/class method execution',()=>{for(const label of ['hello','world']){const output=new View2({label}).render();expect(output.type).toBe('b');expect(output.props.children).toBe(label)}})
+test('automatic expression preserves real callable/class method execution',()=>{for(const label of ['hello','world']){const output=View3({label});expect(output.type).toBe('b');expect(output.props.children).toBe(label)}})
+test('automatic declaration preserves real callable/class method execution',()=>{for(const label of ['hello','world']){const output=new View4({label}).render();expect(output.type).toBe('b');expect(output.props.children).toBe(label)}})
+test('automatic classexpression preserves real callable/class method execution',()=>{for(const label of ['hello','world']){const output=new View5({label}).render();expect(output.type).toBe('b');expect(output.props.children).toBe(label)}})

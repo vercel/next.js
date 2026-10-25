@@ -2609,7 +2609,11 @@ describe('Next-owned Vitest lifecycle', () => {
       throw new Error('must not run')
     })
     const result = await run(c)
-    expect(result.cases.map((t) => t.status)).toEqual(['failed', 'cancelled'])
+    expect(result.cases.map((t) => t.status)).toEqual([
+      'failed',
+      'failed',
+      'cancelled',
+    ])
     expect(() => register!(() => {})).toThrow('finished')
   })
 
@@ -3074,7 +3078,7 @@ it('runs C/D facade integration in a fresh process', async () => {
   ]).catch((error) => {
     throw new Error([error.message, error.stdout, error.stderr].join('\n'))
   })
-  expect(stdout).toContain('# tests 66')
+  expect(stdout).toContain('# tests 73')
   expect(stdout).toContain('# fail 0')
 }, 30000)
 
@@ -8310,6 +8314,66 @@ it('matches complete compiled raw fn declaration rows in both Node modes', async
     { mode: 'development', group: 'suite-queue', cases: 10, rows: 1 },
     { mode: 'development', group: 'task-scope', cases: 8, rows: 1 },
     { mode: 'development', group: 'task-publish', cases: 3, rows: 1 },
+    { mode: 'development', group: 'task-context', cases: 2, rows: 1 },
+    { mode: 'development', group: 'task-context-positive', cases: 2, rows: 1 },
+    { mode: 'development', group: 'task-context-signals', cases: 4, rows: 1 },
+    { mode: 'development', group: 'task-context-handled', cases: 2, rows: 1 },
+    {
+      mode: 'development',
+      group: 'task-context-late-active',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-late-closed',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-late-foreign',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-late-hard-chain',
+      cases: 1,
+      rows: 1,
+    },
+    { mode: 'development', group: 'task-context-late', cases: 2, rows: 1 },
+    {
+      mode: 'development',
+      group: 'task-context-precreated-chain',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-precreated-receivers',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-precreated-foreign',
+      cases: 2,
+      rows: 1,
+    },
+    { mode: 'development', group: 'task-context-late-deep', cases: 1, rows: 1 },
+    {
+      mode: 'development',
+      group: 'task-context-late-equality-testers',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-deep-foreign-receivers',
+      cases: 2,
+      rows: 1,
+    },
     { mode: 'production', group: 'contract', cases: 14, rows: 2 },
     { mode: 'production', group: 'focus', cases: 3, rows: 1 },
     { mode: 'production', group: 'retention', cases: 9, rows: 2 },
@@ -8317,8 +8381,441 @@ it('matches complete compiled raw fn declaration rows in both Node modes', async
     { mode: 'production', group: 'suite-queue', cases: 10, rows: 1 },
     { mode: 'production', group: 'task-scope', cases: 8, rows: 1 },
     { mode: 'production', group: 'task-publish', cases: 3, rows: 1 },
+    { mode: 'production', group: 'task-context', cases: 2, rows: 1 },
+    { mode: 'production', group: 'task-context-positive', cases: 2, rows: 1 },
+    { mode: 'production', group: 'task-context-signals', cases: 4, rows: 1 },
+    { mode: 'production', group: 'task-context-handled', cases: 2, rows: 1 },
+    {
+      mode: 'production',
+      group: 'task-context-late-active',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-late-closed',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-late-foreign',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-late-hard-chain',
+      cases: 1,
+      rows: 1,
+    },
+    { mode: 'production', group: 'task-context-late', cases: 2, rows: 1 },
+    {
+      mode: 'production',
+      group: 'task-context-precreated-chain',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-precreated-receivers',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-precreated-foreign',
+      cases: 2,
+      rows: 1,
+    },
+    { mode: 'production', group: 'task-context-late-deep', cases: 1, rows: 1 },
+    {
+      mode: 'production',
+      group: 'task-context-late-equality-testers',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-deep-foreign-receivers',
+      cases: 2,
+      rows: 1,
+    },
   ])
 }, 130000)
+
+it('matches custom matcher Task ownership and native assertion identity in both Node modes', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'declaration-fn-integration.cjs'), 'custom-owner'],
+    { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(
+    actual.profiles.map(({ mode, group, cases, rows }) => ({
+      mode,
+      group,
+      cases,
+      rows,
+    }))
+  ).toEqual([
+    {
+      mode: 'development',
+      group: 'task-context-late-builtin-overrides',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-custom-task-state',
+      cases: 3,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-custom-unawaited',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-custom-prepared',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-readonly-own-native-get',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-readonly-own-method',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-custom-assertion-view',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-late-builtin-overrides',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-custom-task-state',
+      cases: 3,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-custom-unawaited',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-custom-prepared',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-readonly-own-native-get',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-readonly-own-method',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-custom-assertion-view',
+      cases: 2,
+      rows: 1,
+    },
+  ])
+}, 70000)
+it('matches native own assertion functions and getter alias ownership in both Node modes', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'declaration-fn-integration.cjs'), 'own-property'],
+    { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(
+    actual.profiles.map(({ mode, group, cases, rows }) => ({
+      mode,
+      group,
+      cases,
+      rows,
+    }))
+  ).toEqual([
+    {
+      mode: 'development',
+      group: 'task-context-owned-properties',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-owned-getter-view',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-owned-function-receivers',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-owned-getter-capture',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-owned-getter-returned-chain',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-owned-properties',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-owned-getter-view',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-owned-function-receivers',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-owned-getter-capture',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-owned-getter-returned-chain',
+      cases: 1,
+      rows: 1,
+    },
+  ])
+}, 70000)
+
+it('matches native returned assertions and receiver Task lineage in both Node modes', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'declaration-fn-integration.cjs'), 'native-return'],
+    { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(
+    actual.profiles.map(({ mode, group, cases, rows }) => ({
+      mode,
+      group,
+      cases,
+      rows,
+    }))
+  ).toEqual([
+    {
+      mode: 'development',
+      group: 'task-context-owned-getter-builtin-chain',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-owned-getter-native-calls',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-owned-getter-native-properties',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-owned-getter-builtin-chain',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-owned-getter-native-calls',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-owned-getter-native-properties',
+      cases: 1,
+      rows: 1,
+    },
+  ])
+}, 70000)
+
+it('matches actual transferred Task flags, partial setters and matcher invocation reads in both Node modes', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'declaration-fn-integration.cjs'), 'transfer-hard'],
+    { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(
+    actual.profiles.map(({ mode, group, cases, rows }) => ({
+      mode,
+      group,
+      cases,
+      rows,
+    }))
+  ).toEqual([
+    {
+      mode: 'development',
+      group: 'task-context-transfer-effects',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-transfer-plain',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-transfer-setters',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-transfer-invocations',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-transfer-effects',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-transfer-plain',
+      cases: 1,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-transfer-setters',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-transfer-invocations',
+      cases: 1,
+      rows: 1,
+    },
+  ])
+}, 70000)
+
+it('publishes child Task IDs on the same objects after collection and keeps cleared tasks unpublished in both Node modes', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'declaration-fn-integration.cjs'), 'id-publication'],
+    { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(
+    actual.profiles.map(({ mode, group, cases, rows }) => ({
+      mode,
+      group,
+      cases,
+      rows,
+    }))
+  ).toEqual([
+    {
+      mode: 'development',
+      group: 'task-context-id-publication',
+      cases: 2,
+      rows: 1,
+    },
+    { mode: 'development', group: 'task-context-id-suite', cases: 2, rows: 1 },
+    {
+      mode: 'production',
+      group: 'task-context-id-publication',
+      cases: 2,
+      rows: 1,
+    },
+    { mode: 'production', group: 'task-context-id-suite', cases: 2, rows: 1 },
+  ])
+}, 70000)
+
+it('retains actual Task assertion flags through foreign and afterAll transfers and native async bookkeeping in both Node modes', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'declaration-fn-integration.cjs'), 'actual-task-flags'],
+    { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(
+    actual.profiles.map(({ mode, group, cases, rows }) => ({
+      mode,
+      group,
+      cases,
+      rows,
+    }))
+  ).toEqual([
+    {
+      mode: 'development',
+      group: 'task-context-late-source-flags',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-actual-task-async',
+      cases: 3,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-late-source-flags',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-actual-task-async',
+      cases: 3,
+      rows: 1,
+    },
+  ])
+}, 70000)
 
 it('retains the pinned public fn receiver and fixture type contract', async () => {
   const { stdout } = await promisify(execFile)(
@@ -8463,3 +8960,962 @@ it('retains the pinned public suite collector receiver, method and context types
     2345, 2345, 2322, 2339, 2345, 2339, 2339, 2345,
   ])
 }, 35000)
+
+describe('retained body deadlines within one actual test', () => {
+  it.each(['retry', 'afterAll'] as const)(
+    'retains a handled predecessor rejection joined by %s without inventing an unhandled error',
+    async (releasePhase) => {
+      const c = createCollector(`handled-body-${releasePhase}`)
+      const trace: string[] = []
+      const rejection = new Error('observed original body rejection')
+      let release!: () => void
+      let joined!: () => void
+      const gate = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      const join = new Promise<void>((resolve) => {
+        joined = resolve
+      })
+      let turns = 0
+      c.api.test('own', { timeout: 15, retry: 1 }, async (context) => {
+        const turn = turns++
+        trace.push(`body ${turn}`)
+        context.onTestFinished(() => {
+          trace.push(`finished ${turn}`)
+        })
+        if (turn === 0) {
+          try {
+            await gate
+            trace.push('old body rejected')
+            throw rejection
+          } finally {
+            joined()
+          }
+        }
+        if (releasePhase === 'retry') {
+          release()
+          await join
+        }
+      })
+      c.api.afterAll(async () => {
+        trace.push('afterAll')
+        if (releasePhase === 'afterAll') {
+          release()
+          await join
+          trace.push('afterAll joined')
+        }
+      })
+      const result = await run(c)
+      expect(result.cases.map(({ status }) => status)).toEqual([
+        'failed',
+        'passed',
+      ])
+      expect(result.cases[0].errors[0].error).toHaveProperty(
+        'message',
+        expect.stringMatching(/^Test timed out in 15ms\./)
+      )
+      expect(result.errors).toEqual([])
+      expect(result.interrupted).toBe(false)
+      expect(trace).toEqual(
+        releasePhase === 'retry'
+          ? [
+              'body 0',
+              'finished 0',
+              'body 1',
+              'old body rejected',
+              'finished 1',
+              'afterAll',
+            ]
+          : [
+              'body 0',
+              'finished 0',
+              'body 1',
+              'finished 1',
+              'afterAll',
+              'old body rejected',
+              'afterAll joined',
+            ]
+      )
+    }
+  )
+
+  it('joins its pending predecessor only after original teardown and onCaseEnd close', async () => {
+    const c = createCollector('pending-body-retry')
+    const trace: string[] = []
+    const contexts: unknown[] = []
+    const signals: AbortSignal[] = []
+    let releaseBody!: () => void
+    let bodyJoined!: () => void
+    let firstEnded!: () => void
+    let releaseEnd!: () => void
+    const bodyGate = new Promise<void>((resolve) => {
+      releaseBody = resolve
+    })
+    const bodyJoin = new Promise<void>((resolve) => {
+      bodyJoined = resolve
+    })
+    const ended = new Promise<void>((resolve) => {
+      firstEnded = resolve
+    })
+    const endGate = new Promise<void>((resolve) => {
+      releaseEnd = resolve
+    })
+    let turns = 0
+    c.api.test('own', { timeout: 15, retry: 1 }, async (context) => {
+      const turn = turns++
+      trace.push(`body ${turn}`)
+      contexts.push(context)
+      signals.push(context.signal)
+      context.onTestFinished(() => {
+        trace.push(`finished ${turn}`)
+      })
+      if (turn === 0) {
+        await bodyGate
+        trace.push('settled 0')
+        bodyJoined()
+      } else {
+        releaseBody()
+        await bodyJoin
+      }
+    })
+    c.api.test('following', () => {
+      trace.push('following')
+    })
+    let first = true
+    const running = runCollected(
+      c.close(),
+      {
+        ...options(),
+        async onCaseEnd(result) {
+          if (!first || result.name !== 'own') return
+          first = false
+          trace.push('onCaseEnd 0')
+          firstEnded()
+          await endGate
+          trace.push('closed onCaseEnd 0')
+        },
+      },
+      () => {}
+    )
+    try {
+      await ended
+      expect(trace).toEqual(['body 0', 'finished 0', 'onCaseEnd 0'])
+      expect(turns).toBe(1)
+    } finally {
+      releaseEnd()
+    }
+    const result = await running
+    expect(result.cases.map(({ status }) => status)).toEqual([
+      'failed',
+      'passed',
+      'passed',
+    ])
+    expect(result.errors).toEqual([])
+    expect(result.interrupted).toBe(false)
+    expect(trace).toEqual([
+      'body 0',
+      'finished 0',
+      'onCaseEnd 0',
+      'closed onCaseEnd 0',
+      'body 1',
+      'settled 0',
+      'finished 1',
+      'following',
+    ])
+    expect(new Set(contexts).size).toBe(1)
+    expect(new Set(signals).size).toBe(1)
+    expect((signals[0].reason as Error).message).toBe(
+      'Test timed out in 15ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".'
+    )
+  })
+
+  it.each([false, true])(
+    'joins at actual afterAll close while preserving a cancelled following case: %s',
+    async (following) => {
+      const c = createCollector('pending-body-file-close')
+      const trace: string[] = []
+      let release!: () => void
+      let joined!: () => void
+      const gate = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      const join = new Promise<void>((resolve) => {
+        joined = resolve
+      })
+      let turns = 0
+      c.api.test('own', { timeout: 15, retry: 1 }, async () => {
+        const turn = turns++
+        trace.push(`body ${turn}`)
+        if (turn === 0) {
+          await gate
+          trace.push('settled 0')
+          joined()
+        }
+      })
+      if (following)
+        c.api.test('following', () => {
+          throw new Error('the old body is still pending')
+        })
+      c.api.afterAll(async () => {
+        trace.push('afterAll')
+        release()
+        await join
+        trace.push('afterAll joined')
+      })
+      const result = await run(c)
+      expect(result.cases.map(({ status }) => status)).toEqual(
+        following ? ['failed', 'passed', 'cancelled'] : ['failed', 'passed']
+      )
+      expect(result.errors).toEqual([])
+      expect(result.interrupted).toBe(following)
+      expect(trace).toEqual([
+        'body 0',
+        'body 1',
+        'afterAll',
+        'settled 0',
+        'afterAll joined',
+      ])
+    }
+  )
+
+  it.each(['cleanup', 'cancellation'] as const)(
+    'retains the %s veto over a pending same-test retry',
+    async (kind) => {
+      const c = createCollector(`pending-body-${kind}`)
+      let releaseBody!: () => void
+      let bodyJoined!: () => void
+      let releaseCleanup!: () => void
+      let cleanupJoined!: () => void
+      const bodyGate = new Promise<void>((resolve) => {
+        releaseBody = resolve
+      })
+      const bodyJoin = new Promise<void>((resolve) => {
+        bodyJoined = resolve
+      })
+      const cleanupGate = new Promise<void>((resolve) => {
+        releaseCleanup = resolve
+      })
+      const cleanupJoin = new Promise<void>((resolve) => {
+        cleanupJoined = resolve
+      })
+      const controller = new AbortController()
+      let turns = 0
+      c.api.test(
+        'own',
+        { timeout: 15, retry: 1 },
+        async ({ onTestFinished }) => {
+          turns++
+          onTestFinished(async () => {
+            if (kind === 'cancellation') {
+              controller.abort(new Error('explicit run cancellation'))
+              cleanupJoined()
+              return
+            }
+            try {
+              await cleanupGate
+            } finally {
+              cleanupJoined()
+            }
+          }, 5)
+          try {
+            await bodyGate
+          } finally {
+            bodyJoined()
+          }
+        }
+      )
+      c.api.test('following', () => {
+        throw new Error('the veto must stop following work')
+      })
+      try {
+        const result = await runCollected(
+          c.close(),
+          { ...options(), signal: controller.signal },
+          () => {}
+        )
+        expect(turns).toBe(1)
+        expect(result.cases.map(({ status }) => status)).toEqual([
+          'failed',
+          'cancelled',
+        ])
+        expect(result.interrupted).toBe(true)
+      } finally {
+        releaseBody()
+        releaseCleanup()
+        await Promise.all([bodyJoin, cleanupJoin])
+      }
+    }
+  )
+})
+
+it('retains genuine hard builtins through foreign, bound and borrowed Task receivers in both Node modes', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'declaration-fn-integration.cjs'), 'hard-builtins'],
+    { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(
+    actual.profiles.map(({ mode, group, cases, rows }) => ({
+      mode,
+      group,
+      cases,
+      rows,
+    }))
+  ).toEqual([
+    {
+      mode: 'development',
+      group: 'task-context-late-hard-builtins',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-hard-builtin-receivers',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-late-hard-builtins',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-hard-builtin-receivers',
+      cases: 2,
+      rows: 1,
+    },
+  ])
+}, 70000)
+
+it('retains genuine synchronous throw matcher callbacks, counters and borrowed receivers in both Node modes', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'declaration-fn-integration.cjs'), 'throw-builtins'],
+    { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(
+    actual.profiles.map(({ mode, group, cases, rows }) => ({
+      mode,
+      group,
+      cases,
+      rows,
+    }))
+  ).toEqual([
+    {
+      mode: 'development',
+      group: 'task-context-late-throw-builtins',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-throw-builtin-receivers',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-throw-callbacks',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-late-throw-builtins',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-throw-builtin-receivers',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-throw-callbacks',
+      cases: 2,
+      rows: 1,
+    },
+  ])
+}, 70000)
+
+it('retains genuine fluent Chai hard callbacks, counters and borrowed receivers in both Node modes', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'declaration-fn-integration.cjs'), 'chai-fluent'],
+    { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(
+    actual.profiles.map(({ mode, group, cases, rows }) => ({
+      mode,
+      group,
+      cases,
+      rows,
+    }))
+  ).toEqual([
+    {
+      mode: 'development',
+      group: 'task-context-chai-hard-fluent',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-chai-fluent-receivers',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-chai-fluent-callbacks',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-chai-hard-fluent',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-chai-fluent-receivers',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-chai-fluent-callbacks',
+      cases: 2,
+      rows: 1,
+    },
+  ])
+}, 70000)
+
+it('retains genuine native Chai chainable functions, raw aliases and Task receivers in both Node modes', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [
+      join(__dirname, 'declaration-fn-integration.cjs'),
+      'chai-chainable-functions',
+    ],
+    { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(
+    actual.profiles.map(({ mode, group, cases, rows }) => ({
+      mode,
+      group,
+      cases,
+      rows,
+    }))
+  ).toEqual([
+    {
+      mode: 'development',
+      group: 'task-context-chai-chainable-functions',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-chai-chainable-function-receivers',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'development',
+      group: 'task-context-chai-chainable-raw-alias',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-chai-chainable-functions',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-chai-chainable-function-receivers',
+      cases: 2,
+      rows: 1,
+    },
+    {
+      mode: 'production',
+      group: 'task-context-chai-chainable-raw-alias',
+      cases: 2,
+      rows: 1,
+    },
+  ])
+}, 70000)
+
+it('retains genuine nested native Chai callable receivers and raw aliases in both Node modes', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [
+      join(__dirname, 'declaration-fn-integration.cjs'),
+      'chai-nested-functions',
+    ],
+    { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(
+    actual.profiles.map(({ mode, group, cases, rows }) => ({
+      mode,
+      group,
+      cases,
+      rows,
+    }))
+  ).toEqual(
+    ['development', 'production'].flatMap((mode) => [
+      { mode, group: 'task-context-chai-nested-chainables', cases: 2, rows: 1 },
+      {
+        mode,
+        group: 'task-context-chai-nested-function-receivers',
+        cases: 2,
+        rows: 1,
+      },
+      { mode, group: 'task-context-chai-nested-raw-alias', cases: 2, rows: 1 },
+    ])
+  )
+}, 70000)
+
+it('captures only actual fulfilled module results for internal scheduling', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [
+      join(__dirname, 'completed-module-result.cjs'),
+      require.resolve('next/dist/experimental/testing/runner'),
+      require.resolve('next/dist/experimental/testing/vitest'),
+    ],
+    { timeout: 20000 }
+  ).catch((error) => {
+    throw new Error([error.message, error.stdout, error.stderr].join('\n'))
+  })
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    checked: [
+      'capture-off',
+      'root-duration',
+      'fulfilled-failure',
+      'actual-focus',
+      'name-filter',
+      'fulfilled-interruption',
+      'observer-rejected',
+      'observer-getter-rejected',
+      'pending-body',
+      'collection-rejected',
+    ],
+  })
+}, 30000)
+
+it('observes existing bounded and around operations through actual settlement and disposal', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [
+      join(__dirname, 'operation-settlement.cjs'),
+      require.resolve('next/dist/experimental/testing/runner'),
+      require.resolve('next/dist/experimental/testing/vitest'),
+    ],
+    { timeout: 20000 }
+  ).catch((error) => {
+    throw new Error([error.message, error.stdout, error.stderr].join('\n'))
+  })
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    checked: [
+      'capture-off',
+      'settled-success',
+      'settled-failure',
+      'pending-body',
+      'hook-settled-by-afterAll',
+      'actual-pending-hooks',
+      'worker-disposal-settles-body',
+      'around-teardown',
+      'around-setup',
+    ],
+  })
+}, 30000)
+
+it('observes actual Node body settlement through its existing await without extra reactions', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [
+      join(__dirname, 'native-body-settlement.cjs'),
+      require.resolve('next/dist/experimental/testing/runner'),
+      require.resolve('next/dist/experimental/testing/vitest'),
+    ],
+    { timeout: 20000 }
+  ).catch((error) => {
+    throw new Error([error.message, error.stdout, error.stderr].join('\n'))
+  })
+  expect(stderr).toBe('')
+  const result = JSON.parse(stdout)
+  expect(result.checked).toEqual([
+    'absent-producer',
+    'absent-capture-off',
+    'jobs-getters-off',
+    'jobs-getters-on',
+    'body-rejected',
+    'retry-identities',
+    'cancel-still-pending',
+    'cancel-worker-cleanup-settled',
+  ])
+  expect(result.traces[1]).toEqual(result.traces[0])
+}, 30000)
+
+it('captures the actual published root state without additional Task reads', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [
+      join(__dirname, 'completed-module-state.cjs'),
+      require.resolve('next/dist/experimental/testing/runner'),
+      require.resolve('next/dist/experimental/testing/vitest'),
+    ],
+    { timeout: 20000 }
+  ).catch((error) => {
+    throw new Error([error.message, error.stdout, error.stderr].join('\n'))
+  })
+  expect(stderr).toBe('')
+  const result = JSON.parse(stdout)
+  expect(result.checked).toEqual([
+    'pass',
+    'body-failure',
+    'afterAll-failure',
+    'beforeAll-failure',
+    'skipped',
+    'missing-root-result',
+    'replaced-root-result',
+    'root-getter-false',
+    'root-getter-true',
+  ])
+  expect(result.rootGetterReads[0]).toBeGreaterThan(0)
+  expect(result.rootGetterReads[1]).toBe(result.rootGetterReads[0])
+}, 30000)
+
+it('closes public selectors at abrupt logical exits after existing owned cleanup', async () => {
+  const c = createCollector('public-abrupt')
+  const failure = new Error('actual case callback failure')
+  const transitions: (string | undefined)[] = []
+  let current: Task | undefined
+  let cleanups = 0
+  c.api.afterEach(() => {
+    cleanups++
+  })
+  c.api.test('ordinary', () => {})
+  const pending = runCollected(
+    c.close(),
+    {
+      ...options(),
+      setCurrentTest(task) {
+        transitions.push(task?.name)
+      },
+      setCurrentTask(task) {
+        current = task
+      },
+      onCaseEnd() {
+        throw failure
+      },
+    },
+    () => {}
+  )
+  await expect(pending).rejects.toBe(failure)
+  expect(cleanups).toBe(1)
+  expect(transitions).toEqual(['ordinary', undefined])
+  expect(current?.id).toBe(c.root.id)
+})
+
+it('keeps statically skipped concurrent tasks from clearing a real public selection', async () => {
+  const c = createCollector('public-unstarted')
+  let release!: () => void
+  const gate = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  let current: Task | undefined
+  const skipped: (string | undefined)[] = []
+  c.api.test.concurrent('first', async () => {
+    await gate
+  })
+  c.api.test.concurrent.skip('unstarted', () => {
+    throw new Error('must skip')
+  })
+  c.api.test.concurrent('second', () => {
+    release()
+  })
+  const result = await runCollected(
+    c.close(),
+    {
+      ...options(),
+      setCurrentTest(task) {
+        current = task
+      },
+      onCaseResult(task) {
+        if (task.name === 'unstarted') skipped.push(current?.name)
+        else expect(current).toBeUndefined()
+      },
+    },
+    () => {}
+  )
+  expect(skipped).toEqual(['second'])
+  expect(result.errors).toEqual([])
+})
+
+it('separates public logical task transitions from real async ownership', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'public-current-tasks.cjs')],
+    { timeout: 30000, maxBuffer: 1024 * 1024 }
+  )
+  expect(stderr).toBe('')
+  const result = JSON.parse(stdout)
+  expect(result.consoleMetadata).toEqual([
+    'same-origin',
+    'without-then-with',
+    'matching-foreign-matching',
+    'different-attempts',
+  ])
+  expect(
+    result.results.map(({ variant }: { variant: string }) => variant)
+  ).toEqual([
+    'first-closes',
+    'second-closes',
+    'retry',
+    'repeat',
+    'selected-retry',
+    'first-skip',
+    'second-skip',
+  ])
+  expect(
+    result.results.every(
+      (value: {
+        privateOwnerHeld: boolean
+        mismatchedAttemptOmitted: boolean
+      }) => value.privateOwnerHeld && value.mismatchedAttemptOmitted
+    )
+  ).toBe(true)
+}, 35000)
+
+it('preserves actual setup failure and Scope disposal before completion arrays can drain', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [
+      join(__dirname, 'finished-setup-failure.cjs'),
+      require.resolve('next/dist/experimental/testing/runner'),
+    ],
+    { timeout: 15000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    actualScopes: 3,
+    actualScopeDisposals: [1, 1, 1],
+    setupErrorIdentityPreserved: true,
+    completionCallbacksNotInvoked: true,
+    nextAttemptPassed: true,
+    secondaryFailureAbsent: true,
+  })
+}, 20000)
+
+it('keeps private async assertion ownership separate from the public selected Task', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'async-assertion-origins.cjs')],
+    { timeout: 30000, maxBuffer: 1024 * 1024 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual([
+    'captured-once-before-settlement',
+    'capture-undefined-remains-unhandled',
+    'no-origin-remains-unhandled',
+    'retired-origin-remains-unhandled',
+    'colliding-id-remains-unhandled',
+    'awaited-global',
+    'deleted-global',
+    'deleted-local',
+  ])
+}, 35000)
+
+it('admits actual Browser public task queues without Node body settlement authority', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [
+      join(__dirname, 'browser-public-capability.cjs'),
+      require.resolve('next/dist/experimental/testing/runner'),
+    ],
+    { timeout: 15000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    facts: [false, true].map((capture) => ({
+      capture,
+      stages: ['body', 'context', 'manual'],
+      privateCapability: {
+        awaitPublic: false,
+        consumePublic: true,
+        finished: true,
+        nativeBody: false,
+      },
+      nodeBodySettlementAbsent: true,
+    })),
+  })
+}, 20000)
+
+it('preserves public assertion state through suite hooks and resets each actual try', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'public-assertion-state.cjs')],
+    { timeout: 30000, maxBuffer: 1024 * 1024 }
+  ).catch((error) => {
+    throw new Error([error.message, error.stdout, error.stderr].join('\n'))
+  })
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual([
+    'legacy-hooks',
+    'public-hooks',
+    'public-around',
+  ])
+}, 35000)
+
+it('runs the private try preparation after aroundEach and before setup on retries', async () => {
+  const c = createCollector('private-try-order')
+  const rows: string[] = []
+  let attempts = 0
+  c.api.aroundEach(async (runTest) => {
+    rows.push('around-before')
+    await runTest()
+    rows.push('around-after')
+  })
+  c.api.beforeEach(() => {
+    rows.push('beforeEach')
+  })
+  c.api.test('retries', { retry: 1 }, () => {
+    rows.push('body')
+    if (++attempts === 1) throw new Error('retry this case')
+  })
+  const result = await runCollected(
+    c.close(),
+    {
+      ...options(),
+      beginAttempt() {
+        rows.push('scope')
+        return {
+          beforeTry() {
+            rows.push('prepare')
+          },
+          async finalize() {},
+          async dispose() {},
+        }
+      },
+    },
+    () => {}
+  )
+  expect(result.errors).toEqual([])
+  expect(rows).toEqual(
+    Array.from({ length: 2 }, () => [
+      'scope',
+      'around-before',
+      'prepare',
+      'beforeEach',
+      'body',
+      'around-after',
+    ]).flat()
+  )
+})
+
+it('keeps private try preparation failures inside actual cleanup and reporting', async () => {
+  const c = createCollector('private-try-failure')
+  const failure = new Error('actual private try preparation failure')
+  const rows: unknown[] = []
+  c.api.beforeEach(() => {
+    rows.push('must not set up')
+  })
+  c.api.afterEach(() => {
+    rows.push('afterEach')
+  })
+  c.api.test('not invoked', () => {
+    rows.push('must not invoke body')
+  })
+  const result = await runCollected(
+    c.close(),
+    {
+      ...options(),
+      beginAttempt() {
+        return {
+          beforeTry() {
+            throw failure
+          },
+          async finishTest(failed) {
+            rows.push(['finished', failed])
+          },
+          async finalize() {
+            rows.push('finalized')
+          },
+          async dispose() {
+            rows.push('disposed')
+          },
+        }
+      },
+    },
+    () => {}
+  )
+  expect(result.errors).toEqual([])
+  expect(result.cases).toHaveLength(1)
+  expect(result.cases[0].status).toBe('failed')
+  expect(result.cases[0].errors).toEqual([{ phase: 'runtime', error: failure }])
+  expect(rows).toEqual([
+    ['finished', true],
+    'afterEach',
+    'finalized',
+    'disposed',
+  ])
+})
+
+it('forwards zero-timeout Browser bodies with captured native facilities and the same actual scope', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [
+      join(__dirname, 'zero-native-forwarding.cjs'),
+      require.resolve('next/dist/experimental/testing/runner'),
+      require.resolve('next/dist/experimental/testing/runner/async-context'),
+    ],
+    { timeout: 15000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    events: ['body', 'getter-1', 'getter-2', 'finished'],
+    ctorCalls: 0,
+    thenCalls: 0,
+    hookCalls: 1,
+    mutationsInstalled: true,
+    sameOrigin: true,
+    nativeBodyAbsent: true,
+  })
+}, 20000)
+
+it('preserves zero-body raw Error identity, immediate invocation and fulfillment-only queue reads', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [
+      join(__dirname, 'zero-native-identity-order.cjs'),
+      require.resolve('next/dist/experimental/testing/runner/collector'),
+      require.resolve('next/dist/experimental/testing/runner/lifecycle'),
+      require.resolve('next/dist/experimental/testing/assertions'),
+      require.resolve('next/dist/experimental/testing/runner/async-context'),
+    ],
+    { timeout: 15000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    events: ['timeout-read', 'body', 'queued-after-timeout-read'],
+    exactRawError: true,
+    rejectedReads: 0,
+    fulfilledReads: 2,
+    consumerOnlyAfterFulfilled: true,
+    immediateInvocation: true,
+  })
+}, 20000)

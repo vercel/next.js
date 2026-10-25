@@ -80,6 +80,11 @@ export async function watchTestFiles(
   let nativePathsDuringScan: Set<string> | undefined
   const nativeChanges = new Set<string>()
   const broadNativeScopes = new Set<string>()
+  const absentNativePaths = new Map<string, number>()
+  const nativeDirectoryObservations = new Map<
+    string,
+    { revision: number; signature: string } | null
+  >()
   let broadNativeRevision = 0
   let notificationWork: Promise<void> | undefined
 
@@ -127,6 +132,8 @@ export async function watchTestFiles(
     scanController.abort(new Error('Test watch source closed.'))
     changed.clear()
     broadNativeScopes.clear()
+    absentNativePaths.clear()
+    nativeDirectoryObservations.clear()
     nativeChanges.clear()
     for (const subscription of subscriptions.values()) stop(subscription)
     subscriptions.clear()
@@ -165,6 +172,13 @@ export async function watchTestFiles(
   }
 
   function queueChange(file: string, broadNativeScope = false, native = false) {
+    // Reconciliation is an actual changed input, even if a native observation
+    // found that path absent before this batch completed.
+    if (!native) {
+      absentNativePaths.delete(file)
+      if (nativeDirectoryObservations.has(file))
+        nativeDirectoryObservations.set(file, null)
+    }
     changed.add(file)
     if (native) nativeChanges.add(file)
     if (broadNativeScope) {
@@ -185,9 +199,34 @@ export async function watchTestFiles(
           const scopes = [...broadNativeScopes]
           await scanWork
           if (closed) return
-          await reconcile(scopes)
+          await reconcile()
           if (closed) return
           if (revision !== broadNativeRevision) continue
+          const uncertainScopes = [...nativeDirectoryObservations]
+            .filter(([, observation]) => observation === null)
+            .map(([scope]) => scope)
+          // Reconcile actual descendants before collapsing broad output. A
+          // precise directory event can repeat an already acquired baseline.
+          for (const scope of [...scopes].sort(
+            (left, right) => right.length - left.length
+          )) {
+            const observation = nativeDirectoryObservations.get(scope)
+            if (
+              observation &&
+              observation.revision === scanRevision &&
+              inputSnapshot?.get(scope) === observation.signature &&
+              !uncertainScopes.some((uncertain) =>
+                contains(uncertain, scope)
+              ) &&
+              ![...changed].some(
+                (observed) => observed !== scope && contains(scope, observed)
+              )
+            ) {
+              changed.delete(scope)
+              nativeChanges.delete(scope)
+              broadNativeScopes.delete(scope)
+            }
+          }
           for (const observed of changed) {
             if (
               !nativeChanges.has(observed) &&
@@ -199,6 +238,23 @@ export async function watchTestFiles(
           }
           break
         }
+        const watchedRootScopes = [...broadNativeScopes].filter((scope) =>
+          directories.includes(scope)
+        )
+        for (const [absent, revision] of absentNativePaths) {
+          if (
+            revision === scanRevision &&
+            inputSnapshot &&
+            !inputSnapshot.has(absent) &&
+            !dependencyFiles.has(absent) &&
+            !watchedRootScopes.some((scope) => contains(scope, absent))
+          ) {
+            changed.delete(absent)
+            nativeChanges.delete(absent)
+          }
+        }
+        absentNativePaths.clear()
+        nativeDirectoryObservations.clear()
         const paths = [...changed]
         changed.clear()
         broadNativeScopes.clear()
@@ -209,7 +265,7 @@ export async function watchTestFiles(
           nativePathsDuringScan?.add(observed)
           if (inputSnapshot) refreshNativePath(inputSnapshot, observed)
         }
-        options.onChange({ changed: paths, removed: [] })
+        if (paths.length) options.onChange({ changed: paths, removed: [] })
       })()
         .catch((error) => {
           if (!closed) fail(error)
@@ -231,16 +287,54 @@ export async function watchTestFiles(
       const file = filename === null ? root : path.resolve(root, filename)
       if (filename !== null && contains(root, file) && ignored(file)) return
       let broad = filename === null || !contains(root, file)
+      if (broad) nativeDirectoryObservations.set(root, null)
       if (!broad) {
         try {
-          broad = lstatSync(file).isDirectory()
+          const observed = lstatSync(file, { bigint: true })
+          absentNativePaths.delete(file)
+          broad = observed.isDirectory()
+          if (broad) {
+            const signature = watchInputSignature(observed)
+            // Once uncertain, a later exact event cannot erase that scope.
+            if (nativeDirectoryObservations.get(file) !== null)
+              nativeDirectoryObservations.set(
+                file,
+                ready &&
+                  inputSnapshot?.get(file) === signature &&
+                  (!changed.has(file) || nativeDirectoryObservations.has(file))
+                  ? { revision: scanRevision, signature }
+                  : null
+              )
+          } else if (nativeDirectoryObservations.has(file)) {
+            nativeDirectoryObservations.set(file, null)
+          }
+          // Native delivery may include a write that predates this baseline.
+          // Keep uncertain paths; an unchanged regular file is already observed.
+          if (
+            inputSnapshot &&
+            observed.isFile() &&
+            inputSnapshot.get(file) === watchInputSignature(observed)
+          )
+            return
         } catch (error) {
           if (
             (error as NodeJS.ErrnoException).code !== 'ENOENT' &&
             (error as NodeJS.ErrnoException).code !== 'ENOTDIR'
           )
             throw error
+          // Keep this fact until the coalesced batch is known. An unknown
+          // watched-root event still retains all of its named observations.
+          if (
+            inputSnapshot &&
+            !inputSnapshot.has(file) &&
+            !dependencyFiles.has(file)
+          ) {
+            // A prior queued change may already record its actual deletion.
+            if (!changed.has(file)) absentNativePaths.set(file, scanRevision)
+          } else absentNativePaths.delete(file)
           broad = inputSnapshot?.get(file)?.startsWith('directory:') === true
+          if (broad || nativeDirectoryObservations.has(file))
+            nativeDirectoryObservations.set(file, null)
         }
       }
       queueChange(contains(root, file) ? file : root, broad, true)
@@ -249,7 +343,7 @@ export async function watchTestFiles(
     }
   }
 
-  function reconcile(coveredScopes: readonly string[] = []): Promise<void> {
+  function reconcile(reschedule = true): Promise<void> {
     if (closed) return Promise.resolve()
     if (scanWork) return scanWork
     clearTimeout(scanTimer)
@@ -270,18 +364,10 @@ export async function watchTestFiles(
       for (const file of nativePathsDuringScan!) refreshNativePath(next, file)
       if (inputSnapshot) {
         for (const [file, signature] of next) {
-          if (
-            inputSnapshot.get(file) !== signature &&
-            !coveredScopes.some((scope) => contains(scope, file))
-          )
-            queueChange(file)
+          if (inputSnapshot.get(file) !== signature) queueChange(file)
         }
         for (const file of inputSnapshot.keys()) {
-          if (
-            !next.has(file) &&
-            !coveredScopes.some((scope) => contains(scope, file))
-          )
-            queueChange(file)
+          if (!next.has(file)) queueChange(file)
         }
       }
       inputSnapshot = next
@@ -295,7 +381,7 @@ export async function watchTestFiles(
       .finally(() => {
         scanWork = undefined
         nativePathsDuringScan = undefined
-        if (!closed)
+        if (!closed && reschedule)
           scanTimer = setTimeout(() => void reconcile().catch(() => {}), 1000)
       })
     return scanWork
@@ -413,6 +499,11 @@ export async function watchTestFiles(
         scanRevision++
         inputSnapshot = undefined
       }
+      // Observe complete inputs before the first subscription. The mandatory
+      // post-subscription reconciliation catches edits in that acquisition gap.
+      // It also gives delayed exact native paths an earlier observed baseline.
+      const opening = !ready && subscriptions.size === 0
+      if (opening) await reconcile(false)
       // Acquire replacements before releasing old roots: no subscription gap.
       for (const root of directories) {
         const existing = subscriptions.get(root)
@@ -434,7 +525,9 @@ export async function watchTestFiles(
       // while periodic reconciliation runs. Rediscovery must not join that
       // unrelated scan; changed configurations still drain it before opening
       // their new baseline. close() retains ownership of every started read.
-      if (!inputSnapshot) {
+      if (opening) {
+        await reconcile()
+      } else if (!inputSnapshot) {
         await scanWork
         if (!closed && !inputSnapshot) await reconcile()
       }
@@ -461,6 +554,9 @@ export async function watchTestFiles(
   // received this source and installed its session. No native startup edit is
   // absorbed solely into the reconciliation baseline.
   ready = true
-  if (changed.size) queueChange(changed.values().next().value!)
+  if (changed.size) {
+    const first = changed.values().next().value!
+    queueChange(first, false, nativeChanges.has(first))
+  }
   return { close, update }
 }

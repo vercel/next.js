@@ -1,0 +1,10 @@
+import { test, expect, afterEach, afterAll } from 'vitest'
+const rows = []
+const row = (stage, value = {}) => rows.push({ stage, ...value })
+afterEach(({ task }) => { row('afterEach', { errors: (task.result?.errors ?? []).map(error => error?.message ?? String(error)) }) })
+afterAll(() => console.log('TASK_QUEUE_CONSUMER:' + JSON.stringify(rows)))
+test('actual public falsy rejection still checks exact assertion count', ({ task, expect: local }) => {
+  local.assertions(1); local(true).toBe(true)
+  task.promises = [Promise.reject(undefined), Promise.reject(false), Promise.reject(0), Promise.reject('')]
+  row('body-return', { assertions: local.getState().assertionCalls })
+})

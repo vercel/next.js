@@ -1,0 +1,7 @@
+[
+  {
+    "name": "empty terminal class retains complete namespace and construction behavior across resets",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

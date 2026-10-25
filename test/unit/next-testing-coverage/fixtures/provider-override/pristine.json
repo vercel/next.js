@@ -1,0 +1,4844 @@
+{
+  "reference": "Vitest5.0.4",
+  "sourceFiles": {
+    "contract.test.mjs": {
+      "source": "import { test, expect } from 'vitest'\nimport { choose } from './subject.mjs'\ntest('only true branch is executed', () => expect(choose(true)).toBe(1))\n",
+      "sha256": "66fd33264aa1a5f2dfdca26325436cecb291b6c28e42570c6a54c6ce6b6539c5"
+    },
+    "subject.mjs": {
+      "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
+      "sha256": "080ca8e12b1705b0a9e993d1c7956453465b4a31c42b2bc818d59d62da79c00c"
+    },
+    "unimported.mjs": {
+      "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
+      "sha256": "080ca8e12b1705b0a9e993d1c7956453465b4a31c42b2bc818d59d62da79c00c"
+    },
+    "fully.mjs": {
+      "source": "export function fully(value) { return value + 1 }\n",
+      "sha256": "b6e96cd95b5ae257577aaea9ed3ec8f51289d66e502646763aa460b688d4e570"
+    },
+    "full.test.mjs": {
+      "source": "import { test, expect } from 'vitest'\nimport { fully } from './fully.mjs'\ntest('fully covered control', () => expect(fully(2)).toBe(3))\n",
+      "sha256": "35abf182dccc2fc0f20a7affa97c09d64e8f7e92c840e6fb42978f602de28213"
+    },
+    "failed.case.mjs": {
+      "source": "import { test, expect } from 'vitest'\ntest('failed body still owns complete coverage', () => expect(1).toBe(2))\n",
+      "sha256": "339dcf066db033e5338f18c43c99a33a635a8fc40df6259004159cb299862fb7"
+    },
+    "package.json": {
+      "source": "{\"private\":true,\"type\":\"module\"}\n",
+      "sha256": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428"
+    },
+    "coverage-provider.mjs": {
+      "source": "import { appendFileSync, writeFileSync } from 'node:fs'\nconst record = (name, data = {}) =>\n  appendFileSync(\n    'provider-trace.jsonl',\n    JSON.stringify({ name, ...data }) + '\\n'\n  )\nclass ReleaseProvider {\n  name = 'release-provider'\n  payloads = []\n  initialize(ctx) {\n    record('initialize')\n    this.options = { ...ctx.config.coverage, provider: 'custom', enabled: true }\n  }\n  resolveOptions() {\n    record('resolve')\n    return this.options\n  }\n  clean() {\n    record('clean')\n  }\n  onTestRunStart() {\n    record('run-start')\n  }\n  onAfterSuiteRun(meta) {\n    record('suite', { coverage: meta.coverage, testFiles: meta.testFiles })\n    this.payloads.push(meta.coverage)\n  }\n  generateCoverage() {\n    record('generate')\n    return { payloads: this.payloads }\n  }\n  reportCoverage(coverage) {\n    record('report')\n    writeFileSync('custom-coverage.json', JSON.stringify(coverage))\n  }\n}\nexport default {\n  getProvider() {\n    record('get-provider')\n    return new ReleaseProvider()\n  },\n  startCoverage() {\n    record('start')\n  },\n  takeCoverage() {\n    record('take')\n    return { releasePayload: 42 }\n  },\n  stopCoverage() {\n    record('stop')\n  },\n}\n",
+      "sha256": "831d8cc1bd50cce67192d5382a549c3f04cc4cafd28aca533236753011995abc"
+    }
+  },
+  "rows": [
+    {
+      "name": "standard-provider",
+      "profile": {
+        "name": "standard-provider",
+        "coverage": {
+          "enabled": true,
+          "provider": "v8",
+          "include": ["subject.mjs", "unimported.mjs", "fully.mjs"],
+          "exclude": [],
+          "reporter": ["json", "json-summary", "text", "lcovonly"],
+          "reportsDirectory": "configured-reports",
+          "clean": false,
+          "reportOnFailure": true
+        },
+        "flags": ["--coverage.provider=v8"]
+      },
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"configured-reports\",\n      \"clean\": false,\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"configured-reports\",\n      \"clean\": false,\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "cases": [
+        {
+          "file": "contract.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "only true branch is executed",
+              "status": "passed",
+              "title": "only true branch is executed",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        },
+        {
+          "file": "full.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "fully covered control",
+              "status": "passed",
+              "title": "fully covered control",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        }
+      ],
+      "coverage": {
+        "fully.mjs": {
+          "path": "fully.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 1,
+                "column": 31
+              },
+              "end": {
+                "line": 1,
+                "column": 47
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "fully",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 21
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              },
+              "line": 1
+            }
+          },
+          "branchMap": {},
+          "s": {
+            "0": 1
+          },
+          "f": {
+            "0": 1
+          },
+          "b": {},
+          "meta": {
+            "lastBranch": 0,
+            "lastFunction": 1,
+            "lastStatement": 1,
+            "seen": {
+              "f:1:16:1:21": 0,
+              "s:1:31:1:47": 0
+            },
+            "fnNames": {}
+          }
+        },
+        "subject.mjs": {
+          "path": "subject.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              },
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              },
+              "line": 5
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 1,
+            "1": 1,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [1, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        },
+        "unimported.mjs": {
+          "path": "unimported.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              },
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              },
+              "line": 5
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 0,
+            "1": 0
+          },
+          "b": {
+            "0": [0, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        }
+      },
+      "summary": {
+        "total": {
+          "lines": {
+            "total": 7,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 28.57
+          },
+          "statements": {
+            "total": 9,
+            "covered": 3,
+            "skipped": 0,
+            "pct": 33.33
+          },
+          "functions": {
+            "total": 5,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 40
+          },
+          "branches": {
+            "total": 4,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 25
+          },
+          "branchesTrue": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": "Unknown"
+          }
+        },
+        "fully.mjs": {
+          "lines": {
+            "total": 1,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 100
+          },
+          "functions": {
+            "total": 1,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 100
+          },
+          "statements": {
+            "total": 1,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 100
+          },
+          "branches": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 100
+          }
+        },
+        "subject.mjs": {
+          "lines": {
+            "total": 3,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 33.33
+          },
+          "functions": {
+            "total": 2,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 50
+          },
+          "statements": {
+            "total": 4,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 50
+          },
+          "branches": {
+            "total": 2,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 50
+          }
+        },
+        "unimported.mjs": {
+          "lines": {
+            "total": 3,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          },
+          "functions": {
+            "total": 2,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          },
+          "statements": {
+            "total": 4,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          },
+          "branches": {
+            "total": 2,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          }
+        }
+      },
+      "lcov": "TN:\nSF:fully.mjs\nFN:1,fully\nFNF:1\nFNH:1\nFNDA:1,fully\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,0\nDA:6,0\nLF:3\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\nTN:\nSF:unimported.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:6,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
+      "coverageText": "----------------|---------|----------|---------|---------|-------------------\nFile            | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n----------------|---------|----------|---------|---------|-------------------\nAll files       |   33.33 |       25 |      40 |   28.57 |                   \n subject.mjs    |      50 |       50 |      50 |   33.33 | 3-6               \n unimported.mjs |       0 |        0 |       0 |       0 | 2-6               \n----------------|---------|----------|---------|---------|-------------------\n\n=============================== Coverage summary ===============================\nStatements   : 33.33% ( 3/9 )\nBranches     : 25% ( 1/4 )\nFunctions    : 40% ( 2/5 )\nLines        : 28.57% ( 2/7 )\n================================================================================",
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info",
+        "retained.txt"
+      ],
+      "customTrace": null,
+      "ownersClosed": true
+    },
+    {
+      "name": "standard-disabled-provider",
+      "profile": {
+        "name": "standard-disabled-provider",
+        "coverage": {
+          "enabled": false,
+          "provider": "v8",
+          "include": ["subject.mjs", "unimported.mjs", "fully.mjs"],
+          "exclude": [],
+          "reporter": ["json", "json-summary", "text", "lcovonly"],
+          "reportsDirectory": "configured-reports",
+          "clean": false,
+          "reportOnFailure": true
+        },
+        "flags": ["--coverage.provider=v8"]
+      },
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"configured-reports\",\n      \"clean\": false,\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"configured-reports\",\n      \"clean\": false,\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "cases": [
+        {
+          "file": "contract.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "only true branch is executed",
+              "status": "passed",
+              "title": "only true branch is executed",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        },
+        {
+          "file": "full.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "fully covered control",
+              "status": "passed",
+              "title": "fully covered control",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        }
+      ],
+      "coverage": null,
+      "summary": null,
+      "lcov": null,
+      "coverageText": null,
+      "reportFiles": ["retained.txt"],
+      "customTrace": null,
+      "ownersClosed": true
+    },
+    {
+      "name": "standard-provider-cli-reporter",
+      "profile": {
+        "name": "standard-provider-cli-reporter",
+        "coverage": {
+          "enabled": true,
+          "provider": "v8",
+          "include": ["subject.mjs", "unimported.mjs", "fully.mjs"],
+          "exclude": [],
+          "reporter": ["json", "json-summary", "text", "lcovonly"],
+          "reportsDirectory": "configured-reports",
+          "clean": false,
+          "reportOnFailure": true
+        },
+        "flags": ["--coverage.provider=v8", "--coverage.reporter=json"]
+      },
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"configured-reports\",\n      \"clean\": false,\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"configured-reports\",\n      \"clean\": false,\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "cases": [
+        {
+          "file": "contract.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "only true branch is executed",
+              "status": "passed",
+              "title": "only true branch is executed",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        },
+        {
+          "file": "full.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "fully covered control",
+              "status": "passed",
+              "title": "fully covered control",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        }
+      ],
+      "coverage": {
+        "fully.mjs": {
+          "path": "fully.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 1,
+                "column": 31
+              },
+              "end": {
+                "line": 1,
+                "column": 47
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "fully",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 21
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              },
+              "line": 1
+            }
+          },
+          "branchMap": {},
+          "s": {
+            "0": 1
+          },
+          "f": {
+            "0": 1
+          },
+          "b": {},
+          "meta": {
+            "lastBranch": 0,
+            "lastFunction": 1,
+            "lastStatement": 1,
+            "seen": {
+              "f:1:16:1:21": 0,
+              "s:1:31:1:47": 0
+            },
+            "fnNames": {}
+          }
+        },
+        "subject.mjs": {
+          "path": "subject.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              },
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              },
+              "line": 5
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 1,
+            "1": 1,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [1, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        },
+        "unimported.mjs": {
+          "path": "unimported.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              },
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              },
+              "line": 5
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 0,
+            "1": 0
+          },
+          "b": {
+            "0": [0, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        }
+      },
+      "summary": null,
+      "lcov": null,
+      "coverageText": null,
+      "reportFiles": ["coverage-final.json", "retained.txt"],
+      "customTrace": null,
+      "ownersClosed": true
+    },
+    {
+      "name": "custom-provider",
+      "profile": {
+        "name": "custom-provider",
+        "coverage": {
+          "enabled": true,
+          "provider": "custom",
+          "customProviderModule": "./coverage-provider.mjs",
+          "reportsDirectory": "configured-reports",
+          "clean": false,
+          "reportOnFailure": true
+        },
+        "flags": [
+          "--coverage.provider=v8",
+          "--coverage.include=subject.mjs",
+          "--coverage.include=unimported.mjs",
+          "--coverage.include=fully.mjs",
+          "--coverage.reporter=json",
+          "--coverage.reporter=json-summary",
+          "--coverage.reporter=text",
+          "--coverage.reporter=lcovonly"
+        ]
+      },
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"custom\",\n      \"customProviderModule\": \"./coverage-provider.mjs\",\n      \"reportsDirectory\": \"configured-reports\",\n      \"clean\": false,\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"custom\",\n      \"customProviderModule\": \"./coverage-provider.mjs\",\n      \"reportsDirectory\": \"configured-reports\",\n      \"clean\": false,\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "cases": [
+        {
+          "file": "contract.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "only true branch is executed",
+              "status": "passed",
+              "title": "only true branch is executed",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        },
+        {
+          "file": "full.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "fully covered control",
+              "status": "passed",
+              "title": "fully covered control",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        }
+      ],
+      "coverage": {
+        "fully.mjs": {
+          "path": "fully.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 1,
+                "column": 31
+              },
+              "end": {
+                "line": 1,
+                "column": 47
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "fully",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 21
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              },
+              "line": 1
+            }
+          },
+          "branchMap": {},
+          "s": {
+            "0": 1
+          },
+          "f": {
+            "0": 1
+          },
+          "b": {},
+          "meta": {
+            "lastBranch": 0,
+            "lastFunction": 1,
+            "lastStatement": 1,
+            "seen": {
+              "f:1:16:1:21": 0,
+              "s:1:31:1:47": 0
+            },
+            "fnNames": {}
+          }
+        },
+        "subject.mjs": {
+          "path": "subject.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              },
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              },
+              "line": 5
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 1,
+            "1": 1,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [1, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        },
+        "unimported.mjs": {
+          "path": "unimported.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              },
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              },
+              "line": 5
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 0,
+            "1": 0
+          },
+          "b": {
+            "0": [0, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        }
+      },
+      "summary": {
+        "total": {
+          "lines": {
+            "total": 7,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 28.57
+          },
+          "statements": {
+            "total": 9,
+            "covered": 3,
+            "skipped": 0,
+            "pct": 33.33
+          },
+          "functions": {
+            "total": 5,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 40
+          },
+          "branches": {
+            "total": 4,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 25
+          },
+          "branchesTrue": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": "Unknown"
+          }
+        },
+        "fully.mjs": {
+          "lines": {
+            "total": 1,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 100
+          },
+          "functions": {
+            "total": 1,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 100
+          },
+          "statements": {
+            "total": 1,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 100
+          },
+          "branches": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 100
+          }
+        },
+        "subject.mjs": {
+          "lines": {
+            "total": 3,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 33.33
+          },
+          "functions": {
+            "total": 2,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 50
+          },
+          "statements": {
+            "total": 4,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 50
+          },
+          "branches": {
+            "total": 2,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 50
+          }
+        },
+        "unimported.mjs": {
+          "lines": {
+            "total": 3,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          },
+          "functions": {
+            "total": 2,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          },
+          "statements": {
+            "total": 4,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          },
+          "branches": {
+            "total": 2,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          }
+        }
+      },
+      "lcov": "TN:\nSF:fully.mjs\nFN:1,fully\nFNF:1\nFNH:1\nFNDA:1,fully\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,0\nDA:6,0\nLF:3\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\nTN:\nSF:unimported.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:6,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
+      "coverageText": "----------------|---------|----------|---------|---------|-------------------\nFile            | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n----------------|---------|----------|---------|---------|-------------------\nAll files       |   33.33 |       25 |      40 |   28.57 |                   \n subject.mjs    |      50 |       50 |      50 |   33.33 | 3-6               \n unimported.mjs |       0 |        0 |       0 |       0 | 2-6               \n----------------|---------|----------|---------|---------|-------------------\n\n=============================== Coverage summary ===============================\nStatements   : 33.33% ( 3/9 )\nBranches     : 25% ( 1/4 )\nFunctions    : 40% ( 2/5 )\nLines        : 28.57% ( 2/7 )\n================================================================================",
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info",
+        "retained.txt"
+      ],
+      "customTrace": null,
+      "ownersClosed": true
+    },
+    {
+      "name": "custom-missing-provider",
+      "profile": {
+        "name": "custom-missing-provider",
+        "coverage": {
+          "enabled": true,
+          "provider": "custom",
+          "customProviderModule": "./deliberately-missing-provider.mjs",
+          "reportsDirectory": "configured-reports",
+          "clean": false,
+          "reportOnFailure": true
+        },
+        "flags": [
+          "--coverage.provider=v8",
+          "--coverage.include=subject.mjs",
+          "--coverage.include=unimported.mjs",
+          "--coverage.include=fully.mjs",
+          "--coverage.reporter=json",
+          "--coverage.reporter=json-summary",
+          "--coverage.reporter=text",
+          "--coverage.reporter=lcovonly"
+        ]
+      },
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"custom\",\n      \"customProviderModule\": \"./deliberately-missing-provider.mjs\",\n      \"reportsDirectory\": \"configured-reports\",\n      \"clean\": false,\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"custom\",\n      \"customProviderModule\": \"./deliberately-missing-provider.mjs\",\n      \"reportsDirectory\": \"configured-reports\",\n      \"clean\": false,\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "cases": [
+        {
+          "file": "contract.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "only true branch is executed",
+              "status": "passed",
+              "title": "only true branch is executed",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        },
+        {
+          "file": "full.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "fully covered control",
+              "status": "passed",
+              "title": "fully covered control",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        }
+      ],
+      "coverage": {
+        "fully.mjs": {
+          "path": "fully.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 1,
+                "column": 31
+              },
+              "end": {
+                "line": 1,
+                "column": 47
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "fully",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 21
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              },
+              "line": 1
+            }
+          },
+          "branchMap": {},
+          "s": {
+            "0": 1
+          },
+          "f": {
+            "0": 1
+          },
+          "b": {},
+          "meta": {
+            "lastBranch": 0,
+            "lastFunction": 1,
+            "lastStatement": 1,
+            "seen": {
+              "f:1:16:1:21": 0,
+              "s:1:31:1:47": 0
+            },
+            "fnNames": {}
+          }
+        },
+        "subject.mjs": {
+          "path": "subject.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              },
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              },
+              "line": 5
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 1,
+            "1": 1,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [1, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        },
+        "unimported.mjs": {
+          "path": "unimported.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              },
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              },
+              "line": 5
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 0,
+            "1": 0
+          },
+          "b": {
+            "0": [0, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        }
+      },
+      "summary": {
+        "total": {
+          "lines": {
+            "total": 7,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 28.57
+          },
+          "statements": {
+            "total": 9,
+            "covered": 3,
+            "skipped": 0,
+            "pct": 33.33
+          },
+          "functions": {
+            "total": 5,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 40
+          },
+          "branches": {
+            "total": 4,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 25
+          },
+          "branchesTrue": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": "Unknown"
+          }
+        },
+        "fully.mjs": {
+          "lines": {
+            "total": 1,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 100
+          },
+          "functions": {
+            "total": 1,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 100
+          },
+          "statements": {
+            "total": 1,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 100
+          },
+          "branches": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 100
+          }
+        },
+        "subject.mjs": {
+          "lines": {
+            "total": 3,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 33.33
+          },
+          "functions": {
+            "total": 2,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 50
+          },
+          "statements": {
+            "total": 4,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 50
+          },
+          "branches": {
+            "total": 2,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 50
+          }
+        },
+        "unimported.mjs": {
+          "lines": {
+            "total": 3,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          },
+          "functions": {
+            "total": 2,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          },
+          "statements": {
+            "total": 4,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          },
+          "branches": {
+            "total": 2,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          }
+        }
+      },
+      "lcov": "TN:\nSF:fully.mjs\nFN:1,fully\nFNF:1\nFNH:1\nFNDA:1,fully\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,0\nDA:6,0\nLF:3\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\nTN:\nSF:unimported.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:6,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
+      "coverageText": "----------------|---------|----------|---------|---------|-------------------\nFile            | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n----------------|---------|----------|---------|---------|-------------------\nAll files       |   33.33 |       25 |      40 |   28.57 |                   \n subject.mjs    |      50 |       50 |      50 |   33.33 | 3-6               \n unimported.mjs |       0 |        0 |       0 |       0 | 2-6               \n----------------|---------|----------|---------|---------|-------------------\n\n=============================== Coverage summary ===============================\nStatements   : 33.33% ( 3/9 )\nBranches     : 25% ( 1/4 )\nFunctions    : 40% ( 2/5 )\nLines        : 28.57% ( 2/7 )\n================================================================================",
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info",
+        "retained.txt"
+      ],
+      "customTrace": null,
+      "ownersClosed": true
+    },
+    {
+      "name": "custom-disabled-provider",
+      "profile": {
+        "name": "custom-disabled-provider",
+        "coverage": {
+          "enabled": false,
+          "provider": "custom",
+          "customProviderModule": "./deliberately-missing-provider.mjs",
+          "reportsDirectory": "configured-reports",
+          "clean": false,
+          "reportOnFailure": true
+        },
+        "flags": [
+          "--coverage.provider=v8",
+          "--coverage.include=subject.mjs",
+          "--coverage.include=unimported.mjs",
+          "--coverage.include=fully.mjs",
+          "--coverage.reporter=json",
+          "--coverage.reporter=json-summary",
+          "--coverage.reporter=text",
+          "--coverage.reporter=lcovonly"
+        ]
+      },
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"custom\",\n      \"customProviderModule\": \"./deliberately-missing-provider.mjs\",\n      \"reportsDirectory\": \"configured-reports\",\n      \"clean\": false,\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"custom\",\n      \"customProviderModule\": \"./deliberately-missing-provider.mjs\",\n      \"reportsDirectory\": \"configured-reports\",\n      \"clean\": false,\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "cases": [
+        {
+          "file": "contract.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "only true branch is executed",
+              "status": "passed",
+              "title": "only true branch is executed",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        },
+        {
+          "file": "full.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "fully covered control",
+              "status": "passed",
+              "title": "fully covered control",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        }
+      ],
+      "coverage": null,
+      "summary": null,
+      "lcov": null,
+      "coverageText": null,
+      "reportFiles": ["retained.txt"],
+      "customTrace": null,
+      "ownersClosed": true
+    },
+    {
+      "name": "custom-disabled-explicit-false",
+      "profile": {
+        "name": "custom-disabled-explicit-false",
+        "coverage": {
+          "enabled": false,
+          "provider": "custom",
+          "customProviderModule": "./deliberately-missing-provider.mjs",
+          "reportsDirectory": "configured-reports",
+          "clean": false,
+          "reportOnFailure": true
+        },
+        "flags": [
+          "--coverage.provider=v8",
+          "--coverage.include=subject.mjs",
+          "--coverage.include=unimported.mjs",
+          "--coverage.include=fully.mjs",
+          "--coverage.reporter=json",
+          "--coverage.reporter=json-summary",
+          "--coverage.reporter=text",
+          "--coverage.reporter=lcovonly",
+          "--no-coverage"
+        ]
+      },
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"custom\",\n      \"customProviderModule\": \"./deliberately-missing-provider.mjs\",\n      \"reportsDirectory\": \"configured-reports\",\n      \"clean\": false,\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"custom\",\n      \"customProviderModule\": \"./deliberately-missing-provider.mjs\",\n      \"reportsDirectory\": \"configured-reports\",\n      \"clean\": false,\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "cases": [
+        {
+          "file": "contract.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "only true branch is executed",
+              "status": "passed",
+              "title": "only true branch is executed",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        },
+        {
+          "file": "full.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "fully covered control",
+              "status": "passed",
+              "title": "fully covered control",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        }
+      ],
+      "coverage": null,
+      "summary": null,
+      "lcov": null,
+      "coverageText": null,
+      "reportFiles": ["retained.txt"],
+      "customTrace": null,
+      "ownersClosed": true
+    },
+    {
+      "name": "custom-cli-directory",
+      "profile": {
+        "name": "custom-cli-directory",
+        "coverage": {
+          "enabled": true,
+          "provider": "custom",
+          "customProviderModule": "./coverage-provider.mjs",
+          "reportsDirectory": "configured-reports",
+          "clean": true,
+          "reportOnFailure": true
+        },
+        "flags": [
+          "--coverage.provider=v8",
+          "--coverage.include=subject.mjs",
+          "--coverage.include=unimported.mjs",
+          "--coverage.include=fully.mjs",
+          "--coverage.reporter=json",
+          "--coverage.reporter=json-summary",
+          "--coverage.reporter=text",
+          "--coverage.reporter=lcovonly",
+          "--coverage.reportsDirectory=cli-reports"
+        ],
+        "directory": "cli-reports"
+      },
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"custom\",\n      \"customProviderModule\": \"./coverage-provider.mjs\",\n      \"reportsDirectory\": \"configured-reports\",\n      \"clean\": true,\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"custom\",\n      \"customProviderModule\": \"./coverage-provider.mjs\",\n      \"reportsDirectory\": \"configured-reports\",\n      \"clean\": true,\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "cases": [
+        {
+          "file": "contract.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "only true branch is executed",
+              "status": "passed",
+              "title": "only true branch is executed",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        },
+        {
+          "file": "full.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "fully covered control",
+              "status": "passed",
+              "title": "fully covered control",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        }
+      ],
+      "coverage": {
+        "fully.mjs": {
+          "path": "fully.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 1,
+                "column": 31
+              },
+              "end": {
+                "line": 1,
+                "column": 47
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "fully",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 21
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              },
+              "line": 1
+            }
+          },
+          "branchMap": {},
+          "s": {
+            "0": 1
+          },
+          "f": {
+            "0": 1
+          },
+          "b": {},
+          "meta": {
+            "lastBranch": 0,
+            "lastFunction": 1,
+            "lastStatement": 1,
+            "seen": {
+              "f:1:16:1:21": 0,
+              "s:1:31:1:47": 0
+            },
+            "fnNames": {}
+          }
+        },
+        "subject.mjs": {
+          "path": "subject.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              },
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              },
+              "line": 5
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 1,
+            "1": 1,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [1, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        },
+        "unimported.mjs": {
+          "path": "unimported.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              },
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              },
+              "line": 5
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 0,
+            "1": 0
+          },
+          "b": {
+            "0": [0, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        }
+      },
+      "summary": {
+        "total": {
+          "lines": {
+            "total": 7,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 28.57
+          },
+          "statements": {
+            "total": 9,
+            "covered": 3,
+            "skipped": 0,
+            "pct": 33.33
+          },
+          "functions": {
+            "total": 5,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 40
+          },
+          "branches": {
+            "total": 4,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 25
+          },
+          "branchesTrue": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": "Unknown"
+          }
+        },
+        "fully.mjs": {
+          "lines": {
+            "total": 1,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 100
+          },
+          "functions": {
+            "total": 1,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 100
+          },
+          "statements": {
+            "total": 1,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 100
+          },
+          "branches": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 100
+          }
+        },
+        "subject.mjs": {
+          "lines": {
+            "total": 3,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 33.33
+          },
+          "functions": {
+            "total": 2,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 50
+          },
+          "statements": {
+            "total": 4,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 50
+          },
+          "branches": {
+            "total": 2,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 50
+          }
+        },
+        "unimported.mjs": {
+          "lines": {
+            "total": 3,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          },
+          "functions": {
+            "total": 2,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          },
+          "statements": {
+            "total": 4,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          },
+          "branches": {
+            "total": 2,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          }
+        }
+      },
+      "lcov": "TN:\nSF:fully.mjs\nFN:1,fully\nFNF:1\nFNH:1\nFNDA:1,fully\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,0\nDA:6,0\nLF:3\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\nTN:\nSF:unimported.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:6,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
+      "coverageText": "----------------|---------|----------|---------|---------|-------------------\nFile            | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n----------------|---------|----------|---------|---------|-------------------\nAll files       |   33.33 |       25 |      40 |   28.57 |                   \n subject.mjs    |      50 |       50 |      50 |   33.33 | 3-6               \n unimported.mjs |       0 |        0 |       0 |       0 | 2-6               \n----------------|---------|----------|---------|---------|-------------------\n\n=============================== Coverage summary ===============================\nStatements   : 33.33% ( 3/9 )\nBranches     : 25% ( 1/4 )\nFunctions    : 40% ( 2/5 )\nLines        : 28.57% ( 2/7 )\n================================================================================",
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ],
+      "customTrace": null,
+      "ownersClosed": true
+    },
+    {
+      "name": "no-config-provider-only",
+      "profile": {
+        "name": "no-config-provider-only",
+        "noConfig": true,
+        "flags": [
+          "--coverage.provider=v8",
+          "--coverage.include=subject.mjs",
+          "--coverage.include=unimported.mjs",
+          "--coverage.include=fully.mjs",
+          "--coverage.reporter=json",
+          "--coverage.reporter=json-summary",
+          "--coverage.reporter=text",
+          "--coverage.reporter=lcovonly"
+        ],
+        "directory": "coverage"
+      },
+      "before": null,
+      "after": null,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "cases": [
+        {
+          "file": "contract.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "only true branch is executed",
+              "status": "passed",
+              "title": "only true branch is executed",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        },
+        {
+          "file": "full.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "fully covered control",
+              "status": "passed",
+              "title": "fully covered control",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        }
+      ],
+      "coverage": null,
+      "summary": null,
+      "lcov": null,
+      "coverageText": null,
+      "reportFiles": ["retained.txt"],
+      "customTrace": null,
+      "ownersClosed": true
+    },
+    {
+      "name": "no-config-explicit-enable",
+      "profile": {
+        "name": "no-config-explicit-enable",
+        "noConfig": true,
+        "flags": [
+          "--coverage",
+          "--coverage.provider=v8",
+          "--coverage.include=subject.mjs",
+          "--coverage.include=unimported.mjs",
+          "--coverage.include=fully.mjs",
+          "--coverage.reporter=json",
+          "--coverage.reporter=json-summary",
+          "--coverage.reporter=text",
+          "--coverage.reporter=lcovonly"
+        ],
+        "directory": "coverage"
+      },
+      "before": null,
+      "after": null,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "cases": [
+        {
+          "file": "contract.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "only true branch is executed",
+              "status": "passed",
+              "title": "only true branch is executed",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        },
+        {
+          "file": "full.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "fully covered control",
+              "status": "passed",
+              "title": "fully covered control",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        }
+      ],
+      "coverage": {
+        "fully.mjs": {
+          "path": "fully.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 1,
+                "column": 31
+              },
+              "end": {
+                "line": 1,
+                "column": 47
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "fully",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 21
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              },
+              "line": 1
+            }
+          },
+          "branchMap": {},
+          "s": {
+            "0": 1
+          },
+          "f": {
+            "0": 1
+          },
+          "b": {},
+          "meta": {
+            "lastBranch": 0,
+            "lastFunction": 1,
+            "lastStatement": 1,
+            "seen": {
+              "f:1:16:1:21": 0,
+              "s:1:31:1:47": 0
+            },
+            "fnNames": {}
+          }
+        },
+        "subject.mjs": {
+          "path": "subject.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              },
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              },
+              "line": 5
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 1,
+            "1": 1,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [1, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        },
+        "unimported.mjs": {
+          "path": "unimported.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              },
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              },
+              "line": 5
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 0,
+            "1": 0
+          },
+          "b": {
+            "0": [0, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        }
+      },
+      "summary": {
+        "total": {
+          "lines": {
+            "total": 7,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 28.57
+          },
+          "statements": {
+            "total": 9,
+            "covered": 3,
+            "skipped": 0,
+            "pct": 33.33
+          },
+          "functions": {
+            "total": 5,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 40
+          },
+          "branches": {
+            "total": 4,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 25
+          },
+          "branchesTrue": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": "Unknown"
+          }
+        },
+        "fully.mjs": {
+          "lines": {
+            "total": 1,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 100
+          },
+          "functions": {
+            "total": 1,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 100
+          },
+          "statements": {
+            "total": 1,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 100
+          },
+          "branches": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 100
+          }
+        },
+        "subject.mjs": {
+          "lines": {
+            "total": 3,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 33.33
+          },
+          "functions": {
+            "total": 2,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 50
+          },
+          "statements": {
+            "total": 4,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 50
+          },
+          "branches": {
+            "total": 2,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 50
+          }
+        },
+        "unimported.mjs": {
+          "lines": {
+            "total": 3,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          },
+          "functions": {
+            "total": 2,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          },
+          "statements": {
+            "total": 4,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          },
+          "branches": {
+            "total": 2,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          }
+        }
+      },
+      "lcov": "TN:\nSF:fully.mjs\nFN:1,fully\nFNF:1\nFNH:1\nFNDA:1,fully\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,0\nDA:6,0\nLF:3\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\nTN:\nSF:unimported.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:6,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
+      "coverageText": "----------------|---------|----------|---------|---------|-------------------\nFile            | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n----------------|---------|----------|---------|---------|-------------------\nAll files       |   33.33 |       25 |      40 |   28.57 |                   \n subject.mjs    |      50 |       50 |      50 |   33.33 | 3-6               \n unimported.mjs |       0 |        0 |       0 |       0 | 2-6               \n----------------|---------|----------|---------|---------|-------------------\n\n=============================== Coverage summary ===============================\nStatements   : 33.33% ( 3/9 )\nBranches     : 25% ( 1/4 )\nFunctions    : 40% ( 2/5 )\nLines        : 28.57% ( 2/7 )\n================================================================================",
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ],
+      "customTrace": null,
+      "ownersClosed": true
+    },
+    {
+      "name": "standard-disabled-explicit-enable",
+      "profile": {
+        "name": "standard-disabled-explicit-enable",
+        "coverage": {
+          "enabled": false,
+          "provider": "v8",
+          "include": ["subject.mjs", "unimported.mjs", "fully.mjs"],
+          "exclude": [],
+          "reporter": ["json", "json-summary", "text", "lcovonly"],
+          "reportsDirectory": "configured-reports",
+          "clean": false,
+          "reportOnFailure": true
+        },
+        "flags": ["--coverage", "--coverage.provider=v8"]
+      },
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"configured-reports\",\n      \"clean\": false,\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"configured-reports\",\n      \"clean\": false,\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "cases": [
+        {
+          "file": "contract.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "only true branch is executed",
+              "status": "passed",
+              "title": "only true branch is executed",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        },
+        {
+          "file": "full.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "fully covered control",
+              "status": "passed",
+              "title": "fully covered control",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        }
+      ],
+      "coverage": {
+        "fully.mjs": {
+          "path": "fully.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 1,
+                "column": 31
+              },
+              "end": {
+                "line": 1,
+                "column": 47
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "fully",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 21
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              },
+              "line": 1
+            }
+          },
+          "branchMap": {},
+          "s": {
+            "0": 1
+          },
+          "f": {
+            "0": 1
+          },
+          "b": {},
+          "meta": {
+            "lastBranch": 0,
+            "lastFunction": 1,
+            "lastStatement": 1,
+            "seen": {
+              "f:1:16:1:21": 0,
+              "s:1:31:1:47": 0
+            },
+            "fnNames": {}
+          }
+        },
+        "subject.mjs": {
+          "path": "subject.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              },
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              },
+              "line": 5
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 1,
+            "1": 1,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [1, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        },
+        "unimported.mjs": {
+          "path": "unimported.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              },
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              },
+              "line": 5
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 0,
+            "1": 0
+          },
+          "b": {
+            "0": [0, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        }
+      },
+      "summary": {
+        "total": {
+          "lines": {
+            "total": 7,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 28.57
+          },
+          "statements": {
+            "total": 9,
+            "covered": 3,
+            "skipped": 0,
+            "pct": 33.33
+          },
+          "functions": {
+            "total": 5,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 40
+          },
+          "branches": {
+            "total": 4,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 25
+          },
+          "branchesTrue": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": "Unknown"
+          }
+        },
+        "fully.mjs": {
+          "lines": {
+            "total": 1,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 100
+          },
+          "functions": {
+            "total": 1,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 100
+          },
+          "statements": {
+            "total": 1,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 100
+          },
+          "branches": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 100
+          }
+        },
+        "subject.mjs": {
+          "lines": {
+            "total": 3,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 33.33
+          },
+          "functions": {
+            "total": 2,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 50
+          },
+          "statements": {
+            "total": 4,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 50
+          },
+          "branches": {
+            "total": 2,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 50
+          }
+        },
+        "unimported.mjs": {
+          "lines": {
+            "total": 3,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          },
+          "functions": {
+            "total": 2,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          },
+          "statements": {
+            "total": 4,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          },
+          "branches": {
+            "total": 2,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          }
+        }
+      },
+      "lcov": "TN:\nSF:fully.mjs\nFN:1,fully\nFNF:1\nFNH:1\nFNDA:1,fully\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,0\nDA:6,0\nLF:3\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\nTN:\nSF:unimported.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:6,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
+      "coverageText": "----------------|---------|----------|---------|---------|-------------------\nFile            | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n----------------|---------|----------|---------|---------|-------------------\nAll files       |   33.33 |       25 |      40 |   28.57 |                   \n subject.mjs    |      50 |       50 |      50 |   33.33 | 3-6               \n unimported.mjs |       0 |        0 |       0 |       0 | 2-6               \n----------------|---------|----------|---------|---------|-------------------\n\n=============================== Coverage summary ===============================\nStatements   : 33.33% ( 3/9 )\nBranches     : 25% ( 1/4 )\nFunctions    : 40% ( 2/5 )\nLines        : 28.57% ( 2/7 )\n================================================================================",
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info",
+        "retained.txt"
+      ],
+      "customTrace": null,
+      "ownersClosed": true
+    },
+    {
+      "name": "custom-disabled-explicit-enable",
+      "profile": {
+        "name": "custom-disabled-explicit-enable",
+        "coverage": {
+          "enabled": false,
+          "provider": "custom",
+          "customProviderModule": "./deliberately-missing-provider.mjs",
+          "reportsDirectory": "configured-reports",
+          "clean": false,
+          "reportOnFailure": true
+        },
+        "flags": [
+          "--coverage",
+          "--coverage.provider=v8",
+          "--coverage.include=subject.mjs",
+          "--coverage.include=unimported.mjs",
+          "--coverage.include=fully.mjs",
+          "--coverage.reporter=json",
+          "--coverage.reporter=json-summary",
+          "--coverage.reporter=text",
+          "--coverage.reporter=lcovonly"
+        ]
+      },
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"custom\",\n      \"customProviderModule\": \"./deliberately-missing-provider.mjs\",\n      \"reportsDirectory\": \"configured-reports\",\n      \"clean\": false,\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"custom\",\n      \"customProviderModule\": \"./deliberately-missing-provider.mjs\",\n      \"reportsDirectory\": \"configured-reports\",\n      \"clean\": false,\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "cases": [
+        {
+          "file": "contract.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "only true branch is executed",
+              "status": "passed",
+              "title": "only true branch is executed",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        },
+        {
+          "file": "full.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "fully covered control",
+              "status": "passed",
+              "title": "fully covered control",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        }
+      ],
+      "coverage": {
+        "fully.mjs": {
+          "path": "fully.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 1,
+                "column": 31
+              },
+              "end": {
+                "line": 1,
+                "column": 47
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "fully",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 21
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              },
+              "line": 1
+            }
+          },
+          "branchMap": {},
+          "s": {
+            "0": 1
+          },
+          "f": {
+            "0": 1
+          },
+          "b": {},
+          "meta": {
+            "lastBranch": 0,
+            "lastFunction": 1,
+            "lastStatement": 1,
+            "seen": {
+              "f:1:16:1:21": 0,
+              "s:1:31:1:47": 0
+            },
+            "fnNames": {}
+          }
+        },
+        "subject.mjs": {
+          "path": "subject.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              },
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              },
+              "line": 5
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 1,
+            "1": 1,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [1, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        },
+        "unimported.mjs": {
+          "path": "unimported.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              },
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              },
+              "line": 5
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 0,
+            "1": 0
+          },
+          "b": {
+            "0": [0, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        }
+      },
+      "summary": {
+        "total": {
+          "lines": {
+            "total": 7,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 28.57
+          },
+          "statements": {
+            "total": 9,
+            "covered": 3,
+            "skipped": 0,
+            "pct": 33.33
+          },
+          "functions": {
+            "total": 5,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 40
+          },
+          "branches": {
+            "total": 4,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 25
+          },
+          "branchesTrue": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": "Unknown"
+          }
+        },
+        "fully.mjs": {
+          "lines": {
+            "total": 1,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 100
+          },
+          "functions": {
+            "total": 1,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 100
+          },
+          "statements": {
+            "total": 1,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 100
+          },
+          "branches": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 100
+          }
+        },
+        "subject.mjs": {
+          "lines": {
+            "total": 3,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 33.33
+          },
+          "functions": {
+            "total": 2,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 50
+          },
+          "statements": {
+            "total": 4,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 50
+          },
+          "branches": {
+            "total": 2,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 50
+          }
+        },
+        "unimported.mjs": {
+          "lines": {
+            "total": 3,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          },
+          "functions": {
+            "total": 2,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          },
+          "statements": {
+            "total": 4,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          },
+          "branches": {
+            "total": 2,
+            "covered": 0,
+            "skipped": 0,
+            "pct": 0
+          }
+        }
+      },
+      "lcov": "TN:\nSF:fully.mjs\nFN:1,fully\nFNF:1\nFNH:1\nFNDA:1,fully\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,0\nDA:6,0\nLF:3\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\nTN:\nSF:unimported.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:6,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
+      "coverageText": "----------------|---------|----------|---------|---------|-------------------\nFile            | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n----------------|---------|----------|---------|---------|-------------------\nAll files       |   33.33 |       25 |      40 |   28.57 |                   \n subject.mjs    |      50 |       50 |      50 |   33.33 | 3-6               \n unimported.mjs |       0 |        0 |       0 |       0 | 2-6               \n----------------|---------|----------|---------|---------|-------------------\n\n=============================== Coverage summary ===============================\nStatements   : 33.33% ( 3/9 )\nBranches     : 25% ( 1/4 )\nFunctions    : 40% ( 2/5 )\nLines        : 28.57% ( 2/7 )\n================================================================================",
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info",
+        "retained.txt"
+      ],
+      "customTrace": null,
+      "ownersClosed": true
+    },
+    {
+      "name": "standard-disabled-reporter-only",
+      "profile": {
+        "name": "standard-disabled-reporter-only",
+        "coverage": {
+          "enabled": false,
+          "provider": "v8",
+          "include": ["subject.mjs", "unimported.mjs", "fully.mjs"],
+          "exclude": [],
+          "reporter": ["json", "json-summary", "text", "lcovonly"],
+          "reportsDirectory": "configured-reports",
+          "clean": false,
+          "reportOnFailure": true
+        },
+        "flags": ["--coverage.reporter=json"]
+      },
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"configured-reports\",\n      \"clean\": false,\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"configured-reports\",\n      \"clean\": false,\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "cases": [
+        {
+          "file": "contract.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "only true branch is executed",
+              "status": "passed",
+              "title": "only true branch is executed",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        },
+        {
+          "file": "full.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "fully covered control",
+              "status": "passed",
+              "title": "fully covered control",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        }
+      ],
+      "coverage": null,
+      "summary": null,
+      "lcov": null,
+      "coverageText": null,
+      "reportFiles": ["retained.txt"],
+      "customTrace": null,
+      "ownersClosed": true
+    },
+    {
+      "name": "no-config-reporter-only",
+      "profile": {
+        "name": "no-config-reporter-only",
+        "noConfig": true,
+        "flags": ["--coverage.reporter=json"],
+        "directory": "coverage"
+      },
+      "before": null,
+      "after": null,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "cases": [
+        {
+          "file": "contract.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "only true branch is executed",
+              "status": "passed",
+              "title": "only true branch is executed",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        },
+        {
+          "file": "full.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "fully covered control",
+              "status": "passed",
+              "title": "fully covered control",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        }
+      ],
+      "coverage": null,
+      "summary": null,
+      "lcov": null,
+      "coverageText": null,
+      "reportFiles": ["retained.txt"],
+      "customTrace": null,
+      "ownersClosed": true
+    },
+    {
+      "name": "standard-implicit-disabled-provider",
+      "profile": {
+        "name": "standard-implicit-disabled-provider",
+        "coverage": {
+          "provider": "v8",
+          "include": ["subject.mjs", "unimported.mjs", "fully.mjs"],
+          "exclude": [],
+          "reporter": ["json", "json-summary", "text", "lcovonly"],
+          "reportsDirectory": "configured-reports",
+          "clean": false,
+          "reportOnFailure": true
+        },
+        "flags": ["--coverage.provider=v8"]
+      },
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"configured-reports\",\n      \"clean\": false,\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"configured-reports\",\n      \"clean\": false,\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "cases": [
+        {
+          "file": "contract.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "only true branch is executed",
+              "status": "passed",
+              "title": "only true branch is executed",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        },
+        {
+          "file": "full.test.mjs",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "fully covered control",
+              "status": "passed",
+              "title": "fully covered control",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        }
+      ],
+      "coverage": null,
+      "summary": null,
+      "lcov": null,
+      "coverageText": null,
+      "reportFiles": ["retained.txt"],
+      "customTrace": null,
+      "ownersClosed": true
+    }
+  ],
+  "unqualifiedLegacyProfiles": [
+    "standard-disabled-reporter-only",
+    "no-config-reporter-only"
+  ],
+  "legacyBoundary": "Existing dotted reporter-only implicit enable is retained by this explicit-provider slice and remains a separate genuine mismatch."
+}

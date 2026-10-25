@@ -1,0 +1,12 @@
+import { test, expect, afterAll, chai } from 'vitest';
+const trace = []; let taskA, taskB, aliasA, aliasB, receiver, localA, localB, phase; const exact = new Error('actual task setter throw');
+expect.extend({ toObserveTaskSetter(actual, expected) { trace.push({ phase, kind: 'matcher', taskA: this.task === taskA, taskB: this.task === taskB, noTask: this.task === undefined, sameAssertion: this.assertion === receiver, actual, expected }); return { pass: actual === expected, message: () => 'setter subject differs' }; } });
+const alias = value => { Object.defineProperty(value, 'not', { configurable: true, get() { return this; } }); return value.not; };
+const call = label => { phase = label; receiver = aliasB; aliasB.toObserveTaskSetter('A'); };
+test('task setter source A', context => { taskA = context.task; localA = context.expect; aliasA = alias(localA('A')); });
+test('actual setter state remains authoritative', context => {
+ taskB = context.task; localB = context.expect; aliasB = alias(localB('B')); const originalTask = chai.util.flag(aliasB, 'vitest-test'); let stored = originalTask, gets = 0, sets = 0, mode = 'ignore';
+ Object.defineProperty(aliasB.__flags, 'vitest-test', { configurable: true, enumerable: true, get() { gets++; return stored; }, set(value) { sets++; if(mode === 'ignore')return; if(mode === 'undefined-then-throw') { stored = undefined; throw exact; } stored = value; } });
+ for(const next of ['undefined-then-throw','ignore','store']) { stored = originalTask; mode = next; phase = next; const before = { gets, sets }; try { chai.util.transferFlags(aliasA, aliasB); trace.push({phase,kind:'return',undefined:true}); } catch(error) { trace.push({phase,kind:'throw',sameError:error===exact}); } const afterCopy = { gets, sets }; call(next+'-call'); trace.push({phase:next,kind:'observations',copyGets:afterCopy.gets-before.gets,copySets:afterCopy.sets-before.sets,matcherGets:gets-afterCopy.gets}); }
+});
+afterAll(() => console.log('DECLARATION_FN:' + JSON.stringify({ kind: 'transfer-setters', trace, countA: localA.getState().assertionCalls, countB: localB.getState().assertionCalls })));

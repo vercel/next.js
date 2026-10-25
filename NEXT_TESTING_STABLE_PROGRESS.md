@@ -7333,3 +7333,425 @@ reference rows and every maintained evidence path. Both existing capability
 publication controls pass2/2; the actual built CLI publishes the entire generated
 inventory exactly. No full functional acceptance rerun is claimed for this
 metadata-only reconciliation.
+
+## Local class-reset integration and qualification follow-ups
+
+Terminal named and anonymous CommonJS class expressions now participate in the
+existing certified actual-import/reset path, including dependency cycles,
+default/rest constructors, self identity and an empty leaf class. Actual-reset
+targets retain the certified namespace even with no require descendants; the
+ordinary leaf path and other publication restrictions remain intact. Unchanged
+Vitest 5.0.4 fixtures pass 40 engine/mode profiles. The integrated implementation
+matches all 84 case/complete-console rows in 20 development profiles across Node
+20/22/24/26, both from source and a physical local package with a separate native
+binary. Production actual-import/reset admission remains open.
+
+The user approved removing one obsolete unsupported-class array entry. Its exact
+literal remains in the positive compiler control and real fixture; all other
+negative inputs are retained. All 15 Rust certificate controls pass. The coherent
+S10 build passes full bootstrap, root types, changed-file lint/formatting, all 437
+lifecycle/server tests and 89 bounded Browser coverage mapping controls. These
+checks are scoped functionality evidence, not a new full acceptance checkpoint.
+
+The separate frozen 13e8f34 full acceptance retains 3,190 focused passes with 26
+failures and 245 regression passes with 19 failures. Its two Browser coverage-watch
+parent-close failures pass an awake exact follow-up against unchanged source and
+native bytes, preserving the original close/stage/Jest deadlines. Earlier raw
+failures remain recorded; neither those follow-ups nor the confirmed host sleep
+promote that full run to green. Local commits remain blocked by the reported
+1Password signer failure. Source remains local, no push is authorized, and
+stableReady remains false. Documentation/migration examples remain deferred until
+implementation and qualification; Linux and performance benchmarks stay deferred.
+
+## Local integration: Task IDs, watch ownership and Browser maps
+
+The verified raw declaration follow-up publishes child IDs on the same retained
+Task and Suite objects after collection. Prepared expectations bind by actual
+Task identity, so cleared children with empty public IDs cannot alias a later
+expectation. The owner verifies 858 distinct maintained tests, 344 complete
+installed profiles across Node 20/22/24/26, eight actual reporter profiles and 20
+module-close profiles. Public Task flags and promises/onFinished shape remain
+separate unfinished work; resource and snapshot lifetime guards are preserved.
+
+Ordinary no-flag isolated Node watch now selects known regular-file consumers
+from fresh compiler plans. Directories, missing/symlink notifications, certified
+registry additions and active coverage retain their existing conservative owner.
+Partial Browser cancellation accepts a genuinely unexecuted parent acknowledgment
+without synthesizing a failed file; contradictory events and actual cleanup
+failures still fail the run. The owner verifies all 730 CLI/broker/watch/server
+controls plus complete installed default-watch development/production rows and
+four complete reference Browser cancellation profiles. Default cached sequencing,
+Browser affected-watch execution and affected-only coverage remain separate gaps.
+
+The S12 native Browser dependency producer now walks actual processed user and
+setup modules through the shared dependency walker. Static/setup metadata carries
+real source hashes; opaque graphs remain conservative. Computed dynamic requests
+remain unsupported execution. All eight maintained dependency profiles pass with
+141 Browser coverage association controls in one serial fixture lane: 149 total,
+plus repository types, lint and formatting. The new private coverage association
+preserves original native mappings and observed counter identities for measured
+intrinsic props/children. Its owner matches 48 complete published file maps on two
+SDKs. The prior nine coverage profiles match all 36 physical package reports and
+18 actual cancellation/recovery checks. Public production Browser coverage stays
+closed; coherent installed qualification of the new child step is pending.
+
+The generated inventory now records 76 evidence groups without removing any of
+the 776 pinned API rows or weakening broad release classifications. Its latest
+full-attempt record preserves the failed S8 acceptance, independently of later
+focused passes. A newer Root run retained 1,202 passes and seven failures; actual
+reporter triggers proved interference from a concurrent sibling incremental
+fixture. That full result remains failed. Further validation uses one fixture-
+producing lane per broad checkout root, while independent roots continue work.
+
+The closed fixture from the interrupted over-scoped run was audited and removed,
+retaining reports and a file-hash manifest and freeing 1,113,853,867 logical bytes.
+The existing fixed checkout/consumer pool is reused. Commits are still waiting on
+the reported configured signer failure; no unsigned workaround or push is used.
+Documentation and migration examples remain last, with Linux and benchmarks
+deferred. These are implementation increments, not stable release qualification.
+
+## Local integration: async CommonJS exports, actual Task flags and uncached order
+
+Certified terminal CommonJS async, generator and async-generator expressions now
+retain actual dependency/cycle reset generations, promises/iterators, lexical
+self/receivers, namespace descriptors and held mutations in isolated development
+Node. Twelve unchanged graphs match all 96 genuine profiles, 48 source profiles
+and 48 physical installed profiles across Node 20/22/24/26. Each Next matrix retains
+240 complete cases and 240 authored console rows. The user approved removing seven
+obsolete negative entries; their exact literals remain positive controls, all
+other negatives stay unchanged and all 16 Rust certificate controls pass.
+
+The actual Task flag adapter publishes the retained Test to Chai and maps it only
+to its existing real scope bookkeeping carrier. A captured async operation keeps
+its original carrier through later retry rebinding. The owner verifies 861 source
+controls, 360 installed profiles and 20 real module-close profiles. Five private
+test consumers use the same adapter without changing their assertions. Root
+integration with the verified uncached-order step passes all 769 runtime,
+snapshot and CLI controls, repository types, lint and formatting. Public Task
+promise/listener shape and additional hard matcher names remain separate work.
+
+Explicit --no-cache supports one selected isolated one-shot Node or Browser
+runtime project. Real size fallback, shard partition, file shuffle and captured
+seed retain the distinct pinned report-order rules. Twelve complete ordinary and
+installed profiles match 52 cases and ordered console rows; two omitted-seed
+profiles retain their own actual seed/order. All fourteen preserve existing cache
+bytes. Persistent default caching, cached sequencing, watch, typecheck and mixed
+projects remain open. The independent cache producer has no default caller yet.
+
+Installed Browser affected-watch selection matches twenty complete reports and
+twenty-four ordered authored rows across Chromium/Firefox and both modes, with
+one project, seed1 and fileParallelism:false. All four unchanged cancellation
+helper replays close. Earlier default/cross-project ordering failures remain
+retained. Private Browser coverage now supports semantic named aliases and unused
+Fragment stripping, self-closing intrinsic elements and implicit boolean
+attributes; all 231 mapping controls pass. The newest coherent installed
+fourteen-profile sweep is running serially on both SDKs. Public production Browser
+coverage and component/member/spread mapping remain open.
+
+The frozen S12 tree 0b53aacd4e8f5675e8b57f4a65b2399ca1b655c4 passes all 3,356
+focused tests, 36 incremental checks, 79 RSC bridge tests, 35 rendering tests and
+17 snapshot-parent tests. Its original-budget regression run and subsequent
+47-case Browser replay are still pending; no new full checkpoint is declared.
+The production Node reset candidate is also unqualified: the actual first probe
+found a remaining development-only runtime-env requirement in the native entry
+builder. Its next native revision is being built and verified separately.
+
+The generated inventory records 77 evidence groups while retaining all 776 API
+rows, declarations, overloads, implementation statuses and broad release
+classifications. Completed caches were retired after their owners closed,
+reclaiming another 338,333,124 logical bytes. The same checkout, native target and
+consumer pool is reused. Configured signing still blocks local commits; source
+stays local, no push is performed and stableReady remains false. Documentation,
+migration examples, Linux qualification and benchmarks retain their agreed deferral.
+
+### S16 source production reset and parallel integration
+
+The bounded reset-only production Node path now runs through actual production
+module cache/factories and CommonJS graph ownership. Generated namespaces retain
+the authored filesystem's package context, and Node test compilation preserves
+observable function names and native error text. All 108 source profiles across
+27 unchanged ordinary/default/rest/async/generator/class graphs match the genuine
+reference: 500 complete cases and console rows on Node 20/22/24/26. The 129
+compiler artifact admission/publication controls pass. Physical installed
+production qualification is pending the same consumer's current Browser lease;
+broader mocks, profiles and combinations remain open.
+
+Verified retained hard assertions, local component-tag mappings and actual
+fulfilled module-result facts have been integrated. The full focused runtime,
+snapshot and CLI run passes 771 tests with all 769 previous names retained; all
+292 Browser mapping controls pass. Types, ESLint and formatting pass. The first
+combined driver had only an extra blank-line formatting failure and an incorrect
+expected count of 772; the saved run actually passed all 771 tests. Those driver
+and formatting corrections do not rerun or replace the original results.
+
+Both SDK source runs match 40 complete local component zero models and 80 whole
+published file maps, with actual cancellation/no-publication and fresh recovery.
+The earlier installed fourteen-profile sweep is complete on both SDKs. Its
+coherent sixteen-profile successor has finished SDK 1.64 and is running SDK 1.61
+in the same refreshed consumer. Public production Browser coverage remains
+closed. Creator-wrapped methods and broader function/class component grammar are
+being implemented and verified separately. Private completion transport and
+actual cleanup settlement are also progressing independently; default persistent
+result caching has not been admitted.
+
+Frozen S12 tree 0b53aacd4e8f5675e8b57f4a65b2399ca1b655c4 passes all 3,356
+focused tests and all 264 original-budget regressions, plus 36 incremental,
+79 RSC bridge, 35 rendering and 17 snapshot-parent checks. The original Browser
+replay stopped at preflight because some historical fixture/verifier/reference
+files had been retired. Only hash-equal original bytes have been restored. Four
+fully restored groups now pass seven cases and eight complete rows with all
+frozen source, output and native hashes held. The remaining forty original cases
+are still blocked by missing artifacts; no new full checkpoint is declared.
+Historical S8 failures and the last complete 47-case checkpoint remain retained.
+
+All 776 public inventory rows, declarations, overloads, classifications and
+implementation statuses remain unchanged across 77 evidence groups. Another
+225,534,478 logical bytes of completed generated bootstrap cache were retired
+after the owner closed. The previous installed package and archives were removed
+before refreshing the single consumer. Configured signing still blocks local
+commits; nothing is pushed and all source remains local. Documentation, migration
+examples, Linux qualification and performance benchmarking remain deferred.
+
+The verified private completion transport has now also been integrated: 551
+execution/server controls, 22 actual Node worker profiles and 44 compiled
+Chromium/Firefox development/production profiles pass in its isolated owner.
+Requested missing or invalid completion is an integration failure; direct
+load/collection/run failures retain the original observed diagnostic. Four whole
+ordinary capture-off/on JSON pairs match. Every returned carrier is provisional
+closed:false. Actual closure settlement, cancellation composition and default
+persistent result caching remain unfinished; root integration checks are next.
+
+The S16 bounded production Node reset increment is now source-and-installed
+qualified: all108 profiles across27 graphs pass on each side, with500 complete
+cases and console rows each. The installed archive92cc7810cef34909 retains9435
+compiled files and a separate S16 native artifact. Browser coverage's installed
+sixteen-profile sweep also passes on both SDKs:64primary reports,336published
+file maps,160real declarations and32actual cancellation/no-publication checks
+with fresh recoveries. The same consumer is released for the next increment.
+
+The next S17 arrow compiler candidate has built successfully and passed the
+required full18-task bootstrap. Its112 genuine block/expression profiles and448
+cases/rows pass, and the S16 baseline retains its original zero-body refusal.
+Source/installed arrow qualification is next; one original negative compiler
+entry remains untouched pending proof and user approval. Passive bounded/around
+and same-existing-await Node body settlement observations are integrated for
+root verification; they grant no closure or cache rights. The genuine species
+count6 versus current capture-off/on3 remains explicitly separate open evidence.
+Signing still blocks local commits; no source export or push is performed.
+
+S18 terminal arrows now preserve the direct evaluator's actual captured global
+receiver through the existing native context; ordinary functions, class scopes
+and require-side receivers retain their own behavior. Four compiler scope,
+cycle and option controls pass. All 112 genuine and 112 source profiles across
+14 ordinary/async dependency/cycle graphs match 448 complete cases and console
+rows in each. The coherent installed S18 package also passes all112 profiles and448 complete cases/rows with9438 compiled files and its separate Native artifact held. The earlier probe that reflects
+all runner-private global properties remains retained as an explicit global
+surface mismatch; the additive lexical-identity corpus asserts the real object
+identity and retains every namespace, dependency, mutation and failure row.
+One original obsolete arrow negative remains unchanged pending user approval; its exact literal remains in a passing positive compiler control.
+
+The retained synchronous throw matcher increment is integrated. Its owner passes
+400 installed profiles and 28 actual module-close profiles with complete rows
+and clean ownership audits. Root passes 774 runtime, assertion, CLI and snapshot
+controls across five suites, retaining all 771 prior test names. Passive bounded
+operation and same-existing-await body observation controls pass nine and eight
+actual cases; they grant no cache authority. Default caching is being built from
+the actual upstream final task state, duration and partial-run semantics plus
+real host cleanup and cancellation results, without an invented requirement to
+prove every authored asynchronous continuation settled.
+
+Creator coverage conversion is integrated with all 374 pure controls passing.
+Both SDK source probes match 28 whole zero models, 56 published maps and 56 case
+rows, with four actual cancellation/no-publication checks and fresh recoveries.
+The first full S18 installed eighteen-lane attempt retains an original 180-second
+verifier deadline failure in an existing empty-element lane. Selected new
+creator and prior component regressions are being verified separately; they do
+not turn the failed full attempt green. The bounded public production Chromium
+JavaScript coverage path is also integrated for Root verification. Its owner
+passes twelve complete public source CLI/config comparisons across both SDKs,
+including report assets, disabled/override behavior and threshold errors/exits.
+Typed sources, production coverage watch and broader Browser profiles remain
+open; coherent installed public qualification is next.
+
+Root types, lint, formatting and inventory checks pass before the public-path
+integration. All 776 public API rows and 77 evidence-group mappings/statuses are
+retained. Another 225,614,103 logical bytes of the closed bootstrap cache were
+retired; the one consumer was refreshed only after its prior owners closed and
+old packages/archives were removed. One additional original Browser verifier was
+restored byte for byte from the local task record; 71 original pinned paths are
+still missing and the full 47-case replay remains incomplete. All source remains
+local, signing still blocks local commits, and nothing is pushed. Documentation,
+migration examples, Linux qualification and benchmarking stay deferred.
+
+The selected S18 creator/component installed follow-up now passes both SDKs:
+eight lanes, 68 real declarations, 16 whole report JSONs, 136 complete published
+maps and case rows, and eight actual cancellation/no-publication checks with
+fresh recoveries. The original full sweep stays open. Explicit headed/headless
+Browser configuration is integrated with twenty complete reference-equal reports,
+one hundred exact console rows and twenty snapshots. Eight watch profiles retain
+cancellation, source recovery and configuration inversion with all owners closed.
+The inventory now moves only browser.headless from missing to partial; all other
+API implementation statuses and every declaration/classification remain held.
+Its omitted non-CI default mismatch, WebKit and broader profiles remain open.
+
+The final thirteen-member Chai fluent step is now integrated for combined Root verification. Its owner passes882 source controls,24 new installed profiles and32 real module-close profiles with complete rows. The earlier424-profile candidate remains separately labeled and is not counted against the final bytes. The next callable-chain identity increment proceeds independently against the existing private Chai identity registry.
+
+The coherent S18 Browser/Chai integration passes787 runtime/CLI/assertion/snapshot tests across five suites, preserving every prior774 test name, plus427 coverage/protocol controls, types and ESLint. Public one-shot configured production Chromium JavaScript coverage now also passes twelve installed CLI profiles across SDK1.64/1.61 with complete reports/assets, overrides, sentinels and threshold errors/exits. Its source and installed proof is bounded to this profile; typed sources, watch and authored-error stack parity remain open. Two new creator golden JSON files receive repository formatting only; decoded reports remain identical and prior exact-byte receipts remain preserved. The user-approved obsolete arrow negative is now removed with its identical literal retained positive; the full Rust certificate suite is next. The private module-state v2 transport is integrated for verification and still grants no cache closure or default-cache functionality.
+
+A current-source audit also corrects an outdated remaining-work claim: later maintained compiler/publication controls already implement measured hidden flags and owned getter/default descriptors, and the historical regression receipt has40 installed profiles/180 complete matching rows including32/32 truthy rows. Current-revision requalification remains queued; broader publication combinations are still open.
+
+The next creator-component binding slice is integrated separately: actual function-expression/class bindings and native source-map anchors retain counters. Owner source qualification passes468 pure controls, preserving all427 prior controls, plus44 complete maps and44 case rows on both SDKs with actual cancellation/no-publication and fresh recovery. Root and installed verification are next; named-factory composition and broader component origins remain open.
+
+The bounded default headless fix now passes36 source and36 ordinary installed Chromium/Firefox profiles,180 complete console rows and36 snapshots in each. All actual launch arguments match. Complete upstream JSON comparison passes28 profiles; eight local headed profiles lack the genuine declaration location (Chromium8:1/Firefox8:5), retained as a separate report gap rather than normalized away. Existing configuration omission/private host behavior and all old explicit controls remain unchanged; ten new environment-default controls and22 selected CLI controls pass. The native Chai callable identity slice is integrated for normal dependency/ncc/bootstrap verification; its owner has883 source controls,448 installed profiles and36 actual module-close profiles with complete rows. Named creator coverage is integrated separately with509 owner controls and24 complete paired source maps/case rows.
+
+Frozen S19 tree1df98dac447f1d15b294adbd8430e2fe6d4dc940 passes full18-task bootstrap,root types,79 RSC bridge and35 rendering controls. Incremental checks retain34 passes and two real failures: after initial-empty/beta assertions pass, an unrelated edit unexpectedly changes report bytes. The original report content was discarded by the old fixture cleanup, so a passive exact-revision diagnostic replay is queued after the running focused/regression lane joins. A separate S17 diagnostic passes and does not clear the S19 failure. No full green checkpoint is declared. Another112,913,754 logical bytes of closed Root bootstrap cache were removed; active acceptance cache and raw proof remain. Signing still blocks local commits and nothing is pushed.
+
+Current local integration after callable and cache follow-ups
+
+Root normal core build passes with NativeS19 unchanged. Combined nine suites pass1504 tests; all517 mapping/protocol controls and74 broker controls pass, and root TypeScript checking passes. The original new headless broker table now explicitly controls CI=true, retaining all eight rows; eight local CI=false controls are additive. Earlier1471/4 broker-harness failures remain recorded. Thirteen new JSON fixtures received repository whitespace formatting only, with every decoded expectation unchanged.
+
+Nested native Chai function sources now follow their actual privately captured receiver graph iteratively, retaining descriptor/flag/Task and original resource semantics. All24 source profiles across Node20/22/24/26 and both modes match48 complete cases and24 whole rows; four real development module-close profiles match eight cases/four rows. Installed qualification uses the same released consumer and is active. The native producer/patch/ABI is unchanged.
+
+The qualified one-shot default one-worker Node result cache is integrated. Its owner proves22 actual installed CLI profiles, eight actual state profiles and six cleanup/lock profiles; combined Root checks pass. Collection-failure actual public Task publication, multiworker and other execution profiles remain gaps. The old editor race independently reproduces before this feature; no acceptance pass is inferred from scoped cache functionality.
+
+Public ordinary TypeScript Browser reporting passes both SDKs in source and installed runs. Named imports/static member coverage and the narrow Chromium browser_ui discovery correction qualify four installed groups with eight whole reports,24 maps/rows and four cancellation/recovery checks. A newer ordinary.ts161 console-gated cancellation times out before the SIGINT request and remains unresolved; no URL mismatch or cause is claimed. Public TSX source12 profiles and paired original-body cancellation are qualified; its source1/maintained4 packet is integrated for Root and installed verification.
+
+Frozen S19 full acceptance has fully joined with source/native pins and all3042 original names held:34/36 incremental,3790/3793 focused,259/264 regression,79 bridge,35 rendering and17 snapshot checks. All original failures are retained; an unchanged passive related-watch replay is active. No new full passing checkpoint or stable readiness is declared. Current source-map declaration locations and the Browser.fn composition prerequisite remain separate owner work. Retired original Browser47 authority still has71 missing pinned paths.
+
+The same installed consumer was refreshed to73d3fd6be5f07c1ace29037cab953194c052c8e11a20b7e830793c4d601c7910 with9447 exact dist files and separate NativeS19. Its old package/archive was removed before replacement. Another112636784 logical bytes of closed Root bootstrap cache were removed; active proof/cache owners remain isolated. Configured signing still blocks local commits; source remains local and nothing is pushed. Documentation, migration examples, Linux qualification and performance benchmarking remain deferred.
+
+The installed nested Chai follow-up has joined:24 ordinary profiles and four real development module-close profiles match all saved complete rows across Node20/22/24/26 with the same9447 dist files and NativeS19 held. The unchanged passive S19 related-watch replay also passes both modes, including unrelated-edit report-byte identity; it remains a diagnostic follow-up and does not clear the original34/36 result.
+
+Three independently verified packets are integrated for the next coherent normal-build checks: Browser intrinsic fn identity (four real Chromium/Firefox mode profiles,32 outcomes, whole rows and modern entity trees), ordinary JSX source admission (twelve profiles, ten full reports,26 maps and paired original-body cancellation on both SDKs), and the ready known regular-file signature watch filter (all97 prior plus five new controls, two unchanged editor callbacks). Installed TSX/JSX qualification follows in the same reused consumer after retiring its previous package/archive. The absent-path watch candidate exposed two old broad-batch controls and remains unintegrated until those original expectations pass; directory composition remains open.
+
+The next integrated packet removes a real Browser.fn reverse-import initialization cycle found by the immutable75d consumer before TSX cases. Only the two known root declarations now receive a lazy internal capability; no early fn read occurs. The same-package four-file diagnostic overlay restores the original TSX defaults full report, while original and reexport-cycle Browser corpora each match32 outcomes/four full rows. Modern entity location descriptors remain an independent gap. Full corrected installed qualification is pending.
+
+The absent-path watch increment preserves every old control and passes105 owner controls plus the exact88-path replay (89 old notifications become only the one actual newly created barrier). A new test first proved that a delayed absent notification could erase an already reconciled real deletion; the fix preserves that queued fact. Actual unchanged editor callbacks remain intermittently red. A later exact trace shows unchanged precise named directories and an unchanged covered snapshot causing extra runs; its directory filter is separate work, not part of this claim.
+
+Configured development Chromium JavaScript coverage is integrated from twelve source settings profiles on both SDKs, ten complete reports/eighteen maps and two strict original-body cancellation/no-publication checks. Its owner passes532 coverage/protocol and125 CLI controls. Explicit selected .ts/.mts/.cts/.tsx/.jsx remain measured vetoes, not completed functionality. Root and installed follow-ups are queued. Closed Root fixture output retirement removed245172667 logical bytes while retaining raw reports and authored sources. All source remains local; no push or new full-acceptance claim follows.
+
+The directory watch packet is integrated from116 owner controls, a full514-test CLI/broker pass and both original exact editor callbacks (13body/13finished/13afterAll/1active, all owners closed). Root normal-build and coherent checks are next; old frozen failures remain. The reporter module-state failure was traced to a timing assumption: six complete fresh pristine profiles and eight Next profiles retain every complete row except the last case callback can observe pending or passed. The user approved only that outer comparison update; callbacks, saved reports, first callback and all terminal rows remain exact. A separate genuine Node22 timeout is retained.
+
+The corrected f30c installed package now passes both Chromium SDKs for all24 TSX/ordinary JSX settings/case profiles,20 full reports/52 maps and four strict original950-reporter cancellation/no-publication checks. The earlier actual startup cycle is fixed; raw75d failures and intermediate overlay proof remain separate. Installed configured development JavaScript continues in the same consumer. Development ordinary.ts is privately proven against real dev-v1 facts and still awaits public admission/verification; no Node or production authority is substituted.
+
+The integrated directory watcher passes all116 Root controls after the normal build, with root types/lint/format clean. The approved reporter state comparison no longer blocks on its former assumption, and a captured unchanged follow-up passes both modes with four cases and complete rows. An earlier uncaptured exit1 occurred after gate release; raw outer output is retained with cause unassigned. A separate genuine Node22 held-body timeout remains recorded. Corrected f30c installed qualification closes36 settings profiles,48 actual case rows,30 full reports/70 maps and six strict cancellations across both SDKs. All9447 files/archive/Native/support bytes remain held and the consumer is released. The existing acceptance checkout is being reused;338480598 logical bytes of its closed cache were retired before the next bootstrap, retaining old raw results/source tree receipts.
+
+Development ordinary TypeScript Browser coverage is integrated from its actual dev-v1 compiler/declaration/runtime path: twelve source settings profiles, ten whole reports/eighteen maps and two strict original950-reporter cancellations on both SDKs. All remaining .mts/.cts/.tsx/.jsx boundaries are held. Owner normal build, types/lint/format,124 CLI and532 mapping/protocol checks pass; Root normal-build and installed verification follow. No full acceptance or release-readiness claim changes.
+
+Queued-directory170 preserves real reconciled directory identity changes against delayed native callbacks. The deterministic pre-fix116/117 failure becomes117/117 with all prior controls held. Concurrent-worker result caching166 removes only the one-worker restriction from the already eligible actual CLI path:18 installed history/default/false profiles, four actual paired2/3-worker overlaps, eight cache-state profiles and six cleanup/lock profiles pass. Owner516 CLI/broker checks and normal build/types/lint/format pass. A sleep-overlapping hard-control timeout/kill-EPERM attempt is retained as unqualified; exact owners closed before the fresh unchanged-budget controls passed. Both packets are integrated for Root normal-build and coherent verification. Authored config.test.cache, Browser/watch/mixed/coverage cache profiles and full acceptance remain open.
+
+NativeS20 integrates the declaration-call, typed canonical parallel-page and flat CommonJS destructuring producers. All11 added Rust tests and the normal native build/full18-task bootstrap pass, with officialABIaa84 and raw runtimes held. Declaration and CommonJS runtime compatibility remain scoped candidates under owner qualification, with old negative expectations unchanged.
+
+Matched named parallel pages now pass both normal Turbopack development and production suites (three maintained assertions each), eight ordinary-app reference rows and sixteen physical installed matched/default-only cases and complete rows. The exact final formatted sources, original default-only bodies,9447 compiled files, Native0298 and packagef4e66 remain held. The compiler selects the actual unique ordinary page and same typed AppPath while retaining the genuine loader tree, request stores and interception/ambiguity guards. Navigation, broader slot matching, static/PPR/actions and slot-streaming combinations remain open.
+
+Development ordinary TypeScript Browser coverage closes all12 installed settings profiles,10whole reports and18maps. SDK161 strict cancellation passes; the original SDK164 callback gate failure remains unassigned. One unchanged-body/reporter/deadline passive follow-up passes and records the actual top-level gate, establishing no fix for that earlier failure. The original production ordinary.tsSDK161 cancellation issue remains separate.
+
+Full frozen acceptance now uses the same checkout at source tree02f259dd80405856729cdc92ce21fe85fc224448 with NativeS19, preserving complete uncommitted source. Full bootstrap/types,79bridge and35rendering checks pass; incremental35/36 retains one initially-empty production report overwritten before authored edits. A separate current passive four-stage diagnostic passes but does not clear the frozen failure or establish its cause. Focused/snapshot/regression are still running. Historical failed attempts and71 missing original Browser authority paths remain recorded. No new full passing checkpoint, supported range or release exception is declared. Source stays local; no push.
+
+Current completed qualification and remaining integrated failures
+
+Frozen source02f259dd80405856729cdc92ce21fe85fc224448 with NativeS19 has finished. All3042 baseline focused names and frozen bytes remain held. Types,79bridge,35rendering and17snapshots pass; focused3920/3926, regression252/264 and incremental35/36 remain red. Watch extra runs/selection, cancellation/coverage gates, reporter host observation and obsolete capability/cache-cleanup expectations remain explicit issues. Actual invocation-lock and startup/config/sibling-output events are captured; the exact lock exclusion awaits its corrected new fixture setup and full control verification. Diagnostic positives do not replace failed acceptance.
+
+CommonJS flat destructured parameters match576 genuine,576 source and576 installed profiles across four Node engines and both modes, with2880 complete cases and ordered rows per matrix. Twelve Root compiler controls pass; three obsolete Rust negatives remain unchanged pending approval. Twelve new JSON goldens receive whitespace-only formatting, with all decoded fields held. Deferred Locator.clear matches40 source and40 installed cases/full rows across both SDKs/modes, with actual owners closed and12 Root controls passing; two obsolete negative inputs remain unchanged pending approval.
+
+NativeS21 adds exact lexer-issued parenthesis source-map terminals for actual resolved direct declarations only. Nine compiler checks and normal native/full18-task bootstrap pass with official ABI/raw runtime bytes held. Public includeTaskLocation and producer-owned reporter publication are partial functionality:160 original source/installed case states and20 ordered rows retain exact functional outcomes, including authored skip/todo. Six direct-call trivia declarations match24 source/installed Chromium/Firefox development cases, four complete rows and all parsed modern entity fields. Extracted aliases, curried each, production/minified coordinates and broader profiles remain gaps. Original key-order-only comparison flags/raw reports remain recorded. The inventory changes only includeTaskLocation from missing to partial while retaining every original API identity/classification and evidence-group identity.
+
+The actual global expect Test-flag increment is integrated from20 installed profiles,84 cases and20 complete rows across four Node engines and serial Browser profiles. Latest-running global selection, undefined after actual closure, local ownership and native/custom matcher attribution match; private guard ownership stays held. Owner assertions/lifecycle342/342 pass; combined Root qualification follows. Public Task promises/onFinished remain separate work. The Browser-only licensed locator formatter and actual single-graph native import-order candidate are integrated for the next normal bootstrap, without a functionality claim for those candidates. Source stays local, signing still blocks local commits and nothing is pushed. Documentation, migration examples, Linux qualification and benchmarking remain deferred.
+
+NativeS22 and locator/watch integration qualification
+
+Single-root compiled native import ordering matches the original whole report and complete console row on Node20/22/24/26 in both source and the ordinary installed package. Seven compiler controls and the maintained helper pass. The actual public invocation lock is shared with watch output metadata; both real-mode native-lock/source-barrier probes pass, and all119 watcher controls retain every117 original source byte. Initial new harness env/dynamic-import failures remain recorded. Combined Root assertions/lifecycle342/342 and selected locator/CommonJS32/32, types, lint, formatting and inventory pass. Broader frozen watch/acceptance failures remain unchanged.
+
+The same e374 installed package passes44 locator element/query cases with40 complete genuine-owned-document rows, plus40 actual clear cases/full rows across both SDKs/modes. Four foreign-document guard rows remain a reference gap. All9456 compiled files, archives and private Native914 stay held; the same consumer is released after all owners close. Its same-input ordinary production baseline builds and renders with no active test code/trace leaks; its runtime hash is retained for the next comparison. Completed package/archive versions are removed before replacement and no extra checkout/consumer is created.
+
+The S23 leaf CommonJS Promise candidate is built after one actual exact-owner/nonasync graph test,84 actual Node helper controls and both normal runtime TypeScript profiles pass. A new private context flag injects the Node helper only for real prepared test namespace certificates; ordinary Node runtime-base bytes are unchanged. Actual compiled namespace/static/dynamic/reset and same-input ordinary production omission qualification remain pending. The first new graph-test Vc argument compile failure is retained; correcting only those new observer arguments passes the test. Public/native ABI is unchanged.
+
+Development Browser .mts private4/public1/maintained7 are integrated from owner532 prior controls and12 public source settings,10 complete reports/18maps, exact report assets/threshold/CLI/clean behavior. Installed qualification follows. SDK164 strict cancellation passes; the originalSDK161 unacknowledged console gate/body timeout stays unassigned despite one unchanged passive positive. Old.mts refusal expectations remain held. CTS has a separately recorded genuine parse failure and no admission; development TSX measurement is ongoing. Full frozen acceptance still records3920/3926 focused,252/264 regression and35/36 incremental. Source stays local, signed local commits remain blocked by the unavailable signer, and nothing is pushed. Documentation/migration examples, Linux qualification and performance remain deferred.
+
+S23 integrated qualification closes the actual certified leaf CommonJS Promise source/installed matrix:16 profiles/144 cases and complete standard JSON reports pass across Node20/22/24/26 in both modes. Node24/26 additionally match96 whole console rows; Node20/22 retain precisely four rawKeys differences per profile from actual async/ALS own symbols. Paired same-input ordinary production runtime bytes are identical and no active test instrumentation leaks. The helper unused-disable lint failure is preserved; its sole unused header is removed in the pending S24 build.
+
+Root345 assertions/lifecycle controls pass with native public Promise arrays integrated;32 additional installed Node cases/eight complete rows match all four engines/both modes. Development Browser .mts passes all12 installed settings, ten complete reports/eighteen maps and original strict cancellation/recovery on both SDKs. The earlier SDK161 source gate red stays unassigned. The accidentally broader coverage reader ran the full1143 cases rather than the intended532 subset; it closes1135/1143 after953.68s, with eight exact watch/cancellation failures retained. It does not establish a new full acceptance checkpoint.
+
+Authored cache174 six-path precedence/real-IO packet, Browser-test React Refresh omission and resolved injected-CommonJS .mjs producer draft03 are applied for coherent S24 compiler/native verification. The staged primary diff remains25dc1f; old assertions, fixture bodies and goldens are held. The private JSX/TSX suffix gate remains closed pending complete actual compiler model proof. No source export/push, new worktree/consumer/Cargo target or release-readiness promotion occurs. Documentation/migration examples, Linux and performance remain deferred.
+
+Coherent S24/181 qualification passes471/471 across348 assertions/lifecycle and123 watch controls. All345 prior assertion/lifecycle names remain, both original invocation-lock controls pass, and the two exact post-subscription fault-gate corrections were explicitly approved. Actual pre-subscription input observation plus mandatory post-subscription reconciliation retains missed-native gap edits and all unknown/directory uncertainty; owner10 real profiles/20 complete generation reports pass. Public Node manual Promise consumption retains152 complete source+152 installed profiles and the separately open timeout-stack/nested-array-null report boundaries.
+
+The S24 Source/installed Promise namespace corpus now closes32 profiles/288 cases/complete standard JSON reports for CJS and directly injected .mjs. Node24/26 match192 whole rows; all16 lower-engine profiles have exactly4 rawKeys differences and only3 actual async/ALS symbol kinds. Ordinary production runtime bytes remain767dc785 with no instrumentation leaks. Authored cache precedence/real IO passes16 Root and16 installed profiles,96 cases/rows per sweep; config.test.cache moves only from missing to partial while all776 broad classifications remain unchanged.
+
+Installed production component watch passes3 whole render/profile rows,4 artifacts and active cancellation130. Development component watch has0cases/generations: indexed source-map0.6 parsing throws on a null entry; its original failure is retained and the reader/resolver correction is under independent verification. The actual beforeEach cancellation diagnostic shows both parent signals still false and a1000ms hook timeout; the host gate did not activate, so no finalizer cause is inferred. Development TSX/JSX remains held at exact import-model geometry; no public admission or release claim is made. Same fixed worktrees, Cargo target and consumer are reused; old physical package/archive versions are retired before replacement. Signed local commits remain blocked by the pending signer issue, with no push/source export. Documentation/migration examples, Linux and performance remain deferred.
+
+Indexed Browser maps182 and configured threshold groups183 qualification
+
+The mapped-source reader and nested-section resolver pass202/202 controls; actual nonnull original coordinates prevent unmapped prefixes from borrowing content, and nested offsets retain section ownership. The unchanged installed development and production component-watch cases each match3 complete rows and active cancellation130; production closes4 owned artifacts. The original pre-case development failure remains recorded.
+
+Configured threshold glob groups now pass32 Root controls, including24 genuine-compared source CLI profiles, plus24 physical installed profiles. Each sweep retains24 cases/reports and48 complete file models, exact JSON/summary/text/LCOV and threshold errors/exits. Group order, independent per-file flags and negative-uncovered units match the reference; empty groups stay silent. Threshold100/autoUpdate, providers, all-engine and cross-profile completeness remain open. Types, ESLint and formatting pass; NativeS24/ABI and the primary staged diff remain held. The reused consumer retires old package/archive versions before replacement.
+
+Frozen S24 source04d194 runs full acceptance after normal dependency installation and18-task bootstrap. Types,79 bridge and35 rendering pass; incremental remains35/36 because an unrelated edit unexpectedly rewrites the retained report. Focused/snapshot/regression checks continue with original bodies/deadlines. The dev-v1 actual import-role packets are applied outside that frozen checkout for NativeS25 verification, with public JSX/TSX admission still closed. Signed local commits remain blocked by the pending signer issue; no push or source export. Documentation/migration examples, Linux qualification and performance remain deferred.
+
+NativeS25 development imports, completion arrays and public routing190
+
+The normal Node completion-array integration passes356/356 assertion/lifecycle controls with all348 earlier names retained. Normal offline installation, primitive regeneration,18-task bootstrap, repository types, ESLint and formatting pass. Public native Promise/check identities, Finished/Failed live arrays and registration deadlines are retained without lending native failure authority to manual or foreign entries. Source176 and installed176 owner profiles preserve the separately recorded report-stack and manual-publication boundaries. Browser consumers are advancing independently.
+
+NativeS25 pins56 native inputs,10 raw runtimes and the unchanged official ABI. Generated development JSX ownership now matches eight Root source/installed SDK/syntax profiles with complete runtime/published maps and malformed-owner checks. Public development JSX/TSX SourcePlan routing is integrated from20 enabled source CLI profiles and4 disabled profiles; coherent Root/installed qualification is next. The original cancellation gate failure remains recorded. Its stat-observed outer-only helper correction has four source SIGINT/recovery pairs, but remains unapplied pending approval. Threshold100 has20 source and20 installed whole-report profiles; the one old per-file99 diagnostic-order expectation also remains pending approval.
+
+Frozen S24 source04d194 has fully joined with all source/native pins and3042 baseline names held:3971/4007 focused,246/264 regression and35/36 incremental. Types,79 bridge,35 rendering and17 snapshots pass. Every original failure is retained; seventeen execution failures trace to incomplete helper DOM globals, while watch/cancellation, coverage counter observations and obsolete controls still require separate qualification. Later S25/threshold100/completion-array/selector/public-routing steps are outside that failed frozen result. No new full green checkpoint or stable readiness is declared.
+
+The sealed selector10 and actual setup-failure guard are entering Root verification in the same core-build batch. Work remains local, fixed checkouts and consumers are reused, and old physical package versions are retired before replacement. Signed commits remain blocked by the pending signer issue; nothing is pushed or exported. Documentation/migration examples, Linux qualification and performance remain deferred.
+
+Root selector190 and public development JSX qualification
+
+The coherent selector/console10 plus setup-failure guard passes360/360 integrated tests, retaining all348 earlier assertion/lifecycle names and multiplicities. Normal core build, repository types, ESLint and formatting pass with NativeS25/raw runtimes/ABI held. The actual maintained Source CLI development JSX/TSX contract passes150.65s. The unchanged old CLI admission table has one valid CTS refusal and three now-admitted inputs; those still fail honestly under its deliberately absent producer. Their review-only outer forwarding correction is pending approval, with all original sources/mocks held.
+
+The reused installed4a0c package matches all24 JSX/TSX settings profiles on SDK1.61/1.64:36 complete case rows, full JSON/summary/text/LCOV/HTML/Clover/assets, exact threshold errors and CLI/clean behavior. Four stat-candidate SIGINT130/no-publication/errors0 and complete fresh-recovery pairs pass. The original helper remains unchanged pending approval. Every consumer owner/watcher has joined and fixture leaves are retired; the same consumer is released for the next step. Broader typed-import, mixed-graph, all-engine and cancelled-case-end compatibility remains open.
+
+The next compiler delta isolates returned-function creator cells inside each concise arrow invocation, preserving original function objects and parameters. Verification targets are two additive Rust controls and the twelve unchanged Browser creator-refusal profiles; functional verification is in progress, not a completed Browser claim. The first repository rustfmt check only requested a new test-literal reflow; its original output is retained. Browser public queues, exact async rejection ownership and actual configured-watch empty/enable fixes continue in separate worktrees. No full green acceptance or release readiness is declared.
+
+Exact async ownership193 and main-frame WebKit192
+
+The integrated async observer captures the exact live invoking context once while retaining the independently selected public Task. Root361/361 controls pass with all360 previous names/multiplicities held, normal offline installation, primitive regeneration,18-task bootstrap, repository types, ESLint and formatting. No-origin, retired and colliding-id contexts cannot acquire native body/check authority; raw Promise/Error identities remain. Owner96 source/installed profiles retain192 case statuses/exits and624 public rows unchanged by the private fix; six default-reporter channels pass. Existing afterAll global-count and diagnostic-stack gaps remain separate work.
+
+NativeS26 concise ordinary function factories pass17 Rust controls, compiler check, normal native build,18-task bootstrap and542 mapping/protocol controls. All56 Browser owner Source authored-row/case/exit profiles now match, including the original12 refusals. The later Browser fulfillment-only trial also closes all previously failing installed Firefox retries and full56+24 Source/installed channel corpora; Root integration awaits the final maintained packet and preservation gate. No error-message filtering is used.
+
+Main-frame one-shot WebKit instance admission and native classification are implemented. Fifteen actual predicate controls pass on SDK1.61/WebKit2311 and1.64/WebKit2370 with zero authored tag/proxy/then getter effects. The maintained three-case fixture matches genuine whole authored rows, case name/status/failureMessages and success/exits in both modes through Source and ordinary installede95a. Complete raw standard reports are retained without a whole-report equality claim. Owned frames/watch, broader rendering/lifecycle/public-queue combinations, full report conformance and release qualification remain open. The first SDK1.61 check lacked scriptParsed context metadata; exact actual function injectedScriptId now joins the real Runtime context, without inferred identifiers or weakened ownership checks.
+
+The approved threshold99 four-string outer order correction is applied and its exact control passes. Browser stat-gate, obsolete CLI admissions, DOM-helper and logical-waiter corrections remain approval-bound; original failures and bodies remain retained. Root retired204 superseded private build-cache files(452,515,842 logical bytes), keeping current task artifacts and all proof; owner2 retired1,683,272,642 bytes of unreferenced private package/archive/native versions after all readers joined. Fixed worktrees, Cargo target and consumers are reused. Signing remains blocked, nothing is pushed or exported, and documentation/migration examples, Linux qualification and benchmarking stay deferred.
+
+Integrated Browser194/Node194, coverage roles and ongoing NativeS26 qualification
+
+The coherent Browser194 batch passes362 Root assertion/lifecycle controls,12 selected WebKit controls and48 Boolean autoUpdate controls after normal core/types/lint/style checks. All80 ordinary installed Chromium/Firefox queue/channel profiles match complete authored rows, qualified case projections and status/exits. Node194 closes the measured public afterAll assertion-count differences across144 Source/installed profiles,272 cases and1360 complete rows; Root5 focused lifecycle guards pass, with32 existing retry report rendering differences retained.
+
+Boolean autoUpdate has69 Source configuration profiles; the actual current-AST writer also matches both unchanged numeric/complex live-edit cases, including whole reports/cases and final config bytes. Compiler inputs now retain actual transform/alias/Next/env/source and native imported-config roles separately from test/watch configuration. Explicit user approval applies the four obsolete role controls, Boolean refusal, HTML refusal, WebKit negative input and logical-reporter waiter only. Twenty-two selected controls pass. One actual logical-reporter timeout remains unassigned; a fresh passive run passes both modes/four cases without changing bodies or deadlines.
+
+WebKit actual owned-child classification passes15 native predicates on both SDK1.61 and1.64 plus13 Root resource controls, including unchanged parent/sibling realms and detached ownership. The broader40-profile run proves the implemented frame path on early profiles but stops on a process-inspection cleanup failure; both recorded process IDs are subsequently absent. This remains an unqualified run, with the earlier actual frame refusal and all raw failures retained.
+
+Actual retained formatter callbacks and the zero-body native forwarding fix are integrated from verified owner packets, preserving all Root test prefixes and private compiler/origin boundaries. Formatter Source8 development plus8 production profiles preserve complete reports/config/lifecycle; zero Source8+installed8 and existing positive80 pass. Combined Root/installed verification follows. The same acceptance checkout freezes complete Sourcec357588b486dfb9d17ccc2e2d681159d687b1d62 with NativeS26; offline install/full18-task bootstrap/types pass and full tests continue. That frozen revision predates these latest approved corrections and formatter/zero changes. No full green or release-ready claim follows. All source stays local; no push, new checkout or new native target.
+
+Root367/367 preserves all362 prior assertion/lifecycle names and all NativeS26/raw/ABI inputs; retained formatter5 and installed combined zero8 also pass. The reused frozenS26 revision now passes incremental36/36, bridge79 and rendering35, with focused/regression still running. The earlier incremental35/36 failure remains retained without a causal-fix claim.
+
+The disabled-formatter cache regression is reproduced before the fix: tests pass but the original global teardown fails and ordinary cache state is written. Requiring actual pending coverage before deferring config cleanup removes that write while preserving the exact case/exit/teardown/no-formatter/no-report behavior. It is integrated with the independently verified13-profile explicit V8 configured/custom-provider override slice. Normal Root build and combined focused verification are next; the same existing coverage consumer is prepared for parallel installed validation. No source export, push, new checkout or release promotion.
+
+The coherent d243 ordinary installed package closes all40 WebKit queue/channel profiles:28 JSON,6 normal and6 private completion paths preserve complete authored rows, qualified case projections and exits. All actual readers close and fixture inputs retire. The earlier actual owned-frame refusal is fixed; the later process-inspection cleanup failure stays unassigned and retained. The maintained corpus adds28 unchanged genuine WebKit report/console pairs without changing any original56 C/F entry or14 authored source; a separate package test preserves the old suite and deadlines. SDK/platform/watch/cancellation/concurrency breadth remains separate. The corrected coverage provider/cache batch is being built for the existing parallel consumer.
+
+The corrected563919 installed coverage matrix closes110 profiles/225 stable cases:69 Boolean,9 provider/default/missing-config,16 formatter,2 current edits,13 explicit-provider overrides and1 failed-teardown cache case. Complete coverage reports/config/case projections and110 owner audits pass with9468 dist files/privateS26 unchanged. Root12 coverage controls, six maintained WebKit identity channels and nine real three-engine host cleanup cycles pass. Full CLI remains466/471 (four pending obsolete controls plus one unresolved actual watch-status timeout); a wrapper filename error prevented the broker suite, whose separate correct-path run passes74/74. These failures remain explicit.
+
+Browser hook/Gecko319 and Mock19523 are integrated for the next Root build: hook Source80/installed80, actual Firefox mapping8 and parser179 pass; Mock Source/installed304 profiles/1424 cases and complete rows,145 mocking and745 compiler controls pass. The old585 aggregate timeout and33 preexisting execution boundaries stay retained. Root also integrates ordinary dotted coverage activation from11 exact Source profiles plus the bounded repeated plain scalar parser. Its genuine ten-profile reference proves three before-cases array errors while seven paths succeed. No old protected expectation or deadline changes; combined validation is next. Full frozenc357 focused/snapshot/regression work continues independently. No release promotion or source export.
+
+## Integrated Source verification after increment199
+
+Normal core/types/lint/style pass. The coherent pre200 revision passes746 compiler,145 mocking and203 Browser server/parser controls. Its normally installed a82 package passes80 hook profiles,10 ordered flags,11 activation profiles and actual editor watch initial/rerun/cancel/recovery with one global setup and no process leaks. All old3042 baseline names remain in frozen c357; that run has4051/4126 focused tests passing,75 failures, plus incremental36/36,bridge79,rendering35,snapshot17 green. Regression264 remains running; these results do not establish stable readiness.
+
+The next integrated Source step passes10 focused CLI controls (28 actual ordered/Boolean profiles plus external-project/selected-input controls),23 coverage controls and4 whole formatter/current-AST CLI profiles. It composes the eight-file formatter prepare/commit implementation, independent external transform ownership, selected compiler inputs, and explicit Boolean CLI forms. The old10 flag models remain unchanged; new9 forms also run with the directory before/after flags. All protected expectations remain as approved; the old external refusal and five private test-double corrections await separate approval. New installed replay is pending.
+
+Active parallel work: Browser concurrent producer/per-case collector with all admission gates still closed; five additional standard reporters and measured zero-output cleanup semantics in the coverage slot; exact parent fs.watch readiness diagnosis for native capture controls; and watch removal-diagnostic settlement after the real rejection. Formatter-active SIGINT retains its measured config-write/teardown divergence. Numeric/arbitrary-string/negative-equals flag quirks, actual cancellation/watch gaps, original47 Browser authority restoration, cross-profile qualification and full release gates remain open.
+
+Completed archives are retired only after owned readers join; fixed worktrees/consumers/native target are reused. Signed local commits still await the configured signer. All source stays local, nothing is pushed, and Linux/performance/docs/migrations remain deferred.
+
+## Verified local checkpoint before signed catch-up commit
+
+Frozen c357 is complete and failed:4051/4126 focused,241/264 regression. Incremental36/36,bridge79,rendering35,snapshot17 pass and all3042 baseline names are retained. Current Source and installed a7df separately pass all28 coverage-argument and4 current-AST report/config/callback profiles; Source10 CLI and23 coverage controls pass. Source additionally verifies34 genuine profiles for cobertura/html-spa/teamcity/text-lcov/none and exact zero-file publication semantics. Normal core/types/lint/style pass. None of these scoped positives promotes stable readiness.
+
+The user-approved patches23739676/8538362c/e71f63c7/87265d25/5fcd21ce/2c7e953e are applied exactly, then formatted/linted. Six CLI controls,35 execution controls and4 installed JS/MTS Browser cancellation gates (two SDKs) pass. The private TSX/JSX adapter had additional profile-routing deltas; those rows are not attributed to the gate-only maintained helper patch. Original failing attempts and all unapproved controls remain retained.
+
+Native hook watch qualification remains open: unchanged authored fs.watch receives no event under its original1s budget even after actual release-file creation. Plain pinned Node26 and20 controls reproduce the no-event observation without Next; this establishes no broader host cause and justifies no production workaround. Fourteen ordinary capture profiles pass a review-only parent readiness candidate; that helper is still unchanged pending complete qualification/approval.
+
+The signer is now explicitly unlocked for one configured signed local commit retry. Preserve all source and raw receipts, stage only implementation/maintained tests, exclude generated scratch roots, and do not push. Further verified increments should become local commits as requested.

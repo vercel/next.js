@@ -1,0 +1,358 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "chai-nested-function-receivers",
+        "trace": [
+          {
+            "phase": "foreign",
+            "name": "include",
+            "kind": "shape",
+            "type": "function",
+            "prototypeSource": false,
+            "functionInstance": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "receiverType": "function",
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "include",
+            "kind": "direct-method",
+            "resultType": "object",
+            "sameTarget": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "receiverType": "object",
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "include",
+            "kind": "borrowed-method",
+            "resultType": "object",
+            "sameTarget": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "receiverType": "object",
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "include",
+            "kind": "then",
+            "thenUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "name": "lengthOf",
+            "kind": "shape",
+            "type": "function",
+            "prototypeSource": false,
+            "functionInstance": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "receiverType": "function",
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "lengthOf",
+            "kind": "direct-method",
+            "resultType": "object",
+            "sameTarget": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "receiverType": "object",
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "lengthOf",
+            "kind": "borrowed-method",
+            "resultType": "object",
+            "sameTarget": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "receiverType": "object",
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "lengthOf",
+            "kind": "then",
+            "thenUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "name": "a",
+            "kind": "shape",
+            "type": "function",
+            "prototypeSource": false,
+            "functionInstance": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "receiverType": "function",
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "a",
+            "kind": "direct-method",
+            "resultType": "object",
+            "sameTarget": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "receiverType": "object",
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "a",
+            "kind": "borrowed-method",
+            "resultType": "object",
+            "sameTarget": false
+          },
+          {
+            "phase": "foreign",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "receiverType": "object",
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "a",
+            "kind": "then",
+            "thenUndefined": true
+          },
+          {
+            "phase": "foreign",
+            "kind": "counts",
+            "owner": 3,
+            "caller": 3
+          },
+          {
+            "phase": "afterAll",
+            "name": "include",
+            "kind": "shape",
+            "type": "function",
+            "prototypeSource": false,
+            "functionInstance": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "receiverType": "function",
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "include",
+            "kind": "direct-method",
+            "resultType": "object",
+            "sameTarget": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "receiverType": "object",
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "include",
+            "kind": "borrowed-method",
+            "resultType": "object",
+            "sameTarget": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "receiverType": "object",
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "include",
+            "kind": "then",
+            "thenUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "lengthOf",
+            "kind": "shape",
+            "type": "function",
+            "prototypeSource": false,
+            "functionInstance": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "receiverType": "function",
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "lengthOf",
+            "kind": "direct-method",
+            "resultType": "object",
+            "sameTarget": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "receiverType": "object",
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "lengthOf",
+            "kind": "borrowed-method",
+            "resultType": "object",
+            "sameTarget": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "receiverType": "object",
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "lengthOf",
+            "kind": "then",
+            "thenUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "a",
+            "kind": "shape",
+            "type": "function",
+            "prototypeSource": false,
+            "functionInstance": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "receiverType": "function",
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "a",
+            "kind": "direct-method",
+            "resultType": "object",
+            "sameTarget": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "receiverType": "object",
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "a",
+            "kind": "borrowed-method",
+            "resultType": "object",
+            "sameTarget": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "state",
+            "sameReceiver": true,
+            "sameTask": true,
+            "receiverType": "object",
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "a",
+            "kind": "then",
+            "thenUndefined": true
+          },
+          {
+            "phase": "afterAll",
+            "kind": "counts",
+            "owner": 3,
+            "caller": 6
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "creator real native function records",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "foreign real native function records",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

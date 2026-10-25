@@ -1,0 +1,463 @@
+{
+  "version": 1,
+  "mode": "production",
+  "sdks": ["1.61.0", "1.64.0"],
+  "reference": "Vitest5.0.4 + @vitest/coverage-v8@5.0.4 + actual public Chromium provider; unchanged authored files; complete reports agree on both SDKs",
+  "sourceSyntax": "native-creator-scopes",
+  "sourceFiles": {
+    "alias-creator-named-expression.tsx": {
+      "sha256": "52a0aafdf17887e038e1df6a6c80e1b74aa7794e1402bcd07c0dbf6a56abf7b6",
+      "mode": "named",
+      "shape": "expression"
+    },
+    "alias-creator-named-classexpression.tsx": {
+      "sha256": "649d5a7cf1003721cf96fe2ee13a04f0dd5703e4ea14c698516a567fa30e22fc",
+      "mode": "named",
+      "shape": "classexpression"
+    },
+    "creator-named-aliases.contract.test.mjs": {
+      "sha256": "5129cefb7bf84ffba12fcbb212ce56c2359fb578d7299668bb89842f3af85c3d"
+    }
+  },
+  "numPassedTests": 2,
+  "cases": [
+    {
+      "file": "creator-named-aliases.contract.test.mjs",
+      "status": "passed",
+      "cases": [
+        {
+          "ancestorTitles": [],
+          "fullName": "actual renamed named creator component 0",
+          "status": "passed",
+          "title": "actual renamed named creator component 0",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "actual renamed named creator component 1",
+          "status": "passed",
+          "title": "actual renamed named creator component 1",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ]
+    }
+  ],
+  "coverage": {
+    "alias-creator-named-classexpression.tsx": {
+      "path": "alias-creator-named-classexpression.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 6,
+            "column": 20
+          },
+          "end": {
+            "line": 6,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 6,
+            "column": 94
+          },
+          "end": {
+            "line": 6,
+            "column": 127
+          }
+        },
+        "2": {
+          "start": {
+            "line": 8,
+            "column": 2
+          },
+          "end": {
+            "line": 8,
+            "column": null
+          }
+        },
+        "3": {
+          "start": {
+            "line": 10,
+            "column": 13
+          },
+          "end": {
+            "line": 10,
+            "column": null
+          }
+        },
+        "4": {
+          "start": {
+            "line": 10,
+            "column": 28
+          },
+          "end": {
+            "line": 10,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "render",
+          "decl": {
+            "start": {
+              "line": 6,
+              "column": 84
+            },
+            "end": {
+              "line": 6,
+              "column": 92
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 6,
+              "column": 92
+            },
+            "end": {
+              "line": 6,
+              "column": 129
+            }
+          },
+          "line": 6
+        },
+        "1": {
+          "name": "MakeWidget",
+          "decl": {
+            "start": {
+              "line": 7,
+              "column": 16
+            },
+            "end": {
+              "line": 7,
+              "column": 27
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 7,
+              "column": 53
+            },
+            "end": {
+              "line": 9,
+              "column": null
+            }
+          },
+          "line": 7
+        },
+        "2": {
+          "name": "(anonymous_2)",
+          "decl": {
+            "start": {
+              "line": 10,
+              "column": 13
+            },
+            "end": {
+              "line": 10,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 10,
+              "column": 28
+            },
+            "end": {
+              "line": 10,
+              "column": null
+            }
+          },
+          "line": 10
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 8,
+              "column": 19
+            },
+            "end": {
+              "line": 8,
+              "column": 102
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 8,
+                "column": 28
+              },
+              "end": {
+                "line": 8,
+                "column": 60
+              }
+            },
+            {
+              "start": {
+                "line": 8,
+                "column": 60
+              },
+              "end": {
+                "line": 8,
+                "column": 102
+              }
+            }
+          ],
+          "line": 8
+        }
+      },
+      "s": {
+        "0": 1,
+        "1": 2,
+        "2": 2,
+        "3": 1,
+        "4": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 2,
+        "2": 0
+      },
+      "b": {
+        "0": [1, 1]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 3,
+        "lastStatement": 5,
+        "seen": {
+          "s:6:20:6:Infinity": 0,
+          "f:6:84:6:92": 0,
+          "s:6:94:6:127": 1,
+          "f:7:16:7:27": 1,
+          "s:8:2:8:Infinity": 2,
+          "b:8:28:8:60:8:60:8:102": 0,
+          "s:10:13:10:Infinity": 3,
+          "f:10:13:10:28": 2,
+          "s:10:28:10:Infinity": 4
+        },
+        "fnNames": {}
+      }
+    },
+    "alias-creator-named-expression.tsx": {
+      "path": "alias-creator-named-expression.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 6,
+            "column": 18
+          },
+          "end": {
+            "line": 6,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 6,
+            "column": 78
+          },
+          "end": {
+            "line": 6,
+            "column": 85
+          }
+        },
+        "2": {
+          "start": {
+            "line": 6,
+            "column": 85
+          },
+          "end": {
+            "line": 6,
+            "column": 107
+          }
+        },
+        "3": {
+          "start": {
+            "line": 8,
+            "column": 2
+          },
+          "end": {
+            "line": 8,
+            "column": null
+          }
+        },
+        "4": {
+          "start": {
+            "line": 10,
+            "column": 13
+          },
+          "end": {
+            "line": 10,
+            "column": null
+          }
+        },
+        "5": {
+          "start": {
+            "line": 10,
+            "column": 28
+          },
+          "end": {
+            "line": 10,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "PanelBody",
+          "decl": {
+            "start": {
+              "line": 6,
+              "column": 27
+            },
+            "end": {
+              "line": 6,
+              "column": 37
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 6,
+              "column": 60
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          },
+          "line": 6
+        },
+        "1": {
+          "name": "MakePanel",
+          "decl": {
+            "start": {
+              "line": 7,
+              "column": 16
+            },
+            "end": {
+              "line": 7,
+              "column": 26
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 7,
+              "column": 52
+            },
+            "end": {
+              "line": 9,
+              "column": null
+            }
+          },
+          "line": 7
+        },
+        "2": {
+          "name": "(anonymous_2)",
+          "decl": {
+            "start": {
+              "line": 10,
+              "column": 13
+            },
+            "end": {
+              "line": 10,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 10,
+              "column": 28
+            },
+            "end": {
+              "line": 10,
+              "column": null
+            }
+          },
+          "line": 10
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 8,
+              "column": 19
+            },
+            "end": {
+              "line": 8,
+              "column": 98
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 8,
+                "column": 28
+              },
+              "end": {
+                "line": 8,
+                "column": 58
+              }
+            },
+            {
+              "start": {
+                "line": 8,
+                "column": 58
+              },
+              "end": {
+                "line": 8,
+                "column": 98
+              }
+            }
+          ],
+          "line": 8
+        }
+      },
+      "s": {
+        "0": 1,
+        "1": 2,
+        "2": 2,
+        "3": 2,
+        "4": 1,
+        "5": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 2,
+        "2": 0
+      },
+      "b": {
+        "0": [1, 1]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 3,
+        "lastStatement": 6,
+        "seen": {
+          "s:6:18:6:Infinity": 0,
+          "f:6:27:6:37": 0,
+          "s:6:78:6:85": 1,
+          "s:6:85:6:107": 2,
+          "f:7:16:7:26": 1,
+          "s:8:2:8:Infinity": 3,
+          "b:8:28:8:58:8:58:8:98": 0,
+          "s:10:13:10:Infinity": 4,
+          "f:10:13:10:28": 2,
+          "s:10:28:10:Infinity": 5
+        },
+        "fnNames": {}
+      }
+    }
+  }
+}

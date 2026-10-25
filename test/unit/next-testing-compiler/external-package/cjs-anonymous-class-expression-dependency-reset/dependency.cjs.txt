@@ -1,0 +1,3 @@
+globalThis.__nextClassResetDependency=(globalThis.__nextClassResetDependency||0)+1
+exports.evaluation=globalThis.__nextClassResetDependency
+exports.marker={}

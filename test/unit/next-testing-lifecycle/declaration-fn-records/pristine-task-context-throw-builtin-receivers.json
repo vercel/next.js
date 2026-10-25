@@ -1,0 +1,263 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "late-throw-builtin-receivers",
+        "trace": [
+          {
+            "phase": "foreign:toThrow",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toThrow",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toThrow",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toThrow.length. See docs for proper usage of \"toThrow\"."
+            }
+          },
+          {
+            "phase": "foreign:toThrow",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toThrow",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toThrow",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "foreign:toThrow",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "this.throws is not a function"
+            }
+          },
+          {
+            "phase": "foreign:toThrow",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "foreign:toThrowError",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toThrowError",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toThrowError",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toThrowError.length. See docs for proper usage of \"toThrowError\"."
+            }
+          },
+          {
+            "phase": "foreign:toThrowError",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "foreign:toThrowError",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "foreign:toThrowError",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "foreign:toThrowError",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "this.assert is not a function"
+            }
+          },
+          {
+            "phase": "foreign:toThrowError",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "foreign",
+            "kind": "counts",
+            "owner": 2,
+            "caller": 2,
+            "reads": 0
+          },
+          {
+            "phase": "afterAll:toThrow",
+            "kind": "original-call",
+            "error": {
+              "name": "AssertionError",
+              "message": "expected TypeError: receiver throw message to be a function"
+            }
+          },
+          {
+            "phase": "afterAll:toThrow",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toThrow.length. See docs for proper usage of \"toThrow\"."
+            }
+          },
+          {
+            "phase": "afterAll:toThrow",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toThrow",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toThrow",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "afterAll:toThrow",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "this.throws is not a function"
+            }
+          },
+          {
+            "phase": "afterAll:toThrow",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "afterAll:toThrowError",
+            "kind": "original-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toThrowError",
+            "kind": "matcher-state",
+            "taskA": true,
+            "taskB": false,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toThrowError",
+            "kind": "bound-call",
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toThrowError.length. See docs for proper usage of \"toThrowError\"."
+            }
+          },
+          {
+            "phase": "afterAll:toThrowError",
+            "kind": "foreign-call",
+            "returnedType": "object",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll:toThrowError",
+            "kind": "matcher-state",
+            "taskA": false,
+            "taskB": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "afterAll:toThrowError",
+            "kind": "bare-call",
+            "error": {
+              "name": "TypeError",
+              "message": "Cannot read properties of undefined (reading '__flags')"
+            }
+          },
+          {
+            "phase": "afterAll:toThrowError",
+            "kind": "plain-object-call",
+            "error": {
+              "name": "TypeError",
+              "message": "this.assert is not a function"
+            }
+          },
+          {
+            "phase": "afterAll:toThrowError",
+            "kind": "plain-keys",
+            "keys": ["__flags"]
+          },
+          {
+            "phase": "afterAll",
+            "kind": "counts",
+            "owner": 2,
+            "caller": 4,
+            "reads": 0
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "creator throw receivers",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "foreign throw receivers",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

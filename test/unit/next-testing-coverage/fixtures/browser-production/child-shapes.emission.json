@@ -1,0 +1,2128 @@
+{
+  "version": 1,
+  "origin": "Actual private S8 Browser source modules with their real generated positions translated into one standalone function; original paired genuine complete maps. These are pure converter fixtures, not native issuance or runtime receipts.",
+  "profiles": [
+    {
+      "name": "shape-automatic-conditional.tsx",
+      "file": "/browser-children/shape-automatic-conditional.tsx",
+      "source": "type Input = { active: boolean; label: string }\nexport function Card({ active, label }: Input) {\n  return <section>{active ? <i>{label}</i> : <b>fallback</b>}</section>\n}\nexport const Unused = () => <i>unused</i>\n",
+      "sourceSHA": "2f333d6ea6f83c604e7b22aceefbd107e5e632b7e3013f5f3f307a6b629cf0a1",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\nvar __TURBOPACK__imported__module__960__ = __turbopack_context__.i(960);\n;\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"section\", {\n        children: active ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"i\", {\n            children: label\n        }) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"b\", {\n            children: \"fallback\"\n        })\n    });\n}\nconst Unused = ()=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"i\", {\n        children: \"unused\"\n    });\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-automatic-conditional.tsx"],
+        "names": ["Card", "active", "label", "Unused"],
+        "mappings": ";A;;;;;;;;AACO,SAASA,KAAK,EAAEC,MAAM,EAAEC,KAAK,EAAS;IAC3C,qBAAO,iDAAC,WAAD;kBAAUD,uBAAS,iDAAC,KAAD;sBAAIC;QAAS,mBAAI,iDAAC,KAAD;sBAAG;QAAW;IAAW;AACtE;AACO,MAAMC,SAAS,kBAAM,iDAAC,KAAD;kBAAG;IAAS",
+        "sourcesContent": [
+          "type Input = { active: boolean; label: string }\nexport function Card({ active, label }: Input) {\n  return <section>{active ? <i>{label}</i> : <b>fallback</b>}</section>\n}\nexport const Unused = () => <i>unused</i>\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__960__",
+        "moduleStart": 28,
+        "moduleEnd": 696,
+        "imports": ["jsx"]
+      },
+      "expected": {
+        "path": "shape-automatic-conditional.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 3,
+              "column": 2
+            },
+            "end": {
+              "line": 3,
+              "column": null
+            }
+          },
+          "1": {
+            "start": {
+              "line": 5,
+              "column": 13
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 5,
+              "column": 28
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 2,
+                "column": 16
+              },
+              "end": {
+                "line": 2,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 47
+              },
+              "end": {
+                "line": 4,
+                "column": null
+              }
+            },
+            "line": 2
+          },
+          "1": {
+            "name": "(anonymous_1)",
+            "decl": {
+              "start": {
+                "line": 5,
+                "column": 13
+              },
+              "end": {
+                "line": 5,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 28
+              },
+              "end": {
+                "line": 5,
+                "column": null
+              }
+            },
+            "line": 5
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 3,
+                "column": 19
+              },
+              "end": {
+                "line": 3,
+                "column": 70
+              }
+            },
+            "type": "cond-expr",
+            "locations": [
+              {
+                "start": {
+                  "line": 3,
+                  "column": 28
+                },
+                "end": {
+                  "line": 3,
+                  "column": 45
+                }
+              },
+              {
+                "start": {
+                  "line": 3,
+                  "column": 45
+                },
+                "end": {
+                  "line": 3,
+                  "column": 70
+                }
+              }
+            ],
+            "line": 3
+          }
+        },
+        "s": {
+          "0": 2,
+          "1": 1,
+          "2": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 0
+        },
+        "b": {
+          "0": [1, 1]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 2,
+          "lastStatement": 3,
+          "seen": {
+            "f:2:16:2:21": 0,
+            "s:3:2:3:Infinity": 0,
+            "b:3:28:3:45:3:45:3:70": 0,
+            "s:5:13:5:Infinity": 1,
+            "f:5:13:5:28": 1,
+            "s:5:28:5:Infinity": 2
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-automatic-fragment.tsx",
+      "file": "/browser-children/shape-automatic-fragment.tsx",
+      "source": "type Input = { active: boolean; label: string }\nexport function Card({ active, label }: Input) {\n  return <>{label}{active ? 'yes' : 'no'}<i>end</i></>\n}\nexport const Unused = () => <i>unused</i>\n",
+      "sourceSHA": "a038d2d0071ae2526904a7ba180930d4096dee5950ba10165b3ea9e6905e93df",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\nvar __TURBOPACK__imported__module__960__ = __turbopack_context__.i(960);\n;\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsxs\"])(__TURBOPACK__imported__module__960__[\"Fragment\"], {\n        children: [\n            label,\n            active ? 'yes' : 'no',\n            /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"i\", {\n                children: \"end\"\n            })\n        ]\n    });\n}\nconst Unused = ()=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"i\", {\n        children: \"unused\"\n    });\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-automatic-fragment.tsx"],
+        "names": ["Card", "active", "label", "Unused"],
+        "mappings": ";A;;;;;;;;AACO,SAASA,KAAK,EAAEC,MAAM,EAAEC,KAAK,EAAS;IAC3C,qBAAO,oGAAA;;YAAGA;YAAOD,SAAS,QAAQ;0BAAK,iDAAC,KAAD;0BAAG;YAAM;;IAAG;AACrD;AACO,MAAME,SAAS,kBAAM,iDAAC,KAAD;kBAAG;IAAS",
+        "sourcesContent": [
+          "type Input = { active: boolean; label: string }\nexport function Card({ active, label }: Input) {\n  return <>{label}{active ? 'yes' : 'no'}<i>end</i></>\n}\nexport const Unused = () => <i>unused</i>\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__960__",
+        "moduleStart": 28,
+        "moduleEnd": 697,
+        "imports": ["jsx", "jsxs", "Fragment"]
+      },
+      "expected": {
+        "path": "shape-automatic-fragment.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 3,
+              "column": 2
+            },
+            "end": {
+              "line": 3,
+              "column": null
+            }
+          },
+          "1": {
+            "start": {
+              "line": 5,
+              "column": 13
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 5,
+              "column": 28
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 2,
+                "column": 16
+              },
+              "end": {
+                "line": 2,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 47
+              },
+              "end": {
+                "line": 4,
+                "column": null
+              }
+            },
+            "line": 2
+          },
+          "1": {
+            "name": "(anonymous_1)",
+            "decl": {
+              "start": {
+                "line": 5,
+                "column": 13
+              },
+              "end": {
+                "line": 5,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 28
+              },
+              "end": {
+                "line": 5,
+                "column": null
+              }
+            },
+            "line": 5
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 3,
+                "column": 19
+              },
+              "end": {
+                "line": 3,
+                "column": 41
+              }
+            },
+            "type": "cond-expr",
+            "locations": [
+              {
+                "start": {
+                  "line": 3,
+                  "column": 28
+                },
+                "end": {
+                  "line": 3,
+                  "column": 36
+                }
+              },
+              {
+                "start": {
+                  "line": 3,
+                  "column": 36
+                },
+                "end": {
+                  "line": 3,
+                  "column": 41
+                }
+              }
+            ],
+            "line": 3
+          }
+        },
+        "s": {
+          "0": 2,
+          "1": 1,
+          "2": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 0
+        },
+        "b": {
+          "0": [1, 1]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 2,
+          "lastStatement": 3,
+          "seen": {
+            "f:2:16:2:21": 0,
+            "s:3:2:3:Infinity": 0,
+            "b:3:28:3:36:3:36:3:41": 0,
+            "s:5:13:5:Infinity": 1,
+            "f:5:13:5:28": 1,
+            "s:5:28:5:Infinity": 2
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-automatic-logical.tsx",
+      "file": "/browser-children/shape-automatic-logical.tsx",
+      "source": "type Input = { active: boolean; label: string }\nexport function Card({ active, label }: Input) {\n  return <section>{active && <i>{label}</i>}</section>\n}\nexport const Unused = () => <i>unused</i>\n",
+      "sourceSHA": "0803f45f7cffa1758bd5e88e72a641c328dc58d62e54a751245c7adbc69c3106",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\nvar __TURBOPACK__imported__module__960__ = __turbopack_context__.i(960);\n;\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"section\", {\n        children: active && /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"i\", {\n            children: label\n        })\n    });\n}\nconst Unused = ()=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"i\", {\n        children: \"unused\"\n    });\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-automatic-logical.tsx"],
+        "names": ["Card", "active", "label", "Unused"],
+        "mappings": ";A;;;;;;;;AACO,SAASA,KAAK,EAAEC,MAAM,EAAEC,KAAK,EAAS;IAC3C,qBAAO,iDAAC,WAAD;kBAAUD,wBAAU,iDAAC,KAAD;sBAAIC;QAAS;IAAW;AACrD;AACO,MAAMC,SAAS,kBAAM,iDAAC,KAAD;kBAAG;IAAS",
+        "sourcesContent": [
+          "type Input = { active: boolean; label: string }\nexport function Card({ active, label }: Input) {\n  return <section>{active && <i>{label}</i>}</section>\n}\nexport const Unused = () => <i>unused</i>\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__960__",
+        "moduleStart": 28,
+        "moduleEnd": 581,
+        "imports": ["jsx"]
+      },
+      "expected": {
+        "path": "shape-automatic-logical.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 3,
+              "column": 2
+            },
+            "end": {
+              "line": 3,
+              "column": null
+            }
+          },
+          "1": {
+            "start": {
+              "line": 5,
+              "column": 13
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 5,
+              "column": 28
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 2,
+                "column": 16
+              },
+              "end": {
+                "line": 2,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 47
+              },
+              "end": {
+                "line": 4,
+                "column": null
+              }
+            },
+            "line": 2
+          },
+          "1": {
+            "name": "(anonymous_1)",
+            "decl": {
+              "start": {
+                "line": 5,
+                "column": 13
+              },
+              "end": {
+                "line": 5,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 28
+              },
+              "end": {
+                "line": 5,
+                "column": null
+              }
+            },
+            "line": 5
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 3,
+                "column": 19
+              },
+              "end": {
+                "line": 3,
+                "column": 53
+              }
+            },
+            "type": "binary-expr",
+            "locations": [
+              {
+                "start": {
+                  "line": 3,
+                  "column": 19
+                },
+                "end": {
+                  "line": 3,
+                  "column": 29
+                }
+              },
+              {
+                "start": {
+                  "line": 3,
+                  "column": 29
+                },
+                "end": {
+                  "line": 3,
+                  "column": 53
+                }
+              }
+            ],
+            "line": 3
+          }
+        },
+        "s": {
+          "0": 2,
+          "1": 1,
+          "2": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 0
+        },
+        "b": {
+          "0": [2, 1]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 2,
+          "lastStatement": 3,
+          "seen": {
+            "f:2:16:2:21": 0,
+            "s:3:2:3:Infinity": 0,
+            "b:3:19:3:29:3:29:3:53": 0,
+            "s:5:13:5:Infinity": 1,
+            "f:5:13:5:28": 1,
+            "s:5:28:5:Infinity": 2
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-automatic-multiline.tsx",
+      "file": "/browser-children/shape-automatic-multiline.tsx",
+      "source": "type Input = { active: boolean; label: string }\nexport function Card({ active, label }: Input) {\n  return (\n    <article data-state={active ? 'yes' : 'no'}>\n      <b>{label}</b>\n      {active ? 'on' : 'off'}\n    </article>\n  )\n}\nexport const Unused = () => <i>unused</i>\n",
+      "sourceSHA": "3f8a388e526200a9b6b4f32040e6742f7cad80adb602f0b1973d7cdc6f1bf95f",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\nvar __TURBOPACK__imported__module__960__ = __turbopack_context__.i(960);\n;\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsxs\"])(\"article\", {\n        \"data-state\": active ? 'yes' : 'no',\n        children: [\n            /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"b\", {\n                children: label\n            }),\n            active ? 'on' : 'off'\n        ]\n    });\n}\nconst Unused = ()=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"i\", {\n        children: \"unused\"\n    });\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-automatic-multiline.tsx"],
+        "names": ["Card", "active", "label", "Unused"],
+        "mappings": ";A;;;;;;;;AACO,SAASA,KAAK,EAAEC,MAAM,EAAEC,KAAK,EAAS;IAC3C,qBACE,kDAAC,WAAD;QAAS,cAAYD,SAAS,QAAQ;;0BACpC,iDAAC,KAAD;0BAAIC;YAAS;YACZD,SAAS,OAAO;;IACV;AAEb;AACO,MAAME,SAAS,kBAAM,iDAAC,KAAD;kBAAG;IAAS",
+        "sourcesContent": [
+          "type Input = { active: boolean; label: string }\nexport function Card({ active, label }: Input) {\n  return (\n    <article data-state={active ? 'yes' : 'no'}>\n      <b>{label}</b>\n      {active ? 'on' : 'off'}\n    </article>\n  )\n}\nexport const Unused = () => <i>unused</i>\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__960__",
+        "moduleStart": 28,
+        "moduleEnd": 684,
+        "imports": ["jsx", "jsxs"]
+      },
+      "expected": {
+        "path": "shape-automatic-multiline.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 3,
+              "column": 2
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          },
+          "1": {
+            "start": {
+              "line": 10,
+              "column": 13
+            },
+            "end": {
+              "line": 10,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 10,
+              "column": 28
+            },
+            "end": {
+              "line": 10,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 2,
+                "column": 16
+              },
+              "end": {
+                "line": 2,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 47
+              },
+              "end": {
+                "line": 9,
+                "column": null
+              }
+            },
+            "line": 2
+          },
+          "1": {
+            "name": "(anonymous_1)",
+            "decl": {
+              "start": {
+                "line": 10,
+                "column": 13
+              },
+              "end": {
+                "line": 10,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 10,
+                "column": 28
+              },
+              "end": {
+                "line": 10,
+                "column": null
+              }
+            },
+            "line": 10
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 4,
+                "column": 25
+              },
+              "end": {
+                "line": 4,
+                "column": null
+              }
+            },
+            "type": "cond-expr",
+            "locations": [
+              {
+                "start": {
+                  "line": 4,
+                  "column": 34
+                },
+                "end": {
+                  "line": 4,
+                  "column": 42
+                }
+              },
+              {
+                "start": {
+                  "line": 4,
+                  "column": 42
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              }
+            ],
+            "line": 4
+          },
+          "1": {
+            "loc": {
+              "start": {
+                "line": 6,
+                "column": 7
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            },
+            "type": "cond-expr",
+            "locations": [
+              {
+                "start": {
+                  "line": 6,
+                  "column": 16
+                },
+                "end": {
+                  "line": 6,
+                  "column": 23
+                }
+              },
+              {
+                "start": {
+                  "line": 6,
+                  "column": 23
+                },
+                "end": {
+                  "line": 6,
+                  "column": null
+                }
+              }
+            ],
+            "line": 6
+          }
+        },
+        "s": {
+          "0": 2,
+          "1": 1,
+          "2": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 0
+        },
+        "b": {
+          "0": [1, 1],
+          "1": [1, 1]
+        },
+        "meta": {
+          "lastBranch": 2,
+          "lastFunction": 2,
+          "lastStatement": 3,
+          "seen": {
+            "f:2:16:2:21": 0,
+            "s:3:2:7:Infinity": 0,
+            "b:4:34:4:42:4:42:4:Infinity": 0,
+            "b:6:16:6:23:6:23:6:Infinity": 1,
+            "s:10:13:10:Infinity": 1,
+            "f:10:13:10:28": 1,
+            "s:10:28:10:Infinity": 2
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-automatic-multiple.tsx",
+      "file": "/browser-children/shape-automatic-multiple.tsx",
+      "source": "type Input = { active: boolean; label: string }\nexport function Card({ active, label }: Input) {\n  return <p>before {label}<b>{active ? 'yes' : 'no'}</b> after</p>\n}\nexport const Unused = () => <i>unused</i>\n",
+      "sourceSHA": "eee47a8baab9e0ee578bf5fbdd6c0ce6ec6e32e9b4bf816155fc2ff0e872ca7e",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\nvar __TURBOPACK__imported__module__960__ = __turbopack_context__.i(960);\n;\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsxs\"])(\"p\", {\n        children: [\n            \"before \",\n            label,\n            /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"b\", {\n                children: active ? 'yes' : 'no'\n            }),\n            \" after\"\n        ]\n    });\n}\nconst Unused = ()=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"i\", {\n        children: \"unused\"\n    });\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-automatic-multiple.tsx"],
+        "names": ["Card", "active", "label", "Unused"],
+        "mappings": ";A;;;;;;;;AACO,SAASA,KAAK,EAAEC,MAAM,EAAEC,KAAK,EAAS;IAC3C,qBAAO,kDAAC,KAAD;;YAAG;YAAQA;0BAAM,iDAAC,KAAD;0BAAID,SAAS,QAAQ;YAAQ;YAAC;;IAAS;AACjE;AACO,MAAME,SAAS,kBAAM,iDAAC,KAAD;kBAAG;IAAS",
+        "sourcesContent": [
+          "type Input = { active: boolean; label: string }\nexport function Card({ active, label }: Input) {\n  return <p>before {label}<b>{active ? 'yes' : 'no'}</b> after</p>\n}\nexport const Unused = () => <i>unused</i>\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__960__",
+        "moduleStart": 28,
+        "moduleEnd": 678,
+        "imports": ["jsx", "jsxs"]
+      },
+      "expected": {
+        "path": "shape-automatic-multiple.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 3,
+              "column": 2
+            },
+            "end": {
+              "line": 3,
+              "column": null
+            }
+          },
+          "1": {
+            "start": {
+              "line": 5,
+              "column": 13
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 5,
+              "column": 28
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 2,
+                "column": 16
+              },
+              "end": {
+                "line": 2,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 47
+              },
+              "end": {
+                "line": 4,
+                "column": null
+              }
+            },
+            "line": 2
+          },
+          "1": {
+            "name": "(anonymous_1)",
+            "decl": {
+              "start": {
+                "line": 5,
+                "column": 13
+              },
+              "end": {
+                "line": 5,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 28
+              },
+              "end": {
+                "line": 5,
+                "column": null
+              }
+            },
+            "line": 5
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 3,
+                "column": 30
+              },
+              "end": {
+                "line": 3,
+                "column": 55
+              }
+            },
+            "type": "cond-expr",
+            "locations": [
+              {
+                "start": {
+                  "line": 3,
+                  "column": 39
+                },
+                "end": {
+                  "line": 3,
+                  "column": 47
+                }
+              },
+              {
+                "start": {
+                  "line": 3,
+                  "column": 47
+                },
+                "end": {
+                  "line": 3,
+                  "column": 55
+                }
+              }
+            ],
+            "line": 3
+          }
+        },
+        "s": {
+          "0": 2,
+          "1": 1,
+          "2": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 0
+        },
+        "b": {
+          "0": [1, 1]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 2,
+          "lastStatement": 3,
+          "seen": {
+            "f:2:16:2:21": 0,
+            "s:3:2:3:Infinity": 0,
+            "b:3:39:3:47:3:47:3:55": 0,
+            "s:5:13:5:Infinity": 1,
+            "f:5:13:5:28": 1,
+            "s:5:28:5:Infinity": 2
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-automatic-props.tsx",
+      "file": "/browser-children/shape-automatic-props.tsx",
+      "source": "type Input = { active: boolean; label: string }\nexport function Card({ active, label }: Input) {\n  return <p title={active ? 'on' : 'off'}>{label}</p>\n}\nexport const Unused = () => <i>unused</i>\n",
+      "sourceSHA": "7f0990cb101759d18e648ff74050eb181168bcbbfda282ff8e6a15c5ebb62a28",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\nvar __TURBOPACK__imported__module__960__ = __turbopack_context__.i(960);\n;\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"p\", {\n        title: active ? 'on' : 'off',\n        children: label\n    });\n}\nconst Unused = ()=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"i\", {\n        children: \"unused\"\n    });\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-automatic-props.tsx"],
+        "names": ["Card", "active", "label", "title", "Unused"],
+        "mappings": ";A;;;;;;;;AACO,SAASA,KAAK,EAAEC,MAAM,EAAEC,KAAK,EAAS;IAC3C,qBAAO,iDAAC,KAAD;QAAGC,OAAOF,SAAS,OAAO;kBAAQC;IAAS;AACpD;AACO,MAAME,SAAS,kBAAM,iDAAC,KAAD;kBAAG;IAAS",
+        "sourcesContent": [
+          "type Input = { active: boolean; label: string }\nexport function Card({ active, label }: Input) {\n  return <p title={active ? 'on' : 'off'}>{label}</p>\n}\nexport const Unused = () => <i>unused</i>\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__960__",
+        "moduleStart": 28,
+        "moduleEnd": 500,
+        "imports": ["jsx"]
+      },
+      "expected": {
+        "path": "shape-automatic-props.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 3,
+              "column": 2
+            },
+            "end": {
+              "line": 3,
+              "column": null
+            }
+          },
+          "1": {
+            "start": {
+              "line": 5,
+              "column": 13
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 5,
+              "column": 28
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 2,
+                "column": 16
+              },
+              "end": {
+                "line": 2,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 47
+              },
+              "end": {
+                "line": 4,
+                "column": null
+              }
+            },
+            "line": 2
+          },
+          "1": {
+            "name": "(anonymous_1)",
+            "decl": {
+              "start": {
+                "line": 5,
+                "column": 13
+              },
+              "end": {
+                "line": 5,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 28
+              },
+              "end": {
+                "line": 5,
+                "column": null
+              }
+            },
+            "line": 5
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 3,
+                "column": 19
+              },
+              "end": {
+                "line": 3,
+                "column": 43
+              }
+            },
+            "type": "cond-expr",
+            "locations": [
+              {
+                "start": {
+                  "line": 3,
+                  "column": 28
+                },
+                "end": {
+                  "line": 3,
+                  "column": 35
+                }
+              },
+              {
+                "start": {
+                  "line": 3,
+                  "column": 35
+                },
+                "end": {
+                  "line": 3,
+                  "column": 43
+                }
+              }
+            ],
+            "line": 3
+          }
+        },
+        "s": {
+          "0": 2,
+          "1": 1,
+          "2": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 0
+        },
+        "b": {
+          "0": [1, 1]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 2,
+          "lastStatement": 3,
+          "seen": {
+            "f:2:16:2:21": 0,
+            "s:3:2:3:Infinity": 0,
+            "b:3:28:3:35:3:35:3:43": 0,
+            "s:5:13:5:Infinity": 1,
+            "f:5:13:5:28": 1,
+            "s:5:28:5:Infinity": 2
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-classic-conditional.tsx",
+      "file": "/browser-children/shape-classic-conditional.tsx",
+      "source": "/** @jsxRuntime classic */\nimport React from 'react'\ntype Input = { active: boolean; label: string }\nexport function Card({ active, label }: Input) {\n  return <section>{active ? <i>{label}</i> : <b>fallback</b>}</section>\n}\nexport const Unused = () => <i>unused</i>\n",
+      "sourceSHA": "4f0afc8614e61580a91f8ba0df6a42562f2956fe0188d7ebe26333bf05f7eaa4",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\n/** @jsxRuntime classic */ var __TURBOPACK__imported__module__3438__ = __turbopack_context__.i(3438);\n;\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"section\", null, active ? /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"i\", null, label) : /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"b\", null, \"fallback\"));\n}\nconst Unused = ()=>/*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"i\", null, \"unused\");\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-classic-conditional.tsx"],
+        "names": ["Card", "active", "label", "Unused"],
+        "mappings": ";A;;;;;;AAAA,wBAAwB,GACxB;;AAEO,SAASA,KAAK,EAAEC,MAAM,EAAEC,KAAK,EAAS;IAC3C,qBAAO,+DAAC,iBAASD,uBAAS,+DAAC,WAAGC,uBAAa,+DAAC,WAAE;AAChD;AACO,MAAMC,SAAS,kBAAM,+DAAC,WAAE",
+        "sourcesContent": [
+          "/** @jsxRuntime classic */\nimport React from 'react'\ntype Input = { active: boolean; label: string }\nexport function Card({ active, label }: Input) {\n  return <section>{active ? <i>{label}</i> : <b>fallback</b>}</section>\n}\nexport const Unused = () => <i>unused</i>\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__3438__",
+        "moduleStart": 28,
+        "moduleEnd": 685
+      },
+      "expected": {
+        "path": "shape-classic-conditional.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 5,
+              "column": 2
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          },
+          "1": {
+            "start": {
+              "line": 7,
+              "column": 13
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 7,
+              "column": 28
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 4,
+                "column": 16
+              },
+              "end": {
+                "line": 4,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 4,
+                "column": 47
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            },
+            "line": 4
+          },
+          "1": {
+            "name": "(anonymous_1)",
+            "decl": {
+              "start": {
+                "line": 7,
+                "column": 13
+              },
+              "end": {
+                "line": 7,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 7,
+                "column": 28
+              },
+              "end": {
+                "line": 7,
+                "column": null
+              }
+            },
+            "line": 7
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 19
+              },
+              "end": {
+                "line": 5,
+                "column": 70
+              }
+            },
+            "type": "cond-expr",
+            "locations": [
+              {
+                "start": {
+                  "line": 5,
+                  "column": 28
+                },
+                "end": {
+                  "line": 5,
+                  "column": 45
+                }
+              },
+              {
+                "start": {
+                  "line": 5,
+                  "column": 45
+                },
+                "end": {
+                  "line": 5,
+                  "column": 70
+                }
+              }
+            ],
+            "line": 5
+          }
+        },
+        "s": {
+          "0": 2,
+          "1": 1,
+          "2": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 0
+        },
+        "b": {
+          "0": [1, 1]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 2,
+          "lastStatement": 3,
+          "seen": {
+            "f:4:16:4:21": 0,
+            "s:5:2:5:Infinity": 0,
+            "b:5:28:5:45:5:45:5:70": 0,
+            "s:7:13:7:Infinity": 1,
+            "f:7:13:7:28": 1,
+            "s:7:28:7:Infinity": 2
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-classic-fragment.tsx",
+      "file": "/browser-children/shape-classic-fragment.tsx",
+      "source": "/** @jsxRuntime classic */\nimport React from 'react'\ntype Input = { active: boolean; label: string }\nexport function Card({ active, label }: Input) {\n  return <>{label}{active ? 'yes' : 'no'}<i>end</i></>\n}\nexport const Unused = () => <i>unused</i>\n",
+      "sourceSHA": "2810a1aa37e9788b38ae5c90cc874d8b697b7e2a84007a056c73f33163cf41c3",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\n/** @jsxRuntime classic */ var __TURBOPACK__imported__module__3438__ = __turbopack_context__.i(3438);\n;\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(__TURBOPACK__imported__module__3438__[\"default\"].Fragment, null, label, active ? 'yes' : 'no', /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"i\", null, \"end\"));\n}\nconst Unused = ()=>/*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"i\", null, \"unused\");\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-classic-fragment.tsx"],
+        "names": ["Card", "active", "label", "Unused"],
+        "mappings": ";A;;;;;;AAAA,wBAAwB,GACxB;;AAEO,SAASA,KAAK,EAAEC,MAAM,EAAEC,KAAK,EAAS;IAC3C,qBAAO,gIAAGA,OAAOD,SAAS,QAAQ,oBAAK,+DAAC,WAAE;AAC5C;AACO,MAAME,SAAS,kBAAM,+DAAC,WAAE",
+        "sourcesContent": [
+          "/** @jsxRuntime classic */\nimport React from 'react'\ntype Input = { active: boolean; label: string }\nexport function Card({ active, label }: Input) {\n  return <>{label}{active ? 'yes' : 'no'}<i>end</i></>\n}\nexport const Unused = () => <i>unused</i>\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__3438__",
+        "moduleStart": 28,
+        "moduleEnd": 652
+      },
+      "expected": {
+        "path": "shape-classic-fragment.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 5,
+              "column": 2
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          },
+          "1": {
+            "start": {
+              "line": 7,
+              "column": 13
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 7,
+              "column": 28
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 4,
+                "column": 16
+              },
+              "end": {
+                "line": 4,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 4,
+                "column": 47
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            },
+            "line": 4
+          },
+          "1": {
+            "name": "(anonymous_1)",
+            "decl": {
+              "start": {
+                "line": 7,
+                "column": 13
+              },
+              "end": {
+                "line": 7,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 7,
+                "column": 28
+              },
+              "end": {
+                "line": 7,
+                "column": null
+              }
+            },
+            "line": 7
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 19
+              },
+              "end": {
+                "line": 5,
+                "column": 41
+              }
+            },
+            "type": "cond-expr",
+            "locations": [
+              {
+                "start": {
+                  "line": 5,
+                  "column": 28
+                },
+                "end": {
+                  "line": 5,
+                  "column": 36
+                }
+              },
+              {
+                "start": {
+                  "line": 5,
+                  "column": 36
+                },
+                "end": {
+                  "line": 5,
+                  "column": 41
+                }
+              }
+            ],
+            "line": 5
+          }
+        },
+        "s": {
+          "0": 2,
+          "1": 1,
+          "2": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 0
+        },
+        "b": {
+          "0": [1, 1]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 2,
+          "lastStatement": 3,
+          "seen": {
+            "f:4:16:4:21": 0,
+            "s:5:2:5:Infinity": 0,
+            "b:5:28:5:36:5:36:5:41": 0,
+            "s:7:13:7:Infinity": 1,
+            "f:7:13:7:28": 1,
+            "s:7:28:7:Infinity": 2
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-classic-logical.tsx",
+      "file": "/browser-children/shape-classic-logical.tsx",
+      "source": "/** @jsxRuntime classic */\nimport React from 'react'\ntype Input = { active: boolean; label: string }\nexport function Card({ active, label }: Input) {\n  return <section>{active && <i>{label}</i>}</section>\n}\nexport const Unused = () => <i>unused</i>\n",
+      "sourceSHA": "5c8e869e99e0aff363bb57203e7d704b2a8ff4bf40043104a5c76ac4f615c5b2",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\n/** @jsxRuntime classic */ var __TURBOPACK__imported__module__3438__ = __turbopack_context__.i(3438);\n;\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"section\", null, active && /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"i\", null, label));\n}\nconst Unused = ()=>/*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"i\", null, \"unused\");\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-classic-logical.tsx"],
+        "names": ["Card", "active", "label", "Unused"],
+        "mappings": ";A;;;;;;AAAA,wBAAwB,GACxB;;AAEO,SAASA,KAAK,EAAEC,MAAM,EAAEC,KAAK,EAAS;IAC3C,qBAAO,+DAAC,iBAASD,wBAAU,+DAAC,WAAGC;AACjC;AACO,MAAMC,SAAS,kBAAM,+DAAC,WAAE",
+        "sourcesContent": [
+          "/** @jsxRuntime classic */\nimport React from 'react'\ntype Input = { active: boolean; label: string }\nexport function Card({ active, label }: Input) {\n  return <section>{active && <i>{label}</i>}</section>\n}\nexport const Unused = () => <i>unused</i>\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__3438__",
+        "moduleStart": 28,
+        "moduleEnd": 584
+      },
+      "expected": {
+        "path": "shape-classic-logical.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 5,
+              "column": 2
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          },
+          "1": {
+            "start": {
+              "line": 7,
+              "column": 13
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 7,
+              "column": 28
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 4,
+                "column": 16
+              },
+              "end": {
+                "line": 4,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 4,
+                "column": 47
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            },
+            "line": 4
+          },
+          "1": {
+            "name": "(anonymous_1)",
+            "decl": {
+              "start": {
+                "line": 7,
+                "column": 13
+              },
+              "end": {
+                "line": 7,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 7,
+                "column": 28
+              },
+              "end": {
+                "line": 7,
+                "column": null
+              }
+            },
+            "line": 7
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 19
+              },
+              "end": {
+                "line": 5,
+                "column": 53
+              }
+            },
+            "type": "binary-expr",
+            "locations": [
+              {
+                "start": {
+                  "line": 5,
+                  "column": 19
+                },
+                "end": {
+                  "line": 5,
+                  "column": 29
+                }
+              },
+              {
+                "start": {
+                  "line": 5,
+                  "column": 29
+                },
+                "end": {
+                  "line": 5,
+                  "column": 53
+                }
+              }
+            ],
+            "line": 5
+          }
+        },
+        "s": {
+          "0": 2,
+          "1": 1,
+          "2": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 0
+        },
+        "b": {
+          "0": [2, 1]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 2,
+          "lastStatement": 3,
+          "seen": {
+            "f:4:16:4:21": 0,
+            "s:5:2:5:Infinity": 0,
+            "b:5:19:5:29:5:29:5:53": 0,
+            "s:7:13:7:Infinity": 1,
+            "f:7:13:7:28": 1,
+            "s:7:28:7:Infinity": 2
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-classic-multiline.tsx",
+      "file": "/browser-children/shape-classic-multiline.tsx",
+      "source": "/** @jsxRuntime classic */\nimport React from 'react'\ntype Input = { active: boolean; label: string }\nexport function Card({ active, label }: Input) {\n  return (\n    <article data-state={active ? 'yes' : 'no'}>\n      <b>{label}</b>\n      {active ? 'on' : 'off'}\n    </article>\n  )\n}\nexport const Unused = () => <i>unused</i>\n",
+      "sourceSHA": "39388044d8e0d7ee49ef7f5dc056fd12caed2ec00a51d6aa5943af08be211631",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\n/** @jsxRuntime classic */ var __TURBOPACK__imported__module__3438__ = __turbopack_context__.i(3438);\n;\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"article\", {\n        \"data-state\": active ? 'yes' : 'no'\n    }, /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"b\", null, label), active ? 'on' : 'off');\n}\nconst Unused = ()=>/*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"i\", null, \"unused\");\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-classic-multiline.tsx"],
+        "names": ["Card", "active", "label", "Unused"],
+        "mappings": ";A;;;;;;AAAA,wBAAwB,GACxB;;AAEO,SAASA,KAAK,EAAEC,MAAM,EAAEC,KAAK,EAAS;IAC3C,qBACE,+DAAC,WAAD;QAAS,cAAYD,SAAS,QAAQ;IAG7B,iBAFP,+DAAC,WAAGC,QACHD,SAAS,OAAO;AAGvB;AACO,MAAME,SAAS,kBAAM,+DAAC,WAAE",
+        "sourcesContent": [
+          "/** @jsxRuntime classic */\nimport React from 'react'\ntype Input = { active: boolean; label: string }\nexport function Card({ active, label }: Input) {\n  return (\n    <article data-state={active ? 'yes' : 'no'}>\n      <b>{label}</b>\n      {active ? 'on' : 'off'}\n    </article>\n  )\n}\nexport const Unused = () => <i>unused</i>\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__3438__",
+        "moduleStart": 28,
+        "moduleEnd": 644
+      },
+      "expected": {
+        "path": "shape-classic-multiline.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 5,
+              "column": 2
+            },
+            "end": {
+              "line": 9,
+              "column": null
+            }
+          },
+          "1": {
+            "start": {
+              "line": 12,
+              "column": 13
+            },
+            "end": {
+              "line": 12,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 12,
+              "column": 28
+            },
+            "end": {
+              "line": 12,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 4,
+                "column": 16
+              },
+              "end": {
+                "line": 4,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 4,
+                "column": 47
+              },
+              "end": {
+                "line": 11,
+                "column": null
+              }
+            },
+            "line": 4
+          },
+          "1": {
+            "name": "(anonymous_1)",
+            "decl": {
+              "start": {
+                "line": 12,
+                "column": 13
+              },
+              "end": {
+                "line": 12,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 12,
+                "column": 28
+              },
+              "end": {
+                "line": 12,
+                "column": null
+              }
+            },
+            "line": 12
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 6,
+                "column": 25
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            },
+            "type": "cond-expr",
+            "locations": [
+              {
+                "start": {
+                  "line": 6,
+                  "column": 34
+                },
+                "end": {
+                  "line": 6,
+                  "column": 42
+                }
+              },
+              {
+                "start": {
+                  "line": 6,
+                  "column": 42
+                },
+                "end": {
+                  "line": 6,
+                  "column": null
+                }
+              }
+            ],
+            "line": 6
+          },
+          "1": {
+            "loc": {
+              "start": {
+                "line": 8,
+                "column": 7
+              },
+              "end": {
+                "line": 8,
+                "column": null
+              }
+            },
+            "type": "cond-expr",
+            "locations": [
+              {
+                "start": {
+                  "line": 8,
+                  "column": 16
+                },
+                "end": {
+                  "line": 8,
+                  "column": 23
+                }
+              },
+              {
+                "start": {
+                  "line": 8,
+                  "column": 23
+                },
+                "end": {
+                  "line": 8,
+                  "column": null
+                }
+              }
+            ],
+            "line": 8
+          }
+        },
+        "s": {
+          "0": 2,
+          "1": 1,
+          "2": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 0
+        },
+        "b": {
+          "0": [1, 1],
+          "1": [1, 1]
+        },
+        "meta": {
+          "lastBranch": 2,
+          "lastFunction": 2,
+          "lastStatement": 3,
+          "seen": {
+            "f:4:16:4:21": 0,
+            "s:5:2:9:Infinity": 0,
+            "b:6:34:6:42:6:42:6:Infinity": 0,
+            "b:8:16:8:23:8:23:8:Infinity": 1,
+            "s:12:13:12:Infinity": 1,
+            "f:12:13:12:28": 1,
+            "s:12:28:12:Infinity": 2
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-classic-multiple.tsx",
+      "file": "/browser-children/shape-classic-multiple.tsx",
+      "source": "/** @jsxRuntime classic */\nimport React from 'react'\ntype Input = { active: boolean; label: string }\nexport function Card({ active, label }: Input) {\n  return <p>before {label}<b>{active ? 'yes' : 'no'}</b> after</p>\n}\nexport const Unused = () => <i>unused</i>\n",
+      "sourceSHA": "649af66b057f10cf6024b93679a2966f5336c208451ce7bc98f109869d3eb697",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\n/** @jsxRuntime classic */ var __TURBOPACK__imported__module__3438__ = __turbopack_context__.i(3438);\n;\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"p\", null, \"before \", label, /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"b\", null, active ? 'yes' : 'no'), \" after\");\n}\nconst Unused = ()=>/*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"i\", null, \"unused\");\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-classic-multiple.tsx"],
+        "names": ["Card", "active", "label", "Unused"],
+        "mappings": ";A;;;;;;AAAA,wBAAwB,GACxB;;AAEO,SAASA,KAAK,EAAEC,MAAM,EAAEC,KAAK,EAAS;IAC3C,qBAAO,+DAAC,WAAE,WAAQA,qBAAM,+DAAC,WAAGD,SAAS,QAAQ,OAAS;AACxD;AACO,MAAME,SAAS,kBAAM,+DAAC,WAAE",
+        "sourcesContent": [
+          "/** @jsxRuntime classic */\nimport React from 'react'\ntype Input = { active: boolean; label: string }\nexport function Card({ active, label }: Input) {\n  return <p>before {label}<b>{active ? 'yes' : 'no'}</b> after</p>\n}\nexport const Unused = () => <i>unused</i>\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__3438__",
+        "moduleStart": 28,
+        "moduleEnd": 612
+      },
+      "expected": {
+        "path": "shape-classic-multiple.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 5,
+              "column": 2
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          },
+          "1": {
+            "start": {
+              "line": 7,
+              "column": 13
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 7,
+              "column": 28
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 4,
+                "column": 16
+              },
+              "end": {
+                "line": 4,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 4,
+                "column": 47
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            },
+            "line": 4
+          },
+          "1": {
+            "name": "(anonymous_1)",
+            "decl": {
+              "start": {
+                "line": 7,
+                "column": 13
+              },
+              "end": {
+                "line": 7,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 7,
+                "column": 28
+              },
+              "end": {
+                "line": 7,
+                "column": null
+              }
+            },
+            "line": 7
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 30
+              },
+              "end": {
+                "line": 5,
+                "column": 55
+              }
+            },
+            "type": "cond-expr",
+            "locations": [
+              {
+                "start": {
+                  "line": 5,
+                  "column": 39
+                },
+                "end": {
+                  "line": 5,
+                  "column": 47
+                }
+              },
+              {
+                "start": {
+                  "line": 5,
+                  "column": 47
+                },
+                "end": {
+                  "line": 5,
+                  "column": 55
+                }
+              }
+            ],
+            "line": 5
+          }
+        },
+        "s": {
+          "0": 2,
+          "1": 1,
+          "2": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 0
+        },
+        "b": {
+          "0": [1, 1]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 2,
+          "lastStatement": 3,
+          "seen": {
+            "f:4:16:4:21": 0,
+            "s:5:2:5:Infinity": 0,
+            "b:5:39:5:47:5:47:5:55": 0,
+            "s:7:13:7:Infinity": 1,
+            "f:7:13:7:28": 1,
+            "s:7:28:7:Infinity": 2
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-classic-props.tsx",
+      "file": "/browser-children/shape-classic-props.tsx",
+      "source": "/** @jsxRuntime classic */\nimport React from 'react'\ntype Input = { active: boolean; label: string }\nexport function Card({ active, label }: Input) {\n  return <p title={active ? 'on' : 'off'}>{label}</p>\n}\nexport const Unused = () => <i>unused</i>\n",
+      "sourceSHA": "1c56b29f4aa35b67365ed804aff2cf909a4915f8de790072b1f728f0ebefca95",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\n/** @jsxRuntime classic */ var __TURBOPACK__imported__module__3438__ = __turbopack_context__.i(3438);\n;\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"p\", {\n        title: active ? 'on' : 'off'\n    }, label);\n}\nconst Unused = ()=>/*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"i\", null, \"unused\");\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-classic-props.tsx"],
+        "names": ["Card", "active", "label", "title", "Unused"],
+        "mappings": ";A;;;;;;AAAA,wBAAwB,GACxB;;AAEO,SAASA,KAAK,EAAEC,MAAM,EAAEC,KAAK,EAAS;IAC3C,qBAAO,+DAAC,KAAD;QAAGC,OAAOF,SAAS,OAAO;IAAiB,GAATC;AAC3C;AACO,MAAME,SAAS,kBAAM,+DAAC,WAAE",
+        "sourcesContent": [
+          "/** @jsxRuntime classic */\nimport React from 'react'\ntype Input = { active: boolean; label: string }\nexport function Card({ active, label }: Input) {\n  return <p title={active ? 'on' : 'off'}>{label}</p>\n}\nexport const Unused = () => <i>unused</i>\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__3438__",
+        "moduleStart": 28,
+        "moduleEnd": 519
+      },
+      "expected": {
+        "path": "shape-classic-props.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 5,
+              "column": 2
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          },
+          "1": {
+            "start": {
+              "line": 7,
+              "column": 13
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 7,
+              "column": 28
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 4,
+                "column": 16
+              },
+              "end": {
+                "line": 4,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 4,
+                "column": 47
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            },
+            "line": 4
+          },
+          "1": {
+            "name": "(anonymous_1)",
+            "decl": {
+              "start": {
+                "line": 7,
+                "column": 13
+              },
+              "end": {
+                "line": 7,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 7,
+                "column": 28
+              },
+              "end": {
+                "line": 7,
+                "column": null
+              }
+            },
+            "line": 7
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 19
+              },
+              "end": {
+                "line": 5,
+                "column": 43
+              }
+            },
+            "type": "cond-expr",
+            "locations": [
+              {
+                "start": {
+                  "line": 5,
+                  "column": 28
+                },
+                "end": {
+                  "line": 5,
+                  "column": 35
+                }
+              },
+              {
+                "start": {
+                  "line": 5,
+                  "column": 35
+                },
+                "end": {
+                  "line": 5,
+                  "column": 43
+                }
+              }
+            ],
+            "line": 5
+          }
+        },
+        "s": {
+          "0": 2,
+          "1": 1,
+          "2": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 0
+        },
+        "b": {
+          "0": [1, 1]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 2,
+          "lastStatement": 3,
+          "seen": {
+            "f:4:16:4:21": 0,
+            "s:5:2:5:Infinity": 0,
+            "b:5:28:5:35:5:35:5:43": 0,
+            "s:7:13:7:Infinity": 1,
+            "f:7:13:7:28": 1,
+            "s:7:28:7:Infinity": 2
+          },
+          "fnNames": {}
+        }
+      }
+    }
+  ]
+}

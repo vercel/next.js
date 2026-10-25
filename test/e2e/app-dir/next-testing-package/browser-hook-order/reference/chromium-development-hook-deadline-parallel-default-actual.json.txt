@@ -1,0 +1,45 @@
+{
+  "rows": [
+    [
+      {
+        "stage": "before-one-start",
+        "aborted": false
+      },
+      {
+        "stage": "before-two",
+        "aborted": false
+      },
+      {
+        "stage": "after-each-start",
+        "aborted": true
+      },
+      {
+        "stage": "before-one-end",
+        "aborted": true
+      },
+      {
+        "stage": "after-each-end",
+        "aborted": true
+      },
+      {
+        "stage": "finished",
+        "aborted": true
+      },
+      {
+        "stage": "failed",
+        "aborted": true
+      }
+    ]
+  ],
+  "cases": [
+    {
+      "name": "actual hook deadline and released resource",
+      "status": "failed",
+      "failureMessages": [
+        "Error: Hook timed out in 20ms.\nIf this is a long-running hook, pass a timeout value as the last argument or configure it globally with \"hookTimeout\".\n    at beforeEach (http://localhost:63315/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-B98rf27D.js?v=77b22ca5:4452:42)\n    at http://localhost:63315/private/tmp/next-testing-run/work-1/task-buffers/browser-hook-order/.hook-resource-reference-smozqa36/hooks.test.mjs?import&browserv=1792867750035:7:1"
+      ]
+    }
+  ],
+  "success": false,
+  "exit": 1
+}

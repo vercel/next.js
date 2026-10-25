@@ -270,7 +270,7 @@ it('deduplicates the original plugin across files without lending the old assert
   })
 })
 
-it('adapts registration callbacks, preserves fresh member reads and refuses flag leakage', async () => {
+it('adapts registration callbacks, preserves fresh member reads and copies flags to caller payloads', async () => {
   await withFile(async (file) => {
     const seen: string[] = []
     let retainedSuper: Function
@@ -328,10 +328,9 @@ it('adapts registration callbacks, preserves fresh member reads and refuses flag
         const target = chai.expect('other')
         chai.util.transferFlags(value, target)
         target.equal('ok')
-        assert.throws(
-          () => chai.util.transferFlags(value, {}),
-          /only transfer between admitted assertions/
-        )
+        const payload = {}
+        assert.equal(chai.util.transferFlags(value, payload), undefined)
+        assert.equal(chai.util.flag(payload, 'object'), 'ok')
         assert.throws(
           () =>
             Object.defineProperty(chai.Assertion.prototype, 'rawEscape', {

@@ -1,0 +1,195 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "custom-task-state",
+        "trace": [
+          {
+            "phase": "owner",
+            "kind": "sync",
+            "actual": "sync",
+            "expected": "sync",
+            "taskSameOwner": true,
+            "taskSameCaller": true,
+            "taskHasContext": true,
+            "currentTestName": "custom origin owner",
+            "assertionCalls": 0,
+            "ownerState": "run"
+          },
+          {
+            "phase": "owner",
+            "kind": "async-enter",
+            "actual": "async",
+            "expected": "async",
+            "taskSameOwner": true,
+            "taskSameCaller": true,
+            "taskHasContext": true,
+            "currentTestName": "custom origin owner",
+            "assertionCalls": 0,
+            "ownerState": "run"
+          },
+          {
+            "phase": "owner",
+            "kind": "async-leave",
+            "actual": "async",
+            "expected": "async",
+            "taskSameOwner": true,
+            "taskSameCaller": true,
+            "taskHasContext": true,
+            "currentTestName": "custom origin owner",
+            "assertionCalls": 0,
+            "ownerState": "run"
+          },
+          {
+            "phase": "foreign",
+            "kind": "sync",
+            "actual": "sync",
+            "expected": "sync",
+            "taskSameOwner": true,
+            "taskSameCaller": false,
+            "taskHasContext": true,
+            "currentTestName": "custom origin owner",
+            "assertionCalls": 0,
+            "ownerState": "pass"
+          },
+          {
+            "phase": "foreign",
+            "kind": "async-enter",
+            "actual": "async",
+            "expected": "async",
+            "taskSameOwner": true,
+            "taskSameCaller": false,
+            "taskHasContext": true,
+            "currentTestName": "custom origin owner",
+            "assertionCalls": 0,
+            "ownerState": "pass"
+          },
+          {
+            "phase": "foreign",
+            "kind": "async-leave",
+            "actual": "async",
+            "expected": "async",
+            "taskSameOwner": true,
+            "taskSameCaller": false,
+            "taskHasContext": true,
+            "currentTestName": "custom origin owner",
+            "assertionCalls": 0,
+            "ownerState": "pass"
+          },
+          {
+            "phase": "foreign",
+            "kind": "sync",
+            "actual": "new",
+            "expected": "new",
+            "taskSameOwner": true,
+            "taskSameCaller": false,
+            "taskHasContext": true,
+            "currentTestName": "custom origin owner",
+            "assertionCalls": 0,
+            "ownerState": "pass"
+          },
+          {
+            "kind": "foreign-counts",
+            "owner": 3,
+            "caller": 0
+          },
+          {
+            "phase": "failure",
+            "kind": "async-enter",
+            "actual": "async",
+            "expected": "wrong",
+            "taskSameOwner": true,
+            "taskSameCaller": false,
+            "taskHasContext": true,
+            "currentTestName": "custom origin owner",
+            "assertionCalls": 0,
+            "ownerState": "pass"
+          },
+          {
+            "phase": "failure",
+            "kind": "async-leave",
+            "actual": "async",
+            "expected": "wrong",
+            "taskSameOwner": true,
+            "taskSameCaller": false,
+            "taskHasContext": true,
+            "currentTestName": "custom origin owner",
+            "assertionCalls": 0,
+            "ownerState": "pass"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "sync",
+            "actual": "sync",
+            "expected": "sync",
+            "taskSameOwner": true,
+            "taskSameCaller": false,
+            "taskHasContext": true,
+            "currentTestName": "custom origin owner",
+            "assertionCalls": 0,
+            "ownerState": "pass"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "async-enter",
+            "actual": "async",
+            "expected": "async",
+            "taskSameOwner": true,
+            "taskSameCaller": false,
+            "taskHasContext": true,
+            "currentTestName": "custom origin owner",
+            "assertionCalls": 0,
+            "ownerState": "pass"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "async-leave",
+            "actual": "async",
+            "expected": "async",
+            "taskSameOwner": true,
+            "taskSameCaller": false,
+            "taskHasContext": true,
+            "currentTestName": "custom origin owner",
+            "assertionCalls": 0,
+            "ownerState": "pass"
+          }
+        ],
+        "ownerCount": 3,
+        "ownerState": "pass",
+        "foreignState": "pass",
+        "failedCallerState": "fail"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "custom origin owner",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeads": []
+    },
+    {
+      "name": "custom foreign success",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeads": []
+    },
+    {
+      "name": "custom foreign failure",
+      "status": "failed",
+      "failureCount": 1,
+      "failureHeads": ["Error: custom async mismatch"]
+    }
+  ],
+  "counts": {
+    "numTotalTests": 3,
+    "numPassedTests": 2,
+    "numFailedTests": 1,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": false
+  },
+  "exit": 1
+}

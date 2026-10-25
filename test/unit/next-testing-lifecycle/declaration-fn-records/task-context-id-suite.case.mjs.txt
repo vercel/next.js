@@ -1,0 +1,9 @@
+import {test,describe,beforeAll,afterAll}from'vitest';
+const trace=[],flags={concurrent:false,shuffle:false};let inside;
+const rootReturn=test.fn.call(flags,'ordinary raw task',{},context=>{trace.push({phase:'root-body',nonemptyId:context.task.id!=='',sameFile:context.task.file===collector.file});context.expect(true).toBe(true);});
+const collector=describe.fn.call(flags,'ordinary raw suite',{},()=>{if(inside)return;inside=collector.task('inside raw suite',{handler:context=>{trace.push({phase:'inside-body',sameTask:context.task===inside,nonemptyId:inside.id!=='',suiteSame:context.task.suite===collector.suite});context.expect(true).toBe(true);}});trace.push({phase:'factory',suiteIdEmpty:collector.suite.id==='',insideIdEmpty:inside.id===''});});
+trace.push({phase:'collection-before',rootReturnUndefined:rootReturn===undefined,suiteIdEmpty:collector.suite.id==='',fileIdNonempty:collector.file.id!==''});
+const collected=await collector.collect(collector.file);
+trace.push({phase:'manual-collect',suiteIdEmpty:collector.suite.id==='',collectedIdEmpty:collected.id==='',insideIdEmpty:inside.id==='',suiteSame:collected===collector.suite,sameTask:collected.tasks.includes(inside)});
+beforeAll(()=>trace.push({phase:'beforeAll',suiteIdNonempty:collector.suite.id!=='',insideIdNonempty:inside.id!=='',collectedSame:collected===collector.suite}));
+afterAll(()=>console.log('DECLARATION_FN:'+JSON.stringify({kind:'id-suite',trace})));

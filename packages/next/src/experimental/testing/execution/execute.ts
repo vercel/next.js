@@ -18,6 +18,10 @@ import { serializeDiagnostic } from '../reporting/diagnostics'
 import { runTestProcess } from './process'
 import { assertTestFileCollection } from './collection'
 import { assertArtifactProfile } from './artifact-profile'
+import {
+  assertRuntimeModuleCompletion,
+  type RuntimeModuleCompletion,
+} from './completed-module'
 import { withFileCacheDirectory } from './file-cache'
 import {
   assertCoverageRequest,
@@ -41,21 +45,58 @@ export async function executeWithEnvironment(
   deferSnapshotUpdates?: (
     file: string,
     updates: SnapshotUpdate[]
-  ) => Promise<void>
+  ) => Promise<void>,
+  /** Runs in the actual fork owner, before its launch message is sent. */
+  onWorkerLaunched?: () => void
 ): Promise<TestExecutionResult> {
   const started = performance.now()
+  if (
+    options.includeTaskLocation !== undefined &&
+    typeof options.includeTaskLocation !== 'boolean'
+  )
+    throw new TypeError('includeTaskLocation must be a boolean.')
+  if (options.captureCompletedModuleResult && options.collectOnly)
+    throw new Error('Module completion capture requires actual execution.')
+  if (
+    options.browserHeadless !== undefined &&
+    (artifact.kind !== 'browser' ||
+      artifact.profile.browserClient !== true ||
+      typeof options.browserHeadless !== 'boolean')
+  )
+    throw new Error(
+      'Browser headless selection requires an actual Browser client artifact and boolean mode.'
+    )
+  if (
+    options.browserEngine !== undefined &&
+    (artifact.kind !== 'browser' ||
+      (options.browserEngine !== 'chromium' &&
+        options.browserEngine !== 'firefox' &&
+        options.browserEngine !== 'webkit'))
+  )
+    throw new Error(
+      'Browser engine selection requires an actual Chromium, Firefox, or WebKit client artifact.'
+    )
   if (
     options.collectOnly &&
     (options.coverage || resolveSnapshotUpdateMode(options) !== 'none')
   )
     throw new Error('Collection cannot request coverage or snapshot updates.')
   const snapshotUpdateMode = resolveSnapshotUpdateMode(options)
+  const browserUserCancellation =
+    options.userCancelSignal !== undefined &&
+    artifact.kind === 'browser' &&
+    artifact.profile.browserClient === true &&
+    !options.coverage &&
+    !options.customCoverage &&
+    !options.collectOnly &&
+    snapshotUpdateMode !== 'all'
   if (
     options.userCancelSignal &&
+    !browserUserCancellation &&
     (!options.coverage ||
       options.customCoverage ||
       options.collectOnly ||
-      snapshotUpdateMode !== 'none' ||
+      snapshotUpdateMode === 'all' ||
       artifact.kind !== 'node' ||
       artifact.profile.environment !== 'node' ||
       artifact.cohort)
@@ -69,8 +110,23 @@ export async function executeWithEnvironment(
     updateSnapshots: snapshotUpdateMode !== 'none',
   }
   if (artifact.kind === 'browser') {
+    let launched = false
     return (await import('../client/execute.js')).executeClient(artifact, {
       ...options,
+      ...(options.userCancelSignal && onWorkerLaunched
+        ? {
+            onEvent(event) {
+              if (!launched && event.type === 'case-start') {
+                launched = true
+                onWorkerLaunched()
+              }
+              options.onEvent(event)
+            },
+          }
+        : {}),
+      ...(options.browserEngine === 'firefox' || options.userCancelSignal
+        ? { testFrame: true }
+        : {}),
       ...(deferSnapshotUpdates
         ? { onSnapshotUpdates: deferSnapshotUpdates }
         : {}),
@@ -127,6 +183,12 @@ export async function executeWithEnvironment(
     )
   }
   let collection: TestFileCollection | undefined
+  let moduleCompletion: RuntimeModuleCompletion | undefined
+  let moduleHostCleanupComplete: boolean | undefined
+  let parentModuleHandoffFailed = false
+  const moduleFailures = options.captureCompletedModuleResult
+    ? ([] as unknown[])
+    : undefined
   let result: FileResult | undefined
   let snapshotUpdates: SnapshotUpdate[] | undefined
   let coverage: TestCoverageCompletion | undefined
@@ -165,6 +227,7 @@ export async function executeWithEnvironment(
       signal,
       timeoutMs: options.fileTimeout,
       onReady(value, terminate) {
+        onWorkerLaunched?.()
         send = value
         terminateAfterCompletion = terminate
         userCancelSignal?.addEventListener('abort', cancelByUser, {
@@ -196,6 +259,8 @@ export async function executeWithEnvironment(
             throw new Error('Collection worker returned execution facts.')
           if (options.coverage || options.customCoverage)
             attempts.observe(message.event)
+          if (moduleFailures && message.event.type === 'diagnostic')
+            moduleFailures.push(message.event.diagnostic)
           onEvent(message.event)
         } else if (message.type === 'user-cancellation-finalized') {
           if (
@@ -209,7 +274,9 @@ export async function executeWithEnvironment(
             result.status === 'cancelled' ||
             !coverage?.complete ||
             !attempts.complete ||
-            snapshotUpdates !== undefined
+            (snapshotUpdateMode === 'new'
+              ? !Array.isArray(snapshotUpdates) || snapshotUpdates.length !== 0
+              : snapshotUpdates !== undefined)
           )
             throw new Error('Invalid user cancellation finalization.')
           terminateAfterCompletion()
@@ -253,7 +320,8 @@ export async function executeWithEnvironment(
               message.result.status
             ) ||
             !Number.isFinite(message.result.durationMs) ||
-            message.result.durationMs < 0
+            message.result.durationMs < 0 ||
+            'notExecuted' in message.result
           )
             throw new Error('Invalid test worker result')
           if (message.customCoverage !== undefined) {
@@ -294,6 +362,30 @@ export async function executeWithEnvironment(
             !collection
           )
             throw new Error('Test worker completed without collection facts.')
+          if (message.moduleCompletion !== undefined) {
+            if (!options.captureCompletedModuleResult)
+              throw new Error('Unsolicited private module completion.')
+            assertRuntimeModuleCompletion(
+              message.moduleCompletion,
+              {
+                version: 1,
+                runId: options.runId,
+                entryId: artifact.entryId,
+                revision: artifact.revision,
+              },
+              message.result.status,
+              moduleFailures!
+            )
+            moduleCompletion = message.moduleCompletion
+          }
+          if (message.moduleHostCleanupComplete !== undefined) {
+            if (
+              !options.captureCompletedModuleResult ||
+              typeof message.moduleHostCleanupComplete !== 'boolean'
+            )
+              throw new Error('Invalid private module host cleanup completion.')
+            moduleHostCleanupComplete = message.moduleHostCleanupComplete
+          }
           result = message.result
           snapshotUpdates = message.snapshotUpdates
         } else throw new Error('Invalid test worker message')
@@ -332,6 +424,25 @@ export async function executeWithEnvironment(
     exit.reason === 'exit' &&
     exit.code === null &&
     exit.signal === 'SIGTERM'
+  if (
+    options.captureCompletedModuleResult &&
+    exit.reason === 'exit' &&
+    exit.code === 0 &&
+    !signal.aborted &&
+    !moduleCompletion
+  )
+    throw new Error('Test worker omitted requested private module completion.')
+  if (
+    options.captureCompletedModuleResult &&
+    exit.reason === 'exit' &&
+    exit.code === 0 &&
+    !signal.aborted &&
+    moduleCompletion &&
+    moduleHostCleanupComplete === undefined
+  )
+    throw new Error(
+      'Test worker omitted requested private module host cleanup completion.'
+    )
   if (
     exit.reason === 'cancelled' ||
     (signal.aborted && exit.reason === 'exit' && exit.code === 0)
@@ -390,6 +501,7 @@ export async function executeWithEnvironment(
         })
       }
     } catch (error) {
+      parentModuleHandoffFailed = true
       if (signal.aborted && error === signal.reason) {
         result = { ...result, status: 'cancelled' }
       } else {
@@ -439,6 +551,7 @@ export async function executeWithEnvironment(
       }
       signal.throwIfAborted()
     } catch (error) {
+      parentModuleHandoffFailed = true
       if (
         signal.aborted &&
         error === signal.reason &&
@@ -459,12 +572,32 @@ export async function executeWithEnvironment(
   }
   const finalResult = { ...result!, durationMs: performance.now() - started }
   onEvent({ ...envelope(), type: 'file-end', ...finalResult })
-  return collection &&
+  const terminalResult =
+    collection &&
     options.collectOnly &&
     finalResult.status === 'passed' &&
     exit.reason === 'exit' &&
     exit.code === 0 &&
     !signal.aborted
-    ? { ...finalResult, collection }
-    : finalResult
+      ? { ...finalResult, collection }
+      : finalResult
+  if (!options.captureCompletedModuleResult) return terminalResult
+  const closed =
+    artifact.kind === 'node' &&
+    artifact.profile.environment === 'node' &&
+    moduleCompletion !== undefined &&
+    moduleHostCleanupComplete === true &&
+    exit.reason === 'exit' &&
+    exit.code === 0 &&
+    !signal.aborted &&
+    !parentModuleHandoffFailed
+  return {
+    ...terminalResult,
+    moduleExecution: closed
+      ? { closed: true, completion: moduleCompletion! }
+      : {
+          closed: false,
+          ...(moduleCompletion ? { completion: moduleCompletion } : {}),
+        },
+  }
 }

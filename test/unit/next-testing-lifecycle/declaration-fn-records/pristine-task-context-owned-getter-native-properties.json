@@ -1,0 +1,71 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "owned-getter-native-properties",
+        "trace": [
+          {
+            "phase": "body",
+            "kind": "identity",
+            "sameAlias": false
+          },
+          {
+            "phase": "body",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "sameTask": true,
+            "actual": "value",
+            "expected": "value"
+          },
+          {
+            "phase": "body",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "sameTask": true,
+            "actual": "value",
+            "expected": "other",
+            "isNot": true
+          },
+          {
+            "phase": "afterAll",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "sameTask": true,
+            "actual": "value",
+            "expected": "value"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "sameTask": true,
+            "actual": "value",
+            "expected": "other",
+            "isNot": true
+          }
+        ],
+        "calls": 1,
+        "state": "pass"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "native property lineage",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeads": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 1,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

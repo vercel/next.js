@@ -1,0 +1,454 @@
+{
+  "reference": {
+    "vitest": "5.0.4",
+    "provider": "@vitest/browser-playwright@5.0.4",
+    "sdks": ["1.64.0", "1.61.0"]
+  },
+  "sourceSHA256": "19a978547e26f63a43f95c51a634fb8d5ca3d08a5fc58a4ac0168bc38375d7f3",
+  "records": {
+    "development": [
+      {
+        "name": "missing role",
+        "queryNull": true,
+        "element": {
+          "name": "VitestBrowserElementError",
+          "constructor": "Error",
+          "message": "Cannot find element with locator: getByRole('button', { name: 'Missing' })\n\nARIA tree:\n- main:\n  - paragraph: Visible text\n  - text: Existing\n  - textbox \"Actual\"\n\nHTML:\n\u001b[36m<body>\u001b[39m\n  \u001b[36m<main>\u001b[39m\n    \u001b[36m<p>\u001b[39m\n      \u001b[0mVisible text\u001b[0m\n    \u001b[36m</p>\u001b[39m\n    \u001b[36m<label>\u001b[39m\n      \u001b[0mExisting\u001b[0m\n      \u001b[36m<input\u001b[39m\n        \u001b[33maria-label\u001b[39m=\u001b[32m\"Actual\"\u001b[39m\n      \u001b[36m/>\u001b[39m\n    \u001b[36m</label>\u001b[39m\n  \u001b[36m</main>\u001b[39m\n\u001b[36m</body>\u001b[39m",
+          "string": "VitestBrowserElementError: Cannot find element with locator: getByRole('button', { name: 'Missing' })\n\nARIA tree:\n- main:\n  - paragraph: Visible text\n  - text: Existing\n  - textbox \"Actual\"\n\nHTML:\n\u001b[36m<body>\u001b[39m\n  \u001b[36m<main>\u001b[39m\n    \u001b[36m<p>\u001b[39m\n      \u001b[0mVisible text\u001b[0m\n    \u001b[36m</p>\u001b[39m\n    \u001b[36m<label>\u001b[39m\n      \u001b[0mExisting\u001b[0m\n      \u001b[36m<input\u001b[39m\n        \u001b[33maria-label\u001b[39m=\u001b[32m\"Actual\"\u001b[39m\n      \u001b[36m/>\u001b[39m\n    \u001b[36m</label>\u001b[39m\n  \u001b[36m</main>\u001b[39m\n\u001b[36m</body>\u001b[39m",
+          "keys": ["name"]
+        }
+      },
+      {
+        "name": "missing text",
+        "queryNull": true,
+        "element": {
+          "name": "VitestBrowserElementError",
+          "constructor": "Error",
+          "message": "Cannot find element with locator: getByText('Missing')\n\nARIA tree:\n- main:\n  - paragraph: Visible text\n  - text: Existing\n  - textbox \"Actual\"\n\nHTML:\n\u001b[36m<body>\u001b[39m\n  \u001b[36m<main>\u001b[39m\n    \u001b[36m<p>\u001b[39m\n      \u001b[0mVisible text\u001b[0m\n    \u001b[36m</p>\u001b[39m\n    \u001b[36m<label>\u001b[39m\n      \u001b[0mExisting\u001b[0m\n      \u001b[36m<input\u001b[39m\n        \u001b[33maria-label\u001b[39m=\u001b[32m\"Actual\"\u001b[39m\n      \u001b[36m/>\u001b[39m\n    \u001b[36m</label>\u001b[39m\n  \u001b[36m</main>\u001b[39m\n\u001b[36m</body>\u001b[39m",
+          "string": "VitestBrowserElementError: Cannot find element with locator: getByText('Missing')\n\nARIA tree:\n- main:\n  - paragraph: Visible text\n  - text: Existing\n  - textbox \"Actual\"\n\nHTML:\n\u001b[36m<body>\u001b[39m\n  \u001b[36m<main>\u001b[39m\n    \u001b[36m<p>\u001b[39m\n      \u001b[0mVisible text\u001b[0m\n    \u001b[36m</p>\u001b[39m\n    \u001b[36m<label>\u001b[39m\n      \u001b[0mExisting\u001b[0m\n      \u001b[36m<input\u001b[39m\n        \u001b[33maria-label\u001b[39m=\u001b[32m\"Actual\"\u001b[39m\n      \u001b[36m/>\u001b[39m\n    \u001b[36m</label>\u001b[39m\n  \u001b[36m</main>\u001b[39m\n\u001b[36m</body>\u001b[39m",
+          "keys": ["name"]
+        }
+      },
+      {
+        "name": "missing label",
+        "queryNull": true,
+        "element": {
+          "name": "VitestBrowserElementError",
+          "constructor": "Error",
+          "message": "Cannot find element with locator: getByLabel('Missing')\n\nARIA tree:\n- main:\n  - paragraph: Visible text\n  - text: Existing\n  - textbox \"Actual\"\n\nHTML:\n\u001b[36m<body>\u001b[39m\n  \u001b[36m<main>\u001b[39m\n    \u001b[36m<p>\u001b[39m\n      \u001b[0mVisible text\u001b[0m\n    \u001b[36m</p>\u001b[39m\n    \u001b[36m<label>\u001b[39m\n      \u001b[0mExisting\u001b[0m\n      \u001b[36m<input\u001b[39m\n        \u001b[33maria-label\u001b[39m=\u001b[32m\"Actual\"\u001b[39m\n      \u001b[36m/>\u001b[39m\n    \u001b[36m</label>\u001b[39m\n  \u001b[36m</main>\u001b[39m\n\u001b[36m</body>\u001b[39m",
+          "string": "VitestBrowserElementError: Cannot find element with locator: getByLabel('Missing')\n\nARIA tree:\n- main:\n  - paragraph: Visible text\n  - text: Existing\n  - textbox \"Actual\"\n\nHTML:\n\u001b[36m<body>\u001b[39m\n  \u001b[36m<main>\u001b[39m\n    \u001b[36m<p>\u001b[39m\n      \u001b[0mVisible text\u001b[0m\n    \u001b[36m</p>\u001b[39m\n    \u001b[36m<label>\u001b[39m\n      \u001b[0mExisting\u001b[0m\n      \u001b[36m<input\u001b[39m\n        \u001b[33maria-label\u001b[39m=\u001b[32m\"Actual\"\u001b[39m\n      \u001b[36m/>\u001b[39m\n    \u001b[36m</label>\u001b[39m\n  \u001b[36m</main>\u001b[39m\n\u001b[36m</body>\u001b[39m",
+          "keys": ["name"]
+        }
+      },
+      {
+        "name": "missing testId",
+        "queryNull": true,
+        "element": {
+          "name": "VitestBrowserElementError",
+          "constructor": "Error",
+          "message": "Cannot find element with locator: getByTestId('Missing')\n\nARIA tree:\n- main:\n  - paragraph: Visible text\n  - text: Existing\n  - textbox \"Actual\"\n\nHTML:\n\u001b[36m<body>\u001b[39m\n  \u001b[36m<main>\u001b[39m\n    \u001b[36m<p>\u001b[39m\n      \u001b[0mVisible text\u001b[0m\n    \u001b[36m</p>\u001b[39m\n    \u001b[36m<label>\u001b[39m\n      \u001b[0mExisting\u001b[0m\n      \u001b[36m<input\u001b[39m\n        \u001b[33maria-label\u001b[39m=\u001b[32m\"Actual\"\u001b[39m\n      \u001b[36m/>\u001b[39m\n    \u001b[36m</label>\u001b[39m\n  \u001b[36m</main>\u001b[39m\n\u001b[36m</body>\u001b[39m",
+          "string": "VitestBrowserElementError: Cannot find element with locator: getByTestId('Missing')\n\nARIA tree:\n- main:\n  - paragraph: Visible text\n  - text: Existing\n  - textbox \"Actual\"\n\nHTML:\n\u001b[36m<body>\u001b[39m\n  \u001b[36m<main>\u001b[39m\n    \u001b[36m<p>\u001b[39m\n      \u001b[0mVisible text\u001b[0m\n    \u001b[36m</p>\u001b[39m\n    \u001b[36m<label>\u001b[39m\n      \u001b[0mExisting\u001b[0m\n      \u001b[36m<input\u001b[39m\n        \u001b[33maria-label\u001b[39m=\u001b[32m\"Actual\"\u001b[39m\n      \u001b[36m/>\u001b[39m\n    \u001b[36m</label>\u001b[39m\n  \u001b[36m</main>\u001b[39m\n\u001b[36m</body>\u001b[39m",
+          "keys": ["name"]
+        }
+      },
+      {
+        "name": "scoped missing",
+        "queryNull": true,
+        "element": {
+          "name": "VitestBrowserElementError",
+          "constructor": "Error",
+          "message": "Cannot find element with locator: getByRole('group', { name: 'Scope' }).getByText('Missing')\n\nARIA tree:\n- group \"Scope\":\n  - paragraph: Inside\n- paragraph: Outside\n\nHTML:\n\u001b[36m<body>\u001b[39m\n  \u001b[36m<section\u001b[39m\n    \u001b[33maria-label\u001b[39m=\u001b[32m\"Scope\"\u001b[39m\n    \u001b[33mrole\u001b[39m=\u001b[32m\"group\"\u001b[39m\n  \u001b[36m>\u001b[39m\n    \u001b[36m<p>\u001b[39m\n      \u001b[0mInside\u001b[0m\n    \u001b[36m</p>\u001b[39m\n  \u001b[36m</section>\u001b[39m\n  \u001b[36m<p>\u001b[39m\n    \u001b[0mOutside\u001b[0m\n  \u001b[36m</p>\u001b[39m\n\u001b[36m</body>\u001b[39m",
+          "string": "VitestBrowserElementError: Cannot find element with locator: getByRole('group', { name: 'Scope' }).getByText('Missing')\n\nARIA tree:\n- group \"Scope\":\n  - paragraph: Inside\n- paragraph: Outside\n\nHTML:\n\u001b[36m<body>\u001b[39m\n  \u001b[36m<section\u001b[39m\n    \u001b[33maria-label\u001b[39m=\u001b[32m\"Scope\"\u001b[39m\n    \u001b[33mrole\u001b[39m=\u001b[32m\"group\"\u001b[39m\n  \u001b[36m>\u001b[39m\n    \u001b[36m<p>\u001b[39m\n      \u001b[0mInside\u001b[0m\n    \u001b[36m</p>\u001b[39m\n  \u001b[36m</section>\u001b[39m\n  \u001b[36m<p>\u001b[39m\n    \u001b[0mOutside\u001b[0m\n  \u001b[36m</p>\u001b[39m\n\u001b[36m</body>\u001b[39m",
+          "keys": ["name"]
+        }
+      },
+      {
+        "name": "nth missing",
+        "queryNull": true,
+        "element": {
+          "name": "VitestBrowserElementError",
+          "constructor": "Error",
+          "message": "Cannot find element with locator: getByRole('button').nth(1)\n\nARIA tree:\n- button \"Only\"\n\nHTML:\n\u001b[36m<body>\u001b[39m\n  \u001b[36m<button>\u001b[39m\n    \u001b[0mOnly\u001b[0m\n  \u001b[36m</button>\u001b[39m\n\u001b[36m</body>\u001b[39m",
+          "string": "VitestBrowserElementError: Cannot find element with locator: getByRole('button').nth(1)\n\nARIA tree:\n- button \"Only\"\n\nHTML:\n\u001b[36m<body>\u001b[39m\n  \u001b[36m<button>\u001b[39m\n    \u001b[0mOnly\u001b[0m\n  \u001b[36m</button>\u001b[39m\n\u001b[36m</body>\u001b[39m",
+          "keys": ["name"]
+        }
+      },
+      {
+        "name": "actual identity",
+        "querySame": true,
+        "elementSame": true,
+        "same": true,
+        "attribute": "changed",
+        "connected": true
+      },
+      {
+        "name": "SVG identity",
+        "querySame": true,
+        "elementSame": true,
+        "svg": true
+      },
+      {
+        "name": "duplicates",
+        "query": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "strict mode violation: getByRole('button', { name: 'Duplicate' }) resolved to 2 elements:\n    1) <button>Duplicate</button> aka getByRole('button', { name: 'Duplicate', exact: false }).first()\n    2) <button>Duplicate</button> aka getByRole('button', { name: 'Duplicate', exact: false }).nth(1)\n",
+          "string": "Error: strict mode violation: getByRole('button', { name: 'Duplicate' }) resolved to 2 elements:\n    1) <button>Duplicate</button> aka getByRole('button', { name: 'Duplicate', exact: false }).first()\n    2) <button>Duplicate</button> aka getByRole('button', { name: 'Duplicate', exact: false }).nth(1)\n",
+          "keys": []
+        },
+        "element": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "strict mode violation: getByRole('button', { name: 'Duplicate' }) resolved to 2 elements:\n    1) <button>Duplicate</button> aka getByRole('button', { name: 'Duplicate', exact: false }).first()\n    2) <button>Duplicate</button> aka getByRole('button', { name: 'Duplicate', exact: false }).nth(1)\n",
+          "string": "Error: strict mode violation: getByRole('button', { name: 'Duplicate' }) resolved to 2 elements:\n    1) <button>Duplicate</button> aka getByRole('button', { name: 'Duplicate', exact: false }).first()\n    2) <button>Duplicate</button> aka getByRole('button', { name: 'Duplicate', exact: false }).nth(1)\n",
+          "keys": []
+        },
+        "elements": 2
+      },
+      {
+        "name": "detached bound",
+        "query": {
+          "returnedNull": true,
+          "returnedUndefined": false
+        },
+        "element": {
+          "name": "VitestBrowserElementError",
+          "constructor": "Error",
+          "message": "Cannot find element with locator: getByRole('button', { name: 'Bound', exact: false })\n\nARIA tree:\n\n\nHTML:\n\u001b[36m<button>\u001b[39m\n  \u001b[0mBound\u001b[0m\n\u001b[36m</button>\u001b[39m",
+          "string": "VitestBrowserElementError: Cannot find element with locator: getByRole('button', { name: 'Bound', exact: false })\n\nARIA tree:\n\n\nHTML:\n\u001b[36m<button>\u001b[39m\n  \u001b[0mBound\u001b[0m\n\u001b[36m</button>\u001b[39m",
+          "keys": ["name"]
+        },
+        "querySame": false,
+        "connected": false
+      },
+      {
+        "name": "foreign",
+        "binding": {
+          "returnedNull": false,
+          "returnedUndefined": false
+        },
+        "query": {
+          "returnedNull": true,
+          "returnedUndefined": false
+        },
+        "element": {
+          "name": "VitestBrowserElementError",
+          "constructor": "Error",
+          "message": "Cannot find element with locator: getByText('Foreign', { exact: false })\n\nARIA tree:\n\n\nHTML:\n\u001b[36m<button>\u001b[39m\n  \u001b[0mForeign\u001b[0m\n\u001b[36m</button>\u001b[39m",
+          "string": "VitestBrowserElementError: Cannot find element with locator: getByText('Foreign', { exact: false })\n\nARIA tree:\n\n\nHTML:\n\u001b[36m<button>\u001b[39m\n  \u001b[0mForeign\u001b[0m\n\u001b[36m</button>\u001b[39m",
+          "keys": ["name"]
+        },
+        "querySame": false
+      }
+    ],
+    "production": [
+      {
+        "name": "missing role",
+        "queryNull": true,
+        "element": {
+          "name": "VitestBrowserElementError",
+          "constructor": "Error",
+          "message": "Cannot find element with locator: getByRole('button', { name: 'Missing' })\n\nARIA tree:\n- main:\n  - paragraph: Visible text\n  - text: Existing\n  - textbox \"Actual\"\n\nHTML:\n\u001b[36m<body>\u001b[39m\n  \u001b[36m<main>\u001b[39m\n    \u001b[36m<p>\u001b[39m\n      \u001b[0mVisible text\u001b[0m\n    \u001b[36m</p>\u001b[39m\n    \u001b[36m<label>\u001b[39m\n      \u001b[0mExisting\u001b[0m\n      \u001b[36m<input\u001b[39m\n        \u001b[33maria-label\u001b[39m=\u001b[32m\"Actual\"\u001b[39m\n      \u001b[36m/>\u001b[39m\n    \u001b[36m</label>\u001b[39m\n  \u001b[36m</main>\u001b[39m\n\u001b[36m</body>\u001b[39m",
+          "string": "VitestBrowserElementError: Cannot find element with locator: getByRole('button', { name: 'Missing' })\n\nARIA tree:\n- main:\n  - paragraph: Visible text\n  - text: Existing\n  - textbox \"Actual\"\n\nHTML:\n\u001b[36m<body>\u001b[39m\n  \u001b[36m<main>\u001b[39m\n    \u001b[36m<p>\u001b[39m\n      \u001b[0mVisible text\u001b[0m\n    \u001b[36m</p>\u001b[39m\n    \u001b[36m<label>\u001b[39m\n      \u001b[0mExisting\u001b[0m\n      \u001b[36m<input\u001b[39m\n        \u001b[33maria-label\u001b[39m=\u001b[32m\"Actual\"\u001b[39m\n      \u001b[36m/>\u001b[39m\n    \u001b[36m</label>\u001b[39m\n  \u001b[36m</main>\u001b[39m\n\u001b[36m</body>\u001b[39m",
+          "keys": ["name"]
+        }
+      },
+      {
+        "name": "missing text",
+        "queryNull": true,
+        "element": {
+          "name": "VitestBrowserElementError",
+          "constructor": "Error",
+          "message": "Cannot find element with locator: getByText('Missing')\n\nARIA tree:\n- main:\n  - paragraph: Visible text\n  - text: Existing\n  - textbox \"Actual\"\n\nHTML:\n\u001b[36m<body>\u001b[39m\n  \u001b[36m<main>\u001b[39m\n    \u001b[36m<p>\u001b[39m\n      \u001b[0mVisible text\u001b[0m\n    \u001b[36m</p>\u001b[39m\n    \u001b[36m<label>\u001b[39m\n      \u001b[0mExisting\u001b[0m\n      \u001b[36m<input\u001b[39m\n        \u001b[33maria-label\u001b[39m=\u001b[32m\"Actual\"\u001b[39m\n      \u001b[36m/>\u001b[39m\n    \u001b[36m</label>\u001b[39m\n  \u001b[36m</main>\u001b[39m\n\u001b[36m</body>\u001b[39m",
+          "string": "VitestBrowserElementError: Cannot find element with locator: getByText('Missing')\n\nARIA tree:\n- main:\n  - paragraph: Visible text\n  - text: Existing\n  - textbox \"Actual\"\n\nHTML:\n\u001b[36m<body>\u001b[39m\n  \u001b[36m<main>\u001b[39m\n    \u001b[36m<p>\u001b[39m\n      \u001b[0mVisible text\u001b[0m\n    \u001b[36m</p>\u001b[39m\n    \u001b[36m<label>\u001b[39m\n      \u001b[0mExisting\u001b[0m\n      \u001b[36m<input\u001b[39m\n        \u001b[33maria-label\u001b[39m=\u001b[32m\"Actual\"\u001b[39m\n      \u001b[36m/>\u001b[39m\n    \u001b[36m</label>\u001b[39m\n  \u001b[36m</main>\u001b[39m\n\u001b[36m</body>\u001b[39m",
+          "keys": ["name"]
+        }
+      },
+      {
+        "name": "missing label",
+        "queryNull": true,
+        "element": {
+          "name": "VitestBrowserElementError",
+          "constructor": "Error",
+          "message": "Cannot find element with locator: getByLabel('Missing')\n\nARIA tree:\n- main:\n  - paragraph: Visible text\n  - text: Existing\n  - textbox \"Actual\"\n\nHTML:\n\u001b[36m<body>\u001b[39m\n  \u001b[36m<main>\u001b[39m\n    \u001b[36m<p>\u001b[39m\n      \u001b[0mVisible text\u001b[0m\n    \u001b[36m</p>\u001b[39m\n    \u001b[36m<label>\u001b[39m\n      \u001b[0mExisting\u001b[0m\n      \u001b[36m<input\u001b[39m\n        \u001b[33maria-label\u001b[39m=\u001b[32m\"Actual\"\u001b[39m\n      \u001b[36m/>\u001b[39m\n    \u001b[36m</label>\u001b[39m\n  \u001b[36m</main>\u001b[39m\n\u001b[36m</body>\u001b[39m",
+          "string": "VitestBrowserElementError: Cannot find element with locator: getByLabel('Missing')\n\nARIA tree:\n- main:\n  - paragraph: Visible text\n  - text: Existing\n  - textbox \"Actual\"\n\nHTML:\n\u001b[36m<body>\u001b[39m\n  \u001b[36m<main>\u001b[39m\n    \u001b[36m<p>\u001b[39m\n      \u001b[0mVisible text\u001b[0m\n    \u001b[36m</p>\u001b[39m\n    \u001b[36m<label>\u001b[39m\n      \u001b[0mExisting\u001b[0m\n      \u001b[36m<input\u001b[39m\n        \u001b[33maria-label\u001b[39m=\u001b[32m\"Actual\"\u001b[39m\n      \u001b[36m/>\u001b[39m\n    \u001b[36m</label>\u001b[39m\n  \u001b[36m</main>\u001b[39m\n\u001b[36m</body>\u001b[39m",
+          "keys": ["name"]
+        }
+      },
+      {
+        "name": "missing testId",
+        "queryNull": true,
+        "element": {
+          "name": "VitestBrowserElementError",
+          "constructor": "Error",
+          "message": "Cannot find element with locator: getByTestId('Missing')\n\nARIA tree:\n- main:\n  - paragraph: Visible text\n  - text: Existing\n  - textbox \"Actual\"\n\nHTML:\n\u001b[36m<body>\u001b[39m\n  \u001b[36m<main>\u001b[39m\n    \u001b[36m<p>\u001b[39m\n      \u001b[0mVisible text\u001b[0m\n    \u001b[36m</p>\u001b[39m\n    \u001b[36m<label>\u001b[39m\n      \u001b[0mExisting\u001b[0m\n      \u001b[36m<input\u001b[39m\n        \u001b[33maria-label\u001b[39m=\u001b[32m\"Actual\"\u001b[39m\n      \u001b[36m/>\u001b[39m\n    \u001b[36m</label>\u001b[39m\n  \u001b[36m</main>\u001b[39m\n\u001b[36m</body>\u001b[39m",
+          "string": "VitestBrowserElementError: Cannot find element with locator: getByTestId('Missing')\n\nARIA tree:\n- main:\n  - paragraph: Visible text\n  - text: Existing\n  - textbox \"Actual\"\n\nHTML:\n\u001b[36m<body>\u001b[39m\n  \u001b[36m<main>\u001b[39m\n    \u001b[36m<p>\u001b[39m\n      \u001b[0mVisible text\u001b[0m\n    \u001b[36m</p>\u001b[39m\n    \u001b[36m<label>\u001b[39m\n      \u001b[0mExisting\u001b[0m\n      \u001b[36m<input\u001b[39m\n        \u001b[33maria-label\u001b[39m=\u001b[32m\"Actual\"\u001b[39m\n      \u001b[36m/>\u001b[39m\n    \u001b[36m</label>\u001b[39m\n  \u001b[36m</main>\u001b[39m\n\u001b[36m</body>\u001b[39m",
+          "keys": ["name"]
+        }
+      },
+      {
+        "name": "scoped missing",
+        "queryNull": true,
+        "element": {
+          "name": "VitestBrowserElementError",
+          "constructor": "Error",
+          "message": "Cannot find element with locator: getByRole('group', { name: 'Scope' }).getByText('Missing')\n\nARIA tree:\n- group \"Scope\":\n  - paragraph: Inside\n- paragraph: Outside\n\nHTML:\n\u001b[36m<body>\u001b[39m\n  \u001b[36m<section\u001b[39m\n    \u001b[33maria-label\u001b[39m=\u001b[32m\"Scope\"\u001b[39m\n    \u001b[33mrole\u001b[39m=\u001b[32m\"group\"\u001b[39m\n  \u001b[36m>\u001b[39m\n    \u001b[36m<p>\u001b[39m\n      \u001b[0mInside\u001b[0m\n    \u001b[36m</p>\u001b[39m\n  \u001b[36m</section>\u001b[39m\n  \u001b[36m<p>\u001b[39m\n    \u001b[0mOutside\u001b[0m\n  \u001b[36m</p>\u001b[39m\n\u001b[36m</body>\u001b[39m",
+          "string": "VitestBrowserElementError: Cannot find element with locator: getByRole('group', { name: 'Scope' }).getByText('Missing')\n\nARIA tree:\n- group \"Scope\":\n  - paragraph: Inside\n- paragraph: Outside\n\nHTML:\n\u001b[36m<body>\u001b[39m\n  \u001b[36m<section\u001b[39m\n    \u001b[33maria-label\u001b[39m=\u001b[32m\"Scope\"\u001b[39m\n    \u001b[33mrole\u001b[39m=\u001b[32m\"group\"\u001b[39m\n  \u001b[36m>\u001b[39m\n    \u001b[36m<p>\u001b[39m\n      \u001b[0mInside\u001b[0m\n    \u001b[36m</p>\u001b[39m\n  \u001b[36m</section>\u001b[39m\n  \u001b[36m<p>\u001b[39m\n    \u001b[0mOutside\u001b[0m\n  \u001b[36m</p>\u001b[39m\n\u001b[36m</body>\u001b[39m",
+          "keys": ["name"]
+        }
+      },
+      {
+        "name": "nth missing",
+        "queryNull": true,
+        "element": {
+          "name": "VitestBrowserElementError",
+          "constructor": "Error",
+          "message": "Cannot find element with locator: getByRole('button').nth(1)\n\nARIA tree:\n- button \"Only\"\n\nHTML:\n\u001b[36m<body>\u001b[39m\n  \u001b[36m<button>\u001b[39m\n    \u001b[0mOnly\u001b[0m\n  \u001b[36m</button>\u001b[39m\n\u001b[36m</body>\u001b[39m",
+          "string": "VitestBrowserElementError: Cannot find element with locator: getByRole('button').nth(1)\n\nARIA tree:\n- button \"Only\"\n\nHTML:\n\u001b[36m<body>\u001b[39m\n  \u001b[36m<button>\u001b[39m\n    \u001b[0mOnly\u001b[0m\n  \u001b[36m</button>\u001b[39m\n\u001b[36m</body>\u001b[39m",
+          "keys": ["name"]
+        }
+      },
+      {
+        "name": "actual identity",
+        "querySame": true,
+        "elementSame": true,
+        "same": true,
+        "attribute": "changed",
+        "connected": true
+      },
+      {
+        "name": "SVG identity",
+        "querySame": true,
+        "elementSame": true,
+        "svg": true
+      },
+      {
+        "name": "duplicates",
+        "query": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "strict mode violation: getByRole('button', { name: 'Duplicate' }) resolved to 2 elements:\n    1) <button>Duplicate</button> aka getByRole('button', { name: 'Duplicate', exact: false }).first()\n    2) <button>Duplicate</button> aka getByRole('button', { name: 'Duplicate', exact: false }).nth(1)\n",
+          "string": "Error: strict mode violation: getByRole('button', { name: 'Duplicate' }) resolved to 2 elements:\n    1) <button>Duplicate</button> aka getByRole('button', { name: 'Duplicate', exact: false }).first()\n    2) <button>Duplicate</button> aka getByRole('button', { name: 'Duplicate', exact: false }).nth(1)\n",
+          "keys": []
+        },
+        "element": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "strict mode violation: getByRole('button', { name: 'Duplicate' }) resolved to 2 elements:\n    1) <button>Duplicate</button> aka getByRole('button', { name: 'Duplicate', exact: false }).first()\n    2) <button>Duplicate</button> aka getByRole('button', { name: 'Duplicate', exact: false }).nth(1)\n",
+          "string": "Error: strict mode violation: getByRole('button', { name: 'Duplicate' }) resolved to 2 elements:\n    1) <button>Duplicate</button> aka getByRole('button', { name: 'Duplicate', exact: false }).first()\n    2) <button>Duplicate</button> aka getByRole('button', { name: 'Duplicate', exact: false }).nth(1)\n",
+          "keys": []
+        },
+        "elements": 2
+      },
+      {
+        "name": "detached bound",
+        "query": {
+          "returnedNull": true,
+          "returnedUndefined": false
+        },
+        "element": {
+          "name": "VitestBrowserElementError",
+          "constructor": "Error",
+          "message": "Cannot find element with locator: getByRole('button', { name: 'Bound', exact: false })\n\nARIA tree:\n\n\nHTML:\n\u001b[36m<button>\u001b[39m\n  \u001b[0mBound\u001b[0m\n\u001b[36m</button>\u001b[39m",
+          "string": "VitestBrowserElementError: Cannot find element with locator: getByRole('button', { name: 'Bound', exact: false })\n\nARIA tree:\n\n\nHTML:\n\u001b[36m<button>\u001b[39m\n  \u001b[0mBound\u001b[0m\n\u001b[36m</button>\u001b[39m",
+          "keys": ["name"]
+        },
+        "querySame": false,
+        "connected": false
+      },
+      {
+        "name": "foreign",
+        "binding": {
+          "returnedNull": false,
+          "returnedUndefined": false
+        },
+        "query": {
+          "returnedNull": true,
+          "returnedUndefined": false
+        },
+        "element": {
+          "name": "VitestBrowserElementError",
+          "constructor": "Error",
+          "message": "Cannot find element with locator: getByText('Foreign', { exact: false })\n\nARIA tree:\n\n\nHTML:\n\u001b[36m<button>\u001b[39m\n  \u001b[0mForeign\u001b[0m\n\u001b[36m</button>\u001b[39m",
+          "string": "VitestBrowserElementError: Cannot find element with locator: getByText('Foreign', { exact: false })\n\nARIA tree:\n\n\nHTML:\n\u001b[36m<button>\u001b[39m\n  \u001b[0mForeign\u001b[0m\n\u001b[36m</button>\u001b[39m",
+          "keys": ["name"]
+        },
+        "querySame": false
+      }
+    ]
+  },
+  "cases": {
+    "development": [
+      {
+        "ancestorTitles": [],
+        "fullName": "missing role retains nullable query and concrete element error",
+        "status": "passed",
+        "title": "missing role retains nullable query and concrete element error",
+        "failureMessages": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "missing text retains nullable query and concrete element error",
+        "status": "passed",
+        "title": "missing text retains nullable query and concrete element error",
+        "failureMessages": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "missing label retains nullable query and concrete element error",
+        "status": "passed",
+        "title": "missing label retains nullable query and concrete element error",
+        "failureMessages": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "missing testId retains nullable query and concrete element error",
+        "status": "passed",
+        "title": "missing testId retains nullable query and concrete element error",
+        "failureMessages": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "missing scoped query retains actual container and selector",
+        "status": "passed",
+        "title": "missing scoped query retains actual container and selector",
+        "failureMessages": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "missing nth query retains actual index and selector",
+        "status": "passed",
+        "title": "missing nth query retains actual index and selector",
+        "failureMessages": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "query and element preserve the same actual connected node",
+        "status": "passed",
+        "title": "query and element preserve the same actual connected node",
+        "failureMessages": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "query and element expose the same actual SVG node",
+        "status": "passed",
+        "title": "query and element expose the same actual SVG node",
+        "failureMessages": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "duplicate query and element retain complete strict error information",
+        "status": "passed",
+        "title": "duplicate query and element retain complete strict error information",
+        "failureMessages": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "bound element retains actual identity after detaching",
+        "status": "passed",
+        "title": "bound element retains actual identity after detaching",
+        "failureMessages": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "foreign-document element records actual public binding behavior",
+        "status": "passed",
+        "title": "foreign-document element records actual public binding behavior",
+        "failureMessages": []
+      }
+    ],
+    "production": [
+      {
+        "ancestorTitles": [],
+        "fullName": "missing role retains nullable query and concrete element error",
+        "status": "passed",
+        "title": "missing role retains nullable query and concrete element error",
+        "failureMessages": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "missing text retains nullable query and concrete element error",
+        "status": "passed",
+        "title": "missing text retains nullable query and concrete element error",
+        "failureMessages": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "missing label retains nullable query and concrete element error",
+        "status": "passed",
+        "title": "missing label retains nullable query and concrete element error",
+        "failureMessages": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "missing testId retains nullable query and concrete element error",
+        "status": "passed",
+        "title": "missing testId retains nullable query and concrete element error",
+        "failureMessages": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "missing scoped query retains actual container and selector",
+        "status": "passed",
+        "title": "missing scoped query retains actual container and selector",
+        "failureMessages": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "missing nth query retains actual index and selector",
+        "status": "passed",
+        "title": "missing nth query retains actual index and selector",
+        "failureMessages": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "query and element preserve the same actual connected node",
+        "status": "passed",
+        "title": "query and element preserve the same actual connected node",
+        "failureMessages": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "query and element expose the same actual SVG node",
+        "status": "passed",
+        "title": "query and element expose the same actual SVG node",
+        "failureMessages": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "duplicate query and element retain complete strict error information",
+        "status": "passed",
+        "title": "duplicate query and element retain complete strict error information",
+        "failureMessages": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "bound element retains actual identity after detaching",
+        "status": "passed",
+        "title": "bound element retains actual identity after detaching",
+        "failureMessages": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "foreign-document element records actual public binding behavior",
+        "status": "passed",
+        "title": "foreign-document element records actual public binding behavior",
+        "failureMessages": []
+      }
+    ]
+  },
+  "retainedForeignDocumentGuard": {
+    "name": "foreign",
+    "binding": {
+      "name": "Error",
+      "constructor": "Error",
+      "message": "Browser locator must belong to its owned document.",
+      "string": "Error: Browser locator must belong to its owned document.",
+      "keys": []
+    },
+    "query": null,
+    "element": null,
+    "querySame": false
+  },
+  "openDifference": "The current owned-document binding guard is retained; the final foreign-document row differs from the full unchanged genuine reference record and is not counted as compatibility."
+}

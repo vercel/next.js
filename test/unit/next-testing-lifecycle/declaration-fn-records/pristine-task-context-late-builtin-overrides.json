@@ -1,0 +1,102 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "late-builtin-overrides",
+        "trace": [
+          {
+            "kind": "sync",
+            "actual": {
+              "n": 1
+            },
+            "expected": {
+              "n": 1
+            },
+            "promise": "",
+            "hasEquals": true
+          },
+          {
+            "kind": "async-enter",
+            "actual": 2,
+            "expected": 2,
+            "promise": ""
+          },
+          {
+            "kind": "async-leave",
+            "actual": 2,
+            "expected": 2
+          },
+          {
+            "kind": "live-count",
+            "count": 2
+          },
+          {
+            "kind": "sync",
+            "actual": {
+              "n": 1
+            },
+            "expected": {
+              "n": 1
+            },
+            "promise": "",
+            "hasEquals": true
+          },
+          {
+            "kind": "closed-sync",
+            "result": "ok",
+            "count": 2
+          },
+          {
+            "kind": "async-enter",
+            "actual": 2,
+            "expected": 2,
+            "promise": ""
+          },
+          {
+            "kind": "async-leave",
+            "actual": 2,
+            "expected": 2
+          },
+          {
+            "kind": "closed-async",
+            "result": "ok",
+            "count": 2
+          },
+          {
+            "kind": "sync",
+            "actual": 3,
+            "expected": 3,
+            "promise": "",
+            "hasEquals": true
+          },
+          {
+            "kind": "new-closed-sync",
+            "result": "ok",
+            "count": 3
+          }
+        ],
+        "state": "pass",
+        "count": 3
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "live built-in override public inputs",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeads": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 1,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

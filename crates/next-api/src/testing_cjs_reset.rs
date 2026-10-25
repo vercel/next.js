@@ -7,7 +7,10 @@ use async_trait::async_trait;
 use next_core::{get_next_package, util::file_content_rope};
 use swc_core::{
     common::DUMMY_SP,
-    ecma::ast::{Expr, ExprStmt, Lit, ModuleItem, Program, Stmt, Str},
+    ecma::{
+        ast::{ClassMember, Expr, ExprStmt, Function, Lit, ModuleItem, Program, Prop, Stmt, Str},
+        visit::{VisitMut, VisitMutWith},
+    },
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
@@ -52,6 +55,7 @@ use turbopack_ecmascript::{
         cjs::CjsRequireAssetReference, esm::EsmAsyncAssetReference,
         external_module::CachedExternalModule,
     },
+    runtime_functions::TURBOPACK_GLOBAL,
     side_effect_optimization::locals::module::EcmascriptModuleLocalsModule,
 };
 use turbopack_resolve::ecmascript::esm_resolve;
@@ -301,6 +305,49 @@ async fn with_rules(
 #[derive(Debug)]
 struct StrictDirectCommonJs;
 
+struct DirectCommonJsThis;
+
+impl VisitMut for DirectCommonJsThis {
+    fn visit_mut_function(&mut self, _: &mut Function) {}
+
+    fn visit_mut_class_member(&mut self, member: &mut ClassMember) {
+        // Computed keys run in the enclosing scope. Field initializers, static
+        // blocks, constructors and method bodies own their class/function this.
+        match member {
+            ClassMember::Method(method) => method.key.visit_mut_with(self),
+            ClassMember::ClassProp(property) => property.key.visit_mut_with(self),
+            ClassMember::AutoAccessor(accessor) => accessor.key.visit_mut_with(self),
+            _ => {}
+        }
+    }
+
+    fn visit_mut_prop(&mut self, property: &mut Prop) {
+        match property {
+            Prop::KeyValue(_) | Prop::Assign(_) => property.visit_mut_children_with(self),
+            Prop::Getter(getter) => getter.key.visit_mut_with(self),
+            Prop::Setter(setter) => setter.key.visit_mut_with(self),
+            Prop::Method(method) => method.key.visit_mut_with(self),
+            Prop::Shorthand(_) => {}
+        }
+    }
+
+    fn visit_mut_expr(&mut self, expression: &mut Expr) {
+        if let Expr::This(original) = expression {
+            // The native context captures the real global object before authored
+            // execution. Reading it preserves lexical identity even if authored
+            // code shadows or replaces globalThis; require-side factories retain
+            // their ordinary module.exports receiver.
+            let mut global = Expr::from(TURBOPACK_GLOBAL);
+            if let Expr::Member(member) = &mut global {
+                member.span = original.span;
+            }
+            *expression = global;
+        } else {
+            expression.visit_mut_children_with(self);
+        }
+    }
+}
+
 fn make_direct_strict(program: &mut Program) {
     let directive = || {
         Stmt::Expr(ExprStmt {
@@ -336,6 +383,7 @@ fn make_direct_strict(program: &mut Program) {
 impl CustomTransformer for StrictDirectCommonJs {
     async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
         make_direct_strict(program);
+        program.visit_mut_with(&mut DirectCommonJsThis);
         Ok(())
     }
 }
@@ -395,12 +443,8 @@ async fn namespace_provider(
     context: ResolvedVc<ModuleAssetContext>,
     module: TestModule,
     identity: &str,
+    production_source: Option<FileSystemPath>,
 ) -> Result<TestModule> {
-    let path = VirtualFileSystem::new_with_name(rcstr!("next-test-commonjs-reset-namespaces"))
-        .root()
-        .owned()
-        .await?
-        .join(identity)?;
     let code = "const raw = require('INNER_COMMONJS_RESET_ORIGINAL');\nconst namespace = \
                 Object.create(null);\nif (raw !== null && (typeof raw === 'object' || typeof raw \
                 === 'function') && !Array.isArray(raw) && !(raw instanceof Promise)) {\nfor \
@@ -410,13 +454,35 @@ async fn namespace_provider(
                 {value:raw,writable:true,enumerable:true,configurable:true});\nObject.\
                 defineProperty(namespace, Symbol.toStringTag, \
                 {value:'Module'});\n__turbopack_context__.n(await namespace);\n";
-    let source = VirtualSource::new(
-        path,
-        AssetContent::file(FileContent::Content(File::from(code)).cell()),
-    );
+    let source = if let Some(path) = production_source {
+        // Production side-effect analysis resolves package context from this
+        // actual source filesystem. The generated content keeps a distinct
+        // identity and never reads or writes the generated path on disk.
+        test_source(
+            path.parent()
+                .join(&format!(".next-test-commonjs-reset-{identity}"))?,
+            Some(rcstr!("next-test-commonjs-reset-namespace")),
+            code.to_string(),
+        )
+        .await?
+    } else {
+        let path = VirtualFileSystem::new_with_name(rcstr!("next-test-commonjs-reset-namespaces"))
+            .root()
+            .owned()
+            .await?
+            .join(identity)?;
+        ResolvedVc::upcast(
+            VirtualSource::new(
+                path,
+                AssetContent::file(FileContent::Content(File::from(code)).cell()),
+            )
+            .to_resolved()
+            .await?,
+        )
+    };
     Ok(context
         .process(
-            Vc::upcast(source),
+            *source,
             ReferenceType::Internal(ResolvedVc::cell(
                 fxindexmap! { rcstr!("INNER_COMMONJS_RESET_ORIGINAL") => module },
             )),
@@ -715,9 +781,10 @@ async fn prepare_commonjs(
         return Ok(None);
     }
     let (original_modules, original_edges) = require_closure(&root, &inspected).await?;
-    // Preserve standalone leaf-only compilation, including every existing raw format.
-    // A held require lifetime is introduced only for an actual nonempty require graph.
-    if original_edges.is_empty() && runtime_originals.is_empty() {
+    // Preserve ordinary leaf-only compilation, including every existing raw format.
+    // Actual-import resets still need the certified direct-root namespace when
+    // that root has no require descendants to retain.
+    if original_edges.is_empty() && runtime_originals.is_empty() && actual_targets.is_empty() {
         return Ok(None);
     }
     let mut export_shapes = Vec::new();
@@ -885,10 +952,20 @@ async fn prepare_commonjs(
     }
     let mut roots = Vec::new();
     let mut namespace_rules = Vec::new();
+    let production = project.next_mode().await?.is_production();
     for (index, (inspected, compiled)) in inspected.iter().zip(compiled).enumerate() {
         let source = authored_source(&root, *inspected).await?;
-        let namespace =
-            namespace_provider(canonical, compiled, &format!("{id}-{index}.mjs")).await?;
+        let namespace = namespace_provider(
+            canonical,
+            compiled,
+            &format!("{id}-{index}.mjs"),
+            if production {
+                Some(source.ident().await?.path.clone())
+            } else {
+                None
+            },
+        )
+        .await?;
         let transition = NamespaceTransition {
             source,
             module: namespace,
@@ -1206,7 +1283,8 @@ mod tests {
     use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
     use crate::testing_cjs_reset::{
-        NamespaceTransition, make_direct_strict, require_closure, strict_direct_context, with_rules,
+        DirectCommonJsThis, NamespaceTransition, make_direct_strict, require_closure,
+        strict_direct_context, with_rules,
     };
 
     #[turbo_tasks::function(operation, root)]
@@ -1450,6 +1528,80 @@ mod tests {
             })
             .await?;
         Ok(())
+    }
+
+    #[test]
+    fn direct_this_preserves_function_and_class_receivers() {
+        use swc_core::{
+            common::{FileName, SourceMap, sync::Lrc},
+            ecma::{
+                ast::{Expr, MemberProp},
+                parser::{Syntax, parse_file_as_program},
+                visit::{Visit, VisitMutWith, VisitWith},
+            },
+        };
+        #[derive(Default)]
+        struct Counts {
+            native_globals: usize,
+            retained_this: usize,
+        }
+        impl Visit for Counts {
+            fn visit_expr(&mut self, expression: &Expr) {
+                if matches!(expression, Expr::This(_)) {
+                    self.retained_this += 1;
+                }
+                if matches!(expression, Expr::Member(member)
+                    if matches!(&*member.obj, Expr::Ident(id) if id.sym == *"__turbopack_context__")
+                    && matches!(&member.prop, MemberProp::Ident(id) if id.sym == *"g"))
+                {
+                    self.native_globals += 1;
+                }
+                expression.visit_children_with(self);
+            }
+        }
+        for (source, globals, retained) in [
+            ("const lexical = this; module.exports = () => this", 2, 0),
+            (
+                "function f(value = () => this) { return () => this }; module.exports = () => this",
+                1,
+                2,
+            ),
+            (
+                "const value = { [this.key]: () => this, method() { return this }, get \
+                 [this.key]() { return this }, set [this.key](value) { this.value = value } }; \
+                 module.exports = () => this",
+                5,
+                3,
+            ),
+            (
+                "class Value extends this.Parent { [this.key]() { return this }; [this.field] = \
+                 this; static field = this; static { this.field = this }; constructor() { \
+                 this.field = this }; static [this.method]() { return this } }; module.exports = \
+                 () => this",
+                5,
+                8,
+            ),
+            ("const globalThis = {}; module.exports = () => this", 1, 0),
+        ] {
+            let map: Lrc<SourceMap> = Default::default();
+            let file = map.new_source_file(FileName::Anon.into(), source.to_string());
+            let mut errors = Vec::new();
+            let mut program = parse_file_as_program(
+                &file,
+                Syntax::default(),
+                Default::default(),
+                None,
+                &mut errors,
+            )
+            .expect("valid lexical receiver fixture");
+            assert!(errors.is_empty());
+            program.visit_mut_with(&mut DirectCommonJsThis);
+            program.visit_mut_with(&mut DirectCommonJsThis);
+            let mut counts = Counts::default();
+            program.visit_with(&mut counts);
+            assert_eq!(counts.native_globals, globals, "{source}");
+            assert_eq!(counts.retained_this, retained, "{source}");
+        }
     }
 
     #[test]

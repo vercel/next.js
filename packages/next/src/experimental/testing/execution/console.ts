@@ -71,6 +71,19 @@ export function installTestConsole(options: {
           buffers.set(task.taskId, buffer)
         }
         const value = (buffer[type] ??= { text: [], time: realDateNow(), task })
+        const attempt = value.task.attempt
+        const nextAttempt = task.attempt
+        if (
+          attempt &&
+          (!nextAttempt ||
+            attempt.id !== nextAttempt.id ||
+            attempt.retry !== nextAttempt.retry ||
+            attempt.repeat !== nextAttempt.repeat)
+        ) {
+          // One public task can receive writes from multiple true origins.
+          // A mixed batch cannot claim the first write's private attempt.
+          value.task = { ...value.task, attempt: undefined }
+        }
         value.text.push(String(chunk))
         const sequence = ++buffer.sequence
         realQueueMicrotask(() => {

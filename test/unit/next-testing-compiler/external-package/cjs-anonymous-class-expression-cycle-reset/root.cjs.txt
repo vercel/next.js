@@ -1,0 +1,4 @@
+globalThis.__nextClassResetRoot=(globalThis.__nextClassResetRoot||0)+1
+const evaluation=globalThis.__nextClassResetRoot
+const dependency=require('./dependency.cjs')
+module.exports=class{constructor(value='fallback',...extra){this.value=value;this.extra=extra;this.evaluation=evaluation;this.newTarget=new.target.name;this.dependency=dependency}self(){return this.constructor}static self(){return this}}

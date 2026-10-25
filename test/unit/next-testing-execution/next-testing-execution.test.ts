@@ -34,6 +34,7 @@ import { createLateFailureSink } from 'next/dist/experimental/testing/execution/
 import { browserOutputDirectory } from 'next/dist/experimental/testing/execution/browser-output'
 import { assertCompiledSetup } from 'next/dist/experimental/testing/execution/setup'
 import { execute } from 'next/dist/experimental/testing/execution/execute'
+import { assertRuntimeModuleCompletion } from 'next/dist/experimental/testing/execution/completed-module'
 import {
   executeCohort,
   isCohortExecutionClosedError,
@@ -3617,7 +3618,9 @@ describe('client Browser console output forwarding', () => {
     fakeTimers?: import('next/dist/experimental/testing/assertions/utilities').FakeTimerOptions,
     browserViewport?: { width: number; height: number },
     commands: { element: string; method: string; args: unknown[] }[] = [],
-    executionMode: 'development' | 'production' = 'development'
+    executionMode: 'development' | 'production' = 'development',
+    browserEngine?: 'chromium' | 'firefox',
+    framed?: 'normal' | 'detached' | 'missing'
   ) {
     const { EventEmitter } = require('node:events')
     const page = new EventEmitter()
@@ -3626,8 +3629,25 @@ describe('client Browser console output forwarding', () => {
     const failures: unknown[] = []
     const actions: { method: string; args: unknown[] }[] = []
     let dispatch: (command: unknown) => Promise<unknown>
-    page.locator = jest.fn(() =>
-      Object.fromEntries(
+    const nativeFrame = {
+      locator: jest.fn(() => createLocator()),
+      evaluate: jest.fn(async () => {}),
+      dragAndDrop: async (...args: unknown[]) => {
+        actions.push({ method: 'dragAndDrop', args })
+      },
+      goto: jest.fn(async () => {
+        if (framed === 'detached') page.emit('framedetached', nativeFrame)
+        await executeGraph()
+      }),
+    }
+    const frameElement = {
+      contentFrame: jest.fn(async () =>
+        framed === 'missing' ? null : nativeFrame
+      ),
+      dispose: jest.fn(async () => {}),
+    }
+    function createLocator() {
+      return Object.fromEntries(
         [
           'click',
           'dblclick',
@@ -3645,6 +3665,11 @@ describe('client Browser console output forwarding', () => {
           },
         ])
       )
+    }
+    page.locator = jest.fn((selector) =>
+      framed && selector === 'iframe'
+        ? { elementHandle: async () => frameElement }
+        : createLocator()
     )
     page.mainFrame = jest.fn(() => ({
       dragAndDrop: async (...args: unknown[]) => {
@@ -3653,7 +3678,7 @@ describe('client Browser console output forwarding', () => {
     }))
     page.evaluate = jest.fn(async () => {})
     page.keyboard = Object.fromEntries(
-      ['down', 'up', 'insertText'].map((method) => [
+      ['down', 'up', 'insertText', 'press'].map((method) => [
         method,
         async (...args: unknown[]) => {
           actions.push({ method, args })
@@ -3673,7 +3698,7 @@ describe('client Browser console output forwarding', () => {
     ]
     const emit = (type: string, text: string) =>
       page.emit('console', { type: () => type, text: () => text })
-    page.goto = jest.fn(async () => {
+    async function executeGraph() {
       for (const type of [
         'log',
         'info',
@@ -3686,6 +3711,9 @@ describe('client Browser console output forwarding', () => {
         emit(type, `actual ${type}`)
       for (const command of commands) await dispatch(command)
       if (mode === 'navigation-error') throw new Error('navigation failed')
+    }
+    page.goto = jest.fn(async () => {
+      if (!framed) await executeGraph()
     })
     const context = {
       newPage: jest.fn(async () => page),
@@ -3701,14 +3729,19 @@ describe('client Browser console output forwarding', () => {
         trace.push('browser-close')
       }),
     }
+    const firefoxOwner = { pageGuid: 'actual-native-owner' }
+    const frameOwner = { frameGuid: 'actual-selected-native-frame' }
     const host = {
       wsEndpoint: 'ws://unit-browser',
+      firefoxPageOwner: jest.fn(() => firefoxOwner),
+      frameOwner: jest.fn(() => frameOwner),
       dispose: jest.fn(async () => {
         trace.push('host-close')
       }),
     }
     const server = {
       url: 'http://unit-browser/',
+      ...(framed ? { hostURL: 'http://unit-browser/host' } : {}),
       completion: Promise.resolve({}),
       verify: jest.fn(async () => {}),
       assertClean: jest.fn(),
@@ -3766,13 +3799,16 @@ describe('client Browser console output forwarding', () => {
         creatorPromiseRoute: 'native-engine-v1',
       },
     }
+    const createHost = jest.fn(async (..._args: unknown[]) => host)
+    const connectHost = jest.fn(async (..._args: unknown[]) => browser)
+    const createBrand = jest.fn((..._args: unknown[]) => engineBrand)
     let configuration: any
     let result: unknown
     try {
       await jest.isolateModulesAsync(async () => {
         jest.doMock(modules[0], () => ({
-          createBrowserHost: async () => host,
-          connectBrowserHost: async () => browser,
+          createBrowserHost: createHost,
+          connectBrowserHost: connectHost,
         }))
         jest.doMock(modules[1], () => ({
           createClientServer: async (options: any) => {
@@ -3785,7 +3821,7 @@ describe('client Browser console output forwarding', () => {
           createClientResultCollector: () => collector,
         }))
         jest.doMock(modules[3], () => ({
-          createClientEngineBrand: () => engineBrand,
+          createClientEngineBrand: createBrand,
         }))
         const { executeClient } = jest.requireActual(
           'next/dist/experimental/testing/client/execute'
@@ -3797,6 +3833,8 @@ describe('client Browser console output forwarding', () => {
             runId: 'unit-browser-run',
             fakeTimers,
             browserViewport,
+            ...(browserEngine ? { browserEngine } : {}),
+            ...(framed ? { testFrame: true } : {}),
             projectDir: '/project',
             setupFiles: [],
             signal: new AbortController().signal,
@@ -3827,11 +3865,148 @@ describe('client Browser console output forwarding', () => {
         server,
         configuration,
         actions,
+        host,
+        firefoxOwner,
+        frameOwner,
+        nativeFrame,
+        frameElement,
+        createHost,
+        connectHost,
+        createBrand,
       }
     } finally {
       for (const name of modules) jest.dontMock(name)
     }
   }
+
+  it.each(['development', 'production'] as const)(
+    'keeps private Firefox %s execution on its actual host, connection and page owner',
+    async (mode) => {
+      const observed = await observe(
+        'normal',
+        undefined,
+        undefined,
+        [],
+        mode,
+        'firefox'
+      )
+      expect(observed.result).toMatchObject({ status: 'passed' })
+      expect(observed.createHost).toHaveBeenCalledWith(
+        expect.objectContaining({ engine: 'firefox' })
+      )
+      expect(observed.connectHost).toHaveBeenCalledWith(
+        expect.objectContaining({ engine: 'firefox' })
+      )
+      expect(observed.host.firefoxPageOwner).toHaveBeenCalledWith(
+        observed.context,
+        observed.page
+      )
+      expect(observed.createBrand).toHaveBeenCalledWith(
+        expect.objectContaining({ firefoxOwner: observed.firefoxOwner })
+      )
+      expect(observed.trace.slice(-3)).toEqual([
+        'host-close',
+        'engine-after-close',
+        'server-close',
+      ])
+      expect(observed.failures).toEqual([])
+    }
+  )
+
+  it.each(['chromium', 'firefox'] as const)(
+    'runs the selected child graph and locators with actual %s Page input ownership',
+    async (engine) => {
+      const observed = await observe(
+        'normal',
+        undefined,
+        undefined,
+        [
+          { element: 'next-test-element-1', method: 'click', args: [] },
+          { element: 'next-test-element-2', method: 'tab', args: [] },
+          { element: 'next-test-element-3', method: 'hover', args: [] },
+        ],
+        'development',
+        engine,
+        'normal'
+      )
+      expect(observed.result).toMatchObject({ status: 'passed' })
+      expect(observed.createHost).toHaveBeenCalledWith(
+        expect.objectContaining({ ownedFrames: true })
+      )
+      expect(observed.page.goto).toHaveBeenCalledWith(
+        observed.server.hostURL,
+        expect.any(Object)
+      )
+      expect(observed.nativeFrame.goto).toHaveBeenCalledWith(
+        observed.server.url,
+        expect.any(Object)
+      )
+      expect(observed.host.frameOwner).toHaveBeenCalledWith(
+        observed.context,
+        observed.page,
+        observed.nativeFrame
+      )
+      expect(observed.createBrand).toHaveBeenCalledWith(
+        expect.objectContaining({ frameOwner: observed.frameOwner })
+      )
+      expect(observed.frameElement.dispose).toHaveBeenCalledTimes(1)
+      expect(observed.page.locator.mock.calls).toEqual([['iframe']])
+      expect(observed.nativeFrame.locator.mock.calls).toHaveLength(3)
+      expect(observed.nativeFrame.evaluate).toHaveBeenCalledTimes(2)
+      expect(observed.actions).toContainEqual({
+        method: 'press',
+        args: ['Tab'],
+      })
+      expect(observed.page.listenerCount('framedetached')).toBe(0)
+      expect(observed.failures).toEqual([])
+    }
+  )
+
+  it.each(['missing', 'detached'] as const)(
+    'retains the %s actual child failure and joins every acquired owner',
+    async (framed) => {
+      const observed = await observe(
+        'normal',
+        undefined,
+        undefined,
+        [],
+        'development',
+        'chromium',
+        framed
+      )
+      expect(observed.result).toMatchObject({ status: 'failed' })
+      expect(observed.frameElement.dispose).toHaveBeenCalledTimes(1)
+      expect(observed.failures).toContainEqual(
+        expect.objectContaining({
+          message:
+            framed === 'missing'
+              ? 'Browser Mode iframe has no actual test Frame.'
+              : 'Browser Mode selected test Frame detached.',
+        })
+      )
+      expect(observed.context.close).toHaveBeenCalledTimes(1)
+      expect(observed.browser.close).toHaveBeenCalledTimes(1)
+      expect(observed.host.dispose).toHaveBeenCalledTimes(1)
+      expect(observed.server.dispose).toHaveBeenCalledTimes(1)
+      expect(observed.page.listenerCount('framedetached')).toBe(0)
+      if (framed === 'missing') {
+        expect(observed.host.frameOwner).not.toHaveBeenCalled()
+        expect(observed.createBrand).not.toHaveBeenCalled()
+        expect(observed.nativeFrame.goto).not.toHaveBeenCalled()
+      }
+    }
+  )
+
+  it('preserves the existing Chromium host and classifier when no private engine is selected', async () => {
+    const observed = await observe('normal')
+    expect(observed.result).toMatchObject({ status: 'passed' })
+    expect(observed.createHost.mock.calls[0][0]).not.toHaveProperty('engine')
+    expect(observed.connectHost.mock.calls[0][0]).not.toHaveProperty('engine')
+    expect(observed.host.firefoxPageOwner).not.toHaveBeenCalled()
+    expect(observed.createBrand.mock.calls[0][0]).not.toHaveProperty(
+      'firefoxOwner'
+    )
+  })
 
   it('forwards real console text as scoped stdout/stderr before independently closing resources', async () => {
     const observed = await observe('normal')
@@ -4323,9 +4498,13 @@ describe('formatted Browser console transport', () => {
 })
 
 describe('Browser console same-stream boundaries', () => {
-  it.each([false, true])(
-    'keeps fallback and RPC output with observer failure=%s',
-    async (observerFailure) => {
+  it.each([
+    [false, undefined],
+    [true, undefined],
+    [false, 'firefox' as const],
+  ] as const)(
+    'keeps fallback and RPC output with observer failure=%s and engine=%s',
+    async (observerFailure, engine) => {
       const { EventEmitter } = require('node:events')
       const page = new EventEmitter()
       const events: ResultEvent[] = [],
@@ -4343,10 +4522,12 @@ describe('Browser console same-stream boundaries', () => {
       const emit = (type: string, text: string) =>
         page.emit('console', { type: () => type, text: () => text })
       page.goto = async () => {
+        if (engine === 'firefox') emit('timeStamp', 'authored timeline marker')
         emit('log', 'prestart')
         // An ordinary log equal to a reserved debug boundary is still user data.
         emit('log', boundary.start)
         emit('debug', boundary.start)
+        if (engine === 'firefox') emit('timeStamp', 'managed timeline marker')
         for (const kind of ['log', 'info', 'debug', 'warning', 'error'])
           emit(kind, `managed ${kind}`)
         for (const kind of ['trace', 'assert', 'table'])
@@ -4387,6 +4568,7 @@ describe('Browser console same-stream boundaries', () => {
       }
       const host = {
         wsEndpoint: 'ws://unit',
+        firefoxPageOwner: () => ({}),
         dispose: async () => {
           trace.push('host')
         },
@@ -4470,6 +4652,7 @@ describe('Browser console same-stream boundaries', () => {
             runId: 'console-run',
             projectDir: '/project',
             setupFiles: [],
+            ...(engine ? { browserEngine: engine } : {}),
             signal: new AbortController().signal,
             updateSnapshots: false,
             testTimeout: 1000,
@@ -5996,3 +6179,737 @@ it.each(['preflight', 'native-error', 'cleanup-error'])(
     })
   }
 )
+
+it.each(['development', 'production'] as const)(
+  'leaves Firefox V8 coverage explicitly unimplemented before acquiring %s Browser owners',
+  async (mode) => {
+    const profile = {
+      id: 'firefox-v8',
+      environment: 'browser',
+      mode,
+      runtime: 'nodejs',
+      bundler: 'turbopack',
+      browserClient: true,
+    }
+    const entry = {
+      id: 'firefox-entry',
+      file: '/project/firefox.test.mjs',
+      profile,
+    }
+    const artifact = {
+      version: 2,
+      kind: 'browser',
+      entryId: entry.id,
+      revision: 'firefox-revision',
+      profile,
+      client: {
+        sourceFile: entry.file,
+        asyncScope: 'promise-continuations-v1',
+        creatorScope: 'synchronous-source-v1',
+        creatorPromiseRoute: 'native-engine-v1',
+      },
+    }
+    const { executeClient } = jest.requireActual(
+      'next/dist/experimental/testing/client/execute'
+    )
+    const onEvent = jest.fn()
+    await expect(
+      executeClient(artifact, {
+        entry,
+        setupFiles: [],
+        browserEngine: 'firefox',
+        coverage: { version: 1, kind: 'browser-v8' },
+        onEvent,
+      })
+    ).rejects.toThrow('Firefox Browser Mode V8 coverage is not implemented.')
+    expect(onEvent).not.toHaveBeenCalled()
+  }
+)
+
+it.each([undefined, 'chromium', 'firefox'] as const)(
+  'forwards the selected %s client engine and selects the Firefox owned Frame',
+  async (browserEngine) => {
+    const client = await import('next/dist/experimental/testing/client/execute')
+    const execution = await import(
+      'next/dist/experimental/testing/execution/execute'
+    )
+    const spy = jest.spyOn(client, 'executeClient').mockResolvedValue({
+      entryId: 'engine-entry',
+      status: 'passed',
+      durationMs: 1,
+    })
+    try {
+      await execution.executeWithEnvironment(
+        { kind: 'browser' } as any,
+        {
+          signal: new AbortController().signal,
+          ...(browserEngine === undefined ? {} : { browserEngine }),
+        } as any,
+        { ...process.env }
+      )
+      const forwarded = spy.mock.calls[0][1]
+      if (browserEngine === undefined)
+        expect(forwarded).not.toHaveProperty('browserEngine')
+      else expect(forwarded.browserEngine).toBe(browserEngine)
+      if (browserEngine === 'firefox') expect(forwarded.testFrame).toBe(true)
+      else expect(forwarded).not.toHaveProperty('testFrame')
+    } finally {
+      spy.mockRestore()
+    }
+  }
+)
+
+it.each(['chromium', 'firefox'] as const)(
+  'observes the actual first %s case before forwarding scheduling events',
+  async (browserEngine) => {
+    const client = await import('next/dist/experimental/testing/client/execute')
+    const execution = await import(
+      'next/dist/experimental/testing/execution/execute'
+    )
+    const order: string[] = []
+    const caseStart = { type: 'case-start' } as any
+    const spy = jest
+      .spyOn(client, 'executeClient')
+      .mockImplementation(async (_artifact, input) => {
+        order.push('entered')
+        input.onEvent({ type: 'file-start' } as any)
+        input.onEvent(caseStart)
+        input.onEvent(caseStart)
+        return { entryId: 'engine-entry', status: 'passed', durationMs: 1 }
+      })
+    try {
+      await execution.executeWithEnvironment(
+        { kind: 'browser', profile: { browserClient: true } } as any,
+        {
+          signal: new AbortController().signal,
+          userCancelSignal: new AbortController().signal,
+          browserEngine,
+          onEvent(event: ResultEvent) {
+            order.push(event.type)
+          },
+        } as any,
+        { ...process.env },
+        undefined,
+        () => {
+          order.push('actual-owner')
+        }
+      )
+      expect(order).toEqual([
+        'entered',
+        'file-start',
+        'actual-owner',
+        'case-start',
+        'case-start',
+      ])
+    } finally {
+      spy.mockRestore()
+    }
+  }
+)
+
+it.each([
+  ['node', 'chromium'],
+  ['node', 'firefox'],
+  ['browser', 'webkit'],
+  ['browser', null],
+])(
+  'rejects engine %s/%s before runtime acquisition',
+  async (kind, browserEngine) => {
+    const { executeWithEnvironment } = await import(
+      'next/dist/experimental/testing/execution/execute'
+    )
+    const onEvent = jest.fn()
+    await expect(
+      executeWithEnvironment(
+        { kind } as any,
+        { browserEngine, onEvent } as any,
+        { ...process.env }
+      )
+    ).rejects.toThrow(
+      'Browser engine selection requires an actual Chromium or Firefox client artifact.'
+    )
+    expect(onEvent).not.toHaveBeenCalled()
+  }
+)
+
+describe('private actual module completion transport', () => {
+  const identity = {
+    version: 1 as const,
+    runId: 'private-module-run',
+    entryId: 'private-module-entry',
+    revision: 'private-module-revision',
+  }
+  const fulfilled = {
+    ...identity,
+    kind: 'fulfilled' as const,
+    resultVersion: 2 as const,
+    finalState: 'pass' as const,
+    durationMs: 0,
+    containsOnly: false,
+    interrupted: false,
+  }
+
+  it.each([
+    ['version', 2],
+    ['runId', 'foreign'],
+    ['entryId', 'foreign'],
+    ['revision', 'foreign'],
+    ['kind', 'foreign'],
+    ['resultVersion', 1],
+    ['resultVersion', undefined],
+    ['finalState', undefined],
+    ['finalState', 'passed'],
+    ['finalState', 0],
+    ['durationMs', -1],
+    ['durationMs', Infinity],
+    ['durationMs', NaN],
+    ['durationMs', '1'],
+    ['containsOnly', 1],
+    ['interrupted', undefined],
+    ['extra', true],
+  ])('rejects malformed actual completion %s=%s', (key, value) => {
+    expect(() =>
+      assertRuntimeModuleCompletion(
+        { ...fulfilled, [key]: value },
+        identity,
+        'passed',
+        []
+      )
+    ).toThrow()
+  })
+
+  it('admits genuine failed and interrupted fulfilled metadata without inferring it from status', () => {
+    expect(() =>
+      assertRuntimeModuleCompletion(fulfilled, identity, 'failed', [])
+    ).not.toThrow()
+    expect(() =>
+      assertRuntimeModuleCompletion(
+        { ...fulfilled, interrupted: true },
+        identity,
+        'cancelled',
+        []
+      )
+    ).not.toThrow()
+  })
+
+  it('retains unavailable actual publication state without fabricating a failed or passed file', () => {
+    expect(() =>
+      assertRuntimeModuleCompletion(
+        { ...fulfilled, finalState: null },
+        identity,
+        'passed',
+        []
+      )
+    ).not.toThrow()
+  })
+
+  it('requires the original observed unavailable failure and a failed terminal result', () => {
+    const failure = { name: 'Error', message: 'original failure' }
+    const unavailable = {
+      ...identity,
+      kind: 'unavailable',
+      phase: 'collection',
+      failure,
+    }
+    expect(() =>
+      assertRuntimeModuleCompletion(unavailable, identity, 'failed', [
+        JSON.parse(JSON.stringify(failure)),
+      ])
+    ).not.toThrow()
+    for (const [value, status, observed] of [
+      [unavailable, 'passed', [failure]],
+      [unavailable, 'failed', []],
+      [unavailable, 'failed', [{ ...failure, message: 'different' }]],
+      [{ ...unavailable, phase: 'cleanup' }, 'failed', [failure]],
+      [{ ...unavailable, failure: undefined }, 'failed', [failure]],
+    ] as const)
+      expect(() =>
+        assertRuntimeModuleCompletion(value, identity, status, observed)
+      ).toThrow()
+  })
+
+  it.each(['development', 'production'] as const)(
+    'carries actual runtime facts and original unavailable failures in %s workers',
+    async (mode) => {
+      for (const variant of [
+        { name: 'off', capture: false, mode: 'passed' },
+        { name: 'passed', capture: true, mode: 'passed' },
+        { name: 'failed', capture: true, mode: 'failed' },
+        { name: 'afterAll', capture: true, mode: 'afterAll-failure' },
+        { name: 'focus', capture: true, mode: 'focus' },
+        {
+          name: 'filter',
+          capture: true,
+          mode: 'passed',
+          pattern: '^nested > selected$',
+        },
+        {
+          name: 'load',
+          capture: true,
+          mode: 'bootstrap-failure',
+          phase: 'load',
+        },
+        {
+          name: 'collection',
+          capture: true,
+          mode: 'collection-failure',
+          phase: 'collection',
+        },
+        {
+          name: 'collection-undefined',
+          capture: true,
+          mode: 'collection-undefined',
+          phase: 'collection',
+        },
+        {
+          name: 'rejected-run',
+          capture: true,
+          mode: 'passed',
+          phase: 'run',
+          concurrency: 0,
+        },
+        {
+          name: 'rejected-reuse',
+          capture: true,
+          mode: 'reuse-rejected-run',
+          phase: 'run',
+        },
+        { name: 'missing', capture: true, mode: 'missing-fact', missing: true },
+      ]) {
+        const rootDir = mkdtempSync(
+          path.join(tmpdir(), `next-private-module-${mode}-${variant.name}-`)
+        )
+        try {
+          copyFileSync(
+            path.join(__dirname, 'completed-module-entry.cjs'),
+            path.join(rootDir, 'entry.cjs')
+          )
+          const trace = path.join(rootDir, 'getter-trace.txt')
+          writeFileSync(
+            path.join(rootDir, 'runtime-paths.json'),
+            JSON.stringify({
+              runner: require.resolve('next/dist/experimental/testing/runner'),
+              vitest: require.resolve('next/dist/experimental/testing/vitest'),
+              mode: variant.mode,
+              trace,
+            })
+          )
+          const profile = {
+            id: 'module',
+            mode,
+            environment: 'node' as const,
+            runtime: 'nodejs' as const,
+            bundler: 'turbopack' as const,
+          }
+          const entry = {
+            id: identity.entryId,
+            file: path.join(rootDir, 'contract.test.mjs'),
+            profile,
+          }
+          const events: ResultEvent[] = []
+          const executing = execute(
+            {
+              version: 2,
+              kind: 'node',
+              entryId: entry.id,
+              revision: identity.revision,
+              rootDir,
+              entryPath: 'entry.cjs',
+              files: ['entry.cjs', 'runtime-paths.json'],
+              diagnostics: [],
+              profile,
+            },
+            {
+              ...(variant.capture
+                ? { captureCompletedModuleResult: true }
+                : {}),
+              runId: identity.runId,
+              projectDir: rootDir,
+              entry,
+              setupFiles: [],
+              testTimeout: 1000,
+              hookTimeout: 1000,
+              fileTimeout: 5000,
+              allowOnly: true,
+              testNamePattern: variant.pattern,
+              ...(variant.concurrency === undefined
+                ? {}
+                : { maxConcurrency: variant.concurrency }),
+              signal: new AbortController().signal,
+              onEvent: (event) => events.push(event),
+            }
+          )
+          if (variant.missing) {
+            await expect(executing).rejects.toThrow(
+              'Test worker omitted requested private module completion.'
+            )
+            expect(
+              events.flatMap((event) =>
+                event.type === 'diagnostic' ? [event.diagnostic.message] : []
+              )
+            ).toContain('Actual fulfilled module completion is missing.')
+            expect(readFileSync(trace, 'utf8')).toBe('actual getter\n')
+            continue
+          }
+          const result = await executing
+          expect(
+            events.some(
+              (event) =>
+                'moduleCompletion' in event || 'moduleExecution' in event
+            )
+          ).toBe(false)
+          if (!variant.capture) {
+            expect(result.moduleExecution).toBeUndefined()
+            expect(existsSync(trace)).toBe(false)
+            continue
+          }
+          expect(result.moduleExecution?.closed).toBe(true)
+          const completion = result.moduleExecution!.completion!
+          expect(completion).toMatchObject(identity)
+          const diagnostics = events.flatMap((event) =>
+            event.type === 'diagnostic' ? [event.diagnostic] : []
+          )
+          if (variant.phase) {
+            expect(result.status).toBe('failed')
+            expect(completion).toMatchObject({
+              kind: 'unavailable',
+              phase: variant.phase,
+            })
+            expect(completion.kind).toBe('unavailable')
+            if (completion.kind !== 'unavailable')
+              throw new Error('Expected actual unavailable module metadata.')
+            expect(diagnostics).toContainEqual(completion.failure)
+            expect(existsSync(trace)).toBe(false)
+          } else {
+            expect(completion.kind).toBe('fulfilled')
+            if (completion.kind !== 'fulfilled')
+              throw new Error('Expected actual fulfilled module metadata.')
+            const rootSuite = events.find(
+              (event) =>
+                event.type === 'suite-end' && event.suiteId === entry.id
+            )
+            expect(rootSuite).toBeDefined()
+            expect(completion.durationMs).toBe(
+              Math.max((rootSuite as any).durationMs, 0)
+            )
+            expect(completion.containsOnly).toBe(variant.name === 'focus')
+            expect(
+              events.flatMap((event) =>
+                event.type === 'case-end' ? [event.status] : []
+              )
+            ).toEqual(
+              variant.name === 'focus' || variant.name === 'filter'
+                ? ['passed', 'skipped']
+                : [variant.name === 'failed' ? 'failed' : 'passed', 'passed']
+            )
+            expect(completion.resultVersion).toBe(2)
+            expect(completion.finalState).toBe(
+              ['failed', 'afterAll'].includes(variant.name) ? 'fail' : 'pass'
+            )
+            expect(completion.interrupted).toBe(false)
+            expect(result.status).toBe(
+              ['failed', 'afterAll'].includes(variant.name)
+                ? 'failed'
+                : 'passed'
+            )
+            expect(readFileSync(trace, 'utf8')).toBe('actual getter\n')
+          }
+        } finally {
+          rmSync(rootDir, { recursive: true, force: true })
+        }
+      }
+    },
+    30000
+  )
+})
+
+it.each([false, true])(
+  'refuses headless=%s for ordinary Node artifacts before acquisition',
+  async (browserHeadless) => {
+    const profile = {
+      id: 'headless-node',
+      mode: 'development' as const,
+      environment: 'node' as const,
+      runtime: 'nodejs' as const,
+      bundler: 'turbopack' as const,
+    }
+    const entry = {
+      id: 'headless-node:file',
+      file: '/headless-node.test.mjs',
+      profile,
+    }
+    const onEvent = jest.fn()
+    await expect(
+      execute(
+        {
+          version: 2,
+          kind: 'node',
+          entryId: entry.id,
+          revision: 'r',
+          rootDir: '/unused-headless-node',
+          entryPath: 'entry.cjs',
+          files: ['entry.cjs'],
+          profile,
+          diagnostics: [],
+        },
+        {
+          runId: 'headless-node',
+          projectDir: '/',
+          entry,
+          setupFiles: [],
+          testTimeout: 100,
+          hookTimeout: 100,
+          fileTimeout: 100,
+          signal: new AbortController().signal,
+          browserHeadless,
+          onEvent,
+        }
+      )
+    ).rejects.toThrow(
+      'Browser headless selection requires an actual Browser client artifact and boolean mode.'
+    )
+    expect(onEvent).not.toHaveBeenCalled()
+  }
+)
+
+it.each(['development', 'production'] as const)(
+  'records only actual joined Node host cleanup in %s',
+  async (mode) => {
+    for (const variant of [
+      { mode: 'passed', closed: true },
+      { mode: 'failed', closed: true },
+      { mode: 'afterAll-failure', closed: true },
+      { mode: 'settled-deadline', closed: true },
+      { mode: 'dispose-failure', closed: false },
+      { mode: 'hard-deadline', closed: false },
+      { mode: 'lifetime-abort', closed: false },
+      {
+        mode: 'passed',
+        protocol: 'missing',
+        error:
+          'Test worker omitted requested private module host cleanup completion.',
+      },
+      {
+        mode: 'passed',
+        protocol: 'invalid',
+        error: 'Invalid private module host cleanup completion.',
+      },
+      {
+        mode: 'passed',
+        protocol: 'unsolicited',
+        error: 'Invalid private module host cleanup completion.',
+      },
+    ]) {
+      const rootDir = mkdtempSync(
+        path.join(tmpdir(), `next-module-host-${mode}-${variant.mode}-`)
+      )
+      try {
+        copyFileSync(
+          path.join(__dirname, 'completed-module-entry.cjs'),
+          path.join(rootDir, 'entry.cjs')
+        )
+        writeFileSync(
+          path.join(rootDir, 'runtime-paths.json'),
+          JSON.stringify({
+            runner: require.resolve('next/dist/experimental/testing/runner'),
+            vitest: require.resolve('next/dist/experimental/testing/vitest'),
+            mode: variant.mode,
+            protocol: variant.protocol,
+            trace: path.join(rootDir, 'getter-trace.txt'),
+          })
+        )
+        const profile = {
+          id: 'module-host',
+          mode,
+          environment: 'node' as const,
+          runtime: 'nodejs' as const,
+          bundler: 'turbopack' as const,
+        }
+        const entry = {
+          id: 'module-host:file',
+          file: path.join(rootDir, 'contract.case.mjs'),
+          profile,
+        }
+        const events: ResultEvent[] = []
+        const controller = new AbortController()
+        const executing = execute(
+          {
+            version: 2,
+            kind: 'node',
+            entryId: entry.id,
+            revision: 'host-r',
+            rootDir,
+            entryPath: 'entry.cjs',
+            files: ['entry.cjs', 'runtime-paths.json'],
+            profile,
+            diagnostics: [],
+          },
+          {
+            ...(variant.protocol === 'unsolicited'
+              ? {}
+              : { captureCompletedModuleResult: true }),
+            runId: 'module-host-run',
+            projectDir: rootDir,
+            entry,
+            setupFiles: [],
+            testTimeout: variant.mode === 'settled-deadline' ? 5 : 0,
+            hookTimeout: 1000,
+            fileTimeout: variant.mode === 'hard-deadline' ? 300 : 5000,
+            signal: controller.signal,
+            onEvent(event) {
+              events.push(event)
+              if (
+                event.type === 'case-start' &&
+                variant.mode === 'lifetime-abort'
+              )
+                controller.abort(
+                  new Error('actual module host lifetime aborted')
+                )
+            },
+          }
+        )
+        if (variant.error) {
+          await expect(executing).rejects.toThrow(variant.error)
+          continue
+        }
+        const result = await executing
+        expect(result.moduleExecution?.closed).toBe(variant.closed)
+        const diagnostics = events.flatMap((event) =>
+          event.type === 'diagnostic' ? [event.diagnostic.message] : []
+        )
+        if (
+          variant.mode === 'hard-deadline' ||
+          variant.mode === 'lifetime-abort'
+        ) {
+          expect(result.moduleExecution?.completion).toBeUndefined()
+          expect(result.status).toBe(
+            variant.mode === 'lifetime-abort' ? 'cancelled' : 'failed'
+          )
+        } else {
+          expect(result.moduleExecution?.completion).toMatchObject({
+            kind: 'fulfilled',
+            resultVersion: 2,
+            finalState: [
+              'failed',
+              'afterAll-failure',
+              'settled-deadline',
+            ].includes(variant.mode)
+              ? 'fail'
+              : 'pass',
+          })
+          expect(result.status).toBe(
+            variant.mode === 'passed' ? 'passed' : 'failed'
+          )
+        }
+        if (variant.mode === 'dispose-failure')
+          expect(diagnostics).toContain('actual worker owner disposal failure')
+        if (variant.mode === 'settled-deadline')
+          expect(result.moduleExecution?.completion).toMatchObject({
+            interrupted: true,
+          })
+        expect(
+          events.some(
+            (event) =>
+              'moduleHostCleanupComplete' in event || 'moduleExecution' in event
+          )
+        ).toBe(false)
+      } finally {
+        rmSync(rootDir, { recursive: true, force: true })
+      }
+    }
+  },
+  30000
+)
+
+describe('live deferred clear admission', () => {
+  it.each([
+    'click',
+    'duplicates',
+    'parallel',
+    'action-error',
+    'closed-scope',
+    'cleanup-held',
+    'dispose-held',
+  ])('retains query identity, scope and cleanup for %s', (mode) => {
+    const result = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [
+          require('node:path').join(__dirname, 'browser-locator-admission.cjs'),
+          mode,
+          'clear',
+        ],
+        { encoding: 'utf8' }
+      )
+    )
+    expect(result).toMatchObject({
+      mode,
+      originalScopesRetained: true,
+      foreignRootRefused: true,
+      callbacksReleased: true,
+      originalErrorRetained: true,
+      cleanupJoined: true,
+      noSyntheticEvents: true,
+    })
+    expect(result.commands[0]).toMatchObject({
+      method: 'clear',
+      args: [{ timeout: 50 }],
+    })
+  })
+  it.each([
+    'click',
+    'native-error',
+    'cancel',
+    'registration-error',
+    'registration-cancel',
+  ])('retains native options, failure and closure for %s', (mode) => {
+    const result = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [
+          require('node:path').join(__dirname, 'client-locator-admission.cjs'),
+          mode,
+          require.resolve('next/dist/experimental/testing/client/execute'),
+          'clear',
+        ],
+        { encoding: 'utf8' }
+      )
+    )
+    expect(result).toMatchObject({
+      mode,
+      cleanupJoined: true,
+      originalNativeErrorRetained: true,
+      terminalMalformedBeforeAdmission: true,
+    })
+    if (result.actions.length)
+      expect(result.actions[0]).toEqual({
+        method: 'clear',
+        args: [{ timeout: 50 }],
+      })
+  })
+})
+
+describe('Browser locator element and query semantics', () => {
+  it.each([
+    'missing',
+    'strict',
+    'identity',
+    'detached',
+    'closed',
+    'foreign',
+    'late-action',
+    'detached-action',
+  ])('preserves actual DOM and ownership for %s', (mode) => {
+    const result = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [
+          require('node:path').join(__dirname, 'browser-locator-elements.cjs'),
+          mode,
+        ],
+        { encoding: 'utf8' }
+      )
+    )
+    expect(result).toEqual({ mode, passed: true })
+  })
+})

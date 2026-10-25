@@ -19,13 +19,26 @@ export interface CoverageArtifactMetadata {
   }
   /** Native concrete output roles, independently negotiated before compilation. */
   browser?: {
-    version: 1
     nativeMetadata: { path: string; sha256: string }
     generatedScripts: Record<
       string,
       { sha256: string; role: 'native-ecmascript-bookkeeping' }
     >
-  }
+  } & (
+    | {
+        version: 1
+        /** Fresh actual dev import sections remain in this Native certificate. */
+        developmentImports?: { version: 1; mode: 'development' }
+      }
+    | {
+        version: 2
+        mode: 'production'
+        sourceMaps: 'absolute-file-uri'
+        preserveOriginalSyntax: true
+        /** Actual native generated import sections remain in the bound certificate. */
+        importInitializers?: { version: 1 }
+      }
+  )
   scripts: {
     path: string
     sha256: string
@@ -144,6 +157,11 @@ export interface StandardCoverageOptions {
     | 'text'
     | 'html'
     | 'clover'
+    | 'cobertura'
+    | 'html-spa'
+    | 'teamcity'
+    | 'text-lcov'
+    | 'none'
   )[]
   /** Configured providers use the pinned formatter's complete report contracts. */
   formatterReports?: true
@@ -157,8 +175,24 @@ export interface StandardCoverageOptions {
   /** Watch generations replace prior facts by default. */
   cleanOnRerun?: boolean
   thresholds: Partial<Record<StandardCoverageMetric, number>> & {
+    100?: boolean
     perFile?: boolean
+    /** One-shot callers update their selected configuration after publication. */
+    autoUpdate?: boolean
   }
+  /** Configured patterns retain their own units, per-file mode and order. */
+  thresholdGroups?: {
+    pattern: string
+    thresholds: StandardCoverageOptions['thresholds']
+  }[]
+}
+
+/** Improvements derived from the actual published coverage map. */
+export interface StandardCoverageThresholdUpdate {
+  pattern?: string
+  metric: StandardCoverageMetric
+  previous: number
+  value: number
 }
 
 export interface ProjectStandardCoverageConfig {

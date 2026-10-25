@@ -13,8 +13,8 @@
     "unreviewed": "No complete implementation/evidence review for this surface is recorded. This is not proof that underlying functionality is absent."
   },
   "checkpoint": {
-    "implementationCommit": "e68803b8bd87774c71974bf8410a40198b732530",
-    "implementation": "source-only156 plus sealed constructor coverage200",
+    "implementationCommit": "45774dd30eae4690bf4164db28e8269c46218443",
+    "implementation": "Local uncommitted integration based on45774dd, with private NativeS26 and the pinned official ABI. Current combined Source verification passes367 assertion/lifecycle controls,203 Browser server/parser controls,145 mocking controls and746 compiler controls; all earlier baseline names remain. The normally installed a82 package passes80 Browser hook profiles,10 ordered coverage-flag profiles,11 coverage-activation profiles and an actual four-generation editor watch/cancel/recovery probe. Earlier installed qualification retains110 coverage profiles/225 stable case rows,40 WebKit queue/frame profiles and the unchanged Browser queue/zero-timeout baselines. Each result applies to its recorded revision and profiles.\n\nThe next integrated Source step passes10 focused CLI controls (28 actual ordered/Boolean coverage-argument profiles plus external-project/selected-input controls),23 coverage controls and4 complete formatter/current-AST CLI profiles after normal core build, repository types, lint and formatting. Independent external projects use their own transform closures; selected compiler inputs follow actual project owners while evaluated watch dependencies remain retained. Formatter callbacks run at the assignments reached in the current selected config AST before a cancellable parent commit. Installed a7df replay of all28 argument profiles and all4 formatter/current-AST models passes, with all9468 compiled files and NativeS26 held.\n\nLatest frozen c357 acceptance has4051/4126 focused tests passing,75 failures across four suites, and all3042 original baseline names retained with three explicit previously approved mappings. Full incremental36/36, bridge79, rendering35 and snapshot17 checks pass;Regression241/264 passes with23 failures. This frozen revision predates later fixes and expectation approvals. Old private test-double/readiness controls, actual watch settlement/cancellation gaps, Browser concurrency and other unqualified combinations remain separate work. Linux qualification, performance, documentation and migration examples remain deferred as requested. This is not a new full green acceptance checkpoint or stable release. The five additional built-in reporter names (cobertura,html-spa,teamcity,text-lcov,none) now pass34 actual Source reference profiles, including exact file/stdout/no-directory/clean/disabled/failure behavior and none+Boolean threshold update; normal core/types/lint pass. Explicit user-approved test/helper corrections pass6 CLI,35 execution and4 installed Browser cancellation gates across SDK1.61/1.64. The gate-only maintained helper proof uses existing JS/MTS inputs; broader private TSX/JSX adapter rows are not attributed to that patch.",
     "lastFullAcceptance": {
       "revision": 155,
       "focusedTests": 2947,
@@ -24,7 +24,154 @@
       "browserArtifacts": 6
     },
     "implementationCommitFullAcceptance": false,
-    "scope": "The last full checkpoint is distinct from later build/static and targeted installed-consumer checks. This inventory reconciliation adds no runtime functionality."
+    "scope": "The implementationCommit is the base HEAD of the current uncommitted integration. The last coherent passing full checkpoint remains historical; later focused, source and installed profiles do not establish a new full acceptance result.",
+    "latestFullAcceptanceAttempt": {
+      "sourceTree": "c357588b486dfb9d17ccc2e2d681159d687b1d62",
+      "sourceTreeIsCommit": false,
+      "native": "S26",
+      "passed": false,
+      "mainPassed": false,
+      "inProgress": false,
+      "rootTypesPassed": true,
+      "focusedComplete": true,
+      "regressionComplete": true,
+      "browserReplayRequiredCases": 47,
+      "browserReplayComplete": false,
+      "scope": "Frozen c357 complete uncommitted Source with NativeS26: normal offline install/bootstrap18/types,incremental36,bridge79,rendering35,snapshot17 pass. Focused4051/4126 with75 failures; all3042 baseline names retained through explicit approved mappings. Regression241/264 passes with23 failures. The tree predates the later approved outer corrections and formatter/zero/cache/provider/activation/hook/mock/Boolean/selected-input integration. Failures are classified against exact frozen bytes; later Source/installed positives do not retroactively qualify this run. Original47 Browser replay remains incomplete with71 historical authority paths missing.",
+      "incrementalPassed": 36,
+      "incrementalFailed": 0,
+      "browserBridgePassed": 79,
+      "renderingPassed": 35,
+      "focusedPassed": 4051,
+      "focusedFailed": 75,
+      "focusedTotal": 4126,
+      "snapshotPassed": 17,
+      "all3042BaselineNamesRetained": true,
+      "regressionPassed": 241,
+      "regressionFailed": 23,
+      "regressionTotal": 264,
+      "counts": {
+        "incremental": { "passed": 36, "failed": 0 },
+        "bridge": { "passed": 79, "failed": 0 },
+        "rendering": { "passed": 35, "failed": 0 },
+        "snapshot": { "passed": 17, "failed": 0 },
+        "focused": { "passed": 4051, "failed": 75 },
+        "regression": { "passed": 241, "failed": 23 }
+      }
+    },
+    "priorFullAcceptanceAttempts": [
+      {
+        "sourceTree": "02f259dd80405856729cdc92ce21fe85fc224448",
+        "sourceTreeIsCommit": false,
+        "native": "S19",
+        "passed": false,
+        "mainPassed": false,
+        "inProgress": false,
+        "rootTypesPassed": true,
+        "incrementalPassed": 35,
+        "incrementalFailed": 1,
+        "browserBridgePassed": 79,
+        "renderingPassed": 35,
+        "focusedComplete": true,
+        "regressionComplete": true,
+        "browserReplayRequiredCases": 47,
+        "browserReplayComplete": false,
+        "scope": "Completed frozen source02f259dd80405856729cdc92ce21fe85fc224448 with NativeS19 retains all3042 baseline focused names and source/native pins. Full18-task bootstrap/types,79bridge,35rendering and17snapshots pass. Focused3920/3926, regression252/264 and incremental35/36 remain red. Watch extra runs/selection, cancellation/coverage gates, reporter host observation and obsolete capability/cache-cleanup expectations remain issues. Original bodies/deadlines/raw failures remain held; scoped positives do not replace this failed integrated result. Original47-case Browser replay remains incomplete with71 missing pinned authority paths.",
+        "focusedPassed": 3920,
+        "focusedFailed": 6,
+        "regressionPassed": 252,
+        "regressionFailed": 12,
+        "snapshotPassed": 17
+      },
+      {
+        "sourceTree": "1df98dac447f1d15b294adbd8430e2fe6d4dc940",
+        "sourceTreeIsCommit": false,
+        "native": "S19",
+        "passed": false,
+        "mainPassed": false,
+        "inProgress": false,
+        "rootTypesPassed": true,
+        "incrementalPassed": 34,
+        "incrementalFailed": 2,
+        "browserBridgePassed": 79,
+        "renderingPassed": 35,
+        "focusedComplete": true,
+        "regressionComplete": true,
+        "browserReplayRequiredCases": 47,
+        "browserReplayComplete": false,
+        "scope": "Frozen S19 tree1df98dac447f1d15b294adbd8430e2fe6d4dc940 keeps every source/native pin and all3042 baseline test names. Root types,79 RSC bridge,35 rendering and17 snapshot checks pass. Incremental34/36, focused3790/3793 and regression259/264 retain their original failures. Editor extra-run, related report-byte rewrites, reporter module-state and watch/reference diagnostics remain under investigation. The exact unchanged S19 passive related replay passes both modes, including unrelated-edit report-byte identity; this diagnostic positive does not clear the original two failures. Original Browser47 replay remains incomplete with71 missing pinned paths. No new full passing checkpoint is declared. A later unchanged reference investigation observes pending or passed at the last case callback; the user-approved outer-only comparison correction is integrated for the next revision, with the original frozen failure unchanged. A separate genuine Node22 held-body timeout remains raw evidence.",
+        "focusedPassed": 3790,
+        "focusedFailed": 3,
+        "regressionPassed": 259,
+        "regressionFailed": 5,
+        "snapshotPassed": 17,
+        "passiveRelatedReplay": {
+          "profiles": 2,
+          "passed": 2,
+          "sourceAndNativeHeld": true,
+          "diagnosticOnly": true,
+          "clearsOriginalFailures": false
+        }
+      },
+      {
+        "sourceTree": "0b53aacd4e8f5675e8b57f4a65b2399ca1b655c4",
+        "sourceTreeIsCommit": false,
+        "native": "S12",
+        "passed": false,
+        "mainPassed": true,
+        "focusedPassed": 3356,
+        "focusedFailed": 0,
+        "regressionPassed": 264,
+        "regressionFailed": 0,
+        "incrementalPassed": 36,
+        "browserBridgePassed": 79,
+        "renderingPassed": 35,
+        "snapshotPassed": 17,
+        "browserReplayCasesPassed": 7,
+        "browserReplayCompleteRows": 8,
+        "browserReplayRequiredCases": 47,
+        "browserReplayComplete": false,
+        "scope": "All complete main checks pass with frozen source/native held. Four exactly restored original Browser groups pass seven cases and eight complete rows. The other forty original cases remain blocked by retired historical fixture/verifier/reference artifacts. Hash-equal local recovery does not recreate or alter expectations; no full checkpoint is declared. Earlier S8 raw failures remain retained separately."
+      },
+      {
+        "sourceTree": "13e8f34be0158ac71793b885d3400067fd53ce87",
+        "native": "S8",
+        "passed": false,
+        "focusedPassed": 3190,
+        "focusedFailed": 26,
+        "regressionPassed": 245,
+        "regressionFailed": 19,
+        "incrementalPassed": 26,
+        "browserBridgePassed": 79,
+        "renderingPassed": 35,
+        "snapshotPassed": 17,
+        "scope": "Original raw failures remain retained. Awake unchanged follow-ups of the two coverage-watch cases pass, but do not replace the failed complete run. A coherent new full run is pending."
+      },
+      {
+        "sourceTree": "04d19411472f7377468cfc56d2a09347762607ac",
+        "sourceTreeIsCommit": false,
+        "native": "S24",
+        "passed": false,
+        "mainPassed": false,
+        "inProgress": false,
+        "rootTypesPassed": true,
+        "incrementalPassed": 35,
+        "incrementalFailed": 1,
+        "browserBridgePassed": 79,
+        "renderingPassed": 35,
+        "focusedComplete": true,
+        "regressionComplete": true,
+        "browserReplayRequiredCases": 47,
+        "browserReplayComplete": false,
+        "scope": "Completed frozen source04d19411472f7377468cfc56d2a09347762607ac with NativeS24 preserves source/native pins and all3042 baseline names. Normal dependency installation,18-task bootstrap,types,79bridge,35rendering and17snapshots pass. Focused3971/4007,regression246/264 andincremental35/36 remain red. Watch report rewrites, cancellation/gate activation, coverage counter observations, partial-JSDOM helper globals and obsolete CLI/control expectations require separate evidence and fixes. Original bodies/deadlines/raw failures remain retained. Later NativeS25,threshold100,completion-array,selector and development JSX routing changes are outside this frozen result. Original47-case Browser replay remains incomplete with71 missing authority paths; no new full passing checkpoint or release promotion.",
+        "focusedPassed": 3971,
+        "focusedFailed": 36,
+        "regressionPassed": 246,
+        "regressionFailed": 18,
+        "snapshotPassed": 17,
+        "all3042BaselineNamesRetained": true
+      }
+    ]
   },
   "qualification": {
     "stableReady": false,
@@ -34,9 +181,15 @@
       "Full compatibility and release requirements remain in NEXT_TESTING_STABLE_RELEASE.md.",
       "A scoped/partial implementation status does not promote the broad release classification to Compatible.",
       "All original pinned API names and reference overloads are retained.",
-      "Unvalidated named-key follow-ups and the unapplied CommonJS hidden-flag proposal are excluded from implemented claims."
+      "Frozen S12 main acceptance passes; the full original 47-case Browser replay is incomplete because historical fixture/verifier/reference bytes are missing. Seven restored cases pass; preserve all old failures and original expectations. This does not qualify the newer uncommitted integration as a complete release.",
+      "Private production Browser coverage conversion and dependency-plan checks do not admit unsupported public execution combinations.",
+      "Default sequencing, complete raw Task/Chai bookkeeping, Browser concurrency and other unqualified cross-feature combinations remain implementation work."
     ],
-    "deferred": ["Linux qualification", "performance benchmarking"],
+    "deferred": [
+      "Linux qualification",
+      "performance benchmarking",
+      "Documentation and migration examples, until the final step requested by the user"
+    ],
     "evidence": [
       "NEXT_TESTING_STABLE_PROGRESS.md",
       "NEXT_TESTING_STABLE_RELEASE.md"
@@ -44,17 +197,17 @@
   },
   "summary": {
     "referenceApis": 776,
-    "declarations": { "available": 264, "absent": 318, "notApplicable": 194 },
+    "declarations": { "available": 270, "absent": 312, "notApplicable": 194 },
     "implementation": {
       "scoped": 73,
-      "partial": 237,
-      "missing": 447,
+      "partial": 259,
+      "missing": 425,
       "unreviewed": 19
     },
     "evidenceGroups": {
       "scoped": 9,
-      "partial": 48,
-      "missing": 13,
+      "partial": 54,
+      "missing": 11,
       "unreviewed": 4
     },
     "releaseCompatibleApis": 0
@@ -151,10 +304,10 @@
         "bounded serial development Chromium corpus"
       ],
       "workstream": "authoring-runtime",
-      "implemented": "Public Chai assert/should/namespace exports are present. Qualified plugins/utilities/settings and configurable function-valued prototype descriptors preserve actual flags, live-scope callable identity, constructor identity and guarded receiver/result behavior. Nine descriptor cases match both ordinary and installed Node modes; development Chromium routing has a separate corpus.",
+      "implemented": "Public Chai assert/should/namespace and measured hard assertions, pure utilities, plugins and receiver/flag effects retain real Task ownership and callable identity across the stated Node profiles. Native addChainableMethod wrappers and proxified raw aliases carry their existing opaque primitive identity; unchanged descriptor, _obj and closed-over __methods checks preserve actual receiver effects. The sealed callable owner qualifies448 installed profiles with1048 complete outcomes/472 rows plus36 real module-close profiles with76 outcomes/36 rows. Root combined verification passes1504 tests across nine suites. Iterative traversal now follows only actual privately captured native function/prototype/source links, checks each link and rejects cycles; source24 profiles across all four Node versions and both modes match48 complete outcomes/24 whole rows. Four real development module-close profiles add8 outcomes/four rows. The ordinary installed consumer now matches all24 nested profiles/48 outcomes/24 rows and four real development module-close profiles/eight outcomes/four rows across all four Node versions; the actual packet Native and helper/source bytes remain held. Actual resource, async, soft, poll and snapshot paths keep their existing lifetime contracts.",
       "remaining": [
-        "Collection-created plugin callables crossing into later cases remain a demonstrated gap.",
-        "Nonconfigurable/object-valued descriptors, raw reflection, prototype mutation/subclass breadth and broader profiles remain unqualified."
+        "Complete public raw Task flags, promises/onFinished bookkeeping, late native/custom async queues and their resource interactions remain open.",
+        "Nonconfigurable descriptors, prototype mutation/subclass breadth and Browser/shared-worker combinations remain unqualified."
       ],
       "evidence": [
         "packages/next/src/experimental/testing/vitest.ts",
@@ -165,7 +318,16 @@
         "test/unit/next-testing-lifecycle/chai-descriptors-pristine.json",
         "test/unit/next-testing-lifecycle/chai-browser-integration.ts",
         "test/unit/next-testing-lifecycle/chai-static-settings-integration.ts",
-        "packages/next/experimental/testing/README.md"
+        "packages/next/experimental/testing/README.md",
+        "test/unit/next-testing-lifecycle/declaration-fn-integration.cjs",
+        "test/unit/next-testing-lifecycle/declaration-fn-records/pristine-task-context-transfer-invocations.json",
+        "test/unit/next-testing-lifecycle/declaration-fn-records/pristine-task-context-owned-getter-native-calls.json",
+        "patches/chai@6.3.0.patch",
+        "test/unit/next-testing-lifecycle/declaration-fn-records/task-context-late-throw-builtins.case.mjs.txt",
+        "test/unit/next-testing-lifecycle/declaration-fn-records/pristine-task-context-throw-callbacks.json",
+        "test/unit/next-testing-lifecycle/declaration-fn-records/task-context-chai-nested-chainables.case.mjs.txt",
+        "test/unit/next-testing-lifecycle/declaration-fn-records/task-context-chai-nested-function-receivers.case.mjs.txt",
+        "test/unit/next-testing-lifecycle/declaration-fn-records/task-context-chai-nested-raw-alias.case.mjs.txt"
       ]
     },
     {
@@ -336,10 +498,11 @@
       ],
       "profiles": ["isolated development Node", "isolated production Node"],
       "workstream": "authoring-runtime",
-      "implemented": "Next-owned assertion facade retains collection/case/manual owners, soft/poll/custom assertions, assertion counts, live scope guards and supported state. Measured unreachable errors, counts/lifetime and public never types match the genuine reference.",
+      "implemented": "Next-owned assertion facade retains collection/case/manual owners, soft/poll/custom assertions, assertion counts, live scope guards and supported state. Measured unreachable errors, counts/lifetime and public never types match the genuine reference. Retained hard assertions, prepared Task expects and collection-created plugin chains preserve measured foreign/late owner attribution, state and retry identities; private caches no longer alias children whose public collection IDs are empty. Actual live, foreign and afterAll Chai Task flags expose the actual Test. A private primitive adapter resolves only its existing real scope carrier for native async bookkeeping, capturing it once so retry rebinding cannot redirect pending work. The scoped step retains 861 source controls, 360 installed profiles and 20 real module-close profiles; its coherent root runtime/snapshot/CLI integration passes 769 controls. Seventeen additional unchanged native hard matchers retain measured late, foreign, borrowed and bound receivers. The scoped step passes 880 source controls, 376 installed profiles with 904 complete outcomes and 400 whole rows, plus 24 real module-close profiles with 52 outcomes and 24 rows. Integrated runtime/snapshot/CLI verification passes all771 tests and retains all769 previous names. Throw delegates, changed plugins and resource compositions retain separate unqualified work. Raw global expect flags now expose the actual selected public Test with private guard ownership and explicit taskOwner precedence held. Concurrent global selection follows the latest running Test and becomes undefined after that Test closes; locals retain their own Test. Native async/custom attribution is retained. Twenty installed profiles across four Node engines and serial Chromium/Firefox match84 cases and20 full rows; owner assertions/lifecycle342/342 pass. Combined Root verification follows. Coherent Root verification of global actual-Test flags now passes all342 assertions/lifecycle tests, retaining every prior test. Native public Promise arrays are now integrated through the exact actual-Test observer: Root345 assertions/lifecycle controls pass, retaining all342 old tests, and32 installed Node cases/eight whole authored rows match all four Node engines in both modes. The optional Promise array type preserves the genuine readonly TestContext.task property. Public finished callbacks and Browser manual queue consumption remain open. Actual Node public Promise queues now follow the genuine immediate allSettled iteration/getter/rejection behavior after fulfilled bodies, including opaque replacement/deletion, native/manual combinations and retries. Per-record native ownership preserves distinct manually inserted private records. Owner152 source and152 installed complete case/row profiles match across four engines, with16 report-boundary profiles per phase retained separately. Root348 assertions/lifecycle plus123 watch controls pass coherently, preserving all345 prior assertion/lifecycle names and approved watch gate corrections.",
       "remaining": [
+        "Public finished callback/listener array sharing and native finished-error timing remain open. Manual public Promise consumption is qualified only in the stated Node scope; Browser manual queues and broader declaration compositions remain unverified.",
         "Complete assertion name/overload enumeration is not certified.",
-        "Late async/poll/custom matcher attribution, concurrent mutation and broader environment/profile combinations remain qualification work.",
+        "Late async/poll/custom matcher queues and resource/snapshot attribution, concurrent mutation and broader environment/profile combinations remain qualification work.",
         "Assertion counts intentionally finalize before teardown/listeners; later assertions stay observed without revalidating the completed count check."
       ],
       "evidence": [
@@ -351,7 +514,14 @@
         "test/unit/next-testing-lifecycle/assertion-integration.ts",
         "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/create-expect/contract.case.mjs",
         "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/context-expect/contract.case.mjs",
-        "packages/next/experimental/testing/README.md"
+        "packages/next/experimental/testing/README.md",
+        "patches/@vitest__expect@5.0.4.patch",
+        "test/unit/next-testing-lifecycle/declaration-fn-records/task-context-actual-task-async.case.mjs.txt",
+        "test/unit/next-testing-assertions/task-runtime-integration.cjs",
+        "test/unit/next-testing-assertions/global-task-flags.cjs",
+        "test/unit/next-testing-assertions/native-public-promises-primitive.cjs",
+        "test/unit/next-testing-assertions/native-public-promises-public.cjs",
+        "test/unit/next-testing-assertions/fixtures/native-public-promises/reference.json"
       ]
     },
     {
@@ -552,13 +722,14 @@
       "capabilityPaths": ["authoring.unsupported"],
       "profiles": ["not implemented"],
       "workstream": "authoring-runtime",
-      "implemented": "These exact target root runtime exports are absent from the pushed Next vitest facade. This is actual missing export evidence, not inferred from test diagnostics.",
+      "implemented": "These exact target root runtime exports are absent from the pushed Next vitest facade. This is actual missing export evidence, not inferred from test diagnostics. Root356 completion-array integration preserves all348 earlier assertion/lifecycle names. Separate sealed public logical selectors distinguish matcher/global-registrar selection from console Task selection and true private async/resource origins; mixed buffered console attempts omit misleading metadata. Owner24 source+24 installed profiles match2688 ordered rows and32 complete reports, with16 report-stack boundaries retained. Current NativeS25 Root integration verification is pending. Root coherent selector/console integration on NativeS25 now passes360/360 controls, all348 earlier names/multiplicities, normal core/types/lint/style. A newly measured cross-selected global asynchronous assertion can still lose an unhandled rejection when its public queue is deleted; exact originating-Scope observation is under implementation and not covered by this selector qualification. Root exact-origin observer integration passes361/361 controls with all360 prior names/multiplicities and NativeS26/raw/ABI held. Normal dependency/ncc/18-task bootstrap/types/lint/style pass; actual primitive JS matches the sealed190b79 checksum. Owner96 source/installed profiles and six default-reporter profiles retain public selection while true exact live invoking-context observers own private Promise records; no-origin, retired and colliding-id contexts gain no authority. That checkpoint still had measured public afterAll count and stack-render gaps. Subsequent Node194 uses the actual private per-try lifecycle seam for public assertion-state reset after aroundEach prelude and before setup, retaining global suite-hook/final aroundAll state. Source72+installed72 profiles match272 cases and1360 complete ordered authored rows, closing the measured afterAll count differences. Root5 integration guards pass. The32 existing retry report failureMessages rendering differences remain open. Coherent Root367/367 now preserves all362 prior names and pinned NativeS26/raw/ABI bytes, including the actual native zero-forwarding identity/order controls.",
       "remaining": [
         "Implement/qualify the full stable-target runtime export contract or retain explicit release-blocking gap."
       ],
       "evidence": [
         "packages/next/src/experimental/testing/vitest.ts",
-        "packages/next/experimental/testing/README.md"
+        "packages/next/experimental/testing/README.md",
+        "test/unit/next-testing-lifecycle/public-assertion-state.cjs"
       ]
     },
     {
@@ -665,7 +836,7 @@
       ],
       "profiles": ["isolated development Node", "isolated production Node"],
       "workstream": "authoring-runtime",
-      "implemented": "recordArtifact is a real public runtime export. Qualified Node started-task artifacts retain serializable data, task attribution, mapped locations and supported attachments while the file is open. Task annotation/meta/tag behavior and public types have bounded maintained evidence.",
+      "implemented": "recordArtifact is a real public runtime export. Qualified Node started-task artifacts retain serializable data, task attribution, mapped locations and supported attachments while the file is open. Task annotation/meta/tag behavior and public types have bounded maintained evidence. Actual admitted Node Task onFinished/onFailed arrays now retain native assertion Promise/check identity, public queue fields, live iteration and captured registration deadlines without lending native failure authority to manually inserted or foreign records. Owner176 source+176 installed profiles retain exact bounded rows/statuses; Root356 controls and normal installed primitives/bootstrap pass. Actual Browser array consumers and unsupported hook-order profiles remain work.",
       "remaining": [
         "Live custom reporter hooks, Browser artifact parity, collected-but-unrun tasks and full Vitest task/result introspection remain unqualified.",
         "Exported artifact type names do not certify all artifact producers or Browser behavior."
@@ -727,21 +898,30 @@
     },
     {
       "id": "authoring-unimplemented-declaration-fn",
-      "status": "missing",
-      "capabilityPaths": [
-        "authoring.matcherInventoryScope",
-        "authoring.unsupported"
+      "status": "partial",
+      "capabilityPaths": ["authoring.declarationFn", "authoring.metadata"],
+      "profiles": [
+        "isolated development/production Node20/22/24/26",
+        "bounded Chromium/Firefox development/production raw-declaration corpus"
       ],
-      "profiles": ["not implemented"],
       "workstream": "authoring-runtime",
-      "implemented": "The pushed collector has no fn property implementation and routes unknown string members to unsupported. No maintained positive fn behavior or matching public overload is established.",
+      "implemented": "Raw test/it and describe/suite fn declarations use the actual collector and preserve measured receiver flags, task/context/expect identities, manual collect/clear behavior and public types. Prepared local expectations follow actual Task identity; child IDs remain empty during collection and are published on the same retained objects before execution. Cleared tasks remain unpublished. Browser root declaration proxies preserve the actual immutable fn data property after their existing scope check; only the two actual intrinsic root callsites supply the private lazy capability, with helper recursion unchanged. The initial reverse-import packet exposed a real installed ESM initialization cycle before cases. The correction removes that edge without eagerly reading fn; exact same-package four-file diagnostic overlay fixes the unchanged TSX defaults complete report. Four original and four genuine-matched reexport-cycle Chromium/Firefox mode profiles each retain32 complete outcomes and four whole authored rows. Root and full coherent installed verification of the corrected packet are pending; the separate modern entity location descriptor remains unqualified.",
       "remaining": [
-        "Implement and reference-qualify the pinned declaration fn API; refusal is not functionality."
+        "Complete raw Task flag/property/buffer conformance, throwing or repeated collection and dangling cleared lexical parents remain open.",
+        "Broader Browser, shared-worker and declaration/profile combinations and the textual ID hash format are not certified.",
+        "Enabled registration locations now have separately partial implementation under authoring-declaration-locations; remaining coordinates stay open."
       ],
       "evidence": [
         "packages/next/src/experimental/testing/runner/collector.ts",
         "test/unit/next-testing-lifecycle/next-testing-lifecycle.test.ts",
-        "packages/next/experimental/testing/README.md"
+        "packages/next/experimental/testing/README.md",
+        "test/unit/next-testing-lifecycle/declaration-fn-integration.cjs",
+        "test/unit/next-testing-lifecycle/declaration-fn-records/pristine-task-context-id-publication.json",
+        "test/unit/next-testing-lifecycle/declaration-fn-records/pristine-task-context-id-suite.json",
+        "packages/next/src/experimental/testing/runner/tasks.ts",
+        "packages/next/src/experimental/testing/assertions/index.ts",
+        "packages/next/src/experimental/testing/client/api-scope.ts",
+        "test/unit/next-testing-reporting/browser-declaration-scope.cjs"
       ]
     },
     {
@@ -833,14 +1013,14 @@
         "features.staticFactoryMocks.browserImportMock"
       ],
       "profiles": [
-        "serial development/production Chromium client files; real Browser proof primarily Darwin Node26"
+        "serial isolated development/production Chromium and Firefox client files; Darwin source and physically installed consumers"
       ],
       "workstream": "browser-rendering",
-      "implemented": "Real client realms run authored cases, async collection/hooks/around hooks, native interactions, bounded Browser mocking and production package conditions. Explicit enabled/disabled Browser profiles retain actual owned hosts and reports.",
+      "implemented": "Real client realms run authored cases, async collection/hooks/around hooks, native interactions, bounded Browser mocking and production package conditions. Explicit enabled/disabled Browser profiles retain actual owned hosts and reports. Firefox now uses its actual selected engine in development/production and bounded watch/cancellation profiles. A delivered user cancellation closes real owners and preserves completed file history; the full-discovery acknowledged case can retain the committed watch baseline. Accepted parent non-execution acknowledgments leave unlaunched Browser files unexecuted instead of synthesizing failed terminals. Contradictory events/malformed acknowledgments and actual cleanup failures still fail the run; partial cancellation does not acquire full-baseline retention rights. Main-frame one-shot WebKit now uses the actual locally owned native page session and JSC internal Promise status fields. Both SDK1.61 and1.64 pass15 real native/subclass/fake/proxy/getter/then-access controls; no authored getter or proxy trap is invoked. The shared three-case authored document/Promise/retry fixture matches genuine whole authored rows, name/status/failureMessages and file-success/exits in development/production Source and the ordinary installede95a package. Matched installed/genuine SDK1.64 uses WebKit2370; Source uses SDK1.61/WebKit2311. Raw standard JSON is retained without whole-report equality claims. Browser194 now arms actual client public queues independently of reporter capture, consumes ordinary authored arrays on fulfilled body settlement, and retains public Finished/Failed getters/arrays while keeping private real Scope origins separate. All56 JSON profiles plus24 normal/private channels pass in both Source and ordinary installed Chromium/Firefox matrices; complete authored rows and name/status/failureMessages/status/exits are compared explicitly, not whole raw standard JSON. Zero-body forwarding has separate Source8/installed8 owner proof plus existing positive80; its newly integrated native constructor/then seam still awaits combined Root verification. WebKit owned-child classification is implemented using actual native Frame identities and the existing page session;15 native predicates pass on each SDK and13 Root resource controls pass. Broader WebKit queue/channel qualification remains open after a process-inspection cleanup failure; the earlier actual frame refusal and raw failures remain retained. The combined Root367/367 and ordinary installed zero8 follow-up are now green; both new native constructor/then and exact scope/error/immediate-order controls pass. Full raw standard-report equality and broader mutable-native Promise return/species combinations are not claimed. The subsequent coherent d243 installed package passes all40 WebKit profiles (28 JSON plus6 normal and6 private-completion channels), preserving authored rows, qualified case fields and exits with real owned child frames. All owned readers close and inputs retire. The earlier cleanup-audit failure is not erased or explained by this pass. Twenty-eight original genuine WebKit JSON/console pairs are maintained alongside the unchanged56 C/F entries; a new separate package test preserves the old suite and budgets. This is SDK1.64/WebKit2370 one-shot proof; broader SDK/platform/watch/cancellation/concurrency contracts remain open. Explicit stack/list/parallel case and suite hooks now use the actual validated client configuration and existing runner, including admitted maxConcurrency:1, returned cleanup, Finished stack/Failed sequence behavior, real cancellation and hook deadlines. Source80 and installed80 owner profiles match authored rows and their stated case/error projections. Eight actual Firefox1555 deadline diagnostics now resolve unchanged registration line7 through the selected-map resolver; only the exact preexisting Gecko srcScript URL suffix is admitted. Server/parser179 preserves all178 prior controls. An old declaration-property outer65s timeout remains recorded despite a later exact helper10-profile pass in60.4s. Combined Root validation remains pending.",
       "remaining": [
         "Concurrent Browser cases, broader async classification/Promise behavior and complete utilities/clocks/lifecycle combinations.",
         "Production automatic/manual/runtime mocks and setup/reset/mocking/coverage combinations.",
-        "Firefox and WebKit execution/config admission. The internal WebKit host bridge is implemented but is not end-to-end WebKit execution.",
+        "WebKit broader lifecycle/rendering/watch/cancellation and broader Firefox/provider/realm interactions remain unqualified beyond measured one-shot main-frame and owned-child queue/channel corpora. Two top-realm Chromium DevTools event rows differ in the measured older corpus; controlled frame execution is separately qualified.",
         "Linux/browser/platform matrix remains release qualification, currently deferred."
       ],
       "evidence": [
@@ -849,7 +1029,16 @@
         "packages/next/src/experimental/testing/browser/webkit-host.ts",
         "test/unit/next-testing-browser-resources/browser.test.ts",
         "test/unit/next-testing-execution/next-testing-execution.test.ts",
-        "test/e2e/app-dir/next-testing-package/verify-production-client.mjs"
+        "test/e2e/app-dir/next-testing-package/verify-production-client.mjs",
+        "packages/next/src/experimental/testing/client/results.ts",
+        "test/unit/next-testing-browser-resources/watch-user-cancellation.cjs",
+        "test/unit/next-testing-browser-resources/webkit-engine-brand.cjs",
+        "test/unit/next-testing-browser-resources/fixtures/webkit-runtime.case.mjs.txt",
+        "test/unit/next-testing-browser-resources/verify-webkit-runtime.mjs",
+        "test/e2e/app-dir/next-testing-package/verify-browser-public-task-queues.mjs",
+        "test/e2e/app-dir/next-testing-package/verify-browser-zero-forwarding.mjs",
+        "test/unit/next-testing-browser-resources/webkit-frame-engine-brand.cjs",
+        "test/e2e/app-dir/next-testing-package/verify-browser-hook-order.mjs"
       ]
     },
     {
@@ -858,10 +1047,10 @@
       "capabilityPaths": [],
       "profiles": ["published Vitest Browser configuration surface"],
       "workstream": "browser-rendering",
-      "implemented": "No behavior is claimed for these configuration keys. The pushed Next config parser admits only browser.enabled, viewport and instances; native Playwright behavior does not implement a configurable provider or command API.",
+      "implemented": "These remaining configuration keys have no implemented public behavior. The parser separately admits enabled, viewport, instances and explicit headless; actual native Playwright capabilities do not implement omitted provider or command APIs.",
       "remaining": [
         "Implement or make explicit compatibility-scope decisions for each omitted browser configuration key, preserving functional requirements.",
-        "Provider/headless/custom commands/locators/expect, screenshots/traces/UI/orchestrator scripts, connection timeout and dependency sourcemap configuration remain absent from this parser."
+        "Provider/custom commands/locators/expect, screenshots/traces/UI/orchestrator scripts, connection timeout and dependency sourcemap configuration remain absent from this parser."
       ],
       "evidence": ["packages/next/src/experimental/testing/config.ts"]
     },
@@ -873,13 +1062,13 @@
         "features.browserViewport"
       ],
       "profiles": [
-        "explicit Chromium development/production instances; measured viewport scope development Chromium"
+        "explicit Chromium/Firefox development/production instances; measured viewport reference scope remains development Chromium"
       ],
       "workstream": "browser-rendering",
-      "implemented": "Explicit Chromium instances have distinct opaque profile identities, original public labels, exact parent/instance project selection and separate real owned realms. browser.enabled:false retains ordinary Node execution. Viewport width/height defaults and admitted integer bounds are implemented before page creation.",
+      "implemented": "Explicit Chromium and Firefox instances have distinct opaque profile identities, original public labels, exact parent/instance project selection and separate real owned realms. browser.enabled:false retains ordinary Node execution. Viewport width/height defaults and admitted integer bounds are implemented before page creation. Explicit WebKit instance parsing, actual host selection and native main-frame execution now pass the bounded three-case corpus in both modes on Source and ordinary installed packages.",
       "remaining": [
         "Legacy no-instances discrepancy and broader profile/viewport combinations need qualification.",
-        "Other engines are not admitted by config. Instance-provider/options breadth remains absent."
+        "WebKit broader instance/realm/watch interactions and provider/options breadth remain unqualified; viewport-specific reference proof remains the measured Chromium subset."
       ],
       "evidence": [
         "packages/next/src/experimental/testing/browser-instances.ts",
@@ -901,12 +1090,13 @@
         "development/production Chromium; measured Darwin clipboard behavior; real Browser tests on Node26"
       ],
       "workstream": "browser-rendering",
-      "implemented": "Native click/multiclick/hover/fill/clear/select, tab, upload, drag/drop, wheel, typing, held key/setup ownership, copy/cut/paste and selected deferred Locators execute actual events and controlled React turns. Pushed physical [code] descriptors cover case-insensitive bounded letters/digits/brackets/space/editing/modifier mappings, including measured right-code canonical-left native events; 22 complete ordinary and installed rows match.",
+      "implemented": "Native click/multiclick/hover/fill/clear/select, tab, upload, drag/drop, wheel, typing, held key/setup ownership, copy/cut/paste and selected deferred Locators execute actual events and controlled React turns. Pushed physical [code] descriptors cover case-insensitive bounded letters/digits/brackets/space/editing/modifier mappings, including measured right-code canonical-left native events; 22 complete ordinary and installed rows match. Missing-query Locator.clear reaches the existing real deferred action. Both SDKs1.64/1.61 and both modes match40 source plus40 installed cases/full rows/stable descriptors, with actual startup/descendant/registration/cleanup owners closed. All12 new Root controls pass. Two obsolete negative inputs remain unchanged pending approval; the corrected proposed upload controls keep valid empty-list arguments. Locator.element now returns the actual unique Node or throws the genuine named missing-element error; query remains nullable. Actual selector descriptions, strict-cardinality diagnostics, ARIA/HTML and connected/detached native action behavior retain source and installed proof. Both SDKs and modes pass44 installed case descriptors and40 complete genuine-owned-document rows; four existing foreign-document guard rows are preserved as an explicit reference difference. The affected installed clear regression retains40 exact cases/full rows. Eight new unit controls pass; broader query/filter/foreign/frame/profile conformance remains open.",
       "remaining": [
         "The six-file local named-key follow-up is unvalidated and outside the pushed tree; do not claim it implemented.",
         "Remaining default-map codes, wider setup/options and clipboard/upload forms/platforms.",
         "Other absent-query locator methods, wider timeout/error diagnostic parity and fake-clock/RAF combinations.",
-        "Other browser engines and concurrent behavior remain unqualified. The supplementary-Unicode defect occurs in the measured reference and needs an explicit reference policy, not a fabricated passing expectation."
+        "Other browser engines and concurrent behavior remain unqualified. The supplementary-Unicode defect occurs in the measured reference and needs an explicit reference policy, not a fabricated passing expectation.",
+        "Foreign-document element binding still differs from reference in four retained rows; the new locator behavior does not qualify that boundary."
       ],
       "evidence": [
         "packages/next/src/experimental/testing/client/browser-context.ts",
@@ -984,7 +1174,7 @@
         "development/production Chromium vitest-browser-react and registered Next component fixtures"
       ],
       "workstream": "browser-rendering",
-      "implemented": "Measured render/rerender/unmount/wrapper/renderHook/locator rows execute in physical installations. Registered server fixtures compile as genuine Next App Pages with SSR, explicit layouts, CSS and hydration. Qualified component watches rebuild real dependencies and remount fresh state.",
+      "implemented": "Measured render/rerender/unmount/wrapper/renderHook/locator rows execute in physical installations. Registered server fixtures compile as genuine Next App Pages with SSR, explicit layouts, CSS and hydration. Qualified component watches rebuild real dependencies and remount fresh state. Indexed source-map selection and nested-section resolution pass202 controls, preserving actual mapped leaf content and offsets. The original physical installed component-watch cases now pass development and production with3 whole rows each and active cancellation130; production closes4 owned artifacts.",
       "remaining": [
         "Implicit route/layout context and transport of arbitrary React values/functions.",
         "Broader helper versions, hydration contracts, engines, concurrency and watch/setup combinations.",
@@ -995,7 +1185,10 @@
         "test/e2e/app-dir/next-testing-package/verify-component-rendering.mjs",
         "test/e2e/app-dir/next-testing-package/verify-component-watch.mjs",
         "test/e2e/app-dir/next-testing-package/verify-registered-production-component-watch.mjs",
-        "test/e2e/app-dir/next-testing-package/component-rendering.expected.json"
+        "test/e2e/app-dir/next-testing-package/component-rendering.expected.json",
+        "packages/next/src/experimental/testing/client/assets.ts",
+        "packages/next/src/experimental/testing/client/source-maps.ts",
+        "test/unit/next-testing-browser-resources/server.test.ts"
       ]
     },
     {
@@ -1011,7 +1204,7 @@
       "implemented": "No implemented public configuration semantics claimed for these rows. Chromium execution, native interactions and host ownership elsewhere do not implement these option objects.",
       "remaining": [
         "Browser provider/command/UI/trace/screenshot/custom-page/orchestrator option compatibility",
-        "Provider-specific headless/connectivity and source-map configuration",
+        "Provider-specific connectivity, broader source-map configuration remain open.",
         "Browser expect/locator option compatibility"
       ],
       "evidence": [
@@ -1029,14 +1222,14 @@
         "execution.browser"
       ],
       "profiles": [
-        "development/production Chromium client realm; viewport reference proof in development; disabled client selection remains ordinary Node"
+        "Chromium/Firefox development/production default and explicit modes; measured watch cancellation/reload"
       ],
       "workstream": "scheduling-tooling",
-      "implemented": "Explicit enabled/viewport/instances configure the actual Chromium host. Instances expand to independent owned profiles with opaque IDs and exact public labels; browser.enabled:false does not start a Browser host.",
+      "implemented": "Explicit enabled/viewport/Chromium or Firefox instances select actual owned Browser hosts; disabled Browser selection retains Node execution. Explicit browser.headless true/false and positive/negative CLI overrides now reach all four real launch paths, preserving instance/parent selection and actual headed input. Twenty complete genuine/installed reports match100 ordered console rows and20 snapshots. Eight watch profiles retain cancellation, real source recovery and inverted headless configuration reload, with all24 actual browsers and owners closed. Existing pinned CI detection now also selects the default launch mode at the actual Browser executor and broker comparison: omitted/empty CI is headed; nonempty CI, including the string false, is headless. Both source and ordinary installed packages pass36 default/explicit profiles each,180 complete console rows,36 snapshots and all actual launch arguments. Twenty-eight complete upstream JSON reports match in each; eight implicitly enabled-UI reports lack the actual declaration location and remain separate conformance failures. WebKit explicit enabled/headless instance selection now reaches its real native local host and main-frame classifier; three-case Source/installed development/production runs match genuine authored rows/case projections and exits. Broader launch defaults/headed/CI/viewport and all-engine combinations remain unqualified.",
       "remaining": [
-        "Other engines/providers and full instance/profile/watch combinations",
-        "General browser options outside the three admitted fields",
-        "Mixed-mode/concurrent Browser and broader viewport behavior"
+        "Default launch parity is qualified for the stated engines/modes/CI values; eight local headed complete report comparisons still require actual declaration locations (Chromium column1 versus Firefox column5).",
+        "WebKit/providers, broader instance/profile/viewport/CI and application-driver combinations remain unqualified.",
+        "Browser options outside enabled, viewport, instances and headless remain open, including the actual Browser UI."
       ],
       "evidence": [
         "packages/next/src/experimental/testing/config.ts",
@@ -1045,7 +1238,10 @@
         "test/unit/next-testing-cli/next-testing-cli.test.ts",
         "test/unit/next-testing-browser-resources/browser.test.ts",
         "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts",
-        "packages/next/experimental/testing/README.md"
+        "packages/next/experimental/testing/README.md",
+        "packages/next/src/experimental/testing/browser/host.ts",
+        "packages/next/src/experimental/testing/execution/execute.ts",
+        "packages/next/src/experimental/testing/client/execute.ts"
       ]
     },
     {
@@ -1083,10 +1279,10 @@
         "bounded owned executable root/external project config; actual compiler transform callbacks and retained watch owner"
       ],
       "workstream": "scheduling-tooling",
-      "implemented": "Flat plugins containing name and plain transform function use retained evaluated closures in their actual configuration realm. Supported source/map results and explicit addWatchFile dependencies cross a supervised broker; a qualified root transform realm survives unchanged watch configuration generations.",
+      "implemented": "Flat plugins containing name and plain transform function use retained evaluated closures in their actual configuration realm. Supported source/map results and explicit addWatchFile dependencies cross a supervised broker; a qualified root transform realm survives unchanged watch configuration generations. Independent external-file projects now retain their own transform closures without inheriting unused root transforms:48 complete genuine/source/installed reports across Node20/22/24/26 and24 exact selection callbacks qualify that subset. Root selected-input methods include only actual selected owner realms, deduplicate shared realms, preserve root-only alias/transform inputs and return no inputs for an empty selection; evaluated watch dependencies stay retained. Combined Root focused controls pass; the obsolete external refusal remains unchanged pending user approval.",
       "remaining": [
         "General Vite plugin hooks/context mutation and arbitrary transform results",
-        "Inline project plugins and unimplemented root-to-external plugin inheritance",
+        "Inline-project plugin composition and extends:true/false semantics beyond the verified independent external/inline ownership subset.",
         "Full effective-config/plugin/watch/profile matrix and public Plugin type conformance"
       ],
       "evidence": [
@@ -1329,7 +1525,7 @@
         "bounded Node/RSC one-shot/development-watch workers; serial Browser leases; isolate:false serial development Node cohorts"
       ],
       "workstream": "scheduling-tooling",
-      "implemented": "Actual bounded worker scheduling (1..64 including measured percentages), case concurrency, supported hook/setup ordering and global file/test shuffle seed propagation are implemented. Explicit isolate:false uses actual serial compiler cohorts in its stated profile.",
+      "implemented": "Actual bounded worker scheduling (1..64 including measured percentages), case concurrency, supported hook/setup ordering and global file/test shuffle seed propagation are implemented. Explicit isolate:false uses actual serial compiler cohorts in its stated profile. The integrated Browser hook transport has Source/installed80 profile owner proof for explicit stack/list/parallel case/suite hooks, returned cleanup and maxConcurrency:1, including measured cancellation/deadline behavior. Other Browser concurrent declarations/limits remain gated and under separate implementation.",
       "remaining": [
         "Watch sharding and concurrent Browser cases",
         "Shared/cohort execution outside the serial development Node subset",
@@ -1389,20 +1585,21 @@
     },
     {
       "id": "configuration.standard-coverage-options",
-      "status": "missing",
+      "status": "partial",
       "capabilityPaths": [
         "features.coverage.scope",
         "features.coverage.unsupported"
       ],
       "profiles": [
-        "not implemented through the project-configured option rows; separate CLI V8 subset exists"
+        "project-configured V8 isolated development/production Node; bounded standard watch profiles"
       ],
       "workstream": "scheduling-tooling",
-      "implemented": "No runtime configuration implementation claimed for these rows. Exported coverageConfigDefaults are inert data. CLI standard flags exercise a separate V8 path with bounded implemented includes, reports, cleanOnRerun and thresholds.",
+      "implemented": "Effective project-configured V8 settings drive actual execution, retained reports, includes/excludes, cleaning/report-on-failure and qualified thresholds. Measured JSON/summary/LCOV/text/HTML/Clover formatters use the real standard report path. Configured standard watch uses the existing coverage owner and full-map lifecycle, independently of affected-only source selection. Ordered configured threshold glob groups retain independent percentage/negative-uncovered units and per-file modes. Node26 one-shot development/production matches24 source plus24 installed CLI profiles, complete JSON/summary/text/LCOV reports, file models and threshold errors/exits; global perFile does not propagate to groups and empty matches remain silent. Ordered configured glob thresholds retain independent per-file and uncovered-count behavior in24 source+24 installed profiles. Configured100:true dominates all metric thresholds; explicit CLI numeric100 replaces configured threshold groups as measured. Twenty source+20 installed100 profiles match full reports/errors/exits. The earlier per-file99 diagnostic-order outer expectation is corrected with explicit user approval; broader provider/profile combinations remain open. The user explicitly approved the four-string old per-file99 diagnostic-order correction; its exact unchanged-source/model control now passes on the integrated build. No threshold value, source, counter or deadline changed. Boolean autoUpdate now matches34 development+33 production+2 JSON-config Source profiles and48 Root focused controls. The current-AST writer preserves authored edits/comments and exact numeric threshold units/order; two unchanged live-edit Source profiles match complete reports/cases/config bytes after test-watch inputs are separated from actual compiler dependencies. Explicit transform/alias dependencies, Next config/env/source inventories and actual native imported-config graphs remain checked. All four role controls and the old Boolean refusal are corrected only with explicit user approval. Retained formatter closure/lifecycle has eight development plus eight production Source profiles; actual callbacks run synchronously after reports and before global teardown in their original config realm. This packet is integrated but combined Root/installed qualification is pending. Coherent Root formatter5 controls now pass after normal build/types/lint/style. A later measured disabled-formatter teardown failure formerly published ordinary cache state; the new guard defers configuration only for actual pending coverage. Its unchanged before/after Source probe preserves one passing case/exit1/teardown-once/no formatter/no reports while removing cache publication; combined Root validation is pending. Corrected563919 installed matrix closes69 Boolean,9 provider/default/missing-config,16 formatter,2 live-edit,13 explicit-provider override and1 failed-teardown cache profiles. All110 actual reports/case/config semantics and owner audits pass;225 stable case rows are retained, with runner-stack normalization limits explicit. Ordinary dotted options now configure without enabling collection unless authored enabled:true or explicit --coverage; Source11 exact profiles, six focused controls and eight unchanged resolver/watch controls pass. Bare line mode, direct watch opt-in and configured clean:false remain unchanged. This activation packet is integrated for Root checks. New current-AST formatter callback ordering differences remain open beyond these qualified shapes. Combined Root Source now verifies19 distinct plain/explicit-Boolean/empty/repeated coverage argument forms, including9 forms with both directory placements (28 actual profiles total), preserving the original10. Four formatter current-AST runtime profiles match complete case/coverage models, final selected config bytes, callback arrays and exact error messages; callback preparation stays in the retained realm and the parent owns its selected file commit. Original Boolean/format-only/provider/cache controls pass. Installed a7df replay matches all28 argument and4 current-AST profiles. Five further actual built-in formatters now route through the existing validated publisher: cobertura,html-spa,teamcity,text-lcov,none. Thirty-four Source profiles match measured case/file/stdout/configuration models and asset/XML manifests. Stdout-only/none formatters keep their exact no-directory behavior; the existing preclean owns removal/retention, and only an actually empty formatter staging inventory skips promotion after all normal validation. Legacy line coverage remains intact. Failing-case presentation equality is limited to the measured message first line; full runner-stack parity is not claimed.",
       "remaining": [
-        "Translate project-configured standard providers/options into actual execution/reporting",
-        "Coverage processing/external/remap/watermark/class-method/instrumenter options",
-        "Changed-source/provider/subprocess options and advanced threshold/report formats"
+        "Istanbul and other providers, heterogeneous enabled project settings and complete option/profile parity.",
+        "Coverage processing/external/remap/watermark/class-method/instrumenter and changed-source/subprocess options.",
+        "Broader autoUpdate formatter ownership/return types, watch/multiproject and advanced threshold formats, affected-only coverage, production Browser/RSC/shared-worker combinations and aggregation.",
+        "Formatter-active SIGINT remains a measured divergence: Source exits130 with no config commit and one teardown; the pinned reference writes before handling SIGINT and omits that teardown. Numeric/arbitrary-string/negative-equals coverage CLI quirks remain unqualified."
       ],
       "evidence": [
         "packages/next/src/experimental/testing/coverage/custom-options.ts",
@@ -1410,7 +1607,20 @@
         "packages/next/src/experimental/testing/config-api.ts",
         "packages/next/src/cli/next-test-runner.ts",
         "test/unit/next-testing-coverage/next-testing-coverage.test.ts",
-        "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts"
+        "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts",
+        "packages/next/src/experimental/testing/coverage/runtime-configuration.ts",
+        "packages/next/src/experimental/testing/coverage/report-standard.ts",
+        "test/unit/next-testing-coverage/threshold-glob-reports.mjs",
+        "test/unit/next-testing-coverage/fixtures/threshold-globs/pristine.json",
+        "packages/next/src/experimental/testing/coverage/threshold-update.ts",
+        "packages/next/src/experimental/testing/coverage/threshold-format.ts",
+        "test/unit/next-testing-coverage/threshold-autoupdate-reports.mjs",
+        "test/unit/next-testing-coverage/threshold-formatter-reports.mjs",
+        "test/unit/next-testing-cli/coverage-repeat-reports.mjs",
+        "test/unit/next-testing-cli/fixtures/coverage-repeat/pristine-typed.json",
+        "test/unit/next-testing-coverage/threshold-formatter-ast-reports.mjs",
+        "test/unit/next-testing-coverage/standard-reporter-reports.mjs",
+        "test/unit/next-testing-coverage/fixtures/standard-reporters/pristine.json"
       ]
     },
     {
@@ -1480,16 +1690,18 @@
       "status": "partial",
       "capabilityPaths": ["features.coverage"],
       "profiles": [
-        "bounded development/production Node; development Chromium; development Node/client standard watch; bare coverage separate Node one-shot line mode"
+        "bounded development/production Node; one-shot isolated route-less development/production Chromium; development Node/client standard watch; bare coverage separate Node one-shot line mode"
       ],
       "workstream": "coverage",
-      "implemented": "CLI dotted standard V8 flags drive actual source plans, retained maps/counters, JSON/JSON summary/text summary/LCOV/lcovonly reports, minimum or negative uncovered-count thresholds, per-file thresholds and bounded watch replacement/cleanOnRerun behavior. Real mapping refinements remain individually bounded to measured TypeScript/JSX owners.",
+      "implemented": "CLI dotted standard V8 flags drive actual source plans, retained maps/counters, JSON/JSON summary/text summary/LCOV/lcovonly reports, minimum or negative uncovered-count thresholds, per-file thresholds and bounded watch replacement/cleanOnRerun behavior. Real mapping refinements remain individually bounded to measured TypeScript/JSX owners. Project-configured V8 shares the qualified standard reporting path. Private native-owned production Browser conversion has separate bounded evidence; its public production JavaScript admission is qualified below. A shared qualified-profile predicate now admits one selected isolated route-less one-shot production Chromium Browser JavaScript project for configured standard V8 coverage. Both SDKs pass six genuine/public source CLI comparisons each, preserving complete JS/unimported reports, text/HTML/clover/LCOV assets, clean:false, CLI false/zero overrides, disable behavior and exact threshold errors/exits. Actual watch and selected typed-source boundaries are retained. The coherent installed S18 package also passes all12 public CLI profiles across both SDKs, preserving complete reports/assets and exact threshold errors/exits. Subsequent public configured production Chromium ordinary TypeScript, TSX and JSX and development JavaScript admission is qualified in coverage.private-production-browser-maps; development ordinary TypeScript is integrated from its own real dev-v1 source evidence and awaits coherent Root/installed verification. Explicit CLI V8 provider and text/HTML/Clover/default reporter selection now reaches the actual formatter path. Eight Source provider profiles and the unchanged missing-config autoUpdate case preserve complete maps/case rows/text/static assets and report-before-writer-error behavior; dynamic HTML/Clover timestamps are not claimed byte-identical. The obsolete HTML refusal is corrected only with explicit user approval. Installed validation and actual CLI overrides of configured/custom providers remain separate gaps. Explicit V8 overrides of evaluated standard/custom provider configuration now preserve shared reporters/include/clean/report-directory fields, bypass ignored custom provider modules and retain authored enabled:false unless explicit --coverage enables collection. Thirteen actual Source profiles and five new controls pass; the parent-only override runs before provider-specific normalization and preserves the absence path. This packet is integrated for Root/installed checks. Reporter-only implicit-enable semantics and watch/provider/profile breadth remain open. Ordinary reporter/include/threshold/provider fields no longer implicitly enable collection; explicit enable/disable and configured true/false retain the measured precedence. The unconfigured one-shot CLI clean default now matches genuine report replacement while direct publisher/watch behavior stays separate. A ten-profile ordered plain --coverage/--no-coverage reference isolates three repeated-scalar mismatches; the new parser preserves successful seven paths and rejects the measured arrays before configuration/compiler/case allocation. Combined parser/activation checks are pending. Combined Root Source now verifies19 distinct plain/explicit-Boolean/empty/repeated coverage argument forms, including9 forms with both directory placements (28 actual profiles total), preserving the original10. Four formatter current-AST runtime profiles match complete case/coverage models, final selected config bytes, callback arrays and exact error messages; callback preparation stays in the retained realm and the parent owns its selected file commit. Original Boolean/format-only/provider/cache controls pass. Installed a7df replay matches all28 argument and4 current-AST profiles. Five further actual built-in formatters now route through the existing validated publisher: cobertura,html-spa,teamcity,text-lcov,none. Thirty-four Source profiles match measured case/file/stdout/configuration models and asset/XML manifests. Stdout-only/none formatters keep their exact no-directory behavior; the existing preclean owns removal/retention, and only an actually empty formatter staging inventory skips promotion after all normal validation. Legacy line coverage remains intact. Failing-case presentation equality is limited to the measured message first line; full runner-stack parity is not claimed.",
       "remaining": [
-        "Project-configured V8/Istanbul and full provider parity",
-        "RSC, production Browser/production-watch coverage, runtime/CommonJS mock and snapshot-update combinations",
+        "Istanbul and full provider parity; heterogeneous effective project settings",
+        "RSC, Browser coverage beyond the qualified one-shot isolated route-less Chromium source forms, production-watch coverage, runtime/CommonJS mock and snapshot-update combinations",
         "Broader TypeScript/JSX transforms and emitted owners, arbitrary effective-config dependencies",
-        "Remaining reporter formats, glob/update threshold modes and cross-shard aggregation",
-        "Earlier intermittent coverage-watch hang has no established causal fix and remains separate qualification work"
+        "Remaining reporter option/profile combinations, glob/update threshold modes and cross-shard aggregation",
+        "Earlier intermittent coverage-watch hang has no established causal fix and remains separate qualification work",
+        "Complete raw failureMessages for authored failing Browser cases still differ from the reference internal/runtime stack presentation; the original failed-run evidence is retained.",
+        "Formatter-active SIGINT remains a measured divergence: Source exits130 with no config commit and one teardown; the pinned reference writes before handling SIGINT and omits that teardown. Numeric/arbitrary-string/negative-equals coverage CLI quirks remain unqualified."
       ],
       "evidence": [
         "packages/next/src/cli/next-test-runner.ts",
@@ -1498,7 +1710,53 @@
         "packages/next/src/experimental/testing/coverage/parameter-properties.ts",
         "packages/next/src/experimental/testing/coverage/source-analysis.ts",
         "test/unit/next-testing-coverage/next-testing-coverage.test.ts",
-        "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts"
+        "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts",
+        "test/unit/next-testing-coverage/provider-text-cli-reports.mjs",
+        "test/unit/next-testing-cli/coverage-repeat-reports.mjs",
+        "test/unit/next-testing-cli/fixtures/coverage-repeat/pristine-typed.json",
+        "test/unit/next-testing-coverage/threshold-formatter-ast-reports.mjs",
+        "test/unit/next-testing-coverage/standard-reporter-reports.mjs",
+        "test/unit/next-testing-coverage/fixtures/standard-reporters/pristine.json"
+      ]
+    },
+    {
+      "id": "coverage.private-production-browser-maps",
+      "status": "partial",
+      "capabilityPaths": ["features.coverage.privateProductionBrowserMaps"],
+      "profiles": [
+        "private isolated production Browser V8 conversion and qualified public one-shot isolated route-less development/production Chromium coverage; SDK1.64.0 and1.61.0"
+      ],
+      "workstream": "coverage",
+      "implemented": "Actual compiler-owned Browser v2 source/module/factory facts support measured JavaScript, ordinary TypeScript, original fragments, selected unimported sources and qualified classic/automatic JSX shapes. Conversion associations retain the real native map anchors, counter identities and Infinity endpoints across named/default factory imports, Fragment imports, intrinsic props/children, self-closing/boolean forms, static member children and qualified local function/class component bindings. The integrated Root passes517 mapping/protocol controls, including exact Chromium browser_ui omnibox exclusion while page/worker/unknown target checks remain. Prior coherent private installed sweeps cover28 profiles/256 complete published maps and32 profiles/336 maps, each with actual cancellation veto and fresh recovery; the newer S19 creator subset qualifies22 declarations, eight whole reports and44 maps/rows plus four cancellation/recovery profiles. The failed broader S18 eighteen-lane sweep remains retained separately. Named factory/default/Fragment/static-member groups now pass both SDKs in four installed groups, eight whole reports,24 maps/case rows and four cancellation/recovery profiles. Public configured one-shot production Chromium JavaScript and ordinary TypeScript reporting pass twelve source and twelve installed settings profiles each, including complete reports/assets/text/LCOV/summary, actual threshold errors, CLI overrides and clean/disable behavior. A newer ordinary.ts SDK1.61 console-gated cancellation times out before SIGINT and remains unresolved. Public TSX Fragment and ordinary JSX basic imported/selected-unimported sources are integrated from twelve source profiles each, ten complete reports and26 maps, with paired original-body cancellation on both SDKs. The first installed75d TSX attempt failed before cases in the new Browser.fn reverse-import cycle, with raw result retained. After the lazy cycle correction, the coherent f30c installed package now passes both SDKs across all24 production TSX/ordinary JSX settings and case profiles,20 complete reports/52 whole file maps, standard formatter/assets/text/LCOV/threshold/CLI/clean semantics and four strict original-reporter cancellation checks (cancelled,errors0,exit130,no publication). Configured one-shot development Chromium JavaScript now uses the real dev-v1 collector/remapper and measured standard formatter. Its owner qualifies twelve source settings profiles, ten full reports/eighteen maps and two original-body cancellation profiles on both SDKs. Owner532 mapping/protocol and125 CLI controls pass; the new development admission and five typed-source veto boundaries are integrated for Root and installed verification. The complete coherent f30c installed follow-up now also closes configured development JavaScript on both SDKs: total36 settings profiles,48 case rows,30 complete reports/70 full maps and six strict original-reporter cancellation/no-publication checks across production TSX/JSX and development JS. All9447 compiled files, NativeS19, archive and support bytes remain held with all owners closed. Development ordinary TypeScript now retains actual dev-v1 compiler source/declaration/runtime facts rather than borrowing production-v2 admission. The sealed nine-path packet is integrated from twelve source settings profiles, ten complete reports/eighteen maps and two strict original950-reporter cancellation profiles. Owner normal build/types/lint/format,124 CLI and532 mapping/protocol controls pass; coherent Root and ordinary installed verification remain pending. The coherent installed8649/S19 ordinary development TypeScript follow-up now passes all12 settings profiles,12 case rows,10whole reports and18maps with formatter/assets/threshold/CLI/clean semantics held. Original SDK161 cancellation passes. Original SDK164 observes actual subject console but no cancel gate before the unchanged5000ms body timeout; that failed attempt remains unassigned. One bounded passive unchanged-body/reporter/deadline SDK164 follow-up passes130/cancelled/errors0/no publication and retains the actual top-level gate, proving neither the earlier cause nor a fix. Development ordinary .mts now has an integrated candidate using actual dev-v1 compiler/lease/config/source associations and private declaration/runtime composition, without production or Node authority substitution. Owner source proof matches all12 public settings profiles,10 complete reports/18 published maps and exact CLI/threshold/clean behavior on both SDKs. Existing532 mapping/protocol controls pass. SDK164 strict original-body cancellation passes; the originalSDK161 gate timeout/no-SIGINT remains retained. One exact passive follow-up observes the real marker/SIGINT130 and omission without establishing a fix/cause. The coherent5b9/S23 installed sweep now passes all12 .mts settings profiles, ten whole reports/eighteen maps and both original strict cancellation/recovery checks on SDK164/161. This positive does not assign or erase the earlier SDK161 source gate failure. The old .mts-refusal control remains unchanged pending review; CTS/TSX/JSX development support is not claimed. NativeS25 development-import-role facts plus strict generated jsxDEV owner associations now match eight coherent Root source/installed SDK/syntax model profiles, including full published maps and malformed-owner controls. Public development JSX/TSX actual SourcePlan routing is integrated from20 enabled CLI profiles and4 disabled profiles on both SDKs; coherent Root/installed public qualification is pending. The original fs.watch cancellation gate did not activate; four stat-observed source SIGINT/recovery pairs pass with an unapplied outer-only helper correction pending approval. No cancelled case-end event or broad no-value/type-only/plain-TSX/mixed-graph compatibility is claimed. Coherent Root NativeS25 public routing passes the maintained actual Source CLI contract for both JSX and TSX; the physical installed4a0c package matches all24 settings profiles/36 complete case rows on SDK1.61/1.64, including complete JSON/summary/text/LCOV/HTML/Clover/assets and thresholds/CLI/clean behavior. All four installed stat-candidate cancellation/recovery pairs pass with no publication,errors0,exit130 and complete fresh maps. The original old helper stays unchanged pending approval; no cancellation case-end parity is claimed.",
+      "remaining": [
+        "Original development ordinary.tsSDK164 and production ordinary.tsSDK161 cancellation compositions remain unresolved despite scoped positive follow-ups. Complete command/config/watch lifecycle remains open.",
+        "Development TSX/JSX, other engines/providers, watch, routes, DOM and broader configurations remain unqualified.",
+        "Broader component/member bindings, derived constructors and destructured parameters, imported or dynamic component origins, spread forms and cross-feature combinations remain open.",
+        "Full release acceptance remains pending. Scoped source/installed follow-ups do not replace the original failed full S18 sweep or red frozen S19 acceptance."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/coverage/browser-imports.ts",
+        "packages/next/src/experimental/testing/coverage/browser-jsx-associations.ts",
+        "packages/next/src/experimental/testing/coverage/istanbul.ts",
+        "test/unit/next-testing-coverage/browser-production-reports.mjs",
+        "test/unit/next-testing-coverage/browser-production-reports-worker.mjs",
+        "test/unit/next-testing-coverage/fixtures/browser-production/children.expected.json",
+        "test/unit/next-testing-coverage/fixtures/browser-production/named-children.expected.json",
+        "test/unit/next-testing-coverage/fixtures/browser-production/empty-elements.expected.json",
+        "test/unit/next-testing-coverage/fixtures/browser-production/empty-aliases.expected.json",
+        "test/unit/next-testing-coverage/fixtures/browser-production/component-tags.expected.json",
+        "test/unit/next-testing-coverage/fixtures/browser-production/component-aliases.expected.json",
+        "test/unit/next-testing-coverage/browser-production-cli-reports.mjs",
+        "test/unit/next-testing-coverage/browser-production-cli-cancel.mjs",
+        "test/unit/next-testing-coverage/fixtures/browser-production/public-tsx.expected.json",
+        "test/unit/next-testing-coverage/fixtures/browser-production/public-jsx.expected.json",
+        "packages/next/src/experimental/testing/coverage/production-browser.ts",
+        "test/unit/next-testing-coverage/fixtures/browser-production/public-development-javascript.expected.json",
+        "test/unit/next-testing-coverage/fixtures/browser-production/public-development-typescript.expected.json",
+        "test/unit/next-testing-coverage/fixtures/browser-production/public-development-mts.expected.json",
+        "test/unit/next-testing-coverage/browser-development-jsx-cli-reports.mjs",
+        "test/unit/next-testing-coverage/fixtures/browser-production/public-development-tsx.expected.json",
+        "test/unit/next-testing-coverage/fixtures/browser-production/public-development-jsx.expected.json"
       ]
     },
     {
@@ -1541,11 +1799,11 @@
         "isolated development Node20/22/24/26; bounded certified CommonJS leaf helper targets"
       ],
       "workstream": "mocking",
-      "implemented": "Certified ordinary callable/async/generator namespaces retain descriptors, key order, strict receivers and actual completion. The exact self-default plus true-flag form is pushed; 44 new complete four-engine rows and 92 installed rows extend the prior publication corpus.",
+      "implemented": "Certified ordinary callable/async/generator namespaces retain descriptors, key order, strict receivers and actual completion. The exact self-default plus true-flag form is pushed; 44 new complete four-engine rows and 92 installed rows extend the prior publication corpus. Later maintained implementations admit the measured own hidden data flags, owned getter descriptors and nested hidden defaults through actual compiler/publication paths. The historical named-reset regression receipt passes40 installed profiles and180 complete rows across truthy, hidden-flag and owned-descriptor groups, including32/32 original truthy rows across four engines. Current source contains these positive controls and certificate implementations; current-revision requalification is queued. NativeS23 actual certified leaf CommonJS Promise namespaces now pass16 source/installed profiles and144 cases with whole standard JSON reports across Node20/22/24/26 in both modes. Node24/26 also match96 complete console rows; Node20/22 retain only four rawKeys differences per profile involving actual async_id_symbol, trigger_async_id_symbol and kResourceStore own symbols. Same-input ordinary production app runtime bytes remain identical with no active test instrumentation. The separate .mjs injected CommonJS producer is an unqualified compiler candidate. The S24 resolved-binding producer now also closes the measured direct injected .mjs leaf CommonJS Promise cases without changing specified ESM parsing. Across both extensions, Source and ordinary installed qualification pass32 profiles/288 cases/complete standard JSON reports over all four engines and both modes;16 Node24/26 profiles match192 complete ordered rows. Node20/22 each retain only four rawKeys differences involving the actual async/ALS own symbols, preserved in exact recursive differences. Same-input ordinary production runtime bytes are identical and all test instrumentation remains omitted. Mixed ESM exports, aliases and altered constructors are outside this scope.",
       "remaining": [
-        "The original truthy-export corpus has 20/32 complete matching rows and 28 passing bodies; twelve complete-row gaps remain.",
-        "Hidden own data flags, other default/getter/flag forms and broader then-adopted/TLA/Promise/reset combinations. The N hidden-flag proposal is unapplied and is not implementation evidence.",
-        "Author require() mock interception is excluded by the upstream compatibility contract; certified internal CommonJS dependency edges/reset support remains separate."
+        "Broader default/getter/flag forms and then-adopted/TLA/Promise/reset combinations remain open. The old unapplied N proposal label is superseded by separately maintained later hidden-flag/getter implementations and scoped receipts; it is not a current implementation limitation.",
+        "Author require() mock interception is excluded by the upstream compatibility contract; certified internal CommonJS dependency edges/reset support remains separate.",
+        "CommonJS Promise raw own-key/ALS parity on Node20/22, altered Promise constructor descriptors, interopDefault:false, mixed/aliased injected .mjs exports and broader mock/reset/graph combinations remain open; complete standard reports alone do not establish complete row compatibility."
       ],
       "evidence": [
         "test/unit/next-testing-compiler/next-testing-compiler.test.ts",
@@ -1557,21 +1815,31 @@
     {
       "id": "mocking-module-cache-reset",
       "status": "partial",
-      "capabilityPaths": ["features.moduleCacheReset"],
+      "capabilityPaths": [
+        "features.moduleCacheReset",
+        "features.moduleCacheReset.terminalExpressionExports"
+      ],
       "profiles": [
         "isolated development Node; compiled ESM, certified compiled CommonJS graph and native provider generations"
       ],
       "workstream": "mocking",
-      "implemented": "Actual compiler-owned dynamic import/reset generations preserve certified CommonJS dependencies/cycles and held namespaces. Anonymous terminal function expression support is pushed; native package/builtin namespaces follow certified provider IDs.",
+      "implemented": "Actual compiler-owned dynamic import/reset generations preserve certified CommonJS dependencies/cycles and held namespaces. Terminal anonymous/named ordinary, async, generator and async-generator function expressions, identifier default/rest parameters and anonymous/named class expressions retain their actual export/call/constructor identities in qualified isolated development Node graphs. Literal relative importActual/reset also handles a certified direct leaf with no require descendants. Native package/builtin generations retain their separately qualified provider IDs. The twelve newest dependency/cycle graphs match all 48 source and 48 physical installed profiles, with 240 complete cases and authored console rows in each, across Node20/22/24/26. All16 certificate controls pass after the seven approved obsolete negative entries were removed; identical literals remain positive controls. A reset-only isolated production Node path now uses the actual production module cache/factories and authored-filesystem package context for generated CommonJS namespaces. Test-only Node compilation preserves observable names and native error text. Source qualification matches108 production profiles across27 unchanged function/class graphs and500 complete cases/console rows on Node20/22/24/26; all129 compiler admission/publication controls pass. The coherent ordinary installed S16 package also passes all108 production profiles and500 complete cases/console rows, with all9435 compiled files and its separate native artifact held. This qualifies the stated reset-only graph subset; broader production mocks and profiles remain open. The S18 compiler additionally preserves the real direct-root lexical global receiver through the existing captured native runtime global while require-side factories retain their authored receiver. Four compiler scope/cycle/option controls and112 genuine plus112 source arrow profiles pass across14 ordinary/async block/expression dependency/cycle graphs on four Node versions in both modes, with448 complete cases and console rows. The coherent physical installed S18 package also passes all112 arrow profiles and448 complete cases/rows with9438 compiled files and its separate native artifact held. The earlier full-global descriptor reflection mismatch is retained separately as an open global-surface gap; no runner-private globals are synthesized. NativeS20 flat object shorthand/fixed-key bindings and flat array identifiers/holes/empty patterns match576 genuine,576 source and576 ordinary installed profiles across Node20/22/24/26 and both modes, with2880 complete cases and ordered rows per matrix. Defaults/nested/rest/computed patterns retain prior boundaries and actual unresolved exports/module scanning/reset graph ownership stay held. Twelve new Root compiler controls pass. Twelve new JSON fixtures receive whitespace-only formatting with every decoded reference field held. Three obsolete Rust negative assertions remain unchanged pending approval. NativeS22 also prepares actual native edges of one already-certified compiled graph through existing source-order readsites. All four Node source and four ordinary installed original native-order cases, complete console objects and complete standard reports match the held genuine reference; the new maintained helper passes. The separately built S23 Promise publication candidate has no compiled compatibility claim yet.",
       "remaining": [
-        "Named/async/generator/arrow/class expression and complex-parameter reset certificates beyond the admitted syntax.",
-        "Leaf Promise behavior on Node20/22 and single-root native namespace identity retain demonstrated gaps.",
-        "Nonrelative importActual helpers, broader static/runtime combinations, unresolved/dynamic dependency edges and other execution profiles."
+        "Complete reflected global shape, destructured or computed parameter/export forms and broader class-field syntax/profile combinations.",
+        "Broader production/static/runtime combinations, nonrelative importActual helpers, unresolved/dynamic dependency edges and other execution profiles.",
+        "Leaf Promise behavior on Node20/22 and single-root native namespace identity retain separate measured gaps."
       ],
       "evidence": [
         "packages/next/src/experimental/testing/mocking/module-cache.ts",
         "test/unit/next-testing-compiler/next-testing-compiler.test.ts",
-        "test/unit/app-dir/next-testing-mocking/next-testing-mocking.test.ts"
+        "test/unit/app-dir/next-testing-mocking/next-testing-mocking.test.ts",
+        "turbopack/crates/turbopack-ecmascript/src/cjs_reset_export.rs",
+        "crates/next-api/src/testing_cjs_reset.rs",
+        "test/unit/next-testing-compiler/external-package/cjs-named-class-expression-cycle-reset/contract.test.mjs.txt",
+        "test/unit/next-testing-compiler/external-package/cjs-empty-class-expression-reset/contract.test.mjs.txt",
+        "test/unit/next-testing-compiler/runtime-graph-boundary-integration.cjs",
+        "test/unit/next-testing-compiler/external-package/cjs-named-async-expression-dependency-reset/contract.test.mjs.txt",
+        "test/unit/next-testing-compiler/external-package/cjs-anonymous-async-generator-expression-cycle-reset/contract.test.mjs.txt"
       ]
     },
     {
@@ -1582,7 +1850,7 @@
         "isolated development Node; certified literal local ESM/CommonJS graphs and native targets"
       ],
       "workstream": "mocking",
-      "implemented": "doMock/doUnmock lazily execute lexical factories, preserve held namespaces, support registration replacement/unregistration, actual reset and measured pending/failure ownership. Certified compiled CommonJS dependencies/cycles and ESM demand graphs execute real bodies and match full rows.",
+      "implemented": "doMock/doUnmock lazily execute lexical factories, preserve held namespaces, support registration replacement/unregistration, actual reset and measured pending/failure ownership. Certified compiled CommonJS dependencies/cycles and ESM demand graphs execute real bodies and match full rows. Mock195 preserves the one deferred factory invocation and uses a single private original-request adoption protocol for public requests/factory callbacks while retaining the raw native loader, private D Promise identity/symbols, cache/reset ownership and independent q fallback. Both former p/q reversals now match. Source+installed304 profiles match1424 complete cases/ordered rows across four Node versions; all24 new standard reports match with only enumerated timing/root normalization. Owner145 mocking and745 compiler controls pass. Existing33 execution boundaries are retained, including19 frozen names,5 identical before/candidate coverage receipt failures and9 additional DOM helper modes. Constructor-origin A/B preserves caller-B wrapper/captured-A loader; no new private ownership semantics. This packet is integrated for Root checks.",
       "remaining": [
         "Eight exploratory compiled ESM p/q completion-order rows differ.",
         "Broader async/dynamic/native-demand graphs, compiled static/runtime mixtures and cross-completed-attempt factories.",
@@ -1595,7 +1863,9 @@
         "packages/next/src/experimental/testing/mocking/registry.ts",
         "test/unit/next-testing-compiler/next-testing-compiler.test.ts",
         "test/unit/next-testing-compiler/external-package/runtime-registration-dependency-transitions-v2/pristine-rows.json",
-        "test/e2e/app-dir/next-testing-package/verify-mock-runtime.mjs"
+        "test/e2e/app-dir/next-testing-package/verify-mock-runtime.mjs",
+        "test/unit/app-dir/next-testing-mocking/runtime-callback-origins.cjs",
+        "test/unit/next-testing-compiler/external-package/runtime-registration-original-adoption/contract.test.mjs.txt"
       ]
     },
     {
@@ -1667,16 +1937,17 @@
         "execution.routeContextScope",
         "execution.routeDefaultSlots",
         "execution.routeNotFound",
-        "execution.routeAuthInterrupts"
+        "execution.routeAuthInterrupts",
+        "execution.routeMatchedSlots"
       ],
       "profiles": [
         "explicit development/production Turbopack Node force-dynamic RSC routes; cacheScope:file"
       ],
       "workstream": "browser-rendering",
-      "implemented": "Supplied subtrees and full buffered/streaming route helpers use real AppPage entries, layouts, manifests/request stores, native HTML/Flight bytes and cleanup. Complete corpora cover encoded params, default slots, notFound/auth/redirects, streaming cancellation, held/rejected after work and healthy following requests. Pushed error/boundary/digest work preserves real separate debug-channel producer closure and 32 complete installed error rows.",
+      "implemented": "Supplied subtrees and full buffered/streaming route helpers use real AppPage entries, layouts, manifests/request stores, native HTML/Flight bytes and cleanup. Complete corpora cover encoded params, default slots, notFound/auth/redirects, streaming cancellation, held/rejected after work and healthy following requests. Pushed error/boundary/digest work preserves real separate debug-channel producer closure and 32 complete installed error rows. Explicit force-dynamic Node initial rendering now selects the unique actual ordinary page among same-AppPath named pages and retains the actual loader tree/config/request stores. Typed foreign/nonpage/ambiguous and interception-descendant/tree controls remain. Three new Rust tests, both normal development/production Turbopack suites(three assertions each), eight complete ordinary reference rows and sixteen complete installed matched/default-only rows and cases pass with final formatted sources, original defaults and native/publicABI held.",
       "remaining": [
         "Implicit or static/prerender routes, Cache Components/PPR, Server Action transport and client hydration.",
-        "Broader parallel/intercepted route contracts, public debug transport, partial-delivery/cancel combinations, Edge and other profiles/platforms.",
+        "Parallel routing beyond measured matched same-AppPath initial pages, interception/navigation, public debug transport, partial-delivery/cancel combinations, Edge and other profiles/platforms.",
         "Production RSC watch and broader rendering/coverage combinations remain unqualified. routeContext:false describes lack of general implicit route context; it must not erase the explicit implemented contracts."
       ],
       "evidence": [
@@ -1688,7 +1959,33 @@
         "test/e2e/app-dir/next-testing-package/verify-route-stream.mjs",
         "test/e2e/app-dir/next-testing-package/verify-route-render-errors.mjs",
         "test/e2e/app-dir/next-testing-package/fixtures/route-render-errors/development.expected.json",
-        "test/e2e/app-dir/next-testing-package/fixtures/route-render-errors/production.expected.json"
+        "test/e2e/app-dir/next-testing-package/fixtures/route-render-errors/production.expected.json",
+        "crates/next-api/src/testing_route.rs",
+        "test/e2e/app-dir/next-testing-rsc-parallel-pages/next-testing-rsc-parallel-pages.test.ts"
+      ]
+    },
+    {
+      "id": "tooling.browser-dependency-producer",
+      "status": "partial",
+      "capabilityPaths": ["features.affectedSelection.browserSourcePlans"],
+      "profiles": [
+        "isolated development/production Browser client source planning without coverage/custom runtimes",
+        "one Browser project, seed1, fileParallelism:false; Chromium/Firefox development and production watch"
+      ],
+      "workstream": "scheduling-tooling",
+      "implemented": "The actual native Browser entry emits dependency metadata from its processed user and setup source modules through the shared compiler graph walker. Static consumers and setup imports carry actual file hashes; opaque graphs retain conservative incomplete selection. The maintained eight-profile corpus includes six positive static/setup/opaque planner profiles and two computed-request controls. Four coherent installed actual-watch profiles match twenty complete JSON reports and twenty-four ordered authored rows through beta-only, shared-both, unrelated-no-report and alpha-only changes. Native complete source hashes and selected consumers remain exact; all watch owners close.",
+      "remaining": [
+        "Default and cross-project sequencing retain separately observed mismatches; the fixed single-project/seed qualification does not close them.",
+        "Computed/indirect dynamic Browser requests remain unsupported execution; their conservative planner control is not completed functionality.",
+        "Coverage, runtime-mock, custom-realm, cohort, route and broader dependency/profile combinations."
+      ],
+      "evidence": [
+        "crates/next-api/src/testing_client.rs",
+        "crates/next-api/src/testing_dependencies.rs",
+        "packages/next/src/experimental/testing/incremental/source-planner.ts",
+        "packages/next/src/experimental/testing/incremental/source-selection.ts",
+        "test/unit/app-dir/next-testing-incremental/browser-dependencies.cjs",
+        "test/unit/app-dir/next-testing-incremental/next-testing-incremental.test.ts"
       ]
     },
     {
@@ -1703,11 +2000,14 @@
         "isolated development/production Node initial related/changed watch; later actual compiler-consumer selection"
       ],
       "workstream": "scheduling-tooling",
-      "implemented": "One-shot related/changed selection and bounded related/changed watch use real Git changed-source inputs and the actual compiler dependency planner. Later edits retain the complete discovered registry and select actual consumers. Dirty alpha, beta-only, shared-both, unrelated-no-report and alpha-only stages match both modes and fresh installed consumers.",
+      "implemented": "One-shot related/changed selection and bounded related/changed watch use real Git changed-source inputs and the actual compiler dependency planner. Later edits retain the complete discovered registry and select actual consumers. Dirty alpha, beta-only, shared-both, unrelated-no-report and alpha-only stages match both modes and fresh installed consumers. Ordinary no-flag isolated Node watch also uses fresh compiler-consumer plans for known regular-file edits. Directory, missing/symlink and certified registry-addition notifications retain the existing conservative path; active standard/custom coverage retains its existing full-map owner. The separately bounded Browser consumer corpus now passes all four installed Chromium/Firefox mode profiles with fixed single-project sequence controls. A bounded native watch duplicate filter now compares only ready, known actual regular-file notifications with their existing full baseline signatures. The owner preserves97 old controls and passes five additive controls plus unchanged two-mode editor callbacks; Root qualification is pending. Known deletions, missing/uncertain paths, symlinks, directories, null names and opening changes retain the existing conservative behavior. The integrated absent-path increment retains named missing candidates only through the existing coalesced batch and suppresses them only if absent in the actual baseline, outside explicit dependencies and without covering unknown watched-root scope. A queued real reconciliation change cannot be erased by a later absent observation. The owner passes all105 controls and an exact88-path native replay, reducing89 notifications to the one real new-input barrier. Root verification is pending; unchanged editor callbacks still intermittently rerun extra files. Actual unchanged precise named-directory observations now retain revision and their existing baseline identity through the same reconciliation. Real discovered descendant changes stay in the same changed Set before the original coarse collapse; only unchanged certain directory candidates without changed descendants are suppressed, while sticky unknown/root uncertainty remains conservative. The owner passes116 controls, all514 CLI/broker checks and both original editor callbacks with exact13 body/finished/afterAll rows and one active case; Root verification is pending. The coherent Root now also passes all116 watcher controls after a normal build; types, lint and formatting pass. A deterministic real inode-replacement regression proves a delayed native callback could erase an already reconciled directory change. Increment170 retires exact directory candidates on real non-native changes and prevents admission over an existing queued fact; all116 prior controls plus the new regression pass. The original pre-fix116/117 result is retained. Coherent Root verification is pending; no extra read/queue/timer or transport change. The actual public invocation lock path is now shared by its real lock producer and watch metadata outputFiles. Real development/production Node probes create/unlock that native lock and observe a genuine source barrier without publishing lock changes. All119 Root watch controls pass with every117 original test byte held; initial new harness env/Jest-dynamic-import failures remain separately retained. This exact generated-output fix does not clear broader frozen watch failures. Watch startup now acquires a complete input observation before native subscription and always reconciles again after acquisition. Exact delayed file/absent-path notifications use that actual earlier baseline; subscription-gap edits and unknown/directory events remain observed. Owner10 actual profiles/20 generations/20 complete reports pass, and the coherent Root123 watch controls pass with both invocation-lock controls retained. Two approved old fault gates now engage after subscription while preserving the original callbacks/assertions/deadlines and exactly one read failure.",
       "remaining": [
         "Empty initial selection, staged/untracked/additions/deletions and invalid-ref/no-Git watch",
         "Other profiles/reporters/shards/platforms",
-        "Broader affected/configuration-dependency selection and full incremental lifecycle qualification"
+        "Broader affected/configuration-dependency selection and full incremental lifecycle qualification",
+        "Default/cross-project Browser sequencing and affected-only coverage remain separate open combinations.",
+        "The earlier frozen acceptance failures remain retained. The scoped regular-file, absent-path and directory filters now have positive owner evidence, but a coherent integrated full acceptance result is still pending.",
+        "Completed frozen source02f259 remains red; captured startup/config and sibling-output events and wider selection/cancellation failures remain open after the exact invocation-lock fix."
       ],
       "evidence": [
         "packages/next/src/cli/next-test-runner.ts",
@@ -1727,7 +2027,7 @@
         "isolated development/production Node one-shot cancellation and watch full/file reruns without coverage; one-shot real worker CDP debugger"
       ],
       "workstream": "scheduling-tooling",
-      "implemented": "Editor discovery/cancellation and settled full/file-profile watch reruns use the actual watch owner and retain stale/running/duplicate refusal, active cleanup and recovery. --inspect/--inspectBrk debug the real file worker with measured CDP resume and paused cancellation.",
+      "implemented": "Editor discovery/cancellation and settled full/file-profile watch reruns use the actual watch owner and retain stale/running/duplicate refusal, active cleanup and recovery. --inspect/--inspectBrk debug the real file worker with measured CDP resume and paused cancellation. A fresh ordinary installed a82 probe closes initial/rerun/cancel/recovery generations with one global setup, all original callbacks and deadlines, exact cleanup counts, API closure and lock release; all owned processes close. The earlier Source watch status timeout and removal-diagnostic settlement timeout remain unresolved, with no causal fix inferred.",
       "remaining": [
         "Individual case actions, editor debugging and snapshot controls",
         "Watch debugging, coverage composition and broader setup/profile/editor-extension compatibility",
@@ -1867,6 +2167,63 @@
         "test/unit/next-testing-reporting/reporting.test.ts",
         "test/unit/next-testing-coverage/next-testing-coverage.test.ts",
         "packages/next/experimental/testing/README.md"
+      ]
+    },
+    {
+      "id": "tooling.explicit-uncached-order",
+      "status": "partial",
+      "profiles": [
+        "one selected isolated one-shot Node or Browser runtime project; development/production"
+      ],
+      "implemented": "Explicit --no-cache preserves the measured unknown-first/size fallback, shards, seeded runtime shuffle and reference report order, with zero cache filesystem I/O and existing cache bytes held. The actual default persistent result-cache caller is now implemented for the qualified one-shot single isolated ordinary Node project, default one worker and standard reporters. It reads history under the run lock, orders selected files by actual failed/duration history and size fallback, and executes every selected file. Real version2 final root Task state/duration/focus facts traverse direct workers; parent host closure requires actual process/group/file-cache/snapshot/coverage cleanup joins independently of ordinary case failure. Cache updates follow compiler/broker/config/terminal cleanup under the same lock, preserving pinned whole/partial lastRun semantics; actual failures and settled deadlines may cache while hard/lifetime cancellation and cleanup failure do not publish. Owner qualification passes22 installed CLI profiles with112 complete cases/96 ordered rows/full JSON, eight actual state profiles and six cleanup/lock profiles. Root combined1504 tests and74 broker controls pass after integration. The earlier passive operation/body observations remain diagnostics and confer no cache authority; no all-authored-async-settlement prerequisite is introduced. The one-worker restriction is removed for the same eligible actual CLI cache path, retaining all other profile and real closure/lock guards. Concurrent qualification passes18 installed history/default/false profiles, four real paired2/3-worker overlap profiles with complete reports/per-file rows, eight state-rule profiles and six cleanup/lock profiles. A prior sleep/kill-EPERM attempt remains unqualified and retained; exact former owners were audited closed before a fresh unchanged-budget awake pass. Owner516 CLI/broker checks and core/types/lint/format pass; coherent Root verification is pending. Authored root/test cache booleans and the measured legacy dir object are now integrated. Actual Commander source precedence is explicit CLI over authored config over CLI default, including last-option wins and cache=true/false spellings. The legacy object warns exactly once when selected and its directory remains ignored. Coherent Root and physical c9/S24 installed verification pass16 profiles/96 cases/96 whole ordered rows each, with complete standard reports, unchanged existing cache state rules, failed/duration history and actual enabled filesystem IO versus zero disabled IO. The owner four-engine source/installed84-profile matrices remain retained. Combined Root runtime/watch471 controls pass.",
+      "remaining": [
+        "Authored cache support is limited to the measured root/test boolean and legacy-dir subset with the qualified isolated ordinary Node one-shot execution path. Per-project cache configuration, cacheDir and broader cache semantics remain open.",
+        "Collection-failure publication still lacks actual public root-result metadata; the pinned cache uses failed:true and duration0 from its own absent-duration fallback. The implementation does not synthesize that from an unavailable failure.",
+        "Concurrent workers are qualified only through the separately measured default/explicit CLI cache path. Authored multiworker combinations, watch, typecheck, custom reporters/environments, coverage, mixed projects and broader configuration/platform compositions remain unqualified.",
+        "Actual editor/startup watch races remain acceptance blockers independently of the one-shot cache feature."
+      ],
+      "evidence": [
+        "packages/next/src/bin/next.ts",
+        "packages/next/src/cli/next-test-runner.ts",
+        "packages/next/src/experimental/testing/scheduling.ts",
+        "test/unit/next-testing-cli/next-testing-cli.test.ts",
+        "packages/next/src/experimental/testing/runner/index.ts",
+        "packages/next/src/experimental/testing/runner/lifecycle.ts",
+        "test/unit/next-testing-lifecycle/completed-module-result.cjs",
+        "packages/next/src/experimental/testing/execution/completed-module.ts",
+        "packages/next/src/experimental/testing/execution/protocol.ts",
+        "packages/next/src/experimental/testing/client/protocol.ts",
+        "test/unit/next-testing-execution/completed-module-entry.cjs",
+        "packages/next/src/experimental/testing/result-cache.ts",
+        "test/unit/next-testing-cli/result-cache-integration.cjs"
+      ],
+      "workstream": "scheduling-tooling",
+      "capabilityPaths": ["features.scheduling.uncachedOrder"]
+    },
+    {
+      "id": "authoring-declaration-locations",
+      "status": "partial",
+      "capabilityPaths": ["authoring.declarationLocations"],
+      "profiles": [
+        "isolated Node development/production config omitted/false/true",
+        "Chromium/Firefox development/production; six direct-call trivia declarations qualified in development"
+      ],
+      "workstream": "authoring-runtime",
+      "implemented": "Public boolean includeTaskLocation and CLI overrides reach actual collectors. Node mapped registration frames and Browser raw frames publish producer-owned Task locations through the actual per-file accessor to modern reporter entities and machine reports. Public Task.location mutation cannot replace private publication snapshots. All160 original source/installed case states and20 ordered rows retain functional equality, including authored skip/todo; omitted/false complete data equal reference. NativeS21 adds only exact lexer-issued direct-call parenthesis mappings after actual resolved adapter ownership, preserving emitted JavaScript bytes and every prior mapping. Six trivia calls match24 source/installed Chromium/Firefox development cases, four full rows and all parsed modern entity fields. Object-key-order-only flags in two source comparisons remain separately recorded; no field or ordered array is discarded.",
+      "remaining": [
+        "Extracted Firefox aliases, curried each and production/minified coordinates retain measured differences.",
+        "Type arguments, merged/minified paths, broader declarations/profiles remain unqualified.",
+        "No complete public Task/entity/controller compatibility or full acceptance claim."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/reporting/declaration-location.ts",
+        "packages/next/src/experimental/testing/client/declaration-location.ts",
+        "packages/next/src/experimental/testing/runner/tasks.ts",
+        "packages/next/src/experimental/testing/execution/worker.ts",
+        "packages/next/src/experimental/testing/reporting/live-tasks.ts",
+        "turbopack/crates/turbopack-ecmascript/src/test_declaration_source_map.rs",
+        "test/unit/next-testing-reporting/reporting.test.ts",
+        "test/unit/next-testing-cli/next-testing-cli.test.ts"
       ]
     }
   ],
@@ -2380,11 +2737,8 @@
       "classification": "Missing or unverified",
       "declaration": { "status": "not-applicable" },
       "implementation": {
-        "status": "missing",
-        "evidenceGroups": [
-          "browser-configuration-gaps",
-          "configuration.browser-options-unimplemented"
-        ]
+        "status": "partial",
+        "evidenceGroups": ["configuration.browser-selection"]
       }
     },
     {
@@ -2549,8 +2903,8 @@
       "classification": "Missing or unverified",
       "declaration": { "status": "not-applicable" },
       "implementation": {
-        "status": "missing",
-        "evidenceGroups": ["configuration.remaining-settings"]
+        "status": "partial",
+        "evidenceGroups": ["tooling.explicit-uncached-order"]
       }
     },
     {
@@ -2634,7 +2988,7 @@
       "classification": "Missing or unverified",
       "declaration": { "status": "not-applicable" },
       "implementation": {
-        "status": "missing",
+        "status": "partial",
         "evidenceGroups": ["configuration.standard-coverage-options"]
       }
     },
@@ -2644,7 +2998,7 @@
       "classification": "Missing or unverified",
       "declaration": { "status": "not-applicable" },
       "implementation": {
-        "status": "missing",
+        "status": "partial",
         "evidenceGroups": ["configuration.standard-coverage-options"]
       }
     },
@@ -2654,7 +3008,7 @@
       "classification": "Missing or unverified",
       "declaration": { "status": "not-applicable" },
       "implementation": {
-        "status": "missing",
+        "status": "partial",
         "evidenceGroups": ["configuration.standard-coverage-options"]
       }
     },
@@ -2674,7 +3028,7 @@
       "classification": "Missing or unverified",
       "declaration": { "status": "not-applicable" },
       "implementation": {
-        "status": "missing",
+        "status": "partial",
         "evidenceGroups": ["configuration.standard-coverage-options"]
       }
     },
@@ -2704,7 +3058,7 @@
       "classification": "Missing or unverified",
       "declaration": { "status": "not-applicable" },
       "implementation": {
-        "status": "missing",
+        "status": "partial",
         "evidenceGroups": ["configuration.standard-coverage-options"]
       }
     },
@@ -2714,7 +3068,7 @@
       "classification": "Missing or unverified",
       "declaration": { "status": "not-applicable" },
       "implementation": {
-        "status": "missing",
+        "status": "partial",
         "evidenceGroups": ["configuration.standard-coverage-options"]
       }
     },
@@ -2724,7 +3078,7 @@
       "classification": "Missing or unverified",
       "declaration": { "status": "not-applicable" },
       "implementation": {
-        "status": "missing",
+        "status": "partial",
         "evidenceGroups": ["configuration.standard-coverage-options"]
       }
     },
@@ -2734,7 +3088,7 @@
       "classification": "Missing or unverified",
       "declaration": { "status": "not-applicable" },
       "implementation": {
-        "status": "missing",
+        "status": "partial",
         "evidenceGroups": ["configuration.standard-coverage-options"]
       }
     },
@@ -2744,7 +3098,7 @@
       "classification": "Missing or unverified",
       "declaration": { "status": "not-applicable" },
       "implementation": {
-        "status": "missing",
+        "status": "partial",
         "evidenceGroups": ["configuration.standard-coverage-options"]
       }
     },
@@ -2754,7 +3108,7 @@
       "classification": "Missing or unverified",
       "declaration": { "status": "not-applicable" },
       "implementation": {
-        "status": "missing",
+        "status": "partial",
         "evidenceGroups": ["configuration.standard-coverage-options"]
       }
     },
@@ -2764,7 +3118,7 @@
       "classification": "Missing or unverified",
       "declaration": { "status": "not-applicable" },
       "implementation": {
-        "status": "missing",
+        "status": "partial",
         "evidenceGroups": ["configuration.standard-coverage-options"]
       }
     },
@@ -2794,7 +3148,7 @@
       "classification": "Missing or unverified",
       "declaration": { "status": "not-applicable" },
       "implementation": {
-        "status": "missing",
+        "status": "partial",
         "evidenceGroups": ["configuration.standard-coverage-options"]
       }
     },
@@ -2814,7 +3168,7 @@
       "classification": "Missing or unverified",
       "declaration": { "status": "not-applicable" },
       "implementation": {
-        "status": "missing",
+        "status": "partial",
         "evidenceGroups": ["configuration.standard-coverage-options"]
       }
     },
@@ -2824,7 +3178,7 @@
       "classification": "Missing or unverified",
       "declaration": { "status": "not-applicable" },
       "implementation": {
-        "status": "missing",
+        "status": "partial",
         "evidenceGroups": ["configuration.standard-coverage-options"]
       }
     },
@@ -2834,7 +3188,7 @@
       "classification": "Missing or unverified",
       "declaration": { "status": "not-applicable" },
       "implementation": {
-        "status": "missing",
+        "status": "partial",
         "evidenceGroups": ["configuration.standard-coverage-options"]
       }
     },
@@ -3152,8 +3506,8 @@
       "classification": "Missing or unverified",
       "declaration": { "status": "not-applicable" },
       "implementation": {
-        "status": "missing",
-        "evidenceGroups": ["configuration.remaining-settings"]
+        "status": "partial",
+        "evidenceGroups": ["authoring-declaration-locations"]
       }
     },
     {
@@ -7770,7 +8124,7 @@
       "overloads": [],
       "classification": "Missing or unverified",
       "declaration": {
-        "status": "absent",
+        "status": "available",
         "entry": "packages/next/src/experimental/testing/vitest.ts"
       },
       "implementation": {
@@ -7826,7 +8180,7 @@
       "overloads": [],
       "classification": "Missing or unverified",
       "declaration": {
-        "status": "absent",
+        "status": "available",
         "entry": "packages/next/src/experimental/testing/vitest.ts"
       },
       "implementation": {
@@ -8495,11 +8849,11 @@
       ],
       "classification": "Missing or unverified",
       "declaration": {
-        "status": "absent",
+        "status": "available",
         "entry": "packages/next/src/experimental/testing/vitest.ts"
       },
       "implementation": {
-        "status": "missing",
+        "status": "partial",
         "evidenceGroups": ["authoring-unimplemented-declaration-fn"]
       }
     },
@@ -9215,11 +9569,11 @@
       ],
       "classification": "Missing or unverified",
       "declaration": {
-        "status": "absent",
+        "status": "available",
         "entry": "packages/next/src/experimental/testing/vitest.ts"
       },
       "implementation": {
-        "status": "missing",
+        "status": "partial",
         "evidenceGroups": ["authoring-unimplemented-declaration-fn"]
       }
     },
@@ -9493,11 +9847,11 @@
       ],
       "classification": "Missing or unverified",
       "declaration": {
-        "status": "absent",
+        "status": "available",
         "entry": "packages/next/src/experimental/testing/vitest.ts"
       },
       "implementation": {
-        "status": "missing",
+        "status": "partial",
         "evidenceGroups": ["authoring-unimplemented-declaration-fn"]
       }
     },
@@ -9830,11 +10184,11 @@
       ],
       "classification": "Missing or unverified",
       "declaration": {
-        "status": "absent",
+        "status": "available",
         "entry": "packages/next/src/experimental/testing/vitest.ts"
       },
       "implementation": {
-        "status": "missing",
+        "status": "partial",
         "evidenceGroups": ["authoring-unimplemented-declaration-fn"]
       }
     },

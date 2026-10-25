@@ -1,8 +1,16 @@
 import type {
+  TestResultCache,
+  TestResultCacheUpdate,
+} from '../experimental/testing/result-cache'
+import type {
   RuntimeConfigurationPlan,
   RuntimeConfigurationReceipt,
 } from '../experimental/testing/coverage/runtime-configuration'
 import type { CoverageSourcePlan } from '../experimental/testing/coverage/source-analysis-plan'
+import {
+  isProductionBrowserCoverageProject,
+  isDevelopmentBrowserCoverageProject,
+} from '../experimental/testing/coverage/production-browser'
 import {
   openCustomCoverageSession,
   type CustomCoverageSession,
@@ -46,7 +54,10 @@ import {
   parseMaxWorkers,
   parseTestShard,
   shardTestProjects,
+  sortUncachedTestProjects,
+  sortCachedTestProjects,
 } from '../experimental/testing/scheduling'
+import { shuffle, shuffleFiles } from '../experimental/testing/runner/sequence'
 import { createTestTerminal } from '../experimental/testing/reporting/terminal'
 import {
   requireTestCapability,
@@ -66,18 +77,26 @@ export interface NextTestRunnerOptions {
   typecheck?: boolean
   'typecheck.only'?: boolean
   'coverage.reporter'?: string[]
+  'coverage.provider'?: string
   'coverage.include'?: string[]
   'coverage.exclude'?: string[]
   'coverage.reportsDirectory'?: string
   'coverage.reportOnFailure'?: boolean | string
   'coverage.cleanOnRerun'?: boolean | string
+  'coverage.thresholds.100'?: boolean | string
   'coverage.thresholds.statements'?: string
   'coverage.thresholds.functions'?: string
   'coverage.thresholds.branches'?: string
   'coverage.thresholds.lines'?: string
+  'coverage.thresholds.autoUpdate'?: boolean | string
   inspect?: string | boolean
   inspectBrk?: string | boolean
   fileParallelism?: boolean
+  cache?: boolean
+  /** Actual parser default, distinct from an explicit CLI cache override. */
+  cacheDefault?: boolean
+  'browser.headless'?: boolean | string
+  includeTaskLocation?: boolean | string
   project?: string
   filter?: string[]
   related?: string[]
@@ -109,6 +128,29 @@ function executionOverrides(
         ? undefined
         : { enabled: options.typecheck },
   }
+  const headless = options['browser.headless']
+  if (headless !== undefined) {
+    if (
+      headless !== true &&
+      headless !== false &&
+      headless !== 'true' &&
+      headless !== 'false'
+    )
+      throw new Error('--browser.headless must be true or false.')
+    overrides.browserHeadless = headless === true || headless === 'true'
+  }
+  const includeTaskLocation = options.includeTaskLocation
+  if (includeTaskLocation !== undefined) {
+    if (
+      includeTaskLocation !== true &&
+      includeTaskLocation !== false &&
+      includeTaskLocation !== 'true' &&
+      includeTaskLocation !== 'false'
+    )
+      throw new Error('--includeTaskLocation must be true or false.')
+    overrides.includeTaskLocation =
+      includeTaskLocation === true || includeTaskLocation === 'true'
+  }
   for (const key of ['retry', 'bail', 'testTimeout', 'hookTimeout'] as const) {
     const value = options[key]
     if (value === undefined) continue
@@ -120,6 +162,17 @@ function executionOverrides(
     overrides[key] = number
   }
   return overrides
+}
+
+function validateUncachedMode(options: NextTestRunnerOptions) {
+  if (
+    options.cache === false &&
+    (options.watch ||
+      options.list ||
+      options.capabilities ||
+      options.mergeReports)
+  )
+    throw new Error('--no-cache currently requires one-shot test execution.')
 }
 
 export async function nextTestRunner(
@@ -136,8 +189,6 @@ export async function nextTestRunner(
   let standardCoverageOptions = parseStandardCoverageOptions(
     options as unknown as Record<string, unknown>
   )
-  if (standardCoverageOptions && options.coverage !== false)
-    options = { ...options, coverage: true }
   if (options.coverage === false) standardCoverageOptions = undefined
   const cliStandardCoverageOptions = standardCoverageOptions
   const breakAddress = parseTestInspectBrkAddress(options.inspectBrk)
@@ -173,6 +224,7 @@ export async function nextTestRunner(
     throw new Error(
       '--inspect currently requires a one-shot execution without coverage.'
     )
+  validateUncachedMode(options)
   const overrides = executionOverrides(options)
   const hasExecutionOverrides = Object.values(overrides).some(
     (value) => value !== undefined
@@ -319,6 +371,10 @@ export async function nextTestRunner(
   let customExecutionStarted = false
   let customWritersClosed = false
   let cleanedExecution = false
+  let runLock: Awaited<ReturnType<typeof acquireTestRunLock>> | undefined
+  let resultCache: TestResultCache | undefined
+  let pendingCacheUpdates: TestResultCacheUpdate[] | undefined
+  let cacheStartTime: number | undefined
   let pendingCoverage:
     | {
         facts: StandardFileCoverage[]
@@ -344,7 +400,22 @@ export async function nextTestRunner(
     | Awaited<ReturnType<typeof openTestConfiguration>>
     | undefined
   try {
-    configuration = await openTestConfiguration(projectDir, controller.signal)
+    configuration =
+      options['coverage.provider'] === 'v8'
+        ? await openTestConfiguration(projectDir, controller.signal, 'v8')
+        : await openTestConfiguration(projectDir, controller.signal)
+    const authoredCache = configuration.config.cache
+    const selectedCache =
+      options.cache ??
+      (authoredCache === undefined ? undefined : authoredCache !== false) ??
+      options.cacheDefault
+    if (options.cache === undefined && typeof authoredCache === 'object') {
+      console.error(
+        ` DEPRECATED  "cache.dir" is deprecated and has no effect. Use Vite's "cacheDir" instead if you want to change the cache directory. Note that the cache is written to "cacheDir/vitest".`
+      )
+    }
+    options = { ...options, cache: selectedCache }
+    validateUncachedMode(options)
     const parsedConfig = applyTestConfigOverrides(
       configuration.config,
       overrides
@@ -392,9 +463,50 @@ export async function nextTestRunner(
       coverageFlags,
       standardCoverageOptions
     )
-    if (configuredCoverage.configured) {
+    if (
+      configuredCoverage.options?.thresholds.autoUpdate &&
+      (options.watch || projects.length !== 1)
+    )
+      throw new Error(
+        'Coverage threshold autoUpdate currently requires one one-shot project.'
+      )
+    const productionBrowserCoverage =
+      !options.watch &&
+      projects.length === 1 &&
+      isProductionBrowserCoverageProject(projects[0])
+    const developmentBrowserCoverage =
+      !options.watch &&
+      projects.length === 1 &&
+      isDevelopmentBrowserCoverageProject(projects[0])
+    if (
+      options.watch &&
+      configuredCoverage.enabled &&
+      configuredCoverage.options &&
+      projects.some(
+        (project) =>
+          project.profile.environment === 'browser' &&
+          project.profile.browserClient === true &&
+          project.profile.mode === 'production'
+      )
+    )
+      throw new Error(
+        'Production Browser coverage currently requires one-shot JavaScript execution.'
+      )
+    if (
+      configuredCoverage.configured ||
+      cliStandardCoverageOptions !== undefined
+    ) {
       options = { ...options, coverage: configuredCoverage.enabled }
       standardCoverageOptions = configuredCoverage.options
+      if (
+        !options.watch &&
+        !configuredCoverage.configured &&
+        standardCoverageOptions
+      )
+        standardCoverageOptions = {
+          ...standardCoverageOptions,
+          clean: standardCoverageOptions.clean ?? true,
+        }
       if (configuredCoverage.enabled) {
         if (
           options.list ||
@@ -405,7 +517,9 @@ export async function nextTestRunner(
               project.typecheck?.enabled ||
               project.isolate === false ||
               project.executionEnvironment ||
-              project.profile.environment !== 'node' ||
+              (project.profile.environment !== 'node' &&
+                !productionBrowserCoverage &&
+                !developmentBrowserCoverage) ||
               project.profile.route ||
               project.entries.some((entry) => entry.executionEnvironment)
           )
@@ -467,7 +581,7 @@ export async function nextTestRunner(
         'No test files matched the selected projects and filters.'
       )
     }
-    const specificationOrder = projects.flatMap((project) =>
+    let specificationOrder = projects.flatMap((project) =>
       project.entries.map((entry) => entry.id)
     )
     if (shard) {
@@ -483,7 +597,34 @@ export async function nextTestRunner(
           `--shard count must not exceed the number of test files. Resolved ${fileCount} test files for --shard=${shard.index}/${shard.count}; use --passWithNoTests to permit empty assignments.`
         )
       }
-      projects = await shardTestProjects(projects, shard, projectDir)
+      projects = await shardTestProjects(
+        projects,
+        shard,
+        projectDir,
+        options.cache === false ? { sortFiles: false } : undefined
+      )
+    }
+    if (options.cache === false) {
+      if (projects.length !== 1 || projects[0].isolate === false)
+        throw new Error(
+          '--no-cache currently requires one isolated test project.'
+        )
+      if (projects[0].typecheck?.enabled)
+        throw new Error('--no-cache does not yet support typecheck projects.')
+      projects = await sortUncachedTestProjects(projects)
+      const project = projects[0]
+      if (shuffleFiles(project.sequence?.shuffle)) {
+        // One actual seed owns the runtime and report order, including the
+        // default seed when this explicit uncached invocation omits it.
+        const seed = project.sequence?.seed ?? Date.now()
+        projects = [{ ...project, sequence: { ...project.sequence, seed } }]
+        // The pinned pool clones specifications before sharding, so only
+        // unsharded random ordering mutates its final report specification list.
+        if (!shard)
+          specificationOrder = shuffle([...project.entries], seed).map(
+            (entry) => entry.id
+          )
+      }
     }
     const entries = projects.flatMap((project) => project.entries)
     const customProjects = projects.filter(
@@ -701,11 +842,40 @@ export async function nextTestRunner(
       write: (text) => terminal.write(text),
       writeError: (text) => terminal.write(text, 'stderr'),
     })
-    let runLock: Awaited<ReturnType<typeof acquireTestRunLock>> | undefined
     try {
       // One owner covers the full watch lifetime, including journal recovery
       // before the first generation and every parent-side snapshot commit.
       runLock = await acquireTestRunLock(projectDir)
+      // First actual result-cache caller: one-shot isolated ordinary Node.
+      // Other profiles retain their existing behavior until independently qualified.
+      if (
+        options.cache === true &&
+        !options.watch &&
+        !options.list &&
+        !inspect &&
+        !standardCoverageOptions &&
+        !options.coverage &&
+        !customProjects.length &&
+        !reporters.some(isCustomResultReporter) &&
+        projects.length === 1 &&
+        projects[0].isolate !== false &&
+        projects[0].profile.environment === 'node' &&
+        projects[0].profile.route === undefined &&
+        !projects[0].executionEnvironment &&
+        !projects[0].typecheck?.enabled &&
+        !shuffleFiles(projects[0].sequence?.shuffle)
+      ) {
+        const { TestResultCache } = await import(
+          '../experimental/testing/result-cache.js'
+        )
+        resultCache = new TestResultCache(
+          projectDir,
+          path.join(projectDir, '.next-test-cache', 'results.json')
+        )
+        await resultCache.read()
+        projects = await sortCachedTestProjects(projects, resultCache)
+        cacheStartTime = Date.now()
+      }
       if (!options.watch && standardCoverageOptions?.clean === true) {
         const { prepareStandardCoverageDirectory } = await import(
           '../experimental/testing/coverage/report-standard.js'
@@ -818,6 +988,37 @@ export async function nextTestRunner(
       customExecutionStarted = customProjects.length > 0
       const summary = await runTests(projectDir, projects, {
         captureTaskResults: machine.captureTaskResults,
+        ...(resultCache
+          ? {
+              onCompletedModules(facts) {
+                const project = projects[0]
+                const selected = new Map(
+                  project.entries.map((entry) => [entry.id, entry])
+                )
+                pendingCacheUpdates = facts.flatMap((completion) => {
+                  const entry = selected.get(completion.entryId)
+                  if (
+                    !entry ||
+                    completion.kind !== 'fulfilled' ||
+                    completion.finalState === null
+                  )
+                    return []
+                  return [
+                    {
+                      projectName: project.displayName ?? '',
+                      file: entry.file,
+                      failed: completion.finalState === 'fail',
+                      duration: completion.durationMs,
+                      partial:
+                        completion.containsOnly ||
+                        !!options.testNamePattern ||
+                        !!project.testNamePattern,
+                    },
+                  ]
+                })
+              },
+            }
+          : {}),
         ...(configuration.compilerTransformNames.length
           ? { compilerTransforms: configuration.compilerTransforms(projects) }
           : {}),
@@ -842,7 +1043,7 @@ export async function nextTestRunner(
         testNamePattern: options.testNamePattern,
         coverage: options.coverage ?? false,
         standardCoverageOptions,
-        coverageInputs: configuration.watchInputs,
+        coverageInputs: configuration.compilerInputsForProjects(projects),
         ...(customProjects.length
           ? {
               customCoverageRequests,
@@ -936,18 +1137,24 @@ export async function nextTestRunner(
         try {
           terminal.dispose()
         } finally {
-          try {
-            await machine.dispose()
-          } finally {
-            await runLock?.unlock()
-          }
+          await machine.dispose()
         }
       }
     }
     cleanedExecution = true
   } finally {
+    const deferredConfiguration =
+      !!configuration?.formatCoverageThresholdUpdates && !!pendingCoverage
+    let coverageCompletionError: unknown
     try {
-      await configuration?.dispose()
+      if (!deferredConfiguration) await configuration?.dispose()
+      if (
+        cleanedExecution &&
+        resultCache &&
+        pendingCacheUpdates &&
+        !controller.signal.aborted
+      )
+        await resultCache.update(pendingCacheUpdates, cacheStartTime!)
       if (cleanedExecution && pendingCustomCoverage) {
         controller.signal.throwIfAborted()
         for (const [id, session] of customSessions) {
@@ -973,33 +1180,90 @@ export async function nextTestRunner(
           })
           if (result.textSummary) process.stdout.write(result.textSummary)
           if (result.thresholdErrors.length) {
-            for (const message of result.thresholdErrors) console.error(message)
+            for (const message of result.thresholdErrors)
+              console.error(
+                pendingCoverage.config.formatterReports
+                  ? `ERROR: ${message}`
+                  : message
+              )
             process.exitCode = 1
+          }
+          if (
+            result.published &&
+            pendingCoverage.config.thresholds.autoUpdate
+          ) {
+            const { updateCoverageThresholds, commitCoverageThresholdUpdate } =
+              await import(
+                '../experimental/testing/coverage/threshold-update.js'
+              )
+            if (
+              configuration?.prepareCoverageThresholdUpdate
+                ? commitCoverageThresholdUpdate({
+                    configFile: configuration.coverageConfigurationFile,
+                    source: await configuration.prepareCoverageThresholdUpdate(
+                      result.thresholdUpdates ?? []
+                    ),
+                    signal: controller.signal,
+                  })
+                : await updateCoverageThresholds({
+                    configFile: configuration?.coverageConfigurationFile,
+                    updates: result.thresholdUpdates ?? [],
+                    signal: controller.signal,
+                  })
+            )
+              console.log(
+                'Updating thresholds to configuration file. You may want to push with updated coverage thresholds.'
+              )
           }
         } catch (error) {
           if (controller.signal.aborted) process.exitCode = 130
           else throw error
         }
       }
+    } catch (error) {
+      coverageCompletionError = error
+      throw error
     } finally {
       try {
-        const failures = []
-        for (const session of customSessions.values()) {
+        if (deferredConfiguration) {
           try {
-            await session.dispose({
-              retainPayloads:
-                customExecutionStarted &&
-                (!cleanedExecution || !customWritersClosed),
-            })
+            await configuration?.dispose()
           } catch (error) {
-            failures.push(error)
+            if (coverageCompletionError)
+              throw new AggregateError(
+                [coverageCompletionError, error],
+                'Coverage threshold update and configuration cleanup failed.'
+              )
+            throw error
           }
         }
-        if (failures.length)
-          throw new AggregateError(failures, 'Custom coverage cleanup failed.')
       } finally {
-        process.removeListener('SIGINT', cancel)
-        process.removeListener('SIGTERM', cancel)
+        try {
+          const failures = []
+          for (const session of customSessions.values()) {
+            try {
+              await session.dispose({
+                retainPayloads:
+                  customExecutionStarted &&
+                  (!cleanedExecution || !customWritersClosed),
+              })
+            } catch (error) {
+              failures.push(error)
+            }
+          }
+          if (failures.length)
+            throw new AggregateError(
+              failures,
+              'Custom coverage cleanup failed.'
+            )
+        } finally {
+          try {
+            await runLock?.unlock()
+          } finally {
+            process.removeListener('SIGINT', cancel)
+            process.removeListener('SIGTERM', cancel)
+          }
+        }
       }
     }
   }

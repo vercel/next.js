@@ -1,6 +1,9 @@
 import type { AttemptContext } from './lifecycle'
 import type { TestContext } from './collector'
 
+export const NativePromise = Promise
+export const nativePromiseThen = Promise.prototype.then
+
 /** Node publishes the original context object used by all its callbacks. */
 export function getPublicTestContext<T extends TestContext>(context: T): T {
   return context

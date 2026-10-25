@@ -1,0 +1,102 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "transfer-setters",
+        "trace": [
+          {
+            "phase": "undefined-then-throw",
+            "kind": "throw",
+            "sameError": true
+          },
+          {
+            "phase": "undefined-then-throw-call",
+            "kind": "matcher",
+            "taskA": false,
+            "taskB": false,
+            "noTask": true,
+            "sameAssertion": true,
+            "actual": "A",
+            "expected": "A"
+          },
+          {
+            "phase": "undefined-then-throw",
+            "kind": "observations",
+            "copyGets": 0,
+            "copySets": 1,
+            "matcherGets": 2
+          },
+          {
+            "phase": "ignore",
+            "kind": "return",
+            "undefined": true
+          },
+          {
+            "phase": "ignore-call",
+            "kind": "matcher",
+            "taskA": false,
+            "taskB": true,
+            "noTask": false,
+            "sameAssertion": true,
+            "actual": "A",
+            "expected": "A"
+          },
+          {
+            "phase": "ignore",
+            "kind": "observations",
+            "copyGets": 0,
+            "copySets": 1,
+            "matcherGets": 2
+          },
+          {
+            "phase": "store",
+            "kind": "return",
+            "undefined": true
+          },
+          {
+            "phase": "store-call",
+            "kind": "matcher",
+            "taskA": true,
+            "taskB": false,
+            "noTask": false,
+            "sameAssertion": true,
+            "actual": "A",
+            "expected": "A"
+          },
+          {
+            "phase": "store",
+            "kind": "observations",
+            "copyGets": 0,
+            "copySets": 1,
+            "matcherGets": 2
+          }
+        ],
+        "countA": 1,
+        "countB": 1
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "task setter source A",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "actual setter state remains authoritative",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

@@ -1,0 +1,55 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "custom-prepared",
+        "trace": [
+          {
+            "phase": "collection",
+            "actual": 1,
+            "expected": 1,
+            "taskSameOwner": true,
+            "taskHasContext": true,
+            "currentTestName": "prepared custom owner",
+            "assertionCalls": 0
+          },
+          {
+            "kind": "body-context",
+            "sameLocal": true,
+            "priorCount": 1
+          },
+          {
+            "phase": "body",
+            "actual": 2,
+            "expected": 2,
+            "taskSameOwner": true,
+            "taskHasContext": true,
+            "currentTestName": "prepared custom owner",
+            "assertionCalls": 0
+          }
+        ],
+        "count": 2,
+        "state": "pass"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "prepared custom owner",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeads": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 1,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

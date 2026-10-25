@@ -1,3 +1,4 @@
+import { createCustomReporterWatchFile } from './custom-reporter-watch-tasks'
 import { createLiveReporterTaskStore } from './custom-reporter-live-tasks'
 import type { ReporterTaskSnapshot } from './live-tasks'
 import { pathToFileURL } from 'node:url'
@@ -11,6 +12,9 @@ import { serializeDiagnostic } from './diagnostics'
 
 type Reporter = {
   onInit?(context: unknown): unknown
+  onWatcherRerun?(files: string[], trigger?: string): unknown
+  onWatcherStart?(files?: unknown[]): unknown
+  onTestRemoved?(file: string): unknown
   onUserConsoleLog?(log: unknown): unknown
   onTestModuleEnd?(module: unknown): unknown
   onTestCaseResult?(test: unknown): unknown
@@ -22,6 +26,9 @@ let live: ReturnType<typeof createLiveReporterTaskStore>
 let root: string
 let initialized = false
 let finished = false
+let watching = false
+const watchTrees = new Map<string, ReporterTaskSnapshot>()
+let watchEntryIds: string[] = []
 const consoleErrors: unknown[] = []
 const completedModules = new Map<
   string,
@@ -110,11 +117,15 @@ async function handle(message: any) {
     }
     if (message.type === 'run' && !initialized) {
       initialized = true
+      watching = message.input.watch === true
       root = message.input.projectDir
       live = createLiveReporterTaskStore(root)
       const context = contextMember(
         {
-          config: contextMember({ root }, 'context.config'),
+          config: contextMember(
+            { root, ...(watching ? { watch: true } : {}) },
+            'context.config'
+          ),
           onClose(callback: () => unknown) {
             if (typeof callback !== 'function')
               throw new TypeError('Reporter onClose requires a function.')
@@ -175,6 +186,12 @@ async function handle(message: any) {
                 'onTestCaseResult',
                 'onTestRunEnd',
               ].includes(name) &&
+              !(
+                watching &&
+                ['onWatcherRerun', 'onWatcherStart', 'onTestRemoved'].includes(
+                  name
+                )
+              ) &&
               typeof Reflect.get(reporter, name) === 'function'
             )
               throw new Error(
@@ -191,9 +208,94 @@ async function handle(message: any) {
           (reporter) =>
             typeof reporter.onTestCaseResult === 'function' ||
             typeof reporter.onTestModuleEnd === 'function' ||
-            typeof reporter.onTestRunEnd === 'function'
+            typeof reporter.onTestRunEnd === 'function' ||
+            (watching && typeof reporter.onWatcherStart === 'function')
         ),
       })
+      return
+    }
+    if (message.type === 'watch-begin' && initialized && watching) {
+      // The parent joins the previous generation's execution owners before
+      // retiring these task views. Reporter instances and close callbacks live
+      // until the enclosing watch owner disposes this process.
+      live = createLiveReporterTaskStore(root)
+      completedModules.clear()
+      watchTrees.clear()
+      watchEntryIds = []
+      consoleErrors.length = 0
+      finished = false
+      if (message.rerun) {
+        if (
+          !Array.isArray(message.rerun.files) ||
+          message.rerun.files.some(
+            (file: unknown) => typeof file !== 'string'
+          ) ||
+          (message.rerun.trigger !== undefined &&
+            typeof message.rerun.trigger !== 'string')
+        )
+          throw new Error('Reporter rerun requires actual selected paths.')
+        await settle(
+          reporters.map(
+            (reporter) => () =>
+              reporter.onWatcherRerun?.(
+                message.rerun.files,
+                message.rerun.trigger
+              )
+          )
+        )
+      }
+      await send({ type: 'custom-reporter-result' })
+      return
+    }
+    if (message.type === 'watch-ready' && initialized && watching && finished) {
+      const files =
+        message.initial === true ||
+        !reporters.some((reporter) => reporter.onWatcherStart)
+          ? undefined
+          : watchEntryIds.map((id) => {
+              const tree = watchTrees.get(id)
+              if (!tree)
+                throw new Error(
+                  'Custom watch readiness requires an actual collected file; collection-failure task graphs remain unimplemented.'
+                )
+              return createCustomReporterWatchFile(tree)
+            })
+      try {
+        await settle(
+          reporters.map(
+            (reporter) => () =>
+              message.initial === true
+                ? reporter.onWatcherStart?.()
+                : reporter.onWatcherStart?.(files)
+          )
+        )
+      } catch (error) {
+        if (message.initial !== true) throw error
+        await send({
+          type: 'custom-reporter-result',
+          watchHookError: serializeDiagnostic(error, { phase: 'reporter' }),
+        })
+        return
+      }
+      await send({ type: 'custom-reporter-result' })
+      return
+    }
+    if (
+      message.type === 'watch-removed' &&
+      initialized &&
+      watching &&
+      finished
+    ) {
+      if (
+        !Array.isArray(message.files) ||
+        message.files.some((file: unknown) => typeof file !== 'string')
+      )
+        throw new Error('Reporter removal requires actual removed paths.')
+      for (const file of message.files)
+        await settle(
+          reporters.map((reporter) => () => reporter.onTestRemoved?.(file))
+        )
+      await send({ type: 'custom-reporter-result' })
       return
     }
     if (message.type === 'console' && initialized && !finished) {
@@ -253,6 +355,7 @@ async function handle(message: any) {
       if (completedModules.has(tree.id))
         throw new Error('Reporter replay requires one terminal file.')
       live.update(tree)
+      if (watching) watchTrees.set(tree.id, tree)
       const module = live.finishModule(tree.id, message.completion)
       if (!module)
         throw new Error('Reporter replay requires the actual terminal file.')
@@ -349,6 +452,7 @@ async function handle(message: any) {
     if (message.type === 'finish' && initialized && !finished) {
       finished = true
       const completion: CustomReporterCompletion = message.completion
+      if (watching) watchEntryIds = completion.files.map((file) => file.entryId)
       const modules = createCustomReporterModules(root, completion).map(
         (module) => completedModules.get(module.id) ?? module
       )
@@ -384,11 +488,20 @@ async function handle(message: any) {
     }
     throw new Error('Invalid custom reporter request.')
   } catch (error) {
+    const fatalWatchError =
+      watching &&
+      ['watch-begin', 'watch-ready', 'watch-removed'].includes(message.type)
     await send({
       type: 'custom-reporter-failed',
+      ...(fatalWatchError ? { fatalWatchError: true } : {}),
       error: serializeDiagnostic(error, { phase: 'reporter' }),
     })
-    if (message.type === 'shutdown' || message.type === 'cancel')
+    if (
+      message.type === 'shutdown' ||
+      message.type === 'cancel' ||
+      (watching &&
+        ['watch-begin', 'watch-ready', 'watch-removed'].includes(message.type))
+    )
       process.exit(1)
   }
 }
@@ -396,6 +509,7 @@ process.on('message', (message: any) => {
   if (message?.type === 'task-state' && initialized && !finished) {
     try {
       live.update(message.taskTree, message.taskUpdateIds)
+      if (watching) watchTrees.set(message.taskTree.id, message.taskTree)
     } catch (error) {
       consoleErrors.push(error)
     }

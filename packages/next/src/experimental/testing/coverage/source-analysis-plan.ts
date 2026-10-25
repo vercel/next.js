@@ -77,11 +77,6 @@ async function configurationInventory(
   const rootNames = [
     ...new Set([
       ...CONFIG_FILES,
-      ...['next.test', 'vitest', 'vite'].flatMap((prefix) =>
-        ['js', 'mjs', 'cjs', 'ts', 'mts', 'cts', 'json'].map(
-          (extension) => `${prefix}.config.${extension}`
-        )
-      ),
       'tsconfig.json',
       'jsconfig.json',
       'package.json',

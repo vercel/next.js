@@ -105,12 +105,18 @@ impl EcmascriptBuildNodeRuntimeChunk {
         let asset_context =
             turbopack::get_runtime_asset_context(this.chunking_context.environment());
 
+        let include_native_test_commonjs_promise_namespaces = *this
+            .chunking_context
+            .native_test_commonjs_promise_namespaces()
+            .await?;
+
         match *this.chunking_context.runtime_type().await? {
             RuntimeType::Development => {
                 let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
                     asset_context,
                     RuntimeType::Development,
                     this.include_async_module_runtime,
+                    include_native_test_commonjs_promise_namespaces,
                     generate_source_map,
                 );
                 code.push_code(&*runtime_code.await?);
@@ -120,6 +126,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
                     asset_context,
                     RuntimeType::Production,
                     this.include_async_module_runtime,
+                    include_native_test_commonjs_promise_namespaces,
                     generate_source_map,
                 );
                 code.push_code(&*runtime_code.await?);

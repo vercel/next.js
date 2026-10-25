@@ -2984,6 +2984,33 @@ pub mod tests {
                 assert!(callable_plan.native_imports.is_empty());
                 assert_eq!(callable_plan.namespaces, [callable_namespace]);
                 assert!(callable_only.referenced_async_modules(*owner).await?.runtime_import_demands.is_none());
+                let promise_namespace = RuntimeImportNamespaceCertificate {
+                    kind: crate::module_graph::runtime_import_demands::RuntimeImportNamespaceKind::CommonJsLeafPromise,
+                    module: plain,
+                    export_order: Vec::new(),
+                }.resolved_cell();
+                let promise_only = original.with_runtime_import_demands(*RuntimeImportDemandGraph {
+                    edges: Vec::new(), native_imports: Vec::new(), namespaces: vec![promise_namespace],
+                }.resolved_cell()).to_resolved().await?;
+                // Publication metadata alone must neither introduce async demand nor move owners.
+                for module in [entry, shared, dynamic, plain, owner, target] {
+                    assert!(!promise_only.async_module_info().is_async(module).await?);
+                }
+                let promise_info = promise_only.referenced_async_modules(*plain).await?;
+                let promise_plan = promise_info.runtime_import_demands.unwrap();
+                let promise_values = promise_plan.await?;
+                assert!(promise_values.edges.is_empty());
+                assert!(promise_values.native_imports.is_empty());
+                assert_eq!(promise_values.namespaces, [promise_namespace]);
+                assert!(promise_values.namespaces[0].await?.export_order.is_empty());
+                assert_eq!(promise_values.namespaces[0].await?.module, plain);
+                assert_eq!(promise_plan.for_owner(*plain).await?.namespaces, [promise_namespace]);
+                for foreign in [entry, shared, dynamic, owner, target] {
+                    assert!(promise_plan.for_owner(*foreign).await?.namespaces.is_empty());
+                    assert!(promise_only.referenced_async_modules(*foreign).await?.runtime_import_demands.is_none());
+                }
+                // The original coherent graph remains independent of the decorated graph.
+                assert!(original.referenced_async_modules(*plain).await?.runtime_import_demands.is_none());
                 let reference = owner.references().await?[0];
                 let edge = RuntimeImportDemandEdge {
                     owner,

@@ -1,0 +1,1 @@
+JSON report written to /private/tmp/next-testing-run/integration/coverage-repeat199/real-v8-reference/genuine-baseline/cases.json

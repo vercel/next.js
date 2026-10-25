@@ -1,0 +1,1371 @@
+[
+  {
+    "stream": "stdout",
+    "prefix": "WS2_LEAF_TLA",
+    "value": {
+      "name": "unused",
+      "calls": 0,
+      "evaluations": 0,
+      "plans": 0
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_LEAF_TLA",
+    "value": {
+      "name": "factory-only",
+      "calls": 1,
+      "evaluations": 0,
+      "identity": true,
+      "a": {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": ["value", "object", "read", "default"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "value",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "object",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "read",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "value": 100,
+        "object": 100,
+        "defaultSame": false,
+        "read": 100
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_LEAF_TLA",
+    "value": {
+      "name": "factory-original-overlap",
+      "events": [
+        "factory-start",
+        "original-start:1",
+        "original-complete:1",
+        "factory-complete",
+        "p",
+        "q"
+      ],
+      "calls": 1,
+      "evaluations": 1,
+      "identity": [
+        [true, false, true],
+        [false, true, false],
+        [true, false, true]
+      ],
+      "rows": [
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["value", "object", "read", "default"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "value",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "object",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "read",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "default",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "value": 100,
+          "object": 1,
+          "defaultValue": 1,
+          "defaultSame": true,
+          "read": 1
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": [
+              "value",
+              "object",
+              "read",
+              "default",
+              "Symbol(Symbol.toStringTag)"
+            ],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "value",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "object",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "read",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "default",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "value": 1,
+          "object": 1,
+          "defaultValue": 1,
+          "defaultSame": true,
+          "read": 1
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["value", "object", "read", "default"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "value",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "object",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "read",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "default",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "value": 100,
+          "object": 1,
+          "defaultValue": 1,
+          "defaultSame": true,
+          "read": 1
+        }
+      ],
+      "objects": [
+        [true, true, true],
+        [true, true, true],
+        [true, true, true]
+      ]
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_LEAF_TLA",
+    "value": {
+      "name": "register-while-original-pending",
+      "events": [
+        "original-start:1",
+        "factory",
+        "new-public",
+        "original-complete:1",
+        "old-public"
+      ],
+      "calls": 1,
+      "evaluations": 1,
+      "identity": [
+        [true, false, false],
+        [false, true, true],
+        [false, true, true]
+      ],
+      "rows": [
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": [
+              "value",
+              "object",
+              "read",
+              "default",
+              "Symbol(Symbol.toStringTag)"
+            ],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "value",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "object",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "read",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "default",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "value": 1,
+          "object": 1,
+          "defaultValue": 1,
+          "defaultSame": true,
+          "read": 1
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["value", "object", "read", "default"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "value",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "object",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "read",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "default",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "value": 200,
+          "object": 200,
+          "defaultSame": false,
+          "read": 200
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["value", "object", "read", "default"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "value",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "object",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "read",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "default",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "value": 200,
+          "object": 200,
+          "defaultSame": false,
+          "read": 200
+        }
+      ]
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_LEAF_TLA",
+    "value": {
+      "name": "reset-while-original-pending",
+      "events": [
+        "original-start:1",
+        "original-start:2",
+        "original-complete:1",
+        "old-public",
+        "original-complete:2",
+        "new-public"
+      ],
+      "evaluations": 2,
+      "identity": [
+        [true, false, false],
+        [false, true, true],
+        [false, true, true]
+      ],
+      "rows": [
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": [
+              "value",
+              "object",
+              "read",
+              "default",
+              "Symbol(Symbol.toStringTag)"
+            ],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "value",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "object",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "read",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "default",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "value": 1,
+          "object": 1,
+          "defaultValue": 1,
+          "defaultSame": true,
+          "read": 1
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": [
+              "value",
+              "object",
+              "read",
+              "default",
+              "Symbol(Symbol.toStringTag)"
+            ],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "value",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "object",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "read",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "default",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "value": 2,
+          "object": 2,
+          "defaultValue": 2,
+          "defaultSame": true,
+          "read": 2
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": [
+              "value",
+              "object",
+              "read",
+              "default",
+              "Symbol(Symbol.toStringTag)"
+            ],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "value",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "object",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "read",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "default",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "value": 2,
+          "object": 2,
+          "defaultValue": 2,
+          "defaultSame": true,
+          "read": 2
+        }
+      ],
+      "objects": [
+        [true, false, false],
+        [false, true, true],
+        [false, true, true]
+      ]
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_LEAF_TLA",
+    "value": {
+      "name": "pending-factory-fallback",
+      "events": [
+        "factory-start",
+        "original-start:1",
+        "original-complete:1",
+        "q",
+        "factory-complete",
+        "p"
+      ],
+      "calls": 1,
+      "evaluations": 1,
+      "identity": [
+        [true, false, false],
+        [false, true, true],
+        [false, true, true]
+      ],
+      "rows": [
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": [
+              "value",
+              "object",
+              "read",
+              "default",
+              "Symbol(Symbol.toStringTag)"
+            ],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "value",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "object",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "read",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "default",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "value": 1,
+          "object": 1,
+          "defaultValue": 1,
+          "defaultSame": true,
+          "read": 1
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["value", "object", "read", "default"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "value",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "object",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "read",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "default",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "value": 300,
+          "object": 300,
+          "defaultSame": false,
+          "read": 300
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["value", "object", "read", "default"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "value",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "object",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "read",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "default",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "value": 300,
+          "object": 300,
+          "defaultSame": false,
+          "read": 300
+        }
+      ]
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_LEAF_TLA",
+    "value": {
+      "name": "factory-original-rejection",
+      "events": [
+        "factory:1",
+        "original-start:1",
+        "factory:2",
+        "factory:3",
+        "original-start:2",
+        "original-complete:2"
+      ],
+      "calls": 3,
+      "rejectedCalls": 2,
+      "evaluations": 2,
+      "errors": [
+        {
+          "shape": {
+            "type": "object",
+            "brand": false,
+            "keys": ["stack", "message", "cause"],
+            "prototype": "[object Object]",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "stack",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "function",
+                "writable": null,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "message",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "cause",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "rawSame": false,
+          "causeSame": true,
+          "cause": {
+            "type": "object",
+            "brand": false,
+            "keys": ["stack", "message"],
+            "prototype": "[object Object]",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "stack",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "function",
+                "writable": null,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "message",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          }
+        },
+        {
+          "shape": {
+            "type": "object",
+            "brand": false,
+            "keys": ["stack", "message", "cause"],
+            "prototype": "[object Object]",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "stack",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "function",
+                "writable": null,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "message",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "cause",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "name": "Error",
+          "message": "[vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+          "rawSame": false,
+          "causeSame": true,
+          "cause": {
+            "type": "object",
+            "brand": false,
+            "keys": ["stack", "message"],
+            "prototype": "[object Object]",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "stack",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "function",
+                "writable": null,
+                "enumerable": false,
+                "configurable": true
+              },
+              {
+                "key": "message",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": false,
+                "configurable": true
+              }
+            ]
+          }
+        }
+      ],
+      "errorSame": false,
+      "causeSame": true,
+      "fresh": {
+        "namespace": {
+          "type": "object",
+          "brand": false,
+          "keys": ["value", "object", "read", "default"],
+          "prototype": "Object.prototype",
+          "tag": null,
+          "extensible": true,
+          "sealed": false,
+          "frozen": false,
+          "descriptors": [
+            {
+              "key": "value",
+              "valueType": "number",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "object",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "read",
+              "valueType": "function",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            },
+            {
+              "key": "default",
+              "valueType": "object",
+              "get": "undefined",
+              "set": "undefined",
+              "writable": true,
+              "enumerable": true,
+              "configurable": true
+            }
+          ]
+        },
+        "value": 2,
+        "object": 2,
+        "defaultValue": 2,
+        "defaultSame": true,
+        "read": 2
+      }
+    }
+  },
+  {
+    "stream": "stdout",
+    "prefix": "WS2_LEAF_TLA",
+    "value": {
+      "name": "unregister-while-factory-pending",
+      "events": [
+        "factory-start",
+        "original-start:1",
+        "original-complete:1",
+        "q",
+        "factory-complete",
+        "p"
+      ],
+      "calls": 1,
+      "evaluations": 1,
+      "identity": [
+        [true, false, true],
+        [false, true, false],
+        [true, false, true]
+      ],
+      "rows": [
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": [
+              "value",
+              "object",
+              "read",
+              "default",
+              "Symbol(Symbol.toStringTag)"
+            ],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "value",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "object",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "read",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "default",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "value": 1,
+          "object": 1,
+          "defaultValue": 1,
+          "defaultSame": true,
+          "read": 1
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": ["value", "object", "read", "default"],
+            "prototype": "Object.prototype",
+            "tag": null,
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "value",
+                "valueType": "number",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "object",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "read",
+                "valueType": "function",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "default",
+                "valueType": "object",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": true,
+                "enumerable": true,
+                "configurable": true
+              }
+            ]
+          },
+          "value": 400,
+          "object": 400,
+          "defaultSame": false,
+          "read": 400
+        },
+        {
+          "namespace": {
+            "type": "object",
+            "brand": false,
+            "keys": [
+              "value",
+              "object",
+              "read",
+              "default",
+              "Symbol(Symbol.toStringTag)"
+            ],
+            "prototype": "null",
+            "tag": "Module",
+            "extensible": true,
+            "sealed": false,
+            "frozen": false,
+            "descriptors": [
+              {
+                "key": "value",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "object",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "read",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "default",
+                "valueType": "undefined",
+                "get": "function",
+                "set": "undefined",
+                "writable": null,
+                "enumerable": true,
+                "configurable": true
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "valueType": "string",
+                "get": "undefined",
+                "set": "undefined",
+                "writable": false,
+                "enumerable": false,
+                "configurable": false
+              }
+            ]
+          },
+          "value": 1,
+          "object": 1,
+          "defaultValue": 1,
+          "defaultSame": true,
+          "read": 1
+        }
+      ]
+    }
+  }
+]

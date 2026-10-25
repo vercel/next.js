@@ -14,7 +14,9 @@ import { doMock, doUnmock } from './mocking/dynamic'
 import { resetModules } from './mocking/module-cache'
 import {
   getTestApi,
+  getCurrentTest,
   getActiveAttempt,
+  isPublicTaskSelectionEnabled,
   getAssertionRuntime,
   getAssertionRuntimeForAssertions,
   getProvidedValue,
@@ -22,7 +24,11 @@ import {
 } from './runner'
 import type { TestExpect } from './assertions'
 import type { spies } from '../../compiled/next-test-primitives'
-import type { File, Suite } from './runner/tasks'
+import {
+  registerPublishedTaskListener,
+  type File,
+  type Suite,
+} from './runner/tasks'
 export type {
   TestContext,
   TestBody,
@@ -203,9 +209,20 @@ export function onTestFinished(
   handler: OnTestFinishedHandler,
   timeout?: number
 ) {
-  const context = getActiveAttempt()
-  if (!context) throw new Error('onTestFinished requires an active test.')
-  context.onTestFinished(handler, timeout)
+  if (!isPublicTaskSelectionEnabled()) {
+    const context = getActiveAttempt()
+    if (!context) throw new Error('onTestFinished requires an active test.')
+    return context.onTestFinished(handler, timeout)
+  }
+  const task = getCurrentTest()
+  if (!task)
+    throw new Error('Hook onTestFinished() can only be called inside a test')
+  registerPublishedTaskListener(
+    task,
+    'onTestFinished',
+    handler as TestBody,
+    timeout
+  )
 }
 
 export function createExpect(task?: {
@@ -507,9 +524,20 @@ export const aroundAll = <ExtraContext = object>(
   timeout?: number
 ) => getTestApi().aroundAll(fn as AroundAllBody, timeout)
 export function onTestFailed(handler: OnTestFailedHandler, timeout?: number) {
-  const context = getActiveAttempt()
-  if (!context) throw new Error('onTestFailed requires an active test.')
-  context.onTestFailed(handler, timeout)
+  if (!isPublicTaskSelectionEnabled()) {
+    const context = getActiveAttempt()
+    if (!context) throw new Error('onTestFailed requires an active test.')
+    return context.onTestFailed(handler, timeout)
+  }
+  const task = getCurrentTest()
+  if (!task)
+    throw new Error('Hook onTestFailed() can only be called inside a test')
+  registerPublishedTaskListener(
+    task,
+    'onTestFailed',
+    handler as TestBody,
+    timeout
+  )
 }
 // These are type assertions: TypeScript checks their generics. They neither
 // inspect runtime values nor initialize another test/controller runtime.

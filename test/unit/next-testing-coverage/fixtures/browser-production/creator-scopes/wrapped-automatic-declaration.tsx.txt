@@ -1,0 +1,3 @@
+import React from 'react'
+export class View extends React.Component<{label:string}> { render(){ return <b>{this.props.label}</b> } }
+export const Unused = () => <i />

@@ -1,0 +1,334 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "fluent-chai-hard",
+        "trace": [
+          {
+            "phase": "foreign",
+            "name": "equal",
+            "returnedType": "object",
+            "sameAssertion": false,
+            "ownerCount": 1,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "kind": "matcher-state",
+            "taskIsOwner": true,
+            "sameReceiver": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "deep-equal",
+            "returnedType": "object",
+            "sameAssertion": false,
+            "ownerCount": 2,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "kind": "matcher-state",
+            "taskIsOwner": true,
+            "sameReceiver": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "property",
+            "returnedType": "object",
+            "sameAssertion": false,
+            "ownerCount": 3,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "kind": "matcher-state",
+            "taskIsOwner": true,
+            "sameReceiver": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "lengthOf",
+            "returnedType": "object",
+            "sameAssertion": false,
+            "ownerCount": 4,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "kind": "matcher-state",
+            "taskIsOwner": true,
+            "sameReceiver": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "instanceOf",
+            "returnedType": "object",
+            "sameAssertion": false,
+            "ownerCount": 5,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "kind": "matcher-state",
+            "taskIsOwner": true,
+            "sameReceiver": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "include",
+            "returnedType": "object",
+            "sameAssertion": false,
+            "ownerCount": 6,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "kind": "matcher-state",
+            "taskIsOwner": true,
+            "sameReceiver": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "match",
+            "returnedType": "object",
+            "sameAssertion": false,
+            "ownerCount": 7,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "kind": "matcher-state",
+            "taskIsOwner": true,
+            "sameReceiver": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "ok",
+            "returnedType": "object",
+            "sameAssertion": false,
+            "ownerCount": 8,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "kind": "matcher-state",
+            "taskIsOwner": true,
+            "sameReceiver": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "true",
+            "returnedType": "object",
+            "sameAssertion": false,
+            "ownerCount": 9,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "kind": "matcher-state",
+            "taskIsOwner": true,
+            "sameReceiver": true,
+            "promise": ""
+          },
+          {
+            "phase": "foreign",
+            "name": "a",
+            "returnedType": "object",
+            "sameAssertion": false,
+            "ownerCount": 10,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "kind": "matcher-state",
+            "taskIsOwner": true,
+            "sameReceiver": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "equal",
+            "returnedType": "object",
+            "sameAssertion": false,
+            "ownerCount": 11,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "kind": "matcher-state",
+            "taskIsOwner": true,
+            "sameReceiver": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "deep-equal",
+            "returnedType": "object",
+            "sameAssertion": false,
+            "ownerCount": 12,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "kind": "matcher-state",
+            "taskIsOwner": true,
+            "sameReceiver": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "property",
+            "returnedType": "object",
+            "sameAssertion": false,
+            "ownerCount": 13,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "kind": "matcher-state",
+            "taskIsOwner": true,
+            "sameReceiver": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "lengthOf",
+            "returnedType": "object",
+            "sameAssertion": false,
+            "ownerCount": 14,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "kind": "matcher-state",
+            "taskIsOwner": true,
+            "sameReceiver": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "instanceOf",
+            "returnedType": "object",
+            "sameAssertion": false,
+            "ownerCount": 15,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "kind": "matcher-state",
+            "taskIsOwner": true,
+            "sameReceiver": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "include",
+            "returnedType": "object",
+            "sameAssertion": false,
+            "ownerCount": 16,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "kind": "matcher-state",
+            "taskIsOwner": true,
+            "sameReceiver": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "match",
+            "returnedType": "object",
+            "sameAssertion": false,
+            "ownerCount": 17,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "kind": "matcher-state",
+            "taskIsOwner": true,
+            "sameReceiver": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "ok",
+            "returnedType": "object",
+            "sameAssertion": false,
+            "ownerCount": 18,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "kind": "matcher-state",
+            "taskIsOwner": true,
+            "sameReceiver": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "true",
+            "returnedType": "object",
+            "sameAssertion": false,
+            "ownerCount": 19,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "kind": "matcher-state",
+            "taskIsOwner": true,
+            "sameReceiver": true,
+            "promise": ""
+          },
+          {
+            "phase": "afterAll",
+            "name": "a",
+            "returnedType": "object",
+            "sameAssertion": false,
+            "ownerCount": 20,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "kind": "matcher-state",
+            "taskIsOwner": true,
+            "sameReceiver": true,
+            "promise": ""
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "creator fluent Chai owner",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "foreign fluent Chai caller",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

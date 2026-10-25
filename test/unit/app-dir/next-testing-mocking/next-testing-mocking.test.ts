@@ -2734,6 +2734,106 @@ describe('compiler-certified ordered runtime demand components', () => {
       fresh.close()
     }
   })
+  it.each(['sync', 'async', 'then-getter'])(
+    'preserves one factory error wrapper and clears failed registration for %s failure',
+    async (mode) => {
+      const h = host()
+      const raw = new SyntaxError('actual factory failure')
+      let calls = 0
+      let getterReads = 0
+      try {
+        dynamic.doMock('./a', () => {
+          calls++
+          if (mode === 'sync') throw raw
+          if (mode === 'async') return Promise.reject(raw)
+          return Object.defineProperty({}, 'then', {
+            get() {
+              getterReads++
+              throw raw
+            },
+          })
+        })
+        const first = await h
+          .importer(1)
+          .A(12)
+          .catch((error: Error) => error)
+        const second = await h
+          .importer(1)
+          .A(12)
+          .catch((error: Error) => error)
+        expect(first).not.toBe(second)
+        expect(first.cause).toBe(raw)
+        expect(second.cause).toBe(raw)
+        expect(first.cause.cause).toBeUndefined()
+        expect(calls).toBe(2)
+        expect(getterReads).toBe(mode === 'then-getter' ? 2 : 0)
+        expect(h.evaluated).toEqual([])
+      } finally {
+        h.close()
+      }
+    }
+  )
+  it('lets the actual original finish while its importing factory waits on an independent gate', async () => {
+    const h = host()
+    const entered = deferred<void>()
+    const originalGate = deferred<void>()
+    const factoryGate = deferred<void>()
+    const original = { token: 'original' }
+    const mocked = { token: 'mocked' }
+    const rows: string[] = []
+    try {
+      h.bodies.set(2, async () => {
+        entered.resolve()
+        await originalGate.promise
+        rows.push('original')
+        return original
+      })
+      dynamic.doMock('./a', async (importOriginal) => {
+        expect(await importOriginal()).toBe(original)
+        rows.push('factory-holding')
+        await factoryGate.promise
+        rows.push('factory')
+        return mocked
+      })
+      const first = h.importer(1).A(12)
+      await entered.promise
+      const second = h.importer(1).A(12)
+      originalGate.resolve()
+      expect(await second).toBe(original)
+      expect(rows).toEqual(['original', 'factory-holding'])
+      factoryGate.resolve()
+      expect(await first).toBe(mocked)
+      expect(await h.importer(1).A(12)).toBe(mocked)
+      expect(rows).toEqual(['original', 'factory-holding', 'factory'])
+      expect(h.evaluated).toEqual([2])
+    } finally {
+      originalGate.resolve()
+      factoryGate.resolve()
+      h.close()
+    }
+  })
+  it('retains distinct ordinary original callback Promises with one actual namespace', async () => {
+    const h = host()
+    const value = { token: {} }
+    try {
+      h.bodies.set(2, async () => value)
+      dynamic.doMock('./a', async (importOriginal) => {
+        expect(importOriginal.constructor).toBe(Function)
+        expect(importOriginal.length).toBe(0)
+        const first = importOriginal()
+        const second = importOriginal()
+        expect(first).not.toBe(second)
+        const [a, b] = await Promise.all([first, second])
+        expect(a).toBe(value)
+        expect(b).toBe(value)
+        return a
+      })
+      expect(await h.importer(1).A(12)).toBe(value)
+      expect(h.evaluated).toEqual([2])
+    } finally {
+      h.close()
+    }
+  })
 })
 
 describe('native pending namespace primitive with actual async runtime state', () => {
@@ -2930,5 +3030,29 @@ describe('native pending namespace primitive with actual async runtime state', (
     expect(
       prototype.E.call(context, 'ordinary', context.c.get('ordinary'))
     ).toBeUndefined()
+  })
+})
+
+it('preserves actual callback Promise creation and captured loader origins across live scopes', () => {
+  const value = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [require('node:path').join(__dirname, 'runtime-callback-origins.cjs')],
+      { encoding: 'utf8', timeout: 20000 }
+    )
+  )
+  expect(value).toEqual({
+    factory: {
+      callbackPromiseScope: 'caller-B',
+      loaderScope: 'factory-A',
+      ordinaryCallback: true,
+      arguments: 0,
+    },
+    publicCaller: {
+      publicPromiseScope: 'caller-B',
+      loaderScope: 'caller-B',
+    },
+    exactNamespace: true,
+    lateErrors: 0,
   })
 })

@@ -38,6 +38,8 @@ async function body(request: IncomingMessage) {
 /** A dedicated loopback server, never a route on the tested Next application. */
 export async function createClientServer(options: {
   artifact: CompiledBrowserClientTestArtifact
+  testFrame?: boolean
+  userCancelSignal?: AbortSignal
   configuration: Omit<
     ClientConfiguration,
     'authorization' | 'rpcURL' | 'sourceMaps'
@@ -57,7 +59,9 @@ export async function createClientServer(options: {
     configuration.revision !== artifact.revision ||
     configuration.sourceHash !== artifact.sourceHash ||
     configuration.filePath !== artifact.client.sourceFile ||
-    !configuration.ownerToken
+    !configuration.ownerToken ||
+    (configuration.userCancellation === true) !==
+      (options.userCancelSignal !== undefined)
   )
     throw new Error(
       'Browser Mode server owner does not match its compiled artifact.'
@@ -101,6 +105,30 @@ export async function createClientServer(options: {
       rejectComplete(terminal)
     }
   }
+  let controlWaitStarted = false,
+    controlWaitFinished = false,
+    controlClosed = false,
+    controlReplyValue: boolean | undefined,
+    finalizedUserCancellation = false
+  let resolveControlWait!: (cancelled: boolean) => void
+  const controlWait = options.userCancelSignal
+    ? new Promise<boolean>((resolve) => {
+        resolveControlWait = resolve
+      })
+    : undefined
+  function releaseControlWait(cancelled: boolean) {
+    if (controlWait && controlReplyValue === undefined) {
+      controlReplyValue = cancelled
+      resolveControlWait(cancelled)
+    }
+  }
+  const cancelByUser = () => {
+    if (!controlClosed) releaseControlWait(true)
+  }
+  options.userCancelSignal?.addEventListener('abort', cancelByUser, {
+    once: true,
+  })
+  if (options.userCancelSignal?.aborted) cancelByUser()
   async function handle(request: IncomingMessage, response: ServerResponse) {
     response.setHeader('X-Content-Type-Options', 'nosniff')
     response.setHeader('Cache-Control', 'no-store')
@@ -108,7 +136,10 @@ export async function createClientServer(options: {
     // loader evaluates the JavaScript assignments in saved external snapshots.
     response.setHeader(
       'Content-Security-Policy',
-      "default-src 'none'; script-src 'self' 'unsafe-eval'; connect-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; frame-ancestors 'none'"
+      "default-src 'none'; script-src 'self' 'unsafe-eval'; connect-src 'self' http: https:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; " +
+        (options.testFrame
+          ? "frame-src 'self'; frame-ancestors 'self'"
+          : "frame-ancestors 'none'")
     )
     try {
       if (closing || request.headers.host !== new URL(origin).host) {
@@ -120,6 +151,21 @@ export async function createClientServer(options: {
       if (url.origin !== origin || url.search || url.hash) {
         response.writeHead(404)
         response.end()
+        return
+      }
+      if (
+        options.testFrame &&
+        request.method === 'GET' &&
+        url.pathname === `${prefix}host`
+      ) {
+        response.setHeader(
+          'Set-Cookie',
+          `${cookie}; Path=/; HttpOnly; SameSite=Strict`
+        )
+        response.setHeader('Content-Type', 'text/html; charset=utf-8')
+        response.end(
+          '<!doctype html><html><head><style>html,body{width:100%;height:100%;margin:0;padding:0}iframe{display:block;width:100%;height:100%;border:0}</style><link rel="icon" href="data:,"></head><body><iframe src="about:blank"></iframe></body></html>'
+        )
         return
       }
       if (request.method === 'GET' && url.pathname === prefix) {
@@ -141,7 +187,7 @@ body {
   margin: 0;
   min-height: 100vh;
 }
-</style>${artifact.client.styles.map((file) => `<link rel="stylesheet" href="${assetURL(file)}">`).join('')}</head><body>${artifact.client.scripts.map((file) => `<script defer src="${assetURL(file)}"></script>`).join('')}</body></html>`
+</style>${artifact.client.styles.map((file) => `<link rel="stylesheet" href="${assetURL(file)}">`).join('')}<link rel="icon" href="data:,"></head><body>${artifact.client.scripts.map((file) => `<script defer src="${assetURL(file)}"></script>`).join('')}</body></html>`
         )
         return
       }
@@ -191,6 +237,58 @@ body {
         )
         response.end(bytes)
         return
+      }
+      if (
+        controlWait &&
+        request.method === 'POST' &&
+        url.pathname === `${prefix}rpc/user-cancellation`
+      ) {
+        if (
+          request.headers.authorization !== authorization ||
+          request.headers.origin !== origin ||
+          request.headers['content-type'] !== 'application/json'
+        )
+          throw new Error('Invalid Browser Mode scheduling control request.')
+        const value = await body(request)
+        if (!record(value))
+          throw new Error('Invalid Browser Mode scheduling control message.')
+        assertClientIdentity(value, configuration)
+        const keys = Object.keys(value).sort().join(',')
+        const identityKeys = 'entryId,ownerToken,revision,runId,type,version'
+        if (value.type === 'wait' && keys === identityKeys) {
+          if (controlWaitStarted || controlClosed || completed)
+            throw new Error('Duplicate Browser Mode scheduling control wait.')
+          controlWaitStarted = true
+          response.setHeader('Content-Type', 'application/json')
+          // Admit the actual control owner before collection. The final JSON
+          // body remains pending independently of the ordinary RPC FIFO.
+          response.write(' ')
+          const cancelled = await controlWait
+          if (!response.destroyed) response.end(JSON.stringify({ cancelled }))
+          controlWaitFinished = true
+          return
+        }
+        if (
+          value.type === 'close' &&
+          keys === 'delivered,' + identityKeys &&
+          typeof value.delivered === 'boolean'
+        ) {
+          if (
+            !controlWaitStarted ||
+            controlClosed ||
+            completed ||
+            (value.delivered && controlReplyValue !== true)
+          )
+            throw new Error('Invalid Browser Mode scheduling control close.')
+          controlClosed = true
+          options.userCancelSignal?.removeEventListener('abort', cancelByUser)
+          releaseControlWait(false)
+          finalizedUserCancellation = value.delivered
+          response.setHeader('Content-Type', 'application/json')
+          response.end(JSON.stringify({ cancelled: value.delivered }))
+          return
+        }
+        throw new Error('Invalid Browser Mode scheduling control message.')
       }
       if (request.method !== 'POST' || url.pathname !== `${prefix}rpc`) {
         response.writeHead(404)
@@ -351,6 +449,8 @@ body {
   function dispose() {
     return (disposal ??= (async () => {
       closing = true
+      options.userCancelSignal?.removeEventListener('abort', cancelByUser)
+      releaseControlWait(false)
       const stopped = new Promise<void>((resolve, reject) =>
         server.close((error) => (error ? reject(error) : resolve()))
       )
@@ -385,7 +485,11 @@ body {
   const mapper = createClientSourceMapResolver({ ...configuration, sourceMaps })
   return {
     url: `${origin}${prefix}`,
+    ...(options.testFrame ? { hostURL: `${origin}${prefix}host` } : {}),
     completion,
+    userCancellationFinalized() {
+      return controlClosed && controlWaitFinished && finalizedUserCancellation
+    },
     async verify() {
       await snapshots.verify()
       await assets.verify()
@@ -396,7 +500,11 @@ body {
     fail,
     assertClean() {
       if (terminal) throw terminal
-      if (!completed || busy)
+      if (
+        !completed ||
+        busy ||
+        (controlWait && (!controlClosed || !controlWaitFinished))
+      )
         throw new Error(
           'Browser Mode transport has no clean terminal completion.'
         )

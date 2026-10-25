@@ -1,0 +1,34 @@
+import { afterAll, expect, test } from 'vitest'
+const trace = []
+let held, caller, owner, phase, calls = 0
+const error = new TypeError('actual throw message')
+const operations = [
+  ['absent', () => { throw error }, []],
+  ['undefined', () => { throw error }, [undefined]],
+  ['message', () => { throw error }, ['throw message']],
+  ['regexp', () => { throw error }, [/actual throw/]],
+  ['class', () => { throw error }, [TypeError]],
+  ['error', () => { throw error }, [new TypeError('actual throw message')]],
+  ['scalar', () => { throw 42 }, [42]],
+  ['asymmetric', () => { throw error }, [expect.objectContaining({ message: 'actual throw message' })]],
+  ['no-throw-negative', () => undefined, [], true],
+  ['wrong-error-negative', () => { throw error }, [RangeError], true],
+  ['wrong-message', () => { throw error }, ['missing']],
+  ['no-throw', () => undefined, []],
+  ['non-callable', 42, []],
+]
+function run(label) {
+  phase = label
+  for (const name of ['toThrow', 'toThrowError']) for (const [kind, fn, args, negate = false] of operations) {
+    const value = typeof fn === 'function' ? function() { calls++; trace.push({ phase, name, kind, callbackThisUndefined: this === undefined }); return fn() } : fn
+    const assertion = negate ? held(value).not : held(value)
+    try {
+      const returned = Reflect.apply(assertion[name], assertion, args)
+      trace.push({ phase, name, kind, returnedType: typeof returned, sameReceiver: returned === assertion, absentThen: returned?.then === undefined, ownerCount: held.getState().assertionCalls, callerCount: caller?.getState().assertionCalls ?? null })
+    } catch (error) { trace.push({ phase, name, kind, error: { name: error.name, message: error.message }, ownerCount: held.getState().assertionCalls, callerCount: caller?.getState().assertionCalls ?? null }) }
+  }
+  trace.push({ phase, kind: 'counts', calls, ownerCount: held.getState().assertionCalls, callerCount: caller?.getState().assertionCalls ?? null })
+}
+test('creator throw builtin owner', context => { held = context.expect; owner = context.task })
+test('foreign throw builtin caller', context => { caller = context.expect; run('foreign'); trace.push({ kind: 'identities', sameOwner: held === owner.context.expect, differentCaller: held !== caller }) })
+afterAll(() => { run('afterAll'); console.log('DECLARATION_FN:' + JSON.stringify({ kind: 'late-throw-builtins', trace })) })

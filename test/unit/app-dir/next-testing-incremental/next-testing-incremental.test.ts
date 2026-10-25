@@ -806,6 +806,221 @@ it.each(['development', 'production'] as const)(
 )
 
 it.each(['development', 'production'] as const)(
+  'selects actual default-watch %s consumers from fresh compiler source plans',
+  async (mode) => {
+    const repo = join(__dirname, '../../../..')
+    const fixture = await mkdtemp(join(repo, '.next-default-watch-'))
+    const inputs = join(__dirname, 'related-watch')
+    const expected = (
+      JSON.parse(
+        await readFile(join(inputs, 'default-watch.expected.json'), 'utf8')
+      ) as Record<typeof mode, RelatedWatchRow[]>
+    )[mode]
+    const originals = new Map<string, Buffer>()
+    for (const name of await readdir(inputs)) {
+      if (!name.endsWith('.txt')) continue
+      const bytes = await readFile(join(inputs, name))
+      originals.set(name.slice(0, -4), bytes)
+      await writeFile(join(fixture, name.slice(0, -4)), bytes)
+    }
+    await symlink(join(repo, 'node_modules'), join(fixture, 'node_modules'))
+    await writeFile(
+      join(fixture, 'next.config.mjs'),
+      'export default ' + JSON.stringify({ turbopack: { root: repo } }) + '\n'
+    )
+    await writeFile(
+      join(fixture, 'next.test.config.json'),
+      JSON.stringify({
+        maxWorkers: 1,
+        projects: [
+          {
+            name: 'default-watch',
+            environment: 'node',
+            mode,
+            include: ['*.test.mjs'],
+          },
+        ],
+      })
+    )
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      NODE_ENV: mode,
+      NEXT_TELEMETRY_DISABLED: '1',
+      FORCE_COLOR: '0',
+    }
+    delete env.CI
+    const outputFile = join(fixture, 'watch-result.json')
+    const child = spawn(
+      process.execPath,
+      [
+        join(repo, 'packages/next/dist/bin/next'),
+        'test',
+        fixture,
+        '--watch',
+        '--reporter=default',
+        '--reporter=json',
+        '--outputFile',
+        outputFile,
+      ],
+      { cwd: fixture, env, stdio: ['ignore', 'pipe', 'pipe'] }
+    )
+    let stdout = ''
+    let stderr = ''
+    let failure: Error | undefined
+    let close:
+      | { code: number | null; signal: NodeJS.Signals | null }
+      | undefined
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk
+    })
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk
+    })
+    child.once('error', (error) => {
+      failure = error
+    })
+    child.once('close', (code, signal) => {
+      close = { code, signal }
+    })
+    const readiness = () =>
+      (stdout.match(/Waiting for file changes\.\.\./g) ?? []).length
+    let digest: string | undefined
+    let settled = 0
+    const history = []
+    async function readRun(row: (typeof expected)[number]) {
+      return retry(
+        async () => {
+          if (failure) throw failure
+          if (close)
+            throw new Error(
+              'Default watch exited before readiness: ' +
+                JSON.stringify({ close, stdout, stderr })
+            )
+          const raw = await readFile(outputFile)
+          const nextDigest = createHash('sha256').update(raw).digest('hex')
+          expect(nextDigest).not.toBe(digest)
+          expect(readiness()).toBeGreaterThan(settled)
+          const report: RelatedWatchReport = JSON.parse(raw.toString())
+          const cases = report.testResults
+            .flatMap((file) =>
+              file.assertionResults.map((test) => ({
+                fullName: test.fullName,
+                status: test.status,
+                failureMessages: test.failureMessages,
+              }))
+            )
+            .sort((a, b) => a.fullName.localeCompare(b.fullName))
+          const outputs = report.next.events
+            .filter((event) => event.type === 'output')
+            .flatMap((event) => event.text.split('\n'))
+            .filter((line) => line.startsWith('RELATED153:'))
+            .map((line) => JSON.parse(line.slice('RELATED153:'.length)))
+            .sort((a, b) => a.case.localeCompare(b.case))
+          expect({
+            cases,
+            outputs,
+            total: report.numTotalTests,
+            passed: report.numPassedTests,
+            success: report.success,
+          }).toEqual({
+            cases: row.cases,
+            outputs: row.outputs,
+            total: row.total,
+            passed: row.passed,
+            success: row.success,
+          })
+          expect(report.numFailedTests).toBe(0)
+          return { digest: nextDigest, settled: readiness() }
+        },
+        60000,
+        100,
+        'default source generation'
+      )
+    }
+    async function readUnrelatedSelection() {
+      await retry(
+        async () => {
+          if (failure) throw failure
+          expect(close).toBeUndefined()
+          expect(readiness()).toBeGreaterThan(settled)
+          expect(
+            createHash('sha256')
+              .update(await readFile(outputFile))
+              .digest('hex')
+          ).toBe(digest)
+        },
+        60000,
+        100,
+        'closed default unrelated source selection'
+      )
+    }
+    try {
+      for (const row of expected) {
+        const edits: Record<string, readonly [string, string]> = {
+          'beta-edit': ['source-beta.mjs', 'export const value = 45\n'],
+          'shared-edit': ['shared.mjs', 'export const shared = 1\n'],
+          'unrelated-edit': ['unrelated.mjs', 'export const unused = 1\n'],
+          'alpha-edit': ['source-alpha.mjs', 'export const value = 44\n'],
+        }
+        const edit = edits[row.stage]
+        if (edit) await writeFile(join(fixture, edit[0]), edit[1])
+        if (row.noNewReport) {
+          await readUnrelatedSelection()
+          settled = readiness()
+        } else {
+          const observed = await readRun(row)
+          digest = observed.digest
+          settled = observed.settled
+        }
+        history.push(row.stage)
+      }
+      expect(history).toEqual([
+        'initial',
+        'beta-edit',
+        'shared-edit',
+        'unrelated-edit',
+        'alpha-edit',
+      ])
+      for (const name of ['alpha.test.mjs', 'beta.test.mjs', 'package.json'])
+        expect(await readFile(join(fixture, name))).toEqual(originals.get(name))
+      child.kill('SIGINT')
+      await retry(
+        () => expect(close).toEqual({ code: 130, signal: null }),
+        15000,
+        100,
+        'default watch cleanup'
+      )
+    } finally {
+      if (!close) {
+        child.kill('SIGTERM')
+        try {
+          await retry(
+            () => expect(close).toBeDefined(),
+            15000,
+            100,
+            'failed default watch cleanup'
+          )
+        } finally {
+          if (!close) {
+            child.kill('SIGKILL')
+            await retry(
+              () => expect(close).toBeDefined(),
+              5000,
+              100,
+              'forced default watch cleanup'
+            )
+          }
+        }
+      }
+      if (failure || close?.code !== 130)
+        console.error({ failure, close, stdout, stderr })
+      await rm(fixture, { recursive: true, force: true })
+    }
+  },
+  330000
+)
+
+it.each(['development', 'production'] as const)(
   'retains changed-watch discovery and selects actual %s source consumers',
   async (mode) => {
     const repo = join(__dirname, '../../../..')
@@ -1047,4 +1262,42 @@ it.each(['development', 'production'] as const)(
     }
   },
   330000
+)
+
+it.each(
+  (['development', 'production'] as const).flatMap((mode) =>
+    (['static', 'setup', 'opaque', 'dynamic'] as const).map(
+      (kind) => [mode, kind] as const
+    )
+  )
+)(
+  'plans actual isolated Browser %s source dependencies for %s',
+  (mode, kind) => {
+    const stdout = execFileSync(
+      process.execPath,
+      [join(__dirname, 'browser-dependencies.cjs'), mode, kind],
+      { encoding: 'utf8', timeout: 150000 }
+    )
+    const observed = JSON.parse(stdout.trim().split('\n').at(-1)!)
+    expect(observed.mode).toBe(mode)
+    expect(observed.kind).toBe(kind)
+    expect(observed.closedNativePlan).toBe(true)
+    const entries = observed.actualNativePlan.entries
+    if (kind === 'dynamic') {
+      // Computed requests remain creator-refused; this is conservative selection.
+      expect(observed.controlOnly).toContain('dynamic execution remains open')
+      expect(entries).toHaveLength(1)
+      expect(entries[0].compilationFailed).toBe(true)
+      expect(entries[0].dependencies).toBeUndefined()
+    } else {
+      expect(entries).toHaveLength(kind === 'opaque' ? 1 : 2)
+      expect(
+        entries.every(
+          (entry: { dependencies: { complete: boolean } }) =>
+            entry.dependencies.complete === (kind !== 'opaque')
+        )
+      ).toBe(true)
+    }
+  },
+  160000
 )

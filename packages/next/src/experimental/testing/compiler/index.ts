@@ -1,4 +1,5 @@
 import { isDeepStrictEqual } from 'util'
+import { parse as parseDevelopmentJsx } from 'next/dist/compiled/babel/parser'
 import {
   readTestingDefaultConfiguration,
   assertTestingDefaultConfigurationEnvironment,
@@ -860,6 +861,31 @@ export async function createTestCompilerSession(
   )
     throw new Error('Invalid private native import coverage request')
   const nativeImportCoverageRoles = importCoverageRequest === true
+  const browserCoverageDeclarations = options.browserCoverageDeclarations
+  if (
+    browserCoverageDeclarations !== undefined &&
+    (browserCoverageDeclarations !== true ||
+      profile.environment !== 'browser' ||
+      profile.browserClient !== true ||
+      !['development', 'production'].includes(profile.mode) ||
+      profile.runtime !== 'nodejs' ||
+      profile.bundler !== 'turbopack' ||
+      profile.route !== undefined ||
+      nativeImportCoverageRoles)
+  )
+    throw new Error('Invalid private Browser coverage declaration profile')
+  const developmentImportPlan = options.browserDevelopmentImportPlan
+  if (
+    developmentImportPlan !== undefined &&
+    (!browserCoverageDeclarations || profile.mode !== 'development')
+  )
+    throw new Error(
+      'Development Browser imports require private planned declaration analysis'
+    )
+  const retainedDevelopmentImportPlan =
+    developmentImportPlan === undefined
+      ? undefined
+      : structuredClone(developmentImportPlan)
   profile = { ...profile }
   const loaded =
     configuredTestingDefaultConfiguration === undefined
@@ -964,6 +990,8 @@ export async function createTestCompilerSession(
               previewProps: fsChecker.previewProps,
               rewrites: fsChecker.rewrites,
               clientRouterFilters: undefined,
+              // Node test bodies observe function names and native error text.
+              noMangling: profile.environment === 'node',
               ...(configuredTestingDefaultConfiguration === undefined
                 ? {}
                 : {
@@ -1030,7 +1058,14 @@ export async function createTestCompilerSession(
       throw new Error(
         'Transform-only compiler plugins cannot yet combine with compiler helpers, setup files, serializers, coverage or shared cohorts.'
       )
-    if (dependencyPlan && (profile.environment !== 'node' || cohortEntries))
+    if (
+      dependencyPlan &&
+      ((profile.environment !== 'node' &&
+        !(
+          profile.environment === 'browser' && profile.browserClient === true
+        )) ||
+        cohortEntries)
+    )
       throw new Error(
         'Dependency planning currently requires isolated Node entries'
       )
@@ -1040,11 +1075,10 @@ export async function createTestCompilerSession(
       (coverage.version !== 1 ||
         (profile.browserClient
           ? coverage.kind !== 'browser-v8' || profile.environment !== 'browser'
-          : coverage.kind !== 'node-line' || profile.environment !== 'node') ||
-        (profile.browserClient && profile.mode !== 'development'))
+          : coverage.kind !== 'node-line' || profile.environment !== 'node'))
     ) {
       throw new Error(
-        'Coverage requires an explicit Node or development Browser Mode profile'
+        'Coverage requires an explicit Node or Browser Mode profile'
       )
     }
     if (JSON.stringify(entry.profile) !== JSON.stringify(profile)) {
@@ -1064,6 +1098,106 @@ export async function createTestCompilerSession(
         )
       }
       return file.split(sep).join('/')
+    }
+    let developmentImports = false
+    if (retainedDevelopmentImportPlan) {
+      if (
+        nativeLeaseState.disposed ||
+        !isDeepStrictEqual(
+          developmentImportPlan,
+          retainedDevelopmentImportPlan
+        ) ||
+        setupFiles.length ||
+        snapshotSerializers.length ||
+        cohortEntries ||
+        entry.profile.route !== undefined ||
+        !coverage
+      )
+        throw new Error(
+          'Development Browser import plan lost its exact compiler context'
+        )
+      const { assertCoverageSourcePlan } = await import(
+        '../coverage/source-analysis-plan.js'
+      )
+      await assertCoverageSourcePlan(retainedDevelopmentImportPlan, signal)
+      const requests = retainedDevelopmentImportPlan.requests
+      if (
+        !requests.length ||
+        requests.some((request) => !isDeepStrictEqual(request.profile, profile))
+      )
+        throw new Error('Development Browser import plan has a foreign profile')
+      if (
+        sourceAnalysis &&
+        !requests.some(
+          (request) =>
+            request.revision === sourceAnalysis.revision &&
+            request.source.file === sourceAnalysis.file &&
+            request.source.sha256 === sourceAnalysis.sha256
+        )
+      )
+        throw new Error(
+          'Development Browser import source was not requested by its plan'
+        )
+      const candidates = sourceAnalysis
+        ? requests.filter(
+            (request) => request.source.file === sourceAnalysis.file
+          )
+        : requests
+      for (const request of candidates) {
+        projectFile(request.source.file)
+        if (!/\.[jt]sx$/.test(request.source.file)) continue
+        const text = await readFile(request.source.file, 'utf8')
+        if (
+          createHash('sha256').update(text).digest('hex') !==
+          request.source.sha256
+        )
+          throw new Error(
+            'Development Browser import source changed after selection'
+          )
+        const parsed = parseDevelopmentJsx(text, {
+          sourceType: 'module',
+          plugins: request.source.file.endsWith('.tsx')
+            ? ['typescript', 'jsx']
+            : ['jsx'],
+        })
+        let jsx = false
+        let valueImport = false
+        function visit(node: unknown): void {
+          if (!node || typeof node !== 'object') return
+          if (Array.isArray(node)) {
+            node.forEach(visit)
+            return
+          }
+          const record = node as Record<string, unknown>
+          if (record.type === 'JSXElement' || record.type === 'JSXFragment')
+            jsx = true
+          if (
+            record.type === 'ImportDeclaration' &&
+            record.importKind !== 'type' &&
+            Array.isArray(record.specifiers)
+          )
+            valueImport ||= record.specifiers.some(
+              (specifier) =>
+                specifier.importKind !== 'type' &&
+                specifier.local?.type === 'Identifier'
+            )
+          for (const [key, child] of Object.entries(record))
+            if (!['loc', 'comments', 'tokens'].includes(key)) visit(child)
+        }
+        visit(parsed)
+        developmentImports ||= jsx && valueImport
+      }
+      if (!developmentImports && !sourceAnalysis)
+        throw new Error(
+          'Development Browser imports require actual planned JSX value imports'
+        )
+      await assertCoverageSourcePlan(retainedDevelopmentImportPlan, signal)
+      if (
+        !isDeepStrictEqual(developmentImportPlan, retainedDevelopmentImportPlan)
+      )
+        throw new Error(
+          'Development Browser import plan changed during admission'
+        )
     }
     const inputs = cohortEntries ?? [entry]
     if (cohortEntries) {
@@ -1291,11 +1425,18 @@ export async function createTestCompilerSession(
             ),
           }
         : {}),
-      ...(coverage && profile.mode === 'production'
+      ...(coverage && profile.mode === 'production' && !profile.browserClient
         ? { sourceCoverage: true }
         : {}),
       ...(profile.browserClient
-        ? { browserClient: true, browserCoverage: !!coverage }
+        ? {
+            browserClient: true,
+            browserCoverage: !!coverage,
+            ...(coverage &&
+            (profile.mode === 'production' || developmentImports)
+              ? { browserSourceCoverage: true }
+              : {}),
+          }
         : {}),
       environment: profile.environment,
       ...(profile.route !== undefined ? { route: profile.route } : {}),
@@ -1535,10 +1676,15 @@ export async function createTestCompilerSession(
           }
         }
         if (metadata.moduleCache !== undefined) {
+          const productionReset =
+            profile.mode === 'production' &&
+            profile.route === undefined &&
+            !metadata.moduleMocking &&
+            !metadata.dynamicModuleMocking
           if (
             metadata.moduleCache?.version !== 1 ||
             profile.environment !== 'node' ||
-            profile.mode !== 'development' ||
+            (profile.mode !== 'development' && !productionReset) ||
             cohortInputs ||
             (metadata.moduleMocking && !staticRuntimeMocks) ||
             setupFiles.length ||
@@ -1700,7 +1846,7 @@ export async function createTestCompilerSession(
           )
         : undefined
       const sourcePreservation =
-        coverage && profile.mode === 'production'
+        coverage && profile.mode === 'production' && !profile.browserClient
           ? await readSourceCoverageProof(staging, output.entryPath, files)
           : undefined
       const coverageMetadata = coverage
@@ -2051,12 +2197,20 @@ export async function createTestCompilerSession(
       signal.throwIfAborted()
       if (
         !revision ||
-        profile.environment !== 'node' ||
-        profile.browserClient ||
+        (browserCoverageDeclarations
+          ? profile.environment !== 'browser' ||
+            profile.browserClient !== true ||
+            !['development', 'production'].includes(profile.mode) ||
+            (profile.mode === 'development' &&
+              !/\.(?:ts|mts|[jt]sx)$/.test(selected.file)) ||
+            !configurationImports ||
+            nativeContext !== undefined
+          : profile.environment !== 'node' || profile.browserClient) ||
         profile.route !== undefined ||
         (!/\.[cm]?ts$/.test(selected.file) &&
           !(
-            nativeImportCoverageRoles === true &&
+            (nativeImportCoverageRoles === true ||
+              browserCoverageDeclarations) &&
             /\.[jt]sx$/.test(selected.file)
           )) ||
         /\.d\.(?:[cm]?ts|tsx)$/.test(selected.file) ||
@@ -2065,7 +2219,9 @@ export async function createTestCompilerSession(
         (await realpath(selected.file)) !== selected.file
       )
         throw new Error(
-          'Coverage source analysis requires a canonical TypeScript source and a Node compiler profile'
+          browserCoverageDeclarations
+            ? 'Browser coverage declaration analysis requires its canonical source and actual mode-specific Browser profile'
+            : 'Coverage source analysis requires a canonical TypeScript source and a Node compiler profile'
         )
       if (configurationImports)
         assertConfigurationImportObservation(configurationImports.configFile)
@@ -2086,7 +2242,10 @@ export async function createTestCompilerSession(
         [],
         'list',
         [],
-        { version: 1, kind: 'node-line' },
+        {
+          version: 1,
+          kind: browserCoverageDeclarations ? 'browser-v8' : 'node-line',
+        },
         undefined,
         false,
         { ...selected, revision },

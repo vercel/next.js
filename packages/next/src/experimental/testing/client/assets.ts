@@ -8,6 +8,53 @@ import {
 import type { CompiledBrowserClientTestArtifact } from '../contracts'
 import { assertClientPath } from '../compiler/client'
 
+/** Select only sources actually mapped by the same flat section as their content. */
+function selectMappedSources(rawMap: RawSourceMap, sourceHash: string) {
+  const selected = new Set<string>()
+  const contents = new Map<string, Set<string | null>>()
+  function visit(map: RawSourceMap, flatConsumer?: SourceMapConsumer) {
+    const sections = (
+      map as RawSourceMap & { sections?: { map: RawSourceMap }[] }
+    ).sections
+    if (sections) {
+      for (const section of sections) visit(section.map)
+      return
+    }
+    // Indexed enumeration can misread absent source indexes. Flat consumers may
+    // normalize an absent source to '.' or sourceRoot; null original coordinates
+    // are authoritative for whether the segment maps a source.
+    const consumer = flatConsumer ?? new SourceMapConsumer(map)
+    const sources = new Set<string>()
+    consumer.eachMapping((mapping) => {
+      if (
+        mapping.source &&
+        mapping.originalLine !== null &&
+        mapping.originalColumn !== null
+      )
+        sources.add(mapping.source)
+    })
+    for (const source of sources) {
+      const content = consumer.sourceContentFor(source, true)
+      const hash =
+        content === null
+          ? null
+          : createHash('sha256').update(content).digest('hex')
+      let versions = contents.get(source)
+      if (!versions) contents.set(source, (versions = new Set()))
+      versions.add(hash)
+      if (hash === sourceHash) selected.add(source)
+    }
+  }
+  // Construction validates every nested version, section offset and map/url.
+  visit(rawMap, new SourceMapConsumer(rawMap))
+  for (const source of selected)
+    if (contents.get(source)!.size > 1)
+      throw new Error(
+        'Ambiguous original source identities in Browser Mode maps.'
+      )
+  return [...selected]
+}
+
 /** Every read revalidates the immutable complete native output closure. */
 export async function createClientAssetReader(
   artifact: CompiledBrowserClientTestArtifact
@@ -111,20 +158,8 @@ export async function createClientAssetReader(
           throw new Error(
             'Browser source-map closure exceeded the bounded client profile.'
           )
-        const map = JSON.parse(raw.toString('utf8')),
-          consumer = new SourceMapConsumer(map as RawSourceMap)
-        const sources = new Set<string>()
-        consumer.eachMapping((mapping) => {
-          if (mapping.source) sources.add(mapping.source)
-        })
-        const selected = [...sources].filter((source) => {
-          const text = consumer.sourceContentFor(source, true)
-          return (
-            text !== null &&
-            createHash('sha256').update(text).digest('hex') ===
-              artifact.sourceHash
-          )
-        })
+        const map = JSON.parse(raw.toString('utf8'))
+        const selected = selectMappedSources(map, artifact.sourceHash)
         for (const source of selected) originals.add(source)
         if (selected.length)
           maps.push({

@@ -1,0 +1,42 @@
+[
+  {
+    "name": "registered and unregistered unused TLA targets stay lazy",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "factory-only imports do not start the TLA original",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "importOriginal shares a pending TLA source with overlapping public import",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "registration during a pending original preserves held original and observes final cache",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "reset while original is pending retains held namespace and creates a fresh generation",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "pending factory original fallback finishes through the real TLA before mocked completion",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "TLA rejection through importOriginal retries factories and reset clears the original failure",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "unregister while a factory is pending preserves its held completion and selects original later",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

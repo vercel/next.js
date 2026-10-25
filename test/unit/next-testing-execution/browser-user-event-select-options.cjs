@@ -12,6 +12,7 @@ const {
   const dom = new JSDOM(
     '<!DOCTYPE html><select aria-label="choices" multiple><option value="same">Alpha</option><option value="same">Beta</option><option value="third">Gamma</option></select>'
   )
+  const restoreBrowserDomRealm = require('./browser-dom-realm.cjs')(dom.window)
   const saved = new Map(
     ['document', 'Element', 'HTMLElement'].map((key) => [
       key,
@@ -132,6 +133,7 @@ const {
       if (descriptor) Object.defineProperty(globalThis, key, descriptor)
       else Reflect.deleteProperty(globalThis, key)
     }
+    restoreBrowserDomRealm()
   }
 })().catch((error) => {
   console.error(error)

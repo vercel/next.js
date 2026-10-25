@@ -1,0 +1,25 @@
+import { test, expect, beforeAll, beforeEach, afterEach, afterAll } from 'vitest'
+import { page } from 'vitest/browser'
+const note = value => console.log('HEADLESS_HOOK:' + JSON.stringify(value))
+beforeAll(() => note('beforeAll'))
+beforeEach(() => note('beforeEach'))
+afterEach(() => note('afterEach'))
+afterAll(() => note('afterAll'))
+test('configured browser executes actual native input', async () => {
+  const button = document.createElement('button')
+  button.textContent = 'owned input'
+  let count = 0
+  button.addEventListener('click', () => { count++; button.textContent = 'clicked' })
+  document.body.append(button)
+  try {
+    await page.getByRole('button', { name: 'owned input' }).click()
+    expect(count).toBe(1)
+    expect(button.textContent).toBe('clicked')
+    expect({ clicked: count }).toMatchInlineSnapshot(`
+      {
+        "clicked": 1,
+      }
+    `)
+    console.log('HEADLESS_BODY:' + JSON.stringify({count,headlessChrome:navigator.userAgent.includes('HeadlessChrome'),firefox:navigator.userAgent.includes('Firefox/')}))
+  } finally { button.remove() }
+})

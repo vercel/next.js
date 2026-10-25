@@ -1,0 +1,85 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "owned-getter-returned-chain",
+        "trace": [
+          {
+            "phase": "body",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "sameTask": true,
+            "actual": "owned",
+            "expected": "owned"
+          },
+          {
+            "phase": "body",
+            "kind": "returned",
+            "sameAlias": false,
+            "sameOriginal": false,
+            "hasThen": "undefined"
+          },
+          {
+            "phase": "body",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "sameTask": true,
+            "actual": "owned",
+            "expected": "owned"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "sameTask": true,
+            "actual": "owned",
+            "expected": "owned"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "returned",
+            "samePrevious": false,
+            "sameAlias": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "sameTask": true,
+            "actual": "owned",
+            "expected": "owned"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "sameTask": true,
+            "actual": "owned",
+            "expected": "owned"
+          }
+        ],
+        "count": 1,
+        "state": "pass"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "owned getter returned chain source",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeads": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 1,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

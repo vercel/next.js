@@ -39,6 +39,7 @@ pub mod single_file_ecmascript_output;
 pub mod source_map;
 pub(crate) mod static_code;
 mod swc_comments;
+mod test_declaration_source_map;
 pub mod text;
 pub mod text_source_transform;
 pub mod transform;
@@ -273,6 +274,11 @@ pub struct EcmascriptOptions {
     pub lazy_compilation: bool,
     /// Use Promise-driven generators for async continuations, including module wrappers.
     pub lower_async_to_generator: bool,
+    /// Exact private authoring source; ordinary application modules leave this absent.
+    pub test_declaration_call_adapter: Option<ResolvedVc<Box<dyn Source>>>,
+    /// Private Node-test admission for direct, resolved injected CommonJS writes.
+    /// Ordinary application and Browser contexts leave this disabled.
+    pub test_injected_commonjs_exports: bool,
     /// Native browser-test creator pass selected; not a public config value.
     pub browser_creator_scope: bool,
     /// Selected Browser test entry with an ESM import contract.
@@ -1331,6 +1337,26 @@ impl EcmascriptModuleContentOptions {
                         late_stmts: vec![CodeGenerationHoistedStmt::new(rcstr!("commonjs callable namespace publication"), publish)],
                         ..Default::default()
                     })
+                } else if certificate.kind == turbopack_core::module_graph::runtime_import_demands::RuntimeImportNamespaceKind::CommonJsLeafPromise {
+                    anyhow::ensure!(certificate.export_order.is_empty() && matches!(*exports.await?, EcmascriptExports::CommonJs(_)), "Promise namespace must retain its CommonJS export kind");
+                    let actual = ResolvedVc::try_downcast_type::<EcmascriptModuleAsset>(ResolvedVc::upcast::<Box<dyn Module>>(*module)).context("Promise namespace requires its exact full owner")?;
+                    let analysis = actual.analyze().await?;
+                    anyhow::ensure!(analysis.successful
+                        && !analysis.code_generation.await?.code_gens.iter().any(|code| matches!(code, code_gen::CodeGen::DynamicExpression(_)))
+                        && turbopack_core::reference::primary_chunkable_referenced_modules(Vc::upcast(*actual), false, false).await?.is_empty(),
+                        "Promise namespace must retain its exact successful leaf publication proof");
+                    let finish = GLOBALS.set(globals, || private_ident!("__turbopack_publish_commonjs_promise__"));
+                    let interop_default = !actual.source().ident().await?.path.path.ends_with(".mjs");
+                    let prepare = quote!("var $finish = $prepare($interop_default, true);" as Stmt,
+                        finish = finish.clone(),
+                        prepare: Expr = runtime_functions::TURBOPACK_COMMONJS_PUBLICATION.unmapped_expr(),
+                        interop_default: Expr = Expr::Lit(ast::Lit::Bool(ast::Bool { span: DUMMY_SP, value: interop_default })));
+                    let publish = quote!("if ($finish) $finish();" as Stmt, finish = finish);
+                    Some(CodeGeneration {
+                        hoisted_stmts: vec![CodeGenerationHoistedStmt::new(rcstr!("commonjs promise namespace preparation"), prepare)],
+                        late_stmts: vec![CodeGenerationHoistedStmt::new(rcstr!("commonjs promise namespace publication"), publish)],
+                        ..Default::default()
+                    })
                 } else { None }
             } else { None };
             let additional_code_gens = [async_code_gen, exports_code_gen, commonjs_publication];
@@ -1643,6 +1669,7 @@ impl EcmascriptModuleContent {
                 ),
                 minify: *options.chunking_context.minify_type().await?,
                 native_import_coverage: Vec::new(),
+                test_declaration_calls: Vec::new(),
                 scope_hoisting_syntax_contexts: None,
             };
 
@@ -2218,6 +2245,7 @@ struct CodeGenResult {
     original_source_map: CodeGenResultOriginalSourceMap,
     minify: MinifyType,
     native_import_coverage: Vec<native_import_coverage::NativeImportCoverageRole>,
+    test_declaration_calls: Vec<test_declaration_source_map::OwnedCall>,
     #[allow(clippy::type_complexity)]
     /// (Map<Module, corresponding context for imports>, `eval_context.imports.exports_ids`)
     scope_hoisting_syntax_contexts: Option<(
@@ -2354,7 +2382,7 @@ async fn process_parse_result(
                 trailing: Default::default(),
             };
 
-            let (early_hoisted_count, native_import_coverage) = process_content_with_code_gens(
+            let (early_hoisted_count, native_import_coverage, test_declaration_calls) = process_content_with_code_gens(
                 &mut program,
                 globals,
                 ast_paths.as_deref().map(|p| &p.ast_paths),
@@ -2459,6 +2487,7 @@ async fn process_parse_result(
                 original_source_map: CodeGenResultOriginalSourceMap::Single(original_source_map),
                 minify,
                 native_import_coverage,
+                test_declaration_calls,
                 scope_hoisting_syntax_contexts: retain_syntax_context
                     // TODO ideally don't clone here
                     .map(|(_, ctxts, _, export_contexts)| (ctxts, export_contexts.into_owned())),
@@ -2499,6 +2528,7 @@ async fn process_parse_result(
                         original_source_map: CodeGenResultOriginalSourceMap::Single(None),
                         minify: MinifyType::NoMinify,
                         native_import_coverage: Vec::new(),
+                test_declaration_calls: Vec::new(),
                         scope_hoisting_syntax_contexts: None,
                     }
                 }
@@ -2529,6 +2559,7 @@ async fn process_parse_result(
                         original_source_map: CodeGenResultOriginalSourceMap::Single(None),
                         minify: MinifyType::NoMinify,
                         native_import_coverage: Vec::new(),
+                test_declaration_calls: Vec::new(),
                         scope_hoisting_syntax_contexts: None,
                     }
                 }
@@ -2645,6 +2676,7 @@ async fn emit_content(
         minify,
         scope_hoisting_syntax_contexts: _,
         native_import_coverage,
+        test_declaration_calls,
     } = content;
 
     let owned_imports = if native_import_coverage.is_empty() {
@@ -2661,6 +2693,18 @@ async fn emit_content(
             source_map,
             native_import_coverage,
         )?
+    };
+    let test_call_maps = match (&source_map, &minify) {
+        (CodeGenResultSourceMap::Single { source_map }, MinifyType::NoMinify)
+            if !test_declaration_calls.is_empty() =>
+        {
+            test_declaration_source_map::prepare_call_mappings(
+                &program,
+                source_map,
+                &test_declaration_calls,
+            )
+        }
+        _ => Default::default(),
     };
     let generate_source_map = source_map.is_some();
 
@@ -2695,14 +2739,23 @@ async fn emit_content(
 
         let comments = comments.consumable();
 
-        let mut emitter = Emitter {
-            cfg: swc_core::ecma::codegen::Config::default(),
-            cm: source_map.clone(),
-            comments: Some(&comments as &dyn Comments),
-            wr,
-        };
-
-        emitter.emit_program(&program)?;
+        if test_call_maps.is_empty() {
+            let mut emitter = Emitter {
+                cfg: swc_core::ecma::codegen::Config::default(),
+                cm: source_map.clone(),
+                comments: Some(&comments as &dyn Comments),
+                wr,
+            };
+            emitter.emit_program(&program)?;
+        } else {
+            let mut emitter = Emitter {
+                cfg: swc_core::ecma::codegen::Config::default(),
+                cm: source_map.clone(),
+                comments: Some(&comments as &dyn Comments),
+                wr: test_declaration_source_map::CallParenWriter::new(wr, test_call_maps),
+            };
+            emitter.emit_program(&program)?;
+        }
         // Drop the AST eagerly so we don't keep it in memory while generating source maps
         drop(program);
     }
@@ -2761,14 +2814,22 @@ fn process_content_with_code_gens(
     globals: &Globals,
     trie: Option<&AstPathTrie>,
     code_gens: &mut Vec<CodeGeneration>,
-) -> (usize, Vec<native_import_coverage::NativeImportCoverageRole>) {
+) -> (
+    usize,
+    Vec<native_import_coverage::NativeImportCoverageRole>,
+    Vec<test_declaration_source_map::OwnedCall>,
+) {
     let mut visitors = Vec::new();
     let mut root_visitors = Vec::new();
+    let mut call_captures = Vec::new();
     let mut early_hoisted_stmts = FxIndexMap::default();
     let mut hoisted_stmts = FxIndexMap::default();
     let mut early_late_stmts = FxIndexMap::default();
     let mut late_stmts = FxIndexMap::default();
     for code_gen in code_gens {
+        if let Some(captured) = &code_gen.test_declaration_calls {
+            call_captures.push(captured.clone());
+        }
         for statement in code_gen.hoisted_stmts.drain(..) {
             hoisted_stmts
                 .entry(statement.key.clone())
@@ -2843,7 +2904,17 @@ fn process_content_with_code_gens(
             );
         }
     };
-    (early_hoisted_count, native_import_coverage)
+    let test_declaration_calls = call_captures
+        .into_iter()
+        .flat_map(|captured| {
+            std::mem::take(&mut *captured.lock().expect("test declaration mapping capture"))
+        })
+        .collect();
+    (
+        early_hoisted_count,
+        native_import_coverage,
+        test_declaration_calls,
+    )
 }
 
 /// Like `hygiene`, but only renames the Atoms without clearing all SyntaxContexts

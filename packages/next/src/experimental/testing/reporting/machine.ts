@@ -11,7 +11,14 @@ import {
 } from 'node:fs/promises'
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { stripVTControlCharacters } from 'node:util'
-import type { ResultEvent, SerializedDiagnostic } from './events'
+import type {
+  CaseResult,
+  FileResult,
+  SuiteResult,
+  ResultEvent,
+  SerializedDiagnostic,
+} from './events'
+import type { TestEntry } from '../contracts'
 import type { CustomReporterCompletion } from './custom-reporter-tasks'
 import {
   createTestReporter,
@@ -201,6 +208,21 @@ function validDiagnostic(value: unknown): boolean {
 }
 
 /** Reports consume sealed execution evidence and never control a worker. */
+/** Historical closed task data is never replayed into a new run's event stream. */
+export interface ClosedMachineFileRecord {
+  version: 1
+  runId: string
+  revision: string
+  result: {
+    entry: { entry: TestEntry; timestamp: number }
+    file: FileResult
+    cases: CaseResult[]
+    suites: SuiteResult[]
+  }
+  diagnostics: Extract<ResultEvent, { type: 'diagnostic' }>[]
+  caseCompletions: Extract<ResultEvent, { type: 'case-end' }>[]
+}
+
 export function createMachineReporter(options: {
   projectDir: string
   reporters: readonly ResultReporter[]
@@ -213,6 +235,8 @@ export function createMachineReporter(options: {
   emptySelectionPassWithNoTests?: boolean
   replayTaskResults?: boolean
   recordedReporterErrors?: SerializedDiagnostic[]
+  /** Borrowed from the enclosing watch lifetime; generation disposal leaves it open. */
+  customReporterSession?: Awaited<ReturnType<typeof openCustomReporters>>
 }) {
   const enabled = options.reporters.some((name) => name !== 'default')
   const collector =
@@ -234,8 +258,8 @@ export function createMachineReporter(options: {
       })
     )
   const customNames = options.reporters.filter(isCustomResultReporter)
-  let custom: Awaited<ReturnType<typeof openCustomReporters>> | undefined
-  let initialized = customNames.length === 0
+  let custom = options.customReporterSession
+  let initialized = custom !== undefined || customNames.length === 0
   let initialization: Promise<void> | undefined
   function initialize({ signal }: { signal?: AbortSignal } = {}) {
     if (initialized) return Promise.resolve()
@@ -250,21 +274,78 @@ export function createMachineReporter(options: {
       initialized = true
     }))
   }
+  let retainedFiles: ClosedMachineFileRecord[] = []
+  let unexecutedEntries: TestEntry[] = []
+  let retainedSpecificationOrder: readonly string[] | undefined
   function json() {
-    const summary = collector!.getSummary()
-    const events = collector!.getEvents()
-    const {
-      entries,
-      files,
-      cases,
-      suites: suiteResults,
-    } = collector!.getResults()
+    let summary = collector!.getSummary()
+    const currentEvents = collector!.getEvents()
+    const current = collector!.getResults()
+    const currentIds = new Set(current.entries.map(({ entry }) => entry.id))
+    const retained = retainedFiles.filter(
+      (record) => !currentIds.has(record.result.entry.entry.id)
+    )
+    const retainedIds = new Set(
+      retained.map((record) => record.result.entry.entry.id)
+    )
+    const empty = unexecutedEntries.filter(
+      (entry) => !currentIds.has(entry.id) && !retainedIds.has(entry.id)
+    )
+    const emptyIds = new Set(empty.map((entry) => entry.id))
+    const initialTimestamp =
+      currentEvents.find((event) => event.type === 'run-start')?.timestamp ?? 0
+    const entries = [
+      ...current.entries,
+      ...retained.map((record) => record.result.entry),
+      ...empty.map((entry) => ({ entry, timestamp: initialTimestamp })),
+    ]
+    const files = [
+      ...current.files,
+      ...retained.map((record) => record.result.file),
+    ]
+    const cases = [
+      ...current.cases,
+      ...retained.flatMap((record) => record.result.cases),
+    ]
+    const suiteResults = [
+      ...current.suites,
+      ...retained.flatMap((record) => record.result.suites),
+    ]
+    // These original diagnostic/case facts are render data, never onEvent calls.
+    const events = [
+      ...currentEvents,
+      ...retained.flatMap((record) => [
+        ...record.diagnostics,
+        ...record.caseCompletions,
+      ]),
+    ]
+    if (retainedFiles.length || unexecutedEntries.length) {
+      const counts = () => ({ passed: 0, failed: 0, skipped: 0, cancelled: 0 })
+      const caseCounts = counts(),
+        fileCounts = counts()
+      for (const test of cases) if (!test.bail) caseCounts[test.status]++
+      for (const file of files) fileCounts[file.status]++
+      fileCounts.passed += empty.length
+      summary = {
+        ...summary,
+        status:
+          summary.status === 'passed' &&
+          (caseCounts.failed > 0 ||
+            caseCounts.cancelled > 0 ||
+            fileCounts.failed > 0 ||
+            fileCounts.cancelled > 0)
+            ? 'failed'
+            : summary.status,
+        cases: caseCounts,
+        files: fileCounts,
+      }
+    }
     const specificationOrder = events.find(
       (event) => event.type === 'run-start'
     )?.specificationOrder
     const orderedEntries = orderTestSpecifications(
       entries,
-      specificationOrder,
+      retainedSpecificationOrder ?? specificationOrder,
       (item) => item.entry.id
     )
     // The selected reference's SnapshotSummary accumulation contract.
@@ -495,7 +576,9 @@ export function createMachineReporter(options: {
                   })
                 : []
             ),
-            location: test.location,
+            location: test.location
+              ? { line: test.location.line, column: test.location.column }
+              : undefined,
             meta:
               [...events]
                 .reverse()
@@ -515,6 +598,7 @@ export function createMachineReporter(options: {
           startTime: timestamp,
           endTime: timestamp + (file?.durationMs ?? 0),
           status:
+            emptyIds.has(entry.id) ||
             file?.status === 'passed' ||
             file?.status === 'skipped' ||
             unhandledOnlyFiles.has(entry.id)
@@ -537,7 +621,7 @@ export function createMachineReporter(options: {
       }),
       // Keep retries, snapshots, attachments, console attribution and errors
       // that have no test identity. Never discard evidence to fit a parser.
-      next: { version: 1, summary, events },
+      next: { version: 1, summary, events: currentEvents },
     }
   }
   function junit() {
@@ -658,6 +742,97 @@ export function createMachineReporter(options: {
       }
       await custom.replayFile(taskTree, completion)
     },
+    snapshotClosedFiles(
+      entryIds: ReadonlySet<string>
+    ): ClosedMachineFileRecord[] {
+      if (!collector) return []
+      const results = collector.getResults()
+      const events = collector.getEvents()
+      const records: ClosedMachineFileRecord[] = []
+      for (const entry of results.entries) {
+        if (!entryIds.has(entry.entry.id)) continue
+        const file = results.files.find(
+          (item) => item.entryId === entry.entry.id
+        )
+        const start = events.find(
+          (event) =>
+            event.type === 'file-start' && event.entry.id === entry.entry.id
+        )
+        if (
+          !file ||
+          !start ||
+          start.type !== 'file-start' ||
+          typeof start.revision !== 'string' ||
+          !events.some(
+            (event) =>
+              event.type === 'file-end' && event.entryId === entry.entry.id
+          )
+        )
+          continue
+        records.push({
+          version: 1,
+          runId: start.runId,
+          revision: start.revision,
+          result: {
+            entry: { entry: entry.entry, timestamp: entry.timestamp },
+            file,
+            cases: results.cases.filter(
+              (item) => item.entryId === entry.entry.id
+            ),
+            suites: results.suites.filter(
+              (item) => item.entryId === entry.entry.id
+            ),
+          },
+          diagnostics: events.filter(
+            (event): event is Extract<ResultEvent, { type: 'diagnostic' }> =>
+              event.type === 'diagnostic' && event.entryId === entry.entry.id
+          ),
+          caseCompletions: events.filter(
+            (event): event is Extract<ResultEvent, { type: 'case-end' }> =>
+              event.type === 'case-end' && event.entryId === entry.entry.id
+          ),
+        })
+      }
+      return structuredClone(records)
+    },
+    retainUnexecutedFiles(
+      entries: readonly TestEntry[],
+      previous: readonly ClosedMachineFileRecord[],
+      specificationOrder: readonly string[]
+    ) {
+      const identities = new Map(entries.map((entry) => [entry.id, entry]))
+      if (
+        identities.size !== entries.length ||
+        new Set(specificationOrder).size !== specificationOrder.length
+      )
+        throw new Error('Invalid retained watch file selection.')
+      const seen = new Set<string>()
+      for (const record of previous) {
+        const entry = record.result.entry.entry
+        const current = identities.get(entry.id)
+        if (
+          record.version !== 1 ||
+          !record.runId ||
+          !record.revision ||
+          !current ||
+          current.file !== entry.file ||
+          current.profile.id !== entry.profile.id ||
+          seen.has(entry.id) ||
+          record.result.file.entryId !== entry.id ||
+          record.result.cases.some((item) => item.entryId !== entry.id) ||
+          record.result.suites.some((item) => item.entryId !== entry.id) ||
+          [...record.diagnostics, ...record.caseCompletions].some(
+            (event) =>
+              event.runId !== record.runId || event.entryId !== entry.id
+          )
+        )
+          throw new Error('Invalid closed watch file record.')
+        seen.add(entry.id)
+      }
+      retainedFiles = structuredClone([...previous])
+      unexecutedEntries = structuredClone([...entries])
+      retainedSpecificationOrder = [...specificationOrder]
+    },
     getJson: json,
     getJUnit: junit,
     async finish({ signal }: { signal?: AbortSignal } = {}) {
@@ -773,7 +948,7 @@ export function createMachineReporter(options: {
         }
       }
       try {
-        await custom?.dispose()
+        if (!options.customReporterSession) await custom?.dispose()
       } catch (error) {
         errors.push(error)
       }

@@ -1,0 +1,92 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "owned-getter-view",
+        "trace": [
+          {
+            "phase": "body",
+            "kind": "getter",
+            "sameReceiver": false
+          },
+          {
+            "phase": "body",
+            "kind": "alias",
+            "sameOriginal": false
+          },
+          {
+            "phase": "body",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "sameTask": true,
+            "actual": "owned",
+            "expected": "owned"
+          },
+          {
+            "phase": "body",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "sameTask": true,
+            "actual": "owned",
+            "expected": "owned"
+          },
+          {
+            "phase": "body",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "sameTask": true,
+            "actual": "owned",
+            "expected": "owned"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "getter",
+            "sameReceiver": false
+          },
+          {
+            "phase": "afterAll",
+            "kind": "alias-again",
+            "sameAlias": true
+          },
+          {
+            "phase": "afterAll",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "sameTask": true,
+            "actual": "owned",
+            "expected": "owned"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "matcher",
+            "sameAssertion": true,
+            "sameTask": true,
+            "actual": "owned",
+            "expected": "owned"
+          }
+        ],
+        "count": 1,
+        "state": "pass"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "owned getter alias source",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeads": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 1,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

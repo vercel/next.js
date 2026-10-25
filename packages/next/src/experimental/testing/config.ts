@@ -2,6 +2,7 @@ import type { CompilerAliases } from './compiler/aliases'
 import { parseCustomCoverageConfig } from './coverage/custom-options'
 import type { CustomCoverageConfig } from './coverage/custom-types'
 import { parseProjectStandardCoverage } from './coverage/options'
+import { applyCoverageProviderOverride } from './coverage/provider-override'
 import type { ProjectStandardCoverageConfig } from './coverage/types'
 import { validateOptions, type TestOptions } from './runner/collector'
 import type { TestTagDefinition } from './runner/tasks'
@@ -13,6 +14,7 @@ import { readFile, readdir } from 'fs/promises'
 import path from 'path'
 import type {
   BrowserViewport,
+  TestBrowserEngine,
   RegisteredBrowserFixture,
   TestProfile,
 } from './contracts'
@@ -35,6 +37,8 @@ export interface TestProjectConfig {
   displayName?: string
   /** Normalized instance selection; never accepted as an authored setting. */
   browserInstance?: { parentName?: string }
+  /** Selected enabled Browser Mode engine; authored input uses browser.instances. */
+  browserEngine?: TestBrowserEngine
   profile: TestProfile
   isolate?: boolean
   include: string[]
@@ -44,9 +48,12 @@ export interface TestProjectConfig {
   setupFiles: string[]
   globalSetup?: string[]
   globals?: boolean
+  includeTaskLocation?: boolean
   provide?: Record<string, unknown>
   env?: Record<string, string>
   browserViewport?: BrowserViewport
+  /** Explicit enabled Browser launch mode; omission keeps the existing default. */
+  browserHeadless?: boolean
   fakeTimers?: FakeTimerOptions
   clearMocks?: boolean
   mockReset?: boolean
@@ -73,6 +80,7 @@ export interface TestProjectConfig {
 export interface TestConfig {
   compatibility: 'vitest'
   maxWorkers: number
+  cache?: boolean | { dir: string }
   projects: TestProjectConfig[]
 }
 
@@ -85,6 +93,8 @@ export type TestConfigOverrides = Partial<
     | 'passWithNoTests'
     | 'testTimeout'
     | 'hookTimeout'
+    | 'browserHeadless'
+    | 'includeTaskLocation'
   >
 > & { typecheck?: Partial<TestTypecheckConfig> }
 
@@ -96,11 +106,17 @@ export function applyTestConfigOverrides(
   const selected = Object.fromEntries(
     Object.entries(overrides).filter(([, value]) => value !== undefined)
   ) as TestConfigOverrides
-  const { typecheck, ...settings } = selected
+  const { typecheck, browserHeadless, ...settings } = selected
   return {
     ...config,
     projects: config.projects.map((project) => {
-      const resolved = { ...project, ...settings }
+      const resolved = {
+        ...project,
+        ...settings,
+        ...(browserHeadless === undefined || !project.profile.browserClient
+          ? {}
+          : { browserHeadless }),
+      }
       return {
         ...resolved,
         ...(typecheck === undefined
@@ -216,7 +232,7 @@ export function parseTestConfig(
   const config = object(value, 'config')
   keys(
     config,
-    ['compatibility', 'projects', 'maxWorkers', 'testNamePattern'],
+    ['compatibility', 'projects', 'maxWorkers', 'testNamePattern', 'cache'],
     'config'
   )
   function namePattern(
@@ -237,6 +253,17 @@ export function parseTestConfig(
     config.testNamePattern,
     'config.testNamePattern'
   )
+  let cache: TestConfig['cache']
+  if (config.cache !== undefined) {
+    if (typeof config.cache === 'boolean') cache = config.cache
+    else {
+      const legacy = object(config.cache, 'config.cache')
+      keys(legacy, ['dir'], 'config.cache')
+      if (typeof legacy.dir !== 'string')
+        invalid('config.cache.dir must be a string.')
+      cache = { dir: legacy.dir }
+    }
+  }
   if (config.compatibility !== undefined && config.compatibility !== 'vitest') {
     invalid('compatibility must be "vitest".')
   }
@@ -248,9 +275,13 @@ export function parseTestConfig(
     invalid('projects must be a nonempty array.')
   }
   const names = new Set<string>()
-  const instances = new Map<number, { name?: string }[]>()
+  const instances = new Map<
+    number,
+    { browser: TestBrowserEngine; name?: string }[]
+  >()
   const normalized: TestConfig = {
     compatibility: 'vitest',
+    ...(cache === undefined ? {} : { cache }),
     maxWorkers: parseMaxWorkers(
       config.maxWorkers === undefined ? 1 : config.maxWorkers
     ),
@@ -272,6 +303,7 @@ export function parseTestConfig(
           'snapshotSerializers',
           'globalSetup',
           'globals',
+          'includeTaskLocation',
           'provide',
           'env',
           'fakeTimers',
@@ -313,9 +345,18 @@ export function parseTestConfig(
           ? undefined
           : object(project.browser, `${label}.browser`)
       if (browser) {
-        keys(browser, ['enabled', 'viewport', 'instances'], `${label}.browser`)
+        keys(
+          browser,
+          ['enabled', 'viewport', 'instances', 'headless'],
+          `${label}.browser`
+        )
         if (typeof browser.enabled !== 'boolean')
           invalid(`${label}.browser.enabled must be a boolean.`)
+        if (
+          browser.headless !== undefined &&
+          typeof browser.headless !== 'boolean'
+        )
+          invalid(`${label}.browser.headless must be a boolean.`)
       }
       const browserClient = browser?.enabled === true
       const expandsBrowserInstances =
@@ -337,9 +378,13 @@ export function parseTestConfig(
             const instanceLabel = `${label}.browser.instances[${instanceIndex}]`
             const instance = object(instanceValue, instanceLabel)
             keys(instance, ['browser', 'name'], instanceLabel)
-            if (instance.browser !== 'chromium')
+            if (
+              instance.browser !== 'chromium' &&
+              instance.browser !== 'firefox' &&
+              instance.browser !== 'webkit'
+            )
               invalid(
-                `${instanceLabel}.browser currently supports only Chromium.`
+                `${instanceLabel}.browser must be Chromium, Firefox, or WebKit.`
               )
             if (
               instance.name !== undefined &&
@@ -347,8 +392,8 @@ export function parseTestConfig(
             )
               invalid(`${instanceLabel}.name must be a string.`)
             return instance.name === undefined
-              ? {}
-              : { name: instance.name as string }
+              ? { browser: instance.browser }
+              : { browser: instance.browser, name: instance.name as string }
           })
         )
       }
@@ -509,6 +554,11 @@ export function parseTestConfig(
         typeof project.attachmentsDir !== 'string'
       )
         invalid(`${label}.attachmentsDir must be a string.`)
+      if (
+        project.includeTaskLocation !== undefined &&
+        typeof project.includeTaskLocation !== 'boolean'
+      )
+        invalid(`${label}.includeTaskLocation must be a boolean.`)
       if (project.globals !== undefined && typeof project.globals !== 'boolean')
         invalid(`${label}.globals must be a boolean.`)
       for (const option of ['allowOnly', 'passWithNoTests'] as const) {
@@ -705,9 +755,15 @@ export function parseTestConfig(
         ...(project.globals === undefined
           ? {}
           : { globals: project.globals as boolean }),
+        ...(project.includeTaskLocation === undefined
+          ? {}
+          : { includeTaskLocation: project.includeTaskLocation as boolean }),
         ...(provide === undefined ? {} : { provide }),
         ...(env === undefined ? {} : { env }),
         ...(browserViewport === undefined ? {} : { browserViewport }),
+        ...(browserClient && browser.headless !== undefined
+          ? { browserHeadless: browser.headless as boolean }
+          : {}),
         ...(browserFixtures === undefined ? {} : { browserFixtures }),
         ...(tags === undefined ? {} : { tags }),
         ...(project.strictTags === undefined
@@ -767,7 +823,11 @@ export function parseTestConfig(
     return browserInstances.map((instance) => ({
       ...project,
       displayName:
-        instance.name ?? (parentName ? `${parentName} (chromium)` : 'chromium'),
+        instance.name ??
+        (parentName ? `${parentName} (${instance.browser})` : instance.browser),
+      ...(instance.browser === 'firefox' || instance.browser === 'webkit'
+        ? { browserEngine: instance.browser }
+        : {}),
       browserInstance: parentName === undefined ? {} : { parentName },
       profile: { ...project.profile },
     }))
@@ -807,7 +867,7 @@ export function normalizeTestConfig(value: unknown): TestConfig {
   if (!('test' in config)) return parseTestConfig(config)
   validateTestConfigCompilerOptions(config)
   const test = object(config.test, 'test')
-  const { projects, maxWorkers, name, ...defaults } = test
+  const { projects, maxWorkers, name, cache, ...defaults } = test
   const rootSequence = object(test.sequence ?? {}, 'test.sequence')
   const sequenceSeed = rootSequence.seed ?? Date.now()
   defaults.sequence = { ...rootSequence, seed: sequenceSeed }
@@ -815,6 +875,7 @@ export function normalizeTestConfig(value: unknown): TestConfig {
     const normalized = parseTestConfig(
       {
         maxWorkers,
+        cache,
         projects: [{ name: name ?? 'default', ...defaults }],
       },
       [name as string | undefined]
@@ -828,6 +889,7 @@ export function normalizeTestConfig(value: unknown): TestConfig {
   return parseTestConfig(
     {
       maxWorkers,
+      cache,
       projects: projects.map((projectValue, index) => {
         const project = object(projectValue, `test.projects[${index}]`)
         const settings =
@@ -901,7 +963,8 @@ async function testConfigSource(projectDir: string) {
 
 export async function openTestConfiguration(
   projectDir: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  coverageProvider?: 'v8'
 ) {
   const filename = await testConfigSource(projectDir)
   const sourceBytes = filename ? await readFile(filename) : undefined
@@ -953,13 +1016,20 @@ export async function openTestConfiguration(
       realm = await openTestConfigModule(filename, projectDir, signal)
       value = realm.value
     }
+    value = applyCoverageProviderOverride(value, coverageProvider)
+    const normalize = coverageProvider
+      ? (project: unknown) =>
+          normalizeTestConfig(
+            applyCoverageProviderOverride(project, coverageProvider)
+          )
+      : normalizeTestConfig
     projectModules = await openTestProjectModules(
       value,
       projectDir,
-      normalizeTestConfig,
+      normalize,
       signal
     )
-    const config = projectModules?.config ?? normalizeTestConfig(value)
+    const config = projectModules?.config ?? normalize(value)
     if (realm?.compilerAliases) {
       if (
         projectModules &&
@@ -971,16 +1041,34 @@ export async function openTestConfiguration(
       for (const project of config.projects)
         project.compilerAliases = realm.compilerAliases
     }
-    if (
-      realm?.compilerTransformNames.length &&
-      projectModules &&
-      config.projects.some((project) => projectModules!.owns(project))
-    )
-      invalid(
-        'Root transform plugins cannot yet be inherited by external project configurations; configure each owned project transform explicitly.'
+    function compilerInputsForProjects(projects: readonly TestProjectConfig[]) {
+      const usesRoot = projects.some(
+        (project) => !projectModules?.owns(project)
       )
+      return [
+        ...new Set([
+          ...(usesRoot ? (realm?.compilerTransformInputs ?? []) : []),
+          ...(usesRoot ? (realm?.compilerAliases?.inputs ?? []) : []),
+          ...(projectModules?.compilerInputsForProjects(projects) ?? []),
+        ]),
+      ]
+    }
     return {
       config,
+      /** The root configuration selected for this invocation. */
+      coverageConfigurationFile: filename,
+      ...(realm?.prepareCoverageThresholdUpdate
+        ? {
+            prepareCoverageThresholdUpdate:
+              realm.prepareCoverageThresholdUpdate,
+          }
+        : {}),
+      ...(realm?.formatCoverageThresholdUpdates
+        ? {
+            formatCoverageThresholdUpdates:
+              realm.formatCoverageThresholdUpdates,
+          }
+        : {}),
       /** Root transform closures follow the watch service across ordinary runs. */
       async retainCompilerTransformsForWatch(
         lifetime: AbortSignal,
@@ -1079,6 +1167,11 @@ export async function openTestConfiguration(
             return descriptor ? [[project.profile.id, descriptor]] : []
           })
         )
+      },
+      compilerInputsForProjects,
+      /** Compiler dependencies of all configured project owners. */
+      get compilerInputs() {
+        return compilerInputsForProjects(config.projects)
       },
       /** Private watch identities; imported config dependencies still widen. */
       get watchInputs() {

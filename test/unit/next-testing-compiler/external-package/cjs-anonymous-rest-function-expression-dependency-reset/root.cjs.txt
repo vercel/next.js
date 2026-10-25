@@ -1,0 +1,4 @@
+globalThis.__ws2ExprRoot=(globalThis.__ws2ExprRoot||0)+1
+const evaluation=globalThis.__ws2ExprRoot
+const dependency=require('./dependency.cjs')
+module.exports=function(...values){const[value,receiver]=values;return [evaluation,dependency.evaluation,this===receiver,value,dependency,{argumentValues:Array.from(arguments),restTail:values.slice(2)}]}

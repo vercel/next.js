@@ -5435,6 +5435,29 @@ declare function getChaiAssertionIdentity(
   value: unknown
 ): object | undefined
 
+type AssertionPromiseObserver = {
+  recorded(promise: Promise<unknown>): void
+  settled(promise: Promise<unknown>): void
+  finished?(promise: Promise<unknown>, check: () => void): void
+  capture?(): AssertionPromiseObserver | undefined
+}
+
+/** Private binding to the bookkeeping of an already-created real Next scope. */
+declare function registerVitestAssertionTaskRuntime(
+  test: object,
+  runtimeTask: object,
+  promiseObserver?: AssertionPromiseObserver
+): void
+declare function getVitestAssertionTaskRuntime(value: unknown): unknown
+
+/** Private source identity for actual primitive assertion flag transfers. */
+declare function getChaiAssertionTransferSourceIdentity(
+  value: unknown
+): object | undefined
+declare function hasChaiAssertionTaskFlagTransfer(
+  value: unknown
+): boolean
+
 /** Private pure upstream helper factories; these do not register origins. */
 declare function createChaiAssertInterface(
   assertion: typeof chai.Assertion,
@@ -5449,5 +5472,14 @@ declare function createTimerContext(
   global: typeof globalThis
 ): TimerContext
 
-export { ASYMMETRIC_MATCHERS_OBJECT, Any, Anything, ArrayContaining, AsymmetricMatcher, ChaiStyleAssertions, GLOBAL_EXPECT, JEST_MATCHERS_OBJECT, JestAsymmetricMatchers, JestChaiExpect, JestExtend, MATCHERS_OBJECT, ObjectContaining, SchemaMatching, SnapshotClient, StringContaining, StringMatching, addCustomEqualityTesters, addSerializer, arrayBufferEquality, createAssertionMessage, createChaiAssertInterface, createChaiShouldInterface, createTimerContext, customMatchers, matchers$1 as domMatchers, equals, expectTypeOf, fnNameFor, format, generateToBeMessage, getChaiAssertionIdentity, getCustomEqualityTesters, getObjectKeys, getObjectSubset, getSerializers, getState, hasAsymmetric, hasProperty, inspect, isA, isAsymmetric, isError, isImmutableUnorderedKeyed, isImmutableUnorderedSet, isStandardSchema, iterableEquality, mockObject, pluralize, prettyDOM, queries, recordAsyncExpect, setState, sparseArrayEquality, index_d as spies, stringify, stripSnapshotIndentation, subsetEquality, typeEquality, wrapAssertion };
+/** Private pure pinned locator descriptions, strict errors and DOM formatting. */
+declare function createBrowserLocatorFormatter(): {
+  selector(name: string, args: unknown[]): string
+  asLocator(selector: string): string
+  generateSelector(element: Element): string
+  strictError(selector: string, elements: Element[]): Error
+  missingError(selector: string, container: Element): Error
+}
+
+export { ASYMMETRIC_MATCHERS_OBJECT, Any, Anything, ArrayContaining, AsymmetricMatcher, ChaiStyleAssertions, GLOBAL_EXPECT, JEST_MATCHERS_OBJECT, JestAsymmetricMatchers, JestChaiExpect, JestExtend, MATCHERS_OBJECT, ObjectContaining, SchemaMatching, SnapshotClient, StringContaining, StringMatching, addCustomEqualityTesters, addSerializer, arrayBufferEquality, createAssertionMessage, createBrowserLocatorFormatter, createChaiAssertInterface, createChaiShouldInterface, createTimerContext, customMatchers, matchers$1 as domMatchers, equals, expectTypeOf, fnNameFor, format, generateToBeMessage, getChaiAssertionIdentity, getChaiAssertionTransferSourceIdentity, getCustomEqualityTesters, getObjectKeys, getObjectSubset, getSerializers, getState, getVitestAssertionTaskRuntime, hasAsymmetric, hasChaiAssertionTaskFlagTransfer, hasProperty, inspect, isA, isAsymmetric, isError, isImmutableUnorderedKeyed, isImmutableUnorderedSet, isStandardSchema, iterableEquality, mockObject, pluralize, prettyDOM, queries, recordAsyncExpect, registerVitestAssertionTaskRuntime, setState, sparseArrayEquality, index_d as spies, stringify, stripSnapshotIndentation, subsetEquality, typeEquality, wrapAssertion };
 export type { Assertion, AsymmetricMatcherInterface, AsymmetricMatchersContaining, AsyncExpectationResult, ChaiMockAssertion, ChaiPlugin, DeeplyAllowMatchers, DiffOptions, ExpectStatic, ExpectTypeOf, ExpectationResult, JestAssertion, MatcherHintOptions, MatcherState, Matchers, MatchersObject, MaybeMockedDeep, Mock, MockContext, Disposable as MockDisposable, MockInstance, MockResult, MockResultIncomplete, MockResultReturn, MockResultThrow, MockSettledResult, MockSettledResultFulfilled, MockSettledResultIncomplete, MockSettledResultRejected, Mocked, MockedClass, MockedFunction, MockedObject, PromisifyAssertion, RawMatcherFn, SnapshotResult, SnapshotStateOptions, SyncExpectationResult, TestError, Tester, TesterContext };

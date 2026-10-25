@@ -48,6 +48,8 @@ pub struct RuntimeImportNativeEdge {
 pub enum RuntimeImportNamespaceKind {
     Esm,
     CommonJsCallable,
+    /// Actual admitted leaf CommonJS owner; Node checks the final native Promise brand.
+    CommonJsLeafPromise,
 }
 
 /// A publicly resolved namespace, independent of private execution-part ownership.

@@ -7,6 +7,7 @@ import type {
 } from '../contracts'
 import type { FileResult, ResultEvent } from '../reporting/events'
 import type { SnapshotUpdate } from '../assertions/snapshots'
+import type { RuntimeModuleCompletion } from './completed-module'
 
 export interface WorkerInput {
   artifact: CompiledTestArtifact
@@ -38,6 +39,9 @@ export type WorkerMessage =
   | {
       type: 'complete'
       result: FileResult
+      moduleCompletion?: RuntimeModuleCompletion
+      /** Actual host cleanup outcome; present only with private capture. */
+      moduleHostCleanupComplete?: boolean
       snapshotUpdates?: SnapshotUpdate[]
       coverage?: TestCoverageCompletion
       customCoverage?: CustomCoverageCompletion

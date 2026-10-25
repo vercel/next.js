@@ -1,0 +1,27 @@
+import {test,expect,vi} from 'vitest';
+import {types} from 'node:util';
+function shape(value){if(value===null||(typeof value!=='object'&&typeof value!=='function'))return {type:typeof value,value};return {type:typeof value,brand:types.isModuleNamespaceObject(value),keys:Reflect.ownKeys(value).map(String),prototype:Object.getPrototypeOf(value)===null?'null':Object.getPrototypeOf(value)===Object.prototype?'Object.prototype':Object.getPrototypeOf(value)===Function.prototype?'Function.prototype':Object.prototype.toString.call(Object.getPrototypeOf(value)),tag:value[Symbol.toStringTag]??null,extensible:Object.isExtensible(value),sealed:Object.isSealed(value),frozen:Object.isFrozen(value),descriptors:Reflect.ownKeys(value).map(key=>{const d=Object.getOwnPropertyDescriptor(value,key);return {key:String(key),valueType:typeof d.value,get:typeof d.get,set:typeof d.set,writable:d.writable??null,enumerable:d.enumerable,configurable:d.configurable}})}}
+const same=values=>values.map(value=>values.map(other=>value===other));
+function failure(error,raw){return {shape:shape(error),name:error?.name,message:error?.message,rawSame:error===raw,causeSame:error?.cause===raw,cause:shape(error?.cause)}}
+function row(name,value){console.log('WS2_LEAF_TLA:'+JSON.stringify({name,...value}));expect(value).toBeDefined()}
+
+function deferred(){let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no});return {promise,resolve,reject}}
+function plan(events){const p={events,enter:deferred(),gate:deferred()};globalThis.__ws2GPlans.push(p);return p}
+function clean(){vi.doUnmock('./root.mjs');vi.resetModules();globalThis.__ws2GPlans=[];globalThis.__ws2GEvals=0}
+const target=a=>({namespace:shape(a),value:a.value,object:a.object?.value,defaultValue:a.default?.value,defaultSame:a.default===a.object,read:a.read?.()});
+
+test('factory waits after actual original while public fallback completes',async()=>{
+ clean();const events=[],original=plan(events),afterOriginal=deferred(),releaseFactory=deferred();
+ vi.doMock('./root.mjs',async importOriginal=>{events.push('factory-start');const a=await importOriginal();events.push('factory-after-original');afterOriginal.resolve();await releaseFactory.promise;events.push('factory-complete');return {value:100,object:a.object,read:a.read,default:a.default}});
+ const p=import('./root.mjs').then(a=>{events.push('p');return a});await original.enter.promise;const q=import('./root.mjs').then(a=>{events.push('q');return a});original.gate.resolve();await afterOriginal.promise;const b=await q;events.push('fallback-observed');releaseFactory.resolve();const a=await p;row('held-after-original',{events,rows:[a,b].map(target),objects:a.object===b.object});
+});
+test('factory invokes original without awaiting and remains independently pending',async()=>{
+ clean();const events=[],original=plan(events),releaseFactory=deferred();let heldOriginal;
+ vi.doMock('./root.mjs',async importOriginal=>{events.push('factory-start');heldOriginal=importOriginal();await releaseFactory.promise;events.push('factory-complete');return {value:200,object:null,read(){return 200},default:null}});
+ const p=import('./root.mjs').then(a=>{events.push('p');return a});await original.enter.promise;const q=import('./root.mjs').then(a=>{events.push('q');return a});original.gate.resolve();const b=await q;await heldOriginal;events.push('fallback-observed');releaseFactory.resolve();const a=await p;row('ignored-original-independent-gate',{events,rows:[a,b].map(target)});
+});
+test('two actual original callback Promises keep their real adoption order',async()=>{
+ clean();const events=[],original=plan(events);let callbacksSame,originalsSame;
+ vi.doMock('./root.mjs',async importOriginal=>{events.push('factory-start');const first=importOriginal(),second=importOriginal();callbacksSame=first===second;const [a,b]=await Promise.all([first,second]);originalsSame=a===b;events.push('factory-complete');return {value:300,object:a.object,read:a.read,default:a.default}});
+ const p=import('./root.mjs').then(a=>{events.push('p');return a});await original.enter.promise;const q=import('./root.mjs').then(a=>{events.push('q');return a});original.gate.resolve();const a=await p,b=await q;row('two-original-callbacks',{events,callbacksSame,originalsSame,rows:[a,b].map(target),objects:a.object===b.object});
+});

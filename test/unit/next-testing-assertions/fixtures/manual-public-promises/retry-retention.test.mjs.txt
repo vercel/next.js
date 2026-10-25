@@ -1,0 +1,13 @@
+import { test, expect, beforeEach, afterEach, afterAll } from 'vitest'
+const rows = []
+let release = () => {}
+const row = (stage, value = {}) => rows.push({ stage, ...value })
+afterEach(({ task }) => { row('afterEach', { errors: (task.result?.errors ?? []).map(error => error?.message ?? String(error)) }); release() })
+afterAll(() => console.log('TASK_QUEUE_CONSUMER:' + JSON.stringify(rows)))
+let attempt = 0, queue
+const error = new Error('manual first'); error.stack = ''
+test('actual public retry retains the authored queue', { retry: 1 }, ({ task }) => {
+  attempt++; row('body', { attempt, same: attempt === 1 ? task.promises === undefined : task.promises === queue })
+  if (attempt === 1) queue = task.promises = [{ then(resolve, reject) { row('manual-then', { attempt }); if (attempt === 1) reject(error); else resolve(29) } }]
+  row('body-return', { length: task.promises.length })
+})

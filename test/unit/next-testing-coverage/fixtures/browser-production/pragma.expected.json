@@ -1,0 +1,185 @@
+{
+  "version": 1,
+  "mode": "production",
+  "sdks": ["1.61.0", "1.64.0"],
+  "reference": "Fresh Vitest5.0.4/provider5.0.4 actual Chromium pragma layout; complete reports/cases equal both SDKs",
+  "sourceSyntax": "named-classic-jsx",
+  "sourceFiles": {
+    "layout-pragma.tsx": {
+      "sha256": "a5d30d2a1fce211de759ac0cf63bdc5778c47ed692a4d94b412f9dbbd42c8555"
+    },
+    "layout-pragma.contract.test.mjs": {
+      "sha256": "3a8ee2d2468ee74ff83aa417b224317d6e2bb4ae0e403f3ca435406e5b2dce03"
+    }
+  },
+  "numPassedTests": 1,
+  "cases": [
+    {
+      "file": "layout-pragma.contract.test.mjs",
+      "status": "passed",
+      "cases": [
+        {
+          "ancestorTitles": [],
+          "fullName": "classic JSX uses actual authored pragma factory",
+          "status": "passed",
+          "title": "classic JSX uses actual authored pragma factory",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ]
+    }
+  ],
+  "coverage": {
+    "layout-pragma.tsx": {
+      "path": "layout-pragma.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 6,
+            "column": 2
+          },
+          "end": {
+            "line": 6,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 8,
+            "column": 13
+          },
+          "end": {
+            "line": 8,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 8,
+            "column": 28
+          },
+          "end": {
+            "line": 8,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "Card",
+          "decl": {
+            "start": {
+              "line": 5,
+              "column": 16
+            },
+            "end": {
+              "line": 5,
+              "column": 21
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 5,
+              "column": 39
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          },
+          "line": 5
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": {
+            "start": {
+              "line": 8,
+              "column": 13
+            },
+            "end": {
+              "line": 8,
+              "column": 28
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 8,
+              "column": 28
+            },
+            "end": {
+              "line": 8,
+              "column": null
+            }
+          },
+          "line": 8
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 6,
+              "column": 13
+            },
+            "end": {
+              "line": 6,
+              "column": 38
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 6,
+                "column": 22
+              },
+              "end": {
+                "line": 6,
+                "column": 30
+              }
+            },
+            {
+              "start": {
+                "line": 6,
+                "column": 30
+              },
+              "end": {
+                "line": 6,
+                "column": 38
+              }
+            }
+          ],
+          "line": 6
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 1,
+        "2": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {
+        "0": [1, 1]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 3,
+        "seen": {
+          "f:5:16:5:21": 0,
+          "s:6:2:6:Infinity": 0,
+          "b:6:22:6:30:6:30:6:38": 0,
+          "s:8:13:8:Infinity": 1,
+          "f:8:13:8:28": 1,
+          "s:8:28:8:Infinity": 2
+        },
+        "fnNames": {}
+      }
+    }
+  }
+}

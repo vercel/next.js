@@ -106,7 +106,8 @@ export async function createRuntimeConfigurationPlan(options: {
 
 export async function assertRuntimeConfigurationPlan(
   plan: RuntimeConfigurationPlan,
-  signal: AbortSignal
+  signal: AbortSignal,
+  retainedEntryIds?: ReadonlySet<string>
 ) {
   signal.throwIfAborted()
   if (
@@ -139,13 +140,17 @@ export async function assertRuntimeConfigurationPlan(
       revisions.add(entry.revision)
     }
   }
+  if (retainedEntryIds && [...retainedEntryIds].some((id) => !entries.has(id)))
+    throw new Error('Unknown historical runtime configuration entry.')
   await assertCoverageSourcePlan(
     {
       version: 1,
       requests: [],
       inputs: [
         ...plan.inputs,
-        ...plan.requests.flatMap((request) => request.entries),
+        ...plan.requests
+          .flatMap((request) => request.entries)
+          .filter((entry) => !retainedEntryIds?.has(entry.id)),
       ],
       configuration: plan.configuration,
     },
@@ -242,6 +247,8 @@ export async function prepareRuntimeConfigurationReceipt(options: {
 export async function assertRuntimeConfigurationReceipts(options: {
   receipts: readonly RuntimeConfigurationReceipt[]
   facts: readonly { entryId: string; revision: string }[]
+  /** Parent cache only: original closed records for canonically never-launched files. */
+  retainedEntryIds?: ReadonlySet<string>
   plan?: RuntimeConfigurationPlan
   signal: AbortSignal
 }) {
@@ -249,6 +256,13 @@ export async function assertRuntimeConfigurationReceipts(options: {
   if (options.plan) await assertRuntimeConfigurationPlan(options.plan, signal)
   if (options.receipts.length !== options.facts.length)
     throw new Error('Incomplete parent runtime configuration receipts.')
+  if (
+    options.retainedEntryIds &&
+    [...options.retainedEntryIds].some(
+      (id) => !options.facts.some((fact) => fact.entryId === id)
+    )
+  )
+    throw new Error('Unknown retained runtime configuration fact.')
   const seen = new Set<string>()
   for (const receipt of options.receipts) {
     signal.throwIfAborted()
@@ -256,12 +270,15 @@ export async function assertRuntimeConfigurationReceipts(options: {
     const fact = options.facts.find(
       (candidate) => candidate.entryId === compiler.entryId
     )
+    const retained = options.retainedEntryIds?.has(compiler.entryId) === true
     const current = options.plan?.requests.find(
       (request) =>
         isDeepStrictEqual(request.profile, authority.profile) &&
         isDeepStrictEqual(request.authorization, authority.authorization) &&
         request.entries.some((entry) =>
-          isDeepStrictEqual(entry, authority.entry)
+          retained
+            ? entry.id === authority.entry.id
+            : isDeepStrictEqual(entry, authority.entry)
         )
     )
     if (
@@ -302,7 +319,8 @@ export async function assertRuntimeConfigurationReceipts(options: {
           },
         ],
       },
-      signal
+      signal,
+      retained ? new Set([compiler.entryId]) : undefined
     )
     await assertConfigurationImportFiles(
       receipt.graph,

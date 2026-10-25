@@ -72,6 +72,8 @@ function remoteError(value: SerializedDiagnostic): Error {
 export async function openCustomReporters(options: {
   projectDir: string
   reporters: readonly string[]
+  /** Retain reporter instances while closed watch generations replace task state. */
+  watch?: boolean
   signal?: AbortSignal
   write(text: string): void
   writeError?(text: string): void
@@ -92,6 +94,8 @@ export async function openCustomReporters(options: {
         timer?: ReturnType<typeof setTimeout>
       }
     | undefined
+  let terminalWatchFailure = false
+  let watchHookError: Error | undefined
   let captureTaskResults = false
   let reporterErrors: SerializedDiagnostic[] = []
   let cancelledReporterErrors: Error[] | undefined
@@ -164,7 +168,11 @@ export async function openCustomReporters(options: {
   const exit = runTestProcess(require.resolve('./custom-reporter-worker'), {
     cwd: options.projectDir,
     env: process.env,
-    input: { files, projectDir: options.projectDir },
+    input: {
+      files,
+      projectDir: options.projectDir,
+      ...(options.watch ? { watch: true } : {}),
+    },
     signal: controller.signal,
     shutdownGraceMs: 10000,
     onReady(value) {
@@ -183,6 +191,21 @@ export async function openCustomReporters(options: {
           throw new Error('Invalid custom reporter error list.')
         reporterErrors = message.reporterErrors
         cancelledReporterErrors = undefined
+      }
+      if (message.watchHookError !== undefined) {
+        if (!options.watch || pending?.requestType !== 'watch-ready')
+          throw new Error('Unexpected custom reporter watch error.')
+        watchHookError = remoteError(message.watchHookError)
+      }
+      if (message.fatalWatchError === true) {
+        if (
+          !options.watch ||
+          !['watch-begin', 'watch-ready', 'watch-removed'].includes(
+            pending?.requestType ?? ''
+          )
+        )
+          throw new Error('Unexpected terminal custom watch response.')
+        terminalWatchFailure = true
       }
       const error =
         message.type === 'custom-reporter-failed'
@@ -268,7 +291,7 @@ export async function openCustomReporters(options: {
       await consoleQueue
       closing = true
       const cleanupErrors: unknown[] = []
-      if (!closed && !controller.signal.aborted) {
+      if (!closed && !controller.signal.aborted && !terminalWatchFailure) {
         try {
           await request({ type: 'shutdown' }, true)
         } catch (error) {
@@ -300,6 +323,34 @@ export async function openCustomReporters(options: {
     return {
       get captureTaskResults() {
         return captureTaskResults
+      },
+      async beginWatchRun(input?: {
+        rerun?: { files: string[]; trigger?: string }
+      }) {
+        if (!options.watch)
+          throw new Error(
+            'Persistent reporter generations require watch ownership.'
+          )
+        await consoleQueue
+        if (consoleFailure) throw consoleFailure
+        await request({ type: 'watch-begin', ...input })
+        observedModules.clear()
+      },
+      async readyWatchRun(initial: boolean): Promise<Error | undefined> {
+        if (!options.watch)
+          throw new Error('Reporter readiness requires watch ownership.')
+        await consoleQueue
+        if (consoleFailure) throw consoleFailure
+        watchHookError = undefined
+        await request({ type: 'watch-ready', initial })
+        return watchHookError
+      },
+      async removeWatchTests(removedFiles: string[]) {
+        if (!options.watch)
+          throw new Error('Reporter removal requires watch ownership.')
+        await consoleQueue
+        if (consoleFailure) throw consoleFailure
+        await request({ type: 'watch-removed', files: removedFiles })
       },
       async replayFile(
         taskTree: ReporterTaskSnapshot,

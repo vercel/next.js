@@ -1,7 +1,7 @@
 import { validateMockCoverageSources } from './mock-sources'
 import { createHash } from 'crypto'
 import { readFile, realpath } from 'fs/promises'
-import { isAbsolute, relative, resolve, sep } from 'path'
+import { isAbsolute, posix, relative, resolve, sep } from 'path'
 import { fileURLToPath } from 'url'
 import { decodeCoverageMap } from './maps'
 import type { CoverageArtifactMetadata, MockCoverageSources } from './types'
@@ -42,6 +42,8 @@ export async function buildCoverageMetadata(options: {
   includeEntrySource?: boolean
   setupFiles: readonly string[]
   syntheticSources?: MockCoverageSources
+  /** Actual production Browser assets name maps by their own content hash. */
+  browserSourceMapReferences?: true
 }): Promise<CoverageArtifactMetadata> {
   if (options.syntheticSources)
     validateMockCoverageSources(options.syntheticSources)
@@ -69,11 +71,38 @@ export async function buildCoverageMetadata(options: {
   const files = new Set(options.files)
   for (const path of options.files) {
     if (!/\.(?:c|m)?js$/.test(path)) continue
+    const scriptBytes = await readArtifactFile(options.rootDir, path)
     const script: CoverageArtifactMetadata['scripts'][number] = {
       path,
-      sha256: coverageHash(await readArtifactFile(options.rootDir, path)),
+      sha256: coverageHash(scriptBytes),
     }
-    const mapPath = `${path}.map`
+    let mapPath = `${path}.map`
+    if (options.browserSourceMapReferences) {
+      const footer = scriptBytes
+        .toString('utf8')
+        .match(/(?:^|\n)(?:[\t ]*\/\/[^\r\n]*(?:\r?\n|$))+\s*$/)?.[0]
+      const reference = footer
+        ? [
+            ...footer.matchAll(
+              /^[\t ]*\/\/[#@]\s*sourceMappingURL=(\S+)[\t ]*\r?$/gm
+            ),
+          ].at(-1)?.[1]
+        : undefined
+      if (reference) {
+        mapPath = posix.normalize(posix.join(posix.dirname(path), reference))
+        if (
+          reference.startsWith('/') ||
+          reference.includes('\\') ||
+          /^[a-zA-Z][a-zA-Z\d+.-]*:/.test(reference) ||
+          /[?#]/.test(reference) ||
+          !mapPath.endsWith('.js.map') ||
+          !files.has(mapPath)
+        )
+          throw new Error(
+            `Browser coverage source map escaped its output closure: ${reference}`
+          )
+      }
+    }
     if (files.has(mapPath)) {
       const bytes = await readArtifactFile(options.rootDir, mapPath)
       script.mapPath = mapPath

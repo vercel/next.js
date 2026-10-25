@@ -1,0 +1,75 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "actual-Task-native-async",
+        "trace": [
+          {
+            "phase": "soft-body",
+            "count": 1
+          },
+          {
+            "phase": "unawaited-body",
+            "count": 1
+          },
+          {
+            "phase": "awaited-body",
+            "count": 2
+          }
+        ],
+        "results": [
+          {
+            "name": "actual Task native soft",
+            "state": "fail",
+            "errorCount": 1
+          },
+          {
+            "name": "actual Task native unawaited",
+            "state": "fail",
+            "errorCount": 1
+          },
+          {
+            "name": "actual Task native awaited",
+            "state": "pass",
+            "errorCount": 0
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "actual Task native soft",
+      "status": "failed",
+      "failureCount": 1,
+      "failureHeads": [
+        "AssertionError: expected 1 to be 2 // Object.is equality"
+      ]
+    },
+    {
+      "name": "actual Task native unawaited",
+      "status": "failed",
+      "failureCount": 1,
+      "failureHeads": [
+        "Error: Promise returned by `expect(actual).resolves.toBe(expected)` was not awaited. This assertion is asynchronous and must be awaited; otherwise, it is not guaranteed to complete before the test finishes:"
+      ]
+    },
+    {
+      "name": "actual Task native awaited",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeads": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 3,
+    "numPassedTests": 1,
+    "numFailedTests": 2,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": false
+  },
+  "exit": 1
+}

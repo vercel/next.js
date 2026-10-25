@@ -1,0 +1,274 @@
+{
+  "version": 1,
+  "reference": "Vitest 5.0.4 / Vite 8.3.4 development reports; identical Playwright 1.61.0 and 1.64.0 reference outputs.",
+  "kind": "jsx",
+  "mode": "development",
+  "sourceFiles": {
+    "contract.test.mjs": {
+      "fixture": "jsx-standard/basic/contract.test.mjs.txt",
+      "sha256": "8d8301e8f35cfadbb85e59a81c72e9523a1defb5dd153d87411f850de705b565"
+    },
+    "subject.jsx": {
+      "fixture": "jsx-standard/basic/subject.jsx.txt",
+      "sha256": "17ce209603c75407d6d4d088e06558cb829accd8a01e10b3511e8192939c7486"
+    },
+    "helper.js": {
+      "fixture": "jsx-standard/basic/helper.js.txt",
+      "sha256": "0d981f9d6adf7fbcb260f4de914ff17c01b4eaa6bdce7c366fbbfd7e5c88db08"
+    },
+    "package.json": {
+      "fixture": "jsx-standard/basic/package.json.txt",
+      "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
+    },
+    "unimported.jsx": {
+      "fixture": "jsx-standard/basic/subject.jsx.txt",
+      "sha256": "17ce209603c75407d6d4d088e06558cb829accd8a01e10b3511e8192939c7486"
+    }
+  },
+  "numPassedTests": 1,
+  "cases": [
+    {
+      "file": "contract.test.mjs",
+      "status": "passed",
+      "cases": [
+        {
+          "ancestorTitles": [],
+          "fullName": "renders imported helper values",
+          "status": "passed",
+          "title": "renders imported helper values",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ]
+    }
+  ],
+  "coverage": {
+    "helper.js": {
+      "path": "helper.js",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 1,
+            "column": 31
+          },
+          "end": {
+            "line": 1,
+            "column": 49
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "label",
+          "decl": {
+            "start": {
+              "line": 1,
+              "column": 16
+            },
+            "end": {
+              "line": 1,
+              "column": 21
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 29
+            },
+            "end": {
+              "line": 1,
+              "column": null
+            }
+          },
+          "line": 1
+        }
+      },
+      "branchMap": {},
+      "s": {
+        "0": 2
+      },
+      "f": {
+        "0": 2
+      },
+      "b": {},
+      "meta": {
+        "lastBranch": 0,
+        "lastFunction": 1,
+        "lastStatement": 1,
+        "seen": {
+          "f:1:16:1:21": 0,
+          "s:1:31:1:49": 0
+        },
+        "fnNames": {}
+      }
+    },
+    "subject.jsx": {
+      "path": "subject.jsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 1,
+            "column": 7
+          },
+          "end": {
+            "line": 1,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 1,
+            "column": 18
+          },
+          "end": {
+            "line": 1,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 4,
+            "column": 2
+          },
+          "end": {
+            "line": 4,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "Basic",
+          "decl": {
+            "start": {
+              "line": 3,
+              "column": 16
+            },
+            "end": {
+              "line": 3,
+              "column": 22
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 3,
+              "column": 32
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          },
+          "line": 3
+        }
+      },
+      "branchMap": {},
+      "s": {
+        "0": 1,
+        "1": 1,
+        "2": 2
+      },
+      "f": {
+        "0": 2
+      },
+      "b": {},
+      "meta": {
+        "lastBranch": 0,
+        "lastFunction": 1,
+        "lastStatement": 3,
+        "seen": {
+          "s:1:7:1:Infinity": 0,
+          "s:1:18:1:Infinity": 1,
+          "f:3:16:3:22": 0,
+          "s:4:2:4:Infinity": 2
+        },
+        "fnNames": {}
+      }
+    },
+    "unimported.jsx": {
+      "path": "unimported.jsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 1,
+            "column": 7
+          },
+          "end": {
+            "line": 1,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 1,
+            "column": 18
+          },
+          "end": {
+            "line": 1,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 4,
+            "column": 2
+          },
+          "end": {
+            "line": 4,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "Basic",
+          "decl": {
+            "start": {
+              "line": 3,
+              "column": 16
+            },
+            "end": {
+              "line": 3,
+              "column": 22
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 3,
+              "column": 32
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          },
+          "line": 3
+        }
+      },
+      "branchMap": {},
+      "s": {
+        "0": 0,
+        "1": 0,
+        "2": 0
+      },
+      "f": {
+        "0": 0
+      },
+      "b": {},
+      "meta": {
+        "lastBranch": 0,
+        "lastFunction": 1,
+        "lastStatement": 3,
+        "seen": {
+          "s:1:7:1:Infinity": 0,
+          "s:1:18:1:Infinity": 1,
+          "f:3:16:3:22": 0,
+          "s:4:2:4:Infinity": 2
+        },
+        "fnNames": {}
+      }
+    }
+  }
+}

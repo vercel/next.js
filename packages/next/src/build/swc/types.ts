@@ -347,6 +347,8 @@ export interface Project {
     browserCoverage?: boolean
     /** Native source-preserving coverage context; runtime remains production. */
     sourceCoverage?: boolean
+    /** Explicit preserved production Browser output; separate from Node. */
+    browserSourceCoverage?: boolean
     /** Private producer qualification; ordinary app/test compilation defaults off. */
     importCoverageRoles?: boolean
     /** Private parent revision; requires native config-input capability v1. */

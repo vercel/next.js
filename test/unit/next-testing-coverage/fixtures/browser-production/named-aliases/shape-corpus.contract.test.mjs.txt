@@ -1,0 +1,5 @@
+import { expect, test } from 'vitest'
+import { Card as Card0 } from './shape-named-logical.tsx'
+import { Card as Card1 } from './shape-named-fragment.tsx'
+test('named logical preserves authored child and prop behavior',()=>{const yes=Card0({active:true,label:'hello'}),no=Card0({active:false,label:'world'});expect(yes.props.children.props.children).toBe('hello');expect(no.props.children).toBe(false)})
+test('named fragment preserves authored child and prop behavior',()=>{const yes=Card1({active:true,label:'hello'}),no=Card1({active:false,label:'world'});expect(yes.props.children[0]).toBe('hello');expect(yes.props.children[1]).toBe('yes');expect(no.props.children[1]).toBe('no');expect(yes.props.children[2].props.children).toBe('end')})

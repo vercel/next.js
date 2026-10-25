@@ -1,0 +1,55 @@
+{
+  "rows": [
+    [
+      {
+        "stage": "body-return",
+        "length": 1
+      },
+      {
+        "stage": "afterEach",
+        "errors": [
+          "actual controlled body failure"
+        ]
+      },
+      {
+        "stage": "first-failed",
+        "length": 1,
+        "receiverUndefined": true
+      },
+      {
+        "stage": "live-refused",
+        "name": "onTestFinished",
+        "message": "Cannot call \"onTestFinished\" inside a test hook."
+      },
+      {
+        "stage": "live-refused",
+        "name": "onTestFailed",
+        "message": "Cannot call \"onTestFailed\" inside a test hook."
+      },
+      {
+        "stage": "appended",
+        "length": 4
+      },
+      {
+        "stage": "appended-global"
+      },
+      {
+        "stage": "appended-retained"
+      },
+      {
+        "stage": "appended-manual"
+      }
+    ]
+  ],
+  "cases": [
+    {
+      "name": "failed registration snapshot list",
+      "status": "failed",
+      "failureMessages": [
+        "actual controlled body failure"
+      ]
+    }
+  ],
+  "success": false,
+  "exit": 1
+}

@@ -155,6 +155,10 @@ async function build() {
   await collect('@testing-library/jest-dom', __filename)
   await collect('@sinonjs/fake-timers', __filename)
   await collect('@types/sinonjs__fake-timers', __filename)
+  licenses.set(
+    '@vitest/browser@5.0.4 pure locator and ARIA primitives',
+    await readFile(join(__dirname, 'browser/locator/LICENSE'), 'utf8')
+  )
   await writeFile(
     join(output, 'browser/LICENSE'),
     [...licenses]

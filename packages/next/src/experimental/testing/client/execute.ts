@@ -1,8 +1,15 @@
+import { isTestCI } from '../config-environment'
 import { cleanupClientKeyboard, runClientKeyboard } from './keyboard'
 import { captureProductionStaticMockClosure } from '../mocking/production-artifact'
 import { randomBytes } from 'node:crypto'
 import { resolve } from 'node:path'
-import type { Browser, BrowserContext, ConsoleMessage, Page } from 'playwright'
+import type {
+  Browser,
+  BrowserContext,
+  ConsoleMessage,
+  Frame,
+  Page,
+} from 'playwright'
 import type {
   CompiledBrowserClientTestArtifact,
   ExecuteTestOptions,
@@ -28,14 +35,36 @@ import { createClientEngineBrand } from './engine-brand'
 import { clientConsoleBoundary } from './protocol'
 import { runClientBrowserAction } from './action-error'
 import { clientLocatorEngine, registerClientLocators } from './locator-engine'
+import type { BrowserFrameOwner } from '../browser/frame-owner'
+import type { FirefoxFrameOwner } from '../browser/firefox-host'
 
 /** Execute a compiler-certified client graph in its freshly owned page. */
 export async function executeClient(
   artifact: CompiledBrowserClientTestArtifact,
-  options: ExecuteTestOptions
+  options: ExecuteTestOptions & {
+    browserEngine?: 'chromium' | 'firefox' | 'webkit'
+    testFrame?: boolean
+  }
 ): Promise<TestExecutionResult> {
   assertArtifactProfile(artifact, options.entry)
   assertCompiledSetup(artifact, options.setupFiles)
+  if (
+    options.browserHeadless !== undefined &&
+    typeof options.browserHeadless !== 'boolean'
+  )
+    throw new Error('Browser headless mode must be a boolean.')
+  const engine = options.browserEngine ?? 'chromium'
+  if (engine === 'firefox' && options.coverage)
+    throw new Error('Firefox Browser Mode V8 coverage is not implemented.')
+  if (engine === 'webkit' && options.coverage)
+    throw new Error('WebKit Browser Mode V8 coverage is not implemented.')
+  if (
+    options.userCancelSignal &&
+    (options.coverage || resolveSnapshotUpdateMode(options) === 'all')
+  )
+    throw new Error(
+      'Browser scheduling cancellation does not yet support coverage or snapshot replacement.'
+    )
   if (
     artifact.kind !== 'browser' ||
     artifact.client.asyncScope !== 'promise-continuations-v1' ||
@@ -59,13 +88,14 @@ export async function executeClient(
         !Number.isSafeInteger(options.retry) ||
         options.retry < 0)) ||
     options.bail ||
-    options.sequence?.hooks ||
+    (options.sequence?.hooks !== undefined &&
+      !['stack', 'list', 'parallel'].includes(options.sequence.hooks)) ||
     (options.sequence?.setupFiles && options.sequence.setupFiles !== 'list') ||
     options.sequence?.concurrent ||
     (typeof options.sequence?.shuffle === 'object'
       ? options.sequence.shuffle.tests
       : options.sequence?.shuffle) ||
-    (options.maxConcurrency && options.maxConcurrency !== 1) ||
+    (options.maxConcurrency !== undefined && options.maxConcurrency !== 1) ||
     options.tags?.length ||
     options.strictTags ||
     options.attachmentsDir
@@ -118,17 +148,31 @@ export async function executeClient(
     browser: Browser | undefined,
     context: BrowserContext | undefined,
     page: Page | undefined,
+    testFrame: Frame | undefined,
+    frameOwner: BrowserFrameOwner | FirefoxFrameOwner | undefined,
     server: Awaited<ReturnType<typeof createClientServer>> | undefined,
     coverage: ReturnType<typeof createClientCoverage> | undefined,
     engineBrand: ReturnType<typeof createClientEngineBrand> | undefined
   let closing = false,
     cleanCompletion = false,
+    userCancellationInterrupted = false,
     managedConsole = false,
     escapedConsoleDebug = false,
     consoleCompleted = false
   const collector = createClientResultCollector(
     artifact,
-    { ...options, updateSnapshots: snapshotUpdateMode !== 'none' },
+    {
+      ...options,
+      updateSnapshots: snapshotUpdateMode !== 'none',
+      ...(options.userCancelSignal
+        ? {
+            isUserCancellationFinalized: () =>
+              options.userCancelSignal!.aborted &&
+              !controller.signal.aborted &&
+              server?.userCancellationFinalized() === true,
+          }
+        : {}),
+    },
     (stack) => server?.mapStack(stack) ?? []
   )
   const forwardedEvents = options.captureTaskResults
@@ -147,9 +191,17 @@ export async function executeClient(
     errors.push(error)
     server?.fail(error)
   }
+  const onFrameDetached = (frame: Frame) => {
+    if (frame === testFrame && !closing)
+      fail(new Error('Browser Mode selected test Frame detached.'))
+  }
   const deferredConsole: ResultEvent[] = []
   const onConsole = (message: ConsoleMessage) => {
     try {
+      // Gecko publishes timeline markers as console events; the reference
+      // console reporter leaves timeStamp in the browser timeline only.
+      if (engine === 'firefox' && (message.type() as string) === 'timeStamp')
+        return
       const text = message.text()
       if (message.type() === 'debug' && escapedConsoleDebug) {
         escapedConsoleDebug = false
@@ -219,6 +271,10 @@ export async function executeClient(
     controller.signal.throwIfAborted()
     server = await createClientServer({
       artifact,
+      ...(options.testFrame ? { testFrame: true } : {}),
+      ...(options.userCancelSignal
+        ? { userCancelSignal: options.userCancelSignal }
+        : {}),
       configuration: {
         version: 1,
         runId: options.runId,
@@ -233,13 +289,26 @@ export async function executeClient(
         projectDir: options.projectDir,
         snapshotUpdateMode,
         ...(options.captureTaskResults ? { captureTaskResults: true } : {}),
+        ...(options.captureCompletedModuleResult
+          ? { captureCompletedModuleResult: true as const }
+          : {}),
+        ...(options.userCancelSignal
+          ? { userCancellation: true as const }
+          : {}),
         testNamePattern:
           testNamePattern === undefined
             ? undefined
             : { source: testNamePattern.source, flags: testNamePattern.flags },
         allowOnly: options.allowOnly,
+        includeTaskLocation:
+          options.includeTaskLocation ??
+          (!(options.browserHeadless ?? isTestCI) && !isTestCI),
         testTimeout: options.testTimeout,
         hookTimeout: options.hookTimeout,
+        ...(options.sequence?.hooks === undefined
+          ? {}
+          : { hookSequence: options.sequence.hooks }),
+        ...(options.maxConcurrency === 1 ? { maxConcurrency: 1 as const } : {}),
         fakeTimers: options.fakeTimers,
         provide,
         env: options.env,
@@ -257,6 +326,7 @@ export async function executeClient(
           /^next-test-locator-[0-9]+$/.test(command.element)
         if (
           !page ||
+          (options.testFrame && !testFrame) ||
           closing ||
           !command ||
           (!/^next-test-element-[0-9]+$/.test(command.element) &&
@@ -264,6 +334,7 @@ export async function executeClient(
               deferredLocator &&
               (command.method === 'click' ||
                 command.method === 'fill' ||
+                command.method === 'clear' ||
                 command.method === 'dblClick' ||
                 command.method === 'tripleClick' ||
                 command.method === 'hover' ||
@@ -278,9 +349,10 @@ export async function executeClient(
           return runClientBrowserAction(perform)
         }
         const actionPage = page
+        const actionFrame = testFrame ?? actionPage
         const locator = deferredLocator
-          ? actionPage.locator(clientLocatorEngine + '=' + command.element)
-          : actionPage.locator(`[data-next-test-element="${command.element}"]`)
+          ? actionFrame.locator(clientLocatorEngine + '=' + command.element)
+          : actionFrame.locator(`[data-next-test-element="${command.element}"]`)
         switch (command.method) {
           case 'dragAndDrop': {
             const [target, dragOptions] = command.args
@@ -295,7 +367,7 @@ export async function executeClient(
                   Array.isArray(dragOptions)))
             )
               throw new Error('Invalid Browser Mode drag target or options.')
-            const frame = actionPage.mainFrame()
+            const frame = testFrame ?? actionPage.mainFrame()
             await runAction(() =>
               frame.dragAndDrop(
                 `[data-next-test-element="${command.element}"]`,
@@ -327,7 +399,7 @@ export async function executeClient(
             )
               throw new Error('Invalid keyboard state.')
             await runAction(async () => {
-              await actionPage.evaluate(() => {})
+              await actionFrame.evaluate(() => {})
               await cleanupClientKeyboard(actionPage.keyboard, state)
             })
             break
@@ -345,7 +417,7 @@ export async function executeClient(
               throw new Error('Invalid keyboard state.')
             return runAction(async () => {
               // Settle the awaiting continuation's classifier pause before input.
-              await actionPage.evaluate(() => {})
+              await actionFrame.evaluate(() => {})
               let skipRelease = true
               if (command.method === 'type') {
                 const typeOptions = command.args[1] as
@@ -374,7 +446,7 @@ export async function executeClient(
                 () =>
                   command.method === 'type'
                     ? locator.selectText()
-                    : actionPage.evaluate(() => {
+                    : actionFrame.evaluate(() => {
                         const active =
                           document.activeElement as HTMLInputElement | null
                         if (typeof active?.select === 'function')
@@ -411,7 +483,7 @@ export async function executeClient(
           case 'tab': {
             // Direct keyboard input has no locator actionability round-trip.
             // Settle the client continuation's classifier pause before input.
-            await page.evaluate(() => {})
+            await actionFrame.evaluate(() => {})
             const tabOptions =
               command.args[0] === undefined
                 ? {}
@@ -433,15 +505,15 @@ export async function executeClient(
             break
           case 'unhover':
             await runAction(async () => {
-              await actionPage.evaluate(() => {})
-              await actionPage
+              await actionFrame.evaluate(() => {})
+              await actionFrame
                 .locator('body')
                 .hover(command.args[0] as Parameters<typeof locator.hover>[0])
             })
             break
           case 'hover':
             await runAction(async () => {
-              await actionPage.evaluate(() => {})
+              await actionFrame.evaluate(() => {})
               await locator.hover(
                 command.args[0] as Parameters<typeof locator.hover>[0]
               )
@@ -495,7 +567,7 @@ export async function executeClient(
                   | { element: string }
                 )[]) {
                   if (typeof value !== 'string') {
-                    const handle = await actionPage
+                    const handle = await actionFrame
                       .locator(`[data-next-test-element="${value.element}"]`)
                       .elementHandle()
                     if (!handle)
@@ -584,6 +656,8 @@ export async function executeClient(
           })
         } else {
           const value = collector.accept(message)
+          if (message.type === 'complete')
+            userCancellationInterrupted = message.interrupted
           publishCapturedEvents()
           return value
         }
@@ -594,6 +668,9 @@ export async function executeClient(
     host = await createBrowserHost({
       projectDir: options.projectDir,
       signal: controller.signal,
+      ...(engine !== 'chromium' ? { engine } : {}),
+      headless: options.browserHeadless ?? isTestCI,
+      ...(options.testFrame ? { ownedFrames: true } : {}),
     })
     controller.signal.throwIfAborted()
     browser = await connectBrowserHost({
@@ -601,6 +678,7 @@ export async function executeClient(
       wsEndpoint: host.wsEndpoint,
       timeout: Math.min(30000, options.fileTimeout),
       beforeConnect: registerClientLocators,
+      ...(engine !== 'chromium' ? { engine } : {}),
     })
     controller.signal.throwIfAborted()
     const contextOptions = {
@@ -614,12 +692,46 @@ export async function executeClient(
     page.on('pageerror', onPageError)
     page.on('crash', onCrash)
     page.on('close', onClose)
+    if (options.testFrame) {
+      page.on('framedetached', onFrameDetached)
+      if (!server.hostURL || !host.frameOwner)
+        throw new Error('Browser Mode host has no owned test Frame producer.')
+      await Promise.race([
+        page.goto(server.hostURL, {
+          waitUntil: 'load',
+          timeout: Math.min(30000, options.fileTimeout),
+        }),
+        interrupted,
+      ])
+      controller.signal.throwIfAborted()
+      const element = await page
+        .locator('iframe')
+        .elementHandle({ timeout: Math.min(30000, options.fileTimeout) })
+      if (!element)
+        throw new Error('Browser Mode host has no actual test iframe.')
+      try {
+        testFrame = (await element.contentFrame()) ?? undefined
+      } finally {
+        await element.dispose()
+      }
+      controller.signal.throwIfAborted()
+      if (!testFrame)
+        throw new Error('Browser Mode iframe has no actual test Frame.')
+      frameOwner = host.frameOwner(context, page, testFrame)
+    }
     engineBrand = createClientEngineBrand({
       context,
       page,
       url: server.url,
       signal: controller.signal,
       onFailure: fail,
+      ...(frameOwner ? { frameOwner } : {}),
+      ...(engine === 'firefox'
+        ? { firefoxOwner: host.firefoxPageOwner!(context, page) }
+        : {}),
+      ...(engine === 'webkit'
+        ? { webKitOwner: host.webKitPageOwner!(context, page) }
+        : {}),
     })
     await Promise.race([engineBrand.start(), interrupted])
     if (options.coverage) {
@@ -631,13 +743,14 @@ export async function executeClient(
         url: server.url,
         contextOptions,
         engineBrandFact: () => engineBrand!.fact(),
+        ...(frameOwner ? { frameOwner, hostURL: server.hostURL } : {}),
         signal: controller.signal,
         onFailure: fail,
       })
       await Promise.race([coverage.start(), interrupted])
     }
     await Promise.race([
-      page.goto(server.url, {
+      (testFrame ?? page).goto(server.url, {
         waitUntil: 'load',
         timeout: Math.min(30000, options.fileTimeout),
       }),
@@ -651,15 +764,17 @@ export async function executeClient(
     errors.push(error)
   } finally {
     closing = true
-    engineBrand?.close()
+    const engineClosing = engineBrand?.close()
     coverage?.close()
     clearTimeout(timer)
     controller.signal.removeEventListener('abort', abort)
     options.signal.removeEventListener('abort', onAbort)
     // Every acquired owner is awaited, including when a prior disposal fails.
     for (const dispose of [
+      () => engineClosing,
       () => context?.close(),
       () => page?.off('console', onConsole),
+      () => page?.off('framedetached', onFrameDetached),
       () => browser?.close(),
       () => host?.dispose(),
       () => engineBrand?.afterOwnersClosed(),
@@ -779,5 +894,27 @@ export async function executeClient(
     durationMs: performance.now() - started,
   }
   options.onEvent({ ...envelope(), type: 'file-end', ...result })
-  return result
+  return {
+    ...result,
+    ...(options.captureCompletedModuleResult
+      ? {
+          moduleExecution: {
+            closed: false as const,
+            ...(facts?.moduleCompletion
+              ? { completion: facts.moduleCompletion }
+              : {}),
+          },
+        }
+      : {}),
+    ...(status === 'passed' &&
+    cleanCompletion &&
+    userCancellationInterrupted &&
+    options.userCancelSignal?.aborted &&
+    !options.signal.aborted &&
+    server?.userCancellationFinalized() === true &&
+    facts?.updates.length === 0 &&
+    actualErrors.length === 0
+      ? { closedUserCancellation: true as const }
+      : {}),
+  }
 }

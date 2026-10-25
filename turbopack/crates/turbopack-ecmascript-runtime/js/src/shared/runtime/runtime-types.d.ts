@@ -171,8 +171,8 @@ interface TurbopackBaseContext<M> {
   v: ExportValue
   q: ExportUrl
   n: ExportNamespace
-  /** Prepare a compiler-certified callable namespace; finish only after normal completion. */
-  p: (interopDefault: boolean) => (() => void) | undefined
+  /** Prepare a compiler-certified namespace; finish only after normal completion. */
+  p: (interopDefault: boolean, nativePromise?: true) => (() => void) | undefined
   m: Module
   c: ModuleCache<M>
   M: ModuleFactories

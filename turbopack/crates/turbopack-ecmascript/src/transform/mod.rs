@@ -1,6 +1,10 @@
 mod jsx_source_spans;
 
-use std::{fmt::Debug, hash::Hash, sync::Arc};
+use std::{
+    fmt::Debug,
+    hash::Hash,
+    sync::{Arc, Mutex},
+};
 
 use anyhow::{Result, bail};
 use async_trait::async_trait;
@@ -11,8 +15,8 @@ use swc_core::{
     common::{Mark, SourceMap, comments::Comments},
     ecma::{
         ast::{
-            ArrowExpr, ArrowFunctionBody, Expr, ExprStmt, Function, Lit, ModuleItem, Pass, Program,
-            Stmt,
+            ArrowExpr, ArrowFunctionBody, Expr, ExprStmt, Function, Id, ImportDecl, Lit,
+            ModuleDecl, ModuleItem, Pass, Program, Stmt,
         },
         preset_env::{self, Feature, FeatureOrModule, Targets},
         transforms::{
@@ -21,7 +25,7 @@ use swc_core::{
                 helpers::{HELPERS, HelperData, Helpers},
             },
             react::react,
-            typescript::{Config, typescript},
+            typescript::{Config, TsxConfig, tsx, typescript},
         },
         utils::IsDirective,
         visit::{Visit, VisitWith},
@@ -80,12 +84,16 @@ pub enum EcmascriptInputTransform {
         import_source: ResolvedVc<Option<RcStr>>,
         // swc.jsc.transform.react.runtime,
         runtime: ResolvedVc<Option<RcStr>>,
+        /// Per-parse observation only for private Browser source coverage.
+        capture_browser_jsx_imports: bool,
     },
     // These options are subset of swc_core::ecma::transforms::typescript::Config, but
     // it doesn't derive `Copy` so repeating values in here
     TypeScript {
         use_define_for_class_fields: bool,
         verbatim_module_syntax: bool,
+        /// Only private Browser source coverage .tsx rules set this.
+        preserve_jsx_imports: bool,
     },
     Decorators {
         is_legacy: bool,
@@ -190,6 +198,57 @@ impl EcmascriptInputTransforms {
     }
 }
 
+/// An import introduced by the actual React transform in one owned parse.
+/// Binding IDs are retained only until native import code generation; no source
+/// location or emitted name is manufactured from these facts.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BrowserJsxImport {
+    pub(crate) request: String,
+    pub(crate) bindings: Vec<Id>,
+}
+
+impl BrowserJsxImport {
+    pub(crate) fn from_import(import: &ImportDecl) -> Self {
+        Self {
+            request: import.src.value.to_string_lossy().into_owned(),
+            bindings: import
+                .specifiers
+                .iter()
+                .map(|specifier| specifier.local().to_id())
+                .collect(),
+        }
+    }
+
+    pub(crate) fn capture(program: &Program) -> Vec<Self> {
+        let Program::Module(module) = program else {
+            return Vec::new();
+        };
+        module
+            .body
+            .iter()
+            .filter_map(|item| match item {
+                ModuleItem::ModuleDecl(ModuleDecl::Import(import)) => {
+                    Some(Self::from_import(import))
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    pub(crate) fn inserted(before: &[Self], program: &Program) -> Vec<Self> {
+        Self::capture(program)
+            .into_iter()
+            .filter(|import| {
+                !import.bindings.is_empty()
+                    && import
+                        .bindings
+                        .iter()
+                        .all(|binding| before.iter().all(|prior| !prior.bindings.contains(binding)))
+            })
+            .collect()
+    }
+}
+
 pub struct TransformContext<'a> {
     pub comments: &'a SwcComments,
     pub top_level_mark: Mark,
@@ -207,6 +266,77 @@ pub struct TransformContext<'a> {
     /// The value of `process.env.NODE_ENV` for this compilation
     /// (e.g. `"development"` or `"production"`).
     pub node_env: RcStr,
+    /// Owned by this parse, populated only around its opted-in React transform.
+    pub browser_jsx_imports: Option<&'a Mutex<Vec<BrowserJsxImport>>>,
+}
+
+/// Use actual JSX use and the same native directive parser as JSX lowering.
+/// The strip-only null counterpart cannot reserve an unrelated source binding.
+fn browser_coverage_tsx_config(
+    program: &Program,
+    source_map: &Arc<SourceMap>,
+    comments: &SwcComments,
+    top_level_mark: Mark,
+) -> Option<TsxConfig> {
+    use swc_core::{
+        common::Spanned,
+        ecma::{codegen::to_code, transforms::react::JsxDirectives},
+    };
+
+    #[derive(Default)]
+    struct JsxUse {
+        any: bool,
+        fragment: bool,
+    }
+    impl Visit for JsxUse {
+        fn visit_jsx_element(&mut self, element: &swc_core::ecma::ast::JSXElement) {
+            self.any = true;
+            element.visit_children_with(self);
+        }
+        fn visit_jsx_fragment(&mut self, fragment: &swc_core::ecma::ast::JSXFragment) {
+            self.any = true;
+            self.fragment = true;
+            fragment.visit_children_with(self);
+        }
+    }
+    let mut used = JsxUse::default();
+    program.visit_with(&mut used);
+    if !used.any {
+        return None;
+    }
+    let Program::Module(module) = program else {
+        return None;
+    };
+    let span = if module.shebang.is_some() {
+        module.span.with_lo(
+            module
+                .body
+                .first()
+                .map_or(module.span.lo, |item| item.span_lo()),
+        )
+    } else {
+        module.span
+    };
+    let directives = comments.with_leading(span.lo, |comments| {
+        JsxDirectives::from_comments(source_map, span, comments, top_level_mark)
+    });
+    Some(TsxConfig {
+        pragma: directives
+            .pragma
+            .as_deref()
+            .map(|expression| to_code(&**expression).into()),
+        pragma_frag: if used.fragment {
+            directives
+                .pragma_frag
+                .as_deref()
+                .map(|expression| to_code(&**expression).into())
+        } else {
+            // SWC explicitly accepts literal null as a nonbinding pragma. This
+            // only controls import-use analysis; actual JSX lowering still sees
+            // the original source, comments, runtime and fragment settings.
+            Some("null".into())
+        },
+    })
 }
 
 impl EcmascriptInputTransform {
@@ -230,6 +360,7 @@ impl EcmascriptInputTransform {
                 refresh,
                 import_source,
                 runtime,
+                capture_browser_jsx_imports,
             } => {
                 use swc_core::ecma::transforms::react::{Options, Runtime};
                 let runtime = if let Some(runtime) = &*runtime.await? {
@@ -266,6 +397,9 @@ impl EcmascriptInputTransform {
                     ..Default::default()
                 };
 
+                let before_imports =
+                    (*capture_browser_jsx_imports).then(|| BrowserJsxImport::capture(program));
+
                 // Explicit type annotation to ensure that we don't duplicate transforms in the
                 // final binary
                 let helpers = apply_transform(
@@ -279,6 +413,13 @@ impl EcmascriptInputTransform {
                         unresolved_mark,
                     ),
                 );
+
+                if let (Some(before), Some(imports)) = (before_imports, ctx.browser_jsx_imports) {
+                    imports
+                        .lock()
+                        .expect("owned Browser JSX import collector")
+                        .extend(BrowserJsxImport::inserted(&before, program));
+                }
 
                 if let Some(spans) = jsx_props_spans {
                     spans.restore(program);
@@ -392,16 +533,40 @@ impl EcmascriptInputTransform {
                 // TODO(WEB-1213)
                 use_define_for_class_fields: _use_define_for_class_fields,
                 verbatim_module_syntax,
+                preserve_jsx_imports,
             } => {
                 let config = Config {
                     verbatim_module_syntax: *verbatim_module_syntax,
                     ..Default::default()
                 };
-                apply_transform(
-                    program,
-                    helpers,
-                    typescript(config, unresolved_mark, top_level_mark),
-                )
+                let tsx_config = if *preserve_jsx_imports {
+                    browser_coverage_tsx_config(program, source_map, comments, top_level_mark)
+                } else {
+                    None
+                };
+                if let Some(tsx_config) = tsx_config {
+                    // Directive selection above already accounts for real JSX
+                    // use. Do not let TSX reserve an unused default counterpart.
+                    // Original comments remain intact for actual React lowering.
+                    apply_transform(
+                        program,
+                        helpers,
+                        tsx(
+                            source_map.clone(),
+                            config,
+                            tsx_config,
+                            swc_core::common::comments::NoopComments,
+                            unresolved_mark,
+                            top_level_mark,
+                        ),
+                    )
+                } else {
+                    apply_transform(
+                        program,
+                        helpers,
+                        typescript(config, unresolved_mark, top_level_mark),
+                    )
+                }
             }
             EcmascriptInputTransform::Decorators {
                 is_legacy,
@@ -859,5 +1024,168 @@ mod react_compiler_tests {
                 ReactCompilerCompilationMode::All,
             ));
         }
+    }
+}
+
+#[cfg(test)]
+mod browser_coverage_tsx_tests {
+    use std::sync::Arc;
+
+    use swc_core::{
+        base::SwcComments,
+        common::{FileName, GLOBALS, Globals, Mark, SourceMap},
+        ecma::{
+            ast::{EsVersion, ImportSpecifier, ModuleDecl, ModuleItem, Program},
+            parser::{Syntax, TsSyntax, parse_file_as_program},
+            transforms::{
+                base::resolver,
+                typescript::{Config, tsx, typescript},
+            },
+        },
+    };
+
+    use super::browser_coverage_tsx_config;
+
+    fn imports(source: &str, private_tsx: bool, verbatim_module_syntax: bool) -> Vec<String> {
+        GLOBALS.set(&Globals::default(), || {
+            let cm: Arc<SourceMap> = Default::default();
+            let file = cm.new_source_file(
+                FileName::Custom("input.tsx".into()).into(),
+                source.to_owned(),
+            );
+            let comments = SwcComments::default();
+            let mut errors = Vec::new();
+            let mut program = parse_file_as_program(
+                &file,
+                Syntax::Typescript(TsSyntax {
+                    tsx: true,
+                    ..Default::default()
+                }),
+                EsVersion::EsNext,
+                Some(&comments),
+                &mut errors,
+            )
+            .expect("actual TypeScript fixture must parse");
+            assert!(errors.is_empty());
+            let unresolved = Mark::new();
+            let top_level = Mark::new();
+            program.mutate(resolver(unresolved, top_level, true));
+            let config = Config {
+                verbatim_module_syntax,
+                ..Default::default()
+            };
+            let selected = private_tsx
+                .then(|| browser_coverage_tsx_config(&program, &cm, &comments, top_level))
+                .flatten();
+            if let Some(selected) = selected {
+                program.mutate(tsx(
+                    cm,
+                    config,
+                    selected,
+                    swc_core::common::comments::NoopComments,
+                    unresolved,
+                    top_level,
+                ));
+            } else {
+                program.mutate(typescript(config, unresolved, top_level));
+            }
+            let Program::Module(module) = program else {
+                panic!("actual module must retain its module identity");
+            };
+            module
+                .body
+                .iter()
+                .filter_map(|item| match item {
+                    ModuleItem::ModuleDecl(ModuleDecl::Import(import)) => Some(import),
+                    _ => None,
+                })
+                .flat_map(|import| &import.specifiers)
+                .map(|specifier| {
+                    let local = match specifier {
+                        ImportSpecifier::Default(value) => &value.local,
+                        ImportSpecifier::Named(value) => &value.local,
+                        ImportSpecifier::Namespace(value) => &value.local,
+                    };
+                    local.sym.to_string()
+                })
+                .collect()
+        })
+    }
+
+    #[test]
+    fn private_tsx_retains_actual_default_pragma_import_only() {
+        let source = "import React from 'react'; import Unused from './unused';\nexport const \
+                      render = () => <p/>";
+        assert_eq!(imports(source, true, false), vec!["React"]);
+        assert!(imports(source, false, false).is_empty());
+    }
+
+    #[test]
+    fn private_tsx_never_retains_explicit_type_only_imports() {
+        let source =
+            "import type React from 'react';\nexport const render = (): React.ReactElement => <p/>";
+        assert!(imports(source, true, false).is_empty());
+        assert!(imports(source, true, true).is_empty());
+    }
+
+    #[test]
+    fn private_tsx_source_pragmas_do_not_reserve_unrelated_react() {
+        let source = "/** @jsxRuntime classic @jsx h @jsxFrag Frag */\nimport React from 'react'; \
+                      import { h, Fragment as Frag } from './factory'; import Unused from \
+                      './unused';\nexport const render = () => <><p/></>";
+        assert_eq!(imports(source, true, false), vec!["h", "Frag"]);
+    }
+
+    #[test]
+    fn private_tsx_qualified_source_pragmas_keep_their_actual_namespace() {
+        let source = "/** @jsxRuntime classic @jsx Factory.create @jsxFrag Factory.Fragment \
+                      */\nimport React from 'react'; import * as Factory from \
+                      './factory';\nexport const render = () => <><p/></>";
+        assert_eq!(imports(source, true, false), vec!["Factory"]);
+    }
+
+    #[test]
+    fn private_tsx_without_jsx_uses_ordinary_typescript_import_semantics() {
+        for directive in ["", "/** @jsxRuntime classic @jsx h @jsxFrag Frag */\n"] {
+            let source = format!(
+                "{directive}import React from 'react'; import {{ h, Fragment as Frag }} from \
+                 './factory';\ntype E = React.ReactElement; export const value = 1"
+            );
+            assert!(imports(&source, true, false).is_empty());
+        }
+    }
+
+    #[test]
+    fn private_tsx_reserves_fragment_factory_only_for_actual_fragments() {
+        let source = "/** @jsxRuntime classic @jsx h */\nimport React from 'react'; import { h, \
+                      Fragment as Frag } from './factory';\nexport const render = () => <p/>";
+        assert_eq!(imports(source, true, false), vec!["h"]);
+        let source = source.replace("<p/>", "<><p/></>");
+        assert_eq!(imports(&source, true, false), vec!["React", "h"]);
+    }
+
+    #[test]
+    fn private_tsx_fragment_directive_only_reserves_used_factories() {
+        let source = "/** @jsxRuntime classic @jsxFrag Frag */\nimport React from 'react'; import \
+                      { h, Fragment as Frag } from './factory';\nexport const render = () => <p/>";
+        assert_eq!(imports(source, true, false), vec!["React"]);
+        let source = source.replace("<p/>", "<><p/></>");
+        assert_eq!(imports(&source, true, false), vec!["React", "Frag"]);
+    }
+
+    #[test]
+    fn private_tsx_keeps_actual_verbatim_option_instead_of_forcing_it() {
+        let source = "import React from 'react'; import Unused from './unused';\nexport const \
+                      render = () => <p/>";
+        assert_eq!(imports(source, true, true), vec!["React", "Unused"]);
+        assert_eq!(imports(source, true, false), vec!["React"]);
+    }
+
+    #[test]
+    fn ordinary_typescript_keeps_existing_unused_import_semantics() {
+        let source = "import React from 'react'; import Unused from './unused';\ntype Element = \
+                      React.ReactElement; export const value = 1";
+        assert!(imports(source, false, false).is_empty());
+        assert_eq!(imports(source, false, true), vec!["React", "Unused"]);
     }
 }

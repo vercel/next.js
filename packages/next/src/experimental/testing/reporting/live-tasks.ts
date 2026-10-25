@@ -2,17 +2,20 @@ import type {
   File,
   Task,
   TaskMeta,
+  TaskLocation,
   TaskResult,
   Test,
   TestAnnotation,
   TestArtifact,
 } from '../runner/tasks'
+import { getPublishedTaskLocation } from '../runner/tasks'
 
 /** Actual collected declarations and current producer state, without runtime contexts. */
 export interface ReporterTaskSnapshot {
   id: string
   type: Task['type']
   name: string
+  location?: TaskLocation
   fullName: string
   fullTestName?: string
   /** Actual registration suite; null denotes the file, omission a legacy graph. */
@@ -35,17 +38,33 @@ export interface ReporterTaskSnapshot {
   projectName?: string
 }
 
+/** Public task positions contain only actual positive one-based coordinates. */
+export function isTaskLocation(value: unknown): value is TaskLocation {
+  if (!value || typeof value !== 'object') return false
+  const location = value as TaskLocation
+  return (
+    Object.keys(value).every((key) => key === 'line' || key === 'column') &&
+    Number.isSafeInteger(location.line) &&
+    location.line > 0 &&
+    Number.isSafeInteger(location.column) &&
+    location.column > 0
+  )
+}
+
 /** Capture while the real logical-case or suite callback still owns its task tree. */
 export function captureReporterTaskTree(
   file: File,
-  packs?: ReadonlyMap<string, Pick<Task, 'result' | 'meta'>>
+  packs?: ReadonlyMap<string, Pick<Task, 'result' | 'meta'>>,
+  resolveLocation: typeof getPublishedTaskLocation = getPublishedTaskLocation
 ): ReporterTaskSnapshot {
   function visit(task: Task): ReporterTaskSnapshot {
     const pack = packs?.get(task.id) ?? task
+    const location = resolveLocation(task)
     return {
       id: task.id,
       type: task.type,
       name: task.name,
+      ...(location === undefined ? {} : { location }),
       fullName: task.fullName,
       fullTestName: task.fullTestName,
       parentSuiteId: task.suite?.id ?? null,
@@ -94,6 +113,7 @@ export function assertReporterTaskTree(
       !['suite', 'test'].includes(task.type) ||
       typeof task.name !== 'string' ||
       typeof task.fullName !== 'string' ||
+      (task.location !== undefined && !isTaskLocation(task.location)) ||
       !['run', 'skip', 'todo', 'only', 'queued'].includes(task.mode) ||
       !task.meta ||
       typeof task.meta !== 'object' ||

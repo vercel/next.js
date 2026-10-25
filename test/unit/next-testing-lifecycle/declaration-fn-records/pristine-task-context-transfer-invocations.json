@@ -1,0 +1,58 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "transfer-invocations",
+        "trace": [
+          {
+            "phase": "async",
+            "kind": "async",
+            "sameTask": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "async",
+            "kind": "reads",
+            "reads": 1
+          },
+          {
+            "phase": "nested",
+            "kind": "outer",
+            "sameTask": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "nested",
+            "kind": "inner",
+            "sameTask": true,
+            "sameAssertion": true
+          },
+          {
+            "phase": "nested",
+            "kind": "reads",
+            "reads": 4
+          }
+        ],
+        "count": 1
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "actual matcher Task reads and nested receiver calls",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 1,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

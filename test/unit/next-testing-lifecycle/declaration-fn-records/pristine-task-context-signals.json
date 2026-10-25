@@ -1,0 +1,299 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "task-context-signals",
+        "trace": [
+          {
+            "kind": "collection",
+            "name": "retried",
+            "contextType": "function",
+            "signalAborted": false,
+            "assertionCalls": 1
+          },
+          {
+            "kind": "collection",
+            "name": "deadline",
+            "contextType": "function",
+            "signalAborted": false,
+            "assertionCalls": 1
+          },
+          {
+            "kind": "collection",
+            "name": "after-deadline",
+            "contextType": "function",
+            "signalAborted": false,
+            "assertionCalls": 1
+          },
+          {
+            "kind": "collection",
+            "name": "repeated",
+            "contextType": "function",
+            "signalAborted": false,
+            "assertionCalls": 1
+          },
+          {
+            "kind": "body",
+            "name": "retried",
+            "turn": 0,
+            "retry": 0,
+            "repeat": 0,
+            "sameContext": true,
+            "taskIdentity": true,
+            "signalSame": true,
+            "expectSame": true,
+            "signalAborted": false,
+            "signalReason": null,
+            "assertionCalls": 1
+          },
+          {
+            "kind": "finished",
+            "name": "retried",
+            "turn": 0,
+            "sameContext": true,
+            "signalSame": true,
+            "signalAborted": false,
+            "signalReason": null,
+            "assertionCalls": 2
+          },
+          {
+            "kind": "body",
+            "name": "retried",
+            "turn": 1,
+            "retry": 1,
+            "repeat": 0,
+            "sameContext": true,
+            "taskIdentity": true,
+            "signalSame": true,
+            "expectSame": true,
+            "signalAborted": false,
+            "signalReason": null,
+            "assertionCalls": 2
+          },
+          {
+            "kind": "finished",
+            "name": "retried",
+            "turn": 1,
+            "sameContext": true,
+            "signalSame": true,
+            "signalAborted": false,
+            "signalReason": null,
+            "assertionCalls": 3
+          },
+          {
+            "kind": "body",
+            "name": "deadline",
+            "turn": 0,
+            "retry": 0,
+            "repeat": 0,
+            "sameContext": true,
+            "taskIdentity": true,
+            "signalSame": true,
+            "expectSame": true,
+            "signalAborted": false,
+            "signalReason": null,
+            "assertionCalls": 1
+          },
+          {
+            "kind": "finished",
+            "name": "deadline",
+            "turn": 0,
+            "sameContext": true,
+            "signalSame": true,
+            "signalAborted": true,
+            "signalReason": {
+              "name": "Error",
+              "message": "Test timed out in 100ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\"."
+            },
+            "assertionCalls": 1
+          },
+          {
+            "kind": "body",
+            "name": "deadline",
+            "turn": 1,
+            "retry": 1,
+            "repeat": 0,
+            "sameContext": true,
+            "taskIdentity": true,
+            "signalSame": true,
+            "expectSame": true,
+            "signalAborted": true,
+            "signalReason": {
+              "name": "Error",
+              "message": "Test timed out in 100ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\"."
+            },
+            "assertionCalls": 1
+          },
+          {
+            "kind": "late-body",
+            "name": "deadline",
+            "signalAborted": true,
+            "signalReason": {
+              "name": "Error",
+              "message": "Test timed out in 100ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\"."
+            }
+          },
+          {
+            "kind": "finished",
+            "name": "deadline",
+            "turn": 1,
+            "sameContext": true,
+            "signalSame": true,
+            "signalAborted": true,
+            "signalReason": {
+              "name": "Error",
+              "message": "Test timed out in 100ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\"."
+            },
+            "assertionCalls": 2
+          },
+          {
+            "kind": "body",
+            "name": "after-deadline",
+            "turn": 0,
+            "retry": 0,
+            "repeat": 0,
+            "sameContext": true,
+            "taskIdentity": true,
+            "signalSame": true,
+            "expectSame": true,
+            "signalAborted": false,
+            "signalReason": null,
+            "assertionCalls": 1
+          },
+          {
+            "kind": "finished",
+            "name": "after-deadline",
+            "turn": 0,
+            "sameContext": true,
+            "signalSame": true,
+            "signalAborted": false,
+            "signalReason": null,
+            "assertionCalls": 3
+          },
+          {
+            "kind": "body",
+            "name": "repeated",
+            "turn": 0,
+            "retry": 0,
+            "repeat": 0,
+            "sameContext": true,
+            "taskIdentity": true,
+            "signalSame": true,
+            "expectSame": true,
+            "signalAborted": false,
+            "signalReason": null,
+            "assertionCalls": 1
+          },
+          {
+            "kind": "finished",
+            "name": "repeated",
+            "turn": 0,
+            "sameContext": true,
+            "signalSame": true,
+            "signalAborted": false,
+            "signalReason": null,
+            "assertionCalls": 2
+          },
+          {
+            "kind": "body",
+            "name": "repeated",
+            "turn": 1,
+            "retry": 0,
+            "repeat": 1,
+            "sameContext": true,
+            "taskIdentity": true,
+            "signalSame": true,
+            "expectSame": true,
+            "signalAborted": false,
+            "signalReason": null,
+            "assertionCalls": 2
+          },
+          {
+            "kind": "finished",
+            "name": "repeated",
+            "turn": 1,
+            "sameContext": true,
+            "signalSame": true,
+            "signalAborted": false,
+            "signalReason": null,
+            "assertionCalls": 3
+          }
+        ],
+        "contexts": [
+          {
+            "name": "retried",
+            "contextType": "function",
+            "sameContext": true,
+            "signalAborted": false,
+            "signalReason": null,
+            "assertionCalls": 3,
+            "state": "pass"
+          },
+          {
+            "name": "deadline",
+            "contextType": "function",
+            "sameContext": true,
+            "signalAborted": true,
+            "signalReason": {
+              "name": "Error",
+              "message": "Test timed out in 100ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\"."
+            },
+            "assertionCalls": 2,
+            "state": "pass"
+          },
+          {
+            "name": "after-deadline",
+            "contextType": "function",
+            "sameContext": true,
+            "signalAborted": false,
+            "signalReason": null,
+            "assertionCalls": 3,
+            "state": "pass"
+          },
+          {
+            "name": "repeated",
+            "contextType": "function",
+            "sameContext": true,
+            "signalAborted": false,
+            "signalReason": null,
+            "assertionCalls": 3,
+            "state": "pass"
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "retried",
+      "status": "passed",
+      "failureCount": 1
+    },
+    {
+      "name": "deadline",
+      "status": "passed",
+      "failureCount": 1
+    },
+    {
+      "name": "after-deadline",
+      "status": "passed",
+      "failureCount": 0
+    },
+    {
+      "name": "signals repeated",
+      "status": "passed",
+      "failureCount": 0
+    }
+  ],
+  "counts": {
+    "numTotalTests": 4,
+    "numPassedTests": 4,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

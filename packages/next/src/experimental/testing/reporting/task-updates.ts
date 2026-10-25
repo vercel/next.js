@@ -1,5 +1,5 @@
 import type { RunnerCaseResult } from '../runner/lifecycle'
-import type { File, Task, Test, Suite } from '../runner/tasks'
+import type { File, Task, TaskLocation, Test, Suite } from '../runner/tasks'
 import {
   captureReporterTaskTree,
   type ReporterTaskSnapshot,
@@ -21,6 +21,7 @@ export function createReporterTaskUpdates<
   Result extends { caseId: string } = RunnerCaseResult,
 >(options: {
   onUpdate(update: ReporterTaskUpdate<Result>): void | Promise<void>
+  getTaskLocation?(task: Task): TaskLocation | undefined
 }) {
   let file: File | undefined
   const tasks = new Map<string, Task>()
@@ -44,7 +45,11 @@ export function createReporterTaskUpdates<
     let send: Promise<void>
     try {
       const update = {
-        taskTree: captureReporterTaskTree(file, pendingTasks),
+        taskTree: captureReporterTaskTree(
+          file,
+          pendingTasks,
+          options.getTaskLocation
+        ),
         taskUpdateIds: [...pendingTasks.keys()],
         caseResults,
       }

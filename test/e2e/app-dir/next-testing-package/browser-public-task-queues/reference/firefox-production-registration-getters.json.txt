@@ -1,0 +1,67 @@
+{
+  "rows": [
+    [
+      {
+        "stage": "finished-get",
+        "count": 1
+      },
+      {
+        "stage": "finished-get",
+        "count": 2
+      },
+      {
+        "stage": "finished-get",
+        "count": 3
+      },
+      {
+        "stage": "finished-get",
+        "count": 4
+      },
+      {
+        "stage": "body-return",
+        "length": 2
+      },
+      {
+        "stage": "afterEach",
+        "errors": []
+      },
+      {
+        "stage": "finished-get",
+        "count": 5
+      },
+      {
+        "stage": "finished-get",
+        "count": 6
+      },
+      {
+        "stage": "global-finished",
+        "same": true,
+        "receiverUndefined": true,
+        "args": 1
+      },
+      {
+        "stage": "context-finished",
+        "same": true,
+        "receiverUndefined": true,
+        "args": 1
+      },
+      {
+        "stage": "finished-set",
+        "absent": true
+      },
+      {
+        "stage": "final-task",
+        "absent": true
+      }
+    ]
+  ],
+  "cases": [
+    {
+      "name": "actual finished registration and consumption use authored getters",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "success": true,
+  "exit": 0
+}

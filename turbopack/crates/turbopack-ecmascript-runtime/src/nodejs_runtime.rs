@@ -14,6 +14,7 @@ pub async fn get_nodejs_runtime_code(
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     runtime_type: RuntimeType,
     include_async_module_runtime: bool,
+    include_native_test_commonjs_promise_namespaces: bool,
     generate_source_map: bool,
 ) -> Result<Vc<Code>> {
     let asset_context = *asset_context;
@@ -55,6 +56,16 @@ pub async fn get_nodejs_runtime_code(
     code.push_code(&*shared_base_external_utils_code.await?);
     code.push_code(&*shared_node_external_utils_code.await?);
     code.push_code(&*runtime_base_code.await?);
+    if include_native_test_commonjs_promise_namespaces {
+        code.push_code(
+            &*embed_static_code(
+                asset_context,
+                rcstr!("nodejs/runtime/native-test-commonjs-promise.ts"),
+                generate_source_map,
+            )
+            .await?,
+        );
+    }
 
     match runtime_type {
         RuntimeType::Production => {

@@ -1,0 +1,9 @@
+/** @jsxRuntime classic */
+/** @jsx h */
+/** @jsxFrag Frag */
+import { createElement as h, Fragment as Frag } from 'react'
+type Flag = { active: boolean }
+export function Card({ active }: Flag) {
+  return <>{active ? 'yes' : 'no'}</>
+}
+export const Unused = () => <i>unused</i>

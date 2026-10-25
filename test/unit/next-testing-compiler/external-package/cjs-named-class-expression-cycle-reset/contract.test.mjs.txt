@@ -1,0 +1,35 @@
+import {test,expect,vi} from 'vitest'
+import {types} from 'node:util'
+function shape(value) {
+ if (value===null || (typeof value!=='object' && typeof value!=='function')) return {type:typeof value,value}
+ return {type:typeof value,brand:types.isModuleNamespaceObject(value),keys:Reflect.ownKeys(value).map(String),prototype:Object.getPrototypeOf(value)===null?'null':Object.getPrototypeOf(value)===Object.prototype?'Object.prototype':Object.getPrototypeOf(value)===Function.prototype?'Function.prototype':Object.prototype.toString.call(Object.getPrototypeOf(value)),tag:value[Symbol.toStringTag]??null,extensible:Object.isExtensible(value),sealed:Object.isSealed(value),frozen:Object.isFrozen(value),descriptors:Reflect.ownKeys(value).map(key=>{const d=Object.getOwnPropertyDescriptor(value,key);return {key:String(key),valueType:typeof d.value,get:typeof d.get,set:typeof d.set,writable:d.writable??null,enumerable:d.enumerable,configurable:d.configurable}})}
+}
+
+function same(values){return values.map(value=>values.map(other=>value===other))}
+function counts(){return {root:globalThis.__nextClassResetRoot??0,dependency:globalThis.__nextClassResetDependency??0,unused:globalThis.__nextClassResetUnused??0}}
+function failure(fn){try{fn();return null}catch(error){return {name:error.name,message:error.message}}}
+function view(namespace){
+ const raw=namespace.default,instance=Reflect.construct(raw,['held','extra']);const dependency=instance.dependency
+ return {namespace:shape(namespace),raw:shape(raw),name:raw.name,length:raw.length,prototype:shape(raw.prototype),prototypeConstructorSame:raw.prototype.constructor===raw,instance:shape(instance),instancePrototypeSame:Object.getPrototypeOf(instance)===raw.prototype,instanceConstructorSame:instance.constructor===raw,selfSame:instance.self()===raw,staticSelfSame:raw.self()===raw,fields:{value:instance.value,extra:instance.extra,evaluation:instance.evaluation,newTarget:instance.newTarget},dependency:shape(dependency),dependencyRoot:dependency.root?shape(dependency.root):null,callFailure:failure(()=>Reflect.apply(raw,undefined,['bad']))}
+}
+function row(name,data){console.log('WS2_CJS_CLASS_RESET:'+JSON.stringify({name,...data}));expect(data).toBeDefined()}
+test('class expression namespaces and held constructors through complete resets',async()=>{
+ vi.resetModules();const first=await import('./root.cjs');const cached=await import('./root.cjs');vi.resetModules();const second=await import('./root.cjs');vi.resetModules();const third=await import('./root.cjs');const values=[first,cached,second,third];const raws=values.map(value=>value.default);const dependencies=raws.map(value=>new value('dependency').dependency)
+ row('reset',{views:values.map(view),identities:same(values),rawIdentities:same(raws),dependencyIdentities:same(dependencies),counts:counts()})
+})
+test('class expression actual imports retain namespace and constructor identities',async()=>{
+ vi.resetModules();const first=await vi.importActual('./root.cjs');const ordinary=await import('./root.cjs');const cached=await vi.importActual('./root.cjs');vi.resetModules();const second=await vi.importActual('./root.cjs');const later=await import('./root.cjs');const values=[first,ordinary,cached,second,later]
+ row('actual',{views:values.map(view),identities:same(values),rawIdentities:same(values.map(value=>value.default)),counts:counts()})
+})
+test('held class constructor prototype and dependency mutations remain observable',async()=>{
+ vi.resetModules();const first=await import('./root.cjs');const raw=first.default;const instance=new raw('dependency');const dependency=instance.dependency;raw.extra={held:true};raw.prototype.extra={prototype:true};dependency.evaluation=731;const mutated=view(first);vi.resetModules();const second=await import('./root.cjs');const nextInstance=new second.default('dependency')
+ row('mutation',{held:view(first),mutated,fresh:view(second),heldExtraSame:raw.extra===first.default.extra,heldPrototypeExtraSame:raw.prototype.extra===first.default.prototype.extra,freshHasExtra:Object.hasOwn(second.default,'extra'),freshHasPrototypeExtra:Object.hasOwn(second.default.prototype,'extra'),dependencySame:dependency===nextInstance.dependency,counts:counts()})
+})
+test('class expression static and instance self identities survive held resets',async()=>{
+ vi.resetModules();const first=await import('./root.cjs');const held=first.default;const heldInstance=new held();vi.resetModules();const second=await import('./root.cjs');const fresh=second.default
+ row('self',{first:view(first),second:view(second),heldSelf:held.self()===held,heldInstanceSelf:heldInstance.self()===held,freshSelf:fresh.self()===fresh,freshInstanceSelf:new fresh().self()===fresh,distinct:held!==fresh,counts:counts()})
+})
+test('class expressions preserve real alternate new target and native call refusal',async()=>{
+ vi.resetModules();const first=await import('./root.cjs');const raw=first.default;function Alternate(){};const alternate=Reflect.construct(raw,['alternate','tail'],Alternate);const direct=new raw();const detached=raw.self
+ row('construction',{view:view(first),alternate:shape(alternate),alternateFields:{value:alternate.value,extra:alternate.extra,newTarget:alternate.newTarget,evaluation:alternate.evaluation},alternatePrototypeSame:Object.getPrototypeOf(alternate)===Alternate.prototype,directFields:{value:direct.value,extra:direct.extra,newTarget:direct.newTarget},detachedStaticSelf:detached(),callFailure:failure(()=>raw()),borrowedCallFailure:failure(()=>raw.call({})),invalidNewTarget:failure(()=>Reflect.construct(raw,[],{})),counts:counts()})
+})

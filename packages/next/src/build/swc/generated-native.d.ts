@@ -724,7 +724,8 @@ export declare function projectTestEntry(
   sourceCoverage?: boolean | undefined | null,
   aliasFinds?: Array<RcStr> | undefined | null,
   importCoverageRoles?: boolean | undefined | null,
-  tsconfigInputRevision?: RcStr | undefined | null
+  tsconfigInputRevision?: RcStr | undefined | null,
+  browserSourceCoverage?: boolean | undefined | null
 ): Promise<{ __napiType: 'Endpoint' }>
 
 /** Raw query/fragment admission for parent-owned string alias plans. */
@@ -735,6 +736,9 @@ export declare function projectTestEntryBrowserClientVersion(): number
 
 /** Typed compiler certificates for generated browser bookkeeping scripts. */
 export declare function projectTestEntryBrowserCoverageVersion(): number
+
+/** Explicit source-preserving production Browser coverage, separate from Node. */
+export declare function projectTestEntryBrowserSourceCoverageVersion(): number
 
 /** Shared immutable Node cohort ABI; older bindings ignore appended arguments. */
 export declare function projectTestEntryCohortVersion(): number

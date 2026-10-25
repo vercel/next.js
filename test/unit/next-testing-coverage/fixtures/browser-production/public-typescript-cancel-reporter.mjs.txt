@@ -1,0 +1,1 @@
+import{writeFileSync}from'node:fs';export default class{onUserConsoleLog(log){if(String(log.content).includes('NEXT_COVERAGE_BODY_STARTED'))writeFileSync(new URL('./cancel-gate.txt',import.meta.url),'NEXT_COVERAGE_BODY_STARTED')}}

@@ -12,6 +12,7 @@ import {
 } from './assertion-platform'
 import { createChaiEvents } from './chai-events'
 import type { FileAutomockMaterializer } from '../mocking/fresh-module'
+import type { Test } from '../runner/tasks'
 import { MockPlugin } from './when'
 import {
   resolveSnapshotUpdateMode,
@@ -26,6 +27,9 @@ import {
   JEST_MATCHERS_OBJECT,
   chai,
   getChaiAssertionIdentity,
+  getChaiAssertionTransferSourceIdentity,
+  getVitestAssertionTaskRuntime,
+  registerVitestAssertionTaskRuntime,
   createChaiAssertInterface,
   createChaiShouldInterface,
   ChaiStyleAssertions,
@@ -76,6 +80,7 @@ export interface AssertionAttempt {
   testId: string
   name: string
   signal?: AbortSignal
+  readonly task?: Test
   onAssertionFailure?(error: unknown): void
 }
 
@@ -153,6 +158,83 @@ interface AssertionTask {
   result?: { state: string; errors?: unknown[] }
 }
 
+type TaskMatcherAssertion = {
+  task: Test
+  assertion: object
+  assert(): void
+  live(): boolean
+  publish(value: object): object
+}
+// A custom matcher can outlive the file that installed its Chai method. Keep
+// public receiver identity separate from the primitive's async bookkeeping.
+const taskMatcherAssertions = new WeakMap<object, TaskMatcherAssertion>()
+const taskMatcherReceivers = new WeakMap<object, TaskMatcherAssertion>()
+const taskMatcherFlagOwners = new WeakMap<
+  object,
+  { task: Test; assert(): void }
+>()
+const taskMatcherMethods = new WeakSet<Function>()
+const taskPrimitiveFlagDescriptor = Object.getOwnPropertyDescriptor(
+  chai.util,
+  'flag'
+)
+let taskPrimitiveDescriptors: Map<string, PropertyDescriptor | undefined>
+let taskPrimitiveNotDescriptor: PropertyDescriptor | undefined
+let taskPrimitiveThrowDelegateDescriptors:
+  | Map<string, PropertyDescriptor | undefined>
+  | undefined
+let taskPrimitiveFluentDescriptors:
+  | Map<string, PropertyDescriptor | undefined>
+  | undefined
+let taskPrimitiveFluentDelegateDescriptors:
+  | Map<string, PropertyDescriptor | undefined>
+  | undefined
+let taskPrimitiveChainableDescriptors:
+  | {
+      container: PropertyDescriptor | undefined
+      records: Map<
+        string,
+        {
+          descriptor: PropertyDescriptor | undefined
+          method: PropertyDescriptor | undefined
+          chainingBehavior: PropertyDescriptor | undefined
+        }
+      >
+    }
+  | undefined
+const scopedMatcherNames = new Set([
+  'toMatchSnapshot',
+  'toMatchInlineSnapshot',
+  'toMatchFileSnapshot',
+  'toThrowErrorMatchingSnapshot',
+  'toThrowErrorMatchingInlineSnapshot',
+])
+
+function taskMatcherAssertion(value: unknown) {
+  if (!value || (typeof value !== 'object' && typeof value !== 'function'))
+    return undefined
+  const receiver = taskMatcherReceivers.get(value)
+  if (receiver) return receiver
+  const identity = getChaiAssertionIdentity(value)
+  if (!identity) return undefined
+  const direct = taskMatcherAssertions.get(identity)
+  if (direct) return direct
+  // Native Chai methods return their actual new assertion after copying flags.
+  // Resolve its source Task without replacing that returned object or method.
+  const visited = new Set<object>([identity])
+  let source = getChaiAssertionTransferSourceIdentity(value)
+  while (source && !visited.has(source)) {
+    visited.add(source)
+    const owner = taskMatcherAssertions.get(source)
+    if (owner) {
+      owner.publish(value)
+      return taskMatcherReceivers.get(value)
+    }
+    source = getChaiAssertionTransferSourceIdentity(source)
+  }
+  return undefined
+}
+
 const chaiCallbackDispatches = new WeakMap<
   object,
   (
@@ -201,6 +283,7 @@ export async function createAssertionRuntime(options: {
   testPath: string
   collectOnly?: boolean
   observeNativeUnhandledAssertions?: boolean
+  observePublicTaskQueues?: boolean
   observeNativeBeforeEachAssertions?: boolean
   observeNativeAfterEachAssertions?: boolean
   observeNativeBeforeEachCleanupAssertions?: boolean
@@ -214,6 +297,20 @@ export async function createAssertionRuntime(options: {
   unstubGlobals?: boolean
   unstubEnvs?: boolean
   getCurrentAttempt: () => AssertionAttempt | undefined
+  /** Actual logical current Test; omission preserves standalone internal callers. */
+  getCurrentTest?: () => Test | undefined
+  peekCurrentScope?: () =>
+    | {
+        kind:
+          | 'attempt'
+          | 'hook'
+          | 'collection'
+          | 'file-fixtures'
+          | 'worker-fixtures'
+        context: { id: string }
+        closed: boolean
+      }
+    | undefined
   getCurrentCasePhase?: () =>
     | { attemptId: string; phase?: string; authoredCallback?: boolean }
     | undefined
@@ -277,6 +374,8 @@ export async function createAssertionRuntime(options: {
     beforeEach: boolean
     afterEach: boolean
     beforeEachCleanup: boolean
+    publicQueue?: boolean
+    publicFinished?: { promise: Promise<unknown>; check: () => void }
     error?: unknown
     consumptionFailure?: unknown
     bodyFailure?: unknown
@@ -284,6 +383,9 @@ export async function createAssertionRuntime(options: {
     settledBeforeFinalization?: boolean
     nativeUnhandled?: { reason: unknown }
   }
+  type AsyncAssertionObserver = NonNullable<
+    Parameters<typeof registerVitestAssertionTaskRuntime>[2]
+  >
   type AssertionScope = {
     context: AssertionAttempt | AssertionHook | AssertionCollection
     kind: 'attempt' | 'hook' | 'collection' | 'file-fixtures'
@@ -292,6 +394,7 @@ export async function createAssertionRuntime(options: {
     finalized: boolean
     disposed: boolean
     asyncAssertions: AsyncAssertionRecord[]
+    asyncAssertionObserver?: AsyncAssertionObserver
     assertionCounts: { expect: TestExpect; error: Error; body: boolean }[]
     mocks: Set<{ mock: MockInstance; restore: boolean }>
     serializers: Set<Parameters<typeof addSerializer>[0]>
@@ -404,6 +507,7 @@ export async function createAssertionRuntime(options: {
   }
   const equalityTesters: Parameters<typeof addCustomEqualityTesters>[0] = []
   const fileOwned = options.resourceLifetime === 'file'
+  const publicTestState = !!options.getCurrentTest && !fileAssertionLifetime
   const fileUtilities = fileOwned
     ? createAttemptUtilities(
         requireScopeAccess,
@@ -541,24 +645,35 @@ export async function createAssertionRuntime(options: {
         // The pinned snapshot primitive recognizes this marker and uses the
         // next frame. Capture at invocation, before Chai adds wrappers or an
         // asynchronous resolves/rejects continuation loses the caller.
-        apply: function __INLINE_SNAPSHOT_OFFSET_1__(target, thisArg, args) {
-          check()
-          if (inlineSnapshot) {
-            chai.util.flag(assertion, 'next-test-inline-callsite', new Error())
-          }
-          const result = Reflect.apply(
-            target as (...args: unknown[]) => unknown,
-            receiver ?? thisArg,
-            args
-          )
-          // Promise results retain the primitive's own consumption tracking.
-          return result instanceof chai.Assertion
-            ? wrapProducedAssertion(result)
-            : result
-        },
+        apply: {
+          __INLINE_SNAPSHOT_OFFSET_1__(
+            target: object,
+            thisArg: unknown,
+            args: unknown[]
+          ) {
+            check()
+            if (inlineSnapshot) {
+              chai.util.flag(
+                assertion,
+                'next-test-inline-callsite',
+                new Error()
+              )
+            }
+            const result = Reflect.apply(
+              target as (...args: unknown[]) => unknown,
+              receiver ?? thisArg,
+              args
+            )
+            // Promise results retain the primitive's own consumption tracking.
+            return result instanceof chai.Assertion
+              ? wrapProducedAssertion(result)
+              : result
+          },
+        }.__INLINE_SNAPSHOT_OFFSET_1__,
       }
-      // Production compilation minifies function identifiers. This runtime
-      // name is the snapshot primitive's public stack-offset protocol.
+      // A literal method name survives minification in Gecko stacks, which
+      // ignore a later function.name update. Keep that name for other engines
+      // as well: it is the snapshot primitive's stack-offset protocol.
       Object.defineProperty(handler.apply, 'name', {
         value: '__INLINE_SNAPSHOT_OFFSET_1__',
         configurable: true,
@@ -1018,6 +1133,21 @@ export async function createAssertionRuntime(options: {
     return Reflect.apply(fn, chai.util, [chai.Assertion.prototype, ...values])
   }
   function callChaiUtility(key: string, args: unknown[], prototype: object) {
+    if (key === 'transferFlags') {
+      // Flag copying is the actual pure Chai operation, including partial
+      // assignments on a later throw. Unwrap only our own public views.
+      const values = args.map((value, index) =>
+        index < 2 &&
+        value &&
+        (typeof value === 'object' || typeof value === 'function')
+          ? (taskAssertionRecords.get(value)?.raw ??
+            strictAssertionRecords.get(value)?.raw ??
+            legacyAssertionRecords.get(value)?.raw ??
+            value)
+          : value
+      )
+      return Reflect.apply(chai.util.transferFlags, chai.util, values)
+    }
     assertChaiNamespaceAccess()
     const fn = Reflect.get(chai.util, key)
     if (key === 'proxify' && typeof fn === 'function') {
@@ -1095,8 +1225,25 @@ export async function createAssertionRuntime(options: {
     )
       throw new Error('This Chai utility is not yet supported')
     if (key === 'flag') {
+      const descriptor = Object.getOwnPropertyDescriptor(chai.util, key)
+      const intrinsic =
+        taskPrimitiveFlagDescriptor &&
+        descriptor &&
+        ('value' in taskPrimitiveFlagDescriptor
+          ? 'value' in descriptor &&
+            descriptor.value === taskPrimitiveFlagDescriptor.value
+          : !('value' in descriptor) &&
+            descriptor.get === taskPrimitiveFlagDescriptor.get &&
+            descriptor.set === taskPrimitiveFlagDescriptor.set)
+      const input = args[0]
+      const taskAssertion =
+        intrinsic &&
+        input &&
+        (typeof input === 'object' || typeof input === 'function')
+          ? taskAssertionRecords.get(input)
+          : undefined
       const value = Reflect.apply(fn, chai.util, [
-        strictUnwrap(args[0]),
+        taskAssertion?.raw ?? strictUnwrap(input),
         ...args.slice(1),
       ])
       if (
@@ -1107,56 +1254,596 @@ export async function createAssertionRuntime(options: {
         return strictFunction(value, current(), prototype)
       return value
     }
-    if (
-      key === 'transferFlags' &&
-      !args
-        .slice(0, 2)
-        .every(
-          (value) =>
-            !!value &&
-            (typeof value === 'object' || typeof value === 'function') &&
-            strictAssertionRecords.has(value)
-        )
-    )
-      throw new Error(
-        'Chai flags can only transfer between admitted assertions'
-      )
-    const values =
-      key === 'transferFlags'
-        ? [strictUnwrap(args[0]), strictUnwrap(args[1]), ...args.slice(2)]
-        : [
-              'expectTypes',
-              'getActual',
-              'getMessage',
-              'getOperator',
-              'test',
-            ].includes(key)
-          ? [strictUnwrap(args[0]), ...args.slice(1)]
-          : args
+    const values = [
+      'expectTypes',
+      'getActual',
+      'getMessage',
+      'getOperator',
+      'test',
+    ].includes(key)
+      ? [strictUnwrap(args[0]), ...args.slice(1)]
+      : args
     // These selected utilities return user data/primitives, not new owned
     // assertions. In particular getActual must not probe a Proxy subject.
     return Reflect.apply(fn, chai.util, values)
   }
 
+  // Only the unchanged primitive members are pure Task-owned hard paths.
+  // Descriptor reads do not execute a later authored getter or override.
+  const taskAssertionPrototype = chai.Assertion.prototype
+  const taskChainableReceivers = new WeakMap<
+    object,
+    { prototype: object; source: object }
+  >()
+  function taskNativeReceiverNodes(assertion: object): object[] | undefined {
+    const nodes: object[] = []
+    const identities = new Set<object>()
+    let receiverNode = assertion
+    for (;;) {
+      const prototype = Object.getPrototypeOf(receiverNode)
+      if (
+        typeof receiverNode !== 'function' &&
+        prototype === taskAssertionPrototype
+      )
+        return [...nodes, receiverNode]
+      const identity = chaiAssertionIdentity(receiverNode)
+      if (!identity || identities.has(identity)) return undefined
+      identities.add(identity)
+      const chainable = taskChainableReceivers.get(identity)
+      if (
+        !chainable ||
+        prototype !== chainable.prototype ||
+        Object.getPrototypeOf(prototype) !== chainable.source
+      )
+        return undefined
+      nodes.push(receiverNode, prototype)
+      receiverNode = chainable.source
+    }
+  }
+  function rememberTaskChainableReceiver(value: object, source: object) {
+    const identity = chaiAssertionIdentity(value)
+    const sourceIdentity = chaiAssertionIdentity(source)
+    if (!sourceIdentity || !taskNativeReceiverNodes(source)) return
+    const prototype = Object.getPrototypeOf(value)
+    const rawSource = prototype && Object.getPrototypeOf(prototype)
+    if (
+      typeof value === 'function' &&
+      identity &&
+      rawSource &&
+      chaiAssertionIdentity(rawSource) === sourceIdentity &&
+      taskNativeReceiverNodes(rawSource)
+    )
+      taskChainableReceivers.set(identity, { prototype, source: rawSource })
+  }
+  const taskHardDescriptors = (taskPrimitiveDescriptors ??= new Map(
+    [
+      'toBe',
+      'toEqual',
+      'toStrictEqual',
+      'toMatchObject',
+      'toHaveProperty',
+      'toBeTypeOf',
+      'toBeDefined',
+      'toBeUndefined',
+      'toBeNull',
+      'toBeNaN',
+      'toBeTruthy',
+      'toBeFalsy',
+      'toBeGreaterThan',
+      'toBeGreaterThanOrEqual',
+      'toBeLessThan',
+      'toBeLessThanOrEqual',
+      'toBeCloseTo',
+      'toBeInstanceOf',
+      'toContain',
+      'toContainEqual',
+      'toHaveLength',
+      'toMatch',
+      'toThrow',
+      'toThrowError',
+    ].map((name) => [
+      name,
+      Object.getOwnPropertyDescriptor(taskAssertionPrototype, name),
+    ])
+  ))
+  const taskNotDescriptor = (taskPrimitiveNotDescriptor ??=
+    Object.getOwnPropertyDescriptor(taskAssertionPrototype, 'not'))
+  const taskThrowDelegateDescriptors =
+    (taskPrimitiveThrowDelegateDescriptors ??= new Map(
+      ['throws', 'assert'].map((name) => [
+        name,
+        Object.getOwnPropertyDescriptor(taskAssertionPrototype, name),
+      ])
+    ))
+  const taskThrowCallables = new WeakSet<Function>()
+  function taskThrowMember(key: PropertyKey) {
+    return key === 'toThrow' || key === 'toThrowError'
+  }
+  function unchangedTaskThrowDelegates(assertion: object) {
+    const nodes = taskNativeReceiverNodes(assertion)
+    if (!nodes) return false
+    for (const [key, original] of taskThrowDelegateDescriptors) {
+      if (nodes.some((node) => Object.hasOwn(node, key))) return false
+      const descriptor = Object.getOwnPropertyDescriptor(
+        taskAssertionPrototype,
+        key
+      )
+      if (
+        !original ||
+        !descriptor ||
+        !('value' in original) ||
+        !('value' in descriptor) ||
+        typeof original.value !== 'function' ||
+        descriptor.value !== original.value
+      )
+        return false
+    }
+    return true
+  }
+  function pureTaskMember(assertion: object, key: PropertyKey) {
+    const nodes = taskNativeReceiverNodes(assertion)
+    if (!nodes || nodes.some((node) => Object.hasOwn(node, key))) return false
+    const original =
+      key === 'not' ? taskNotDescriptor : taskHardDescriptors.get(String(key))
+    const descriptor = Object.getOwnPropertyDescriptor(
+      taskAssertionPrototype,
+      key
+    )
+    if (!original || !descriptor) return false
+    if (taskThrowMember(key) && !unchangedTaskThrowDelegates(assertion))
+      return false
+    return key === 'not'
+      ? !('value' in descriptor) &&
+          descriptor.get === original.get &&
+          descriptor.set === original.set
+      : 'value' in descriptor &&
+          typeof original.value === 'function' &&
+          descriptor.value === original.value
+  }
+
+  const taskFluentDescriptors = (taskPrimitiveFluentDescriptors ??= new Map(
+    [
+      'to',
+      'be',
+      'have',
+      'deep',
+      'equal',
+      'property',
+      'lengthOf',
+      'instanceOf',
+      'include',
+      'match',
+      'ok',
+      'true',
+      'a',
+      'keys',
+      'above',
+    ].map((name) => [
+      name,
+      Object.getOwnPropertyDescriptor(taskAssertionPrototype, name),
+    ])
+  ))
+  const taskFluentDelegateDescriptors =
+    (taskPrimitiveFluentDelegateDescriptors ??= new Map(
+      ['assert', 'eql', '_obj', 'to', 'have', 'property'].map((name) => [
+        name,
+        Object.getOwnPropertyDescriptor(taskAssertionPrototype, name),
+      ])
+    ))
+  const taskChainableDescriptors = (taskPrimitiveChainableDescriptors ??=
+    (() => {
+      const container = Object.getOwnPropertyDescriptor(
+        taskAssertionPrototype,
+        '__methods'
+      )
+      const methods = container && 'value' in container && container.value
+      return {
+        container,
+        records: new Map(
+          ['lengthOf', 'include', 'a'].map((name) => {
+            const descriptor =
+              methods && Object.getOwnPropertyDescriptor(methods, name)
+            const record =
+              descriptor && 'value' in descriptor && descriptor.value
+            return [
+              name,
+              {
+                descriptor,
+                method:
+                  record && Object.getOwnPropertyDescriptor(record, 'method'),
+                chainingBehavior:
+                  record &&
+                  Object.getOwnPropertyDescriptor(record, 'chainingBehavior'),
+              },
+            ]
+          })
+        ),
+      }
+    })())
+  const taskFluentCallables = new WeakMap<Function, string>()
+  function sameTaskFluentDescriptor(
+    original: PropertyDescriptor | undefined,
+    descriptor: PropertyDescriptor | undefined
+  ) {
+    if (!original || !descriptor) return false
+    return 'value' in original
+      ? 'value' in descriptor && descriptor.value === original.value
+      : !('value' in descriptor) &&
+          descriptor.get === original.get &&
+          descriptor.set === original.set
+  }
+  function unchangedTaskFluentDelegates(assertion: object, key: string) {
+    const nodes = taskNativeReceiverNodes(assertion)
+    if (!nodes) return false
+    // Native assert formats failed subjects through the _obj accessor.
+    const dependencies =
+      key === 'equal'
+        ? ['assert', 'eql', '_obj']
+        : key === 'lengthOf' || key === 'above'
+          ? ['assert', '_obj', 'to', 'have', 'property']
+          : key === 'include'
+            ? ['assert', '_obj', 'property']
+            : ['to', 'be', 'have', 'deep'].includes(key)
+              ? []
+              : ['assert', '_obj']
+    for (const name of dependencies) {
+      if (
+        nodes.some((node) => Object.hasOwn(node, name)) ||
+        !sameTaskFluentDescriptor(
+          taskFluentDelegateDescriptors.get(name),
+          Object.getOwnPropertyDescriptor(taskAssertionPrototype, name)
+        )
+      )
+        return false
+    }
+    const original = taskChainableDescriptors.records.get(key)
+    if (!original) return true
+    // overwriteChainableMethod mutates this real closed-over record without
+    // replacing its public accessor. Inspect only the original data objects.
+    const container = Object.getOwnPropertyDescriptor(
+      taskAssertionPrototype,
+      '__methods'
+    )
+    if (
+      !sameTaskFluentDescriptor(
+        taskChainableDescriptors.container,
+        container
+      ) ||
+      !container ||
+      !('value' in container)
+    )
+      return false
+    const descriptor = Object.getOwnPropertyDescriptor(container.value, key)
+    if (
+      !sameTaskFluentDescriptor(original.descriptor, descriptor) ||
+      !descriptor ||
+      !('value' in descriptor)
+    )
+      return false
+    return (
+      sameTaskFluentDescriptor(
+        original.method,
+        Object.getOwnPropertyDescriptor(descriptor.value, 'method')
+      ) &&
+      sameTaskFluentDescriptor(
+        original.chainingBehavior,
+        Object.getOwnPropertyDescriptor(descriptor.value, 'chainingBehavior')
+      )
+    )
+  }
+  function pureTaskFluentMember(assertion: object, key: PropertyKey) {
+    const nodes = taskNativeReceiverNodes(assertion)
+    return (
+      typeof key === 'string' &&
+      taskFluentDescriptors.has(key) &&
+      !!nodes &&
+      !nodes.some((node) => Object.hasOwn(node, key)) &&
+      unchangedTaskFluentDelegates(assertion, key) &&
+      sameTaskFluentDescriptor(
+        taskFluentDescriptors.get(key),
+        Object.getOwnPropertyDescriptor(taskAssertionPrototype, key)
+      )
+    )
+  }
+
+  function customTaskMember(assertion: object, key: PropertyKey) {
+    const nodes = taskNativeReceiverNodes(assertion)
+    if (!nodes || nodes.some((node) => Object.hasOwn(node, key))) return false
+    const descriptor = Object.getOwnPropertyDescriptor(
+      taskAssertionPrototype,
+      key
+    )
+    return (
+      !!descriptor &&
+      'value' in descriptor &&
+      typeof descriptor.value === 'function' &&
+      taskMatcherMethods.has(descriptor.value)
+    )
+  }
+
   const localExpectations = new Map<string, TestExpect>()
+  const preparedExpectations = new WeakMap<Test, TestExpect>()
+  const preparedTestOwners = new WeakMap<object, Test>()
+  const preparedExpectationOwners = new WeakMap<TestExpect, Test>()
+  type TaskExpectationOwner = {
+    kind: 'task-expect'
+    task: Test
+    expect: TestExpect
+  }
+  const taskExpectationOwners = new WeakMap<Test, TaskExpectationOwner>()
+  const taskAssertionOrigins = new WeakMap<object, TaskExpectationOwner>()
+  const taskAssertionRecords = new WeakMap<
+    object,
+    {
+      raw: object
+      owner: TaskExpectationOwner
+      originalScope?: AssertionScope
+    }
+  >()
+  function taskExpectation(task: Test) {
+    let local = preparedExpectations.get(task)
+    if (!local) {
+      const definition = { id: task.id, fullTestName: task.fullTestName }
+      preparedTestOwners.set(definition, task)
+      local = createExpect(definition)
+      preparedExpectations.set(task, local)
+      preparedExpectationOwners.set(local, task)
+    }
+    return local
+  }
+  function assertTaskExpectation(owner: TaskExpectationOwner) {
+    if (
+      taskExpectationOwners.get(owner.task) !== owner ||
+      preparedExpectations.get(owner.task) !== owner.expect ||
+      preparedExpectationOwners.get(owner.expect) !== owner.task
+    )
+      throw new Error('Unrecognized Next task expectation owner')
+  }
+  function liveTaskScope(owner: TaskExpectationOwner) {
+    if (disposed) return undefined
+    const origin = options.peekCurrentScope?.()
+    if (!origin || origin.closed) return undefined
+    const scope = scopes.get(origin.context.id)
+    if (!scope || scope.finalized || scope.disposed) return undefined
+    if (
+      scope.kind === 'collection' &&
+      origin.kind === 'collection' &&
+      scope.context.id === owner.task.file.id
+    )
+      return scope
+    return scope.kind === 'attempt' &&
+      origin.kind === 'attempt' &&
+      scope.context === origin.context &&
+      'task' in scope.context &&
+      scope.context.task === owner.task
+      ? scope
+      : undefined
+  }
+  function guardTaskAssertion(
+    assertion: object,
+    owner: TaskExpectationOwner,
+    requireScope: () => AssertionScope,
+    originalScope?: AssertionScope
+  ) {
+    const proxies = new WeakMap<object, object>()
+    function remember(value: object) {
+      const identity = chaiAssertionIdentity(value)
+      if (!identity) throw new Error('Unrecognized Chai assertion origin')
+      const prior = taskAssertionOrigins.get(identity)
+      if (prior && prior !== owner)
+        throw new Error(
+          'Assertion belongs to a different Next task expectation'
+        )
+      taskAssertionOrigins.set(identity, owner)
+    }
+    function check(value?: object) {
+      assertTaskExpectation(owner)
+      if (value) {
+        const identity = chaiAssertionIdentity(value)
+        const scope = identity && assertionOrigins.get(identity)
+        // An explicit resource-bearing dispatch retains its real scope fence.
+        if (scope) assertStrictScope(scope)
+      }
+    }
+    function wrap(value: object): object {
+      const cached = proxies.get(value)
+      if (cached) return cached
+      const proxy = new Proxy(value, {
+        get(target, key, receiver) {
+          const nativeFunction =
+            typeof target === 'function' && !!taskNativeReceiverNodes(target)
+          check(
+            typeof target === 'function' && !nativeFunction ? undefined : target
+          )
+          if (key === 'then' && !Reflect.has(target, key)) return undefined
+          if (typeof target === 'function') {
+            if (
+              ['call', 'apply', 'bind', 'name', 'length'].includes(String(key))
+            )
+              return Reflect.get(target, key, receiver)
+            if (!nativeFunction) {
+              requireScope()
+              return Reflect.get(target, key, receiver)
+            }
+          }
+          const own = Object.getOwnPropertyDescriptor(target, key)
+          if (own && 'value' in own && typeof own.value === 'function')
+            return own.value
+          if (key === 'not' && own && !('value' in own)) {
+            // Chai's real Proxy supplies the underlying assertion as the
+            // authored getter receiver. Its returned alias can differ from
+            // the original public assertion without acquiring a new Task.
+            const result = Reflect.get(target, key, target)
+            const admitted = taskMatcherAssertion(result)
+            if (admitted) {
+              admitted.assert()
+              return admitted.publish(result as object)
+            }
+            return result
+          }
+          const nativeHardMember = pureTaskMember(target, key)
+          const nativeFluentMember = pureTaskFluentMember(target, key)
+          if (
+            nativeHardMember ||
+            nativeFluentMember ||
+            customTaskMember(target, key)
+          ) {
+            const result = Reflect.get(target, key, target)
+            if (typeof result === 'function') {
+              if (nativeHardMember && taskThrowMember(key))
+                taskThrowCallables.add(result)
+              if (nativeFluentMember)
+                taskFluentCallables.set(result, String(key))
+              if (nativeFluentMember && chaiAssertionIdentity(result)) {
+                rememberTaskChainableReceiver(result, target)
+                remember(result)
+              }
+              return wrap(result)
+            }
+            if (chaiAssertionIdentity(result)) {
+              remember(result as object)
+              return wrap(result as object)
+            }
+            return result
+          }
+          // Unmeasured async/soft/snapshot/plugin paths use a real own scope.
+          const scope = originalScope ?? requireScope()
+          assertStrictScope(scope)
+          return Reflect.get(guardAssertion(target, scope), key)
+        },
+        apply(target, thisArg, args) {
+          check()
+          const receiver =
+            thisArg &&
+            (typeof thisArg === 'object' || typeof thisArg === 'function')
+              ? taskAssertionRecords.get(thisArg)
+              : undefined
+          if (receiver) {
+            assertTaskExpectation(receiver.owner)
+            check(receiver.raw)
+          }
+          const rawReceiver = receiver?.raw ?? thisArg
+          const fluentMember = taskFluentCallables.get(target as Function)
+          if (
+            taskMatcherAssertion(rawReceiver) &&
+            ((taskThrowCallables.has(target as Function) &&
+              !unchangedTaskThrowDelegates(rawReceiver)) ||
+              (fluentMember &&
+                !unchangedTaskFluentDelegates(rawReceiver, fluentMember)))
+          ) {
+            // A callable captured before a delegate replacement retains the
+            // existing scope route; classification never reads its getter.
+            const scope =
+              receiver?.originalScope ?? originalScope ?? requireScope()
+            assertStrictScope(scope)
+          }
+          const result = Reflect.apply(
+            target as (...args: unknown[]) => unknown,
+            rawReceiver,
+            args
+          )
+          if (chaiAssertionIdentity(result)) {
+            if (
+              receiver &&
+              (receiver.owner !== owner ||
+                receiver.originalScope !== originalScope)
+            )
+              return guardTaskAssertion(
+                result as object,
+                receiver.owner,
+                requireScope,
+                receiver.originalScope
+              )
+            remember(result as object)
+            return wrap(result as object)
+          }
+          return result
+        },
+      })
+      proxies.set(value, proxy)
+      const identity = chaiAssertionIdentity(value)
+      if (identity) {
+        taskAssertionRecords.set(proxy, {
+          raw: value,
+          owner,
+          originalScope,
+        })
+        const record: TaskMatcherAssertion = {
+          task: owner.task,
+          assertion: proxy,
+          assert: () => check(value),
+          live: () => !!liveTaskScope(owner),
+          publish(result) {
+            if (!taskMatcherReceivers.has(result)) {
+              const alias = {
+                ...record,
+                assertion: result,
+                assert: () => check(result),
+              }
+              taskMatcherReceivers.set(result, alias)
+              const returnedIdentity = chaiAssertionIdentity(result)
+              if (
+                returnedIdentity &&
+                !taskMatcherAssertions.has(returnedIdentity)
+              )
+                taskMatcherAssertions.set(returnedIdentity, alias)
+            }
+            return result
+          },
+        }
+        const flagOwner = {
+          task: owner.task,
+          assert: () => assertTaskExpectation(owner),
+        }
+        taskMatcherFlagOwners.set(owner.task, flagOwner)
+        if (
+          originalScope?.kind === 'attempt' &&
+          'task' in originalScope.context &&
+          originalScope.context.task === owner.task
+        )
+          taskMatcherFlagOwners.set(originalScope.task, flagOwner)
+        taskMatcherReceivers.set(value, record)
+        taskMatcherReceivers.set(proxy, record)
+        if (!taskMatcherAssertions.has(identity))
+          taskMatcherAssertions.set(identity, record)
+      }
+      return proxy
+    }
+    remember(assertion)
+    return wrap(assertion)
+  }
   function createExpect(test?: {
     id: string
     fullTestName?: string
   }): TestExpect {
     requireAssertionAccess()
+    const taskOwner = test && preparedTestOwners.get(test)
     function expectationScope() {
+      if (taskOwner) {
+        const scope = current()
+        if (
+          scope.kind === 'collection' &&
+          scope.context.id === taskOwner.file.id
+        )
+          return scope
+      }
       if (test && fileAssertionLifetime) {
         requireAssertionAccess()
         const origin = originatingScope()
         if (
           origin &&
           'testId' in origin.context &&
-          origin.context.testId === test.id
+          (taskOwner
+            ? origin.context.task === taskOwner
+            : origin.context.testId === test.id)
         )
           return origin
         const retained = [...scopes.values()].filter(
           (scope) =>
-            'testId' in scope.context && scope.context.testId === test.id
+            'testId' in scope.context &&
+            (taskOwner
+              ? scope.context.task === taskOwner
+              : scope.context.testId === test.id)
         )
         const latest = retained[retained.length - 1]
         if (!latest)
@@ -1168,7 +1855,9 @@ export async function createAssertionRuntime(options: {
         test &&
         (scope.kind !== 'attempt' ||
           !('testId' in scope.context) ||
-          scope.context.testId !== test.id)
+          (taskOwner
+            ? scope.context.task !== taskOwner
+            : scope.context.testId !== test.id))
       ) {
         throw new Error('Expectation belongs to a different Next test.')
       }
@@ -1178,29 +1867,59 @@ export async function createAssertionRuntime(options: {
       requireAssertionAccess()
       if (test && scopes.size) expectationScope()
     }
+    let taskExpectationOwner: TaskExpectationOwner | undefined
     const expect = ((value: unknown, message?: string) => {
+      if (taskExpectationOwner && !liveTaskScope(taskExpectationOwner)) {
+        assertTaskExpectation(taskExpectationOwner)
+        getState(expect).assertionCalls++
+        const assertion = chai.expect(value, message)
+        chai.util.flag(assertion, 'vitest-test', taskExpectationOwner.task)
+        return guardTaskAssertion(
+          assertion,
+          taskExpectationOwner,
+          expectationScope
+        )
+      }
       const scope = expectationScope()
-      const task =
-        fileAssertionLifetime && !test
-          ? runningAttempt?.task
+      const taskScope =
+        !test && (fileAssertionLifetime || scope.kind === 'attempt')
+          ? runningAttempt
           : scope.kind === 'file-fixtures' && !test
-            ? liveFileFixtureAttempt()?.task
-            : scope.task
+            ? liveFileFixtureAttempt()
+            : scope
+      const task =
+        !test && options.getCurrentTest
+          ? options.getCurrentTest()
+          : taskScope?.kind === 'attempt' && 'testId' in taskScope.context
+            ? (taskScope.context.task ?? taskScope.task)
+            : taskScope?.task
       const state = getState(expect)
       state.assertionCalls++
       const assertion = chai.expect(value, message)
-      // The standalone matcher library uses this small bookkeeping object for
-      // async assertions. It does not register or execute a Vitest test.
-      if (task) chai.util.flag(assertion, 'vitest-test', task)
-      return guardAssertion(assertion, scope)
+      // Publish the actual Test when present. The primitive adapter retains
+      // async bookkeeping in its existing real assertion scope.
+      if (taskOwner || task)
+        chai.util.flag(assertion, 'vitest-test', taskOwner ?? task)
+      return taskExpectationOwner
+        ? guardTaskAssertion(
+            assertion,
+            taskExpectationOwner,
+            expectationScope,
+            scope
+          )
+        : guardAssertion(assertion, scope)
     }) as TestExpect
+    if (taskOwner && !fileAssertionLifetime && options.peekCurrentScope) {
+      taskExpectationOwner = { kind: 'task-expect', task: taskOwner, expect }
+      taskExpectationOwners.set(taskOwner, taskExpectationOwner)
+    }
     Object.assign(expect, chai.expect)
     const globals = globalThis as typeof globalThis & Record<symbol, unknown>
     Object.assign(expect, globals[ASYMMETRIC_MATCHERS_OBJECT])
-    expect.soft = ((value: unknown, message?: string) =>
-      (expect(value, message) as any).withContext({
-        soft: true,
-      })) as TestExpect['soft']
+    expect.soft = ((value: unknown, message?: string) => {
+      if (taskExpectationOwner) expectationScope()
+      return (expect(value, message) as any).withContext({ soft: true })
+    }) as TestExpect['soft']
     expect.poll = ((
       callback: (options: {
         signal: AbortSignal
@@ -1363,7 +2082,14 @@ export async function createAssertionRuntime(options: {
       equalityTesters.push(...testers)
     }
     expect.getState = () => {
-      requireExpectationAccess()
+      if (taskExpectationOwner) {
+        assertTaskExpectation(taskExpectationOwner)
+        return getState(expect)
+      }
+      // The eagerly published instance exposes its real accumulated state to
+      // the same file's suite hooks. Calls and state writes remain case-owned.
+      if (taskOwner && current().kind === 'hook') requireAssertionAccess()
+      else requireExpectationAccess()
       return getState(expect)
     }
     expect.setState = (state) => {
@@ -1372,6 +2098,42 @@ export async function createAssertionRuntime(options: {
     }
     expect.extend = (matchers) => {
       requireExpectationAccess()
+      const matcherInvocations: {
+        current?: { assertion: unknown; captured: boolean; task?: unknown }
+      } = {}
+      const projectedMatchers = Object.fromEntries(
+        Object.entries(matchers).map(([name, matcher]) => [
+          name,
+          typeof matcher === 'function'
+            ? new Proxy(matcher, {
+                apply(target, state, args) {
+                  const invocation = matcherInvocations.current
+                  if (invocation && invocation.assertion === state?.assertion) {
+                    invocation.captured = true
+                    invocation.task = state.task
+                  }
+                  const owner = taskMatcherAssertion(state?.assertion)
+                  const flagOwner =
+                    state?.task &&
+                    (typeof state.task === 'object' ||
+                      typeof state.task === 'function')
+                      ? taskMatcherFlagOwners.get(state.task)
+                      : undefined
+                  if (owner) {
+                    owner.assert()
+                    state.assertion = owner.assertion
+                  }
+                  if (flagOwner) {
+                    flagOwner.assert()
+                    state.task = flagOwner.task
+                    state.currentTestName = flagOwner.task.fullTestName
+                  }
+                  return Reflect.apply(target, state, args)
+                },
+              })
+            : matcher,
+        ])
+      ) as Parameters<ExpectStatic['extend']>[0]
       ;(
         chai.expect as unknown as {
           extend(
@@ -1379,8 +2141,18 @@ export async function createAssertionRuntime(options: {
             matchers: Parameters<ExpectStatic['extend']>[0]
           ): void
         }
-      ).extend(expect, matchers)
+      ).extend(expect, projectedMatchers)
       for (const name of Object.keys(matchers)) {
+        const primitive = Object.getOwnPropertyDescriptor(
+          chai.Assertion.prototype,
+          name
+        )?.value
+        const scoped =
+          scopedMatcherNames.has(name) ||
+          !!Object.getOwnPropertyDescriptor(
+            primitive,
+            '__vitest_poll_takeover__'
+          )?.value
         chai.util.overwriteMethod(
           chai.Assertion.prototype,
           name,
@@ -1389,10 +2161,43 @@ export async function createAssertionRuntime(options: {
               this: NextTestChai.AssertionStatic,
               ...args: unknown[]
             ) {
+              const invocation = { assertion: this, captured: false } as {
+                assertion: unknown
+                captured: boolean
+                task?: unknown
+              }
+              const invoke = () => {
+                const parent = matcherInvocations.current
+                matcherInvocations.current = invocation
+                try {
+                  return original.apply(this, args)
+                } finally {
+                  matcherInvocations.current = parent
+                }
+              }
+              const owner = taskMatcherAssertion(this)
+              if (owner) {
+                owner.assert()
+                if (!owner.live() && !scoped) {
+                  const result = invoke()
+                  if (chaiAssertionIdentity(result))
+                    owner.publish(result as object)
+                  return result
+                }
+              }
               const scope = current()
               // Raw construction has no task. Browser common expect follows
               // the running test; context.expect keeps its explicit test task.
-              const flagged = chai.util.flag(this, 'vitest-test')
+              const callsite = new Error()
+              Error.captureStackTrace?.(callsite, customAssertion)
+              const result = invoke()
+              // The primitive has already observed the actual Task flag for
+              // this invocation. Reuse it without another authored getter read.
+              const flagged = getVitestAssertionTaskRuntime(
+                invocation.captured
+                  ? invocation.task
+                  : chai.util.flag(this, 'vitest-test')
+              )
               const task =
                 flagged === scope.task ||
                 (fileAssertionLifetime && flagged === runningAttemptTask()) ||
@@ -1400,9 +2205,8 @@ export async function createAssertionRuntime(options: {
                   flagged === liveFileFixtureAttempt()?.task)
                   ? flagged
                   : undefined
-              const callsite = new Error()
-              Error.captureStackTrace?.(callsite, customAssertion)
-              const result = original.apply(this, args)
+              if (owner && !scoped && chaiAssertionIdentity(result))
+                owner.publish(result as object)
               if (!task || !result || typeof result.then !== 'function')
                 return result
               const promise = Promise.resolve(result).catch(
@@ -1422,6 +2226,12 @@ export async function createAssertionRuntime(options: {
             }
           }
         )
+        const method = Object.getOwnPropertyDescriptor(
+          chai.Assertion.prototype,
+          name
+        )?.value
+        if (typeof method === 'function' && !scoped)
+          taskMatcherMethods.add(method)
       }
     }
     expect.assertions = (count) => {
@@ -1925,13 +2735,18 @@ export async function createAssertionRuntime(options: {
     const records: AsyncAssertionRecord[] = []
     const softFailures: { error: unknown; body: boolean }[] = []
     const checks = new Map<() => void, (typeof records)[number]>()
+    const publicTask =
+      kind === 'attempt' && 'testId' in context ? context.task : undefined
     const onFinished: (() => void)[] = []
     // The pinned primitive registers each consumption check immediately after
     // its promise. Keep that association after settled promises remove themselves
     // from task.promises, without treating intentionally caught failures as errors.
     Object.defineProperty(onFinished, 'push', {
       value(...values: (() => void)[]) {
-        for (const check of values) checks.set(check, records[checks.size])
+        for (const check of values) {
+          if (checks.get(check)?.publicFinished?.check !== check)
+            checks.set(check, records[checks.size])
+        }
         return Array.prototype.push.apply(this, values)
       },
     })
@@ -2074,13 +2889,61 @@ export async function createAssertionRuntime(options: {
       }
     }
     if (kind === 'attempt' && 'testId' in context) {
+      if (context.task) {
+        const observer: AsyncAssertionObserver = {
+          recorded(promise) {
+            promises.push(promise)
+            // The actual public queue is authoritative for Node body waits,
+            // including reassignment, deletion and work added after iteration.
+            // Native consumption and rejection observations remain independent.
+            if (
+              options.observeNativeUnhandledAssertions ||
+              options.observePublicTaskQueues
+            )
+              records[records.length - 1].publicQueue = true
+          },
+          settled(promise) {
+            const index = promises.indexOf(promise)
+            if (index !== -1) promises.splice(index, 1)
+          },
+          get finished() {
+            return (bodyObservation || options.observePublicTaskQueues) &&
+              publicTask
+              ? recordPublicFinished
+              : undefined
+          },
+        }
+        scope.asyncAssertionObserver = observer
+        if (
+          options.getCurrentTest &&
+          (options.observeNativeUnhandledAssertions ||
+            options.observePublicTaskQueues)
+        )
+          observer.capture = () => {
+            // The public Test flag can name a concurrent sibling. Capture only
+            // the real invoking scope; later settlement must retain this owner.
+            const currentOrigin = options.peekCurrentScope?.()
+            const origin =
+              currentOrigin?.kind === 'attempt' && !currentOrigin.closed
+                ? scopes.get(currentOrigin.context.id)
+                : undefined
+            return origin?.kind === 'attempt' &&
+              origin.context === currentOrigin?.context &&
+              scopes.get(origin.context.id) === origin &&
+              !disposed &&
+              !origin.finalized &&
+              !origin.disposed
+              ? origin.asyncAssertionObserver
+              : undefined
+          }
+        registerVitestAssertionTaskRuntime(context.task, scope.task, observer)
+      }
+      const prepared = context.task && preparedExpectations.get(context.task)
+      if (prepared) localExpectations.set(context.testId, prepared)
       snapshotTests.delete(context.testId)
       snapshots.clearTest(options.testPath, context.testId)
     }
-    if (
-      kind !== 'file-fixtures' &&
-      (!fileAssertionLifetime || kind !== 'hook')
-    ) {
+    function resetTestState() {
       setState(
         {
           assertionCalls: 0,
@@ -2089,7 +2952,7 @@ export async function createAssertionRuntime(options: {
           isExpectingAssertions: false,
           isExpectingAssertionsError: null,
           currentTestName:
-            fileAssertionLifetime && kind === 'collection'
+            (fileAssertionLifetime || publicTestState) && kind === 'collection'
               ? undefined
               : kind === 'hook'
                 ? lastAttemptName
@@ -2099,6 +2962,12 @@ export async function createAssertionRuntime(options: {
         expect
       )
     }
+    if (
+      kind !== 'file-fixtures' &&
+      (!fileAssertionLifetime || kind !== 'hook') &&
+      (!publicTestState || (kind !== 'hook' && kind !== 'attempt'))
+    )
+      resetTestState()
     let checkedFinished = 0
     const checkedPromises = new Set<Promise<unknown>>()
     let checkedErrors = 0
@@ -2122,7 +2991,7 @@ export async function createAssertionRuntime(options: {
       if (
         kind === 'collection' ||
         kind === 'file-fixtures' ||
-        (fileAssertionLifetime && kind === 'hook')
+        ((fileAssertionLifetime || publicTestState) && kind === 'hook')
       )
         return []
       // The reference lazily selects the test-local instance, if accessed.
@@ -2161,6 +3030,8 @@ export async function createAssertionRuntime(options: {
       const uncheckedPromises = (task.promises ?? []).filter((promise) => {
         if (checkedPromises.has(promise)) return false
         const owners = records.filter((record) => record.promise === promise)
+        if (owners.length && owners.every((record) => record.publicQueue))
+          return false
         // Authored afterEach and returned beforeEach cleanup do not join
         // pending assertions at the final reference checkpoint.
         // Only an actual unique role record leaves settlement to the native host.
@@ -2238,7 +3109,82 @@ export async function createAssertionRuntime(options: {
         throw error
       }
     }
+    let bodyObservation:
+      | Set<{ attemptId: string; settled: boolean }>
+      | undefined
+    function recordPublicFinished(
+      promise: Promise<unknown>,
+      check: () => void
+    ) {
+      const owners = records.filter(
+        (record) => record.promise === promise && record.publicQueue
+      )
+      if (owners.length !== 1)
+        throw new Error(
+          'Native finished callback requires its recorded Promise.'
+        )
+      const record = owners[0]
+      record.publicFinished = { promise, check }
+      checks.set(check, record)
+    }
+    async function invokeFinishedCallback(fn: Function, payload: unknown) {
+      bodyFailure = undefined
+      const record = checks.get(fn as () => void)
+      try {
+        return await fn(payload)
+      } catch (error) {
+        if (
+          bodyObservation &&
+          publicTask &&
+          record?.publicFinished?.check === fn &&
+          record.publicFinished.promise === record.promise &&
+          records.includes(record) &&
+          scopes.get(context.id) === scope &&
+          !disposed &&
+          !scope.finalized &&
+          (record.body ||
+            record.beforeEach ||
+            record.afterEach ||
+            record.beforeEachCleanup)
+        ) {
+          record.consumptionFailure = error
+          record.settledBeforeFinalization = !task.promises?.includes(
+            record.promise
+          )
+          if (record.body) {
+            record.bodyFailure = error
+            record.bodyFailureConsumed = false
+            bodyFailure = error
+          }
+        }
+        throw error
+      }
+    }
     return {
+      ...(publicTestState && kind === 'attempt'
+        ? {
+            resetPublicTestState() {
+              assertAssertionLifecycleScope(
+                context.id,
+                originatingScope()?.context.id,
+                scopes.get(context.id) === scope &&
+                  !disposed &&
+                  !scope.finalized &&
+                  !scope.disposed
+              )
+              resetTestState()
+            },
+          }
+        : {}),
+      ...(options.observeNativeUnhandledAssertions && kind === 'attempt'
+        ? {
+            observeBodySettlement(
+              observations: Set<{ attemptId: string; settled: boolean }>
+            ) {
+              bodyObservation = observations
+            },
+          }
+        : {}),
       ...(options.observeNativeUnhandledAssertions && kind === 'attempt'
         ? {
             async awaitBodyAssertions<T>(invoke: () => Promise<T>): Promise<T> {
@@ -2249,7 +3195,27 @@ export async function createAssertionRuntime(options: {
                   !disposed &&
                   !scope.finalized
               )
-              const result = await invoke()
+              const operation = bodyObservation
+                ? { attemptId: context.id, settled: false }
+                : undefined
+              if (operation) bodyObservation!.add(operation)
+              let result: T
+              try {
+                result = await invoke()
+              } finally {
+                if (operation) operation.settled = true
+              }
+              if (publicTask) {
+                if (publicTask.promises) {
+                  const errors = (await Promise.allSettled(publicTask.promises))
+                    .map((value) =>
+                      value.status === 'rejected' ? value.reason : undefined
+                    )
+                    .filter(Boolean)
+                  if (errors.length) throw errors
+                }
+                return result
+              }
               const live = (task.promises ?? []).filter(
                 (promise) => !checkedPromises.has(promise)
               )
@@ -2268,6 +3234,37 @@ export async function createAssertionRuntime(options: {
             },
           }
         : {}),
+      ...(options.observePublicTaskQueues && kind === 'attempt' && publicTask
+        ? {
+            consumePublicTaskPromises<T>(value: T): T | Promise<T> {
+              assertAssertionLifecycleScope(
+                context.id,
+                originatingScope()?.context.id,
+                scopes.get(context.id) === scope &&
+                  !disposed &&
+                  !scope.finalized
+              )
+              if (!publicTask.promises) return value
+              return Promise.allSettled(publicTask.promises).then((settled) => {
+                const errors = settled
+                  .map((result) =>
+                    result.status === 'rejected' ? result.reason : undefined
+                  )
+                  .filter(Boolean)
+                if (errors.length) throw errors
+                return value
+              })
+            },
+          }
+        : {}),
+      get invokeFinishedCallback() {
+        return kind === 'attempt' &&
+          publicTask &&
+          ((options.observeNativeUnhandledAssertions && bodyObservation) ||
+            options.observePublicTaskQueues)
+          ? invokeFinishedCallback
+          : undefined
+      },
       async suspend<T>(runInner: () => Promise<T>): Promise<T> {
         if (
           kind !== 'hook' ||
@@ -2298,7 +3295,7 @@ export async function createAssertionRuntime(options: {
             throw new Error(
               'Cannot resume aroundAll assertions before inner scopes are disposed'
             )
-          if (!fileAssertionLifetime) {
+          if (!fileAssertionLifetime && !publicTestState) {
             const innerState = getState(expect)
             for (const key of Reflect.ownKeys(innerState))
               if (!Object.prototype.hasOwnProperty.call(state, key))
@@ -2311,14 +3308,27 @@ export async function createAssertionRuntime(options: {
       get expect() {
         if (current() !== scope || !('testId' in context))
           throw new Error('context.expect requires an active Next test.')
-        let local = localExpectations.get(context.testId)
+        let local =
+          context.task &&
+          (fileAssertionLifetime
+            ? preparedExpectations.get(context.task)
+            : taskExpectation(context.task))
+        if (!local) {
+          const held = localExpectations.get(context.testId)
+          if (
+            !held ||
+            !preparedExpectationOwners.has(held) ||
+            preparedExpectationOwners.get(held) === context.task
+          )
+            local = held
+        }
         if (!local) {
           local = createExpect({
             id: context.testId,
             fullTestName: context.name,
           })
-          localExpectations.set(context.testId, local)
         }
+        localExpectations.set(context.testId, local)
         return local
       },
       markSkipped() {
@@ -2772,6 +3782,13 @@ export async function createAssertionRuntime(options: {
         throw new Error('Dispose assertions before releasing native records.')
       nativeRejectionRecordsReleased = true
       scopes.clear()
+    },
+    prepareTaskExpect(task: Test) {
+      const scope = current()
+      if (scope.kind !== 'collection' || task.file.id !== scope.context.id)
+        throw new Error('Task expectations require their live file collection.')
+      registerVitestAssertionTaskRuntime(task, scope.task)
+      return taskExpectation(task)
     },
     beginCollection: (context: AssertionCollection) =>
       beginScope(context, 'collection'),

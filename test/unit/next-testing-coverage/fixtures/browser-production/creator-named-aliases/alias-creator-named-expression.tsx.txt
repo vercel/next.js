@@ -1,0 +1,10 @@
+/** @jsxRuntime classic */
+/** @jsx constructNode */
+/** @jsxFrag UnusedFragment */
+import UnusedRuntime, { createElement as constructNode, Fragment as UnusedFragment } from 'react'
+type Input = { active: boolean; label: string }
+const PanelKind = function PanelBody(props: {label:string}) { const {label} = props; return <b>{label}</b> }
+export function MakePanel({ active, label }: Input) {
+  return <section>{active ? <PanelKind label={label} /> : <PanelKind label="fallback" />}</section>
+}
+export const Unused = () => <i />

@@ -1,0 +1,10 @@
+/** @jsxRuntime classic */
+/** @jsx composeChild */
+/** @jsxFrag UnusedGroup */
+import Foundation, { createElement as composeChild, Fragment as UnusedGroup } from 'react'
+type Input = { active: boolean; label: string }
+const WidgetShell = class WidgetBody extends Foundation.Component<{label:string}> { render(){ return <b>{this.props.label}</b> } }
+export function MakeWidget({ active, label }: Input) {
+  return <section>{active ? <WidgetShell label={label} /> : <WidgetShell label="fallback" />}</section>
+}
+export const Unused = () => <i />

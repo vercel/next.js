@@ -1,0 +1,5 @@
+import {test,afterAll} from 'vitest';
+let publish;const ready=new Promise(resolve=>publish=resolve),trace=[];let owner,retained,method,ownTask;
+test.concurrent('owner creates chain',async context=>{owner=context.expect;ownTask=context.task;retained=owner('owned');method=retained.toBe;publish();});
+test.concurrent('foreign invokes retained chain',async context=>{await ready;trace.push({kind:'before',owner:owner.getState().assertionCalls,foreign:context.expect.getState().assertionCalls,sameLocal:context.expect===owner});retained.toBe('owned');method.call(retained,'owned');try{retained.toBe('wrong');}catch(error){trace.push({kind:'mismatch',name:error.name,message:error.message});}const adopted=await Promise.resolve(retained);adopted.not.toBe('wrong');trace.push({kind:'after',owner:owner.getState().assertionCalls,foreign:context.expect.getState().assertionCalls,same:adopted===retained});});
+afterAll(()=>console.log('DECLARATION_FN:'+JSON.stringify({kind:'precreated-foreign',trace,ownerState:ownTask.result?.state??null,ownerCount:owner.getState().assertionCalls})));

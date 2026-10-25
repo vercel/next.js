@@ -1,0 +1,29 @@
+import { test, beforeEach, afterEach, afterAll, chai } from 'vitest'
+const Native = Promise
+const globalDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'Promise')
+const thenDescriptor = Object.getOwnPropertyDescriptor(Native.prototype, 'then')
+const rows = []
+let ctorCalls = 0, thenCalls = 0, hookCalls = 0
+function restore() { Object.defineProperty(globalThis, 'Promise', globalDescriptor); Object.defineProperty(Native.prototype, 'then', thenDescriptor) }
+beforeEach(context => {
+  if (context.task.name !== 'captured native zero facilities retain original scope') return
+  hookCalls++
+  function AuthoredPromise(executor) { ctorCalls++; return new Native(executor) }
+  Object.setPrototypeOf(AuthoredPromise, Native)
+  AuthoredPromise.prototype = Native.prototype
+  for (const name of ['resolve', 'reject', 'all', 'allSettled', 'race', 'any']) Object.defineProperty(AuthoredPromise, name, { value: Native[name].bind(Native), configurable: true })
+  Object.defineProperty(globalThis, 'Promise', { ...globalDescriptor, value: AuthoredPromise })
+  Object.defineProperty(Native.prototype, 'then', { ...thenDescriptor, value: function(...args) { thenCalls++; return Reflect.apply(thenDescriptor.value, this, args) } })
+})
+afterEach(restore)
+test('captured native zero facilities retain original scope', { timeout: 0 }, context => {
+  const state = { stage: 'body', hookCalls, ctorCalls, thenCalls, replacedCtor: globalThis.Promise !== Native, replacedThen: Native.prototype.then !== thenDescriptor.value }
+  restore()
+  context.expect(state).toEqual({ stage: 'body', hookCalls: 1, ctorCalls: 0, thenCalls: 0, replacedCtor: true, replacedThen: true })
+  rows.push(state)
+  let reads = 0
+  const queue = []
+  Object.defineProperty(context.task, 'promises', { configurable: true, get() { reads++; const sameTask = chai.util.flag(context.expect(1), 'vitest-test') === context.task; context.expect(sameTask).toBe(true); rows.push({ stage: 'queue-get', reads, sameTask }); return queue } })
+  context.onTestFinished(payload => { const sameContext = payload === context; const sameTask = chai.util.flag(context.expect(1), 'vitest-test') === context.task; context.expect(reads).toBe(2); context.expect(sameContext).toBe(true); context.expect(sameTask).toBe(true); rows.push({ stage: 'finished', reads, sameContext, sameTask }) }, 0)
+})
+afterAll(() => console.log('ZERO_NATIVE_GUARD:' + JSON.stringify(rows)))

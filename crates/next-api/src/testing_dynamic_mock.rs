@@ -779,7 +779,7 @@ async fn inspect_runtime_resolve_origin(
     crate::testing_dependencies::dependency_origin(origin).await
 }
 
-/// Derive native mappings only for already certified overlapping compiled graphs.
+/// Derive native mappings for certified overlapping graphs or one declared compiled graph.
 /// The final manifest re-certifies every new owner/reference/target in this context.
 pub(crate) async fn graph_native_external_context(
     root: FileSystemPath,
@@ -793,7 +793,7 @@ pub(crate) async fn graph_native_external_context(
         context,
         certificates: Vec::new(),
     };
-    if requests.len() < 2 {
+    if requests.is_empty() {
         return Ok(unchanged());
     }
     let next_package = next_core::get_next_package(root.clone()).await?;
@@ -855,7 +855,8 @@ pub(crate) async fn graph_native_external_context(
                         .any(|part| graph.observed.contains(part)))
         })
     });
-    if !overlaps {
+    let single_declared_graph = requests.len() == 1 && graphs.len() == 1;
+    if !overlaps && !single_declared_graph {
         return Ok(unchanged());
     }
     let mut imports = Vec::new();
@@ -1272,6 +1273,11 @@ pub(crate) async fn manifest(
                     || target.parts.iter().any(|part| dependencies.contains(part)))
         })
     });
+    let single_compiled_graph = targets.len() == 1
+        && graph_ownership.len() == 1
+        && graph_ownership[0].0 == targets[0].module
+        && targets[0].native_original.is_none()
+        && targets[0].static_mock.is_none();
     let mut demand_edges = Vec::new();
     let mut native_imports = Vec::new();
     if needs_demands {
@@ -1336,6 +1342,30 @@ pub(crate) async fn manifest(
                 path.clone(),
                 "Runtime graph demand has no actual static readsites",
             ));
+        }
+    } else if single_compiled_graph {
+        // One declared compiled graph has no cross-target demand edge. Its
+        // actual native imports still establish the original ESM bindings.
+        for edge in candidate_demands {
+            if edge.owner != edge.target
+                && compiled_resettable.contains(&edge.owner)
+                && native_certificates
+                    .iter()
+                    .any(|known| known.module == edge.target && known.builtin.is_some())
+                && !native_imports
+                    .iter()
+                    .any(|known: &RuntimeImportNativeEdge| {
+                        known.owner == edge.owner && known.reference == edge.reference
+                    })
+            {
+                native_imports.push(RuntimeImportNativeEdge {
+                    via_part: None,
+                    owner: edge.owner,
+                    target: edge.target,
+                    reference: edge.reference,
+                    source_order: edge.source_order,
+                });
+            }
         }
     }
     let mut namespace_certificates = Vec::new();
@@ -1455,7 +1485,9 @@ pub(crate) async fn manifest(
             native_protected.push(certificate.clone());
         }
     }
-    let demand_graph = if needs_demands || !namespace_certificates.is_empty() {
+    let has_runtime_graph =
+        needs_demands || !namespace_certificates.is_empty() || !native_imports.is_empty();
+    let demand_graph = if has_runtime_graph {
         Some(
             RuntimeImportDemandGraph {
                 edges: demand_edges

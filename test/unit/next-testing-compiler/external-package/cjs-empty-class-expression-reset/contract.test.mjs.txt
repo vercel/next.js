@@ -1,0 +1,13 @@
+import {test,expect,vi} from 'vitest'
+import {types} from 'node:util'
+function shape(value) {
+ if (value===null || (typeof value!=='object' && typeof value!=='function')) return {type:typeof value,value}
+ return {type:typeof value,brand:types.isModuleNamespaceObject(value),keys:Reflect.ownKeys(value).map(String),prototype:Object.getPrototypeOf(value)===null?'null':Object.getPrototypeOf(value)===Object.prototype?'Object.prototype':Object.getPrototypeOf(value)===Function.prototype?'Function.prototype':Object.prototype.toString.call(Object.getPrototypeOf(value)),tag:value[Symbol.toStringTag]??null,extensible:Object.isExtensible(value),sealed:Object.isSealed(value),frozen:Object.isFrozen(value),descriptors:Reflect.ownKeys(value).map(key=>{const d=Object.getOwnPropertyDescriptor(value,key);return {key:String(key),valueType:typeof d.value,get:typeof d.get,set:typeof d.set,writable:d.writable??null,enumerable:d.enumerable,configurable:d.configurable}})}
+}
+
+function failure(fn){try{fn();return null}catch(error){return {name:error.name,message:error.message}}}
+function view(namespace){const raw=namespace.default,instance=new raw();return {namespace:shape(namespace),raw:shape(raw),name:raw.name,length:raw.length,prototype:shape(raw.prototype),prototypeConstructorSame:raw.prototype.constructor===raw,instance:shape(instance),instancePrototypeSame:Object.getPrototypeOf(instance)===raw.prototype,instanceConstructorSame:instance.constructor===raw,callFailure:failure(()=>raw()),borrowedCallFailure:failure(()=>raw.call({})),invalidNewTarget:failure(()=>Reflect.construct(raw,[],{}))}}
+test('empty terminal class retains complete namespace and construction behavior across resets',async()=>{
+vi.resetModules();const first=await import('./root.cjs'),cached=await import('./root.cjs');vi.resetModules();const second=await import('./root.cjs');const actual=await vi.importActual('./root.cjs');
+console.log('WS2_CJS_CLASS_RESET:'+JSON.stringify({first:view(first),cached:view(cached),second:view(second),actual:view(actual),sameNamespace:first===cached,freshNamespace:first!==second,sameRaw:first.default===cached.default,freshRaw:first.default!==second.default,actualRaw:actual.default===second.default}));expect(first.default).not.toBe(second.default)
+})

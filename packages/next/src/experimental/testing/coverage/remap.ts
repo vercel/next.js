@@ -185,13 +185,11 @@ async function remapCoverageImpl(
     (browser
       ? capture.kind !== 'browser-cdp' ||
         artifact.profile.environment !== 'browser'
-      : capture.kind !== undefined ||
-        artifact.profile.environment !== 'node') ||
-    (browser && artifact.profile.mode !== 'development')
+      : capture.kind !== undefined || artifact.profile.environment !== 'node')
   ) {
     throw new Error('Unsupported coverage capture or artifact')
   }
-  if (artifact.profile.mode === 'production')
+  if (!browser && artifact.profile.mode === 'production')
     await verifySourceCoverageArtifact(artifact)
   else if (artifact.coverage.sourcePreservation)
     throw new Error('Unrequested production source coverage provenance.')

@@ -1,0 +1,3 @@
+globalThis.__ws2ExprUnused=(globalThis.__ws2ExprUnused||0)+1
+const dependency=require('./dependency.cjs')
+module.exports=function(value){return [dependency.evaluation,value]}

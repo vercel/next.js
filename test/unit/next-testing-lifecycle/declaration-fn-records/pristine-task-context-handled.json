@@ -1,0 +1,89 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "task-context-deadline-late",
+        "trace": [
+          {
+            "kind": "body",
+            "name": "old-rejection",
+            "turn": 0,
+            "count": 0,
+            "aborted": false
+          },
+          {
+            "kind": "finished",
+            "name": "old-rejection",
+            "turn": 0,
+            "count": 0,
+            "state": "fail"
+          },
+          {
+            "kind": "body",
+            "name": "old-rejection",
+            "turn": 1,
+            "count": 0,
+            "aborted": true
+          },
+          {
+            "kind": "late-start",
+            "name": "old-rejection",
+            "state": "run"
+          },
+          {
+            "kind": "retry-end",
+            "name": "old-rejection",
+            "count": 1
+          },
+          {
+            "kind": "finished",
+            "name": "old-rejection",
+            "turn": 1,
+            "count": 1,
+            "state": "pass"
+          }
+        ],
+        "tasks": [
+          {
+            "name": "old-rejection",
+            "state": "pass",
+            "errors": [
+              {
+                "name": "Error",
+                "message": "Test timed out in 60ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\"."
+              }
+            ]
+          },
+          {
+            "name": "old-local-assertion",
+            "state": null,
+            "errors": []
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "old-rejection",
+      "status": "passed",
+      "failureCount": 1
+    },
+    {
+      "name": "old-local-assertion",
+      "status": "skipped",
+      "failureCount": 0
+    }
+  ],
+  "counts": {
+    "numTotalTests": 2,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 1,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

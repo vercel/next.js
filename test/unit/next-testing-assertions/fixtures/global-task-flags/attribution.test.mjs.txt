@@ -1,0 +1,18 @@
+import { test, expect, chai, describe, afterAll } from 'vitest'
+import { setImmediate } from 'node:timers'
+const rows = { 'running first': [], 'running second': [], 'retained first': [], 'closing second': [] }, tasks = new Map()
+function probe(context, stage, assertion) { const flagged = chai.util.flag(assertion, 'vitest-test'); rows[context.task.name].push({ stage, sameTask: flagged === context.task, name: flagged?.name ?? null, noTask: flagged === undefined }) }
+expect.extend({ async globalAttribution(name) { const context = tasks.get(name), flagged = chai.util.flag(this.assertion, 'vitest-test'); rows[name].push({stage:'custom-enter', name: this.task?.name ?? null, rawSameState: this.task === flagged}); await Promise.resolve(); rows[name].push({stage:'custom-resume', name: this.task?.name ?? null, sameActual: this.task === context.task}); return {pass:true,message:()=>'global attribution'} } })
+describe('running owner', () => {
+ let release, finished
+ const gate = new Promise(resolve => { release = resolve }), done = new Promise(resolve => { finished = resolve })
+ test.concurrent('running first', async context => { tasks.set(context.task.name, context); probe(context,'enter',expect(0)); await expect(Promise.resolve(1)).resolves.toBe(1); probe(context,'native-awaited',expect(0)); await expect(context.task.name).globalAttribution(); await gate;probe(context,'after-gate',expect(0));finished() })
+ test.concurrent('running second', async context => { tasks.set(context.task.name, context);probe(context,'enter',expect(0));release();await done;probe(context,'after-first',expect(0)) })
+})
+describe('closed owner', () => {
+ let release
+ const gate = new Promise(resolve => { release = resolve })
+ test.concurrent('retained first', async context => {tasks.set(context.task.name,context);probe(context,'enter',expect(0));await gate;probe(context,'after-second-close',expect(0));probe(context,'local-after-second-close',context.expect(0));await expect(Promise.resolve(2)).resolves.toBe(2);probe(context,'after-native',expect(0))})
+ test.concurrent('closing second', context => {tasks.set(context.task.name,context);probe(context,'enter',expect(0));context.onTestFinished(()=>{setImmediate(release)})})
+})
+afterAll(() => console.log('TASK_GLOBAL_FLAGS:' + JSON.stringify(rows)))

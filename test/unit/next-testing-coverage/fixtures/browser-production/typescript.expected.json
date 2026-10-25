@@ -1,0 +1,228 @@
+{
+  "version": 1,
+  "mode": "production",
+  "sdks": ["1.61.0", "1.64.0"],
+  "reference": "Vitest5.0.4 + @vitest/coverage-v8@5.0.4 + actual public Chromium Browser provider; unchanged authored files; complete reports agree on both SDKs",
+  "sourceFiles": {
+    "contract.case.mjs": {
+      "sha256": "68d3e27b497db3f42e775a4914ef6c7b59ae5aebb0972486ea04a9158a39d82c"
+    },
+    "subject.ts": {
+      "sha256": "8bbde9c55124e52649f1b7ec921dd94898406b3d37086783537ce84498acace5"
+    }
+  },
+  "numPassedTests": 1,
+  "cases": [
+    {
+      "file": "contract.case.mjs",
+      "status": "passed",
+      "cases": [
+        {
+          "ancestorTitles": [],
+          "fullName": "actual compiler full source TypeScript coverage",
+          "status": "passed",
+          "title": "actual compiler full source TypeScript coverage",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ]
+    }
+  ],
+  "coverage": {
+    "subject.ts": {
+      "path": "subject.ts",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 2,
+            "column": 2
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 2,
+            "column": 13
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 3,
+            "column": 2
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "3": {
+          "start": {
+            "line": 6,
+            "column": 2
+          },
+          "end": {
+            "line": 6,
+            "column": null
+          }
+        },
+        "4": {
+          "start": {
+            "line": 9,
+            "column": 2
+          },
+          "end": {
+            "line": 9,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "choose",
+          "decl": {
+            "start": {
+              "line": 1,
+              "column": 16
+            },
+            "end": {
+              "line": 1,
+              "column": 26
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 50
+            },
+            "end": {
+              "line": 4,
+              "column": null
+            }
+          },
+          "line": 1
+        },
+        "1": {
+          "name": "double",
+          "decl": {
+            "start": {
+              "line": 5,
+              "column": 16
+            },
+            "end": {
+              "line": 5,
+              "column": 23
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 5,
+              "column": 46
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          },
+          "line": 5
+        },
+        "2": {
+          "name": "unused",
+          "decl": {
+            "start": {
+              "line": 8,
+              "column": 16
+            },
+            "end": {
+              "line": 8,
+              "column": 23
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 8,
+              "column": 46
+            },
+            "end": {
+              "line": 10,
+              "column": null
+            }
+          },
+          "line": 8
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 2,
+              "column": 2
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "type": "if",
+          "locations": [
+            {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            {
+              "start": {},
+              "end": {}
+            }
+          ],
+          "line": 2
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 1,
+        "2": 1,
+        "3": 1,
+        "4": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 1,
+        "2": 0
+      },
+      "b": {
+        "0": [1, 1]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 3,
+        "lastStatement": 5,
+        "seen": {
+          "f:1:16:1:26": 0,
+          "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+          "s:2:2:2:Infinity": 0,
+          "s:2:13:2:Infinity": 1,
+          "s:3:2:3:Infinity": 2,
+          "f:5:16:5:23": 1,
+          "s:6:2:6:Infinity": 3,
+          "f:8:16:8:23": 2,
+          "s:9:2:9:Infinity": 4
+        },
+        "fnNames": {}
+      }
+    }
+  }
+}

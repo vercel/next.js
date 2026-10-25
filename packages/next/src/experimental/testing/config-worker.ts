@@ -11,6 +11,12 @@ import Module, { register } from 'node:module'
 import { readFileSync, realpathSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
+import {
+  retainCoverageThresholdFormatter,
+  formatCoverageThresholdUpdates,
+} from './coverage/threshold-format'
+import { serializeDiagnostic } from './reporting/diagnostics'
+import { prepareCoverageThresholdUpdate } from './coverage/threshold-update'
 
 async function send(message: object) {
   return new Promise<void>((resolve, reject) =>
@@ -25,6 +31,10 @@ let setupStarted = false
 let rootSetupStarted = false
 let compilerTransforms: RetainedCompilerTransforms | undefined
 let compilerDependencies = async (): Promise<string[]> => []
+let coverageThresholdFormatter: ReturnType<
+  typeof retainCoverageThresholdFormatter
+>['formatter']
+let configurationFile: string | undefined
 async function shutdown() {
   const errors: unknown[] = []
   for (const teardown of teardowns.splice(0).reverse()) {
@@ -41,6 +51,43 @@ process.on('message', (message: any) => {
   queue = queue.then(() => handle(message))
 })
 async function handle(message: any) {
+  if (message?.type === 'coverage-threshold-prepare') {
+    try {
+      if (!coverageThresholdFormatter)
+        throw new Error(
+          'No coverage threshold formatter belongs to this configuration.'
+        )
+      const value = await prepareCoverageThresholdUpdate({
+        configFile: configurationFile,
+        updates: message.updates,
+        formatter: coverageThresholdFormatter,
+      })
+      await send({ type: 'test-config-result', value })
+    } catch (error) {
+      const value = error instanceof Error ? error : new Error(String(error))
+      await send({
+        type: 'test-config-failed',
+        error: serializeDiagnostic(value, { phase: 'configuration' }),
+      })
+    }
+    return
+  }
+  if (message?.type === 'coverage-threshold-format') {
+    try {
+      const value = formatCoverageThresholdUpdates(
+        coverageThresholdFormatter,
+        message.updates
+      )
+      await send({ type: 'test-config-result', value })
+    } catch (error) {
+      const value = error instanceof Error ? error : new Error(String(error))
+      await send({
+        type: 'test-config-failed',
+        error: serializeDiagnostic(value, { phase: 'configuration' }),
+      })
+    }
+    return
+  }
   if (message?.type === 'compiler-transform') {
     try {
       if (
@@ -62,7 +109,7 @@ async function handle(message: any) {
       await send({
         type: 'compiler-transform-result',
         id: message.id,
-        error: { name: value.name, message: value.message, stack: value.stack },
+        error: serializeDiagnostic(value, { phase: 'compilation' }),
       })
     }
     return
@@ -159,6 +206,7 @@ async function handle(message: any) {
     if (message?.type !== 'run')
       throw new Error('Invalid configuration request.')
     const { file, persistent, projectConfig } = message.input
+    configurationFile = file
     // These hooks exist only in the owned configuration realm.
     // Node's async ESM hooks do not intercept ordinary CommonJS require calls.
     const nodeModule = Module as unknown as {
@@ -268,7 +316,12 @@ async function handle(message: any) {
         })
       : exported)
     const prepared = retainCompilerTransforms(value)
-    const mapped = prepareCompilerAliases(prepared.value)
+    const coverage = retainCoverageThresholdFormatter(
+      prepared.value,
+      projectConfig === true
+    )
+    coverageThresholdFormatter = coverage.formatter
+    const mapped = prepareCompilerAliases(coverage.value)
     validateTestConfigCompilerOptions(
       mapped.value,
       projectConfig === true ? { projectConfig: true } : undefined
@@ -277,6 +330,9 @@ async function handle(message: any) {
     await send({
       type: 'test-config-loaded',
       value: mapped.value,
+      ...(coverageThresholdFormatter
+        ? { coverageThresholdFormatter: true }
+        : {}),
       ...(mapped.aliases
         ? {
             compilerAliases: {
@@ -308,7 +364,12 @@ async function handle(message: any) {
     }
     await send({
       type: 'test-config-failed',
-      error: { name: value.name, message: value.message, stack: value.stack },
+      error: serializeDiagnostic(value, {
+        phase:
+          message?.type === 'shutdown' || message?.type === 'teardown'
+            ? 'cleanup'
+            : 'configuration',
+      }),
     }).catch(() => {})
     process.exit(1)
   }

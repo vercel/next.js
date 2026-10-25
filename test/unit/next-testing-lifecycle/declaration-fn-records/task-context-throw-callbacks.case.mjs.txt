@@ -1,0 +1,25 @@
+import { afterAll, expect, test } from 'vitest'
+const trace = []
+let local, caller, phase, calls = 0
+const actual = Object.assign(new TypeError('callback throw message'), { throwMarker: 'actual' })
+const expected = Object.assign(new TypeError('custom equality target'), { throwMarker: 'expected' })
+class MeasuredError {
+  static [Symbol.hasInstance](value) { trace.push({ phase, kind: 'has-instance', sameClass: this === MeasuredError, sameThrown: value === actual }); return value === actual }
+}
+const asymmetric = { asymmetricMatch(value, testers) { trace.push({ phase, kind: 'asymmetric', sameThis: this === asymmetric, sameThrown: value === actual, testersArray: Array.isArray(testers), testerCount: testers?.length }); return value === actual } }
+expect.addEqualityTesters([function(left, right) {
+  if (left?.throwMarker === 'actual' && right?.throwMarker === 'expected') { trace.push({ phase, kind: 'custom-tester', leftSame: left === actual, rightSame: right === expected, equalsType: typeof this.equals }); return true }
+}])
+function subject() { calls++; trace.push({ phase, kind: 'subject', thisUndefined: this === undefined }); throw actual }
+function run(label) {
+  phase = label
+  for (const name of ['toThrow', 'toThrowError']) for (const [kind, value] of [['instance', MeasuredError], ['asymmetric', asymmetric], ['equality', expected]]) {
+    const assertion = local(subject)
+    try { const result = assertion[name](value); trace.push({ phase, kind: 'returned:' + kind, name, sameAssertion: result === assertion, returnedType: typeof result }) }
+    catch (error) { trace.push({ phase, kind: 'error:' + kind, name, error: { name: error.name, message: error.message } }) }
+  }
+  trace.push({ phase, kind: 'counts', calls, ownerCount: local.getState().assertionCalls, callerCount: caller?.getState().assertionCalls ?? null })
+}
+test('creator throw callback identity', context => { local = context.expect })
+test('foreign throw callback identity', context => { caller = context.expect; run('foreign') })
+afterAll(() => { run('afterAll'); console.log('DECLARATION_FN:' + JSON.stringify({ kind: 'throw-callbacks', trace })) })

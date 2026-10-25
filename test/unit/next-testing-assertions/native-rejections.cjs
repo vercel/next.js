@@ -53,7 +53,9 @@ async function main() {
   process.on('unhandledRejection', onNative)
   const nativeAssertion = (context, value) => {
     const assertion = context.expect(value)
-    const task = primitives.chai.util.flag(assertion, 'vitest-test')
+    const task = primitives.getVitestAssertionTaskRuntime(
+      primitives.chai.util.flag(assertion, 'vitest-test')
+    )
     const returned = assertion.resolves.toBe(2)
     nativePromise = task.promises.at(-1)
     assert(nativePromise instanceof Promise)
@@ -83,7 +85,7 @@ async function main() {
         if (mode === 'late') {
           context.onTestFinished(() => {
             setImmediate(() => {
-              Promise.resolve().then(() => borrowed(1).toBe(1))
+              Promise.resolve().then(() => borrowed(1).toBe(2))
             })
           })
           return

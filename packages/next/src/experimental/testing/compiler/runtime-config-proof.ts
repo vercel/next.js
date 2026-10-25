@@ -5,6 +5,7 @@ import { isDeepStrictEqual } from 'util'
 import type { CompiledTestArtifact } from '../contracts'
 import { coverageHash, readArtifactFile } from '../coverage/artifact'
 import { assertConfigurationImportFiles } from './config-import-facts'
+import { assertBrowserCoverageArtifact } from '../client/coverage-artifact'
 import type {
   ConfigurationImportAuthorization,
   ConfigurationImportProof,
@@ -40,7 +41,8 @@ function assertRuntimeArtifact(
     artifact.profile.route !== undefined ||
     !['development', 'production'].includes(artifact.profile.mode) ||
     (artifact.profile.environment === 'browser' &&
-      artifact.profile.mode !== 'development') ||
+      artifact.profile.mode === 'production' &&
+      artifact.coverage?.browser?.version !== 2) ||
     artifact.entryId !== entry.id ||
     artifact.sourceHash !== entry.sha256 ||
     !entry.revision ||
@@ -78,6 +80,8 @@ async function assertPrivateBrowserProof(
   requireFile: boolean
 ) {
   if (artifact.kind !== 'browser') return
+  if (artifact.profile.mode === 'production')
+    await assertBrowserCoverageArtifact(artifact)
   if (
     artifact.files.includes(path) ||
     artifact.client.outputs.some((output) => output.path === path)

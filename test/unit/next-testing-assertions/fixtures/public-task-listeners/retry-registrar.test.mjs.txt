@@ -1,0 +1,14 @@
+import { test, expect, beforeEach, afterEach, afterAll, onTestFinished as globalFinished } from 'vitest'
+const rows = []
+let release = () => {}
+const row = (stage, value = {}) => rows.push({ stage, ...value })
+afterEach(({ task }) => { row('afterEach', { errors: (task.result?.errors ?? []).map(error => error?.message ?? String(error)) }); release() })
+afterAll(() => console.log('TASK_QUEUE_CONSUMER:' + JSON.stringify(rows)))
+let attempt = 0, firstTask, firstContext, retained
+ test('captured registrar follows real retry reset', { retry: 1 }, context => {
+   attempt++; if (attempt === 1) { firstTask = context.task; firstContext = context; retained = context.onTestFinished }
+   row('body-start', { attempt, sameTask: context.task === firstTask, sameContext: context === firstContext, absent: context.task.onFinished === undefined })
+   retained(function actualRetryFinished(payload) { row('finished', { attempt, same: payload.task === firstTask, length: payload.task.onFinished.length, aborted: payload.signal.aborted }) })
+   row('body-return', { attempt, length: context.task.onFinished.length, wrapper: context.task.onFinished[0].name })
+   if (attempt === 1) { const error = new Error('first actual retry'); error.stack = ''; throw error }
+ })

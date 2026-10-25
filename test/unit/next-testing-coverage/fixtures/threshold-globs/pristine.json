@@ -1,0 +1,693 @@
+{
+  "version": 1,
+  "reference": {
+    "version": "5.0.4",
+    "runtime": "Node26.1.0",
+    "mode": "development",
+    "scope": "Fresh complete development and production reports and cases, with exact imported/unimported source bytes"
+  },
+  "sourceFiles": {
+    "contract.case.mjs": {
+      "source": "import { test, expect } from 'vitest'\nimport { choose } from './subject.mjs'\ntest('only true branch is executed', () => expect(choose(true)).toBe(1))\n",
+      "sha256": "66fd33264aa1a5f2dfdca26325436cecb291b6c28e42570c6a54c6ce6b6539c5"
+    },
+    "subject.mjs": {
+      "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
+      "sha256": "080ca8e12b1705b0a9e993d1c7956453465b4a31c42b2bc818d59d62da79c00c"
+    },
+    "unimported.mjs": {
+      "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
+      "sha256": "080ca8e12b1705b0a9e993d1c7956453465b4a31c42b2bc818d59d62da79c00c"
+    }
+  },
+  "coverage": {
+    "subject.mjs": {
+      "path": "subject.mjs",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 2,
+            "column": 2
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 2,
+            "column": 12
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 3,
+            "column": 2
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "3": {
+          "start": {
+            "line": 6,
+            "column": 2
+          },
+          "end": {
+            "line": 6,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "choose",
+          "decl": {
+            "start": {
+              "line": 1,
+              "column": 16
+            },
+            "end": {
+              "line": 1,
+              "column": 22
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 29
+            },
+            "end": {
+              "line": 4,
+              "column": null
+            }
+          },
+          "line": 1
+        },
+        "1": {
+          "name": "unused",
+          "decl": {
+            "start": {
+              "line": 5,
+              "column": 16
+            },
+            "end": {
+              "line": 5,
+              "column": 22
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 5,
+              "column": 25
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          },
+          "line": 5
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 2,
+              "column": 2
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "type": "if",
+          "locations": [
+            {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            {
+              "start": {},
+              "end": {}
+            }
+          ],
+          "line": 2
+        }
+      },
+      "s": {
+        "0": 1,
+        "1": 1,
+        "2": 0,
+        "3": 0
+      },
+      "f": {
+        "0": 1,
+        "1": 0
+      },
+      "b": {
+        "0": [1, 0]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 4,
+        "seen": {
+          "f:1:16:1:22": 0,
+          "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+          "s:2:2:2:Infinity": 0,
+          "s:2:12:2:Infinity": 1,
+          "s:3:2:3:Infinity": 2,
+          "f:5:16:5:22": 1,
+          "s:6:2:6:Infinity": 3
+        },
+        "fnNames": {}
+      }
+    },
+    "unimported.mjs": {
+      "path": "unimported.mjs",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 2,
+            "column": 2
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 2,
+            "column": 12
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 3,
+            "column": 2
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "3": {
+          "start": {
+            "line": 6,
+            "column": 2
+          },
+          "end": {
+            "line": 6,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "choose",
+          "decl": {
+            "start": {
+              "line": 1,
+              "column": 16
+            },
+            "end": {
+              "line": 1,
+              "column": 22
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 29
+            },
+            "end": {
+              "line": 4,
+              "column": null
+            }
+          },
+          "line": 1
+        },
+        "1": {
+          "name": "unused",
+          "decl": {
+            "start": {
+              "line": 5,
+              "column": 16
+            },
+            "end": {
+              "line": 5,
+              "column": 22
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 5,
+              "column": 25
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          },
+          "line": 5
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 2,
+              "column": 2
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "type": "if",
+          "locations": [
+            {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            {
+              "start": {},
+              "end": {}
+            }
+          ],
+          "line": 2
+        }
+      },
+      "s": {
+        "0": 0,
+        "1": 0,
+        "2": 0,
+        "3": 0
+      },
+      "f": {
+        "0": 0,
+        "1": 0
+      },
+      "b": {
+        "0": [0, 0]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 4,
+        "seen": {
+          "f:1:16:1:22": 0,
+          "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+          "s:2:2:2:Infinity": 0,
+          "s:2:12:2:Infinity": 1,
+          "s:3:2:3:Infinity": 2,
+          "f:5:16:5:22": 1,
+          "s:6:2:6:Infinity": 3
+        },
+        "fnNames": {}
+      }
+    }
+  },
+  "rows": [
+    {
+      "name": "glob-only",
+      "thresholds": {
+        "lines": 0,
+        "subject.mjs": {
+          "lines": 100
+        }
+      },
+      "exitCode": 1,
+      "cliThresholdDiagnostics": [
+        "ERROR: Coverage for lines (33.33%) does not meet \"subject.mjs\" threshold (100%)"
+      ],
+      "thresholdErrors": [
+        "Coverage for lines (33.33%) does not meet \"subject.mjs\" threshold (100%)"
+      ]
+    },
+    {
+      "name": "global-with-lower-glob",
+      "thresholds": {
+        "lines": 100,
+        "subject.mjs": {
+          "lines": 0
+        }
+      },
+      "exitCode": 1,
+      "cliThresholdDiagnostics": [
+        "ERROR: Coverage for lines (16.66%) does not meet global threshold (100%)"
+      ],
+      "thresholdErrors": [
+        "Coverage for lines (16.66%) does not meet global threshold (100%)"
+      ]
+    },
+    {
+      "name": "overlapping-lower",
+      "thresholds": {
+        "lines": 100,
+        "**/subject.mjs": {
+          "lines": 0
+        },
+        "**/*.mjs": {
+          "lines": 0
+        }
+      },
+      "exitCode": 1,
+      "cliThresholdDiagnostics": [
+        "ERROR: Coverage for lines (16.66%) does not meet global threshold (100%)"
+      ],
+      "thresholdErrors": [
+        "Coverage for lines (16.66%) does not meet global threshold (100%)"
+      ]
+    },
+    {
+      "name": "uncovered-count",
+      "thresholds": {
+        "functions": -2,
+        "*.mjs": {
+          "functions": -1
+        }
+      },
+      "exitCode": 1,
+      "cliThresholdDiagnostics": [
+        "ERROR: Uncovered functions (3) exceed global threshold (2)",
+        "ERROR: Uncovered functions (3) exceed \"*.mjs\" threshold (1)"
+      ],
+      "thresholdErrors": [
+        "Uncovered functions (3) exceed global threshold (2)",
+        "Uncovered functions (3) exceed \"*.mjs\" threshold (1)"
+      ]
+    },
+    {
+      "name": "per-file-glob",
+      "thresholds": {
+        "lines": 0,
+        "perFile": true,
+        "*.mjs": {
+          "lines": 100
+        }
+      },
+      "exitCode": 1,
+      "cliThresholdDiagnostics": [
+        "ERROR: Coverage for lines (16.66%) does not meet \"*.mjs\" threshold (100%)"
+      ],
+      "thresholdErrors": [
+        "Coverage for lines (16.66%) does not meet \"*.mjs\" threshold (100%)"
+      ]
+    },
+    {
+      "name": "no-matching-glob",
+      "thresholds": {
+        "lines": 0,
+        "**/absent.*": {
+          "lines": 100
+        }
+      },
+      "exitCode": 0,
+      "cliThresholdDiagnostics": [],
+      "thresholdErrors": []
+    },
+    {
+      "name": "overlapping-specific",
+      "thresholds": {
+        "lines": 100,
+        "subject.mjs": {
+          "lines": 10
+        },
+        "*.mjs": {
+          "lines": 0
+        }
+      },
+      "exitCode": 1,
+      "cliThresholdDiagnostics": [
+        "ERROR: Coverage for lines (16.66%) does not meet global threshold (100%)"
+      ],
+      "thresholdErrors": [
+        "Coverage for lines (16.66%) does not meet global threshold (100%)"
+      ]
+    },
+    {
+      "name": "all-metric-order",
+      "thresholds": {
+        "statements": 100,
+        "functions": 100,
+        "branches": 100,
+        "lines": 100,
+        "*.mjs": {
+          "statements": 100,
+          "functions": 100,
+          "branches": 100,
+          "lines": 100
+        }
+      },
+      "exitCode": 1,
+      "cliThresholdDiagnostics": [
+        "ERROR: Coverage for lines (16.66%) does not meet global threshold (100%)",
+        "ERROR: Coverage for functions (25%) does not meet global threshold (100%)",
+        "ERROR: Coverage for statements (25%) does not meet global threshold (100%)",
+        "ERROR: Coverage for branches (25%) does not meet global threshold (100%)",
+        "ERROR: Coverage for lines (16.66%) does not meet \"*.mjs\" threshold (100%)",
+        "ERROR: Coverage for functions (25%) does not meet \"*.mjs\" threshold (100%)",
+        "ERROR: Coverage for statements (25%) does not meet \"*.mjs\" threshold (100%)",
+        "ERROR: Coverage for branches (25%) does not meet \"*.mjs\" threshold (100%)"
+      ],
+      "thresholdErrors": [
+        "Coverage for lines (16.66%) does not meet global threshold (100%)",
+        "Coverage for functions (25%) does not meet global threshold (100%)",
+        "Coverage for statements (25%) does not meet global threshold (100%)",
+        "Coverage for branches (25%) does not meet global threshold (100%)",
+        "Coverage for lines (16.66%) does not meet \"*.mjs\" threshold (100%)",
+        "Coverage for functions (25%) does not meet \"*.mjs\" threshold (100%)",
+        "Coverage for statements (25%) does not meet \"*.mjs\" threshold (100%)",
+        "Coverage for branches (25%) does not meet \"*.mjs\" threshold (100%)"
+      ]
+    },
+    {
+      "name": "glob-per-file",
+      "thresholds": {
+        "lines": 0,
+        "perFile": true,
+        "*.mjs": {
+          "lines": 100,
+          "perFile": true
+        }
+      },
+      "exitCode": 1,
+      "cliThresholdDiagnostics": [
+        "ERROR: Coverage for lines (33.33%) does not meet \"*.mjs\" threshold (100%) for subject.mjs",
+        "ERROR: Coverage for lines (0%) does not meet \"*.mjs\" threshold (100%) for unimported.mjs"
+      ],
+      "thresholdErrors": [
+        "Coverage for lines (33.33%) does not meet \"*.mjs\" threshold (100%) for subject.mjs",
+        "Coverage for lines (0%) does not meet \"*.mjs\" threshold (100%) for unimported.mjs"
+      ]
+    },
+    {
+      "name": "glob-insertion-order",
+      "thresholds": {
+        "lines": 0,
+        "subject.mjs": {
+          "lines": 100
+        },
+        "*.mjs": {
+          "functions": 100
+        }
+      },
+      "exitCode": 1,
+      "cliThresholdDiagnostics": [
+        "ERROR: Coverage for lines (33.33%) does not meet \"subject.mjs\" threshold (100%)",
+        "ERROR: Coverage for functions (25%) does not meet \"*.mjs\" threshold (100%)"
+      ],
+      "thresholdErrors": [
+        "Coverage for lines (33.33%) does not meet \"subject.mjs\" threshold (100%)",
+        "Coverage for functions (25%) does not meet \"*.mjs\" threshold (100%)"
+      ]
+    },
+    {
+      "name": "glob-mixed-units",
+      "thresholds": {
+        "lines": 0,
+        "*.mjs": {
+          "statements": 100,
+          "functions": -1,
+          "branches": 100,
+          "lines": 100
+        }
+      },
+      "exitCode": 1,
+      "cliThresholdDiagnostics": [
+        "ERROR: Coverage for lines (16.66%) does not meet \"*.mjs\" threshold (100%)",
+        "ERROR: Uncovered functions (3) exceed \"*.mjs\" threshold (1)",
+        "ERROR: Coverage for statements (25%) does not meet \"*.mjs\" threshold (100%)",
+        "ERROR: Coverage for branches (25%) does not meet \"*.mjs\" threshold (100%)"
+      ],
+      "thresholdErrors": [
+        "Coverage for lines (16.66%) does not meet \"*.mjs\" threshold (100%)",
+        "Uncovered functions (3) exceed \"*.mjs\" threshold (1)",
+        "Coverage for statements (25%) does not meet \"*.mjs\" threshold (100%)",
+        "Coverage for branches (25%) does not meet \"*.mjs\" threshold (100%)"
+      ]
+    },
+    {
+      "name": "glob-per-file-all",
+      "thresholds": {
+        "lines": 0,
+        "*.mjs": {
+          "perFile": true,
+          "statements": 100,
+          "functions": 100,
+          "branches": 100,
+          "lines": 100
+        }
+      },
+      "exitCode": 1,
+      "cliThresholdDiagnostics": [
+        "ERROR: Coverage for lines (33.33%) does not meet \"*.mjs\" threshold (100%) for subject.mjs",
+        "ERROR: Coverage for functions (50%) does not meet \"*.mjs\" threshold (100%) for subject.mjs",
+        "ERROR: Coverage for statements (50%) does not meet \"*.mjs\" threshold (100%) for subject.mjs",
+        "ERROR: Coverage for branches (50%) does not meet \"*.mjs\" threshold (100%) for subject.mjs",
+        "ERROR: Coverage for lines (0%) does not meet \"*.mjs\" threshold (100%) for unimported.mjs",
+        "ERROR: Coverage for functions (0%) does not meet \"*.mjs\" threshold (100%) for unimported.mjs",
+        "ERROR: Coverage for statements (0%) does not meet \"*.mjs\" threshold (100%) for unimported.mjs",
+        "ERROR: Coverage for branches (0%) does not meet \"*.mjs\" threshold (100%) for unimported.mjs"
+      ],
+      "thresholdErrors": [
+        "Coverage for lines (33.33%) does not meet \"*.mjs\" threshold (100%) for subject.mjs",
+        "Coverage for functions (50%) does not meet \"*.mjs\" threshold (100%) for subject.mjs",
+        "Coverage for statements (50%) does not meet \"*.mjs\" threshold (100%) for subject.mjs",
+        "Coverage for branches (50%) does not meet \"*.mjs\" threshold (100%) for subject.mjs",
+        "Coverage for lines (0%) does not meet \"*.mjs\" threshold (100%) for unimported.mjs",
+        "Coverage for functions (0%) does not meet \"*.mjs\" threshold (100%) for unimported.mjs",
+        "Coverage for statements (0%) does not meet \"*.mjs\" threshold (100%) for unimported.mjs",
+        "Coverage for branches (0%) does not meet \"*.mjs\" threshold (100%) for unimported.mjs"
+      ]
+    }
+  ],
+  "modes": ["development", "production"],
+  "cases": [
+    {
+      "ancestorTitles": [],
+      "fullName": "only true branch is executed",
+      "status": "passed",
+      "title": "only true branch is executed",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    }
+  ],
+  "report": {
+    "summary": {
+      "total": {
+        "lines": {
+          "total": 6,
+          "covered": 1,
+          "skipped": 0,
+          "pct": 16.66
+        },
+        "statements": {
+          "total": 8,
+          "covered": 2,
+          "skipped": 0,
+          "pct": 25
+        },
+        "functions": {
+          "total": 4,
+          "covered": 1,
+          "skipped": 0,
+          "pct": 25
+        },
+        "branches": {
+          "total": 4,
+          "covered": 1,
+          "skipped": 0,
+          "pct": 25
+        },
+        "branchesTrue": {
+          "total": 0,
+          "covered": 0,
+          "skipped": 0,
+          "pct": "Unknown"
+        }
+      },
+      "subject.mjs": {
+        "lines": {
+          "total": 3,
+          "covered": 1,
+          "skipped": 0,
+          "pct": 33.33
+        },
+        "functions": {
+          "total": 2,
+          "covered": 1,
+          "skipped": 0,
+          "pct": 50
+        },
+        "statements": {
+          "total": 4,
+          "covered": 2,
+          "skipped": 0,
+          "pct": 50
+        },
+        "branches": {
+          "total": 2,
+          "covered": 1,
+          "skipped": 0,
+          "pct": 50
+        }
+      },
+      "unimported.mjs": {
+        "lines": {
+          "total": 3,
+          "covered": 0,
+          "skipped": 0,
+          "pct": 0
+        },
+        "functions": {
+          "total": 2,
+          "covered": 0,
+          "skipped": 0,
+          "pct": 0
+        },
+        "statements": {
+          "total": 4,
+          "covered": 0,
+          "skipped": 0,
+          "pct": 0
+        },
+        "branches": {
+          "total": 2,
+          "covered": 0,
+          "skipped": 0,
+          "pct": 0
+        }
+      }
+    },
+    "text": "----------------|---------|----------|---------|---------|-------------------\nFile            | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n----------------|---------|----------|---------|---------|-------------------\nAll files       |      25 |       25 |      25 |   16.66 |                   \n subject.mjs    |      50 |       50 |      50 |   33.33 | 3-6               \n unimported.mjs |       0 |        0 |       0 |       0 | 2-6               \n----------------|---------|----------|---------|---------|-------------------\n\n=============================== Coverage summary ===============================\nStatements   : 25% ( 2/8 )\nBranches     : 25% ( 1/4 )\nFunctions    : 25% ( 1/4 )\nLines        : 16.66% ( 1/6 )\n================================================================================",
+    "lcov": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,0\nDA:6,0\nLF:3\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\nTN:\nSF:unimported.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:6,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record\n"
+  }
+}

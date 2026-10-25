@@ -15,6 +15,7 @@ async function main() {
     Element: dom.window.Element,
     Node: dom.window.Node,
   }
+  const restoreBrowserDomRealm = require('./browser-dom-realm.cjs')(dom.window)
   const saved = new Map(
     Object.keys(values).map((key) => [
       key,
@@ -48,7 +49,10 @@ async function main() {
       locator.elements().map((element) => element.textContent)
     assert.deepEqual(names(intersection), ['One'])
     assert.deepEqual(names(union), ['One', 'Two'])
-    assert.throws(() => union.element(), /unique browser element/)
+    assert.throws(
+      () => union.element(),
+      /strict mode violation:.*resolved to 2 elements:/
+    )
     assert.equal(await union.first().click({ button: 'right' }), undefined)
     assert.deepEqual(
       commands.map(({ method, args }) => ({ method, args })),
@@ -89,6 +93,7 @@ async function main() {
       if (descriptor) Object.defineProperty(globalThis, key, descriptor)
       else Reflect.deleteProperty(globalThis, key)
     }
+    restoreBrowserDomRealm()
   }
 }
 main().catch((error) => {

@@ -1,0 +1,25 @@
+import { expect, test } from 'vitest'
+import { Card as Card0 } from './shape-classic-props.tsx'
+import { Card as Card1 } from './shape-classic-multiple.tsx'
+import { Card as Card2 } from './shape-classic-logical.tsx'
+import { Card as Card3 } from './shape-classic-conditional.tsx'
+import { Card as Card4 } from './shape-classic-multiline.tsx'
+import { Card as Card5 } from './shape-classic-fragment.tsx'
+import { Card as Card12 } from './shape-automatic-props.tsx'
+import { Card as Card13 } from './shape-automatic-multiple.tsx'
+import { Card as Card14 } from './shape-automatic-logical.tsx'
+import { Card as Card15 } from './shape-automatic-conditional.tsx'
+import { Card as Card16 } from './shape-automatic-multiline.tsx'
+import { Card as Card17 } from './shape-automatic-fragment.tsx'
+test('classic props preserves authored child and prop behavior',()=>{const yes=Card0({active:true,label:'hello'}),no=Card0({active:false,label:'world'});expect(yes.props).toEqual({title:'on',children:'hello'});expect(no.props).toEqual({title:'off',children:'world'})})
+test('classic multiple preserves authored child and prop behavior',()=>{const yes=Card1({active:true,label:'hello'}),no=Card1({active:false,label:'world'});expect(yes.props.children[0]).toBe('before ');expect(yes.props.children[1]).toBe('hello');expect(yes.props.children[2].props.children).toBe('yes');expect(yes.props.children[3]).toBe(' after');expect(no.props.children[2].props.children).toBe('no')})
+test('classic logical preserves authored child and prop behavior',()=>{const yes=Card2({active:true,label:'hello'}),no=Card2({active:false,label:'world'});expect(yes.props.children.props.children).toBe('hello');expect(no.props.children).toBe(false)})
+test('classic conditional preserves authored child and prop behavior',()=>{const yes=Card3({active:true,label:'hello'}),no=Card3({active:false,label:'world'});expect(yes.props.children.type).toBe('i');expect(yes.props.children.props.children).toBe('hello');expect(no.props.children.type).toBe('b');expect(no.props.children.props.children).toBe('fallback')})
+test('classic multiline preserves authored child and prop behavior',()=>{const yes=Card4({active:true,label:'hello'}),no=Card4({active:false,label:'world'});expect(yes.props['data-state']).toBe('yes');expect(no.props['data-state']).toBe('no');expect(yes.props.children[0].props.children).toBe('hello');expect(yes.props.children[1]).toBe('on');expect(no.props.children[1]).toBe('off')})
+test('classic fragment preserves authored child and prop behavior',()=>{const yes=Card5({active:true,label:'hello'}),no=Card5({active:false,label:'world'});expect(yes.props.children[0]).toBe('hello');expect(yes.props.children[1]).toBe('yes');expect(no.props.children[1]).toBe('no');expect(yes.props.children[2].props.children).toBe('end')})
+test('automatic props preserves authored child and prop behavior',()=>{const yes=Card12({active:true,label:'hello'}),no=Card12({active:false,label:'world'});expect(yes.props).toEqual({title:'on',children:'hello'});expect(no.props).toEqual({title:'off',children:'world'})})
+test('automatic multiple preserves authored child and prop behavior',()=>{const yes=Card13({active:true,label:'hello'}),no=Card13({active:false,label:'world'});expect(yes.props.children[0]).toBe('before ');expect(yes.props.children[1]).toBe('hello');expect(yes.props.children[2].props.children).toBe('yes');expect(yes.props.children[3]).toBe(' after');expect(no.props.children[2].props.children).toBe('no')})
+test('automatic logical preserves authored child and prop behavior',()=>{const yes=Card14({active:true,label:'hello'}),no=Card14({active:false,label:'world'});expect(yes.props.children.props.children).toBe('hello');expect(no.props.children).toBe(false)})
+test('automatic conditional preserves authored child and prop behavior',()=>{const yes=Card15({active:true,label:'hello'}),no=Card15({active:false,label:'world'});expect(yes.props.children.type).toBe('i');expect(yes.props.children.props.children).toBe('hello');expect(no.props.children.type).toBe('b');expect(no.props.children.props.children).toBe('fallback')})
+test('automatic multiline preserves authored child and prop behavior',()=>{const yes=Card16({active:true,label:'hello'}),no=Card16({active:false,label:'world'});expect(yes.props['data-state']).toBe('yes');expect(no.props['data-state']).toBe('no');expect(yes.props.children[0].props.children).toBe('hello');expect(yes.props.children[1]).toBe('on');expect(no.props.children[1]).toBe('off')})
+test('automatic fragment preserves authored child and prop behavior',()=>{const yes=Card17({active:true,label:'hello'}),no=Card17({active:false,label:'world'});expect(yes.props.children[0]).toBe('hello');expect(yes.props.children[1]).toBe('yes');expect(no.props.children[1]).toBe('no');expect(yes.props.children[2].props.children).toBe('end')})

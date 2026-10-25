@@ -1,0 +1,3989 @@
+{
+  "version": 1,
+  "origin": "Actual private S8 Browser source modules with their real generated positions translated into one standalone function; original paired genuine complete maps. These are pure converter fixtures, not native issuance or runtime receipts.",
+  "profiles": [
+    {
+      "name": "shape-automatic-arrow.tsx",
+      "runtime": "automatic",
+      "file": "/browser-children/shape-automatic-arrow.tsx",
+      "source": "type Input = { active: boolean; label: string }\nconst Badge = ({label}: {label:string}) => <b>{label}</b>\nexport function Card({ active, label }: Input) {\n  return <Badge label={active ? 'on' : 'off'} />\n}\nexport const Unused = () => <i />\n",
+      "sourceSHA": "448625490bcc3b16bfa8617cc71d95d0c163938f67a48109cecd9ce37629e268",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\nvar __TURBOPACK__imported__module__960__ = __turbopack_context__.i(960);\n;\nconst Badge = ({ label })=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"b\", {\n        children: label\n    });\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(Badge, {\n        label: active ? 'on' : 'off'\n    });\n}\nconst Unused = ()=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"i\", {});\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-automatic-arrow.tsx"],
+        "names": ["Badge", "label", "Card", "active", "Unused"],
+        "mappings": ";A;;;;;;;;AACA,MAAMA,QAAQ,CAAC,EAACC,KAAK,EAAiB,iBAAK,iDAAC,KAAD;kBAAIA;IAAS;AACjD,SAASC,KAAK,EAAEC,MAAM,EAAEF,KAAK,EAAS;IAC3C,qBAAO,iDAACD,OAAD;QAAOC,OAAOE,SAAS,OAAO;IAAQ;AAC/C;AACO,MAAMC,SAAS,kBAAM,iDAAC,KAAD,CAAI",
+        "sourcesContent": [
+          "type Input = { active: boolean; label: string }\nconst Badge = ({label}: {label:string}) => <b>{label}</b>\nexport function Card({ active, label }: Input) {\n  return <Badge label={active ? 'on' : 'off'} />\n}\nexport const Unused = () => <i />\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__960__",
+        "moduleStart": 28,
+        "moduleEnd": 574,
+        "imports": ["jsx"]
+      },
+      "expected": {
+        "path": "shape-automatic-arrow.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 2,
+              "column": 6
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "1": {
+            "start": {
+              "line": 2,
+              "column": 43
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 4,
+              "column": 2
+            },
+            "end": {
+              "line": 4,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 6,
+              "column": 13
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          },
+          "4": {
+            "start": {
+              "line": 6,
+              "column": 28
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "(anonymous_0)",
+            "decl": {
+              "start": {
+                "line": 2,
+                "column": 6
+              },
+              "end": {
+                "line": 2,
+                "column": 15
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 43
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "line": 2
+          },
+          "1": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 3,
+                "column": 16
+              },
+              "end": {
+                "line": 3,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 3,
+                "column": 47
+              },
+              "end": {
+                "line": 5,
+                "column": null
+              }
+            },
+            "line": 3
+          },
+          "2": {
+            "name": "(anonymous_2)",
+            "decl": {
+              "start": {
+                "line": 6,
+                "column": 13
+              },
+              "end": {
+                "line": 6,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 6,
+                "column": 28
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            },
+            "line": 6
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 4,
+                "column": 23
+              },
+              "end": {
+                "line": 4,
+                "column": 47
+              }
+            },
+            "type": "cond-expr",
+            "locations": [
+              {
+                "start": {
+                  "line": 4,
+                  "column": 32
+                },
+                "end": {
+                  "line": 4,
+                  "column": 39
+                }
+              },
+              {
+                "start": {
+                  "line": 4,
+                  "column": 39
+                },
+                "end": {
+                  "line": 4,
+                  "column": 47
+                }
+              }
+            ],
+            "line": 4
+          }
+        },
+        "s": {
+          "0": 1,
+          "1": 2,
+          "2": 2,
+          "3": 1,
+          "4": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 2,
+          "2": 0
+        },
+        "b": {
+          "0": [1, 1]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 3,
+          "lastStatement": 5,
+          "seen": {
+            "s:2:6:2:Infinity": 0,
+            "f:2:6:2:15": 0,
+            "s:2:43:2:Infinity": 1,
+            "f:3:16:3:21": 1,
+            "s:4:2:4:Infinity": 2,
+            "b:4:32:4:39:4:39:4:47": 0,
+            "s:6:13:6:Infinity": 3,
+            "f:6:13:6:28": 2,
+            "s:6:28:6:Infinity": 4
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-automatic-conditional.tsx",
+      "runtime": "automatic",
+      "file": "/browser-children/shape-automatic-conditional.tsx",
+      "source": "type Input = { active: boolean; label: string }\nfunction Badge({label}: {label:string}) { return <b>{label}</b> }\nexport function Card({ active, label }: Input) {\n  return <section>{active ? <Badge label={label} /> : <Badge label=\"fallback\" />}</section>\n}\nexport const Unused = () => <i />\n",
+      "sourceSHA": "a2ac751db41d5d2ae3cc105f998a407259ca4e5bfc9a222af2e0882d67cef664",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\nvar __TURBOPACK__imported__module__960__ = __turbopack_context__.i(960);\n;\nfunction Badge({ label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"b\", {\n        children: label\n    });\n}\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"section\", {\n        children: active ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(Badge, {\n            label: label\n        }) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(Badge, {\n            label: \"fallback\"\n        })\n    });\n}\nconst Unused = ()=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"i\", {});\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-automatic-conditional.tsx"],
+        "names": ["Badge", "label", "Card", "active", "Unused"],
+        "mappings": ";A;;;;;;;;AACA,SAASA,MAAM,EAACC,KAAK,EAAiB;IAAI,qBAAO,iDAAC,KAAD;kBAAIA;IAAS;AAAE;AACzD,SAASC,KAAK,EAAEC,MAAM,EAAEF,KAAK,EAAS;IAC3C,qBAAO,iDAAC,WAAD;kBAAUE,uBAAS,iDAACH,OAAD;YAAOC,OAAOA;QAAQ,mBAAI,iDAACD,OAAD;YAAOC,OAAM;QAAY;IAAW;AAC1F;AACO,MAAMG,SAAS,kBAAM,iDAAC,KAAD,CAAI",
+        "sourcesContent": [
+          "type Input = { active: boolean; label: string }\nfunction Badge({label}: {label:string}) { return <b>{label}</b> }\nexport function Card({ active, label }: Input) {\n  return <section>{active ? <Badge label={label} /> : <Badge label=\"fallback\" />}</section>\n}\nexport const Unused = () => <i />\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__960__",
+        "moduleStart": 28,
+        "moduleEnd": 805,
+        "imports": ["jsx"]
+      },
+      "expected": {
+        "path": "shape-automatic-conditional.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 2,
+              "column": 42
+            },
+            "end": {
+              "line": 2,
+              "column": 64
+            }
+          },
+          "1": {
+            "start": {
+              "line": 4,
+              "column": 2
+            },
+            "end": {
+              "line": 4,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 6,
+              "column": 13
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 6,
+              "column": 28
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Badge",
+            "decl": {
+              "start": {
+                "line": 2,
+                "column": 9
+              },
+              "end": {
+                "line": 2,
+                "column": 15
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 40
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "line": 2
+          },
+          "1": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 3,
+                "column": 16
+              },
+              "end": {
+                "line": 3,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 3,
+                "column": 47
+              },
+              "end": {
+                "line": 5,
+                "column": null
+              }
+            },
+            "line": 3
+          },
+          "2": {
+            "name": "(anonymous_2)",
+            "decl": {
+              "start": {
+                "line": 6,
+                "column": 13
+              },
+              "end": {
+                "line": 6,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 6,
+                "column": 28
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            },
+            "line": 6
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 4,
+                "column": 19
+              },
+              "end": {
+                "line": 4,
+                "column": 90
+              }
+            },
+            "type": "cond-expr",
+            "locations": [
+              {
+                "start": {
+                  "line": 4,
+                  "column": 28
+                },
+                "end": {
+                  "line": 4,
+                  "column": 54
+                }
+              },
+              {
+                "start": {
+                  "line": 4,
+                  "column": 54
+                },
+                "end": {
+                  "line": 4,
+                  "column": 90
+                }
+              }
+            ],
+            "line": 4
+          }
+        },
+        "s": {
+          "0": 2,
+          "1": 2,
+          "2": 1,
+          "3": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 2,
+          "2": 0
+        },
+        "b": {
+          "0": [1, 1]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 3,
+          "lastStatement": 4,
+          "seen": {
+            "f:2:9:2:15": 0,
+            "s:2:42:2:64": 0,
+            "f:3:16:3:21": 1,
+            "s:4:2:4:Infinity": 1,
+            "b:4:28:4:54:4:54:4:90": 0,
+            "s:6:13:6:Infinity": 2,
+            "f:6:13:6:28": 2,
+            "s:6:28:6:Infinity": 3
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-automatic-member.tsx",
+      "runtime": "automatic",
+      "file": "/browser-children/shape-automatic-member.tsx",
+      "source": "type Input = { active: boolean; label: string }\nfunction Badge({label}: {label:string}) { return <b>{label}</b> }\nconst parts = {Badge}\nexport function Card({ active, label }: Input) {\n  return <parts.Badge label={label} />\n}\nexport const Unused = () => <i />\n",
+      "sourceSHA": "3ea2019137fa52454cbc9e1a0fb5d92d662b36a879903d58f377cfc042a2254b",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\nvar __TURBOPACK__imported__module__960__ = __turbopack_context__.i(960);\n;\nfunction Badge({ label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"b\", {\n        children: label\n    });\n}\nconst parts = {\n    Badge\n};\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(parts.Badge, {\n        label: label\n    });\n}\nconst Unused = ()=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"i\", {});\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-automatic-member.tsx"],
+        "names": ["Badge", "label", "parts", "Card", "active", "Unused"],
+        "mappings": ";A;;;;;;;;AACA,SAASA,MAAM,EAACC,KAAK,EAAiB;IAAI,qBAAO,iDAAC,KAAD;kBAAIA;IAAS;AAAE;AAChE,MAAMC,QAAQ;IAACF;AAAK;AACb,SAASG,KAAK,EAAEC,MAAM,EAAEH,KAAK,EAAS;IAC3C,qBAAO,iDAACC,MAAMF,KAAK,EAAZ;QAAaC,OAAOA;IAAQ;AACrC;AACO,MAAMI,SAAS,kBAAM,iDAAC,KAAD,CAAI",
+        "sourcesContent": [
+          "type Input = { active: boolean; label: string }\nfunction Badge({label}: {label:string}) { return <b>{label}</b> }\nconst parts = {Badge}\nexport function Card({ active, label }: Input) {\n  return <parts.Badge label={label} />\n}\nexport const Unused = () => <i />\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__960__",
+        "moduleStart": 28,
+        "moduleEnd": 607,
+        "imports": ["jsx"]
+      },
+      "expected": {
+        "path": "shape-automatic-member.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 2,
+              "column": 42
+            },
+            "end": {
+              "line": 2,
+              "column": 64
+            }
+          },
+          "1": {
+            "start": {
+              "line": 3,
+              "column": 14
+            },
+            "end": {
+              "line": 3,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 5,
+              "column": 2
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 7,
+              "column": 13
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          },
+          "4": {
+            "start": {
+              "line": 7,
+              "column": 28
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Badge",
+            "decl": {
+              "start": {
+                "line": 2,
+                "column": 9
+              },
+              "end": {
+                "line": 2,
+                "column": 15
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 40
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "line": 2
+          },
+          "1": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 4,
+                "column": 16
+              },
+              "end": {
+                "line": 4,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 4,
+                "column": 47
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            },
+            "line": 4
+          },
+          "2": {
+            "name": "(anonymous_2)",
+            "decl": {
+              "start": {
+                "line": 7,
+                "column": 13
+              },
+              "end": {
+                "line": 7,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 7,
+                "column": 28
+              },
+              "end": {
+                "line": 7,
+                "column": null
+              }
+            },
+            "line": 7
+          }
+        },
+        "branchMap": {},
+        "s": {
+          "0": 2,
+          "1": 1,
+          "2": 2,
+          "3": 1,
+          "4": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 2,
+          "2": 0
+        },
+        "b": {},
+        "meta": {
+          "lastBranch": 0,
+          "lastFunction": 3,
+          "lastStatement": 5,
+          "seen": {
+            "f:2:9:2:15": 0,
+            "s:2:42:2:64": 0,
+            "s:3:14:3:Infinity": 1,
+            "f:4:16:4:21": 1,
+            "s:5:2:5:Infinity": 2,
+            "s:7:13:7:Infinity": 3,
+            "f:7:13:7:28": 2,
+            "s:7:28:7:Infinity": 4
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-automatic-nested.tsx",
+      "runtime": "automatic",
+      "file": "/browser-children/shape-automatic-nested.tsx",
+      "source": "type Input = { active: boolean; label: string }\nfunction Badge({label}: {label:string}) { return <b>{label}</b> }\nexport function Card({ active, label }: Input) {\n  return <section><Badge label={label} /><Badge label={active ? 'yes' : 'no'} /></section>\n}\nexport const Unused = () => <i />\n",
+      "sourceSHA": "89e93b1b3103e17de8919758ec20093c2fa892ce68179dddc369e1124352b0de",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\nvar __TURBOPACK__imported__module__960__ = __turbopack_context__.i(960);\n;\nfunction Badge({ label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"b\", {\n        children: label\n    });\n}\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsxs\"])(\"section\", {\n        children: [\n            /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(Badge, {\n                label: label\n            }),\n            /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(Badge, {\n                label: active ? 'yes' : 'no'\n            })\n        ]\n    });\n}\nconst Unused = ()=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"i\", {});\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-automatic-nested.tsx"],
+        "names": ["Badge", "label", "Card", "active", "Unused"],
+        "mappings": ";A;;;;;;;;AACA,SAASA,MAAM,EAACC,KAAK,EAAiB;IAAI,qBAAO,iDAAC,KAAD;kBAAIA;IAAS;AAAE;AACzD,SAASC,KAAK,EAAEC,MAAM,EAAEF,KAAK,EAAS;IAC3C,qBAAO,kDAAC,WAAD;;0BAAS,iDAACD,OAAD;gBAAOC,OAAOA;YAAQ;0BAAC,iDAACD,OAAD;gBAAOC,OAAOE,SAAS,QAAQ;YAAO;;IAAU;AACzF;AACO,MAAMC,SAAS,kBAAM,iDAAC,KAAD,CAAI",
+        "sourcesContent": [
+          "type Input = { active: boolean; label: string }\nfunction Badge({label}: {label:string}) { return <b>{label}</b> }\nexport function Card({ active, label }: Input) {\n  return <section><Badge label={label} /><Badge label={active ? 'yes' : 'no'} /></section>\n}\nexport const Unused = () => <i />\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__960__",
+        "moduleStart": 28,
+        "moduleEnd": 859,
+        "imports": ["jsx", "jsxs"]
+      },
+      "expected": {
+        "path": "shape-automatic-nested.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 2,
+              "column": 42
+            },
+            "end": {
+              "line": 2,
+              "column": 64
+            }
+          },
+          "1": {
+            "start": {
+              "line": 4,
+              "column": 2
+            },
+            "end": {
+              "line": 4,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 6,
+              "column": 13
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 6,
+              "column": 28
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Badge",
+            "decl": {
+              "start": {
+                "line": 2,
+                "column": 9
+              },
+              "end": {
+                "line": 2,
+                "column": 15
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 40
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "line": 2
+          },
+          "1": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 3,
+                "column": 16
+              },
+              "end": {
+                "line": 3,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 3,
+                "column": 47
+              },
+              "end": {
+                "line": 5,
+                "column": null
+              }
+            },
+            "line": 3
+          },
+          "2": {
+            "name": "(anonymous_2)",
+            "decl": {
+              "start": {
+                "line": 6,
+                "column": 13
+              },
+              "end": {
+                "line": 6,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 6,
+                "column": 28
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            },
+            "line": 6
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 4,
+                "column": 55
+              },
+              "end": {
+                "line": 4,
+                "column": 79
+              }
+            },
+            "type": "cond-expr",
+            "locations": [
+              {
+                "start": {
+                  "line": 4,
+                  "column": 64
+                },
+                "end": {
+                  "line": 4,
+                  "column": 72
+                }
+              },
+              {
+                "start": {
+                  "line": 4,
+                  "column": 72
+                },
+                "end": {
+                  "line": 4,
+                  "column": 79
+                }
+              }
+            ],
+            "line": 4
+          }
+        },
+        "s": {
+          "0": 4,
+          "1": 2,
+          "2": 1,
+          "3": 0
+        },
+        "f": {
+          "0": 4,
+          "1": 2,
+          "2": 0
+        },
+        "b": {
+          "0": [1, 1]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 3,
+          "lastStatement": 4,
+          "seen": {
+            "f:2:9:2:15": 0,
+            "s:2:42:2:64": 0,
+            "f:3:16:3:21": 1,
+            "s:4:2:4:Infinity": 1,
+            "b:4:64:4:72:4:72:4:79": 0,
+            "s:6:13:6:Infinity": 2,
+            "f:6:13:6:28": 2,
+            "s:6:28:6:Infinity": 3
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-automatic-paired.tsx",
+      "runtime": "automatic",
+      "file": "/browser-children/shape-automatic-paired.tsx",
+      "source": "type Input = { active: boolean; label: string }\nfunction Badge({children}: {children:string}) { return <b>{children}</b> }\nexport function Card({ active, label }: Input) {\n  return <Badge>{label}</Badge>\n}\nexport const Unused = () => <i />\n",
+      "sourceSHA": "21bff9a66ba947294f27ebe15a5a3b684e335c986f3be3e2bc5372c6898341e4",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\nvar __TURBOPACK__imported__module__960__ = __turbopack_context__.i(960);\n;\nfunction Badge({ children }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"b\", {\n        children: children\n    });\n}\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(Badge, {\n        children: label\n    });\n}\nconst Unused = ()=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"i\", {});\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-automatic-paired.tsx"],
+        "names": ["Badge", "children", "Card", "active", "label", "Unused"],
+        "mappings": ";A;;;;;;;;AACA,SAASA,MAAM,EAACC,QAAQ,EAAoB;IAAI,qBAAO,iDAAC,KAAD;kBAAIA;IAAY;AAAE;AAClE,SAASC,KAAK,EAAEC,MAAM,EAAEC,KAAK,EAAS;IAC3C,qBAAO,iDAACJ,OAAD;kBAAQI;IAAa;AAC9B;AACO,MAAMC,SAAS,kBAAM,iDAAC,KAAD,CAAI",
+        "sourcesContent": [
+          "type Input = { active: boolean; label: string }\nfunction Badge({children}: {children:string}) { return <b>{children}</b> }\nexport function Card({ active, label }: Input) {\n  return <Badge>{label}</Badge>\n}\nexport const Unused = () => <i />\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__960__",
+        "moduleStart": 28,
+        "moduleEnd": 581,
+        "imports": ["jsx"]
+      },
+      "expected": {
+        "path": "shape-automatic-paired.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 2,
+              "column": 48
+            },
+            "end": {
+              "line": 2,
+              "column": 73
+            }
+          },
+          "1": {
+            "start": {
+              "line": 4,
+              "column": 2
+            },
+            "end": {
+              "line": 4,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 6,
+              "column": 13
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 6,
+              "column": 28
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Badge",
+            "decl": {
+              "start": {
+                "line": 2,
+                "column": 9
+              },
+              "end": {
+                "line": 2,
+                "column": 15
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 46
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "line": 2
+          },
+          "1": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 3,
+                "column": 16
+              },
+              "end": {
+                "line": 3,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 3,
+                "column": 47
+              },
+              "end": {
+                "line": 5,
+                "column": null
+              }
+            },
+            "line": 3
+          },
+          "2": {
+            "name": "(anonymous_2)",
+            "decl": {
+              "start": {
+                "line": 6,
+                "column": 13
+              },
+              "end": {
+                "line": 6,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 6,
+                "column": 28
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            },
+            "line": 6
+          }
+        },
+        "branchMap": {},
+        "s": {
+          "0": 2,
+          "1": 2,
+          "2": 1,
+          "3": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 2,
+          "2": 0
+        },
+        "b": {},
+        "meta": {
+          "lastBranch": 0,
+          "lastFunction": 3,
+          "lastStatement": 4,
+          "seen": {
+            "f:2:9:2:15": 0,
+            "s:2:48:2:73": 0,
+            "f:3:16:3:21": 1,
+            "s:4:2:4:Infinity": 1,
+            "s:6:13:6:Infinity": 2,
+            "f:6:13:6:28": 2,
+            "s:6:28:6:Infinity": 3
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-automatic-single.tsx",
+      "runtime": "automatic",
+      "file": "/browser-children/shape-automatic-single.tsx",
+      "source": "type Input = { active: boolean; label: string }\nfunction Badge({label}: {label:string}) { return <b>{label}</b> }\nexport function Card({ active, label }: Input) {\n  return <Badge label={label} />\n}\nexport const Unused = () => <i />\n",
+      "sourceSHA": "4e931025e16943ec78fd52be0cad63aaec0758f2e14e6a2227b3c890fd2c0b81",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\nvar __TURBOPACK__imported__module__960__ = __turbopack_context__.i(960);\n;\nfunction Badge({ label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"b\", {\n        children: label\n    });\n}\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(Badge, {\n        label: label\n    });\n}\nconst Unused = ()=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__960__[\"jsx\"])(\"i\", {});\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-automatic-single.tsx"],
+        "names": ["Badge", "label", "Card", "active", "Unused"],
+        "mappings": ";A;;;;;;;;AACA,SAASA,MAAM,EAACC,KAAK,EAAiB;IAAI,qBAAO,iDAAC,KAAD;kBAAIA;IAAS;AAAE;AACzD,SAASC,KAAK,EAAEC,MAAM,EAAEF,KAAK,EAAS;IAC3C,qBAAO,iDAACD,OAAD;QAAOC,OAAOA;IAAQ;AAC/B;AACO,MAAMG,SAAS,kBAAM,iDAAC,KAAD,CAAI",
+        "sourcesContent": [
+          "type Input = { active: boolean; label: string }\nfunction Badge({label}: {label:string}) { return <b>{label}</b> }\nexport function Card({ active, label }: Input) {\n  return <Badge label={label} />\n}\nexport const Unused = () => <i />\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__960__",
+        "moduleStart": 28,
+        "moduleEnd": 572,
+        "imports": ["jsx"]
+      },
+      "expected": {
+        "path": "shape-automatic-single.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 2,
+              "column": 42
+            },
+            "end": {
+              "line": 2,
+              "column": 64
+            }
+          },
+          "1": {
+            "start": {
+              "line": 4,
+              "column": 2
+            },
+            "end": {
+              "line": 4,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 6,
+              "column": 13
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 6,
+              "column": 28
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Badge",
+            "decl": {
+              "start": {
+                "line": 2,
+                "column": 9
+              },
+              "end": {
+                "line": 2,
+                "column": 15
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 40
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "line": 2
+          },
+          "1": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 3,
+                "column": 16
+              },
+              "end": {
+                "line": 3,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 3,
+                "column": 47
+              },
+              "end": {
+                "line": 5,
+                "column": null
+              }
+            },
+            "line": 3
+          },
+          "2": {
+            "name": "(anonymous_2)",
+            "decl": {
+              "start": {
+                "line": 6,
+                "column": 13
+              },
+              "end": {
+                "line": 6,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 6,
+                "column": 28
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            },
+            "line": 6
+          }
+        },
+        "branchMap": {},
+        "s": {
+          "0": 2,
+          "1": 2,
+          "2": 1,
+          "3": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 2,
+          "2": 0
+        },
+        "b": {},
+        "meta": {
+          "lastBranch": 0,
+          "lastFunction": 3,
+          "lastStatement": 4,
+          "seen": {
+            "f:2:9:2:15": 0,
+            "s:2:42:2:64": 0,
+            "f:3:16:3:21": 1,
+            "s:4:2:4:Infinity": 1,
+            "s:6:13:6:Infinity": 2,
+            "f:6:13:6:28": 2,
+            "s:6:28:6:Infinity": 3
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-classic-arrow.tsx",
+      "runtime": "classic",
+      "file": "/browser-children/shape-classic-arrow.tsx",
+      "source": "/** @jsxRuntime classic */\nimport React from 'react'\ntype Input = { active: boolean; label: string }\nconst Badge = ({label}: {label:string}) => <b>{label}</b>\nexport function Card({ active, label }: Input) {\n  return <Badge label={active ? 'on' : 'off'} />\n}\nexport const Unused = () => <i />\n",
+      "sourceSHA": "f31c5d52a8fa09360eac105dfb1911d3b1ecaf44a09123591953c18f86d36075",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\n/** @jsxRuntime classic */ var __TURBOPACK__imported__module__3438__ = __turbopack_context__.i(3438);\n;\nconst Badge = ({ label })=>/*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"b\", null, label);\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(Badge, {\n        label: active ? 'on' : 'off'\n    });\n}\nconst Unused = ()=>/*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"i\", null);\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-classic-arrow.tsx"],
+        "names": ["Badge", "label", "Card", "active", "Unused"],
+        "mappings": ";A;;;;;;AAAA,wBAAwB,GACxB;;AAEA,MAAMA,QAAQ,CAAC,EAACC,KAAK,EAAiB,iBAAK,+DAAC,WAAGA;AACxC,SAASC,KAAK,EAAEC,MAAM,EAAEF,KAAK,EAAS;IAC3C,qBAAO,+DAACD,OAAD;QAAOC,OAAOE,SAAS,OAAO;IAAQ;AAC/C;AACO,MAAMC,SAAS,kBAAM,+DAAC",
+        "sourcesContent": [
+          "/** @jsxRuntime classic */\nimport React from 'react'\ntype Input = { active: boolean; label: string }\nconst Badge = ({label}: {label:string}) => <b>{label}</b>\nexport function Card({ active, label }: Input) {\n  return <Badge label={active ? 'on' : 'off'} />\n}\nexport const Unused = () => <i />\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__3438__",
+        "moduleStart": 28,
+        "moduleEnd": 627
+      },
+      "expected": {
+        "path": "shape-classic-arrow.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 4,
+              "column": 6
+            },
+            "end": {
+              "line": 4,
+              "column": null
+            }
+          },
+          "1": {
+            "start": {
+              "line": 4,
+              "column": 43
+            },
+            "end": {
+              "line": 4,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 6,
+              "column": 2
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 8,
+              "column": 13
+            },
+            "end": {
+              "line": 8,
+              "column": null
+            }
+          },
+          "4": {
+            "start": {
+              "line": 8,
+              "column": 28
+            },
+            "end": {
+              "line": 8,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "(anonymous_0)",
+            "decl": {
+              "start": {
+                "line": 4,
+                "column": 6
+              },
+              "end": {
+                "line": 4,
+                "column": 15
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 4,
+                "column": 43
+              },
+              "end": {
+                "line": 4,
+                "column": null
+              }
+            },
+            "line": 4
+          },
+          "1": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 5,
+                "column": 16
+              },
+              "end": {
+                "line": 5,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 47
+              },
+              "end": {
+                "line": 7,
+                "column": null
+              }
+            },
+            "line": 5
+          },
+          "2": {
+            "name": "(anonymous_2)",
+            "decl": {
+              "start": {
+                "line": 8,
+                "column": 13
+              },
+              "end": {
+                "line": 8,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 8,
+                "column": 28
+              },
+              "end": {
+                "line": 8,
+                "column": null
+              }
+            },
+            "line": 8
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 6,
+                "column": 23
+              },
+              "end": {
+                "line": 6,
+                "column": 47
+              }
+            },
+            "type": "cond-expr",
+            "locations": [
+              {
+                "start": {
+                  "line": 6,
+                  "column": 32
+                },
+                "end": {
+                  "line": 6,
+                  "column": 39
+                }
+              },
+              {
+                "start": {
+                  "line": 6,
+                  "column": 39
+                },
+                "end": {
+                  "line": 6,
+                  "column": 47
+                }
+              }
+            ],
+            "line": 6
+          }
+        },
+        "s": {
+          "0": 1,
+          "1": 2,
+          "2": 2,
+          "3": 1,
+          "4": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 2,
+          "2": 0
+        },
+        "b": {
+          "0": [1, 1]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 3,
+          "lastStatement": 5,
+          "seen": {
+            "s:4:6:4:Infinity": 0,
+            "f:4:6:4:15": 0,
+            "s:4:43:4:Infinity": 1,
+            "f:5:16:5:21": 1,
+            "s:6:2:6:Infinity": 2,
+            "b:6:32:6:39:6:39:6:47": 0,
+            "s:8:13:8:Infinity": 3,
+            "f:8:13:8:28": 2,
+            "s:8:28:8:Infinity": 4
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-classic-conditional.tsx",
+      "runtime": "classic",
+      "file": "/browser-children/shape-classic-conditional.tsx",
+      "source": "/** @jsxRuntime classic */\nimport React from 'react'\ntype Input = { active: boolean; label: string }\nfunction Badge({label}: {label:string}) { return <b>{label}</b> }\nexport function Card({ active, label }: Input) {\n  return <section>{active ? <Badge label={label} /> : <Badge label=\"fallback\" />}</section>\n}\nexport const Unused = () => <i />\n",
+      "sourceSHA": "e2ea673a570b5faa1665958b17a3fe4a10d02682a9d1fea691b25564c06697a5",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\n/** @jsxRuntime classic */ var __TURBOPACK__imported__module__3438__ = __turbopack_context__.i(3438);\n;\nfunction Badge({ label }) {\n    return /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"b\", null, label);\n}\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"section\", null, active ? /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(Badge, {\n        label: label\n    }) : /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(Badge, {\n        label: \"fallback\"\n    }));\n}\nconst Unused = ()=>/*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"i\", null);\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-classic-conditional.tsx"],
+        "names": ["Badge", "label", "Card", "active", "Unused"],
+        "mappings": ";A;;;;;;AAAA,wBAAwB,GACxB;;AAEA,SAASA,MAAM,EAACC,KAAK,EAAiB;IAAI,qBAAO,+DAAC,WAAGA;AAAW;AACzD,SAASC,KAAK,EAAEC,MAAM,EAAEF,KAAK,EAAS;IAC3C,qBAAO,+DAAC,iBAASE,uBAAS,+DAACH,OAAD;QAAOC,OAAOA;IAAQ,mBAAI,+DAACD,OAAD;QAAOC,OAAM;IAAY;AAC/E;AACO,MAAMG,SAAS,kBAAM,+DAAC",
+        "sourcesContent": [
+          "/** @jsxRuntime classic */\nimport React from 'react'\ntype Input = { active: boolean; label: string }\nfunction Badge({label}: {label:string}) { return <b>{label}</b> }\nexport function Card({ active, label }: Input) {\n  return <section>{active ? <Badge label={label} /> : <Badge label=\"fallback\" />}</section>\n}\nexport const Unused = () => <i />\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__3438__",
+        "moduleStart": 28,
+        "moduleEnd": 850
+      },
+      "expected": {
+        "path": "shape-classic-conditional.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 4,
+              "column": 42
+            },
+            "end": {
+              "line": 4,
+              "column": 64
+            }
+          },
+          "1": {
+            "start": {
+              "line": 6,
+              "column": 2
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 8,
+              "column": 13
+            },
+            "end": {
+              "line": 8,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 8,
+              "column": 28
+            },
+            "end": {
+              "line": 8,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Badge",
+            "decl": {
+              "start": {
+                "line": 4,
+                "column": 9
+              },
+              "end": {
+                "line": 4,
+                "column": 15
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 4,
+                "column": 40
+              },
+              "end": {
+                "line": 4,
+                "column": null
+              }
+            },
+            "line": 4
+          },
+          "1": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 5,
+                "column": 16
+              },
+              "end": {
+                "line": 5,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 47
+              },
+              "end": {
+                "line": 7,
+                "column": null
+              }
+            },
+            "line": 5
+          },
+          "2": {
+            "name": "(anonymous_2)",
+            "decl": {
+              "start": {
+                "line": 8,
+                "column": 13
+              },
+              "end": {
+                "line": 8,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 8,
+                "column": 28
+              },
+              "end": {
+                "line": 8,
+                "column": null
+              }
+            },
+            "line": 8
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 6,
+                "column": 19
+              },
+              "end": {
+                "line": 6,
+                "column": 90
+              }
+            },
+            "type": "cond-expr",
+            "locations": [
+              {
+                "start": {
+                  "line": 6,
+                  "column": 28
+                },
+                "end": {
+                  "line": 6,
+                  "column": 54
+                }
+              },
+              {
+                "start": {
+                  "line": 6,
+                  "column": 54
+                },
+                "end": {
+                  "line": 6,
+                  "column": 90
+                }
+              }
+            ],
+            "line": 6
+          }
+        },
+        "s": {
+          "0": 2,
+          "1": 2,
+          "2": 1,
+          "3": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 2,
+          "2": 0
+        },
+        "b": {
+          "0": [1, 1]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 3,
+          "lastStatement": 4,
+          "seen": {
+            "f:4:9:4:15": 0,
+            "s:4:42:4:64": 0,
+            "f:5:16:5:21": 1,
+            "s:6:2:6:Infinity": 1,
+            "b:6:28:6:54:6:54:6:90": 0,
+            "s:8:13:8:Infinity": 2,
+            "f:8:13:8:28": 2,
+            "s:8:28:8:Infinity": 3
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-classic-member.tsx",
+      "runtime": "classic",
+      "file": "/browser-children/shape-classic-member.tsx",
+      "source": "/** @jsxRuntime classic */\nimport React from 'react'\ntype Input = { active: boolean; label: string }\nfunction Badge({label}: {label:string}) { return <b>{label}</b> }\nconst parts = {Badge}\nexport function Card({ active, label }: Input) {\n  return <parts.Badge label={label} />\n}\nexport const Unused = () => <i />\n",
+      "sourceSHA": "a52991500e1bcfe8b54b0d42321d7aa6b55a56c77b700b50c1d44601a86bb383",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\n/** @jsxRuntime classic */ var __TURBOPACK__imported__module__3438__ = __turbopack_context__.i(3438);\n;\nfunction Badge({ label }) {\n    return /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"b\", null, label);\n}\nconst parts = {\n    Badge\n};\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(parts.Badge, {\n        label: label\n    });\n}\nconst Unused = ()=>/*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"i\", null);\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-classic-member.tsx"],
+        "names": ["Badge", "label", "parts", "Card", "active", "Unused"],
+        "mappings": ";A;;;;;;AAAA,wBAAwB,GACxB;;AAEA,SAASA,MAAM,EAACC,KAAK,EAAiB;IAAI,qBAAO,+DAAC,WAAGA;AAAW;AAChE,MAAMC,QAAQ;IAACF;AAAK;AACb,SAASG,KAAK,EAAEC,MAAM,EAAEH,KAAK,EAAS;IAC3C,qBAAO,+DAACC,MAAMF,KAAK,EAAZ;QAAaC,OAAOA;IAAQ;AACrC;AACO,MAAMI,SAAS,kBAAM,+DAAC",
+        "sourcesContent": [
+          "/** @jsxRuntime classic */\nimport React from 'react'\ntype Input = { active: boolean; label: string }\nfunction Badge({label}: {label:string}) { return <b>{label}</b> }\nconst parts = {Badge}\nexport function Card({ active, label }: Input) {\n  return <parts.Badge label={label} />\n}\nexport const Unused = () => <i />\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__3438__",
+        "moduleStart": 28,
+        "moduleEnd": 660
+      },
+      "expected": {
+        "path": "shape-classic-member.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 4,
+              "column": 42
+            },
+            "end": {
+              "line": 4,
+              "column": 64
+            }
+          },
+          "1": {
+            "start": {
+              "line": 5,
+              "column": 14
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 7,
+              "column": 2
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 9,
+              "column": 13
+            },
+            "end": {
+              "line": 9,
+              "column": null
+            }
+          },
+          "4": {
+            "start": {
+              "line": 9,
+              "column": 28
+            },
+            "end": {
+              "line": 9,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Badge",
+            "decl": {
+              "start": {
+                "line": 4,
+                "column": 9
+              },
+              "end": {
+                "line": 4,
+                "column": 15
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 4,
+                "column": 40
+              },
+              "end": {
+                "line": 4,
+                "column": null
+              }
+            },
+            "line": 4
+          },
+          "1": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 6,
+                "column": 16
+              },
+              "end": {
+                "line": 6,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 6,
+                "column": 47
+              },
+              "end": {
+                "line": 8,
+                "column": null
+              }
+            },
+            "line": 6
+          },
+          "2": {
+            "name": "(anonymous_2)",
+            "decl": {
+              "start": {
+                "line": 9,
+                "column": 13
+              },
+              "end": {
+                "line": 9,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 9,
+                "column": 28
+              },
+              "end": {
+                "line": 9,
+                "column": null
+              }
+            },
+            "line": 9
+          }
+        },
+        "branchMap": {},
+        "s": {
+          "0": 2,
+          "1": 1,
+          "2": 2,
+          "3": 1,
+          "4": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 2,
+          "2": 0
+        },
+        "b": {},
+        "meta": {
+          "lastBranch": 0,
+          "lastFunction": 3,
+          "lastStatement": 5,
+          "seen": {
+            "f:4:9:4:15": 0,
+            "s:4:42:4:64": 0,
+            "s:5:14:5:Infinity": 1,
+            "f:6:16:6:21": 1,
+            "s:7:2:7:Infinity": 2,
+            "s:9:13:9:Infinity": 3,
+            "f:9:13:9:28": 2,
+            "s:9:28:9:Infinity": 4
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-classic-nested.tsx",
+      "runtime": "classic",
+      "file": "/browser-children/shape-classic-nested.tsx",
+      "source": "/** @jsxRuntime classic */\nimport React from 'react'\ntype Input = { active: boolean; label: string }\nfunction Badge({label}: {label:string}) { return <b>{label}</b> }\nexport function Card({ active, label }: Input) {\n  return <section><Badge label={label} /><Badge label={active ? 'yes' : 'no'} /></section>\n}\nexport const Unused = () => <i />\n",
+      "sourceSHA": "f07542cf5b9cc43165ff6e48f9c1a9ee07c0dc5818ddc6f53c6020b0f3c81ed2",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\n/** @jsxRuntime classic */ var __TURBOPACK__imported__module__3438__ = __turbopack_context__.i(3438);\n;\nfunction Badge({ label }) {\n    return /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"b\", null, label);\n}\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"section\", null, /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(Badge, {\n        label: label\n    }), /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(Badge, {\n        label: active ? 'yes' : 'no'\n    }));\n}\nconst Unused = ()=>/*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"i\", null);\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-classic-nested.tsx"],
+        "names": ["Badge", "label", "Card", "active", "Unused"],
+        "mappings": ";A;;;;;;AAAA,wBAAwB,GACxB;;AAEA,SAASA,MAAM,EAACC,KAAK,EAAiB;IAAI,qBAAO,+DAAC,WAAGA;AAAW;AACzD,SAASC,KAAK,EAAEC,MAAM,EAAEF,KAAK,EAAS;IAC3C,qBAAO,+DAAC,+BAAQ,+DAACD,OAAD;QAAOC,OAAOA;IAAQ,kBAAC,+DAACD,OAAD;QAAOC,OAAOE,SAAS,QAAQ;IAAO;AAC/E;AACO,MAAMC,SAAS,kBAAM,+DAAC",
+        "sourcesContent": [
+          "/** @jsxRuntime classic */\nimport React from 'react'\ntype Input = { active: boolean; label: string }\nfunction Badge({label}: {label:string}) { return <b>{label}</b> }\nexport function Card({ active, label }: Input) {\n  return <section><Badge label={label} /><Badge label={active ? 'yes' : 'no'} /></section>\n}\nexport const Unused = () => <i />\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__3438__",
+        "moduleStart": 28,
+        "moduleEnd": 851
+      },
+      "expected": {
+        "path": "shape-classic-nested.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 4,
+              "column": 42
+            },
+            "end": {
+              "line": 4,
+              "column": 64
+            }
+          },
+          "1": {
+            "start": {
+              "line": 6,
+              "column": 2
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 8,
+              "column": 13
+            },
+            "end": {
+              "line": 8,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 8,
+              "column": 28
+            },
+            "end": {
+              "line": 8,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Badge",
+            "decl": {
+              "start": {
+                "line": 4,
+                "column": 9
+              },
+              "end": {
+                "line": 4,
+                "column": 15
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 4,
+                "column": 40
+              },
+              "end": {
+                "line": 4,
+                "column": null
+              }
+            },
+            "line": 4
+          },
+          "1": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 5,
+                "column": 16
+              },
+              "end": {
+                "line": 5,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 47
+              },
+              "end": {
+                "line": 7,
+                "column": null
+              }
+            },
+            "line": 5
+          },
+          "2": {
+            "name": "(anonymous_2)",
+            "decl": {
+              "start": {
+                "line": 8,
+                "column": 13
+              },
+              "end": {
+                "line": 8,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 8,
+                "column": 28
+              },
+              "end": {
+                "line": 8,
+                "column": null
+              }
+            },
+            "line": 8
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 6,
+                "column": 55
+              },
+              "end": {
+                "line": 6,
+                "column": 79
+              }
+            },
+            "type": "cond-expr",
+            "locations": [
+              {
+                "start": {
+                  "line": 6,
+                  "column": 64
+                },
+                "end": {
+                  "line": 6,
+                  "column": 72
+                }
+              },
+              {
+                "start": {
+                  "line": 6,
+                  "column": 72
+                },
+                "end": {
+                  "line": 6,
+                  "column": 79
+                }
+              }
+            ],
+            "line": 6
+          }
+        },
+        "s": {
+          "0": 4,
+          "1": 2,
+          "2": 1,
+          "3": 0
+        },
+        "f": {
+          "0": 4,
+          "1": 2,
+          "2": 0
+        },
+        "b": {
+          "0": [1, 1]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 3,
+          "lastStatement": 4,
+          "seen": {
+            "f:4:9:4:15": 0,
+            "s:4:42:4:64": 0,
+            "f:5:16:5:21": 1,
+            "s:6:2:6:Infinity": 1,
+            "b:6:64:6:72:6:72:6:79": 0,
+            "s:8:13:8:Infinity": 2,
+            "f:8:13:8:28": 2,
+            "s:8:28:8:Infinity": 3
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-classic-paired.tsx",
+      "runtime": "classic",
+      "file": "/browser-children/shape-classic-paired.tsx",
+      "source": "/** @jsxRuntime classic */\nimport React from 'react'\ntype Input = { active: boolean; label: string }\nfunction Badge({children}: {children:string}) { return <b>{children}</b> }\nexport function Card({ active, label }: Input) {\n  return <Badge>{label}</Badge>\n}\nexport const Unused = () => <i />\n",
+      "sourceSHA": "a1f64ca45a2ab145870d5c4cfb7a8a603850344d9d62042b879a67dab842e114",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\n/** @jsxRuntime classic */ var __TURBOPACK__imported__module__3438__ = __turbopack_context__.i(3438);\n;\nfunction Badge({ children }) {\n    return /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"b\", null, children);\n}\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(Badge, null, label);\n}\nconst Unused = ()=>/*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"i\", null);\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-classic-paired.tsx"],
+        "names": ["Badge", "children", "Card", "active", "label", "Unused"],
+        "mappings": ";A;;;;;;AAAA,wBAAwB,GACxB;;AAEA,SAASA,MAAM,EAACC,QAAQ,EAAoB;IAAI,qBAAO,+DAAC,WAAGA;AAAc;AAClE,SAASC,KAAK,EAAEC,MAAM,EAAEC,KAAK,EAAS;IAC3C,qBAAO,+DAACJ,aAAOI;AACjB;AACO,MAAMC,SAAS,kBAAM,+DAAC",
+        "sourcesContent": [
+          "/** @jsxRuntime classic */\nimport React from 'react'\ntype Input = { active: boolean; label: string }\nfunction Badge({children}: {children:string}) { return <b>{children}</b> }\nexport function Card({ active, label }: Input) {\n  return <Badge>{label}</Badge>\n}\nexport const Unused = () => <i />\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__3438__",
+        "moduleStart": 28,
+        "moduleEnd": 614
+      },
+      "expected": {
+        "path": "shape-classic-paired.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 4,
+              "column": 48
+            },
+            "end": {
+              "line": 4,
+              "column": 73
+            }
+          },
+          "1": {
+            "start": {
+              "line": 6,
+              "column": 2
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 8,
+              "column": 13
+            },
+            "end": {
+              "line": 8,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 8,
+              "column": 28
+            },
+            "end": {
+              "line": 8,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Badge",
+            "decl": {
+              "start": {
+                "line": 4,
+                "column": 9
+              },
+              "end": {
+                "line": 4,
+                "column": 15
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 4,
+                "column": 46
+              },
+              "end": {
+                "line": 4,
+                "column": null
+              }
+            },
+            "line": 4
+          },
+          "1": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 5,
+                "column": 16
+              },
+              "end": {
+                "line": 5,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 47
+              },
+              "end": {
+                "line": 7,
+                "column": null
+              }
+            },
+            "line": 5
+          },
+          "2": {
+            "name": "(anonymous_2)",
+            "decl": {
+              "start": {
+                "line": 8,
+                "column": 13
+              },
+              "end": {
+                "line": 8,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 8,
+                "column": 28
+              },
+              "end": {
+                "line": 8,
+                "column": null
+              }
+            },
+            "line": 8
+          }
+        },
+        "branchMap": {},
+        "s": {
+          "0": 2,
+          "1": 2,
+          "2": 1,
+          "3": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 2,
+          "2": 0
+        },
+        "b": {},
+        "meta": {
+          "lastBranch": 0,
+          "lastFunction": 3,
+          "lastStatement": 4,
+          "seen": {
+            "f:4:9:4:15": 0,
+            "s:4:48:4:73": 0,
+            "f:5:16:5:21": 1,
+            "s:6:2:6:Infinity": 1,
+            "s:8:13:8:Infinity": 2,
+            "f:8:13:8:28": 2,
+            "s:8:28:8:Infinity": 3
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-classic-single.tsx",
+      "runtime": "classic",
+      "file": "/browser-children/shape-classic-single.tsx",
+      "source": "/** @jsxRuntime classic */\nimport React from 'react'\ntype Input = { active: boolean; label: string }\nfunction Badge({label}: {label:string}) { return <b>{label}</b> }\nexport function Card({ active, label }: Input) {\n  return <Badge label={label} />\n}\nexport const Unused = () => <i />\n",
+      "sourceSHA": "c5e0d98ddb7c9c3a22acfa651235f66d645b83efc129ed845d7ab01632280c43",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\n/** @jsxRuntime classic */ var __TURBOPACK__imported__module__3438__ = __turbopack_context__.i(3438);\n;\nfunction Badge({ label }) {\n    return /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"b\", null, label);\n}\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(Badge, {\n        label: label\n    });\n}\nconst Unused = ()=>/*#__PURE__*/ __TURBOPACK__imported__module__3438__[\"default\"].createElement(\"i\", null);\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-classic-single.tsx"],
+        "names": ["Badge", "label", "Card", "active", "Unused"],
+        "mappings": ";A;;;;;;AAAA,wBAAwB,GACxB;;AAEA,SAASA,MAAM,EAACC,KAAK,EAAiB;IAAI,qBAAO,+DAAC,WAAGA;AAAW;AACzD,SAASC,KAAK,EAAEC,MAAM,EAAEF,KAAK,EAAS;IAC3C,qBAAO,+DAACD,OAAD;QAAOC,OAAOA;IAAQ;AAC/B;AACO,MAAMG,SAAS,kBAAM,+DAAC",
+        "sourcesContent": [
+          "/** @jsxRuntime classic */\nimport React from 'react'\ntype Input = { active: boolean; label: string }\nfunction Badge({label}: {label:string}) { return <b>{label}</b> }\nexport function Card({ active, label }: Input) {\n  return <Badge label={label} />\n}\nexport const Unused = () => <i />\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__3438__",
+        "moduleStart": 28,
+        "moduleEnd": 625
+      },
+      "expected": {
+        "path": "shape-classic-single.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 4,
+              "column": 42
+            },
+            "end": {
+              "line": 4,
+              "column": 64
+            }
+          },
+          "1": {
+            "start": {
+              "line": 6,
+              "column": 2
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 8,
+              "column": 13
+            },
+            "end": {
+              "line": 8,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 8,
+              "column": 28
+            },
+            "end": {
+              "line": 8,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Badge",
+            "decl": {
+              "start": {
+                "line": 4,
+                "column": 9
+              },
+              "end": {
+                "line": 4,
+                "column": 15
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 4,
+                "column": 40
+              },
+              "end": {
+                "line": 4,
+                "column": null
+              }
+            },
+            "line": 4
+          },
+          "1": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 5,
+                "column": 16
+              },
+              "end": {
+                "line": 5,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 47
+              },
+              "end": {
+                "line": 7,
+                "column": null
+              }
+            },
+            "line": 5
+          },
+          "2": {
+            "name": "(anonymous_2)",
+            "decl": {
+              "start": {
+                "line": 8,
+                "column": 13
+              },
+              "end": {
+                "line": 8,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 8,
+                "column": 28
+              },
+              "end": {
+                "line": 8,
+                "column": null
+              }
+            },
+            "line": 8
+          }
+        },
+        "branchMap": {},
+        "s": {
+          "0": 2,
+          "1": 2,
+          "2": 1,
+          "3": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 2,
+          "2": 0
+        },
+        "b": {},
+        "meta": {
+          "lastBranch": 0,
+          "lastFunction": 3,
+          "lastStatement": 4,
+          "seen": {
+            "f:4:9:4:15": 0,
+            "s:4:42:4:64": 0,
+            "f:5:16:5:21": 1,
+            "s:6:2:6:Infinity": 1,
+            "s:8:13:8:Infinity": 2,
+            "f:8:13:8:28": 2,
+            "s:8:28:8:Infinity": 3
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-named-arrow.tsx",
+      "runtime": "named",
+      "file": "/browser-children/shape-named-arrow.tsx",
+      "source": "/** @jsxRuntime classic */\n/** @jsx h */\n/** @jsxFrag Frag */\nimport { createElement as h, Fragment as Frag } from 'react'\ntype Input = { active: boolean; label: string }\nconst Badge = ({label}: {label:string}) => <b>{label}</b>\nexport function Card({ active, label }: Input) {\n  return <Badge label={active ? 'on' : 'off'} />\n}\nexport const Unused = () => <i />\n",
+      "sourceSHA": "77e7c80b325e83cf37fa49bf8c2612baa7828eb94c9bf8857ff57f81e1c79ac1",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\n/** @jsxRuntime classic */ /** @jsx h */ /** @jsxFrag Frag */ var __TURBOPACK__imported__module__3438__ = __turbopack_context__.i(3438);\n;\nconst Badge = ({ label })=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(\"b\", null, label);\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(Badge, {\n        label: active ? 'on' : 'off'\n    });\n}\nconst Unused = ()=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(\"i\", null);\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-named-arrow.tsx"],
+        "names": ["Badge", "label", "Card", "active", "Unused"],
+        "mappings": ";A;;;;;;AAAA,wBAAwB,GACxB,WAAW,GACX,kBAAkB,GAClB;;AAEA,MAAMA,QAAQ,CAAC,EAACC,KAAK,EAAiB,iBAAK,IAJ3C,sDAAa,EAI+B,WAAGA;AACxC,SAASC,KAAK,EAAEC,MAAM,EAAEF,KAAK,EAAS;IAC3C,qBAAO,IANT,sDAAa,EAMHD,OAAD;QAAOC,OAAOE,SAAS,OAAO;IAAQ;AAC/C;AACO,MAAMC,SAAS,kBAAM,IAR5B,sDAAa,EAQgB",
+        "sourcesContent": [
+          "/** @jsxRuntime classic */\n/** @jsx h */\n/** @jsxFrag Frag */\nimport { createElement as h, Fragment as Frag } from 'react'\ntype Input = { active: boolean; label: string }\nconst Badge = ({label}: {label:string}) => <b>{label}</b>\nexport function Card({ active, label }: Input) {\n  return <Badge label={active ? 'on' : 'off'} />\n}\nexport const Unused = () => <i />\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__3438__",
+        "namedPragma": {
+          "local": "h",
+          "start": {
+            "line": 2,
+            "column": 0,
+            "index": 27
+          },
+          "end": {
+            "line": 2,
+            "column": 13,
+            "index": 40
+          }
+        },
+        "moduleStart": 28,
+        "moduleEnd": 653
+      },
+      "expected": {
+        "path": "shape-named-arrow.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 6,
+              "column": 6
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          },
+          "1": {
+            "start": {
+              "line": 6,
+              "column": 43
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 8,
+              "column": 2
+            },
+            "end": {
+              "line": 8,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 10,
+              "column": 13
+            },
+            "end": {
+              "line": 10,
+              "column": null
+            }
+          },
+          "4": {
+            "start": {
+              "line": 10,
+              "column": 28
+            },
+            "end": {
+              "line": 10,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "(anonymous_0)",
+            "decl": {
+              "start": {
+                "line": 6,
+                "column": 6
+              },
+              "end": {
+                "line": 6,
+                "column": 15
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 6,
+                "column": 43
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            },
+            "line": 6
+          },
+          "1": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 7,
+                "column": 16
+              },
+              "end": {
+                "line": 7,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 7,
+                "column": 47
+              },
+              "end": {
+                "line": 9,
+                "column": null
+              }
+            },
+            "line": 7
+          },
+          "2": {
+            "name": "(anonymous_2)",
+            "decl": {
+              "start": {
+                "line": 10,
+                "column": 13
+              },
+              "end": {
+                "line": 10,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 10,
+                "column": 28
+              },
+              "end": {
+                "line": 10,
+                "column": null
+              }
+            },
+            "line": 10
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 8,
+                "column": 23
+              },
+              "end": {
+                "line": 8,
+                "column": 47
+              }
+            },
+            "type": "cond-expr",
+            "locations": [
+              {
+                "start": {
+                  "line": 8,
+                  "column": 32
+                },
+                "end": {
+                  "line": 8,
+                  "column": 39
+                }
+              },
+              {
+                "start": {
+                  "line": 8,
+                  "column": 39
+                },
+                "end": {
+                  "line": 8,
+                  "column": 47
+                }
+              }
+            ],
+            "line": 8
+          }
+        },
+        "s": {
+          "0": 1,
+          "1": 2,
+          "2": 2,
+          "3": 1,
+          "4": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 2,
+          "2": 0
+        },
+        "b": {
+          "0": [1, 1]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 3,
+          "lastStatement": 5,
+          "seen": {
+            "s:6:6:6:Infinity": 0,
+            "f:6:6:6:15": 0,
+            "s:6:43:6:Infinity": 1,
+            "f:7:16:7:21": 1,
+            "s:8:2:8:Infinity": 2,
+            "b:8:32:8:39:8:39:8:47": 0,
+            "s:10:13:10:Infinity": 3,
+            "f:10:13:10:28": 2,
+            "s:10:28:10:Infinity": 4
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-named-conditional.tsx",
+      "runtime": "named",
+      "file": "/browser-children/shape-named-conditional.tsx",
+      "source": "/** @jsxRuntime classic */\n/** @jsx h */\n/** @jsxFrag Frag */\nimport { createElement as h, Fragment as Frag } from 'react'\ntype Input = { active: boolean; label: string }\nfunction Badge({label}: {label:string}) { return <b>{label}</b> }\nexport function Card({ active, label }: Input) {\n  return <section>{active ? <Badge label={label} /> : <Badge label=\"fallback\" />}</section>\n}\nexport const Unused = () => <i />\n",
+      "sourceSHA": "04d89e356d56648cbc612379f3d53d20bd2a60dcc9e68bca93a2f23b04e2298d",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\n/** @jsxRuntime classic */ /** @jsx h */ /** @jsxFrag Frag */ var __TURBOPACK__imported__module__3438__ = __turbopack_context__.i(3438);\n;\nfunction Badge({ label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(\"b\", null, label);\n}\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(\"section\", null, active ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(Badge, {\n        label: label\n    }) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(Badge, {\n        label: \"fallback\"\n    }));\n}\nconst Unused = ()=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(\"i\", null);\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-named-conditional.tsx"],
+        "names": ["Badge", "label", "Card", "active", "Unused"],
+        "mappings": ";A;;;;;;AAAA,wBAAwB,GACxB,WAAW,GACX,kBAAkB,GAClB;;AAEA,SAASA,MAAM,EAACC,KAAK,EAAiB;IAAI,qBAAO,IAJjD,sDAAa,EAIqC,WAAGA;AAAW;AACzD,SAASC,KAAK,EAAEC,MAAM,EAAEF,KAAK,EAAS;IAC3C,qBAAO,IANT,sDAAa,EAMH,iBAASE,uBAAS,IAN5B,sDAAa,EAMgBH,OAAD;QAAOC,OAAOA;IAAQ,mBAAI,IANtD,sDAAa,EAM0CD,OAAD;QAAOC,OAAM;IAAY;AAC/E;AACO,MAAMG,SAAS,kBAAM,IAR5B,sDAAa,EAQgB",
+        "sourcesContent": [
+          "/** @jsxRuntime classic */\n/** @jsx h */\n/** @jsxFrag Frag */\nimport { createElement as h, Fragment as Frag } from 'react'\ntype Input = { active: boolean; label: string }\nfunction Badge({label}: {label:string}) { return <b>{label}</b> }\nexport function Card({ active, label }: Input) {\n  return <section>{active ? <Badge label={label} /> : <Badge label=\"fallback\" />}</section>\n}\nexport const Unused = () => <i />\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__3438__",
+        "namedPragma": {
+          "local": "h",
+          "start": {
+            "line": 2,
+            "column": 0,
+            "index": 27
+          },
+          "end": {
+            "line": 2,
+            "column": 13,
+            "index": 40
+          }
+        },
+        "moduleStart": 28,
+        "moduleEnd": 870
+      },
+      "expected": {
+        "path": "shape-named-conditional.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 6,
+              "column": 42
+            },
+            "end": {
+              "line": 6,
+              "column": 64
+            }
+          },
+          "1": {
+            "start": {
+              "line": 8,
+              "column": 2
+            },
+            "end": {
+              "line": 8,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 10,
+              "column": 13
+            },
+            "end": {
+              "line": 10,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 10,
+              "column": 28
+            },
+            "end": {
+              "line": 10,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Badge",
+            "decl": {
+              "start": {
+                "line": 6,
+                "column": 9
+              },
+              "end": {
+                "line": 6,
+                "column": 15
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 6,
+                "column": 40
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            },
+            "line": 6
+          },
+          "1": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 7,
+                "column": 16
+              },
+              "end": {
+                "line": 7,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 7,
+                "column": 47
+              },
+              "end": {
+                "line": 9,
+                "column": null
+              }
+            },
+            "line": 7
+          },
+          "2": {
+            "name": "(anonymous_2)",
+            "decl": {
+              "start": {
+                "line": 10,
+                "column": 13
+              },
+              "end": {
+                "line": 10,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 10,
+                "column": 28
+              },
+              "end": {
+                "line": 10,
+                "column": null
+              }
+            },
+            "line": 10
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 8,
+                "column": 19
+              },
+              "end": {
+                "line": 8,
+                "column": 90
+              }
+            },
+            "type": "cond-expr",
+            "locations": [
+              {
+                "start": {
+                  "line": 8,
+                  "column": 28
+                },
+                "end": {
+                  "line": 8,
+                  "column": 54
+                }
+              },
+              {
+                "start": {
+                  "line": 8,
+                  "column": 54
+                },
+                "end": {
+                  "line": 8,
+                  "column": 90
+                }
+              }
+            ],
+            "line": 8
+          }
+        },
+        "s": {
+          "0": 2,
+          "1": 2,
+          "2": 1,
+          "3": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 2,
+          "2": 0
+        },
+        "b": {
+          "0": [1, 1]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 3,
+          "lastStatement": 4,
+          "seen": {
+            "f:6:9:6:15": 0,
+            "s:6:42:6:64": 0,
+            "f:7:16:7:21": 1,
+            "s:8:2:8:Infinity": 1,
+            "b:8:28:8:54:8:54:8:90": 0,
+            "s:10:13:10:Infinity": 2,
+            "f:10:13:10:28": 2,
+            "s:10:28:10:Infinity": 3
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-named-member.tsx",
+      "runtime": "named",
+      "file": "/browser-children/shape-named-member.tsx",
+      "source": "/** @jsxRuntime classic */\n/** @jsx h */\n/** @jsxFrag Frag */\nimport { createElement as h, Fragment as Frag } from 'react'\ntype Input = { active: boolean; label: string }\nfunction Badge({label}: {label:string}) { return <b>{label}</b> }\nconst parts = {Badge}\nexport function Card({ active, label }: Input) {\n  return <parts.Badge label={label} />\n}\nexport const Unused = () => <i />\n",
+      "sourceSHA": "8a69dfde31cb5c22dfd03ae553dbf66edb8afda6d8af26d5e104a8612fd75a05",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\n/** @jsxRuntime classic */ /** @jsx h */ /** @jsxFrag Frag */ var __TURBOPACK__imported__module__3438__ = __turbopack_context__.i(3438);\n;\nfunction Badge({ label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(\"b\", null, label);\n}\nconst parts = {\n    Badge\n};\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(parts.Badge, {\n        label: label\n    });\n}\nconst Unused = ()=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(\"i\", null);\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-named-member.tsx"],
+        "names": ["Badge", "label", "parts", "Card", "active", "Unused"],
+        "mappings": ";A;;;;;;AAAA,wBAAwB,GACxB,WAAW,GACX,kBAAkB,GAClB;;AAEA,SAASA,MAAM,EAACC,KAAK,EAAiB;IAAI,qBAAO,IAJjD,sDAAa,EAIqC,WAAGA;AAAW;AAChE,MAAMC,QAAQ;IAACF;AAAK;AACb,SAASG,KAAK,EAAEC,MAAM,EAAEH,KAAK,EAAS;IAC3C,qBAAO,IAPT,sDAAa,EAOHC,MAAMF,KAAK,EAAZ;QAAaC,OAAOA;IAAQ;AACrC;AACO,MAAMI,SAAS,kBAAM,IAT5B,sDAAa,EASgB",
+        "sourcesContent": [
+          "/** @jsxRuntime classic */\n/** @jsx h */\n/** @jsxFrag Frag */\nimport { createElement as h, Fragment as Frag } from 'react'\ntype Input = { active: boolean; label: string }\nfunction Badge({label}: {label:string}) { return <b>{label}</b> }\nconst parts = {Badge}\nexport function Card({ active, label }: Input) {\n  return <parts.Badge label={label} />\n}\nexport const Unused = () => <i />\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__3438__",
+        "namedPragma": {
+          "local": "h",
+          "start": {
+            "line": 2,
+            "column": 0,
+            "index": 27
+          },
+          "end": {
+            "line": 2,
+            "column": 13,
+            "index": 40
+          }
+        },
+        "moduleStart": 28,
+        "moduleEnd": 686
+      },
+      "expected": {
+        "path": "shape-named-member.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 6,
+              "column": 42
+            },
+            "end": {
+              "line": 6,
+              "column": 64
+            }
+          },
+          "1": {
+            "start": {
+              "line": 7,
+              "column": 14
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 9,
+              "column": 2
+            },
+            "end": {
+              "line": 9,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 11,
+              "column": 13
+            },
+            "end": {
+              "line": 11,
+              "column": null
+            }
+          },
+          "4": {
+            "start": {
+              "line": 11,
+              "column": 28
+            },
+            "end": {
+              "line": 11,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Badge",
+            "decl": {
+              "start": {
+                "line": 6,
+                "column": 9
+              },
+              "end": {
+                "line": 6,
+                "column": 15
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 6,
+                "column": 40
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            },
+            "line": 6
+          },
+          "1": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 8,
+                "column": 16
+              },
+              "end": {
+                "line": 8,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 8,
+                "column": 47
+              },
+              "end": {
+                "line": 10,
+                "column": null
+              }
+            },
+            "line": 8
+          },
+          "2": {
+            "name": "(anonymous_2)",
+            "decl": {
+              "start": {
+                "line": 11,
+                "column": 13
+              },
+              "end": {
+                "line": 11,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 11,
+                "column": 28
+              },
+              "end": {
+                "line": 11,
+                "column": null
+              }
+            },
+            "line": 11
+          }
+        },
+        "branchMap": {},
+        "s": {
+          "0": 2,
+          "1": 1,
+          "2": 2,
+          "3": 1,
+          "4": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 2,
+          "2": 0
+        },
+        "b": {},
+        "meta": {
+          "lastBranch": 0,
+          "lastFunction": 3,
+          "lastStatement": 5,
+          "seen": {
+            "f:6:9:6:15": 0,
+            "s:6:42:6:64": 0,
+            "s:7:14:7:Infinity": 1,
+            "f:8:16:8:21": 1,
+            "s:9:2:9:Infinity": 2,
+            "s:11:13:11:Infinity": 3,
+            "f:11:13:11:28": 2,
+            "s:11:28:11:Infinity": 4
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-named-nested.tsx",
+      "runtime": "named",
+      "file": "/browser-children/shape-named-nested.tsx",
+      "source": "/** @jsxRuntime classic */\n/** @jsx h */\n/** @jsxFrag Frag */\nimport { createElement as h, Fragment as Frag } from 'react'\ntype Input = { active: boolean; label: string }\nfunction Badge({label}: {label:string}) { return <b>{label}</b> }\nexport function Card({ active, label }: Input) {\n  return <section><Badge label={label} /><Badge label={active ? 'yes' : 'no'} /></section>\n}\nexport const Unused = () => <i />\n",
+      "sourceSHA": "79691511e7a98df811061b1f85059271bbdb96698057609cb95cd3a321b4d500",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\n/** @jsxRuntime classic */ /** @jsx h */ /** @jsxFrag Frag */ var __TURBOPACK__imported__module__3438__ = __turbopack_context__.i(3438);\n;\nfunction Badge({ label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(\"b\", null, label);\n}\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(\"section\", null, /*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(Badge, {\n        label: label\n    }), /*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(Badge, {\n        label: active ? 'yes' : 'no'\n    }));\n}\nconst Unused = ()=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(\"i\", null);\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-named-nested.tsx"],
+        "names": ["Badge", "label", "Card", "active", "Unused"],
+        "mappings": ";A;;;;;;AAAA,wBAAwB,GACxB,WAAW,GACX,kBAAkB,GAClB;;AAEA,SAASA,MAAM,EAACC,KAAK,EAAiB;IAAI,qBAAO,IAJjD,sDAAa,EAIqC,WAAGA;AAAW;AACzD,SAASC,KAAK,EAAEC,MAAM,EAAEF,KAAK,EAAS;IAC3C,qBAAO,IANT,sDAAa,EAMH,+BAAQ,IANlB,sDAAa,EAMMD,OAAD;QAAOC,OAAOA;IAAQ,kBAAC,IANzC,sDAAa,EAM6BD,OAAD;QAAOC,OAAOE,SAAS,QAAQ;IAAO;AAC/E;AACO,MAAMC,SAAS,kBAAM,IAR5B,sDAAa,EAQgB",
+        "sourcesContent": [
+          "/** @jsxRuntime classic */\n/** @jsx h */\n/** @jsxFrag Frag */\nimport { createElement as h, Fragment as Frag } from 'react'\ntype Input = { active: boolean; label: string }\nfunction Badge({label}: {label:string}) { return <b>{label}</b> }\nexport function Card({ active, label }: Input) {\n  return <section><Badge label={label} /><Badge label={active ? 'yes' : 'no'} /></section>\n}\nexport const Unused = () => <i />\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__3438__",
+        "namedPragma": {
+          "local": "h",
+          "start": {
+            "line": 2,
+            "column": 0,
+            "index": 27
+          },
+          "end": {
+            "line": 2,
+            "column": 13,
+            "index": 40
+          }
+        },
+        "moduleStart": 28,
+        "moduleEnd": 871
+      },
+      "expected": {
+        "path": "shape-named-nested.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 6,
+              "column": 42
+            },
+            "end": {
+              "line": 6,
+              "column": 64
+            }
+          },
+          "1": {
+            "start": {
+              "line": 8,
+              "column": 2
+            },
+            "end": {
+              "line": 8,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 10,
+              "column": 13
+            },
+            "end": {
+              "line": 10,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 10,
+              "column": 28
+            },
+            "end": {
+              "line": 10,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Badge",
+            "decl": {
+              "start": {
+                "line": 6,
+                "column": 9
+              },
+              "end": {
+                "line": 6,
+                "column": 15
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 6,
+                "column": 40
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            },
+            "line": 6
+          },
+          "1": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 7,
+                "column": 16
+              },
+              "end": {
+                "line": 7,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 7,
+                "column": 47
+              },
+              "end": {
+                "line": 9,
+                "column": null
+              }
+            },
+            "line": 7
+          },
+          "2": {
+            "name": "(anonymous_2)",
+            "decl": {
+              "start": {
+                "line": 10,
+                "column": 13
+              },
+              "end": {
+                "line": 10,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 10,
+                "column": 28
+              },
+              "end": {
+                "line": 10,
+                "column": null
+              }
+            },
+            "line": 10
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 8,
+                "column": 55
+              },
+              "end": {
+                "line": 8,
+                "column": 79
+              }
+            },
+            "type": "cond-expr",
+            "locations": [
+              {
+                "start": {
+                  "line": 8,
+                  "column": 64
+                },
+                "end": {
+                  "line": 8,
+                  "column": 72
+                }
+              },
+              {
+                "start": {
+                  "line": 8,
+                  "column": 72
+                },
+                "end": {
+                  "line": 8,
+                  "column": 79
+                }
+              }
+            ],
+            "line": 8
+          }
+        },
+        "s": {
+          "0": 4,
+          "1": 2,
+          "2": 1,
+          "3": 0
+        },
+        "f": {
+          "0": 4,
+          "1": 2,
+          "2": 0
+        },
+        "b": {
+          "0": [1, 1]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 3,
+          "lastStatement": 4,
+          "seen": {
+            "f:6:9:6:15": 0,
+            "s:6:42:6:64": 0,
+            "f:7:16:7:21": 1,
+            "s:8:2:8:Infinity": 1,
+            "b:8:64:8:72:8:72:8:79": 0,
+            "s:10:13:10:Infinity": 2,
+            "f:10:13:10:28": 2,
+            "s:10:28:10:Infinity": 3
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-named-paired.tsx",
+      "runtime": "named",
+      "file": "/browser-children/shape-named-paired.tsx",
+      "source": "/** @jsxRuntime classic */\n/** @jsx h */\n/** @jsxFrag Frag */\nimport { createElement as h, Fragment as Frag } from 'react'\ntype Input = { active: boolean; label: string }\nfunction Badge({children}: {children:string}) { return <b>{children}</b> }\nexport function Card({ active, label }: Input) {\n  return <Badge>{label}</Badge>\n}\nexport const Unused = () => <i />\n",
+      "sourceSHA": "1c5c688c7fdce831aface62e4af48e7084c3381ae7ebf1dea0588a787fe0a510",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\n/** @jsxRuntime classic */ /** @jsx h */ /** @jsxFrag Frag */ var __TURBOPACK__imported__module__3438__ = __turbopack_context__.i(3438);\n;\nfunction Badge({ children }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(\"b\", null, children);\n}\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(Badge, null, label);\n}\nconst Unused = ()=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(\"i\", null);\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-named-paired.tsx"],
+        "names": ["Badge", "children", "Card", "active", "label", "Unused"],
+        "mappings": ";A;;;;;;AAAA,wBAAwB,GACxB,WAAW,GACX,kBAAkB,GAClB;;AAEA,SAASA,MAAM,EAACC,QAAQ,EAAoB;IAAI,qBAAO,IAJvD,sDAAa,EAI2C,WAAGA;AAAc;AAClE,SAASC,KAAK,EAAEC,MAAM,EAAEC,KAAK,EAAS;IAC3C,qBAAO,IANT,sDAAa,EAMHJ,aAAOI;AACjB;AACO,MAAMC,SAAS,kBAAM,IAR5B,sDAAa,EAQgB",
+        "sourcesContent": [
+          "/** @jsxRuntime classic */\n/** @jsx h */\n/** @jsxFrag Frag */\nimport { createElement as h, Fragment as Frag } from 'react'\ntype Input = { active: boolean; label: string }\nfunction Badge({children}: {children:string}) { return <b>{children}</b> }\nexport function Card({ active, label }: Input) {\n  return <Badge>{label}</Badge>\n}\nexport const Unused = () => <i />\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__3438__",
+        "namedPragma": {
+          "local": "h",
+          "start": {
+            "line": 2,
+            "column": 0,
+            "index": 27
+          },
+          "end": {
+            "line": 2,
+            "column": 13,
+            "index": 40
+          }
+        },
+        "moduleStart": 28,
+        "moduleEnd": 640
+      },
+      "expected": {
+        "path": "shape-named-paired.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 6,
+              "column": 48
+            },
+            "end": {
+              "line": 6,
+              "column": 73
+            }
+          },
+          "1": {
+            "start": {
+              "line": 8,
+              "column": 2
+            },
+            "end": {
+              "line": 8,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 10,
+              "column": 13
+            },
+            "end": {
+              "line": 10,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 10,
+              "column": 28
+            },
+            "end": {
+              "line": 10,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Badge",
+            "decl": {
+              "start": {
+                "line": 6,
+                "column": 9
+              },
+              "end": {
+                "line": 6,
+                "column": 15
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 6,
+                "column": 46
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            },
+            "line": 6
+          },
+          "1": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 7,
+                "column": 16
+              },
+              "end": {
+                "line": 7,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 7,
+                "column": 47
+              },
+              "end": {
+                "line": 9,
+                "column": null
+              }
+            },
+            "line": 7
+          },
+          "2": {
+            "name": "(anonymous_2)",
+            "decl": {
+              "start": {
+                "line": 10,
+                "column": 13
+              },
+              "end": {
+                "line": 10,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 10,
+                "column": 28
+              },
+              "end": {
+                "line": 10,
+                "column": null
+              }
+            },
+            "line": 10
+          }
+        },
+        "branchMap": {},
+        "s": {
+          "0": 2,
+          "1": 2,
+          "2": 1,
+          "3": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 2,
+          "2": 0
+        },
+        "b": {},
+        "meta": {
+          "lastBranch": 0,
+          "lastFunction": 3,
+          "lastStatement": 4,
+          "seen": {
+            "f:6:9:6:15": 0,
+            "s:6:48:6:73": 0,
+            "f:7:16:7:21": 1,
+            "s:8:2:8:Infinity": 1,
+            "s:10:13:10:Infinity": 2,
+            "f:10:13:10:28": 2,
+            "s:10:28:10:Infinity": 3
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "shape-named-single.tsx",
+      "runtime": "named",
+      "file": "/browser-children/shape-named-single.tsx",
+      "source": "/** @jsxRuntime classic */\n/** @jsx h */\n/** @jsxFrag Frag */\nimport { createElement as h, Fragment as Frag } from 'react'\ntype Input = { active: boolean; label: string }\nfunction Badge({label}: {label:string}) { return <b>{label}</b> }\nexport function Card({ active, label }: Input) {\n  return <Badge label={label} />\n}\nexport const Unused = () => <i />\n",
+      "sourceSHA": "b2e7d361eff7dfa6f71016063fb4e41975c0b6fcfb230ece0d45163f9904a24f",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\n/** @jsxRuntime classic */ /** @jsx h */ /** @jsxFrag Frag */ var __TURBOPACK__imported__module__3438__ = __turbopack_context__.i(3438);\n;\nfunction Badge({ label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(\"b\", null, label);\n}\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(Badge, {\n        label: label\n    });\n}\nconst Unused = ()=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(\"i\", null);\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-children/shape-named-single.tsx"],
+        "names": ["Badge", "label", "Card", "active", "Unused"],
+        "mappings": ";A;;;;;;AAAA,wBAAwB,GACxB,WAAW,GACX,kBAAkB,GAClB;;AAEA,SAASA,MAAM,EAACC,KAAK,EAAiB;IAAI,qBAAO,IAJjD,sDAAa,EAIqC,WAAGA;AAAW;AACzD,SAASC,KAAK,EAAEC,MAAM,EAAEF,KAAK,EAAS;IAC3C,qBAAO,IANT,sDAAa,EAMHD,OAAD;QAAOC,OAAOA;IAAQ;AAC/B;AACO,MAAMG,SAAS,kBAAM,IAR5B,sDAAa,EAQgB",
+        "sourcesContent": [
+          "/** @jsxRuntime classic */\n/** @jsx h */\n/** @jsxFrag Frag */\nimport { createElement as h, Fragment as Frag } from 'react'\ntype Input = { active: boolean; label: string }\nfunction Badge({label}: {label:string}) { return <b>{label}</b> }\nexport function Card({ active, label }: Input) {\n  return <Badge label={label} />\n}\nexport const Unused = () => <i />\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__3438__",
+        "namedPragma": {
+          "local": "h",
+          "start": {
+            "line": 2,
+            "column": 0,
+            "index": 27
+          },
+          "end": {
+            "line": 2,
+            "column": 13,
+            "index": 40
+          }
+        },
+        "moduleStart": 28,
+        "moduleEnd": 651
+      },
+      "expected": {
+        "path": "shape-named-single.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 6,
+              "column": 42
+            },
+            "end": {
+              "line": 6,
+              "column": 64
+            }
+          },
+          "1": {
+            "start": {
+              "line": 8,
+              "column": 2
+            },
+            "end": {
+              "line": 8,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 10,
+              "column": 13
+            },
+            "end": {
+              "line": 10,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 10,
+              "column": 28
+            },
+            "end": {
+              "line": 10,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Badge",
+            "decl": {
+              "start": {
+                "line": 6,
+                "column": 9
+              },
+              "end": {
+                "line": 6,
+                "column": 15
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 6,
+                "column": 40
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            },
+            "line": 6
+          },
+          "1": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 7,
+                "column": 16
+              },
+              "end": {
+                "line": 7,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 7,
+                "column": 47
+              },
+              "end": {
+                "line": 9,
+                "column": null
+              }
+            },
+            "line": 7
+          },
+          "2": {
+            "name": "(anonymous_2)",
+            "decl": {
+              "start": {
+                "line": 10,
+                "column": 13
+              },
+              "end": {
+                "line": 10,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 10,
+                "column": 28
+              },
+              "end": {
+                "line": 10,
+                "column": null
+              }
+            },
+            "line": 10
+          }
+        },
+        "branchMap": {},
+        "s": {
+          "0": 2,
+          "1": 2,
+          "2": 1,
+          "3": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 2,
+          "2": 0
+        },
+        "b": {},
+        "meta": {
+          "lastBranch": 0,
+          "lastFunction": 3,
+          "lastStatement": 4,
+          "seen": {
+            "f:6:9:6:15": 0,
+            "s:6:42:6:64": 0,
+            "f:7:16:7:21": 1,
+            "s:8:2:8:Infinity": 1,
+            "s:10:13:10:Infinity": 2,
+            "f:10:13:10:28": 2,
+            "s:10:28:10:Infinity": 3
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "tag-alias-named-member.tsx",
+      "runtime": "named",
+      "file": "/browser-components/tag-alias-named-member.tsx",
+      "source": "/** @jsxRuntime classic */\n/** @jsx makeNode */\n/** @jsxFrag Group */\nimport { createElement as makeNode, Fragment as Group } from 'react'\ntype Input = { active: boolean; label: string }\nfunction InfoView({children}: {children:string}) { return <b>{children}</b> }\nconst views = {Item:InfoView}\nexport function Card({ active, label }: Input) {\n  return <views.Item>{label}</views.Item>\n}\nexport const Unused = () => <i />\n",
+      "sourceSHA": "499330d1e10522ae1da35e6be9ccf73cc9cd897df2923d48989d408172a901a2",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\n/** @jsxRuntime classic */ /** @jsx makeNode */ /** @jsxFrag Group */ var __TURBOPACK__imported__module__3438__ = __turbopack_context__.i(3438);\n;\nfunction InfoView({ children }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(\"b\", null, children);\n}\nconst views = {\n    Item: InfoView\n};\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(views.Item, null, label);\n}\nconst Unused = ()=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(\"i\", null);\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-components/tag-alias-named-member.tsx"],
+        "names": [
+          "InfoView",
+          "children",
+          "views",
+          "Item",
+          "Card",
+          "active",
+          "label",
+          "Unused"
+        ],
+        "mappings": ";A;;;;;;AAAA,wBAAwB,GACxB,kBAAkB,GAClB,mBAAmB,GACnB;;AAEA,SAASA,SAAS,EAACC,QAAQ,EAAoB;IAAI,qBAAO,IAJ1D,sDAAoB,EAIuC,WAAGA;AAAc;AAC5E,MAAMC,QAAQ;IAACC,MAAKH;AAAQ;AACrB,SAASI,KAAK,EAAEC,MAAM,EAAEC,KAAK,EAAS;IAC3C,qBAAO,IAPT,sDAAoB,EAOVJ,MAAMC,IAAI,QAAEG;AACtB;AACO,MAAMC,SAAS,kBAAM,IAT5B,sDAAoB,EASS",
+        "sourcesContent": [
+          "/** @jsxRuntime classic */\n/** @jsx makeNode */\n/** @jsxFrag Group */\nimport { createElement as makeNode, Fragment as Group } from 'react'\ntype Input = { active: boolean; label: string }\nfunction InfoView({children}: {children:string}) { return <b>{children}</b> }\nconst views = {Item:InfoView}\nexport function Card({ active, label }: Input) {\n  return <views.Item>{label}</views.Item>\n}\nexport const Unused = () => <i />\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__3438__",
+        "namedPragma": {
+          "local": "makeNode",
+          "start": {
+            "line": 2,
+            "column": 0,
+            "index": 27
+          },
+          "end": {
+            "line": 2,
+            "column": 20,
+            "index": 47
+          }
+        },
+        "moduleStart": 28,
+        "moduleEnd": 694
+      },
+      "expected": {
+        "path": "tag-alias-named-member.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 6,
+              "column": 51
+            },
+            "end": {
+              "line": 6,
+              "column": 76
+            }
+          },
+          "1": {
+            "start": {
+              "line": 7,
+              "column": 14
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 9,
+              "column": 2
+            },
+            "end": {
+              "line": 9,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 11,
+              "column": 13
+            },
+            "end": {
+              "line": 11,
+              "column": null
+            }
+          },
+          "4": {
+            "start": {
+              "line": 11,
+              "column": 28
+            },
+            "end": {
+              "line": 11,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "InfoView",
+            "decl": {
+              "start": {
+                "line": 6,
+                "column": 9
+              },
+              "end": {
+                "line": 6,
+                "column": 18
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 6,
+                "column": 49
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            },
+            "line": 6
+          },
+          "1": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 8,
+                "column": 16
+              },
+              "end": {
+                "line": 8,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 8,
+                "column": 47
+              },
+              "end": {
+                "line": 10,
+                "column": null
+              }
+            },
+            "line": 8
+          },
+          "2": {
+            "name": "(anonymous_2)",
+            "decl": {
+              "start": {
+                "line": 11,
+                "column": 13
+              },
+              "end": {
+                "line": 11,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 11,
+                "column": 28
+              },
+              "end": {
+                "line": 11,
+                "column": null
+              }
+            },
+            "line": 11
+          }
+        },
+        "branchMap": {},
+        "s": {
+          "0": 2,
+          "1": 1,
+          "2": 2,
+          "3": 1,
+          "4": 0
+        },
+        "f": {
+          "0": 2,
+          "1": 2,
+          "2": 0
+        },
+        "b": {},
+        "meta": {
+          "lastBranch": 0,
+          "lastFunction": 3,
+          "lastStatement": 5,
+          "seen": {
+            "f:6:9:6:18": 0,
+            "s:6:51:6:76": 0,
+            "s:7:14:7:Infinity": 1,
+            "f:8:16:8:21": 1,
+            "s:9:2:9:Infinity": 2,
+            "s:11:13:11:Infinity": 3,
+            "f:11:13:11:28": 2,
+            "s:11:28:11:Infinity": 4
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "name": "tag-alias-named-nested.tsx",
+      "runtime": "named",
+      "file": "/browser-components/tag-alias-named-nested.tsx",
+      "source": "/** @jsxRuntime classic */\n/** @jsx makeNode */\n/** @jsxFrag Group */\nimport { createElement as makeNode, Fragment as Group } from 'react'\ntype Input = { active: boolean; label: string }\nfunction InfoView({label}: {label:string}) { return <b>{label}</b> }\nexport function Card({ active, label }: Input) {\n  return <section><InfoView label={label} /><InfoView label={active ? 'yes' : 'no'} /></section>\n}\nexport const Unused = () => <i />\n",
+      "sourceSHA": "f8f9307f081568db394fe3b4f65ccdc84cb198796d28a8c43c991c6ba942536e",
+      "code": "(__turbopack_context__ => {\n__turbopack_context__.s([\n    \"Card\",\n    ()=>Card,\n    \"Unused\",\n    ()=>Unused\n]);\n/** @jsxRuntime classic */ /** @jsx makeNode */ /** @jsxFrag Group */ var __TURBOPACK__imported__module__3438__ = __turbopack_context__.i(3438);\n;\nfunction InfoView({ label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(\"b\", null, label);\n}\nfunction Card({ active, label }) {\n    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(\"section\", null, /*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(InfoView, {\n        label: label\n    }), /*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(InfoView, {\n        label: active ? 'yes' : 'no'\n    }));\n}\nconst Unused = ()=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__3438__[\"createElement\"])(\"i\", null);\n})",
+      "map": {
+        "version": 3,
+        "sources": ["/browser-components/tag-alias-named-nested.tsx"],
+        "names": ["InfoView", "label", "Card", "active", "Unused"],
+        "mappings": ";A;;;;;;AAAA,wBAAwB,GACxB,kBAAkB,GAClB,mBAAmB,GACnB;;AAEA,SAASA,SAAS,EAACC,KAAK,EAAiB;IAAI,qBAAO,IAJpD,sDAAoB,EAIiC,WAAGA;AAAW;AAC5D,SAASC,KAAK,EAAEC,MAAM,EAAEF,KAAK,EAAS;IAC3C,qBAAO,IANT,sDAAoB,EAMV,+BAAQ,IANlB,sDAAoB,EAMDD,UAAD;QAAUC,OAAOA;IAAQ,kBAAC,IAN5C,sDAAoB,EAMyBD,UAAD;QAAUC,OAAOE,SAAS,QAAQ;IAAO;AACrF;AACO,MAAMC,SAAS,kBAAM,IAR5B,sDAAoB,EAQS",
+        "sourcesContent": [
+          "/** @jsxRuntime classic */\n/** @jsx makeNode */\n/** @jsxFrag Group */\nimport { createElement as makeNode, Fragment as Group } from 'react'\ntype Input = { active: boolean; label: string }\nfunction InfoView({label}: {label:string}) { return <b>{label}</b> }\nexport function Card({ active, label }: Input) {\n  return <section><InfoView label={label} /><InfoView label={active ? 'yes' : 'no'} /></section>\n}\nexport const Unused = () => <i />\n"
+        ]
+      },
+      "factory": {
+        "binding": "__TURBOPACK__imported__module__3438__",
+        "namedPragma": {
+          "local": "makeNode",
+          "start": {
+            "line": 2,
+            "column": 0,
+            "index": 27
+          },
+          "end": {
+            "line": 2,
+            "column": 20,
+            "index": 47
+          }
+        },
+        "moduleStart": 28,
+        "moduleEnd": 888
+      },
+      "expected": {
+        "path": "tag-alias-named-nested.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 6,
+              "column": 45
+            },
+            "end": {
+              "line": 6,
+              "column": 67
+            }
+          },
+          "1": {
+            "start": {
+              "line": 8,
+              "column": 2
+            },
+            "end": {
+              "line": 8,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 10,
+              "column": 13
+            },
+            "end": {
+              "line": 10,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 10,
+              "column": 28
+            },
+            "end": {
+              "line": 10,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "InfoView",
+            "decl": {
+              "start": {
+                "line": 6,
+                "column": 9
+              },
+              "end": {
+                "line": 6,
+                "column": 18
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 6,
+                "column": 43
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            },
+            "line": 6
+          },
+          "1": {
+            "name": "Card",
+            "decl": {
+              "start": {
+                "line": 7,
+                "column": 16
+              },
+              "end": {
+                "line": 7,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 7,
+                "column": 47
+              },
+              "end": {
+                "line": 9,
+                "column": null
+              }
+            },
+            "line": 7
+          },
+          "2": {
+            "name": "(anonymous_2)",
+            "decl": {
+              "start": {
+                "line": 10,
+                "column": 13
+              },
+              "end": {
+                "line": 10,
+                "column": 28
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 10,
+                "column": 28
+              },
+              "end": {
+                "line": 10,
+                "column": null
+              }
+            },
+            "line": 10
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 8,
+                "column": 61
+              },
+              "end": {
+                "line": 8,
+                "column": 85
+              }
+            },
+            "type": "cond-expr",
+            "locations": [
+              {
+                "start": {
+                  "line": 8,
+                  "column": 70
+                },
+                "end": {
+                  "line": 8,
+                  "column": 78
+                }
+              },
+              {
+                "start": {
+                  "line": 8,
+                  "column": 78
+                },
+                "end": {
+                  "line": 8,
+                  "column": 85
+                }
+              }
+            ],
+            "line": 8
+          }
+        },
+        "s": {
+          "0": 4,
+          "1": 2,
+          "2": 1,
+          "3": 0
+        },
+        "f": {
+          "0": 4,
+          "1": 2,
+          "2": 0
+        },
+        "b": {
+          "0": [1, 1]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 3,
+          "lastStatement": 4,
+          "seen": {
+            "f:6:9:6:18": 0,
+            "s:6:45:6:67": 0,
+            "f:7:16:7:21": 1,
+            "s:8:2:8:Infinity": 1,
+            "b:8:70:8:78:8:78:8:85": 0,
+            "s:10:13:10:Infinity": 2,
+            "f:10:13:10:28": 2,
+            "s:10:28:10:Infinity": 3
+          },
+          "fnNames": {}
+        }
+      }
+    }
+  ]
+}

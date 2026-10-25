@@ -1,3 +1,4 @@
+import type { RuntimeModuleCompletion } from './execution/completed-module'
 import { isDeepStrictEqual } from 'util'
 import {
   createRuntimeConfigurationPlan,
@@ -90,6 +91,8 @@ export type WatchProcessRequest =
       isolatedProfile?: boolean
       /** Explicit standard watch generation; parent owns retained facts/publication. */
       watchCoverage?: boolean
+      /** Private scheduling request; only the outer host owns the user signal. */
+      userCancellation?: true
     }
 
 export type WatchProcessResult =
@@ -101,6 +104,11 @@ export type WatchProcessResult =
   | {
       operation: 'run'
       result: Awaited<ReturnType<typeof runTests>>
+      /** Issued only by this parent after every actual worker/compiler owner closes. */
+      orderlyCancellation?: {
+        launchedEntryIds: string[]
+        notExecutedEntryIds: string[]
+      }
       /** Parent-sealed failed compilation; no partial coverage can publish. */ standardCoverageUnavailable?: true
     }
 
@@ -195,10 +203,14 @@ export async function runWatchProcess(
   request: WatchProcessRequest,
   options: {
     signal: AbortSignal
+    /** Host-only scheduling request; generation lifetime remains independent. */
+    userCancelSignal?: AbortSignal
     write(text: string): void
     writeError?: (text: string) => void
     reporter?: Omit<TestReporterOptions, 'write' | 'projectDir' | 'fileCount'>
     onEvent?: (event: ResultEvent) => void
+    /** Direct parent facts, released only after real generation cleanup. */
+    onCompletedModules?: (facts: readonly RuntimeModuleCompletion[]) => void
     /** Parent-validated actual config module files; never child-provided watch paths. */
     onRuntimeConfigurationInputs?: (files: readonly string[]) => Promise<void>
     onCustomCoverageSuite?: (fact: CustomCoverageFact) => Promise<void>
@@ -208,6 +220,28 @@ export async function runWatchProcess(
     report?: boolean
   }
 ): Promise<WatchProcessResult> {
+  if (
+    options.onCompletedModules &&
+    (request.operation !== 'run' ||
+      request.isolatedProfile !== true ||
+      request.collectOnly ||
+      request.coverage ||
+      request.standardCoverageOptions ||
+      request.customCoverageRequests ||
+      options.userCancelSignal ||
+      request.projects.length !== 1 ||
+      request.projects.some(
+        (project) =>
+          project.isolate === false ||
+          project.typecheck?.enabled ||
+          project.executionEnvironment ||
+          project.profile.environment !== 'node' ||
+          project.profile.route !== undefined
+      ))
+  )
+    throw new Error(
+      'Module result capture requires one isolated ordinary Node execution project.'
+    )
   if (request.operation === 'run') {
     const snapshotUpdateMode = resolveSnapshotUpdateMode(request)
     request = {
@@ -215,6 +249,42 @@ export async function runWatchProcess(
       snapshotUpdateMode,
       updateSnapshots: snapshotUpdateMode !== 'none',
     }
+  }
+  if (
+    options.userCancelSignal ||
+    (request.operation === 'run' && request.userCancellation)
+  ) {
+    const browserUserCancellation =
+      request.operation === 'run' &&
+      !request.coverage &&
+      !request.standardCoverageOptions &&
+      request.projects.length > 0 &&
+      request.projects.every(
+        (project) =>
+          project.profile.browserClient === true &&
+          project.profile.environment === 'browser'
+      )
+    if (
+      !options.userCancelSignal ||
+      request.operation !== 'run' ||
+      (!browserUserCancellation &&
+        (request.watchCoverage !== true ||
+          !request.standardCoverageOptions?.formatterReports)) ||
+      request.collectOnly ||
+      resolveSnapshotUpdateMode(request) === 'all' ||
+      request.customCoverageRequests ||
+      request.projects.some(
+        (project) =>
+          (!browserUserCancellation &&
+            project.profile.environment !== 'node') ||
+          project.profile.route !== undefined ||
+          project.isolate === false
+      )
+    )
+      throw new Error(
+        'User cancellation requires configured isolated Node watch coverage.'
+      )
+    request = { ...request, userCancellation: true }
   }
   if (process.platform === 'win32')
     throw new Error('Test watch requires POSIX process ownership.')
@@ -384,11 +454,25 @@ export async function runWatchProcess(
           )
         : []
     )
+    const launchedFiles = new Map<string, { runId: string; revision: string }>()
+    let observedCaseStart = false
     const compilationFailures = new Set<string>()
     const fileOutcomes = new Map<string, string>()
     const collectionRevisions = new Map<string, string>()
     const startedFiles = new Set<string>()
     const endedFiles = new Set<string>()
+    const completedModules = options.onCompletedModules
+      ? new Map<string, RuntimeModuleCompletion>()
+      : undefined
+    const closedBrowserCancellations = new Set<string>()
+    const completedBrowserFilesBeforeCancellation = new Set<string>()
+    const browserFile = (id: string) =>
+      request.operation === 'run' &&
+      request.projects.some(
+        (project) =>
+          project.profile.browserClient === true &&
+          project.entries.some((entry) => entry.id === id)
+      )
     const fail = (error: unknown) => {
       failed = true
       failure ??= error
@@ -396,6 +480,24 @@ export async function runWatchProcess(
     const customSuiteEntries = new Set<string>()
     const broker = brokerModule?.createExecutionBrokerHost({
       signal: options.signal,
+      ...(options.onCompletedModules
+        ? { captureCompletedModuleResult: true as const }
+        : {}),
+      userCancelSignal: options.userCancelSignal,
+      ...(options.userCancelSignal
+        ? {
+            onWorkerLaunched(identity) {
+              // Record the actual fork before any validation/observer can throw.
+              const previous = launchedFiles.get(identity.entryId)
+              launchedFiles.set(identity.entryId, {
+                runId: identity.runId,
+                revision: identity.revision,
+              })
+              if (previous || !selectedFiles.has(identity.entryId))
+                throw new Error('Invalid actual watch worker launch identity.')
+            },
+          }
+        : {}),
       browserProjects:
         request.operation === 'run' ? request.projects : undefined,
       browserApplications,
@@ -575,12 +677,43 @@ export async function runWatchProcess(
               })
             }
           : undefined,
-      send: (response) =>
-        new Promise<void>((sent, rejected) => {
+      send: (response) => {
+        if (response.action === 'result') {
+          if (
+            completedModules &&
+            response.result.moduleExecution?.closed === true
+          ) {
+            const completion = response.result.moduleExecution.completion
+            if (
+              !selectedFiles.has(response.result.entryId) ||
+              completion.entryId !== response.result.entryId ||
+              completedModules.has(completion.entryId)
+            )
+              throw new Error('Invalid actual completed module result.')
+            completedModules.set(completion.entryId, completion)
+          }
+          if (response.result.closedUserCancellation === true)
+            closedBrowserCancellations.add(response.result.entryId)
+          else if (
+            browserFile(response.result.entryId) &&
+            !options.userCancelSignal?.aborted &&
+            !response.result.notExecuted &&
+            response.result.status !== 'cancelled'
+          )
+            completedBrowserFilesBeforeCancellation.add(response.result.entryId)
+          const {
+            closedUserCancellation: _closed,
+            moduleExecution: _module,
+            ...result
+          } = response.result
+          response = { ...response, result }
+        }
+        return new Promise<void>((sent, rejected) => {
           if (!child.connected)
             return rejected(new Error('Watch generation disconnected.'))
           child.send(response, (error) => (error ? rejected(error) : sent()))
-        }),
+        })
+      },
     })
     const closeOwnership = () =>
       (ownership ??= (async () => {
@@ -646,6 +779,15 @@ export async function runWatchProcess(
         void closeOwnership()
       }, 5000)
     }
+    const cancelByUser = () => {
+      if (!child.connected) return
+      child.send({ type: 'user-cancel' }, (error) => {
+        if (error) {
+          fail(error)
+          cancel()
+        }
+      })
+    }
     const write = (data: Buffer, stream: 'stdout' | 'stderr') => {
       try {
         const target = options.reporter?.terminal
@@ -698,11 +840,14 @@ export async function runWatchProcess(
             if (!reporter)
               throw new Error('Metadata process sent execution events.')
             if (event.type === 'run-start') runId = event.runId
+            if (event.type === 'case-start' && launchedFiles.has(event.entryId))
+              observedCaseStart = true
             if (event.type === 'file-start') {
               startedFiles.add(event.entry.id)
               if (
                 request.operation === 'run' &&
                 (request.collectOnly ||
+                  options.userCancelSignal ||
                   request.updateSnapshots ||
                   request.standardCoverageOptions ||
                   request.customCoverageRequests)
@@ -832,6 +977,7 @@ export async function runWatchProcess(
       if (outputTimer) clearTimeout(outputTimer)
       if (terminalTimer) clearTimeout(terminalTimer)
       options.signal.removeEventListener('abort', cancel)
+      options.userCancelSignal?.removeEventListener('abort', cancelByUser)
       await closeOwnership()
       if (
         !failed &&
@@ -861,6 +1007,44 @@ export async function runWatchProcess(
         try {
           // A child cannot grant itself incomplete-coverage publication rights.
           delete message.value.standardCoverageUnavailable
+          delete message.value.orderlyCancellation
+          if (
+            options.userCancelSignal?.aborted &&
+            [...snapshotPlans.values()].some((plan) => plan.updates.length > 0)
+          )
+            throw new Error(
+              'Cancelled coverage cannot publish snapshot writer intent.'
+            )
+          if (
+            options.userCancelSignal?.aborted &&
+            !options.signal.aborted &&
+            observedCaseStart &&
+            launchedFiles.size > 0 &&
+            compilationFailures.size === 0 &&
+            !message.value.result.unsafeCleanup
+          ) {
+            for (const [id, identity] of launchedFiles) {
+              if (
+                identity.runId !== runId ||
+                identity.revision !== collectionRevisions.get(id) ||
+                !endedFiles.has(id) ||
+                (browserFile(id) &&
+                  !closedBrowserCancellations.has(id) &&
+                  !completedBrowserFilesBeforeCancellation.has(id))
+              )
+                throw new Error('Incomplete actual cancelled watch worker.')
+            }
+            if (
+              ![...launchedFiles.keys()].some(browserFile) ||
+              closedBrowserCancellations.size > 0
+            )
+              message.value.orderlyCancellation = {
+                launchedEntryIds: [...launchedFiles.keys()],
+                notExecutedEntryIds: [...selectedFiles].filter(
+                  (id) => !launchedFiles.has(id)
+                ),
+              }
+          }
           if (request.customCoverageRequests) {
             if (!request.isolatedProfile || message.value.result.unsafeCleanup)
               throw new Error(
@@ -909,7 +1093,9 @@ export async function runWatchProcess(
               const facts = await validateStandardWatchCoverage({
                 projectDir: request.projectDir,
                 facts: message.value.result.standardCoverage,
-                expected: selectedFiles,
+                expected: message.value.orderlyCancellation
+                  ? new Set(message.value.orderlyCancellation.launchedEntryIds)
+                  : selectedFiles,
                 revisions: collectionRevisions,
                 status: message.value.result.status,
                 terminalStatus: runEnd?.status,
@@ -1003,6 +1189,7 @@ export async function runWatchProcess(
         !options.signal.aborted &&
         request.operation === 'run' &&
         request.updateSnapshots &&
+        !options.userCancelSignal?.aborted &&
         message?.type === 'result' &&
         message.value.operation === 'run' &&
         ((runEnd?.status === 'passed' &&
@@ -1059,6 +1246,14 @@ export async function runWatchProcess(
           for (const project of request.projects)
             for (const entry of project.entries) {
               if (endedFiles.has(entry.id)) continue
+              if (
+                message?.type === 'result' &&
+                message.value.operation === 'run' &&
+                message.value.orderlyCancellation?.notExecutedEntryIds.includes(
+                  entry.id
+                )
+              )
+                continue
               if (!startedFiles.has(entry.id))
                 emitResult({ ...envelope, type: 'file-start', entry })
               emitResult({
@@ -1109,6 +1304,20 @@ export async function runWatchProcess(
           fail(error)
         }
       }
+      if (
+        !failed &&
+        !options.signal.aborted &&
+        message?.type === 'result' &&
+        message.value.operation === 'run' &&
+        !message.value.result.unsafeCleanup &&
+        completedModules
+      ) {
+        try {
+          options.onCompletedModules!([...completedModules.values()])
+        } catch (error) {
+          fail(error)
+        }
+      }
       if (failed)
         reject(ownershipFailed ? new WatchOwnershipError(failure) : failure)
       else if (options.signal.aborted) reject(options.signal.reason)
@@ -1126,6 +1335,10 @@ export async function runWatchProcess(
     child.send({ type: 'start', request }, (error) => {
       if (error) fail(error)
       if (options.signal.aborted) cancel()
+      options.userCancelSignal?.addEventListener('abort', cancelByUser, {
+        once: true,
+      })
+      if (options.userCancelSignal?.aborted) cancelByUser()
     })
   }).finally(() => {
     disposeReporter?.()

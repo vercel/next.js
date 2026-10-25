@@ -1,0 +1,27 @@
+[
+  {
+    "name": "complete named function namespace and require lifetime across reset",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "complete named function actual helper shares namespace and reset ownership",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "named function held default and dependency mutations remain live",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "named function expression keeps its local self binding across reset",
+    "status": "passed",
+    "failureMessages": []
+  },
+  {
+    "name": "ordinary parameter calls keep defaults rest arguments and constructor behavior",
+    "status": "passed",
+    "failureMessages": []
+  }
+]

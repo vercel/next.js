@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "mode": "production",
+  "sdks": ["1.61.0", "1.64.0"],
+  "reference": "Vitest5.0.4 + @vitest/coverage-v8@5.0.4 + public Chromium Browser provider; fresh complete maps and cases agree for both SDKs",
+  "sourceSyntax": "typescript-without-jsx",
+  "sourceFiles": {
+    "layout-nojsx.tsx": {
+      "sha256": "c66f65641bb67099533a078abce2ce8e58582e759d08cfa3bb613a18d5c00023"
+    },
+    "layout-nojsx.contract.test.mjs": {
+      "sha256": "823efed1cf0b437140b30232e96d7ad2778ab8742b4526f534987169b1498005"
+    }
+  },
+  "numPassedTests": 1,
+  "cases": [
+    {
+      "file": "layout-nojsx.contract.test.mjs",
+      "status": "passed",
+      "cases": [
+        {
+          "ancestorTitles": [],
+          "fullName": "typed source without JSX drops unrelated React",
+          "status": "passed",
+          "title": "typed source without JSX drops unrelated React",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ]
+    }
+  ],
+  "coverage": {
+    "layout-nojsx.tsx": {
+      "path": "layout-nojsx.tsx",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 4,
+            "column": 2
+          },
+          "end": {
+            "line": 4,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 6,
+            "column": 27
+          },
+          "end": {
+            "line": 6,
+            "column": 36
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "choose",
+          "decl": {
+            "start": {
+              "line": 3,
+              "column": 16
+            },
+            "end": {
+              "line": 3,
+              "column": 23
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 3,
+              "column": 41
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          },
+          "line": 3
+        },
+        "1": {
+          "name": "unused",
+          "decl": {
+            "start": {
+              "line": 6,
+              "column": 16
+            },
+            "end": {
+              "line": 6,
+              "column": 25
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 6,
+              "column": 25
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          },
+          "line": 6
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 4,
+              "column": 9
+            },
+            "end": {
+              "line": 4,
+              "column": null
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 4,
+                "column": 18
+              },
+              "end": {
+                "line": 4,
+                "column": 26
+              }
+            },
+            {
+              "start": {
+                "line": 4,
+                "column": 26
+              },
+              "end": {
+                "line": 4,
+                "column": null
+              }
+            }
+          ],
+          "line": 4
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {
+        "0": [1, 1]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 2,
+        "seen": {
+          "f:3:16:3:23": 0,
+          "s:4:2:4:Infinity": 0,
+          "b:4:18:4:26:4:26:4:Infinity": 0,
+          "f:6:16:6:25": 1,
+          "s:6:27:6:36": 1
+        },
+        "fnNames": {}
+      }
+    }
+  }
+}

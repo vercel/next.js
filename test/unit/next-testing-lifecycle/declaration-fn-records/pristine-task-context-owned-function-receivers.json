@@ -1,0 +1,104 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "owned-function-receivers",
+        "trace": [
+          {
+            "phase": "body",
+            "kind": "invoke",
+            "receiver": "assertion"
+          },
+          {
+            "phase": "body",
+            "kind": "invoke",
+            "receiver": "assertion"
+          },
+          {
+            "phase": "body",
+            "kind": "invoke",
+            "receiver": "assertion"
+          },
+          {
+            "phase": "body",
+            "kind": "invoke",
+            "receiver": "foreign"
+          },
+          {
+            "phase": "body",
+            "kind": "invoke",
+            "receiver": "undefined"
+          },
+          {
+            "phase": "body",
+            "kind": "reads",
+            "sameMethod": true,
+            "sameDescriptor": true,
+            "direct": true,
+            "call": true,
+            "bound": true,
+            "foreign": true,
+            "extracted": true
+          },
+          {
+            "phase": "afterAll",
+            "kind": "invoke",
+            "receiver": "assertion"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "invoke",
+            "receiver": "assertion"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "invoke",
+            "receiver": "assertion"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "invoke",
+            "receiver": "foreign"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "invoke",
+            "receiver": "undefined"
+          },
+          {
+            "phase": "afterAll",
+            "kind": "reads",
+            "sameMethod": true,
+            "sameDescriptor": true,
+            "direct": true,
+            "call": true,
+            "bound": true,
+            "foreign": true,
+            "extracted": true
+          }
+        ],
+        "count": 1,
+        "state": "pass"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "owned function receiver source",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeads": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 1,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

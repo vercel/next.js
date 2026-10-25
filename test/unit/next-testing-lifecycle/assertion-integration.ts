@@ -412,15 +412,12 @@ it('rejects a retained concurrent assertion and closed asynchronous owner while 
       test.concurrent('other', async ({ expect: check }) => {
         started()
         await Promise.resolve()
-        // A retained assertion cannot borrow this concurrently live owner.
-        assert.throws(
-          () => retained.toBe(true),
-          /different Next assertion scope/
-        )
+        // The retained hard assertion keeps its original actual Test owner.
+        retained.toBe(true)
       })
       test('following', async ({ expect: check }) => {
         release()
-        await assert.rejects(late, /closed attempt scope/)
+        await late
         check(true).toBe(true)
       })
     })
@@ -429,8 +426,7 @@ it('rejects a retained concurrent assertion and closed asynchronous owner while 
       result.cases.map(({ status }) => status),
       ['passed', 'passed', 'passed']
     )
-    assert.equal(result.errors.length, 1)
-    assert.match(String(result.errors[0].error), /closed attempt scope/)
+    assert.deepEqual(result.errors, [])
   })
 })
 
@@ -722,11 +718,8 @@ it('rejects stale asynchronous owners and assertions while retaining the stable 
           throw new Error('retry')
         }
         release.resolve()
-        await assert.rejects(pending, /closed attempt scope/)
-        assert.throws(
-          () => assertion.toBe(true),
-          /different Next assertion scope/
-        )
+        await pending
+        assertion.toBe(true)
         context.expect(true).toBe(true)
       })
     })
@@ -735,8 +728,7 @@ it('rejects stale asynchronous owners and assertions while retaining the stable 
       result.cases.map(({ status }) => status),
       ['failed', 'passed']
     )
-    assert.equal(result.errors.length, 1)
-    assert.match(String(result.errors[0].error), /closed attempt scope/)
+    assert.deepEqual(result.errors, [])
   })
 })
 
@@ -1487,6 +1479,110 @@ it('a retained runtime skip cannot change another attempt even when false or cau
   })
 })
 
+it('publishes actual callable contexts and keeps prepared state reads separate from writes', async () => {
+  let retained!: typeof expect
+  await withFile(async (runner) => {
+    await runner.collect(async () => {
+      const collector = describe.fn.call(
+        {
+          concurrent: false,
+          only: false,
+          skip: false,
+          todo: false,
+          shuffle: false,
+        },
+        'raw',
+        {},
+        () => {}
+      )
+      const task = collector.task('published', {
+        handler(context) {
+          assert.equal(context, published)
+          assert.equal(context.task, task)
+          assert.equal(context.signal, signal)
+          assert.equal(context.expect, retained)
+          assert.equal(retained.getState().assertionCalls, 1)
+          context.expect(true).toBe(true)
+        },
+      })
+      const published = task.context
+      const signal = published.signal
+      retained = published.expect
+      retained(true).toBe(true)
+      published.skip(false)
+      assert.equal(task.result, undefined)
+      afterAll(() => {
+        assert.equal(retained.getState().assertionCalls, 2)
+        assert.throws(
+          () => retained.setState({ assertionCalls: 99 }),
+          /different Next test/
+        )
+        assert.equal(typeof retained(true), 'object')
+      })
+    })
+    const result = await runner.run(options())
+    assert.deepEqual(result.errors, [])
+    assert.deepEqual(
+      result.cases.map(({ status }) => status),
+      ['passed']
+    )
+  })
+  assert.equal(retained.getState().assertionCalls, 3)
+})
+
+it('separates actual raw task generations even when a cleared container reuses its id', async () => {
+  await withFile(async (runner) => {
+    await runner.collect(async () => {
+      const collector = describe.fn.call(
+        {
+          concurrent: false,
+          only: false,
+          skip: false,
+          todo: false,
+          shuffle: false,
+        },
+        'raw',
+        {},
+        () => {}
+      )
+      const old = collector.task('discarded', {
+        handler() {
+          assert.fail('discarded task ran')
+        },
+      })
+      const oldContext = old.context
+      const oldExpect = oldContext.expect
+      oldExpect(true).toBe(true)
+      collector.clear()
+      const task = collector.task('current', {
+        handler(context) {
+          assert.equal(context, published)
+          assert.equal(context.expect, local)
+          assert.equal(local.getState().assertionCalls, 0)
+          assert.equal(typeof oldExpect(true), 'object')
+          assert.equal(oldExpect.getState().assertionCalls, 2)
+          assert.equal(local.getState().assertionCalls, 0)
+          local(true).toBe(true)
+        },
+      })
+      const published = task.context
+      const local = published.expect
+      assert.equal(task.id, old.id)
+      assert.notEqual(published, oldContext)
+      assert.notEqual(published.signal, oldContext.signal)
+      assert.notEqual(local, oldExpect)
+      assert.equal(oldExpect.getState().assertionCalls, 1)
+      assert.equal(local.getState().assertionCalls, 0)
+    })
+    const result = await runner.run(options())
+    assert.deepEqual(result.errors, [])
+    assert.deepEqual(
+      result.cases.map(({ status }) => status),
+      ['passed']
+    )
+  })
+})
+
 it('keeps local/manual expectation state separate and retains local retry counters', async () => {
   await withFile(async (runner) => {
     let owner: ReturnType<typeof createExpect> | undefined
@@ -1502,8 +1598,9 @@ it('keeps local/manual expectation state separate and retains local retry counte
       })
       test('independent counters', ({ expect: local }) => {
         assert.notEqual(local, owner)
-        assert.throws(() => owner!(true), /different Next test/)
-        assert.throws(() => owner!.getState(), /different Next test/)
+        assert.equal(typeof owner!(true), 'object')
+        assert.equal(owner!.getState().assertionCalls, 3)
+        assert.equal(local.getState().assertionCalls, 0)
         expect.assertions(100)
         manual!.assertions(100)
         manual!(true).toBe(true)
@@ -1522,7 +1619,8 @@ it('keeps local/manual expectation state separate and retains local retry counte
       String(result.cases[1].errors[0].error),
       /expected number of assertions to be 1, but got 2/
     )
-    assert.throws(() => owner!(true), /active Next test attempt/)
+    assert.equal(typeof owner!(true), 'object')
+    assert.equal(owner!.getState().assertionCalls, 4)
   })
 })
 
@@ -2412,4 +2510,183 @@ it('admits a safely recovered retry in a shared worker and holds updates through
     await worker.dispose().catch(() => {})
     await rm(directory, { recursive: true, force: true })
   }
+})
+
+it('retains an actual local hard assertion after its case and file close without reopening resources', async () => {
+  let retained!: ReturnType<typeof expect>
+  let local!: typeof expect
+  await withFile(async (runner) => {
+    await runner.collect(async () => {
+      test('owner', (context) => {
+        local = context.expect
+        retained = local('owned')
+      })
+    })
+    const result = await runner.run(options())
+    assert.deepEqual(result.errors, [])
+    assert.deepEqual(
+      result.cases.map(({ status }) => status),
+      ['passed']
+    )
+    retained.toBe('owned')
+    assert.equal(local.getState().assertionCalls, 1)
+    assert.throws(
+      () => retained.resolves,
+      /active Next test attempt|different Next assertion scope/
+    )
+    retained.toBe('owned')
+    assert.equal(local.getState().assertionCalls, 1)
+  })
+  retained.toBe('owned')
+  assert.throws(() => retained.toBe('wrong'), /expected 'owned' to be 'wrong'/)
+  const adopted = await Promise.resolve(retained)
+  assert.equal(adopted, retained)
+  adopted.not.toBe('wrong')
+  assert.equal(local.getState().assertionCalls, 1)
+})
+
+it('keeps a captured hard method subject to its receiver real resource promotion', async () => {
+  let retained!: ReturnType<typeof expect>
+  let hard: any
+  await withFile(async (runner) => {
+    await runner.collect(async () => {
+      test('resource owner', async (context) => {
+        retained = context.expect(Promise.resolve(1))
+        hard = retained.toBe
+        await retained.resolves.toBe(1)
+      })
+    })
+    const result = await runner.run(options())
+    assert.deepEqual(result.errors, [])
+    assert.deepEqual(
+      result.cases.map(({ status }) => status),
+      ['passed']
+    )
+    assert.throws(
+      () => hard.call(retained, 1),
+      /active Next test attempt|different Next assertion scope/
+    )
+  })
+  assert.throws(
+    () => hard.call(retained, 1),
+    /active Next test attempt|different Next assertion scope|disposed/
+  )
+})
+
+it('executes synchronous and awaited asynchronous built-in overrides in their real live case', async () => {
+  await withFile(async (runner) => {
+    const calls: string[] = []
+    let local!: typeof expect
+    await runner.collect(async () => {
+      expect.extend({
+        toEqual(actual, expected) {
+          calls.push('sync')
+          return {
+            pass: Object.is(actual, expected),
+            message: () => 'sync override',
+          }
+        },
+        async toStrictEqual(actual, expected) {
+          calls.push('async-enter')
+          await Promise.resolve()
+          calls.push('async-leave')
+          return {
+            pass: Object.is(actual, expected),
+            message: () => 'async override',
+          }
+        },
+      })
+      test('live overrides', async (context) => {
+        local = context.expect
+        local(1).toEqual(1)
+        await local(2).toStrictEqual(2)
+      })
+      afterAll(() => {
+        assert.deepEqual(calls, ['sync', 'async-enter', 'async-leave'])
+        assert.equal(local.getState().assertionCalls, 2)
+      })
+    })
+    const result = await runner.run(options())
+    assert.deepEqual(result.errors, [])
+    assert.deepEqual(
+      result.cases.map(({ status }) => status),
+      ['passed']
+    )
+  })
+})
+
+it('executes configurable own assertion methods and getters in their real live case', async () => {
+  await withFile(async (runner) => {
+    let methodCalls = 0
+    let getterCalls = 0
+    await runner.collect(async () => {
+      test('live own members', (context) => {
+        const method = context.expect(1)
+        Object.defineProperty(method, 'toEqual', {
+          configurable: true,
+          value() {
+            methodCalls++
+            return this
+          },
+        })
+        method.toEqual(1)
+        const getter = context.expect(2)
+        Object.defineProperty(getter, 'not', {
+          configurable: true,
+          get() {
+            getterCalls++
+            return this
+          },
+        })
+        assert.equal(typeof getter.not, 'object')
+        assert.equal(methodCalls, 1)
+        assert.equal(getterCalls, 1)
+        assert.equal(context.expect.getState().assertionCalls, 2)
+      })
+    })
+    const result = await runner.run(options())
+    assert.deepEqual(result.errors, [])
+    assert.deepEqual(
+      result.cases.map(({ status }) => status),
+      ['passed']
+    )
+    assert.equal(methodCalls, 1)
+    assert.equal(getterCalls, 1)
+  })
+})
+
+it('restores the native not accessor without changing subsequent primitive behavior', async () => {
+  await withFile(async (runner) => {
+    let reads = 0
+    await runner.collect(async () => {
+      test('live accessor restoration', (context) => {
+        const assertion = context.expect('owned')
+        const prototype = Object.getPrototypeOf(assertion)
+        const original = Object.getOwnPropertyDescriptor(prototype, 'not')!
+        Object.defineProperty(prototype, 'not', {
+          ...original,
+          get() {
+            reads++
+            return this
+          },
+        })
+        try {
+          assert.equal(typeof assertion.not, 'object')
+          assert.equal(reads, 1)
+        } finally {
+          Object.defineProperty(prototype, 'not', original)
+        }
+        assertion.not.toBe('other')
+        assert.equal(reads, 1)
+        assert.equal(context.expect.getState().assertionCalls, 1)
+      })
+    })
+    const result = await runner.run(options())
+    assert.deepEqual(result.errors, [])
+    assert.deepEqual(
+      result.cases.map(({ status }) => status),
+      ['passed']
+    )
+    assert.equal(reads, 1)
+  })
 })

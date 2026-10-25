@@ -1,0 +1,216 @@
+{
+  "reference": "Vitest5.0.4 with real @vitest/coverage-v8@5.0.4, actual Node26.1.0",
+  "scope": "Nine explicitBoolean/empty/separated/repeated argument profiles; numeric/arbitrary-string/negativeequals quirks remain unqualified",
+  "sourceSHA256": "393adb7ba9639908ece750c70ca6fa2ddd6327f01bc3cd57f0c4e8e3f2baf208",
+  "profiles": [
+    {
+      "name": "equalsTrue",
+      "args": ["--coverage=true"],
+      "exit": 0,
+      "cases": [
+        {
+          "name": "repeated coverage scalar",
+          "status": "passed"
+        }
+      ],
+      "body": true,
+      "coverage": true,
+      "error": null
+    },
+    {
+      "name": "equalsFalse",
+      "args": ["--coverage=false"],
+      "exit": 0,
+      "cases": [
+        {
+          "name": "repeated coverage scalar",
+          "status": "passed"
+        }
+      ],
+      "body": true,
+      "coverage": false,
+      "error": null
+    },
+    {
+      "name": "equalsEmpty",
+      "args": ["--coverage="],
+      "exit": 0,
+      "cases": [
+        {
+          "name": "repeated coverage scalar",
+          "status": "passed"
+        }
+      ],
+      "body": true,
+      "coverage": true,
+      "error": null
+    },
+    {
+      "name": "spaceTrue",
+      "args": ["--coverage", "true"],
+      "exit": 0,
+      "cases": [
+        {
+          "name": "repeated coverage scalar",
+          "status": "passed"
+        }
+      ],
+      "body": true,
+      "coverage": true,
+      "error": null
+    },
+    {
+      "name": "spaceFalse",
+      "args": ["--coverage", "false"],
+      "exit": 0,
+      "cases": [
+        {
+          "name": "repeated coverage scalar",
+          "status": "passed"
+        }
+      ],
+      "body": true,
+      "coverage": false,
+      "error": null
+    },
+    {
+      "name": "equalsFalsePositive",
+      "args": ["--coverage=false", "--coverage"],
+      "exit": 1,
+      "cases": [],
+      "body": false,
+      "coverage": false,
+      "error": "Expected a single value for option \"--coverage \", received [false, true]"
+    },
+    {
+      "name": "positiveEqualsFalse",
+      "args": ["--coverage", "--coverage=false"],
+      "exit": 1,
+      "cases": [],
+      "body": false,
+      "coverage": false,
+      "error": "Expected a single value for option \"--coverage \", received [true, false]"
+    },
+    {
+      "name": "equalsTrueRepeated",
+      "args": ["--coverage=true", "--coverage=true"],
+      "exit": 1,
+      "cases": [],
+      "body": false,
+      "coverage": false,
+      "error": "Expected a single value for option \"--coverage \", received [true, true]"
+    },
+    {
+      "name": "equalsFalseNegative",
+      "args": ["--coverage=false", "--no-coverage"],
+      "exit": 0,
+      "cases": [
+        {
+          "name": "repeated coverage scalar",
+          "status": "passed"
+        }
+      ],
+      "body": true,
+      "coverage": false,
+      "error": null
+    }
+  ],
+  "rawGenuineFiles": [
+    {
+      "path": "typed-genuine/equalsTrue-stdout.txt",
+      "sha256": "5a9251d2ad373265de4868534f62199cd1a11b34b82469431ccf7304f4bb2bf0"
+    },
+    {
+      "path": "typed-genuine/equalsTrue-stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "typed-genuine/equalsTrue-cases.txt",
+      "sha256": "4596c4066e5fb953661223e1b8dd5bd9f00dee23cdcb18666a5461a69496e2f5"
+    },
+    {
+      "path": "typed-genuine/equalsFalse-stdout.txt",
+      "sha256": "d166b24e48039fe33c7226bca952e8c181f17bb2ad236bd38d0231de06939a56"
+    },
+    {
+      "path": "typed-genuine/equalsFalse-stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "typed-genuine/equalsFalse-cases.txt",
+      "sha256": "0ed28fc3fb4fb44aa5e130274faf2cb1f789fe5b33d66190db069944afe67bab"
+    },
+    {
+      "path": "typed-genuine/equalsEmpty-stdout.txt",
+      "sha256": "ea1c30e94d8571ede4a8ccd33f21e0f68426340df472b974c1de72e239d3db57"
+    },
+    {
+      "path": "typed-genuine/equalsEmpty-stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "typed-genuine/equalsEmpty-cases.txt",
+      "sha256": "d536dcdd0d77e4df656903ed78afdd1a7f126f1a0ea98a5c94f052eabedf48ca"
+    },
+    {
+      "path": "typed-genuine/spaceTrue-stdout.txt",
+      "sha256": "c44b5be8d8d0b5c792fc35cc0d146b86efe2e133b34b373c5fbc848b503fa95d"
+    },
+    {
+      "path": "typed-genuine/spaceTrue-stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "typed-genuine/spaceTrue-cases.txt",
+      "sha256": "77a8928163ad3f8aedee3266f42b51cc8546b2dfd1d60c648fc679759162a6e0"
+    },
+    {
+      "path": "typed-genuine/spaceFalse-stdout.txt",
+      "sha256": "3e5ad37d12bce9a00f6316d27c7fd08943f0bdd4f07b4133418ca0514d242c02"
+    },
+    {
+      "path": "typed-genuine/spaceFalse-stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "typed-genuine/spaceFalse-cases.txt",
+      "sha256": "414c29ce0984df7f57ed1432783952cb1af3e3d839805ab0b97d3d6e4cfe2f30"
+    },
+    {
+      "path": "typed-genuine/equalsFalsePositive-stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "typed-genuine/equalsFalsePositive-stderr.txt",
+      "sha256": "eaadec49ab6a3f831a90135f6dca2f64da3b81a3769c47c68771efde38c50cac"
+    },
+    {
+      "path": "typed-genuine/positiveEqualsFalse-stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "typed-genuine/positiveEqualsFalse-stderr.txt",
+      "sha256": "8902b32958ec4557e05b639bfb04c828bc73b6ef4127e0027e765140ecca14a1"
+    },
+    {
+      "path": "typed-genuine/equalsTrueRepeated-stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "typed-genuine/equalsTrueRepeated-stderr.txt",
+      "sha256": "65d7758279fd0c64c56e73f7cd26e86af06eb6a54f8a6debc3e717cd2d9c6a4c"
+    },
+    {
+      "path": "typed-genuine/equalsFalseNegative-stdout.txt",
+      "sha256": "df34a2a024d6435fad011dec9601a50bdc7df6e10eada9dc4225b53d6c5038a7"
+    },
+    {
+      "path": "typed-genuine/equalsFalseNegative-stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "typed-genuine/equalsFalseNegative-cases.txt",
+      "sha256": "93f159d701a441837e3a79e059595bf0f5451da8649751b4741a5acae7952f69"
+    }
+  ]
+}

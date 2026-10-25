@@ -1,0 +1,2 @@
+globalThis.__cjsDestructureUnused=(globalThis.__cjsDestructureUnused||0)+1
+module.exports={unused:true}

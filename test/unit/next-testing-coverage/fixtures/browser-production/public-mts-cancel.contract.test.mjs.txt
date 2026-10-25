@@ -1,0 +1,3 @@
+import { expect, test } from 'vitest'
+import { choose } from './subject.mts'
+test('actual public TypeScript cancel after subject execution', async()=>{expect(choose(true)).toBe('yes');console.log('NEXT_COVERAGE_BODY_STARTED');await new Promise(()=>{})})

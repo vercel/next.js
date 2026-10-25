@@ -174,3 +174,59 @@ export function selectRegistryAdditions(options: {
     reason: 'test-registry-addition',
   }
 }
+
+/** A settled custom watcher observes an exact test-file removal without a new run. */
+export function selectRegistryRemovals(options: {
+  previous: WatchRegistrySnapshot | undefined
+  current: WatchRegistrySnapshot | undefined
+  changedPaths: readonly string[] | undefined
+}): string[] | undefined {
+  const { previous, current, changedPaths } = options
+  if (
+    !previous ||
+    !current ||
+    !changedPaths?.length ||
+    previous.configurationRevision !== current.configurationRevision
+  )
+    return
+  const inputs = new Map(current.inputs.map((input) => [input.file, input]))
+  if (
+    inputs.size !== current.inputs.length ||
+    inputs.size !== previous.inputs.length ||
+    new Set(previous.inputs.map((input) => input.file)).size !==
+      previous.inputs.length ||
+    previous.inputs.some(
+      (input) => inputs.get(input.file)?.sourceHash !== input.sourceHash
+    )
+  )
+    return
+  const entries = new Map(previous.entries.map((entry) => [entry.id, entry]))
+  if (
+    entries.size !== previous.entries.length ||
+    new Set(current.entries.map((entry) => entry.id)).size !==
+      current.entries.length
+  )
+    return
+  for (const entry of current.entries) {
+    const old = entries.get(entry.id)
+    if (old?.file !== entry.file || old.sourceHash !== entry.sourceHash) return
+  }
+  const currentIds = new Set(current.entries.map((entry) => entry.id))
+  const currentFiles = new Set(current.entries.map((entry) => entry.file))
+  const removed = new Set(
+    previous.entries
+      .filter((entry) => !currentIds.has(entry.id))
+      .map((entry) => entry.file)
+  )
+  if (
+    !removed.size ||
+    [...removed].some((file) => currentFiles.has(file) || inputs.has(file)) ||
+    changedPaths.some(
+      (file) =>
+        !isAbsolute(file) || resolve(file) !== file || !removed.has(file)
+    ) ||
+    removed.size !== new Set(changedPaths).size
+  )
+    return
+  return [...removed]
+}

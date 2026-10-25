@@ -1,0 +1,4 @@
+globalThis.__nextKindRoot=(globalThis.__nextKindRoot||0)+1
+const evaluation=globalThis.__nextKindRoot
+const dependency=require('./dependency.cjs')
+module.exports=async function*(value='fallback',receiver,...extra){if(value==='self')return this;if(value==='throws')throw new Error('actual expression '+evaluation,{cause:'actual cause'});yield [evaluation,dependency.evaluation,this===receiver,value,extra,dependency];return [evaluation,dependency.evaluation,'closed'];}

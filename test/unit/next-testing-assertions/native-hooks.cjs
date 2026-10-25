@@ -47,7 +47,9 @@ async function main() {
   process.on('unhandledRejection', observe)
   const nativeAssertion = (expect) => {
     const assertion = expect(Promise.resolve(1))
-    const task = primitives.chai.util.flag(assertion, 'vitest-test')
+    const task = primitives.getVitestAssertionTaskRuntime(
+      primitives.chai.util.flag(assertion, 'vitest-test')
+    )
     const thenable = assertion.resolves.toBe(2)
     const promise = task.promises.at(-1)
     assert(promise instanceof Promise)

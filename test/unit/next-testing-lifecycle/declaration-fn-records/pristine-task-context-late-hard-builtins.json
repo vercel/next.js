@@ -1,0 +1,373 @@
+{
+  "rows": [
+    {
+      "stream": "stdout",
+      "prefix": "DECLARATION_FN",
+      "value": {
+        "kind": "late-hard-builtins",
+        "trace": [
+          {
+            "phase": "foreign",
+            "name": "toBeTypeOf",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 1,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toBeDefined",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 2,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toBeUndefined",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 3,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toBeNull",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 4,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toBeNaN",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 5,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toBeTruthy",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 6,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toBeFalsy",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 7,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toBeGreaterThan",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 8,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toBeGreaterThanOrEqual",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 9,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toBeLessThan",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 10,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toBeLessThanOrEqual",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 11,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toBeCloseTo",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 12,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toBeInstanceOf",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 13,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toContain",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 14,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toContainEqual",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 15,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toHaveLength",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 16,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "name": "toMatch",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 17,
+            "callerCount": 0
+          },
+          {
+            "phase": "foreign",
+            "kind": "negative",
+            "error": {
+              "name": "AssertionError",
+              "message": "expected +0 to not be falsy"
+            }
+          },
+          {
+            "phase": "foreign",
+            "kind": "reads",
+            "reads": 2
+          },
+          {
+            "kind": "identities",
+            "sameOwner": true,
+            "differentCaller": true
+          },
+          {
+            "phase": "afterAll",
+            "name": "toBeTypeOf",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 19,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toBeDefined",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 20,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toBeUndefined",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 21,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toBeNull",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 22,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toBeNaN",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 23,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toBeTruthy",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 24,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toBeFalsy",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 25,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toBeGreaterThan",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 26,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toBeGreaterThanOrEqual",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 27,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toBeLessThan",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 28,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toBeLessThanOrEqual",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 29,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toBeCloseTo",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 30,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toBeInstanceOf",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 31,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toContain",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 32,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toContainEqual",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 33,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toHaveLength",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 34,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "name": "toMatch",
+            "returnedType": "object",
+            "sameReceiver": false,
+            "absentThen": true,
+            "ownerCount": 35,
+            "callerCount": 0
+          },
+          {
+            "phase": "afterAll",
+            "kind": "negative",
+            "error": {
+              "name": "AssertionError",
+              "message": "expected +0 to not be falsy"
+            }
+          },
+          {
+            "phase": "afterAll",
+            "kind": "reads",
+            "reads": 4
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "creator hard builtin owner",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeaders": []
+    },
+    {
+      "name": "foreign hard builtin caller",
+      "status": "passed",
+      "failureCount": 0,
+      "failureHeaders": []
+    }
+  ],
+  "counts": {
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "exit": 0
+}

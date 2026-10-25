@@ -1,0 +1,558 @@
+{
+  "accessor-iterator": {
+    "rows": [
+      [
+        {
+          "stage": "body-return"
+        },
+        {
+          "stage": "queue-get",
+          "read": 1
+        },
+        {
+          "stage": "queue-get",
+          "read": 2
+        },
+        {
+          "stage": "iterator-get"
+        },
+        {
+          "stage": "iterator-call",
+          "sameThis": true
+        },
+        {
+          "stage": "then-get"
+        },
+        {
+          "stage": "then-call",
+          "sameThis": true,
+          "args": 2
+        },
+        {
+          "stage": "afterEach",
+          "errors": []
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "actual public queue accessor and iterator",
+        "status": "passed",
+        "failureMessages": []
+      }
+    ],
+    "success": true,
+    "exit": 0
+  },
+  "falsy-rejections": {
+    "rows": [
+      [
+        {
+          "stage": "body-return",
+          "length": 5
+        },
+        {
+          "stage": "afterEach",
+          "errors": []
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "actual public queue ignores falsy rejections",
+        "status": "passed",
+        "failureMessages": []
+      }
+    ],
+    "success": true,
+    "exit": 0
+  },
+  "ordered-rejections": {
+    "rows": [
+      [
+        {
+          "stage": "body-return"
+        },
+        {
+          "stage": "afterEach",
+          "errors": ["queue first", "queue second"]
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "actual public queue rejection order",
+        "status": "failed",
+        "failureMessages": ["queue first", "queue second"]
+      }
+    ],
+    "success": false,
+    "exit": 1
+  },
+  "mixed-release": {
+    "rows": [
+      [
+        {
+          "stage": "body-return",
+          "length": 2
+        },
+        {
+          "stage": "manual-then"
+        },
+        {
+          "stage": "release-native"
+        },
+        {
+          "stage": "native-settled"
+        },
+        {
+          "stage": "afterEach",
+          "errors": []
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "actual public manual thenable releases native assertion",
+        "status": "passed",
+        "failureMessages": []
+      }
+    ],
+    "success": true,
+    "exit": 0
+  },
+  "replace-empty": {
+    "rows": [
+      [
+        {
+          "stage": "body-return"
+        },
+        {
+          "stage": "afterEach",
+          "errors": []
+        },
+        {
+          "stage": "release-native"
+        },
+        {
+          "stage": "native-settled"
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "actual public empty replacement releases body before native gate",
+        "status": "passed",
+        "failureMessages": []
+      }
+    ],
+    "success": true,
+    "exit": 0
+  },
+  "delete-queue": {
+    "rows": [
+      [
+        {
+          "stage": "body-return"
+        },
+        {
+          "stage": "afterEach",
+          "errors": []
+        },
+        {
+          "stage": "release-native"
+        },
+        {
+          "stage": "native-settled"
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "actual public queue deletion releases body before native gate",
+        "status": "passed",
+        "failureMessages": []
+      }
+    ],
+    "success": true,
+    "exit": 0
+  },
+  "swap-getter": {
+    "rows": [
+      [
+        {
+          "stage": "body-return"
+        },
+        {
+          "stage": "queue-get",
+          "read": 1
+        },
+        {
+          "stage": "queue-get",
+          "read": 2
+        },
+        {
+          "stage": "second-then"
+        },
+        {
+          "stage": "afterEach",
+          "errors": []
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "actual public getter selects second iterable",
+        "status": "passed",
+        "failureMessages": []
+      }
+    ],
+    "success": true,
+    "exit": 0
+  },
+  "iterator-throw": {
+    "rows": [
+      [
+        {
+          "stage": "body-return"
+        },
+        {
+          "stage": "iterator-call"
+        },
+        {
+          "stage": "afterEach",
+          "errors": ["queue iterator failure"]
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "actual public iterator rejection is observed immediately",
+        "status": "failed",
+        "failureMessages": ["queue iterator failure"]
+      }
+    ],
+    "success": false,
+    "exit": 1
+  },
+  "body-throw": {
+    "rows": [
+      [
+        {
+          "stage": "body-throw"
+        },
+        {
+          "stage": "afterEach",
+          "errors": ["actual body failure"]
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "actual body throw bypasses the public queue",
+        "status": "failed",
+        "failureMessages": ["actual body failure"]
+      }
+    ],
+    "success": false,
+    "exit": 1
+  },
+  "false-queue": {
+    "rows": [
+      [
+        {
+          "stage": "body-return"
+        },
+        {
+          "stage": "afterEach",
+          "errors": []
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "actual false public queue is skipped",
+        "status": "passed",
+        "failureMessages": []
+      }
+    ],
+    "success": true,
+    "exit": 0
+  },
+  "beforeEach-detach": {
+    "rows": [
+      [
+        {
+          "stage": "beforeEach-return",
+          "length": 1
+        },
+        {
+          "stage": "body-return"
+        },
+        {
+          "stage": "afterEach",
+          "errors": []
+        },
+        {
+          "stage": "release-native"
+        },
+        {
+          "stage": "native-settled"
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "actual public body queue also owns beforeEach native promises",
+        "status": "passed",
+        "failureMessages": []
+      }
+    ],
+    "success": true,
+    "exit": 0
+  },
+  "body-throw-native": {
+    "rows": [
+      [
+        {
+          "stage": "body-throw"
+        },
+        {
+          "stage": "afterEach",
+          "errors": ["actual body failed before queue"]
+        },
+        {
+          "stage": "release-native"
+        },
+        {
+          "stage": "unexpected-queue-get"
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "actual body throw bypasses public and private native waits",
+        "status": "failed",
+        "failureMessages": ["actual body failed before queue"]
+      }
+    ],
+    "success": false,
+    "exit": 1
+  },
+  "late-native": {
+    "rows": [
+      [
+        {
+          "stage": "body-return"
+        },
+        {
+          "stage": "manual-then"
+        },
+        {
+          "stage": "afterEach",
+          "errors": []
+        },
+        {
+          "stage": "release-native"
+        },
+        {
+          "stage": "native-settled"
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "manual thenable native creation follows the actual iteration boundary",
+        "status": "passed",
+        "failureMessages": []
+      }
+    ],
+    "success": true,
+    "exit": 0
+  },
+  "retry-retention": {
+    "rows": [
+      [
+        {
+          "stage": "body",
+          "attempt": 1,
+          "same": true
+        },
+        {
+          "stage": "body-return",
+          "length": 1
+        },
+        {
+          "stage": "manual-then",
+          "attempt": 1
+        },
+        {
+          "stage": "afterEach",
+          "errors": ["manual first"]
+        },
+        {
+          "stage": "body",
+          "attempt": 2,
+          "same": true
+        },
+        {
+          "stage": "body-return",
+          "length": 1
+        },
+        {
+          "stage": "manual-then",
+          "attempt": 2
+        },
+        {
+          "stage": "afterEach",
+          "errors": ["manual first"]
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "actual public retry retains the authored queue",
+        "status": "passed",
+        "failureMessages": ["manual first"]
+      }
+    ],
+    "success": true,
+    "exit": 0
+  },
+  "first-getter-failure": {
+    "rows": [
+      [
+        {
+          "stage": "body-return"
+        },
+        {
+          "stage": "queue-get"
+        },
+        {
+          "stage": "afterEach",
+          "errors": ["first queue getter"]
+        },
+        {
+          "stage": "release-native"
+        },
+        {
+          "stage": "queue-get"
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "actual public first getter failure is observed without another join",
+        "status": "failed",
+        "failureMessages": ["first queue getter"]
+      }
+    ],
+    "success": false,
+    "exit": 1
+  },
+  "second-getter-failure": {
+    "rows": [
+      [
+        {
+          "stage": "body-return"
+        },
+        {
+          "stage": "queue-get",
+          "count": 1
+        },
+        {
+          "stage": "queue-get",
+          "count": 2
+        },
+        {
+          "stage": "afterEach",
+          "errors": ["second queue getter"]
+        },
+        {
+          "stage": "release-native"
+        },
+        {
+          "stage": "queue-get",
+          "count": 3
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "actual public second getter failure is observed without another join",
+        "status": "failed",
+        "failureMessages": ["second queue getter"]
+      }
+    ],
+    "success": false,
+    "exit": 1
+  },
+  "primitive-reasons": {
+    "rows": [
+      [
+        {
+          "stage": "body-return"
+        },
+        {
+          "stage": "afterEach",
+          "errors": ["queue string", "7", "true"]
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "actual public queue preserves truthy primitive rejection reasons",
+        "status": "failed",
+        "failureMessages": ["queue string", "7", "true"]
+      }
+    ],
+    "success": false,
+    "exit": 1
+  },
+  "rejection-count-skip": {
+    "rows": [
+      [
+        {
+          "stage": "body-return",
+          "assertions": 1
+        },
+        {
+          "stage": "afterEach",
+          "errors": ["only manual queue failure"]
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "actual public queue failure skips assertion count failure",
+        "status": "failed",
+        "failureMessages": ["only manual queue failure"]
+      }
+    ],
+    "success": false,
+    "exit": 1
+  },
+  "falsy-count-success": {
+    "rows": [
+      [
+        {
+          "stage": "body-return",
+          "assertions": 1
+        },
+        {
+          "stage": "afterEach",
+          "errors": []
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "actual public falsy rejection still checks exact assertion count",
+        "status": "passed",
+        "failureMessages": []
+      }
+    ],
+    "success": true,
+    "exit": 0
+  }
+}

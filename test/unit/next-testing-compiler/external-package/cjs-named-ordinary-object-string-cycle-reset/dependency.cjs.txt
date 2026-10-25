@@ -1,0 +1,2 @@
+globalThis.__cjsDestructureDependency=(globalThis.__cjsDestructureDependency||0)+1
+module.exports={evaluation:globalThis.__cjsDestructureDependency,marker:{} ,root:require('./root.cjs')}

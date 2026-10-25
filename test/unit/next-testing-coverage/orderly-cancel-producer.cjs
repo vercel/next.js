@@ -13,6 +13,16 @@ const scenario =
   process.argv.find((value) => value.startsWith('--scenario='))?.slice(11) ??
   'pending'
 
+const snapshotMode =
+  process.argv
+    .find((value) => value.startsWith('--snapshot-mode='))
+    ?.slice(16) ?? 'none'
+const snapshotIntent = process.argv
+  .find((value) => value.startsWith('--snapshot-intent='))
+  ?.slice(18)
+const expectedFailure =
+  !!control || (!!snapshotIntent && snapshotIntent !== 'read-only')
+
 async function main() {
   if (!mode) {
     let profiles = 0
@@ -26,7 +36,12 @@ async function main() {
       ]) {
         const child = spawnSync(
           process.execPath,
-          [__filename, `--mode=${selected}`, `--scenario=${variant}`],
+          [
+            __filename,
+            `--mode=${selected}`,
+            `--scenario=${variant}`,
+            `--snapshot-mode=${snapshotMode}`,
+          ],
           {
             env: { ...process.env, NODE_ENV: selected },
             encoding: 'utf8',
@@ -70,7 +85,7 @@ async function main() {
   const expected = JSON.parse(
     fs.readFileSync(path.join(sources, 'pristine.json'))
   )[mode][scenario]
-  const authored = fs.readFileSync(
+  let authored = fs.readFileSync(
     path.join(
       sources,
       {
@@ -82,6 +97,28 @@ async function main() {
       }[scenario]
     )
   )
+  if (snapshotIntent) {
+    assert.equal(scenario, 'pending')
+    const assertion = {
+      file: `  expect('snapshot writer').toMatchSnapshot()`,
+      inline: `  expect('snapshot writer').toMatchInlineSnapshot()`,
+      path: `  await expect('snapshot writer').toMatchFileSnapshot('./authored-output.txt')`,
+      'read-only': `  expect('snapshot reader').toMatchInlineSnapshot('"snapshot reader"')`,
+      'cleanup-failure': `  expect('snapshot writer').toMatchSnapshot()`,
+    }[snapshotIntent]
+    assert.equal(typeof assertion, 'string')
+    authored = Buffer.from(
+      authored
+        .toString()
+        .replace(
+          "  record('body-start')",
+          assertion + "\n  record('body-start')"
+        ) +
+        (snapshotIntent === 'cleanup-failure'
+          ? "\nafterEach(() => { throw new Error('actual snapshot cleanup failure') })\n"
+          : '')
+    )
+  }
   fs.writeFileSync(path.join(root, 'contract.case.mjs'), authored)
   fs.copyFileSync(
     path.join(
@@ -215,12 +252,17 @@ async function main() {
         hookTimeout: 1000,
         fileTimeout: 20000,
         coverage: { version: 1, kind: 'node-line' },
+        snapshotUpdateMode: snapshotMode,
         onEvent(event) {
           events.push(event)
         },
         async onCoverage(capture) {
           captureAttempts++
-          assert.equal(control, undefined, 'An invalid finalization published.')
+          assert.equal(
+            expectedFailure,
+            false,
+            'An invalid finalization published.'
+          )
           assert.equal(observedExecution, true)
           assert.equal(capture.complete, true)
           assert.equal(lifetime.signal.aborted, false)
@@ -271,11 +313,11 @@ async function main() {
           : {}),
       }
     ).catch((error) => {
-      if (!control) throw error
+      if (!expectedFailure) throw error
       assert(error instanceof Error)
       return { status: 'failed' }
     })
-    if (control) {
+    if (expectedFailure) {
       assert.equal(completion.status, 'failed')
       assert.equal(observedExecution, true)
       assert.equal(captureAttempts, 0)
@@ -289,8 +331,16 @@ async function main() {
         cacheDirectories.every((directory) => !fs.existsSync(directory)),
         true
       )
+      assert.deepEqual(fs.readFileSync(entry.file), authored)
+      assert.equal(fs.existsSync(path.join(root, '__snapshots__')), false)
+      assert.equal(fs.existsSync(path.join(root, 'authored-output.txt')), false)
       process.stdout.write(
-        JSON.stringify({ mode, control, captures: 0, closedWorkers: 1 }) + '\n'
+        JSON.stringify({
+          mode,
+          control: control ?? `snapshot-${snapshotIntent}`,
+          captures: 0,
+          closedWorkers: 1,
+        }) + '\n'
       )
       return
     }

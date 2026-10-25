@@ -256,6 +256,7 @@ pub struct NodeJsChunkingContext {
     /// See [`NodeJsChunkingContextBuilder::shared_runtime_chunk`].
     shared_runtime_chunk: bool,
     native_test_import_coverage_roles: bool,
+    native_test_commonjs_promise_namespaces: bool,
 }
 
 impl NodeJsChunkingContext {
@@ -303,6 +304,7 @@ impl NodeJsChunkingContext {
                 hash_salt: ResolvedVc::cell(RcStr::default()),
                 shared_runtime_chunk: false,
                 native_test_import_coverage_roles: false,
+                native_test_commonjs_promise_namespaces: false,
             },
         }
     }
@@ -333,6 +335,19 @@ impl NodeJsChunkingContext {
         let mut context = self.clone();
         context.native_test_import_coverage_roles = true;
         Ok(context.cell())
+    }
+
+    /// Only an actual Node test graph with certified leaf Promise owners opts in.
+    #[turbo_tasks::function]
+    pub fn with_native_test_commonjs_promise_namespaces(&self) -> Vc<Self> {
+        let mut context = self.clone();
+        context.native_test_commonjs_promise_namespaces = true;
+        context.cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn native_test_commonjs_promise_namespaces(&self) -> Vc<bool> {
+        Vc::cell(self.native_test_commonjs_promise_namespaces)
     }
 
     /// Returns the kind of runtime to include in output chunks.
