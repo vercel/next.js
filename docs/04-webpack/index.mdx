@@ -1,0 +1,47 @@
+---
+title: webpack
+description: Next.js supports webpack as an alternative to the default Turbopack bundler, behind the --webpack flag.
+related:
+  title: Next Steps
+  description: Learn how to customize the webpack config and reduce its memory usage.
+  links:
+    - webpack/configuration
+    - webpack/memory
+---
+
+[Turbopack](/docs/turbopack) is the default bundler in Next.js. Webpack is still supported, and you can opt into it per command with the `--webpack` flag:
+
+```json filename="package.json"
+{
+  "scripts": {
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
+    "start": "next start"
+  }
+}
+```
+
+There is no `--no-turbopack` flag. Selecting webpack is always done with `--webpack`.
+
+## When to use webpack
+
+Most applications should use the default. Reach for webpack when you depend on something Turbopack does not support:
+
+- **Webpack plugins.** Turbopack supports [webpack loaders](/docs/turbopack/configuration#configuring-webpack-loaders) but not the plugin system.
+- **Custom Sass functions.** JavaScript functions passed through `sassOptions.functions` require webpack's Node.js-based sass-loader.
+- **Yarn PnP, `experimental.urlImports`, or `experimental.esmExternals`.**
+- **Platforms without native bindings.** On platforms such as FreeBSD and OpenBSD, Next.js falls back to WebAssembly bindings, which do not include Turbopack.
+
+For the full list of behavior differences and unsupported features, see [migrating from webpack](/docs/turbopack/migrating-from-webpack).
+
+## Configuration
+
+Webpack is configured through the `webpack` function in `next.config.js`, which receives the config Next.js generated and returns a modified one. See [`webpack`](/docs/webpack/configuration) for the reference.
+
+Turbopack-specific options under the `turbopack` key have no effect on a webpack build, and the `webpack` function is not read by Turbopack.
+
+## Related tooling
+
+- [Reducing webpack memory usage](/docs/webpack/memory) covers the build worker, cache, and memory options.
+- [Rspack](/docs/webpack/rspack) is a community-maintained, webpack-compatible alternative.
+- [Optimizing package bundling](/docs/app/guides/package-bundling) covers analyzing bundle contents with either bundler.
