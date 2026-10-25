@@ -15,6 +15,8 @@ import type {
   MemoryEvictionMode,
   NapiTurbopackGcOptions,
   ServerHmrVersion as NativeServerHmrVersion,
+  LockfileError,
+  LockfileResult,
   projectCompilationEventsSubscribe,
   projectFeatureUsage,
   projectInvalidateFileSystemCache,
@@ -24,6 +26,7 @@ import type {
 } from './generated-native'
 
 export type { TraceServerHandle, TraceQueryOptions, TraceQueryResult }
+export type { LockfileError }
 
 export type { NapiTurboEngineOptions as TurboEngineOptions }
 
@@ -103,8 +106,8 @@ export interface Binding {
   lockfileTryAcquire(
     path: string,
     content?: string | null
-  ): Promise<Lockfile | null>
-  lockfileTryAcquireSync(path: string, content?: string | null): Lockfile | null
+  ): Promise<LockfileResult>
+  lockfileTryAcquireSync(path: string, content?: string | null): LockfileResult
   lockfileUnlock(lockfile: Lockfile): Promise<void>
   lockfileUnlockSync(lockfile: Lockfile): void
   codeFrameColumns(

@@ -86,7 +86,6 @@ import {
 } from '../../../client/components/http-access-fallback/http-access-fallback'
 import { RedirectStatusCode } from '../../../client/components/redirect-status-code'
 import { INFINITE_CACHE } from '../../../lib/constants'
-import { executeRevalidates } from '../../revalidation-utils'
 import { trackPendingModules } from '../../app-render/module-loading/track-module-loading.external'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import { LazyModule } from '../../lib/lazy-module'
@@ -395,7 +394,8 @@ export class AppRouteRouteModule extends RouteModule<
     requestStore: RequestStore,
     context: AppRouteRouteHandlerContext
   ): void {
-    const maybeRevalidatesPromise = executeRevalidates(workStore)
+    const maybeRevalidatesPromise =
+      workStore.afterContext.executeRevalidations(workStore)
 
     if (maybeRevalidatesPromise !== false) {
       context.renderOpts.pendingWaitUntil = maybeRevalidatesPromise.finally(
@@ -630,7 +630,7 @@ export class AppRouteRouteModule extends RouteModule<
         ) {
           // The handler returned a Thenable. We'll listen for rejections to determine
           // if the route is erroring for dynamic reasons.
-          ;(prospectiveResult as any as Promise<unknown>).then(
+          ;(prospectiveResult as Promise<unknown>).then(
             () => {},
             (err) => {
               if (prospectiveController.signal.aborted) {

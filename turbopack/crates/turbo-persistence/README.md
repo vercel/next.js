@@ -182,7 +182,6 @@ Logically keys are ordered by hash (this is how we chose file and block assignme
 - **With hash (types 1 and 3):** sorted by `(key hash, key)`.
 - **No hash (types 2 and 4):** sorted by **key** alone.
 
-
 ##### Key-value tombstones
 
 A key-value tombstone names the exact pair to remove, so it must carry a copy of the deleted
@@ -261,9 +260,25 @@ The checksum is verified on the compressed data **before** decompression when th
 Opened meta files are stored in per-family shards. A lookup scans only the requested family's meta
 files, from newest to oldest; there is no ordering dependency between families.
 
-- We have all SST files memory mapped
+SST files are opened lazily. Opening the database only loads the meta files (see
+[Opening](#opening)). An SST file is opened the first time a lookup gets past its meta file
+checks (hash range and AMQF), and stays open, cached on its meta file entry. How it is opened
+depends on the access mode:
+
+- `AccessMode::Mmap`: the SST file is memory mapped, and key and value blocks are read from the
+  mapping.
+- `AccessMode::File`: the SST file is not memory mapped. Key and value blocks are read on demand
+  with positioned reads (`pread`).
+
+In both modes, opening an SST file reads only its block offset table and index block, and keeps
+them in memory (see [Opening](#opening)). Key and value blocks are read when a lookup needs them.
+So per-open memory cost scales with the meta files (their AMQFs), while SST files cost memory only
+once they are actually touched.
+
 - for each meta file of the queried key family, newest first
-  - Check AMQF from SST file for key existence -> if not continue
+  - Check the hash range of the SST file -> if the key hash is outside, continue
+  - Check AMQF from the meta file for key existence -> if not continue
+  - Open the SST file if it is not open yet
   - let block = 0
   - loop
     - Index Block: find key range that contains the key by binary search using the **hash** of the key
@@ -272,7 +287,7 @@ files, from newest to oldest; there is no ordering dependency between families.
     - Key Block: find key by binary search, comparing `(hash, key)` in blocks that store a hash and
       the key alone in blocks that do not (see [Entry ordering](#entry-ordering))
       - found -> lookup value from value block, return
-          - read value as inline, or by using the block index in the key to find the value elsewhere in the file.
+        - read value as inline, or by using the block index in the key to find the value elsewhere in the file.
       - not found -> break
 
 ### Memory map advice
@@ -281,8 +296,6 @@ Lookups usually touch only some blocks of an SST file, and a block is read in fu
 is used (checksum verification and decompression). On Unix, the lookup mapping therefore uses:
 
 - `MADV_RANDOM` for the whole file, so a fault doesn't read around into neighboring blocks.
-- `MADV_WILLNEED` for the block offset table when the file is opened, since every block access
-  reads it.
 - A best-effort `MADV_WILLNEED` for a block that spans more than one page, before any of its bytes is
   read: on its first full read in this open, and on every read of a medium value block (those bypass
   the block cache). Without the hint, `MADV_RANDOM` would fault such a block in one page at a time.
@@ -292,6 +305,9 @@ If the system page size can't be determined, block hints are skipped, so `MADV_R
 either and the mapping keeps the default advice.
 
 Compaction reads SST files through separate `MADV_SEQUENTIAL` mappings.
+
+The block offset table and the index block aren't read through either mapping: see
+[Opening](#opening).
 
 ## Writing
 
@@ -414,7 +430,15 @@ Bottom merges are paced by the fresh (not yet compacted) files of the family: th
 - Read the `CURRENT` file
 - Delete all files with a higher sequence number than the one in the `CURRENT` file.
 - Read all `*.del` files and delete the files that are listed in there.
-- Read all `*.sst` files and memory map them.
+- Open all remaining `*.meta` files (memory mapped with `AccessMode::Mmap`, read onto the heap with
+  `AccessMode::File`), parse their AMQFs and drop entries for SST files that are obsolete.
+- SST and blob files are not opened here. An SST file is opened lazily, the first time a lookup
+  needs it (see [Reading](#reading)): memory mapped in mmap access mode, or read with positional
+  reads in file access mode. Either way, its block-offset table (4 bytes per block) is read with one
+  positional read (`pread`) and decoded in place. It is validated once (every block holds at least
+  its header and ends before the table) and kept in memory, so locating a block neither reads the
+  file nor re-checks the offsets. The index block is read the same way, verified, and kept in memory
+  for every lookup. Blob files are read when a value references them.
 
 ## Closing
 

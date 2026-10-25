@@ -1385,10 +1385,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
         let mut guard = self.acquire_write_operation("compaction")?;
 
-        // Free block caches and SST mmaps before compaction. The block caches
-        // are not used during compaction (we iterate uncached, through separate
-        // `MADV_SEQUENTIAL` mmaps), so clearing them upfront frees memory for
-        // the merge work.
+        // Free block caches and SST mmaps before compaction. Neither is used during
+        // compaction (we iterate uncached with `pread`), so clearing them upfront frees
+        // memory for the merge work.
         self.clear_cache();
 
         let mut sequence_number;
@@ -1697,9 +1696,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     })
                                 }
                             };
-                            // Open SST files independently for compaction.
-                            // Uses MADV_SEQUENTIAL for better OS page management
-                            // and avoids caching mmaps on MetaEntry's OnceLock.
+                            // Open SST files independently for compaction. They are read
+                            // with `pread`, which keeps the memory of an open file to the
+                            // blocks it currently holds, and doesn't cache an mmap on
+                            // MetaEntry's OnceLock.
                             let iters = indices
                                 .iter()
                                 .map(|&index| {
@@ -1711,7 +1711,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         path,
                                         entry.sst_metadata(),
                                         meta_file.compression(),
-                                        self.config.access_mode,
                                     )
                                 })
                                 .collect::<Result<Vec<_>>>()?;
@@ -2643,7 +2642,7 @@ fn rebuild_shard_index<const FAMILIES: usize>(
 /// `FamilyConfig::initial_shard_bits`, is recorded in every meta file, and follows the size of the
 /// bottom runs, which is about the size of the live data after compaction (see
 /// [`ShardBits::maybe_reshard`]). Before the first bottom merge, it follows the size of all files,
-/// so that the first bottom merges already split at a fitting shard count.
+/// but only grows.
 fn shard_bits<const FAMILIES: usize>(
     config: &DbConfig<FAMILIES>,
     meta_files_by_family: &[Vec<MetaFile>; FAMILIES],
@@ -2673,11 +2672,17 @@ fn shard_bits<const FAMILIES: usize>(
         }
         // Before the first bottom merge there is no bottom run, so use the size of all files. They
         // are only the first commits, so they hold little garbage.
-        let estimated_bytes = if covered_shards.is_empty() {
-            all_bytes
-        } else {
-            bottom_bytes.saturating_mul(u64::from(current.count())) / covered_shards.len() as u64
-        };
+        //
+        // But don't shrink yet. The first bottom merges rewrite the whole family, and shrinking
+        // would combine the files of multiple shards into one large job instead of several
+        // small ones that run in parallel. Once the shards have bottom runs, shrinking is
+        // free: the disjoint bottom runs of the former shards together are the bottom run
+        // of the combined shard.
+        if covered_shards.is_empty() {
+            return current.maybe_grow(all_bytes, config.target_shard_size);
+        }
+        let estimated_bytes =
+            bottom_bytes.saturating_mul(u64::from(current.count())) / covered_shards.len() as u64;
         current.maybe_reshard(estimated_bytes, config.target_shard_size)
     })
 }

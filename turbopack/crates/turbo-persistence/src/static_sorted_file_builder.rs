@@ -1860,8 +1860,9 @@ mod tests {
         Ok(())
     }
 
-    /// `MADV_WILLNEED` covers the block-offset table at open, and then only multi-page blocks:
-    /// key and small value blocks on their first read, medium value blocks on every read.
+    /// `MADV_WILLNEED` covers only multi-page blocks: key and small value blocks on their first
+    /// read, medium value blocks on every read. The block-offset table and the index block are read
+    /// with `pread` at open, so they are never hinted.
     #[cfg(all(feature = "mmap", unix))]
     #[test]
     fn will_need_hints_multi_page_blocks_on_first_read() -> Result<()> {
@@ -1877,15 +1878,12 @@ mod tests {
         let dir = tempfile::tempdir()?;
         let entries = will_need_entries();
         let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
-        let file_len = std::fs::metadata(dir.path().join("00000001.sst"))?.len() as usize;
         will_need_log::take();
 
-        // Open: the block-offset table, then the index block if it spans several pages.
+        // Open: nothing, since the table and the index block are read with `pread`.
         let sst = open_sst(dir.path(), 1, &meta)?;
         let opened = will_need_log::take();
-        let table_start = file_len - meta.block_count as usize * 4;
-        assert_eq!(opened.first(), Some(&(table_start..file_len)));
-        assert!(opened[1..].iter().all(multi_page), "{opened:?}");
+        assert!(opened.is_empty(), "{opened:?}");
 
         // First pass: each multi-page key and small value block is hinted once.
         let kc = make_cache();

@@ -14,6 +14,10 @@ import { readFulfilledValue } from '../../../shared/lib/rsc-transport'
 import {
   NEXT_DID_POSTPONE_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_PREFETCH_STATIC,
+  NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH,
+  NEXT_ROUTER_PREFETCH_RUNTIME_SHELL,
+  NEXT_ROUTER_PREFETCH_RUNTIME_NAVIGATION,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_ROUTER_STALE_TIME_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
@@ -1836,7 +1840,7 @@ export async function fetchRouteOnCacheMiss(
 
   const headers: RequestHeaders = {
     [RSC_HEADER]: '1',
-    [NEXT_ROUTER_PREFETCH_HEADER]: '1',
+    [NEXT_ROUTER_PREFETCH_HEADER]: NEXT_ROUTER_PREFETCH_STATIC,
     [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]: segmentPath,
   }
   if (nextUrl !== null) {
@@ -2216,7 +2220,7 @@ async function fetchAndWritePerSegmentPrefetchResponse(
 
   const headers: RequestHeaders = {
     [RSC_HEADER]: '1',
-    [NEXT_ROUTER_PREFETCH_HEADER]: '1',
+    [NEXT_ROUTER_PREFETCH_HEADER]: NEXT_ROUTER_PREFETCH_STATIC,
     [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]: normalizedRequestKey,
   }
   if (nextUrl !== null) {
@@ -2329,7 +2333,7 @@ async function fetchAndWritePerSegmentPrefetchResponse(
   } else {
     try {
       shellResponse = await decodeBufferedResponse<PrefetchFlightResponse>(
-        buffer.subarray(0, stageByteLengths[0]),
+        buffer.subarray(0, stageByteLengths[AppStage.Shell]),
         headers
       )
     } catch {
@@ -2340,6 +2344,24 @@ async function fetchAndWritePerSegmentPrefetchResponse(
       // writeResponsePayloadsIntoCache.)
       shellResponse = null
     }
+  }
+
+  // If the response lists where the prefetch stage ends, decode the bytes up
+  // to there, just to read `u`. That tells us whether anything up to the end
+  // of the prefetch stage read runtime data. If the prefix can't be decoded,
+  // we only use the full payload's `u`, as if no offset was listed.
+  const prefetchStageByteLength: number | undefined =
+    stageByteLengths?.[AppStage.Prefetch]
+  let prefetchStageNeedsRuntimeRequest: PrefetchFlightResponse['u'] = undefined
+  if (prefetchStageByteLength !== undefined) {
+    try {
+      const prefetchStageResponse =
+        await decodeBufferedResponse<PrefetchFlightResponse>(
+          buffer.subarray(0, prefetchStageByteLength),
+          headers
+        )
+      prefetchStageNeedsRuntimeRequest = prefetchStageResponse.u
+    } catch {}
   }
 
   // The pathname the page was rendered for, derived the same way the route
@@ -2383,6 +2405,7 @@ async function fetchAndWritePerSegmentPrefetchResponse(
     stage,
     serverResponse,
     shellResponse,
+    prefetchStageNeedsRuntimeRequest,
     null,
     // The payloads are root-anchored (no base tree), so there's no
     // prediction to diverge from.
@@ -2620,18 +2643,29 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
   if (completeness === Completeness.FullyComplete) {
     if (stage === AppStage.Shell) {
       // The legacy loading-boundary prefetch.
-      headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
+      headers[NEXT_ROUTER_PREFETCH_HEADER] = NEXT_ROUTER_PREFETCH_STATIC
     } else {
       // We omit the prefetch header from a legacy full prefetch because it's
       // essentially just a navigation request that happens ahead of time —
       // it should include all the same data in the response.
     }
-  } else if (stage === AppStage.Shell) {
-    // A runtime prefetch of the shell.
-    headers[NEXT_ROUTER_PREFETCH_HEADER] = '3'
   } else {
-    // A runtime prefetch up to the prefetch stage.
-    headers[NEXT_ROUTER_PREFETCH_HEADER] = '2'
+    switch (stage) {
+      case AppStage.Shell:
+        headers[NEXT_ROUTER_PREFETCH_HEADER] =
+          NEXT_ROUTER_PREFETCH_RUNTIME_SHELL
+        break
+      case AppStage.Prefetch:
+        headers[NEXT_ROUTER_PREFETCH_HEADER] =
+          NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH
+        break
+      case AppStage.Navigation:
+        headers[NEXT_ROUTER_PREFETCH_HEADER] =
+          NEXT_ROUTER_PREFETCH_RUNTIME_NAVIGATION
+        break
+      default:
+        stage satisfies never
+    }
   }
 
   try {
@@ -2734,14 +2768,28 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
     const buildId =
       response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b
 
-    // Cut the shell out of the response, if it has one. We can only do that
-    // if we kept the response's bytes.
-    const shellResponse =
-      responseChunks !== null
-        ? await resolveShellStageResponse(responseChunks, serverData, headers)
-        : null
-    // Every prefix has been cut, so stop keeping the response's bytes.
-    responseChunks = null
+    // Cut the shell out of the response, if it has one, and decode up to the
+    // end of the prefetch stage, just to read `u`. If that prefix can't be
+    // decoded, we only use the full payload's `u`. We can only do this if we
+    // kept the response's bytes.
+    let shellResponse: DynamicNavigationFlightResponse | null = null
+    let prefetchStageResponse: DynamicNavigationFlightResponse | null = null
+    if (responseChunks !== null) {
+      shellResponse = await resolveStageResponse(
+        responseChunks,
+        serverData,
+        AppStage.Shell,
+        headers
+      )
+      prefetchStageResponse = await resolveStageResponse(
+        responseChunks,
+        serverData,
+        AppStage.Prefetch,
+        headers
+      )
+      // Every prefix has been cut, so stop keeping the response's bytes.
+      responseChunks = null
+    }
 
     // Runtime prefetch responses are partial when the server marks the
     // response as '~' (Partial). Legacy dynamic prefetch responses are always
@@ -2757,16 +2805,27 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
     const fullPayloadReadRuntimeData =
       serverData.u !== undefined &&
       readFulfilledValue(serverData.u, false, /* rejectedValue */ true) === true
+    // If we couldn't cut out the prefetch stage, we go by the full payload.
+    const prefetchStageReadRuntimeData =
+      prefetchStageResponse?.u === undefined ||
+      readFulfilledValue(
+        prefetchStageResponse.u,
+        false,
+        /* rejectedValue */ true
+      ) === true
     if (
       completeness === Completeness.CacheComplete &&
-      fullPayloadReadRuntimeData
+      fullPayloadReadRuntimeData &&
+      (stage === AppStage.Navigation || prefetchStageReadRuntimeData)
     ) {
       // We sent a runtime request, but got back a static prerender that
       // still needs runtime data, for example a stale prerender. A runtime
       // request that comes back short of what it asked for is a failed
       // attempt. We reject the spawned entries, so their backoff limits how
       // often we retry. The payload is still written, but it doesn't replace a
-      // rejected entry.
+      // rejected entry. A link that asked for the navigation stage can't use a
+      // prerender that read runtime data at all, even if its prefetch stage is
+      // cache complete.
       rejectSegmentEntriesIfStillPending(
         spawnedEntries,
         now + REJECTION_BACKOFF_MS
@@ -2789,6 +2848,7 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
       expectedStage,
       serverData,
       shellResponse,
+      prefetchStageResponse?.u,
       dynamicRequestTree,
       predictedFrom,
       // Navigation responses always include the param values in the tree, so
@@ -2870,6 +2930,9 @@ function writeResponsePayloadsIntoCache(
   // `fullPayload` itself (the shell IS the full response), or a distinct
   // stage decode truncated at the shell byte boundary.
   shellPayload: NavigationFlightResponse | null,
+  // The response's `u` as of the end of the prefetch stage. Only the full
+  // payload's write uses it. See writeServerResponseIntoCache.
+  prefetchStageNeedsRuntimeRequest: NavigationFlightResponse['u'],
   // The next five are threaded through to every write; see
   // writeServerResponseIntoCache for their meaning.
   baseTree: FlightRouterState | null,
@@ -2922,6 +2985,7 @@ function writeResponsePayloadsIntoCache(
         now,
         fullStage,
         fullPayload,
+        prefetchStageNeedsRuntimeRequest,
         baseTree,
         predictedFrom,
         renderedPathname,
@@ -2947,6 +3011,7 @@ function writeResponsePayloadsIntoCache(
       now,
       fullStage,
       fullPayload,
+      prefetchStageNeedsRuntimeRequest,
       baseTree,
       predictedFrom,
       renderedPathname,
@@ -2969,6 +3034,7 @@ function writeResponsePayloadsIntoCache(
       now,
       fullStage,
       fullPayload,
+      prefetchStageNeedsRuntimeRequest,
       baseTree,
       predictedFrom,
       renderedPathname,
@@ -2997,6 +3063,7 @@ function writeResponsePayloadsIntoCache(
       now,
       fullStage,
       fullPayload,
+      prefetchStageNeedsRuntimeRequest,
       baseTree,
       predictedFrom,
       renderedPathname,
@@ -3013,6 +3080,7 @@ function writeResponsePayloadsIntoCache(
       now,
       AppStage.Shell,
       shellPayload,
+      undefined,
       baseTree,
       predictedFrom,
       renderedPathname,
@@ -3106,6 +3174,9 @@ function writeServerResponseIntoCache(
   // response this is one of its payloads: the full response, or the
   // truncated shell decode.
   response: NavigationFlightResponse,
+  // The response's `u` as of the end of the prefetch stage, if the response
+  // lists where that is (see the `a` field). Undefined otherwise.
+  prefetchStageNeedsRuntimeRequest: NavigationFlightResponse['u'],
   // The base router state the response overlays. Null when the response's
   // tree is root-anchored (per-segment prefetch payloads).
   baseTree: FlightRouterState | null,
@@ -3214,8 +3285,11 @@ function writeServerResponseIntoCache(
   // The payload's completeness, which every segment that's still partial
   // records. With Cache Components, a live render (no `u`) has everything
   // except dynamic holes, which prefetches never fill. A static prerender
-  // records what a static request returns. If that's cache complete, it
-  // needs a runtime request after all when `u` says it read runtime data.
+  // records what a static request returns. If that's cache complete, `u`
+  // says how far: we record the payload at the deepest stage that didn't
+  // read runtime data. We check the payload's own stage first, then the
+  // prefetch stage. If neither works, it needs a runtime request.
+  let payloadStage = stage
   let payloadCompleteness: Completeness
   if (process.env.__NEXT_CACHE_COMPONENTS && response.u === undefined) {
     payloadCompleteness = Completeness.CacheComplete
@@ -3231,7 +3305,23 @@ function writeServerResponseIntoCache(
       payloadCompleteness === Completeness.CacheComplete &&
       payloadReadRuntimeData
     ) {
-      payloadCompleteness = Completeness.NeedsRuntime
+      // If we couldn't cut out the prefetch stage, we go by the full payload.
+      const prefetchStageReadRuntimeData =
+        prefetchStageNeedsRuntimeRequest === undefined ||
+        readFulfilledValue(
+          prefetchStageNeedsRuntimeRequest,
+          false,
+          /* rejectedValue */ true
+        ) === true
+      if (!prefetchStageReadRuntimeData) {
+        // The payload has content past the prefetch stage, but we record it
+        // as the prefetch stage anyway. That way a link that only needs the
+        // prefetch stage stops here, and a link that needs more sends a
+        // runtime request.
+        payloadStage = AppStage.Prefetch
+      } else {
+        payloadCompleteness = Completeness.NeedsRuntime
+      }
     }
   }
 
@@ -3244,7 +3334,7 @@ function writeServerResponseIntoCache(
   writeTreeDataIntoCache(
     now,
     map,
-    stage,
+    payloadStage,
     payloadCompleteness,
     response.u,
     routeTree,
@@ -3266,7 +3356,7 @@ function writeServerResponseIntoCache(
     const writtenHeadEntry = writeSegmentDataIntoCache(
       now,
       map,
-      stage,
+      payloadStage,
       payloadCompleteness,
       response.u,
       headData.rsc,
@@ -3816,6 +3906,8 @@ export async function bufferAndWriteNavigationResponse(
 ): Promise<void> {
   let prefetchResponse: NavigationFlightResponse
   let shellResponse: NavigationFlightResponse | null
+  let prefetchStageNeedsRuntimeRequest: NavigationFlightResponse['u'] =
+    undefined
   let staleAt: number
   let isPartial: boolean
   if (response.p != null) {
@@ -3843,7 +3935,7 @@ export async function bufferAndWriteNavigationResponse(
     } else {
       shellResponse = await decodeResponsePrefix<NavigationFlightResponse>(
         [buffer],
-        stageByteLengths[0],
+        stageByteLengths[AppStage.Shell],
         undefined
       )
     }
@@ -3855,10 +3947,25 @@ export async function bufferAndWriteNavigationResponse(
     prefetchResponse = response
     isPartial = false
     staleAt = await resolveStaleAt(now, response.s)
-    shellResponse =
-      responseChunks !== null
-        ? await resolveShellStageResponse(responseChunks, response, undefined)
-        : null
+    if (responseChunks !== null) {
+      shellResponse = await resolveStageResponse(
+        responseChunks,
+        response,
+        AppStage.Shell,
+        undefined
+      )
+      // Decode up to the end of the prefetch stage, just to read `u`. If the
+      // prefix can't be decoded, we only use the full payload's `u`.
+      const prefetchStageResponse = await resolveStageResponse(
+        responseChunks,
+        response,
+        AppStage.Prefetch,
+        undefined
+      )
+      prefetchStageNeedsRuntimeRequest = prefetchStageResponse?.u
+    } else {
+      shellResponse = null
+    }
   } else {
     return
   }
@@ -3870,6 +3977,7 @@ export async function bufferAndWriteNavigationResponse(
     AppStage.Navigation,
     prefetchResponse,
     shellResponse,
+    prefetchStageNeedsRuntimeRequest,
     baseTree,
     // The base tree is the navigation's current tree, not a prediction;
     // divergence from it carries no signal.
@@ -3893,37 +4001,37 @@ export async function bufferAndWriteNavigationResponse(
 }
 
 /**
- * Resolves the shell stage of a prerender response:
+ * Returns a prerender response as it was at the end of the given stage.
  *
- * - `a === undefined` (server didn't emit stage info): no shell exists —
- *   returns null.
- * - `a` lists no offsets: the shell IS the main response — returns
- *   `flightResponse` itself (callers compare by reference).
- * - `a` lists the shell's offset: the shell is a strict prefix of the
- *   response — returns a separate Flight decode of that many bytes from
- *   `chunks`, the response's bytes (see `decodeResponsePrefix`).
+ * - If the response has no `a`, it wasn't staged, so we can't cut out the
+ *   stage. Returns null.
+ * - If `a` doesn't list the stage, the stage ends at the end of the response.
+ *   Returns `flightResponse` itself (callers compare by reference).
+ * - Otherwise, decodes the response's bytes up to the stage's offset (see
+ *   `decodeResponsePrefix`).
  */
-async function resolveShellStageResponse<
+async function resolveStageResponse<
   T extends NavigationFlightResponse | InitialRSCPayload,
 >(
   chunks: Array<Uint8Array>,
   flightResponse: T,
+  stage: AppStage.Shell | AppStage.Prefetch,
   headers: RequestHeaders | undefined
 ): Promise<T | null> {
   if (flightResponse.a === undefined) {
-    // The render wasn't staged — no shell exists.
+    // The render wasn't staged.
     return null
   }
 
   const stageByteLengths = await flightResponse.a
-  if (stageByteLengths.length === 0) {
-    // The shell IS the full response (no shell/full split). Return the full
-    // response itself — callers detect this case by reference equality —
-    // rather than collapsing it into null, which would lose the distinction
-    // from "no shell exists". This mirrors the convention of the per-segment
-    // prefetch fetch (see fetchAndWritePerSegmentPrefetchResponse in cache.ts).
+  const stageByteLength: number | undefined = stageByteLengths[stage]
+  if (stageByteLength === undefined) {
+    // The stage is the whole response. Return the response itself instead of
+    // null, so callers can tell this apart from "the stage can't be cut".
+    // They check by reference. The per-segment prefetch fetch does the same
+    // (see fetchAndWritePerSegmentPrefetchResponse).
     return flightResponse
   }
 
-  return decodeResponsePrefix<T>(chunks, stageByteLengths[0], headers)
+  return decodeResponsePrefix<T>(chunks, stageByteLength, headers)
 }

@@ -3767,22 +3767,18 @@ export async function cache(
                 if (result.type === 'cached') {
                   const { stream: ignoredStream, pendingCacheResult } = result
 
-                  const savedCacheResult = saveToResumeDataCache(
-                    resumeDataCache,
-                    serializedCacheKey,
-                    pendingCacheResult,
-                    logPrefix
-                  )
-
+                  // The RDC preserves the value served by this render for
+                  // subsequent render passes. Only the cache handler receives
+                  // the regenerated entry.
                   const pendingWrite = cacheHandler
                     ? saveToCacheHandler(
                         cacheHandler,
                         id,
                         cacheHandlerKeyBase,
-                        savedCacheResult,
+                        pendingCacheResult,
                         rootParams
                       )
-                    : savedCacheResult.then(() => {})
+                    : pendingCacheResult.then(() => {})
 
                   for (const completion of await Promise.allSettled([
                     ignoredStream.cancel(),
