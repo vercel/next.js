@@ -10,7 +10,7 @@ import { getRegistry } from './helpers/get-registry'
 let registry: string | undefined
 
 async function fetchPkgInfo(pkg: string) {
-  if (!registry) registry = getRegistry()
+  if (!registry) registry = await getRegistry()
   const res = await fetch(`${registry}${pkg}`)
 
   if (!res.ok) {
