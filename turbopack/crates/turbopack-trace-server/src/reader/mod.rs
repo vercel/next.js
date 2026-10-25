@@ -1,6 +1,7 @@
 mod heaptrack;
 mod nextjs;
-mod turbopack;
+mod threaded;
+pub(crate) mod turbopack;
 
 use std::{
     any::Any,
@@ -15,15 +16,57 @@ use std::{
 
 use anyhow::Result;
 use flate2::bufread::GzDecoder;
+use turbopack_trace_utils::tracing::{TRACE_HEADER, TRACE_HEADER_PREFIX, check_trace_header};
 
 use crate::{
     reader::{heaptrack::HeaptrackFormat, nextjs::NextJsFormat, turbopack::TurbopackFormat},
     store_container::StoreContainer,
 };
 
+/// How much data is handed to the trace format at once. The format does some work per batch
+/// (e.g. invalidating cached span data), so batches shouldn't be tiny, but large batches parse
+/// noticeably slower (1 MB batches loaded traces ~1.3-1.6x faster than 64 MB batches).
+const BATCH_SIZE: usize = 1024 * 1024;
+
 const MIN_INITIAL_REPORT_SIZE: u64 = 100 * 1024 * 1024;
 
-trait TraceFormat {
+#[derive(Debug, PartialEq, Eq)]
+enum FormatKind {
+    Turbopack,
+    NextJs,
+    Heaptrack,
+}
+
+const NEXT_JS_PREFIX: &[u8] = b"[{\"name\"";
+const HEAPTRACK_PREFIX: &[u8] = b"v ";
+
+/// Detects the format of a trace file from its (decompressed) start. Returns `None` when more
+/// data is needed to decide.
+fn detect_format(buffer: &[u8]) -> Result<Option<FormatKind>> {
+    let could_be = |prefix: &[u8]| {
+        let len = buffer.len().min(prefix.len());
+        buffer[..len] == prefix[..len]
+    };
+    if could_be(TRACE_HEADER_PREFIX) {
+        if buffer.len() < TRACE_HEADER.len() {
+            return Ok(None);
+        }
+        check_trace_header(buffer)?;
+        return Ok(Some(FormatKind::Turbopack));
+    }
+    if could_be(NEXT_JS_PREFIX) {
+        return Ok((buffer.len() >= NEXT_JS_PREFIX.len()).then_some(FormatKind::NextJs));
+    }
+    if could_be(HEAPTRACK_PREFIX) {
+        return Ok((buffer.len() >= HEAPTRACK_PREFIX.len()).then_some(FormatKind::Heaptrack));
+    }
+    anyhow::bail!(
+        "Unknown trace file format (expected a {} header, a Next.js trace or a heaptrack file)",
+        String::from_utf8_lossy(TRACE_HEADER)
+    );
+}
+
+pub(crate) trait TraceFormat {
     type Reused: Default;
     /// Create the initial reused buffer. Override to pre-allocate capacity.
     fn create_reused() -> Self::Reused {
@@ -80,8 +123,12 @@ impl ObjectSafeTraceFormat for ErasedTraceFormat {
 #[derive(Default)]
 enum TraceFile {
     Raw(BufReader<File>),
-    Zstd(zstd::Decoder<'static, BufReader<File>>),
-    Gz(GzDecoder<BufReader<File>>),
+    /// A zstd or gzip compressed file, decompressed on a background thread.
+    Compressed {
+        decoder: threaded::ThreadedDecoder,
+        /// Handle to the compressed file, used for size queries.
+        file: File,
+    },
     #[default]
     Unloaded,
 }
@@ -90,35 +137,26 @@ impl TraceFile {
     fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
         match self {
             Self::Raw(file) => file.read(buffer),
-            Self::Zstd(decoder) => decoder.read(buffer),
-            Self::Gz(decoder) => decoder.read(buffer),
+            Self::Compressed { decoder, .. } => decoder.read(buffer),
             Self::Unloaded => unreachable!(),
         }
     }
 
+    /// Position in the file on disk. For compressed files this is the position in the compressed
+    /// data, which can be slightly ahead of the data returned by `read`.
     fn stream_position(&mut self) -> io::Result<u64> {
         match self {
             Self::Raw(file) => file.stream_position(),
-            Self::Zstd(decoder) => decoder.get_mut().stream_position(),
-            Self::Gz(decoder) => decoder.get_mut().stream_position(),
+            Self::Compressed { decoder, .. } => Ok(decoder.stream_position()),
             Self::Unloaded => unreachable!(),
         }
     }
 
-    fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
-        match self {
-            Self::Raw(file) => file.seek(pos),
-            Self::Zstd(decoder) => decoder.get_mut().seek(pos),
-            Self::Gz(decoder) => decoder.get_mut().seek(pos),
-            Self::Unloaded => unreachable!(),
-        }
-    }
-
+    /// Size of the opened file on disk.
     fn size(&mut self) -> io::Result<u64> {
         match self {
             Self::Raw(file) => file.get_ref().metadata().map(|m| m.len()),
-            Self::Zstd(decoder) => decoder.get_mut().get_ref().metadata().map(|m| m.len()),
-            Self::Gz(decoder) => decoder.get_mut().get_ref().metadata().map(|m| m.len()),
+            Self::Compressed { file, .. } => file.metadata().map(|m| m.len()),
             Self::Unloaded => unreachable!(),
         }
     }
@@ -155,15 +193,35 @@ impl TraceReader {
             file,
         );
         let magic_bytes = file.peek(4)?;
-        Ok(
-            if path.ends_with(".zst") || magic_bytes == [0x28, 0xb5, 0x2f, 0xfd] {
-                TraceFile::Zstd(zstd::Decoder::with_buffer(file)?)
-            } else if path.ends_with(".gz") || matches!(magic_bytes, [0x1f, 0x8b, _, _]) {
-                TraceFile::Gz(GzDecoder::new(file))
-            } else {
-                TraceFile::Raw(file)
-            },
-        )
+        let is_zstd = path.ends_with(".zst") || magic_bytes == [0x28, 0xb5, 0x2f, 0xfd];
+        let is_gz = path.ends_with(".gz") || matches!(magic_bytes, [0x1f, 0x8b, _, _]);
+        if !is_zstd && !is_gz {
+            return Ok(TraceFile::Raw(file));
+        }
+        // Keep a handle to the compressed file for size queries, since the decoder (and the
+        // file it reads from) moves to the decompression thread.
+        let size_handle = file.get_ref().try_clone()?;
+        let decoder = if is_zstd {
+            threaded::ThreadedDecoder::new(
+                zstd::Decoder::with_buffer(file)?,
+                BATCH_SIZE,
+                |decoder: &mut zstd::Decoder<'static, BufReader<File>>| {
+                    decoder.get_mut().stream_position().unwrap_or(0)
+                },
+            )
+        } else {
+            threaded::ThreadedDecoder::new(
+                GzDecoder::new(file),
+                BATCH_SIZE,
+                |decoder: &mut GzDecoder<BufReader<File>>| {
+                    decoder.get_mut().stream_position().unwrap_or(0)
+                },
+            )
+        };
+        Ok(TraceFile::Compressed {
+            decoder,
+            file: size_handle,
+        })
     }
 
     fn try_read(&mut self) -> bool {
@@ -197,7 +255,7 @@ impl TraceReader {
         let mut file = match self.trace_file_from_file(file) {
             Ok(f) => f,
             Err(err) => {
-                println!("Error creating zstd decoder: {err}");
+                println!("Error opening trace file for reading: {err}");
                 return false;
             }
         };
@@ -205,7 +263,7 @@ impl TraceReader {
         let mut buffer = Vec::new();
         let mut index = 0;
 
-        let mut chunk = vec![0; 64 * 1024 * 1024];
+        let mut chunk = vec![0; BATCH_SIZE];
         loop {
             match file.read(&mut chunk) {
                 Ok(bytes_read) => {
@@ -226,24 +284,29 @@ impl TraceReader {
                             index = 0;
                         }
                         buffer.extend_from_slice(&chunk[..bytes_read]);
-                        if format.is_none() && buffer.len() >= 8 {
-                            let erased_format = if buffer.starts_with(b"TRACEv0") {
-                                index = 7;
-                                ErasedTraceFormat(Box::new(TurbopackFormat::new(
-                                    self.store.clone(),
-                                )))
-                            } else if buffer.starts_with(b"[{\"name\"") {
-                                ErasedTraceFormat(Box::new(NextJsFormat::new(self.store.clone())))
-                            } else if buffer.starts_with(b"v ") {
-                                ErasedTraceFormat(Box::new(HeaptrackFormat::new(
-                                    self.store.clone(),
-                                )))
-                            } else {
-                                // Fallback to the format without magic bytes
-                                // TODO Remove this after a while and show an error instead
-                                ErasedTraceFormat(Box::new(TurbopackFormat::new(
-                                    self.store.clone(),
-                                )))
+                        if format.is_none() {
+                            let kind = match detect_format(&buffer) {
+                                Ok(Some(kind)) => kind,
+                                // Not enough data yet
+                                Ok(None) => continue,
+                                Err(err) => {
+                                    println!("Trace file error: {err}");
+                                    return true;
+                                }
+                            };
+                            let erased_format = match kind {
+                                FormatKind::Turbopack => {
+                                    index = TRACE_HEADER.len();
+                                    ErasedTraceFormat(Box::new(TurbopackFormat::new(
+                                        self.store.clone(),
+                                    )))
+                                }
+                                FormatKind::NextJs => ErasedTraceFormat(Box::new(
+                                    NextJsFormat::new(self.store.clone()),
+                                )),
+                                FormatKind::Heaptrack => ErasedTraceFormat(Box::new(
+                                    HeaptrackFormat::new(self.store.clone()),
+                                )),
                             };
                             let reuse = erased_format.create_reused();
                             format = Some((erased_format, reuse));
@@ -384,12 +447,239 @@ impl TraceReader {
         };
         loop {
             thread::sleep(Duration::from_millis(1000));
-            let Ok(end) = file.seek(SeekFrom::End(0)) else {
+            let Ok(end) = file.size() else {
                 return;
             };
             if end < pos {
                 return;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{borrow::Cow, io::Write, time::Duration};
+
+    use turbopack_trace_utils::tracing::{TimestampEncoder, TraceRow};
+
+    use super::*;
+
+    const TIMEOUT: Duration = Duration::from_secs(30);
+
+    /// Serialized rows for `count` child spans of a root span, plus the root span itself. Like a
+    /// buffer of the trace writer, the timestamps are delta encoded after a
+    /// [`TraceRow::TimestampBase`].
+    fn span_rows(first_id: u64, count: u64) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        let mut encoder = TimestampEncoder::default();
+        let mut push = |row: TraceRow<'_, u64>| {
+            let (base, row) = encoder.encode_row(row);
+            if let Some(base) = base {
+                bytes.extend(postcard::to_stdvec(&base).unwrap());
+            }
+            bytes.extend(postcard::to_stdvec(&row).unwrap());
+        };
+        for id in first_id..first_id + count {
+            let ts = id;
+            push(TraceRow::Start {
+                ts,
+                id,
+                parent: (id != 1).then_some(1),
+                name: Cow::Borrowed("span"),
+                target: Cow::Borrowed("test"),
+                values: Vec::new(),
+            });
+            push(TraceRow::Enter {
+                ts,
+                id,
+                thread_id: 1,
+                allocations: None,
+            });
+            push(TraceRow::Exit {
+                ts: ts + 1,
+                id,
+                thread_id: 1,
+                allocations: None,
+            });
+            if id != 1 {
+                push(TraceRow::End { ts: ts + 1, id });
+            }
+        }
+        bytes
+    }
+
+    fn trace(spans: u64) -> Vec<u8> {
+        let mut bytes = TRACE_HEADER.to_vec();
+        bytes.extend(span_rows(1, spans));
+        bytes
+    }
+
+    fn gzip(data: &[u8]) -> Vec<u8> {
+        let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+        encoder.write_all(data).unwrap();
+        encoder.finish().unwrap()
+    }
+
+    fn zstd(data: &[u8]) -> Vec<u8> {
+        zstd::encode_all(data, 3).unwrap()
+    }
+
+    /// Reads one trace file with a [`TraceReader`] on a background thread, like the server
+    /// does, but only for a single [`TraceReader::try_read`] pass. Dropping it deletes the file,
+    /// which makes the reader stop waiting for more data, and joins the reader thread.
+    struct ReaderFixture {
+        dir: PathBuf,
+        path: PathBuf,
+        store: Arc<StoreContainer>,
+        thread: Option<JoinHandle<bool>>,
+    }
+
+    impl ReaderFixture {
+        fn new(name: &str, data: &[u8]) -> Self {
+            let dir =
+                env::temp_dir().join(format!("trace-server-test-{}-{name}", std::process::id()));
+            std::fs::create_dir_all(&dir).unwrap();
+            let path = dir.join(name);
+            std::fs::write(&path, data).unwrap();
+            let store = Arc::new(StoreContainer::new());
+            let mut reader = TraceReader {
+                store: store.clone(),
+                path: path.clone(),
+            };
+            let thread = thread::spawn(move || reader.try_read());
+            Self {
+                dir,
+                path,
+                store,
+                thread: Some(thread),
+            }
+        }
+
+        fn append(&self, data: &[u8]) {
+            std::fs::OpenOptions::new()
+                .append(true)
+                .open(&self.path)
+                .unwrap()
+                .write_all(data)
+                .unwrap();
+        }
+
+        fn span_count(&self) -> usize {
+            // Excluding the store's synthetic root span.
+            self.store.read().spans.len() - 1
+        }
+
+        fn wait_for_span_count(&self, expected: usize) {
+            let start = Instant::now();
+            while self.span_count() != expected {
+                assert!(
+                    start.elapsed() < TIMEOUT,
+                    "expected {expected} spans, got {}",
+                    self.span_count()
+                );
+                thread::sleep(Duration::from_millis(20));
+            }
+        }
+    }
+
+    impl Drop for ReaderFixture {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.path);
+            if let Some(thread) = self.thread.take() {
+                let result = thread.join();
+                if !thread::panicking() {
+                    result.expect("reader thread panicked");
+                }
+            }
+            let _ = std::fs::remove_dir_all(&self.dir);
+        }
+    }
+
+    #[test]
+    fn loads_raw_zstd_gzip_identically() {
+        // Multiple batches worth of data.
+        let spans = 100_000;
+        let raw = trace(spans);
+        assert!(raw.len() > 2 * BATCH_SIZE);
+        for (name, data) in [
+            ("identical.trace", raw.clone()),
+            ("identical.trace.zst", zstd(&raw)),
+            ("identical.trace.gz", gzip(&raw)),
+        ] {
+            let reader = ReaderFixture::new(name, &data);
+            reader.wait_for_span_count(spans as usize);
+        }
+    }
+
+    #[test]
+    fn raw_live_tail_picks_up_appended_data() {
+        let reader = ReaderFixture::new("live.trace", &trace(1_000));
+        reader.wait_for_span_count(1_000);
+        reader.append(&span_rows(1_001, 500));
+        reader.wait_for_span_count(1_500);
+    }
+
+    #[test]
+    fn truncated_compressed_loads_prefix() {
+        let raw = trace(100_000);
+        for (name, mut data) in [
+            ("truncated.trace.zst", zstd(&raw)),
+            ("truncated.trace.gz", gzip(&raw)),
+        ] {
+            data.truncate(data.len() / 2);
+            let reader = ReaderFixture::new(name, &data);
+            let start = Instant::now();
+            while reader.span_count() < 10_000 {
+                assert!(start.elapsed() < TIMEOUT, "{name}: prefix was not loaded");
+                thread::sleep(Duration::from_millis(20));
+            }
+            assert!(
+                reader.span_count() < 100_000,
+                "{name}: loaded more than the prefix"
+            );
+        }
+    }
+
+    #[test]
+    fn detects_trace_formats() {
+        assert_eq!(detect_format(b"").unwrap(), None);
+        assert_eq!(detect_format(b"TRACE").unwrap(), None);
+        assert_eq!(
+            detect_format(b"TRACEv1").unwrap(),
+            Some(FormatKind::Turbopack)
+        );
+        assert_eq!(
+            detect_format(b"TRACEv1\x00\x01").unwrap(),
+            Some(FormatKind::Turbopack)
+        );
+        assert_eq!(detect_format(b"[{\"na").unwrap(), None);
+        assert_eq!(
+            detect_format(b"[{\"name\":").unwrap(),
+            Some(FormatKind::NextJs)
+        );
+        assert_eq!(detect_format(b"v").unwrap(), None);
+        assert_eq!(
+            detect_format(b"v 1.0").unwrap(),
+            Some(FormatKind::Heaptrack)
+        );
+    }
+
+    #[test]
+    fn rejects_old_and_unknown_formats() {
+        // Also a file that only consists of the old header
+        for data in [&b"TRACEv0"[..], b"TRACEv0\x00\x01"] {
+            assert_eq!(
+                detect_format(data).unwrap_err().to_string(),
+                "Unsupported trace file version: expected TRACEv1, found TRACEv0"
+            );
+        }
+        // Old files without any header
+        assert!(
+            detect_format(b"\x00\x01\x02")
+                .unwrap_err()
+                .to_string()
+                .starts_with("Unknown trace file format")
+        );
     }
 }

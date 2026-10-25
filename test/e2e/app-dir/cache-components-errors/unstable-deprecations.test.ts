@@ -1,13 +1,9 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 
 describe('Cache Components Errors', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname + '/fixtures/unstable-deprecations',
   })
-
-  if (skipped) {
-    return
-  }
 
   describe('Deprecating `unstable` prefix for `cacheLife` and `cacheTag`', () => {
     it('warns if you use `cacheLife` through `unstable_cacheLife`', async () => {

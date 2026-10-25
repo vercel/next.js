@@ -27,11 +27,7 @@ import { InvariantError } from '../../../shared/lib/invariant-error'
  */
 export function isImplicitValidationSegment(segment: Segment): boolean {
   const key = typeof segment === 'string' ? segment : segment[0]
-  return (
-    key === PAGE_SEGMENT_KEY ||
-    key.startsWith(PAGE_SEGMENT_KEY) ||
-    key === DEFAULT_SEGMENT_KEY
-  )
+  return key === PAGE_SEGMENT_KEY || key === DEFAULT_SEGMENT_KEY
 }
 
 /**
@@ -51,10 +47,9 @@ export function isFrameworkErrorRoute(route: string | undefined): boolean {
 }
 
 /**
- * Matches any `prefetch` config that enables Partial Prefetching for the
- * segment: 'partial' or 'unstable_eager'. A route with Partial Prefetching
- * enabled also runtime-caches its navigations, so this gates the runtime
- * prefetch spawn.
+ * Matches the `prefetch` config that enables Partial Prefetching for the
+ * segment: 'partial'. A route with Partial Prefetching enabled also
+ * runtime-caches its navigations, so this gates the runtime prefetch spawn.
  */
 export async function anySegmentHasPartialPrefetchingEnabled(
   tree: LoaderTree
@@ -65,7 +60,7 @@ export async function anySegmentHasPartialPrefetchingEnabled(
   const prefetchConfig = layoutOrPageMod
     ? (layoutOrPageMod as AppSegmentConfig).prefetch
     : undefined
-  if (prefetchConfig === 'partial' || prefetchConfig === 'unstable_eager') {
+  if (prefetchConfig === 'partial') {
     return true
   }
 

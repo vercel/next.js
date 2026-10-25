@@ -2,10 +2,11 @@ use std::collections::HashSet;
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
+use smallvec::SmallVec;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
-    debug::ValueDebugFormat, trace::TraceRawVcs,
+    debug::ValueDebugFormat,
 };
 
 use crate::{
@@ -131,17 +132,16 @@ pub async fn referenced_modules_and_affecting_sources(
         .references()
         .await?
         .iter()
-        .map(|reference| async {
+        .map(async |reference| {
             let trait_ref = reference.into_trait_ref().await?;
             let resolve_result = reference.resolve_reference().await?;
             if let Some(chunking_type) = &trait_ref.chunking_type() {
-                let mut modules = resolve_result
-                    .primary_modules_raw_iter()
-                    .collect::<Vec<_>>();
+                let mut modules: SmallVec<[_; 2]> =
+                    resolve_result.primary_modules_raw_iter().collect();
                 modules.extend(
                     resolve_result
                         .affecting_sources_iter()
-                        .map(|source| async move {
+                        .map(async |source| {
                             Ok(ResolvedVc::upcast(
                                 RawModule::new(*source).to_resolved().await?,
                             ))
@@ -211,7 +211,7 @@ pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<V
         .references()
         .await?
         .iter()
-        .map(|reference| async { reference.resolve_reference().await?.primary_modules().await })
+        .map(async |reference| reference.resolve_reference().await?.primary_modules().await)
         .try_join()
         .await?
         .into_iter()
@@ -221,11 +221,11 @@ pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<V
     Ok(Vc::cell(modules))
 }
 
-#[derive(Clone, Eq, PartialEq, ValueDebugFormat, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, Eq, PartialEq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub struct ResolvedReference {
     pub chunking_type: ChunkingType,
     pub binding_usage: BindingUsage,
-    pub modules: Vec<ResolvedVc<Box<dyn Module>>>,
+    pub modules: SmallVec<[ResolvedVc<Box<dyn Module>>; 2]>,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -246,7 +246,7 @@ pub async fn primary_chunkable_referenced_modules(
         .references()
         .await?
         .iter()
-        .map(|reference| async {
+        .map(async |reference| {
             let trait_ref = reference.into_trait_ref().await?;
             if let Some(chunking_type) = &trait_ref.chunking_type() {
                 if !include_traced && chunking_type.is_traced() {

@@ -124,10 +124,9 @@ describe('Client Navigation rendering', () => {
     test('getInitialProps circular structure', async () => {
       const browser = await next.browser('/circular-json-error')
 
-      if (isReact18 && isTurbopack) {
+      if (isReact18) {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E490",
            "description": "Circular structure in "getInitialProps" result of page "/circular-json-error". https://nextjs.org/docs/messages/circular-structure",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -140,7 +139,6 @@ describe('Client Navigation rendering', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E490",
            "description": "Circular structure in "getInitialProps" result of page "/circular-json-error". https://nextjs.org/docs/messages/circular-structure",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -156,7 +154,6 @@ describe('Client Navigation rendering', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E1035",
          "description": ""InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://nextjs.org/docs/messages/get-initial-props-as-an-instance-method for more information.",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -171,7 +168,6 @@ describe('Client Navigation rendering', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E1025",
          "description": ""EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -215,7 +211,6 @@ describe('Client Navigation rendering', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E286",
          "description": "The default export is not a React Component in page: "/no-default-export"",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -231,7 +226,6 @@ describe('Client Navigation rendering', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E394",
            "description": "This is an expected error",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -246,7 +240,6 @@ describe('Client Navigation rendering', () => {
       } else if (isRspack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E394",
            "description": "This is an expected error",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -261,7 +254,6 @@ describe('Client Navigation rendering', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E394",
            "description": "This is an expected error",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -282,7 +274,6 @@ describe('Client Navigation rendering', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E394",
            "description": "aa is not defined",
            "environmentLabel": null,
            "label": "Runtime ReferenceError",
@@ -298,7 +289,6 @@ describe('Client Navigation rendering', () => {
       } else if (isRspack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E394",
            "description": "aa is not defined",
            "environmentLabel": null,
            "label": "Runtime ReferenceError",
@@ -322,7 +312,6 @@ describe('Client Navigation rendering', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E394",
            "description": "aa is not defined",
            "environmentLabel": null,
            "label": "Runtime ReferenceError",
@@ -449,7 +438,6 @@ describe('Client Navigation rendering', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E98",
          "description": "An undefined error was thrown, see here for more info: https://nextjs.org/docs/messages/threw-undefined",
          "environmentLabel": null,
          "label": "Runtime Error",

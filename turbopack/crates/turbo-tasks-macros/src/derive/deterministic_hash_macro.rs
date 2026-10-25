@@ -10,28 +10,27 @@ use crate::expand::{generate_exhaustive_destructuring, match_expansion};
 ///
 /// This requires that every contained value also implement `DeterministicHash`.
 pub fn derive_deterministic_hash(input: TokenStream) -> TokenStream {
-    let derive_input = parse_macro_input!(input as DeriveInput);
-
-    let ident = &derive_input.ident;
-    let match_hash = match_expansion(
+    let DeriveInput {
         ident,
-        &derive_input.data,
-        &hash_named,
-        &hash_unnamed,
-        &hash_unit,
-    );
-    let discriminant = match derive_input.data {
+        generics,
+        data,
+        ..
+    } = parse_macro_input!(input as DeriveInput);
+
+    let match_hash = match_expansion(&ident, &data, &hash_named, &hash_unnamed, &hash_unit);
+    let discriminant = match data {
         Data::Enum(_) => {
             quote! {
-                turbo_tasks_hash::DeterministicHash::deterministic_hash(&std::mem::discriminant(self), __state__);
+                ::turbo_tasks_hash::DeterministicHash::deterministic_hash(&std::mem::discriminant(self), __state__);
             }
         }
         _ => quote! {},
     };
 
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     quote! {
         #[automatically_derived]
-        impl turbo_tasks_hash::DeterministicHash for #ident {
+        impl #impl_generics ::turbo_tasks_hash::DeterministicHash for #ident #ty_generics #where_clause {
             fn deterministic_hash<H: turbo_tasks_hash::DeterministicHasher>(&self, __state__: &mut H) {
                 #discriminant
                 #match_hash

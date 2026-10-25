@@ -54,3 +54,15 @@ it('should be able to use AMD to define exports', () => {
   expect(require('./using-amd').abc).toBe('abc')
   expect(require('./using-amd').def).toBe('def')
 })
+
+it('should bailout when a variable aliases a replaced exports object', () => {
+  expect(require('./alias-exports-object').abc()).toBe('abc')
+})
+
+it('should bailout when an assignment chain aliases a replaced exports object', () => {
+  expect(require('./alias-exports-object-chain').abc()).toBe('abc')
+})
+
+it('should bailout when a variable aliases the result of defineProperty', () => {
+  expect(require('./alias-exports-define').abc()).toBe('abc')
+})

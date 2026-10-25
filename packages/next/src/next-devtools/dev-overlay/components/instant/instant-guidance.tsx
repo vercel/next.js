@@ -1,6 +1,7 @@
 import {
   FixCardAlignLeftIcon,
   FixCardArrowUpIcon,
+  FixCardCheckIcon,
   FixCardDatabaseIcon,
   FixCardHistoryIcon,
   FixCardLayoutIcon,
@@ -17,12 +18,16 @@ import { ExternalIcon } from '../../icons/external'
 import { CopyPromptIcon } from '../../icons/copy-prompt'
 import { css } from '../../utils/css'
 import {
+  BLOCKING_METADATA_DOCS_URLS,
+  BLOCKING_ROUTE_DOCS_URLS,
+  BLOCKING_VIEWPORT_DOCS_URLS,
   DOCS_URLS,
   EXPLANATIONS,
   FIX_CARD_GROUPS,
   SYNC_IO_CLIENT_DOCS,
   SYNC_IO_DOCS,
   getCards,
+  getStaticRouteDocsUrl,
   type FixCard,
   type FixCardGroup,
   type FixCardIcon,
@@ -57,6 +62,8 @@ function getCardIcon(icon: FixCardIcon) {
       return <FixCardLayoutIcon />
     case 'arrow-up':
       return <FixCardArrowUpIcon />
+    case 'check':
+      return <FixCardCheckIcon />
     case 'minus':
       return <FixCardMinusIcon />
     default:
@@ -243,37 +250,35 @@ export function InstantGuidance({
 }) {
   const cards = getCards(kind, variant, cause)
   let docsUrl: string
-  if (kind === 'sync-io' && cause) {
-    docsUrl = SYNC_IO_DOCS[cause] || DOCS_URLS[kind]
-  } else if (kind === 'sync-io-client' && cause) {
-    docsUrl = SYNC_IO_CLIENT_DOCS[cause] || DOCS_URLS[kind]
-  } else if (kind === 'blocking-route') {
-    docsUrl =
-      // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
-      variant === 'link'
-        ? 'https://nextjs.org/docs/messages/blocking-prerender-runtime'
-        : variant === 'runtime'
-          ? 'https://nextjs.org/docs/messages/blocking-prerender-runtime'
-          : 'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
-  } else if (kind === 'metadata') {
-    docsUrl =
-      // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
-      variant === 'link'
-        ? 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime'
-        : variant === 'runtime'
-          ? 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime'
-          : 'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic'
-  } else if (kind === 'viewport') {
-    docsUrl =
-      // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
-      variant === 'link'
-        ? 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime'
-        : variant === 'runtime'
-          ? 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime'
-          : 'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic'
-  } else {
-    docsUrl = DOCS_URLS[kind]
+  switch (kind) {
+    case 'static-route':
+    case 'static-metadata':
+    case 'static-viewport':
+      docsUrl = getStaticRouteDocsUrl(kind, variant)
+      break
+    case 'sync-io':
+      docsUrl = (cause ? SYNC_IO_DOCS[cause] : undefined) ?? DOCS_URLS[kind]
+      break
+    case 'sync-io-client':
+      docsUrl =
+        (cause ? SYNC_IO_CLIENT_DOCS[cause] : undefined) ?? DOCS_URLS[kind]
+      break
+    case 'blocking-route':
+      docsUrl = BLOCKING_ROUTE_DOCS_URLS[variant]
+      break
+    case 'metadata':
+      docsUrl = BLOCKING_METADATA_DOCS_URLS[variant]
+      break
+    case 'viewport':
+      docsUrl = BLOCKING_VIEWPORT_DOCS_URLS[variant]
+      break
+    case 'client-hook':
+    case 'unrendered-segment':
+    case 'link-prefetch-partial':
+      docsUrl = DOCS_URLS[kind]
+      break
   }
+
   const defaultExplanation = explanation || EXPLANATIONS[kind]
 
   return (
@@ -315,29 +320,18 @@ export function InstantHeaderExplanation({
   const resolvedExplanation = explanation || (kind ? EXPLANATIONS[kind] : '')
   let resolvedDocsUrl = docsUrl
   if (!resolvedDocsUrl && kind === 'blocking-route') {
-    resolvedDocsUrl =
-      // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
-      variant === 'link'
-        ? 'https://nextjs.org/docs/messages/blocking-prerender-runtime'
-        : variant === 'runtime'
-          ? 'https://nextjs.org/docs/messages/blocking-prerender-runtime'
-          : 'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
+    resolvedDocsUrl = BLOCKING_ROUTE_DOCS_URLS[variant ?? 'dynamic']
   } else if (!resolvedDocsUrl && kind === 'metadata') {
-    resolvedDocsUrl =
-      // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
-      variant === 'link'
-        ? 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime'
-        : variant === 'runtime'
-          ? 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime'
-          : 'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic'
+    resolvedDocsUrl = BLOCKING_METADATA_DOCS_URLS[variant ?? 'dynamic']
   } else if (!resolvedDocsUrl && kind === 'viewport') {
-    resolvedDocsUrl =
-      // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
-      variant === 'link'
-        ? 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime'
-        : variant === 'runtime'
-          ? 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime'
-          : 'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic'
+    resolvedDocsUrl = BLOCKING_VIEWPORT_DOCS_URLS[variant ?? 'dynamic']
+  } else if (
+    !resolvedDocsUrl &&
+    (kind === 'static-route' ||
+      kind === 'static-metadata' ||
+      kind === 'static-viewport')
+  ) {
+    resolvedDocsUrl = getStaticRouteDocsUrl(kind, variant ?? 'dynamic')
   } else if (!resolvedDocsUrl && kind) {
     resolvedDocsUrl = DOCS_URLS[kind]
   }

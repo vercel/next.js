@@ -49,14 +49,15 @@ use turbopack_core::{
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph,
         binding_usage_info::compute_binding_usage_info,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
+        chunk_group_info::{ChunkGroupEntry, ChunkGroupKey, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType, ReferenceTypeCondition},
 };
 use turbopack_ecmascript::{
     AnalyzeMode, CustomTransformer, EcmascriptInputTransform, TransformPlugin,
-    chunk::EcmascriptChunkType, transform::ReactCompilerCompilationMode,
+    chunk::EcmascriptChunkType,
+    transform::{ReactCompilerCompilationMode, ReactCompilerTransformOptions},
 };
 use turbopack_ecmascript_plugins::transform::{
     emotion::{EmotionTransformConfig, EmotionTransformer},
@@ -71,7 +72,7 @@ use turbopack_test_utils::snapshot::{UPDATE, diff, expected, matches_expected, s
 use crate::util::REPO_ROOT;
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct SnapshotOptions {
     #[serde(default = "default_browserslist")]
     browserslist: String,
@@ -95,6 +96,12 @@ struct SnapshotOptions {
     remove_unused_exports: bool,
     #[serde(default)]
     cjs_tree_shaking: bool,
+    #[serde(default)]
+    mangle_export_names: bool,
+    #[serde(default)]
+    cjs_scope_hoisting: bool,
+    #[serde(default)]
+    cross_module_constants: bool,
     #[serde(default)]
     scope_hoisting: bool,
     #[serde(default)]
@@ -141,6 +148,9 @@ impl Default for SnapshotOptions {
             remove_unused_imports: false,
             remove_unused_exports: false,
             cjs_tree_shaking: false,
+            mangle_export_names: false,
+            cjs_scope_hoisting: false,
+            cross_module_constants: false,
             scope_hoisting: false,
             shared_runtime: false,
             production_chunking: false,
@@ -416,10 +426,16 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 ignore_dynamic_requests: true,
                 infer_module_side_effects: true,
                 cjs_tree_shaking: options.cjs_tree_shaking,
+                mangle_export_names: options.mangle_export_names,
+                cjs_scope_hoisting: options.cjs_scope_hoisting,
+                cross_module_constants: options.cross_module_constants,
                 enable_exports_info_inlining: true,
-                enable_rust_react_compiler: options
-                    .enable_rust_react_compiler
-                    .then_some(ReactCompilerCompilationMode::Infer),
+                enable_rust_react_compiler: options.enable_rust_react_compiler.then_some(
+                    ReactCompilerTransformOptions {
+                        compilation_mode: ReactCompilerCompilationMode::Infer,
+                        ..Default::default()
+                    },
+                ),
                 ..Default::default()
             },
             environment: Some(env),
@@ -429,7 +445,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                     environment: Some(env),
                     follow_reexports: options.follow_reexports,
                     module_fragments_enabled: options.module_fragments_enabled,
-                    analyze_mode: AnalyzeMode::CodeGenerationAndTracing,
+                    analyze_mode: AnalyzeMode::code_generation_and_tracing(),
                     ..Default::default()
                 }
                 .resolved_cell(),
@@ -437,7 +453,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             module_rules: vec![module_rules],
             follow_reexports: options.follow_reexports,
             module_fragments_enabled: options.module_fragments_enabled,
-            analyze_mode: AnalyzeMode::CodeGenerationAndTracing,
+            analyze_mode: AnalyzeMode::code_generation_and_tracing(),
             ..Default::default()
         }
         .cell(),
@@ -625,7 +641,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                         chunk_root_path
                             .join(entry_module.ident().await?.path.file_stem().unwrap())?
                             .with_extension("entry.js"),
-                        ChunkGroup::Entry(entry_modules),
+                        ChunkGroupKey::Entry(entry_modules),
                         module_graph,
                         OutputAssets::empty(),
                         OutputAssets::empty(),
@@ -640,7 +656,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         .cell(),
         Runtime::Browser => chunking_context.evaluated_chunk_group_assets(
             entry_module.ident(),
-            ChunkGroup::Entry(entry_modules.into_iter().collect()),
+            ChunkGroupKey::Entry(entry_modules.into_iter().collect()),
             module_graph,
             OutputAssets::empty(),
             AvailabilityInfo::root(),
@@ -654,7 +670,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                             chunk_root_path
                                 .join(entry_module.ident().await?.path.file_stem().unwrap())?
                                 .with_extension("entry.js"),
-                            ChunkGroup::Entry(entry_modules),
+                            ChunkGroupKey::Entry(entry_modules),
                             module_graph,
                             OutputAssets::empty(),
                             OutputAssets::empty(),

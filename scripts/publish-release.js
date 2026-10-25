@@ -6,10 +6,7 @@ const execa = require('execa')
 const semver = require('semver')
 const { Sema } = require('async-sema')
 const fs = require('fs/promises')
-const {
-  getGitHubToken,
-  getGitHubTokenMissingMessage,
-} = require('./release-github-auth')
+const { readReleaseVersion } = require('./release-version')
 
 const cwd = process.cwd()
 const dryRun = process.argv.includes('--dry-run')
@@ -22,12 +19,10 @@ const publishRetryDelaySeconds = 15
   }
   const publishSema = new Sema(2)
 
-  const { version } = JSON.parse(
-    await fs.readFile(path.join(cwd, 'lerna.json'), 'utf-8')
-  )
+  const version = readReleaseVersion()
   const parsedVersion = semver.parse(version)
   if (parsedVersion === null) {
-    throw new Error(`Invalid version in lerna.json: ${version}`)
+    throw new Error(`Invalid version: ${version}`)
   }
   const prereleaseChannel = parsedVersion.prerelease[0]
   const isPrerelease = prereleaseChannel != null
@@ -228,6 +223,60 @@ const publishRetryDelaySeconds = 15
     JSON.stringify(nextPkg, null, 2)
   )
 
+  if (isPrerelease) {
+    // Lerna does not update peerDependencies at version time, and a static
+    // range like "^16.0.0" never satisfies a fresh prerelease version.
+    // Append the release version to any peer dependency on packages published
+    // from this repo so the published prerelease accepts its own version while
+    // keeping the stable ranges.
+    // Stable releases keep their wide ranges untouched so a published package
+    // keeps working with newer Next.js minors.
+    // TODO: Use `|| workspace:*` once pnpm supports that. Only a lone `workspace:*`
+    // works at the moment
+    const pnpmListJson = await execa('pnpm', [
+      '--silent',
+      '--recursive',
+      '--filter',
+      './packages/**',
+      'list',
+      '--depth',
+      '-1',
+      '--json',
+    ])
+    const workspacePackages = JSON.parse(pnpmListJson.stdout)
+    const publishedPackageNames = new Set(
+      workspacePackages
+        .filter((workspacePackage) => !workspacePackage.private)
+        .map((workspacePackage) => workspacePackage.name)
+    )
+
+    for (const workspacePackage of workspacePackages) {
+      if (workspacePackage.private) {
+        continue
+      }
+
+      const packageJsonPath = path.join(workspacePackage.path, 'package.json')
+      const manifest = JSON.parse(await fs.readFile(packageJsonPath, 'utf-8'))
+      const peerDependencies = manifest.peerDependencies ?? {}
+      let updated = false
+
+      for (const dependencyName of Object.keys(peerDependencies)) {
+        if (publishedPackageNames.has(dependencyName)) {
+          peerDependencies[dependencyName] =
+            `${peerDependencies[dependencyName]} || ${version}`
+          updated = true
+        }
+      }
+
+      if (updated) {
+        await fs.writeFile(packageJsonPath, JSON.stringify(manifest, null, 2))
+        console.log(
+          `Appended ${version} to peer dependencies in ${workspacePackage.name}`
+        )
+      }
+    }
+  }
+
   await publish('workspace', [
     '--filter',
     './packages/**',
@@ -242,75 +291,6 @@ const publishRetryDelaySeconds = 15
     npmDistTag,
     ...(dryRun ? ['--dry-run'] : []),
   ])
-
-  if (dryRun) {
-    console.log('Dry run: skipping GitHub release un-draft')
-    return
-  }
-
-  const githubToken = getGitHubToken()
-
-  if (!githubToken) {
-    throw new Error(getGitHubTokenMissingMessage())
-  }
-
-  if (isPrerelease) {
-    try {
-      const ghHeaders = {
-        Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${githubToken}`,
-        'X-GitHub-Api-Version': '2022-11-28',
-      }
-      const tag = `v${version}`
-
-      let release
-      let releasesData
-
-      // The release might take a minute to show up in
-      // the list so retry a bit
-      for (let i = 0; i < 6; i++) {
-        try {
-          const releaseUrlRes = await fetch(
-            `https://api.github.com/repos/vercel/next.js/releases`,
-            {
-              headers: ghHeaders,
-            }
-          )
-          releasesData = await releaseUrlRes.json()
-
-          release = releasesData.find((release) => release.tag_name === tag)
-        } catch (err) {
-          console.log(`Fetching release failed`, err)
-        }
-        if (!release) {
-          console.log(`Retrying in 10s...`)
-          await new Promise((resolve) => setTimeout(resolve, 10 * 1000))
-        }
-      }
-
-      if (!release) {
-        console.log(`Failed to find release`, releasesData)
-        return
-      }
-
-      const undraftRes = await fetch(release.url, {
-        headers: ghHeaders,
-        method: 'PATCH',
-        body: JSON.stringify({
-          draft: false,
-          name: tag,
-        }),
-      })
-
-      if (undraftRes.ok) {
-        console.log(`un-drafted ${prereleaseChannel} release successfully`)
-      } else {
-        console.log(`Failed to undraft`, await undraftRes.text())
-      }
-    } catch (err) {
-      console.error(`Failed to undraft release`, err)
-    }
-  }
 })().catch((err) => {
   console.error(err)
   process.exit(1)

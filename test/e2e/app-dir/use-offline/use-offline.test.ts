@@ -3,15 +3,12 @@ import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 import { retry } from 'next-test-utils'
 
+// @force-gate prefetching
+// @force-gate useOffline
 describe('useOffline', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
-
-  if (isNextDev) {
-    test('skipped in dev mode', () => {})
-    return
-  }
 
   // Uses Playwright's built-in network emulation, which fires the browser's
   // native offline/online events and blocks all requests at the network layer.

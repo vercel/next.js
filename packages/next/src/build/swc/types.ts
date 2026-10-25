@@ -13,13 +13,26 @@ import type {
   TraceQueryOptions,
   TraceQueryResult,
   MemoryEvictionMode,
+  NapiTurbopackGcOptions,
+  ServerHmrVersion as NativeServerHmrVersion,
+  LockfileError,
+  LockfileResult,
+  projectCompilationEventsSubscribe,
+  projectFeatureUsage,
+  projectInvalidateFileSystemCache,
+  projectOnExit,
+  projectShutdown,
+  projectUpdateInfoSubscribe,
 } from './generated-native'
 
 export type { TraceServerHandle, TraceQueryOptions, TraceQueryResult }
+export type { LockfileError }
 
 export type { NapiTurboEngineOptions as TurboEngineOptions }
 
 export type { MemoryEvictionMode }
+
+export type { NapiTurbopackGcOptions as TurbopackGcOptions }
 
 export type Lockfile = { __napiType: 'Lockfile' }
 
@@ -34,7 +47,7 @@ export interface Binding {
       options: ProjectOptions,
       turboEngineOptions: NapiTurboEngineOptions,
       callbacks?: TurbopackProjectCallbacks
-    ): Promise<Project>
+    ): Promise<TurbopackResult<Project>>
     startTurbopackTraceServerHandle(
       traceFilePath: string,
       port: number | undefined
@@ -64,8 +77,8 @@ export interface Binding {
   teardownTraceSubscriber?(guardExternal: ExternalObject<RefCell>): void
   css: {
     lightning: {
-      transform(transformOptions: any): Promise<any>
-      transformStyleAttr(transformAttrOptions: any): Promise<any>
+      transform(transformOptions: any): any
+      transformStyleAttr(transformAttrOptions: any): any
       featureNamesToMask(names: string[]): number
     }
   }
@@ -93,8 +106,8 @@ export interface Binding {
   lockfileTryAcquire(
     path: string,
     content?: string | null
-  ): Promise<Lockfile | null>
-  lockfileTryAcquireSync(path: string, content?: string | null): Lockfile | null
+  ): Promise<LockfileResult>
+  lockfileTryAcquireSync(path: string, content?: string | null): LockfileResult
   lockfileUnlock(lockfile: Lockfile): Promise<void>
   lockfileUnlockSync(lockfile: Lockfile): void
   codeFrameColumns(
@@ -176,7 +189,8 @@ export interface BuildFeatureUsage {
   invocationCount: number
 }
 
-export type TurbopackResult<T = {}> = T & {
+export type TurbopackResult<T> = {
+  value: T
   issues: Issue[]
 }
 
@@ -254,19 +268,24 @@ export interface NodeJsChunkListUpdate {
   chunks?: Record<string, { type: 'added' | 'deleted' | 'total' | 'partial' }>
 }
 
-export interface NodeJsPartialHmrUpdate extends BaseUpdate {
+/** In-process update; unlike wire updates, it has no resource or issues. */
+export interface NodeJsPartialHmrUpdate {
   type: 'partial'
   instruction: NodeJsEcmascriptMergedUpdate | NodeJsChunkListUpdate
 }
 
-export interface NodeJsRestartHmrUpdate {
-  type: 'restart'
-}
+/** Opaque baseline for the next pull. */
+export type ServerHmrVersion = ExternalObject<NativeServerHmrVersion>
 
-export type NodeJsHmrUpdate =
-  | IssuesUpdate
-  | NodeJsPartialHmrUpdate
-  | NodeJsRestartHmrUpdate
+/** Restores the union flattened by napi. */
+export type ServerHmrUpdate =
+  | { kind: 'none'; version?: ServerHmrVersion }
+  | { kind: 'restart'; version: ServerHmrVersion }
+  | {
+      kind: 'partial'
+      version: ServerHmrVersion
+      instruction: NodeJsPartialHmrUpdate['instruction']
+    }
 
 export interface HmrChunkNames {
   /** Relative paths to output chunks that can receive HMR updates (e.g., "server/chunks/ssr/..._.js") */
@@ -311,6 +330,8 @@ export interface UpdateInfo {
 export interface Project {
   update(options: Partial<ProjectOptions>): Promise<void>
 
+  activateLazyChunk(chunkPath: string): Promise<boolean>
+
   writeAnalyzeData(appDirOnly: boolean): Promise<TurbopackResult<void>>
 
   getAllCompilationIssues(): Promise<TurbopackResult<void>>
@@ -327,6 +348,8 @@ export interface Project {
    * end of the build, after `writeAllEntrypointsToDisk`. The Rust implementation
    * walks the whole-app module graph and will error if invoked from a
    * development project, because dev builds do not produce a complete graph.
+   *
+   * @see {@link projectFeatureUsage}
    */
   featureUsage(): Promise<BuildFeatureUsage[]>
 
@@ -334,28 +357,23 @@ export interface Project {
     TurbopackResult<RawEntrypoints | {}>
   >
 
-  // Note: only the Server target is implemented in the native binding;
-  // add a Client overload once `all_hmr_update` supports it.
-  allHmrEvents(
-    target: import('./index').HmrTarget.Server
-  ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
+  getServerHmrUpdate(
+    from: ServerHmrVersion | undefined,
+    entryPaths: string[]
+  ): Promise<TurbopackResult<ServerHmrUpdate>>
 
-  hmrEvents(
-    identifier: string,
-    target: import('./index').HmrTarget.Client
+  clientHmrEvents(
+    identifier: string
   ): AsyncIterableIterator<TurbopackResult<Update>>
-  hmrEvents(
-    identifier: string,
-    target: import('./index').HmrTarget.Server
-  ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
 
-  hmrChunkNamesSubscribe(
-    target: import('./index').HmrTarget
-  ): AsyncIterableIterator<TurbopackResult<HmrChunkNames>>
+  clientHmrChunkNamesSubscribe(): AsyncIterableIterator<
+    TurbopackResult<HmrChunkNames>
+  >
 
   getSourceForAsset(filePath: string): Promise<string | null>
 
   getSourceMap(filePath: string): Promise<string | null>
+
   getSourceMapSync(filePath: string): string | null
 
   traceSource(
@@ -363,19 +381,24 @@ export interface Project {
     currentDirectoryFileUrl: string
   ): Promise<TurbopackStackFrame | null>
 
+  /** @see {@link projectUpdateInfoSubscribe} */
   updateInfoSubscribe(
     aggregationMs: number
-  ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
+  ): AsyncIterableIterator<UpdateMessage>
 
+  /** @see {@link projectCompilationEventsSubscribe} */
   compilationEventsSubscribe(
     eventTypes?: string[]
-  ): AsyncIterableIterator<TurbopackResult<CompilationEvent>>
+  ): AsyncIterableIterator<CompilationEvent>
 
+  /** @see {@link projectInvalidateFileSystemCache} */
   invalidateFileSystemCache(): Promise<void>
 
-  shutdown(): Promise<void>
+  /** @see {@link projectShutdown} */
+  shutdown(): ReturnType<typeof projectShutdown>
 
-  onExit(): Promise<void>
+  /** @see {@link projectOnExit} */
+  onExit(): ReturnType<typeof projectOnExit>
 }
 
 export type Route =
@@ -393,6 +416,7 @@ export type Route =
   | {
       type: 'app-route'
       originalName: string
+      hasActionManifest: boolean
       endpoint: Endpoint
     }
   | {
@@ -414,7 +438,7 @@ export interface Endpoint {
    * After clientChanged() has been awaited it will listen to changes.
    * The async iterator will yield for each change.
    */
-  clientChanged(): Promise<AsyncIterableIterator<TurbopackResult>>
+  clientChanged(): Promise<AsyncIterableIterator<TurbopackResult<void>>>
 
   /**
    * Listen to server-side changes to the endpoint.
@@ -423,7 +447,7 @@ export interface Endpoint {
    */
   serverChanged(
     includeIssues: boolean
-  ): Promise<AsyncIterableIterator<TurbopackResult>>
+  ): Promise<AsyncIterableIterator<TurbopackResult<void>>>
 }
 
 interface EndpointConfig {
@@ -452,6 +476,8 @@ export type WrittenEndpoint =
       type: 'nodejs'
       /** The entry path for the endpoint. */
       entryPath: string
+      /** Server HMR entry chunk lists owned by this endpoint. */
+      serverHmrEntryPaths: string[]
       /** All client paths that have been written for the endpoint. */
       clientPaths: string[]
       /** All server paths that have been written for the endpoint. */
@@ -460,6 +486,7 @@ export type WrittenEndpoint =
     }
   | {
       type: 'edge'
+      serverHmrEntryPaths: []
       /** All client paths that have been written for the endpoint. */
       clientPaths: string[]
       /** All server paths that have been written for the endpoint. */
@@ -468,13 +495,14 @@ export type WrittenEndpoint =
     }
   | {
       type: 'none'
+      serverHmrEntryPaths: []
       clientPaths: []
       serverPaths: []
       config: EndpointConfig
     }
 
 export interface ProjectOptions
-  extends Omit<NapiProjectOptions, 'nextConfig' | 'env'> {
+  extends Omit<NapiProjectOptions, 'nextConfig' | 'additionalRoots' | 'env'> {
   /**
    * The next.config.js contents.
    */
@@ -488,8 +516,6 @@ export interface ProjectOptions
 
 export interface PartialProjectOptions
   extends Omit<NapiPartialProjectOptions, 'nextConfig' | 'env'> {
-  rootPath: NapiProjectOptions['rootPath']
-  projectPath: NapiProjectOptions['projectPath']
   /**
    * The next.config.js contents.
    */
@@ -537,6 +563,7 @@ export type AppRoute =
     }
   | {
       type: 'app-route'
+      hasActionManifest: boolean
       endpoint: Endpoint
     }
 

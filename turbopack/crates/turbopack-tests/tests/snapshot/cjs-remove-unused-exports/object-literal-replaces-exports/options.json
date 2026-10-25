@@ -2,5 +2,5 @@
   "removeUnusedImports": false,
   "removeUnusedExports": true,
   "cjsTreeShaking": true,
-  "treeShakingMode": "reexports-only"
+  "followReexports": true
 }

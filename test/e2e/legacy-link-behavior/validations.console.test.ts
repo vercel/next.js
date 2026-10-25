@@ -4,12 +4,13 @@ import { getDeterministicOutput } from '../app-dir/cache-components-errors/utils
 
 const partialPrefetching = !!process.env.__NEXT_PARTIAL_PREFETCHING
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('Validations for <Link legacyBehavior>', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (skipped) return
   let previousOutputIndex = 0
 
   beforeEach(() => {
@@ -31,7 +32,6 @@ describe('Validations for <Link legacyBehavior>', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            [
              {
-               "code": "E394",
                "description": "Using a Server Component as a direct child of \`<Link legacyBehavior>\` is not supported. If you need legacyBehavior, wrap your Server Component in a Client Component that renders the Link's \`<a>\` tag.",
                "environmentLabel": "Prerender",
                "label": "Console Error",
@@ -43,7 +43,6 @@ describe('Validations for <Link legacyBehavior>', () => {
                ],
              },
              {
-               "code": "E394",
                "description": "\`legacyBehavior\` is deprecated and will be removed in a future release. A codemod is available to upgrade your components:
 
            npx @next/codemod@latest new-link .
@@ -89,7 +88,6 @@ describe('Validations for <Link legacyBehavior>', () => {
           await expect(browser).toDisplayRedbox(`
            [
              {
-               "code": "E394",
                "description": "Using a Server Component as a direct child of \`<Link legacyBehavior>\` is not supported. If you need legacyBehavior, wrap your Server Component in a Client Component that renders the Link's \`<a>\` tag.",
                "environmentLabel": "Prerender",
                "label": "Console Error",
@@ -101,7 +99,6 @@ describe('Validations for <Link legacyBehavior>', () => {
                ],
              },
              {
-               "code": "E863",
                "description": "\`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag.",
                "environmentLabel": null,
                "label": "Runtime Error",
@@ -138,7 +135,6 @@ describe('Validations for <Link legacyBehavior>', () => {
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E863",
                "description": "\`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag.",
                "environmentLabel": null,
                "label": "Runtime Error",
@@ -166,7 +162,6 @@ describe('Validations for <Link legacyBehavior>', () => {
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E863",
                "description": "\`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag.",
                "environmentLabel": null,
                "label": "Runtime Error",
@@ -216,7 +211,6 @@ describe('Validations for <Link legacyBehavior>', () => {
           await expect(browser).toDisplayRedbox(`
            [
              {
-               "code": "E394",
                "description": "Using a Lazy Component as a direct child of \`<Link legacyBehavior>\` from a Server Component is not supported. If you need legacyBehavior, wrap your Lazy Component in a Client Component that renders the Link's \`<a>\` tag.",
                "environmentLabel": "Prerender",
                "label": "Console Error",
@@ -228,7 +222,6 @@ describe('Validations for <Link legacyBehavior>', () => {
                ],
              },
              {
-               "code": "E863",
                "description": "\`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag.",
                "environmentLabel": null,
                "label": "Runtime Error",
@@ -275,7 +268,6 @@ describe('Validations for <Link legacyBehavior>', () => {
         if (isNextDev) {
           await expect(browser).toDisplayRedbox(`
            {
-             "code": "E863",
              "description": "\`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag.",
              "environmentLabel": null,
              "label": "Runtime Error",
@@ -311,7 +303,6 @@ describe('Validations for <Link legacyBehavior>', () => {
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E863",
                "description": "\`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag.",
                "environmentLabel": null,
                "label": "Runtime Error",
@@ -340,7 +331,6 @@ describe('Validations for <Link legacyBehavior>', () => {
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E863",
                "description": "\`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag.",
                "environmentLabel": null,
                "label": "Runtime Error",
@@ -382,7 +372,6 @@ describe('Validations for <Link legacyBehavior>', () => {
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E863",
                "description": "\`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag.",
                "environmentLabel": null,
                "label": "Runtime Error",
@@ -411,7 +400,6 @@ describe('Validations for <Link legacyBehavior>', () => {
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E863",
                "description": "\`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag.",
                "environmentLabel": null,
                "label": "Runtime Error",
@@ -451,7 +439,6 @@ describe('Validations for <Link legacyBehavior>', () => {
       if (isNextDev) {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E320",
            "description": "No children were passed to <Link> with \`href\` of \`/about\` but one child is required https://nextjs.org/docs/messages/link-no-children",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -483,7 +470,6 @@ describe('Validations for <Link legacyBehavior>', () => {
       if (isNextDev) {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E266",
            "description": "Multiple children were passed to <Link> with \`href\` of \`/about\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children 
          Open your browser's console to view the Component stack trace.",
            "environmentLabel": null,
@@ -524,7 +510,6 @@ describe('Validations for <Link legacyBehavior>', () => {
       if (isNextDev) {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E863",
            "description": "\`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag.",
            "environmentLabel": null,
            "label": "Runtime Error",

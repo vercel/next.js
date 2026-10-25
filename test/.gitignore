@@ -10,3 +10,9 @@ development/**/tsconfig.json
 rspack-test-junit-report/
 test-junit-report/
 turbopack-test-junit-report/
+
+# node-gyp output from the compiled native addon fixtures. The addons are built
+# inside each test's throwaway install directory, so this only catches builds
+# someone runs in place while iterating on a fixture.
+**/native-addon/build/
+**/single-context-addon/build/

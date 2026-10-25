@@ -6,12 +6,9 @@ const testFn =
     : describe
 
 testFn('import.meta.env', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('exposes built-in environment values on the server and client', async () => {
     const browser = await next.browser('/docs')

@@ -1,5 +1,7 @@
 'use client'
 
+import type { RouteTree } from './segment-cache/cache'
+
 import type { CacheNode } from '../../shared/lib/app-router-types'
 import type { LoadingModuleData } from '../../shared/lib/app-router-types'
 import type {
@@ -8,7 +10,7 @@ import type {
   Segment,
 } from '../../shared/lib/app-router-types'
 import type { ErrorComponent } from './error-boundary'
-import type { FocusAndScrollRef } from './router-reducer/router-reducer-types'
+import type { ScrollHandlerRef } from './router-reducer/router-reducer-types'
 
 import React, {
   Activity,
@@ -36,7 +38,7 @@ import {
   InstantValidationBoundaryContext,
   RenderValidationBoundaryAtThisLevel,
 } from './instant-validation/boundary'
-import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
+import { createSegmentKey } from './router-reducer/create-segment-key'
 import {
   useRouterBFCache,
   type RouterBFCacheEntry,
@@ -48,7 +50,7 @@ import {
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { getParamValueFromCacheKey } from '../route-params'
 import type { Params } from '../../server/request/params'
-import { isDeferredRsc } from './router-reducer/ppr-navigations'
+import { isDeferredRsc } from './render-tree'
 
 const enum ScrollTargetState {
   NoClientRects,
@@ -133,32 +135,30 @@ function getHashFragmentDomNode(hashFragment: string) {
     null
   )
 }
-interface ScrollAndMaybeFocusHandlerProps {
-  focusAndScrollRef: FocusAndScrollRef
+interface ScrollHandlerProps {
+  scrollRef: ScrollHandlerRef
   children: React.ReactNode
-  cacheNode: CacheNode
+  renderTree: RouteTree<CacheNode>
 }
 
 /**
  * Uses Fragment refs for scrolling.
  * Does not focus the first host descendant.
  */
-function InnerScrollAndMaybeFocusHandler(
-  props: ScrollAndMaybeFocusHandlerProps
-) {
+function InnerScrollHandler(props: ScrollHandlerProps) {
   const childrenRef = React.useRef<FragmentInstance>(null)
 
   useLayoutEffect(
     () => {
-      const { focusAndScrollRef, cacheNode } = props
+      const { scrollRef: scrollHandlerRef, renderTree } = props
 
-      const scrollRef = focusAndScrollRef.forceScroll
-        ? focusAndScrollRef.scrollRef
-        : cacheNode.scrollRef
+      const scrollRef = scrollHandlerRef.forceScroll
+        ? scrollHandlerRef.scrollRef
+        : renderTree.data.scrollRef
       if (scrollRef === null || !scrollRef.current) return
 
       let instance: FragmentInstance | HTMLElement | null = null
-      const hashFragment = focusAndScrollRef.hashFragment
+      const hashFragment = scrollHandlerRef.hashFragment
 
       if (hashFragment) {
         instance = getHashFragmentDomNode(hashFragment)
@@ -166,8 +166,8 @@ function InnerScrollAndMaybeFocusHandler(
           // A missing hash target is still a handled scroll intent. Do not
           // fall back to the route Fragment or leave the intent pending.
           scrollRef.current = false
-          focusAndScrollRef.onlyHashChange = false
-          focusAndScrollRef.hashFragment = null
+          scrollHandlerRef.onlyHashChange = false
+          scrollHandlerRef.hashFragment = null
           return
         }
       } else {
@@ -257,7 +257,7 @@ function InnerScrollAndMaybeFocusHandler(
         {
           // We will force layout by querying domNode position
           dontForceLayout: true,
-          onlyHashChange: focusAndScrollRef.onlyHashChange,
+          onlyHashChange: scrollHandlerRef.onlyHashChange,
         }
       )
 
@@ -266,8 +266,8 @@ function InnerScrollAndMaybeFocusHandler(
       }
 
       // Mutate after scrolling so that it can be read by `disableSmoothScrollDuringRouteTransition`
-      focusAndScrollRef.onlyHashChange = false
-      focusAndScrollRef.hashFragment = null
+      scrollHandlerRef.onlyHashChange = false
+      scrollHandlerRef.hashFragment = null
     },
     // Used to run on every commit. We may be able to be smarter about this
     // but be prepared for lots of manual testing.
@@ -277,12 +277,12 @@ function InnerScrollAndMaybeFocusHandler(
   return <Fragment ref={childrenRef}>{props.children}</Fragment>
 }
 
-function ScrollAndMaybeFocusHandler({
+function ScrollHandler({
   children,
-  cacheNode,
+  renderTree,
 }: {
   children: React.ReactNode
-  cacheNode: CacheNode
+  renderTree: RouteTree<CacheNode>
 }) {
   const context = useContext(GlobalLayoutRouterContext)
   if (!context) {
@@ -290,12 +290,9 @@ function ScrollAndMaybeFocusHandler({
   }
 
   return (
-    <InnerScrollAndMaybeFocusHandler
-      focusAndScrollRef={context.focusAndScrollRef}
-      cacheNode={cacheNode}
-    >
+    <InnerScrollHandler scrollRef={context.scrollRef} renderTree={renderTree}>
       {children}
-    </InnerScrollAndMaybeFocusHandler>
+    </InnerScrollHandler>
   )
 }
 
@@ -306,7 +303,7 @@ function InnerLayoutRouter({
   tree,
   segmentPath,
   debugNameContext,
-  cacheNode: maybeCacheNode,
+  renderTree,
   params,
   url,
   isActive,
@@ -314,7 +311,7 @@ function InnerLayoutRouter({
   tree: FlightRouterState
   segmentPath: FlightSegmentPath
   debugNameContext: string
-  cacheNode: CacheNode | null
+  renderTree: RouteTree<CacheNode>
   params: Params
   url: string
   isActive: boolean
@@ -326,19 +323,6 @@ function InnerLayoutRouter({
     throw new Error('invariant global layout router not mounted')
   }
 
-  const cacheNode =
-    maybeCacheNode !== null
-      ? maybeCacheNode
-      : // This segment is not in the cache. Suspend indefinitely.
-        //
-        // This should only be reachable for inactive/hidden segments, during
-        // prerendering The active segment should always be consistent with the
-        // CacheNode tree. Regardless, if we don't have a matching CacheNode, we
-        // must suspend rather than render nothing, to prevent showing an
-        // inconsistent route.
-
-        (use(unresolvedThenable) as never)
-
   // `rsc` represents the renderable node for this segment.
 
   // If this segment has a `prefetchRsc`, it's the statically prefetched data.
@@ -347,12 +331,14 @@ function InnerLayoutRouter({
   //
   // If no prefetch data is available, then we go straight to rendering `rsc`.
   const resolvedPrefetchRsc =
-    cacheNode.prefetchRsc !== null ? cacheNode.prefetchRsc : cacheNode.rsc
+    renderTree.data.prefetchRsc !== null
+      ? renderTree.data.prefetchRsc
+      : renderTree.data.rsc
 
   // We use `useDeferredValue` to handle switching between the prefetched and
   // final values. The second argument is returned on initial render, then it
   // re-renders with the first argument.
-  const rsc: any = useDeferredValue(cacheNode.rsc, resolvedPrefetchRsc)
+  const rsc: any = useDeferredValue(renderTree.data.rsc, resolvedPrefetchRsc)
 
   // `rsc` is either a React node or a promise for a React node, except we
   // special case `null` to represent that this segment's data is missing. If
@@ -406,7 +392,7 @@ function InnerLayoutRouter({
     <LayoutRouterContext.Provider
       value={{
         parentTree: tree,
-        parentCacheNode: cacheNode,
+        parentRenderTree: renderTree,
         parentSegmentPath: segmentPath,
         parentParams: params,
         // This is always set to null as we enter a child segment. It's
@@ -439,7 +425,7 @@ export function LoadingBoundaryProvider({
   // loading.tsx creates a Suspense boundary around each of a layout's child
   // slots. (Might be bit confusing to think about the data flow, but: if
   // loading.tsx and layout.tsx are in the same directory, they are assigned
-  // to the same CacheNode.)
+  // to the same render tree.)
   //
   // This provider component does not render the Suspense boundary directly;
   // that's handled by LoadingBoundary.
@@ -458,7 +444,7 @@ export function LoadingBoundaryProvider({
     <LayoutRouterContext.Provider
       value={{
         parentTree: parentContext.parentTree,
-        parentCacheNode: parentContext.parentCacheNode,
+        parentRenderTree: parentContext.parentRenderTree,
         parentSegmentPath: parentContext.parentSegmentPath,
         parentParams: parentContext.parentParams,
         parentLoadingData: loading,
@@ -549,7 +535,7 @@ export default function OuterLayoutRouter({
 
   const {
     parentTree,
-    parentCacheNode,
+    parentRenderTree,
     parentSegmentPath,
     parentParams,
     parentLoadingData,
@@ -558,7 +544,7 @@ export default function OuterLayoutRouter({
     debugNameContext,
   } = context
 
-  // Get the CacheNode for this segment by reading it from the parent segment's
+  // Get the render tree for this segment by reading it from the parent segment's
   // child map.
   const parentTreeSegment = parentTree[0]
   const segmentPath =
@@ -569,19 +555,19 @@ export default function OuterLayoutRouter({
         [parallelRouterKey]
       : parentSegmentPath.concat([parentTreeSegment, parallelRouterKey])
 
-  // The "state" key of a segment is the one passed to React — it represents the
-  // identity of the UI tree. Whenever the state key changes, the tree is
-  // recreated and the state is reset. In the App Router model, search params do
-  // not cause state to be lost, so two segments with the same segment path but
-  // different search params should have the same state key.
+  // The "state" key of a segment is the one passed to React. In the browser it
+  // represents the identity of the UI tree. Whenever the state key changes,
+  // the tree is recreated and the state is reset. In the App Router model,
+  // search params do not cause state to be lost, so two segments with the same
+  // segment path but different search params should have the same state key.
+  // On the server, the key describes the segment's structure instead, so it
+  // stays the same when unknown params become known during HTML resume.
   //
-  // The "cache" key of a segment, however, *does* include the search params, if
-  // it's possible that the segment accessed the search params on the server.
-  // (This only applies to page segments; layout segments cannot access search
-  // params on the server.)
+  // Whether the data can be reused is tracked separately, by the segment
+  // cache's vary paths.
   const activeTree = parentTree[1][parallelRouterKey]
-  const maybeParentSlots = parentCacheNode.slots
-  if (activeTree === undefined || maybeParentSlots === null) {
+  const activeRenderTree = parentRenderTree.slots?.get(parallelRouterKey)
+  if (activeTree === undefined || activeRenderTree === undefined) {
     // Could not find a matching segment. The client tree is inconsistent with
     // the server tree. Suspend indefinitely; the router will have already
     // detected the inconsistency when handling the server response, and
@@ -595,8 +581,7 @@ export default function OuterLayoutRouter({
   }
 
   const activeSegment = activeTree[0]
-  const activeCacheNode = maybeParentSlots![parallelRouterKey] ?? null
-  const activeStateKey = createRouterCacheKey(activeSegment, true) // no search params
+  const activeStateKey = createSegmentKey(activeSegment)
 
   // At each level of the route tree, not only do we render the currently
   // active segment — we also render the last N segments that were active at
@@ -606,16 +591,15 @@ export default function OuterLayoutRouter({
   // bfcacheEntry is a linked list of FlightRouterStates.
   let bfcacheEntry: RouterBFCacheEntry | null = useRouterBFCache(
     activeTree,
-    activeCacheNode,
+    activeRenderTree!,
     activeStateKey
   )
   let children: Array<React.ReactNode> = []
   do {
     const tree = bfcacheEntry.tree
-    const cacheNode = bfcacheEntry.cacheNode
+    const renderTree = bfcacheEntry.renderTree
     const stateKey = bfcacheEntry.stateKey
     const segment = tree[0]
-
     /*
     - Error boundary
       - Only renders error boundary if error component is provided.
@@ -680,7 +664,7 @@ export default function OuterLayoutRouter({
     const debugNameToDisplay = isVirtual ? undefined : debugNameContext
 
     let templateValue = (
-      <ScrollAndMaybeFocusHandler cacheNode={cacheNode}>
+      <ScrollHandler renderTree={renderTree}>
         <ErrorBoundary
           errorComponent={error}
           errorStyles={errorStyles}
@@ -710,7 +694,7 @@ export default function OuterLayoutRouter({
                   url={url}
                   tree={tree}
                   params={params}
-                  cacheNode={cacheNode}
+                  renderTree={renderTree}
                   segmentPath={segmentPath}
                   debugNameContext={childDebugNameContext}
                   isActive={isActive && stateKey === activeStateKey}
@@ -721,7 +705,7 @@ export default function OuterLayoutRouter({
           </LoadingBoundary>
         </ErrorBoundary>
         {segmentViewStateNode}
-      </ScrollAndMaybeFocusHandler>
+      </ScrollHandler>
     )
 
     if (

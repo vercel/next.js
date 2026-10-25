@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { ParsedUrlQuery } from 'node:querystring'
 import { RouteKind } from '../../route-kind'
 import { BaseServerSpan } from '../../lib/trace/constants'
-import { getTracer, SpanKind, type Span } from '../../lib/trace/tracer'
+import { getTracer, type Span } from '../../lib/trace/tracer'
 import { formatUrl } from '../../../shared/lib/router/utils/format-url'
 import {
   addRequestMeta,
@@ -42,6 +42,7 @@ import { RedirectStatusCode } from '../../../client/components/redirect-status-c
 import { isBot } from '../../../shared/lib/router/utils/is-bot'
 import { addPathPrefix } from '../../../shared/lib/router/utils/add-path-prefix'
 import { removeTrailingSlash } from '../../../shared/lib/router/utils/remove-trailing-slash'
+import { isRouteCacheOwner } from '../../lib/route-cache-key'
 import type { PagesRouteModule } from './module.compiled'
 import type {
   GetServerSideProps,
@@ -99,6 +100,47 @@ export const getHandler = ({
     const multiZoneDraftMode = process.env
       .__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
 
+    // Registering `instrumentation.ts` usually installs the tracer provider, so
+    // do it before starting the request span. The span is started before
+    // `prepare`, so route module preparation is part of the request's trace.
+    // When this request triggers registration, the lifecycle spans of
+    // `instrumentation.ts` are emitted inside the request span.
+    const { instrumentation } = await routeModule.ensureInstrumentation(req, {
+      deferSpans: true,
+    })
+    return routeModule.traceRequest(
+      req,
+      {
+        tracer: getTracer(),
+        spanName: `${req.method || 'GET'} ${srcPage}`,
+        httpTarget: req.url,
+        instrumentation,
+      },
+      (requestSpan, requestRootSpan) =>
+        handleRequest(
+          req,
+          res,
+          ctx,
+          srcPage,
+          multiZoneDraftMode,
+          requestSpan,
+          requestRootSpan
+        )
+    )
+  }
+
+  async function handleRequest(
+    req: IncomingMessage,
+    res: ServerResponse,
+    ctx: {
+      waitUntil?: (prom: Promise<void>) => void
+      requestMeta?: RequestMeta
+    },
+    srcPage: string,
+    multiZoneDraftMode: boolean,
+    requestSpan: Span | undefined,
+    requestRootSpan: Span | undefined
+  ) {
     const prepareResult = await routeModule.prepare(req, res, {
       srcPage,
       multiZoneDraftMode,
@@ -150,6 +192,7 @@ export const getHandler = ({
       serverFilesManifest,
       reactLoadableManifest,
       prerenderManifest,
+      previewProps,
       isDraftMode,
       isOnDemandRevalidate,
       revalidateOnlyGenerated,
@@ -204,8 +247,18 @@ export const getHandler = ({
           : resolvedPathname
       )
       const isPrerendered =
-        Boolean(prerenderManifest.routes[decodedPathname]) ||
-        prerenderManifest.notFoundRoutes.includes(decodedPathname)
+        (Boolean(prerenderManifest.routes[decodedPathname]) ||
+          prerenderManifest.notFoundRoutes.includes(decodedPathname)) &&
+        // A sibling's positive or negative prerender cannot admit parameters
+        // that this route excluded. Development computes static paths on demand
+        // instead of reading build-time prerender metadata.
+        (routeModule.isDev ||
+          isRouteCacheOwner(
+            decodedPathname,
+            routeModule.cacheOwner,
+            prerenderManifest.routes[decodedPathname],
+            nextConfig.i18n?.locales
+          ))
 
       const prerenderInfo = prerenderManifest.dynamicRoutes[srcPage]
 
@@ -238,7 +291,6 @@ export const getHandler = ({
     }
 
     const tracer = getTracer()
-    const activeSpan = tracer.getActiveScopeSpan()
     const isWrappedByNextServer = Boolean(
       routerServerContext?.isWrappedByNextServer
     )
@@ -253,7 +305,6 @@ export const getHandler = ({
       query: hasStaticProps ? {} : originalQuery,
     })
 
-    let parentSpan: Span | undefined
     const handleResponse = async (span?: Span) => {
       const responseGenerator: ResponseGenerator = async ({
         previousCacheEntry,
@@ -305,9 +356,12 @@ export const getHandler = ({
                   nextFontManifest,
                   reactLoadableManifest,
 
-                  assetPrefix: nextConfig.assetPrefix,
-                  previewProps: prerenderManifest.preview,
-                  images: nextConfig.images as any,
+                  assetPrefix: routeModule.getAssetPrefixForRender(
+                    routerServerContext,
+                    nextConfig.assetPrefix
+                  ),
+                  previewProps,
+                  images: nextConfig.images,
                   nextConfigOutput: nextConfig.output,
                   optimizeCss: Boolean(nextConfig.experimental.optimizeCss),
                   nextScriptWorkers: Boolean(
@@ -327,8 +381,7 @@ export const getHandler = ({
 
                   experimental: {
                     clientTraceMetadata:
-                      nextConfig.experimental.clientTraceMetadata ||
-                      ([] as any),
+                      nextConfig.experimental.clientTraceMetadata || [],
                   },
 
                   locale,
@@ -476,12 +529,17 @@ export const getHandler = ({
               incrementalCache: await routeModule.getIncrementalCache(
                 req,
                 nextConfig,
+                previewProps,
                 prerenderManifest,
                 isMinimalMode
               ),
               waitUntil: ctx.waitUntil,
             }
           )
+          if (fallbackResponse !== null && 'error' in fallbackResponse) {
+            throw fallbackResponse.error
+          }
+
           if (fallbackResponse) {
             // Remove the cache control from the response to prevent it from being
             // used in the surrounding cache.
@@ -538,9 +596,14 @@ export const getHandler = ({
           revalidateOnlyGenerated,
           waitUntil: ctx.waitUntil,
           responseGenerator: responseGenerator,
+          previewProps,
           prerenderManifest,
           isMinimalMode,
         })
+
+        if (result !== null && 'error' in result) {
+          throw result.error
+        }
 
         // if we got a cache hit this wasn't an ISR fallback
         // but it wasn't generated during build so isn't in the
@@ -687,9 +750,14 @@ export const getHandler = ({
           )
         }
 
-        // In dev, we should not cache pages for any reason.
+        // Documents and data responses must not be stored in development.
+        // Browsers reuse a stored response for a history navigation without
+        // revalidating it, so a back navigation would restore a page from
+        // before the latest edit. Static assets never reach this code. They
+        // keep a revalidatable `Cache-Control`, so the browser caches them
+        // between page loads.
         if (routeModule.isDev) {
-          res.setHeader('Cache-Control', 'no-cache, must-revalidate')
+          res.setHeader('Cache-Control', 'no-store')
         }
 
         // Draft mode should never be cached
@@ -792,41 +860,23 @@ export const getHandler = ({
           })
           span.updateName(name)
 
-          // Propagate http.route to the parent span if one exists
-          // (e.g. a platform-created HTTP span in adapter
+          // Propagate http.route to the request's root span if it isn't
+          // the request span (e.g. a platform-created HTTP span in adapter
           // deployments).
-          if (parentSpan && parentSpan !== span) {
-            parentSpan.setAttribute('http.route', route)
-            parentSpan.updateName(name)
+          if (requestRootSpan && requestRootSpan !== span) {
+            requestRootSpan.setAttribute('http.route', route)
+            requestRootSpan.updateName(name)
           }
         })()
       }
     }
 
-    // TODO: activeSpan code path is for when wrapped by
-    // next-server can be removed when this is no longer used
-    if (isWrappedByNextServer && activeSpan) {
-      await handleResponse(activeSpan)
-    } else {
-      parentSpan = tracer.getActiveScopeSpan()
-      await tracer.withPropagatedContext(
-        req.headers,
-        () =>
-          tracer.trace(
-            BaseServerSpan.handleRequest,
-            {
-              spanName: `${method} ${srcPage}`,
-              kind: SpanKind.SERVER,
-              attributes: {
-                'http.method': method,
-                'http.target': req.url,
-              },
-            },
-            handleResponse
-          ),
-        undefined,
-        !isWrappedByNextServer
-      )
+    // When invoked directly, the request span was started before `prepare`;
+    // record the request target as normalized by it. next-server's request
+    // span already has it.
+    if (!isWrappedByNextServer && req.url !== undefined) {
+      requestSpan?.setAttribute('http.target', req.url)
     }
+    await handleResponse(requestSpan)
   }
 }

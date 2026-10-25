@@ -383,7 +383,7 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
         ? import('../pages/_error')
             .then((errorModule) => {
               return import('../pages/_app').then((appModule) => {
-                App = appModule.default as any as AppComponent
+                App = appModule.default as AppComponent
                 renderErrorProps.App = App
                 return errorModule
               })
@@ -578,7 +578,7 @@ function renderReactElement(
     // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
     shouldHydrate = false
   } else {
-    const startTransition = (React as any).startTransition
+    const startTransition = React.startTransition
     startTransition(() => {
       reactRoot.render(reactEl)
     })
@@ -924,14 +924,6 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
           error.name = initialErr!.name
           error.stack = initialErr!.stack
-          // If present, restore the error code from the original server error.
-          if (typeof initialErr.__NEXT_ERROR_CODE === 'string') {
-            Object.defineProperty(error, '__NEXT_ERROR_CODE', {
-              value: initialErr.__NEXT_ERROR_CODE,
-              enumerable: false,
-              configurable: true,
-            })
-          }
           const errSource = initialErr.source!
 
           // In development, error the navigation API usage in runtime,

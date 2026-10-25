@@ -76,12 +76,9 @@ export class NextStartInstance extends NextInstance {
     })
   }
 
-  // When a previous test attempt was interrupted (typically by exceeding the
-  // per-test timeout) while `next build` was still running, the build process
-  // is still tracked here. Since `jest.retryTimes` re-runs the test body in the
-  // same process, stop the orphaned build so the caller can continue instead of
-  // failing the retry. If a server is genuinely running, throw
-  // `serverRunningError` instead.
+  // Stop a build left running after a test exceeded its timeout so subsequent
+  // tests can start or build the fixture. Throw `serverRunningError` if the
+  // process is serving requests instead.
   private async stopLeftoverBuildOrThrow(serverRunningError: string) {
     if (!this.childProcess) {
       return
@@ -130,7 +127,9 @@ export class NextStartInstance extends NextInstance {
         try {
           this.childProcess = spawn(buildArgs[0], buildArgs.slice(1), spawnOpts)
           this.handleStdio(this.childProcess)
-          this.childProcess.on('exit', (code, signal) => {
+          // Unlike `exit`, `close` fires after the stdio streams have closed.
+          // Wait for it so trailing build output is not lost before starting.
+          this.childProcess.on('close', (code, signal) => {
             this.childProcess = undefined
             if (code || signal)
               reject(
@@ -266,24 +265,6 @@ export class NextStartInstance extends NextInstance {
     return buildArgs
   }
 
-  private getSpawnOpts(
-    env?: Record<string, string>
-  ): import('child_process').SpawnOptions {
-    return {
-      cwd: this.testDir,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      shell: false,
-      env: {
-        ...process.env,
-        ...this.env,
-        ...env,
-        NODE_ENV: this.env.NODE_ENV || ('' as any),
-        PORT: this.forcedPort ?? '0',
-        __NEXT_TEST_MODE: 'e2e',
-      },
-    }
-  }
-
   public async build(
     options: { env?: Record<string, string>; args?: string[] } = {}
   ) {
@@ -305,7 +286,9 @@ export class NextStartInstance extends NextInstance {
       this.childProcess = spawn(buildArgs[0], buildArgs.slice(1), spawnOpts)
       this.handleStdio(this.childProcess)
 
-      this.childProcess.on('exit', (code, signal) => {
+      // Unlike `exit`, `close` fires after the stdio streams have closed. Wait
+      // for it before snapshotting cliOutput so trailing diagnostics are not lost.
+      this.childProcess.on('close', (code, signal) => {
         this.childProcess = undefined
         resolve({
           exitCode: signal || code,

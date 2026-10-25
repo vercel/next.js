@@ -1,4 +1,3 @@
-use bincode::{Decode, Encode};
 use smallvec::SmallVec;
 #[cfg(feature = "task_dirty_cause")]
 use turbo_tasks::TaskDirtyCause;
@@ -6,113 +5,94 @@ use turbo_tasks::{TaskExecutionReason, TaskId, TaskPriority, event::EventDescrip
 
 use crate::{
     backend::{
-        TaskDataCategory,
         operation::{
-            ExecuteContext, Operation, TaskGuard,
+            ExecuteContext, TaskGuard,
             aggregation_update::{
                 AggregationUpdateJob, AggregationUpdateQueue, ComputeDirtyAndCleanUpdate,
             },
         },
+        storage_schema::TaskStorageAccessors,
     },
     data::{Dirtyness, InProgressState, InProgressStateInner},
 };
 
-#[derive(Encode, Decode, Clone, Default)]
-#[allow(clippy::large_enum_variant)]
-pub enum InvalidateOperation {
-    MakeDirty {
-        task_ids: SmallVec<[TaskId; 4]>,
-        #[cfg(feature = "task_dirty_cause")]
-        cause: TaskDirtyCause,
-    },
-    AggregationUpdate {
-        queue: AggregationUpdateQueue,
-    },
-    #[default]
-    Done,
-}
-
-impl InvalidateOperation {
-    pub fn run(
-        task_ids: SmallVec<[TaskId; 4]>,
-        #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
-        mut ctx: impl ExecuteContext<'_>,
-    ) {
-        InvalidateOperation::MakeDirty {
-            task_ids,
+/// Invalidates `task_ids`. Callers must not pass duplicate ids (the bulk task access expects
+/// unique ids, and deduplicating here would cost every invalidation).
+pub fn invalidate(
+    task_ids: impl IntoIterator<Item = TaskId>,
+    #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
+    mut ctx: ExecuteContext<'_>,
+) {
+    // Debug builds collect the ids to check they are unique. Release builds stream them.
+    #[cfg(debug_assertions)]
+    let task_ids = {
+        let task_ids: Vec<TaskId> = task_ids.into_iter().collect();
+        debug_assert!(
+            task_ids.len() <= 1
+                || task_ids.iter().collect::<rustc_hash::FxHashSet<_>>().len() == task_ids.len(),
+            "invalidate() must not be called with duplicate task ids: {task_ids:?}"
+        );
+        task_ids
+    };
+    let task_ids = task_ids.into_iter();
+    let mut queue = AggregationUpdateQueue::new();
+    // The tasks to schedule are collected and handed to the scheduler as one batch, which takes
+    // the scheduler's queue lock once instead of once per task.
+    let mut to_schedule: SmallVec<[_; 4]> = SmallVec::with_capacity(task_ids.size_hint().0);
+    // Tasks that no longer exist are skipped, there is nothing to invalidate. Tasks that are not
+    // resident are restored from persistent storage in batches.
+    ctx.for_each_try_task_all(task_ids, "invalidate", |mut task, ctx| {
+        if let Some(parent_priority) = make_task_dirty_without_scheduling(
+            &mut task,
+            true,
             #[cfg(feature = "task_dirty_cause")]
-            cause,
+            cause.clone(),
+            &mut queue,
+            ctx,
+        ) {
+            to_schedule.push((
+                task.id(),
+                ctx.schedule_task_priority(&task, parent_priority),
+            ));
         }
-        .execute(&mut ctx)
-    }
+    });
+    ctx.schedule_tasks(&to_schedule);
+    queue.execute(&mut ctx);
 }
 
-impl Operation for InvalidateOperation {
-    fn execute(mut self, ctx: &mut impl ExecuteContext<'_>) {
-        loop {
-            ctx.operation_suspend_point(&self);
-            match self {
-                InvalidateOperation::MakeDirty {
-                    task_ids,
-                    #[cfg(feature = "task_dirty_cause")]
-                    cause,
-                } => {
-                    let mut queue = AggregationUpdateQueue::new();
-                    for task_id in task_ids {
-                        make_task_dirty(
-                            task_id,
-                            #[cfg(feature = "task_dirty_cause")]
-                            cause.clone(),
-                            &mut queue,
-                            ctx,
-                        );
-                    }
-                    if queue.is_empty() {
-                        self = InvalidateOperation::Done
-                    } else {
-                        self = InvalidateOperation::AggregationUpdate { queue }
-                    }
-                    continue;
-                }
-                InvalidateOperation::AggregationUpdate { ref mut queue } => {
-                    if queue.process(ctx) {
-                        self = InvalidateOperation::Done
-                    }
-                }
-                InvalidateOperation::Done => {
-                    return;
-                }
-            }
-        }
-    }
-}
-
-pub fn make_task_dirty(
-    task_id: TaskId,
+/// Requires the guard to be allocated with [TaskDataCategory::All]
+pub fn make_task_dirty_internal(
+    task: &mut TaskGuard<'_>,
+    make_stale: bool,
     #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
     queue: &mut AggregationUpdateQueue,
-    ctx: &mut impl ExecuteContext<'_>,
+    ctx: &mut ExecuteContext<'_>,
 ) {
-    let task = ctx.task(task_id, TaskDataCategory::All);
-    make_task_dirty_internal(
+    if let Some(parent_priority) = make_task_dirty_without_scheduling(
         task,
-        task_id,
-        true,
+        make_stale,
         #[cfg(feature = "task_dirty_cause")]
         cause,
         queue,
         ctx,
-    );
+    ) {
+        ctx.schedule_task(task, parent_priority);
+    }
 }
 
-pub fn make_task_dirty_internal(
-    mut task: impl TaskGuard,
-    task_id: TaskId,
+/// Like [`make_task_dirty_internal`], but instead of scheduling the task it returns the parent
+/// priority to schedule it with (see [`ExecuteContext::schedule_task`]). The task is already marked
+/// as scheduled when this returns `Some`, so the caller must schedule it.
+///
+/// Requires the guard to be allocated with [TaskDataCategory::All]
+#[must_use]
+pub(super) fn make_task_dirty_without_scheduling(
+    task: &mut TaskGuard<'_>,
     make_stale: bool,
     #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
     queue: &mut AggregationUpdateQueue,
-    ctx: &mut impl ExecuteContext<'_>,
-) {
+    ctx: &mut ExecuteContext<'_>,
+) -> Option<TaskPriority> {
     // There must be no way to invalidate immutable tasks. If there would be a way the task is not
     // immutable.
     #[cfg(any(debug_assertions, feature = "verify_immutable"))]
@@ -132,7 +112,7 @@ pub fn make_task_dirty_internal(
     #[cfg(feature = "trace_task_dirty")]
     let task_name = task.get_task_name();
     if make_stale
-        && let Some(InProgressState::InProgress(box InProgressStateInner { stale, .. })) =
+        && let Some(InProgressState::InProgress(InProgressStateInner { stale, .. })) =
             task.get_in_progress_mut()
         && !*stale
     {
@@ -181,7 +161,7 @@ pub fn make_task_dirty_internal(
                     cause,
                 });
             }
-            return;
+            return None;
         }
         Some(Dirtyness::SessionDependent) => {
             task.set_dirty(Dirtyness::Dirty {
@@ -205,7 +185,7 @@ pub fn make_task_dirty_internal(
                 )
                 .entered();
                 // already dirty
-                return;
+                return None;
             }
         }
         None => {
@@ -252,11 +232,8 @@ pub fn make_task_dirty_internal(
     }
     .compute();
 
-    if let Some(aggregated_update) = result.aggregated_update(task_id) {
-        queue.extend(AggregationUpdateJob::data_update(
-            &mut task,
-            aggregated_update,
-        ));
+    if let Some(aggregated_update) = result.aggregated_update(task.id()) {
+        queue.extend(AggregationUpdateJob::data_update(task, aggregated_update));
     }
 
     let should_schedule = !ctx.should_track_activeness() || task.has_activeness();
@@ -264,9 +241,8 @@ pub fn make_task_dirty_internal(
     if should_schedule {
         let description = EventDescription::new(|| task.get_task_desc_fn());
         if task.add_scheduled(TaskExecutionReason::Invalidated, description) {
-            drop(task);
-            let task = ctx.task(task_id, TaskDataCategory::All);
-            ctx.schedule_task(task, parent_priority);
+            return Some(parent_priority);
         }
     }
+    None
 }

@@ -21,25 +21,17 @@ let DEV_BACKEND: DevRuntimeBackend
       // Strip query string so we match links regardless of cache-busting
       // params (e.g. ?ts=) that may differ between HMR updates.
       const baseChunkUrl = chunkUrl.split('?')[0]
-      // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
-      const decodedBaseChunkUrl = decodeURI(baseChunkUrl)
 
       if (isCss(chunkUrl)) {
-        const links = document.querySelectorAll(
-          `link[href="${baseChunkUrl}"],link[href^="${baseChunkUrl}?"],link[href="${decodedBaseChunkUrl}"],link[href^="${decodedBaseChunkUrl}?"]`
-        )
-        for (const link of Array.from(links)) {
+        for (const link of findChunkLinks(baseChunkUrl)) {
           link.remove()
         }
       } else if (isJs(chunkUrl)) {
         // Unloading a JS chunk would have no effect, as it lives in the JS
         // runtime once evaluated.
-        // However, we still want to remove the script tag from the DOM to keep
+        // However, we still want to remove the script tag from `<head>` to keep
         // the HTML somewhat consistent from the user's perspective.
-        const scripts = document.querySelectorAll(
-          `script[src="${baseChunkUrl}"],script[src^="${baseChunkUrl}?"],script[src="${decodedBaseChunkUrl}"],script[src^="${decodedBaseChunkUrl}?"]`
-        )
-        for (const script of Array.from(scripts)) {
+        for (const script of findChunkScripts(baseChunkUrl)) {
           script.remove()
         }
       } else {
@@ -57,15 +49,7 @@ let DEV_BACKEND: DevRuntimeBackend
         // Strip query string so we match links regardless of cache-busting
         // params (e.g. ?ts=) that may differ between HMR updates.
         const baseChunkUrl = chunkUrl.split('?')[0]
-        const decodedBaseChunkUrl = decodeURI(baseChunkUrl)
-        const previousLinks = document.querySelectorAll(
-          `link[rel=stylesheet][href="${baseChunkUrl}"],link[rel=stylesheet][href^="${baseChunkUrl}?"],link[rel=stylesheet][href="${decodedBaseChunkUrl}"],link[rel=stylesheet][href^="${decodedBaseChunkUrl}?"]`
-        )
-
-        if (previousLinks.length === 0) {
-          reject(new Error(`No link element found for chunk ${chunkUrl}`))
-          return
-        }
+        const previousLinks = findChunkStylesheets(baseChunkUrl)
 
         const link = document.createElement('link')
         link.rel = 'stylesheet'
@@ -103,20 +87,30 @@ let DEV_BACKEND: DevRuntimeBackend
           // First load the new CSS, then remove the old ones. This prevents visible
           // flickering that would happen in-between removing the previous CSS and
           // loading the new one.
-          for (const previousLink of Array.from(previousLinks))
-            previousLink.remove()
+          for (const previousLink of previousLinks) previousLink.remove()
 
           // CSS chunks do not register themselves, and as such must be marked as
           // loaded instantly.
           resolve()
         }
 
-        // Make sure to insert the new CSS right after the previous one, so that
-        // its precedence is higher.
-        previousLinks[0].parentElement!.insertBefore(
-          link,
-          previousLinks[0].nextSibling
-        )
+        if (previousLinks.length === 0) {
+          // The chunk's <link> was already removed from the DOM (the importing
+          // component unmounted via navigation or a `dynamic(ssr: false)`
+          // boundary, so `unloadChunk` removed it), but its chunk list stays
+          // subscribed and can still receive a 'total' update. Mirror the
+          // 'added' branch of `applyChunkListUpdate` and load the fresh
+          // stylesheet instead of rejecting with "No link element found for
+          // chunk" (an unhandledRejection that forced a full page reload).
+          document.head.appendChild(link)
+        } else {
+          // Make sure to insert the new CSS right after the previous one, so that
+          // its precedence is higher.
+          previousLinks[0].parentElement!.insertBefore(
+            link,
+            previousLinks[0].nextSibling
+          )
+        }
       })
     },
 

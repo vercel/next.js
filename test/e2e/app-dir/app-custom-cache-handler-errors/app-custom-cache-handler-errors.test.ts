@@ -1,17 +1,17 @@
+import { randomUUID } from 'crypto'
 import { nextTestSetup } from 'e2e-utils'
 import { hasErrorToast, retry, waitFor, waitForNoRedbox } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
+import escapeStringRegexp from 'escape-string-regexp'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('app-custom-cache-handler-errors - get throws', () => {
-  const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     env: { CACHE_HANDLER_THROW_ON: 'get' },
   })
-
-  if (skipped) {
-    return
-  }
 
   it('surfaces the cache handler error', async () => {
     const outputIndex = next.cliOutput.length
@@ -96,18 +96,16 @@ describe('app-custom-cache-handler-errors - get throws', () => {
   })
 })
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('app-custom-cache-handler-errors - set throws', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     env: { CACHE_HANDLER_THROW_ON: 'set' },
   })
 
-  if (skipped) {
-    return
-  }
-
-  it('renders the page successfully', async () => {
+  it('logs the cache write error without failing the render', async () => {
     const outputIndex = next.cliOutput.length
     const browser = await next.browser('/?input=x')
 
@@ -116,22 +114,81 @@ describe('app-custom-cache-handler-errors - set throws', () => {
     )
 
     if (isNextDev) {
-      // A throwing set() is currently completely silent in dev: the cache
-      // handler is called and its rejection is swallowed without being logged
-      // or reported to the dev overlay.
       await waitForNoRedbox(browser)
       expect(await hasErrorToast(browser)).toBe(false)
-      expect(next.cliOutput.slice(outputIndex)).not.toContain(
-        'CustomCacheHandler.set failed'
+    }
+
+    const errorBlock =
+      'Error: CustomCacheHandler.set failed' +
+      '\n    at Object.set (throwing-cache-handler.js:50:13)'
+
+    await retry(async () => {
+      expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(errorBlock)
+    })
+
+    const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
+    expect(cliOutput).not.toContain('unhandledRejection')
+    expect(cliOutput).toIncludeRepeated(escapeStringRegexp(errorBlock), 1)
+  })
+})
+
+// This suite checks the configured handler without development's in-memory
+// front handler. The control route and handler must share a server process.
+// @force-gate start
+describe('app-custom-cache-handler-errors - lookup recovery', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    env: { CACHE_HANDLER_THROW_ON: 'retry-get' },
+  })
+
+  it('retries a shared failed lookup and shares its successful fill while the write is pending', async () => {
+    const id = randomUUID()
+    const outputIndex = next.cliOutput.length
+    const control = (action: string) =>
+      next.fetch(`/lookup-retry?id=${id}`, { method: 'POST', body: action })
+    const readState = () =>
+      next.fetch('/lookup-retry?state').then(
+        (response) =>
+          response.json() as Promise<{
+            lookupCount: number
+            writeStarted: boolean
+            writeCompleted: boolean
+            cacheReadsCompleted: boolean
+          }>
       )
-    } else {
+    await control('fail-lookup-and-hold-write')
+    const rendering = next.fetch(`/lookup-retry?id=${id}`)
+    try {
+      // The retry must resolve before `set()` completes. A lookup count of two
+      // also checks that the initial calls shared the rejected `get()`.
       await retry(async () => {
-        expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(
-          'Error: CustomCacheHandler.set failed' +
-            '\n    at Object.set (throwing-cache-handler.js:50:13)' +
-            '\n    at <unknown> ('
-        )
+        expect(await readState()).toEqual({
+          lookupCount: 2,
+          writeStarted: true,
+          writeCompleted: false,
+          cacheReadsCompleted: true,
+        })
       })
+      await control('release-write')
+      const response = await rendering
+      expect(response.status).toBe(200)
+      const body = await response.json()
+      // Both initial calls must reject even though only one `get()` throws.
+      expect(body.failures).toEqual([
+        'expected cache lookup failure',
+        'expected cache lookup failure',
+      ])
+      expect(body.first).toEqual(expect.any(Number))
+      expect(body.second).toBe(body.first)
+      await retry(async () => {
+        expect((await readState()).writeCompleted).toBe(true)
+      })
+      expect(next.cliOutput.slice(outputIndex)).not.toContain(
+        'unhandledRejection'
+      )
+    } finally {
+      await control('release-write')
+      await rendering
     }
   })
 })

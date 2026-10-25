@@ -410,7 +410,8 @@ export function runTests(ctx: RunTestsCtx) {
     const query = { w: ctx.w, q: ctx.q, url: '/api/conditional-cookie' }
     const opts = { headers: { accept: 'image/webp', cookie: '1' } }
     const res = await next.fetch(`/_next/image?${toQueryString(query)}`, opts)
-    expect(res.status).toBe(400)
+    // the cookie is not forwarded so the internal handler responds 401
+    expect(res.status).toBe(401)
   })
 
   if (ctx.nextConfigImages?.dangerouslyAllowSVG) {
@@ -1468,7 +1469,12 @@ export function runTests(ctx: RunTestsCtx) {
     )
     await expectWidth(res1, ctx.w)
 
-    const opts2 = { headers: { accept: 'image/webp', 'if-none-match': etag } }
+    // undici injects Cache-Control: no-cache into requests with
+    // conditional headers, which would defeat the etag freshness check.
+    const opts2 = {
+      headers: { accept: 'image/webp', 'if-none-match': etag },
+      cache: 'force-cache' as const,
+    }
     const res2 = await next.fetch(`/_next/image?${toQueryString(query)}`, opts2)
     expect(res2.status).toBe(304)
     expect(res2.headers.get('Content-Type')).toBeFalsy()
@@ -1606,7 +1612,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it("should error if the resource isn't a valid image", async () => {
-    const query = { url: '/test.txt', w: ctx.w, q: ctx.q }
+    const query = { url: '/text.txt', w: ctx.w, q: ctx.q }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await next.fetch(`/_next/image?${toQueryString(query)}`, opts)
     expect(res.status).toBe(400)
@@ -1617,8 +1623,10 @@ export function runTests(ctx: RunTestsCtx) {
     const query = { url: '/does_not_exist.jpg', w: ctx.w, q: ctx.q }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await next.fetch(`/_next/image?${toQueryString(query)}`, opts)
-    expect(res.status).toBe(400)
-    expect(await res.text()).toBe("The requested resource isn't a valid image.")
+    expect(res.status).toBe(404)
+    expect(await res.text()).toBe(
+      '"url" parameter is valid but internal response is invalid'
+    )
   })
 
   if (domains.length > 0 && dangerouslyAllowLocalIP) {
@@ -1756,19 +1764,12 @@ export const setupTests = (ctx: SetupTestsCtx) => {
   if (!ctx.nextConfigImages) {
     maybeSkipTurbopackProd('w/o next.config.js', () => {
       const size = 384
-      const { next, isNextDeploy } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: join(__dirname, 'app'),
         nextConfig: ctx.nextConfigExperimental
           ? { experimental: ctx.nextConfigExperimental }
           : undefined,
-        // The image optimizer suite asserts on the local Next.js image
-        // pipeline (custom upstream HTTP server, on-disk cache, response
-        // headers from `/_next/image`). Vercel's deploy serves images
-        // through its own image CDN with different headers, paths, and
-        // cache semantics, so these assertions don't apply.
-        skipDeployment: true,
       })
-      if (isNextDeploy) return
 
       runTests({
         next,
@@ -1797,7 +1798,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
       ...ctx.nextConfigImages,
     }
 
-    const { next, isNextDeploy } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: join(__dirname, 'app'),
       nextConfig: {
         images: mergedImages,
@@ -1805,14 +1806,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
           ? { experimental: ctx.nextConfigExperimental }
           : {}),
       },
-      // The image optimizer suite asserts on the local Next.js image
-      // pipeline (custom upstream HTTP server, on-disk cache, response
-      // headers from `/_next/image`). Vercel's deploy serves images
-      // through its own image CDN with different headers, paths, and
-      // cache semantics, so these assertions don't apply.
-      skipDeployment: true,
     })
-    if (isNextDeploy) return
 
     runTests({
       next,

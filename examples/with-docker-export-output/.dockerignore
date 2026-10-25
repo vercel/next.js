@@ -52,7 +52,11 @@ test-results/
 *~
 *.log
 
-# Environment variables (only commit template files)
+# Environment variables - keep credentials out of the build context.
+# A static export has no run-time server, so anything left in the context is
+# baked into the files served to every visitor. `.env.production` is
+# deliberately not listed: use it for non-secret build-time config only. See
+# the "Environment Variables" section of README.md.
 .env
 .env*.local
 .env.development

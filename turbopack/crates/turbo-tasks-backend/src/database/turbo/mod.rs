@@ -14,10 +14,13 @@ use turbo_persistence::{
 use turbo_tasks::{
     message_queue::{TimingEvent, TraceEvent},
     parallel::available_parallelism,
-    turbo_tasks,
+    try_turbo_tasks,
 };
 
-use crate::database::{key_value_database::KeySpace, write_batch::WriteBuffer};
+use crate::{
+    BackingStorageOptions,
+    database::{key_value_database::KeySpace, write_batch::WriteBuffer},
+};
 
 mod parallel_scheduler;
 pub(crate) use parallel_scheduler::TurboTasksParallelScheduler;
@@ -27,53 +30,42 @@ pub const FAMILIES: usize = 4;
 
 const COMPACTION_MESSAGE: &str = "Finished filesystem cache database compaction";
 
-const MB: u64 = 1024 * 1024;
-
 /// Returns the database configuration for the Turbopack persistent cache, mapping each
 /// [`KeySpace`] to its persistence family config.
 pub fn db_config() -> DbConfig<FAMILIES> {
     DbConfig {
         family_configs: std::array::from_fn(|i| KeySpace::from_index(i).family_config()),
+        ..DbConfig::new()
     }
 }
 
 pub const COMPACT_CONFIG: CompactConfig = CompactConfig {
-    min_merge_count: 3,
-    optimal_merge_count: 8,
-    max_merge_count: 64,
-    max_merge_bytes: 512 * MB,
-    min_merge_duplication_bytes: 50 * MB,
-    optimal_merge_duplication_bytes: 100 * MB,
-    max_merge_segment_count: 16,
+    max_space_amplification_percent: 50,
+    min_bottom_merge_bytes: 1024 * 1024,
+    max_files_above_bottom: 6,
+    rewrite_per_fresh_byte: 3.0,
+    size_ratio_percent: 100,
+    max_merge_jobs: 16,
 };
 
 pub struct TurboKeyValueDatabase {
     db: TurboPersistence<TurboTasksParallelScheduler, FAMILIES>,
-    is_ci: bool,
-    is_short_session: bool,
+    options: BackingStorageOptions,
     is_fresh: bool,
-    skip_compaction: bool,
 }
 
 impl TurboKeyValueDatabase {
-    pub fn new(
-        versioned_path: PathBuf,
-        is_ci: bool,
-        is_short_session: bool,
-        skip_compaction: bool,
-    ) -> Result<Self> {
+    pub fn new(versioned_path: PathBuf, options: BackingStorageOptions) -> Result<Self> {
         assert!(
-            !skip_compaction || is_short_session,
+            !options.skip_compaction || options.is_short_session,
             "skip_compaction=true requires is_short_session=true"
         );
         let db = TurboPersistence::open_with_config(versioned_path, db_config())?;
         let is_fresh = db.is_empty();
         Ok(Self {
             db,
-            is_ci,
-            is_short_session,
+            options,
             is_fresh,
-            skip_compaction,
         })
     }
 
@@ -83,10 +75,12 @@ impl TurboKeyValueDatabase {
     pub fn empty_in_memory() -> Self {
         Self {
             db: TurboPersistence::empty_in_memory_with_config(db_config()),
-            is_ci: false,
-            is_short_session: true,
+            options: BackingStorageOptions {
+                is_ci: false,
+                is_short_session: true,
+                skip_compaction: true,
+            },
             is_fresh: true,
-            skip_compaction: true,
         }
     }
 
@@ -129,7 +123,7 @@ impl TurboKeyValueDatabase {
     /// Returns `Ok(Some(stats))` with the bytes written/deleted if compaction actually merged
     /// files, `Ok(None)` if there was nothing to compact.
     pub fn compact(&self) -> Result<Option<CommitStats>> {
-        if self.is_short_session || self.db.is_empty() {
+        if self.options.is_short_session || self.db.is_empty() {
             return Ok(None);
         }
         do_compact(
@@ -145,20 +139,24 @@ impl TurboKeyValueDatabase {
         self.db.has_unrecoverable_write_error()
     }
 
-    pub fn shutdown(&self) -> Result<()> {
+    pub fn shutdown(&self) {
         // Compact the database on shutdown
         // (Avoid compacting a fresh database since we don't have any usage info yet)
-        if !self.is_fresh && !self.skip_compaction {
-            if self.is_ci {
+        if !self.is_fresh && !self.options.skip_compaction {
+            let result = if self.options.is_ci {
                 // Fully compact in CI to reduce cache size
-                do_compact(&self.db, COMPACTION_MESSAGE, usize::MAX)?;
+                do_compact(&self.db, COMPACTION_MESSAGE, usize::MAX)
             } else {
                 // Compact with a reasonable limit in non-CI environments
                 do_compact(
                     &self.db,
                     COMPACTION_MESSAGE,
                     available_parallelism().map_or(4, |c| max(4, c.get())),
-                )?;
+                )
+            };
+            if let Err(err) = result {
+                // Compacting failures are generally not fatal, so just log them
+                eprintln!("WARNING: Compacting the database failed {err}");
             }
         }
         // Shutdown the database
@@ -169,33 +167,30 @@ impl TurboKeyValueDatabase {
 fn do_compact(
     db: &TurboPersistence<TurboTasksParallelScheduler, FAMILIES>,
     message: &'static str,
-    max_merge_segment_count: usize,
+    max_merge_jobs: usize,
 ) -> Result<Option<CommitStats>> {
     let start = Instant::now();
     // SystemTime for wall-clock timestamps in trace events (Instant has no
     // defined epoch so it can't be used for cross-process trace correlation).
     let wall_start = SystemTime::now();
     let stats = db.compact(&CompactConfig {
-        max_merge_segment_count,
+        max_merge_jobs,
         ..COMPACT_CONFIG
     })?;
-    if let Some(stats) = stats {
+    // Compaction can run outside of turbo-tasks (e.g. in tests), then there is nobody to report to.
+    if let Some(stats) = stats
+        && let Some(turbo_tasks) = try_turbo_tasks()
+    {
         let elapsed = start.elapsed();
         // avoid spamming the event queue with information about fast operations
         if elapsed > Duration::from_secs(10) {
-            turbo_tasks()
+            turbo_tasks
                 .send_compilation_event(Arc::new(TimingEvent::new(message.to_string(), elapsed)));
         }
-        let wall_start_ms = wall_start
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs_f64()
-            * 1000.0;
-        let wall_end_ms = wall_start_ms + elapsed.as_secs_f64() * 1000.0;
-        turbo_tasks().send_compilation_event(Arc::new(TraceEvent::new(
+        turbo_tasks.send_compilation_event(Arc::new(TraceEvent::new_with_duration(
             "turbopack-compaction",
-            wall_start_ms,
-            wall_end_ms,
+            wall_start,
+            elapsed,
             serde_json::json!([
                 ["bytes_written", stats.bytes_written],
                 ["bytes_deleted", stats.bytes_deleted],
@@ -234,6 +229,25 @@ impl<'a> TurboWriteBatch<'a> {
             .put(key_space as u32, key.into_static(), value.into())
     }
 
+    /// Writes a delete (tombstone) for `key` into the write batch.
+    ///
+    /// Use [`Self::delete_value`] to remove a single mapping from a MultiValue KeySpace
+    pub fn delete(&self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
+        self.batch.delete(key_space as u32, key.into_static())
+    }
+
+    /// Writes a tombstone for a single `key` -> `value` mapping, leaving other values under `key`
+    /// intact. Only valid for `MultiValue` families (`TaskCache`).
+    pub fn delete_value(
+        &self,
+        key_space: KeySpace,
+        key: WriteBuffer<'_>,
+        value: WriteBuffer<'_>,
+    ) -> Result<()> {
+        self.batch
+            .delete_value(key_space as u32, key.into_static(), value.into())
+    }
+
     /// Flushes a key space of the write batch, reducing the amount of buffered memory used.
     /// Does not commit any data persistently.
     ///
@@ -257,8 +271,8 @@ impl KeyBase for WriteBuffer<'_> {
 }
 
 impl StoreKey for WriteBuffer<'_> {
-    fn write_to(&self, buf: &mut Vec<u8>) {
-        buf.extend_from_slice(self);
+    fn as_slice(&self) -> &[u8] {
+        self
     }
 }
 

@@ -98,6 +98,9 @@ async fn hash_glob_result(result: Vc<ReadGlobResult>) -> Result<Vc<RcStr>> {
 
 #[turbo_tasks::function]
 async fn hash_file(file_path: FileSystemPath) -> Result<Vc<RcStr>> {
+    let Ok(file_path) = file_path.realpath().await? else {
+        return Ok(empty_string());
+    };
     let content = file_path.read().await?;
     Ok(match &*content {
         FileContent::Content(file) => hash_content(&mut file.read()),

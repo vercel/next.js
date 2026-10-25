@@ -10,6 +10,9 @@ autobenches = false
 default = ["custom_allocator"]
 custom_allocator = ["turbo-tasks-malloc/custom_allocator"]
 
+[lints]
+workspace = true
+
 [[bin]]
 name = "turbo-trace-server"
 path = "src/main.rs"
@@ -19,7 +22,7 @@ bench = false
 anyhow = { workspace = true }
 either = { workspace = true }
 flate2 = { workspace = true }
-hashbrown = { workspace = true, features = ["raw"] }
+hashbrown = { workspace = true, features = ["raw-entry"] }
 indexmap = { workspace = true, features = ["serde"] }
 itertools = { workspace = true }
 postcard = { workspace = true }

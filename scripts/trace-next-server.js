@@ -5,8 +5,7 @@ const fsp = require('fs/promises')
 const prettyBytes = require('pretty-bytes')
 const gzipSize = require('next/dist/compiled/gzip-size')
 const { nodeFileTrace } = require('next/dist/compiled/@vercel/nft')
-const { linkPackages } =
-  require('../.github/actions/next-stats-action/src/prepare/repo-setup')()
+const { linkPackages } = require('../test/lib/link-packed-packages')
 
 const MAX_COMPRESSED_SIZE = 250 * 1000
 const MAX_UNCOMPRESSED_SIZE = 2.5 * 1000 * 1000

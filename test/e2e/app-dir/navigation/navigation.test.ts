@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getTitle, retry, waitFor } from 'next-test-utils'
+import { gate, getTitle, retry, waitFor } from 'next-test-utils'
 
 // bump this every time you want to validate flakiness: 1
 
@@ -208,11 +208,17 @@ describe('app dir - navigation', () => {
       await checkLink('query-param', 2284)
       await browser.waitForIdleNetwork()
 
-      // There should be an RSC request if the query param is changed
       const hasQueryParamRscRequest = Array.from(navigationRscRequestUrls).some(
         (url) => url.includes('with-query-param')
       )
-      expect(hasQueryParamRscRequest).toBe(true)
+      if (await gate('cachedNavigations && prefetching')) {
+        // The page doesn't read search params, and the layout's params didn't
+        // change, so the navigation is served from the client cache.
+        expect(hasQueryParamRscRequest).toBe(false)
+      } else {
+        // There should be an RSC request if the query param is changed
+        expect(hasQueryParamRscRequest).toBe(true)
+      }
     })
 
     it('should not scroll to hash when scroll={false} is set', async () => {
@@ -1031,6 +1037,17 @@ describe('app dir - navigation', () => {
 
   describe('middleware redirect', () => {
     it('should change browser location when router.refresh() gets a redirect response', async () => {
+      if (isNextDev) {
+        // The browser location only changes at the end of a chain of requests:
+        // the page posts to `/api/set-token`, calls `router.refresh()`, and the
+        // refresh gets a middleware redirect to the dashboard. In dev the first
+        // request to each of those routes compiles it on demand, which costs
+        // seconds on a CI runner. Hit them here so the chain below does not pay
+        // for it.
+        await next.fetch('/api/set-token', { method: 'POST' })
+        await next.fetch('/redirect-on-refresh/dashboard')
+      }
+
       const browser = await next.browser('/redirect-on-refresh/auth')
       await retry(async () =>
         expect(await browser.url()).toBe(

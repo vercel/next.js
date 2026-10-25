@@ -34,11 +34,10 @@ export function pageBootstrap(assetPrefix: string) {
           error.stack = errorObject.stack
           throw error
         }
-        case HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE: {
-          reloading = true
-          window.location.reload()
+        case HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE:
+          // Already handled by hot-middleware-client's guarded listener, even
+          // before hydration. A second reload here can restart that navigation.
           break
-        }
         case HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE: {
           fetch(
             `${assetPrefix}/_next/static/development/_devPagesManifest.json`
@@ -121,8 +120,10 @@ export function pageBootstrap(assetPrefix: string) {
         case HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED:
         case HMR_MESSAGE_SENT_TO_BROWSER.ISR_MANIFEST:
         case HMR_MESSAGE_SENT_TO_BROWSER.DEVTOOLS_CONFIG:
+        case HMR_MESSAGE_SENT_TO_BROWSER.VULNERABILITY_INSIGHT:
         case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK:
         case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_CURRENT_ERROR_STATE:
+        case HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERRORS:
         case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_PAGE_METADATA:
         case HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR:
         case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE:

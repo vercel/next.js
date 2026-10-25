@@ -65,4 +65,22 @@ describe('interception-dynamic-segment-middleware', () => {
       })
     }
   })
+
+  it('should preserve the final interception rewrite after a middleware rewrite', async () => {
+    let rewrittenPath: string | undefined
+    const browser = await next.browser('/', {
+      beforePageLoad(page) {
+        page.on('response', (response) => {
+          if (new URL(response.url()).pathname === '/foo/p/1') {
+            rewrittenPath = response.headers()['x-nextjs-rewritten-path']
+          }
+        })
+      },
+    })
+
+    await browser.elementByCss('[href="/foo/p/1"]').click()
+    await retry(() => {
+      expect(rewrittenPath).toBe('/en/(.)foo/p/1')
+    })
+  })
 })

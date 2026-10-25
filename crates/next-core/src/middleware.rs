@@ -62,7 +62,7 @@ pub async fn get_middleware_module(
                 has_default || has_named
             }
             // CommonJS modules are valid (they can have module.exports or exports.default)
-            EcmascriptExports::CommonJs | EcmascriptExports::Value => true,
+            EcmascriptExports::CommonJs(_) | EcmascriptExports::Value => true,
             // DynamicNamespace might be valid for certain module types
             EcmascriptExports::DynamicNamespace => true,
             // None/Unknown likely indicate parsing errors - skip validation

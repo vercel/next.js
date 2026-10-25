@@ -25,7 +25,15 @@ import { fileURLToPath } from 'node:url'
 
 // Bump VERSION whenever the generation logic or shape changes; the marker file
 // short-circuits regeneration when nothing changed.
-const VERSION = 'v6-3families-nested4-noinstant-48leaves-d4-b3-400symbols'
+// Set BENCH_DEV_VALIDATION_INSIGHTS=1 to give every family's leaf page an
+// uncached data access. Validation then reports one insight per navigation, so
+// the run also exercises the error path (encoding the errors, and printing them
+// with a source-mapped stack and code frame) rather than only the validation
+// render. Off by default, so the numbers the README describes stay comparable.
+const WITH_INSIGHTS = process.env.BENCH_DEV_VALIDATION_INSIGHTS === '1'
+const VERSION =
+  'v6-3families-nested4-noinstant-48leaves-d4-b3-400symbols' +
+  (WITH_INSIGHTS ? '-insights-below-tree' : '')
 const LEAF_COMPONENTS = 48
 const TREE_DEPTH = 4
 const TREE_BRANCH = 3
@@ -221,27 +229,56 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 `
 }
 
+// The uncached access that makes validation report an insight. It renders last,
+// below the family's heavy subtree, so validation does that work before it
+// reaches the access. It is not wrapped in a `<Suspense>`, which is what makes
+// validation report the route as blocking.
+const insightImport = WITH_INSIGHTS
+  ? "import { connection } from 'next/server'\n"
+  : ''
+const insightComponent = WITH_INSIGHTS
+  ? `
+async function Insight() {
+  await connection()
+  return null
+}
+`
+  : ''
+
 function leafPageSource(family, depthFromApp) {
   if (family === 'sprite') {
-    return `// Generated. See scripts/generate.mjs. The sprite renders in the
+    if (!WITH_INSIGHTS) {
+      return `// Generated. See scripts/generate.mjs. The sprite renders in the
 // shared layout above, so the leaf page only carries the route marker.
 export default function Page() {
   return <h1 id="route">sprite</h1>
 }
 `
+    }
+    return `${insightImport}// Generated. See scripts/generate.mjs. The sprite renders in the
+// shared layout above, so the leaf page only carries the route marker.
+export default function Page() {
+  return (
+    <>
+      <h1 id="route">sprite</h1>
+      <Insight />
+    </>
+  )
+}
+${insightComponent}`
   }
-  return `import { HeavyTree } from '${up(depthFromApp)}_generated/${family}-tree'
+  return `${insightImport}import { HeavyTree } from '${up(depthFromApp)}_generated/${family}-tree'
 
 // Generated. See scripts/generate.mjs.
 export default function Page() {
   return (
     <section>
       <h1 id="route">${family}</h1>
-      <HeavyTree seed={7} />
+      <HeavyTree seed={7} />${WITH_INSIGHTS ? '\n      <Insight />' : ''}
     </section>
   )
 }
-`
+${insightComponent}`
 }
 
 for (const family of FAMILIES) {

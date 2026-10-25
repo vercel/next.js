@@ -1,8 +1,10 @@
 use std::{
+    borrow::Borrow,
+    cell::Cell,
     cmp::Reverse,
     fmt::{Debug, Display},
     future::Future,
-    hash::{BuildHasher, BuildHasherDefault},
+    hash::{BuildHasher, BuildHasherDefault, Hash},
     mem::take,
     ops::Deref,
     panic::AssertUnwindSafe,
@@ -12,6 +14,7 @@ use std::{
         Arc, Mutex, RwLock, Weak,
         atomic::{AtomicBool, AtomicUsize, Ordering},
     },
+    task::{Context, Poll, Waker},
     time::{Duration, Instant},
 };
 
@@ -28,9 +31,9 @@ use tracing::{Instrument, Span, instrument};
 use turbo_tasks_hash::{DeterministicHash, hash_xxh3_hash128};
 
 use crate::{
-    CellId, Completion, InvalidationReason, InvalidationReasonSet, OutputContent, RawVc,
-    ReadCellOptions, ReadOutputOptions, ResolvedVc, SharedReference, TaskId, TraitMethod,
-    ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
+    CellId, Completion, InvalidationReason, InvalidationReasonSet, NonLocalValue, OperationValue,
+    OperationVc, OutputContent, RawVc, ReadCellOptions, ReadOutcome, ReadOutputOptions, ResolvedVc,
+    SharedReference, TaskId, TraitMethod, ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
     backend::{
         Backend, CellContent, CellHash, TaskCollectiblesMap, TaskExecutionSpec, TransientTaskType,
         TurboTasksExecutionError, TypedCellContent, VerificationMode,
@@ -43,12 +46,11 @@ use crate::{
     local_task_tracker::LocalTaskTracker,
     macro_helpers::NativeFunction,
     message_queue::{CompilationEvent, CompilationEventQueue},
-    priority_runner::{Executor, PriorityRunner},
+    priority_runner::{Claimable, Executor, PriorityRunner},
     registry,
     serialization_invalidation::SerializationInvalidator,
     task::local_task::{LocalTask, LocalTaskSpec, LocalTaskType},
     task_statistics::TaskStatisticsApi,
-    trace::TraceRawVcs,
     util::{IdFactory, StaticOrArc},
 };
 
@@ -123,6 +125,15 @@ pub trait TurboTasksCallApi: Sync + Send {
 pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn invalidate(&self, task: TaskId);
     fn invalidate_with_reason(&self, task: TaskId, reason: StaticOrArc<dyn InvalidationReason>);
+    /// Invalidates all `tasks` as one batch. `tasks` must not contain duplicates. The backend may
+    /// split large batches into chunks that are invalidated in parallel.
+    fn invalidate_many(&self, tasks: &[TaskId]);
+    /// Like [`TurboTasksApi::invalidate_many`], recording all `reasons` once for the whole batch.
+    fn invalidate_many_with_reasons(
+        &self,
+        tasks: &[TaskId],
+        reasons: Vec<StaticOrArc<dyn InvalidationReason>>,
+    );
 
     fn invalidate_serialization(&self, task: TaskId);
 
@@ -130,20 +141,21 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         &self,
         task: TaskId,
         options: ReadOutputOptions,
-    ) -> Result<Result<RawVc, EventListener>>;
+    ) -> Result<ReadOutcome<RawVc>>;
 
     fn try_read_task_cell(
         &self,
         task: TaskId,
         index: CellId,
         options: ReadCellOptions,
-    ) -> Result<Result<TypedCellContent, EventListener>>;
+    ) -> Result<ReadOutcome<TypedCellContent>>;
 
-    /// Reads a [`RawVc::LocalOutput`]. If the task has completed, returns the [`RawVc`] the local
-    /// task points to.
+    /// Reads a [`RawVcUnpacked::LocalOutput`][crate::RawVcUnpacked::LocalOutput]. If the task has
+    /// completed, returns the [`RawVc`] the local task points to.
     ///
-    /// The returned [`RawVc`] may also be a [`RawVc::LocalOutput`], so this may need to be called
-    /// recursively or in a loop.
+    /// The returned [`RawVc`] may also unpack to a
+    /// [`RawVcUnpacked::LocalOutput`][crate::RawVcUnpacked::LocalOutput], so this may need to be
+    /// called recursively or in a loop.
     ///
     /// This does not accept a consistency argument, as you cannot control consistency of a read of
     /// an operation owned by your own task. Strongly consistent reads are only allowed on
@@ -160,6 +172,18 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     ) -> Result<Result<RawVc, EventListener>>;
 
     fn read_task_collectibles(&self, task: TaskId, trait_id: TraitTypeId) -> TaskCollectiblesMap;
+
+    /// Executes a task that is scheduled but not started yet inline on the current thread, so that
+    /// a read doesn't have to wait for a worker to pick the task up. Returns whether the task's
+    /// execution completed.
+    ///
+    /// Used by the read paths; see `TurboTasks::try_execute_scheduled_task_inline` for the details.
+    fn try_execute_scheduled_task_inline(&self, key: ScheduleKey) -> bool;
+
+    /// Records that a read waited for a task that a worker was already executing, so it did not try
+    /// to claim it. Diagnostics only, see `TurboTasks::inline_execution_stats`.
+    #[cfg(feature = "inline_execution_stats")]
+    fn note_waited_for_in_progress_task(&self);
 
     fn emit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc);
     fn unemit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc, count: u32);
@@ -184,6 +208,13 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         verification_mode: VerificationMode,
     );
     fn mark_own_task_as_finished(&self, task: TaskId);
+
+    /// Pin a task against garbage collection. Delegates to
+    /// [`Backend::pin_task_for_gc`](crate::backend::Backend::pin_task_for_gc).
+    fn pin_task_for_gc(&self, task: TaskId);
+
+    /// Removes a pin added by [`pin_task_for_gc`](TurboTasksApi::pin_task_for_gc).
+    fn unpin_task_for_gc(&self, task: TaskId);
 
     fn connect_task(&self, task: TaskId);
 
@@ -465,10 +496,213 @@ enum ScheduledTask {
     LocalTask {
         ty: LocalTaskSpec,
         persistence: TaskPersistence,
+        /// The non-local task whose execution created this local task (`None` for a top-level
+        /// execution), see [`ScheduleKey::LocalTask`].
+        parent_task: Option<TaskId>,
+        execution_id: ExecutionId,
         local_task_id: LocalTaskId,
         global_task_state: CurrentTaskStateHandle,
         span: Span,
     },
+}
+
+/// Identifies a scheduled task, so that a read which is about to wait for it can take it out of the
+/// scheduler queue and execute it inline instead (see `PriorityRunner::claim` and
+/// `execute_read_target_inline`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ScheduleKey {
+    /// A cached (non-local) task.
+    Task(TaskId),
+    /// A local task, which is only known within the execution that created it: the non-local task
+    /// of that execution (`None` for a top-level execution, e.g. [`TurboTasks::run`]), the
+    /// execution and the local task id within it.
+    ///
+    /// `ExecutionId` alone isn't unique across concurrent executions (it wraps), but a non-local
+    /// task only has one execution at a time, and that execution waits for its local tasks. So the
+    /// key is unique, except for two concurrent top-level executions that share a wrapped
+    /// `ExecutionId`.
+    LocalTask(Option<TaskId>, ExecutionId, LocalTaskId),
+}
+
+impl ScheduleKey {
+    /// The key of a local task created by the current execution.
+    pub(crate) fn current_local_task(
+        execution_id: ExecutionId,
+        local_task_id: LocalTaskId,
+    ) -> Self {
+        let parent_task = CURRENT_TASK_STATE.with(|ts| ts.current_task_id());
+        Self::LocalTask(parent_task, execution_id, local_task_id)
+    }
+}
+
+impl Claimable for ScheduledTask {
+    type Key = ScheduleKey;
+
+    fn claim_key(&self) -> ScheduleKey {
+        match self {
+            ScheduledTask::Task { task_id, .. } => ScheduleKey::Task(*task_id),
+            ScheduledTask::LocalTask {
+                parent_task,
+                execution_id,
+                local_task_id,
+                ..
+            } => ScheduleKey::LocalTask(*parent_task, *execution_id, *local_task_id),
+        }
+    }
+}
+
+#[cfg(feature = "inline_execution_stats")]
+use std::sync::atomic::AtomicU64;
+
+/// Counters describing how reads and inline execution interacted, see
+/// [`TurboTasks::inline_execution_stats`]. Diagnostics only.
+#[cfg(feature = "inline_execution_stats")]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct InlineExecutionStats {
+    /// Tasks that were put into the scheduler queue.
+    pub queued: u64,
+    /// Reads that tried to take a queued task out of the queue.
+    pub claim_attempted: u64,
+    /// Claims that succeeded and whose execution finished on the reading thread.
+    pub claim_completed: u64,
+    /// Claims that succeeded but whose execution yielded, so it was handed to the runtime.
+    pub claim_yielded: u64,
+    /// Claims that found nothing to take, because a worker had already picked the task up.
+    pub claim_failed: u64,
+    /// Reads that waited without attempting a claim, because the task was already being executed.
+    pub waited_in_progress: u64,
+}
+
+/// The counters behind [`InlineExecutionStats`].
+///
+/// Without the `inline_execution_stats` feature this is zero-sized and every method is an empty
+/// `#[inline]` no-op, so the counting compiles away: the counters sit on the read-miss path, and a
+/// build that doesn't want the numbers shouldn't pay for them.
+#[derive(Default)]
+struct InlineExecutionCounters {
+    #[cfg(feature = "inline_execution_stats")]
+    claim_attempted: AtomicU64,
+    #[cfg(feature = "inline_execution_stats")]
+    claim_completed: AtomicU64,
+    #[cfg(feature = "inline_execution_stats")]
+    claim_yielded: AtomicU64,
+    #[cfg(feature = "inline_execution_stats")]
+    claim_failed: AtomicU64,
+    #[cfg(feature = "inline_execution_stats")]
+    waited_in_progress: AtomicU64,
+}
+
+impl InlineExecutionCounters {
+    /// A read found its task queued and tried to take it over.
+    #[inline]
+    fn claim_attempted(&self) {
+        #[cfg(feature = "inline_execution_stats")]
+        self.claim_attempted.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// A claim succeeded and the execution finished on the reading thread.
+    #[inline]
+    fn claim_completed(&self) {
+        #[cfg(feature = "inline_execution_stats")]
+        self.claim_completed.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// A claim succeeded but the execution yielded, so it was handed to the runtime.
+    #[inline]
+    fn claim_yielded(&self) {
+        #[cfg(feature = "inline_execution_stats")]
+        self.claim_yielded.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// A claim found nothing to take, because a worker had already picked the task up.
+    #[inline]
+    fn claim_failed(&self) {
+        #[cfg(feature = "inline_execution_stats")]
+        self.claim_failed.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// A read waited without attempting a claim, because the task was already being executed.
+    #[cfg(feature = "inline_execution_stats")]
+    #[inline]
+    fn waited_in_progress(&self) {
+        self.waited_in_progress.fetch_add(1, Ordering::Relaxed);
+    }
+}
+
+/// Whether a dump of [`InlineExecutionStats`] was requested via `TURBO_ENGINE_INLINE_STATS=1`.
+#[cfg(feature = "inline_execution_stats")]
+pub(crate) fn inline_stats_requested() -> bool {
+    static REQUESTED: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| {
+        std::env::var("TURBO_ENGINE_INLINE_STATS").is_ok_and(|value| value != "0")
+    });
+    *REQUESTED
+}
+
+/// Maximum number of task executions that may be nested inline on a single thread, to conserve
+/// stack space. (The alternative would be growing the stack on demand, the way SWC does.)
+const MAX_INLINE_EXECUTION_DEPTH: usize = 16;
+
+thread_local! {
+    /// How many task executions are currently nested inline on this thread.
+    static INLINE_EXECUTION_DEPTH: Cell<usize> = const { Cell::new(0) };
+}
+
+/// Whether the current thread may execute another task inline, see [`MAX_INLINE_EXECUTION_DEPTH`].
+fn inline_execution_allowed() -> bool {
+    INLINE_EXECUTION_DEPTH.get() < MAX_INLINE_EXECUTION_DEPTH
+}
+
+/// Counts one level of inline task execution on this thread, see [`MAX_INLINE_EXECUTION_DEPTH`].
+struct InlineExecutionDepthGuard;
+
+impl InlineExecutionDepthGuard {
+    fn enter() -> Self {
+        INLINE_EXECUTION_DEPTH.set(INLINE_EXECUTION_DEPTH.get() + 1);
+        Self
+    }
+}
+
+impl Drop for InlineExecutionDepthGuard {
+    fn drop(&mut self) {
+        INLINE_EXECUTION_DEPTH.set(INLINE_EXECUTION_DEPTH.get() - 1);
+    }
+}
+
+/// Polls `future` once inline and then spawns it if it doesn't complete so tokio drives it. Returns
+/// whether it completed.
+fn poll_once_or_spawn(future: impl Future<Output = ()> + Send + 'static) -> bool {
+    let _depth_guard = InlineExecutionDepthGuard::enter();
+    let span_slot = InlineExecutionSpanSlot::default();
+    let mut future = Box::pin(INLINE_EXECUTION_SPAN.scope(span_slot.clone(), future));
+    // A waker that never wakes anything is fine here: if this poll doesn't complete the future we
+    // spawn it, and a spawned task is always polled at least once, which is the poll that registers
+    // the real waker.
+    match future
+        .as_mut()
+        .poll(&mut Context::from_waker(Waker::noop()))
+    {
+        Poll::Ready(()) => {
+            span_slot.record("complete");
+            true
+        }
+        Poll::Pending => {
+            span_slot.record("partial");
+            tokio::task::spawn(future);
+            false
+        }
+    }
+}
+
+/// Executes the task inline if possible, returns true if it executed to completion.
+pub(crate) fn execute_read_target_inline(
+    turbo_tasks: &dyn TurboTasksApi,
+    key: ScheduleKey,
+) -> bool {
+    if !inline_execution_allowed() {
+        // Nested too deeply; a worker will pick the task up, as it always did.
+        return false;
+    }
+    turbo_tasks.try_execute_scheduled_task_inline(key)
 }
 
 pub struct TurboTasks<B: Backend + 'static> {
@@ -479,6 +713,9 @@ pub struct TurboTasks<B: Backend + 'static> {
     currently_scheduled_foreground_jobs: AtomicUsize,
     currently_scheduled_background_jobs: AtomicUsize,
     scheduled_tasks: AtomicUsize,
+    /// Diagnostics for reads and inline execution, see `TurboTasks::inline_execution_stats`.
+    /// Zero-sized without the `inline_execution_stats` feature.
+    inline_counters: InlineExecutionCounters,
     priority_runner:
         Arc<PriorityRunner<TurboTasks<B>, ScheduledTask, TaskPriority, TurboTasksExecutor>>,
     start: Mutex<Option<Instant>>,
@@ -625,6 +862,41 @@ task_local! {
     /// This is NOT shared across local tasks (unlike CURRENT_TASK_STATE), so it's safe
     /// to set/unset without race conditions.
     pub(crate) static SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK: bool;
+
+    /// Set only while a reader polls a task it claimed, so that the outcome of that poll can be
+    /// recorded on the *task's* span rather than the reader's, see [`InlineExecutionSpanSlot`].
+    static INLINE_EXECUTION_SPAN: InlineExecutionSpanSlot;
+}
+
+/// Lets a reader that executes a claimed task inline record the outcome on the span of the task it
+/// executed.
+///
+/// The reader only sees the outer execution future, whose instrumented span has already been exited
+/// by the time its `poll` returns — `Span::current()` there is the reader's own span. So the
+/// executor puts the span it is about to instrument the task body with in here, and the reader
+/// records the outcome on it afterwards.
+///
+/// Only present while a claimed task is being polled inline: a task started by a worker doesn't
+/// have this task-local set, and leaves the field unset.
+#[derive(Clone, Default)]
+struct InlineExecutionSpanSlot(Arc<Mutex<Option<Span>>>);
+
+impl InlineExecutionSpanSlot {
+    /// Called by the executor with the span it instruments the task body with.
+    fn set(span: &Span) {
+        let _ = INLINE_EXECUTION_SPAN.try_with(|slot| {
+            *slot.0.lock().unwrap() = Some(span.clone());
+        });
+    }
+
+    /// Records the outcome of the inline poll on the executed task's span, if the executor got far
+    /// enough to register one (it doesn't when the task was already claimed by someone else and the
+    /// execution turns into a no-op).
+    fn record(&self, outcome: &'static str) {
+        if let Some(span) = self.0.lock().unwrap().as_ref() {
+            span.record("inline_execution", outcome);
+        }
+    }
 }
 
 impl<B: Backend + 'static> TurboTasks<B> {
@@ -643,6 +915,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             currently_scheduled_foreground_jobs: AtomicUsize::new(0),
             currently_scheduled_background_jobs: AtomicUsize::new(0),
             scheduled_tasks: AtomicUsize::new(0),
+            inline_counters: InlineExecutionCounters::default(),
             priority_runner: Arc::new(PriorityRunner::new(TurboTasksExecutor)),
             start: Default::default(),
             aggregated_update: Default::default(),
@@ -691,6 +964,18 @@ impl<B: Backend + 'static> TurboTasks<B> {
         self.backend.dispose_root_task(task_id, self);
     }
 
+    /// Pins a task against garbage collection (a transient, session-only reference). Balanced by
+    /// [`unpin_task_for_gc`](Self::unpin_task_for_gc). Used for references that escape the tracked
+    /// task graph — e.g. a `DetachedVc` holding an `OperationVc` across the NAPI boundary.
+    pub fn pin_task_for_gc(&self, task_id: TaskId) {
+        self.backend.pin_task_for_gc(task_id, self);
+    }
+
+    /// Releases a pin added by [`pin_task_for_gc`](Self::pin_task_for_gc).
+    pub fn unpin_task_for_gc(&self, task_id: TaskId) {
+        self.backend.unpin_task_for_gc(task_id, self);
+    }
+
     // TODO make sure that all dependencies settle before reading them
     /// Creates a new root task, that is only executed once.
     /// Dependencies will not invalidate the task.
@@ -711,7 +996,29 @@ impl<B: Backend + 'static> TurboTasks<B> {
         self.schedule(id, TaskPriority::initial());
     }
 
-    pub async fn run_once<T: TraceRawVcs + Send + 'static>(
+    /// Runs `future` as a top-level task and returns its result.
+    ///
+    /// # Returned values must not contain `Vc` or `ResolvedVc` or if they do they should be covered by a pin
+    ///
+    /// `T` is deliberately unconstrained for ergonomics, but a `Vc`/`ResolvedVc` that escapes this
+    /// call is **not** protected against garbage collection. It can be collected, and
+    /// dereferencing the stale handle then fails.
+    ///    ///
+    /// To hand a computation out of a top-level task, return the [`OperationVc`] and pin it:
+    ///
+    /// ```ignore
+    /// let (resolved, op) = tt.run_once(async move {
+    ///     let op = my_operation(args);
+    ///     let resolved = op.resolve().strongly_consistent().await?;
+    ///     // Return the operation too, so it can be pinned below.
+    ///     Ok((resolved, op))
+    /// }).await?;
+    /// let _gc_root = GcRoot::pin(tt.clone(), op);  // unpins on drop
+    /// ```
+    ///
+    /// Returning owned data -- [`ReadRef`](crate::ReadRef), `RcStr`, plain values -- is always
+    /// fine.
+    pub async fn run_once<T: Send + 'static>(
         &self,
         future: impl Future<Output = Result<T>> + Send + 'static,
     ) -> Result<T> {
@@ -727,8 +1034,13 @@ impl<B: Backend + 'static> TurboTasks<B> {
         rx.await?
     }
 
+    /// Runs `future` as a top-level task and returns its result.
+    ///
+    /// The same constraint as [`run_once`](Self::run_once) applies to `T`: a `Vc`/`ResolvedVc`
+    /// returned from here is not anchored against garbage collection. See that method's docs for
+    /// why, and for the pin-the-`OperationVc` idiom.
     #[tracing::instrument(level = "trace", skip_all, name = "turbo_tasks::run")]
-    pub async fn run<T: TraceRawVcs + Send + 'static>(
+    pub async fn run<T: Send + 'static>(
         &self,
         future: impl Future<Output = Result<T>> + Send + 'static,
     ) -> Result<T, TurboTasksExecutionError> {
@@ -871,13 +1183,36 @@ impl<B: Backend + 'static> TurboTasks<B> {
         self.begin_foreground_job();
         self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
 
-        self.priority_runner.schedule(
+        let task = ScheduledTask::Task {
+            task_id,
+            span: Span::current(),
+        };
+        self.priority_runner.schedule(&self.pin(), task, priority);
+    }
+
+    /// Schedules all `tasks`, like calling [`TurboTasks::schedule`] for each of them, but hands
+    /// them to the scheduler as one batch, so its queue is locked once instead of once per task.
+    #[track_caller]
+    pub fn schedule_many(&self, tasks: &[(TaskId, TaskPriority)]) {
+        if tasks.is_empty() {
+            return;
+        }
+        self.begin_foreground_jobs(tasks.len());
+        self.scheduled_tasks
+            .fetch_add(tasks.len(), Ordering::AcqRel);
+
+        let span = Span::current();
+        self.priority_runner.schedule_many(
             &self.pin(),
-            ScheduledTask::Task {
-                task_id,
-                span: Span::current(),
-            },
-            priority,
+            tasks.iter().map(|&(task_id, priority)| {
+                (
+                    ScheduledTask::Task {
+                        task_id,
+                        span: span.clone(),
+                    },
+                    priority,
+                )
+            }),
         );
     }
 
@@ -888,37 +1223,65 @@ impl<B: Backend + 'static> TurboTasks<B> {
         persistence: TaskPersistence,
     ) -> RawVc {
         let task_type = ty.task_type;
-        let (global_task_state, execution_id, priority, local_task_id) =
+        let (global_task_state, parent_task, execution_id, priority, local_task_id) =
             CURRENT_TASK_STATE.with(|gts| {
                 let mut gts_write = gts.write().unwrap();
                 let local_task_id = gts_write.local_tasks.create(task_type);
                 (
                     gts.clone(),
+                    gts_write.task_id,
                     gts_write.execution_id,
                     gts_write.priority,
                     local_task_id,
                 )
             });
 
-        self.priority_runner.schedule(
-            &self.pin(),
-            ScheduledTask::LocalTask {
-                ty,
-                persistence,
-                local_task_id,
-                global_task_state,
-                span: Span::current(),
-            },
-            priority,
-        );
+        let task = ScheduledTask::LocalTask {
+            ty,
+            persistence,
+            parent_task,
+            execution_id,
+            local_task_id,
+            global_task_state,
+            span: Span::current(),
+        };
+        self.priority_runner.schedule(&self.pin(), task, priority);
 
         RawVc::local_output(execution_id, local_task_id, persistence)
     }
 
+    /// Executes the task inline if possible, returns true if it executed to completion.
+    fn try_execute_scheduled_task_inline(&self, key: ScheduleKey) -> bool {
+        let this = self.pin();
+        self.inline_counters.claim_attempted();
+        if let Some(future) = self.priority_runner.claim(&this, &key) {
+            let completed = poll_once_or_spawn(future);
+            if completed {
+                self.inline_counters.claim_completed();
+            } else {
+                self.inline_counters.claim_yielded();
+            }
+            return completed;
+        }
+        self.inline_counters.claim_failed();
+        false
+    }
+
+    #[cfg(feature = "inline_execution_stats")]
+    fn note_waited_for_in_progress_task(&self) {
+        self.inline_counters.waited_in_progress();
+    }
+
     fn begin_foreground_job(&self) {
+        self.begin_foreground_jobs(1);
+    }
+
+    /// Begins `count` foreground jobs at once. `count` must not be zero.
+    fn begin_foreground_jobs(&self, count: usize) {
+        debug_assert!(count > 0);
         if self
             .currently_scheduled_foreground_jobs
-            .fetch_add(1, Ordering::AcqRel)
+            .fetch_add(count, Ordering::AcqRel)
             == 0
         {
             *self.start.lock().unwrap() = Some(Instant::now());
@@ -969,6 +1332,22 @@ impl<B: Backend + 'static> TurboTasks<B> {
     pub fn get_in_progress_count(&self) -> usize {
         self.currently_scheduled_foreground_jobs
             .load(Ordering::Acquire)
+    }
+
+    /// Counters describing how reads and inline execution interacted. Diagnostics only; a dump of
+    /// these can be requested with `TURBO_ENGINE_INLINE_STATS=1`.
+    #[cfg(feature = "inline_execution_stats")]
+    #[doc(hidden)]
+    pub fn inline_execution_stats(&self) -> InlineExecutionStats {
+        let counters = &self.inline_counters;
+        InlineExecutionStats {
+            queued: self.priority_runner.total_queued(),
+            claim_attempted: counters.claim_attempted.load(Ordering::Relaxed),
+            claim_completed: counters.claim_completed.load(Ordering::Relaxed),
+            claim_yielded: counters.claim_yielded.load(Ordering::Relaxed),
+            claim_failed: counters.claim_failed.load(Ordering::Relaxed),
+            waited_in_progress: counters.waited_in_progress.load(Ordering::Relaxed),
+        }
     }
 
     /// Waits for the given task to finish executing. This works by performing an untracked read,
@@ -1097,6 +1476,15 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     pub async fn stop_and_wait(&self) {
+        #[cfg(feature = "inline_execution_stats")]
+        if inline_stats_requested() {
+            // Requested with `TURBO_ENGINE_INLINE_STATS=1`; printed rather than traced so it shows
+            // up without a tracing subscriber configured.
+            eprintln!(
+                "turbo-tasks inline execution stats: {:#?}",
+                self.inline_execution_stats()
+            );
+        }
         turbo_tasks_future_scope(self.pin(), async move {
             self.backend.stopping(self);
             self.stopped.store(true, Ordering::Release);
@@ -1123,6 +1511,10 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 }
             }
             self.backend.stop(self);
+            // Deliver compilation events sent during shutdown (e.g. the persistence trace span)
+            // to subscribers before returning, then close the queue so subscriptions end after
+            // draining.
+            self.compilation_events.flush_and_close().await;
         })
         .await;
     }
@@ -1205,6 +1597,8 @@ async fn abort_on_panic<F: Future>(f: F) -> F::Output {
 }
 
 impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboTasksExecutor {
+    const LOWEST_PRIORITY: TaskPriority = TaskPriority::Initial;
+
     type Future = impl Future<Output = ()> + Send + 'static;
 
     fn execute(
@@ -1238,6 +1632,10 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                             let TaskExecutionSpec { future, span } = this
                                 .backend
                                 .try_start_task_execution(task_id, priority, &*this)?;
+
+                            // When a reader claimed this task and is polling it inline, let it
+                            // record the outcome on this span rather than its own.
+                            InlineExecutionSpanSlot::set(&span);
 
                             async {
                                 let result = CaptureFuture::new(future).await;
@@ -1291,6 +1689,8 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
             ScheduledTask::LocalTask {
                 ty,
                 persistence,
+                parent_task: _,
+                execution_id: _,
                 local_task_id,
                 global_task_state,
                 span,
@@ -1307,6 +1707,9 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                             trait_method.resolve_span(priority)
                         }
                     };
+                    // See the cached-task arm: lets a reader that claimed this local task record
+                    // the outcome of its inline poll on this span.
+                    InlineExecutionSpanSlot::set(&span);
                     abort_on_panic(
                         async move {
                             let result = match ty.task_type {
@@ -1355,6 +1758,22 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
 
                 Either::Right(TURBO_TASKS.scope(this2, future).instrument(span))
             }
+        }
+    }
+
+    fn discard(
+        &self,
+        this: &Arc<TurboTasks<B>>,
+        scheduled_task: ScheduledTask,
+        _priority: TaskPriority,
+    ) {
+        match scheduled_task {
+            // A newer schedule of the same task replaced this one in the queue, so only that one
+            // executes. Balance the foreground job `TurboTasks::schedule` began for this one.
+            ScheduledTask::Task { .. } => this.finish_foreground_job(),
+            // Local tasks have unique keys and are never replaced, and they don't begin a
+            // foreground job either.
+            ScheduledTask::LocalTask { .. } => {}
         }
     }
 }
@@ -1463,6 +1882,33 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.backend.invalidate_task(task, self);
     }
 
+    #[instrument(level = "info", skip_all, name = "invalidate many", fields(count = tasks.len()))]
+    fn invalidate_many(&self, tasks: &[TaskId]) {
+        if tasks.is_empty() {
+            return;
+        }
+        self.backend.invalidate_tasks(tasks, self);
+    }
+
+    #[instrument(level = "info", skip_all, name = "invalidate many", fields(count = tasks.len()))]
+    fn invalidate_many_with_reasons(
+        &self,
+        tasks: &[TaskId],
+        reasons: Vec<StaticOrArc<dyn InvalidationReason>>,
+    ) {
+        if tasks.is_empty() {
+            return;
+        }
+        // Recorded once, before any task is invalidated.
+        {
+            let (_, reason_set) = &mut *self.aggregated_update.lock().unwrap();
+            for reason in reasons {
+                reason_set.insert(reason);
+            }
+        }
+        self.backend.invalidate_tasks(tasks, self);
+    }
+
     fn invalidate_serialization(&self, task: TaskId) {
         self.backend.invalidate_serialization(task, self);
     }
@@ -1472,7 +1918,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         &self,
         task: TaskId,
         options: ReadOutputOptions,
-    ) -> Result<Result<RawVc, EventListener>> {
+    ) -> Result<ReadOutcome<RawVc>> {
         if options.consistency == ReadConsistency::Eventual {
             debug_assert_not_in_top_level_task("read_task_output");
         }
@@ -1490,7 +1936,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         task: TaskId,
         index: CellId,
         options: ReadCellOptions,
-    ) -> Result<Result<TypedCellContent, EventListener>> {
+    ) -> Result<ReadOutcome<TypedCellContent>> {
         let reader = current_task_if_available("reading Vcs");
         self.backend
             .try_read_task_cell(task, index, reader, options, self)
@@ -1539,6 +1985,15 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         )
     }
 
+    fn try_execute_scheduled_task_inline(&self, key: ScheduleKey) -> bool {
+        self.try_execute_scheduled_task_inline(key)
+    }
+
+    #[cfg(feature = "inline_execution_stats")]
+    fn note_waited_for_in_progress_task(&self) {
+        self.note_waited_for_in_progress_task()
+    }
+
     fn emit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc) {
         self.backend.emit_collectible(
             trait_type,
@@ -1559,17 +2014,15 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
     }
 
     fn unemit_collectibles(&self, trait_type: TraitTypeId, collectibles: &TaskCollectiblesMap) {
-        for (&collectible, &count) in collectibles {
-            if count > 0 {
-                self.backend.unemit_collectible(
-                    trait_type,
-                    collectible,
-                    count as u32,
-                    current_task("emitting collectible"),
-                    self,
-                );
-            }
+        if !collectibles.values().any(|&count| count > 0) {
+            return;
         }
+        self.backend.unemit_collectibles(
+            trait_type,
+            collectibles,
+            current_task("unemitting collectibles"),
+            self,
+        );
     }
 
     fn read_own_task_cell(&self, task: TaskId, index: CellId) -> Result<TypedCellContent> {
@@ -1603,6 +2056,14 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
 
     fn mark_own_task_as_finished(&self, task: TaskId) {
         self.backend.mark_own_task_as_finished(task, self);
+    }
+
+    fn pin_task_for_gc(&self, task: TaskId) {
+        self.backend.pin_task_for_gc(task, self);
+    }
+
+    fn unpin_task_for_gc(&self, task: TaskId) {
+        self.backend.unpin_task_for_gc(task, self);
     }
 
     /// Creates a future that inherits the current task id and task state. The current global task
@@ -1929,9 +2390,95 @@ pub fn unmark_top_level_task_may_leak_eventually_consistent_state() {
     }
 }
 
+/// Pins the current task against garbage collection for the rest of the session, keeping it (and,
+/// via the reachability it anchors, the values it produced) alive even if it becomes disconnected
+/// from the live task graph. Use this when a value escapes the tracked graph — e.g. a `Vc` sent out
+/// of a `spawn_detached` future across a channel, or handed across the NAPI boundary — so no
+/// persistent parent lists it as a child and it would otherwise be collected.
+///
+/// No-op outside a task context, and on backends without garbage collection.
 pub fn prevent_gc() {
-    // TODO implement garbage collection
+    if let Some(task) = current_task_if_available("prevent_gc") {
+        with_turbo_tasks(|tt| tt.pin_task_for_gc(task));
+    }
 }
+
+/// An RAII guard that pins an [`OperationVc`]'s task against garbage collection.
+pub struct GcRoot<T: ?Sized> {
+    tt: Arc<dyn TurboTasksApi>,
+    vc: OperationVc<T>,
+}
+
+impl<T: ?Sized> GcRoot<T> {
+    /// Pins `vc`'s task, returning a guard that unpins it on drop.
+    pub fn pin(tt: Arc<dyn TurboTasksApi>, vc: OperationVc<T>) -> Self {
+        tt.pin_task_for_gc(vc.task_id());
+        Self { tt, vc }
+    }
+}
+
+/// A guard derefs to the operation it pins, so [`OperationVc`]'s own methods can be called on it
+/// directly and `*guard` recovers the operation itself.
+impl<T: ?Sized> Deref for GcRoot<T> {
+    type Target = OperationVc<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.vc
+    }
+}
+
+impl<T: ?Sized> Clone for GcRoot<T> {
+    fn clone(&self) -> Self {
+        Self::pin(self.tt.clone(), self.vc)
+    }
+}
+
+impl<T: ?Sized> Drop for GcRoot<T> {
+    fn drop(&mut self) {
+        self.tt.unpin_task_for_gc(self.vc.task_id());
+    }
+}
+
+impl<T: ?Sized> Debug for GcRoot<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GcRoot").field("vc", &self.vc).finish()
+    }
+}
+
+impl<T: ?Sized> PartialEq for GcRoot<T> {
+    /// Compares the pinned operation only. Two guards for the same operation are interchangeable
+    /// as far as reachability is concerned, even though each holds its own pin.
+    fn eq(&self, other: &Self) -> bool {
+        self.vc == other.vc
+    }
+}
+
+impl<T: ?Sized> Eq for GcRoot<T> {}
+
+impl<T: ?Sized> Hash for GcRoot<T> {
+    /// Hashes the pinned operation, consistently with [`PartialEq`], so a guard can be looked up
+    /// in a set by the [`OperationVc`] it pins (see the [`Borrow`] impl).
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.vc.hash(state);
+    }
+}
+
+/// Lets a collection keyed on guards be queried with the bare operation: `Borrow` plus the
+/// matching [`Hash`]/[`Eq`] impls give `OperationVc<T>: Equivalent<GcRoot<T>>`, so e.g.
+/// `IndexSet<GcRoot<T>>::swap_remove` accepts an `&OperationVc<T>`.
+impl<T: ?Sized> Borrow<OperationVc<T>> for GcRoot<T> {
+    fn borrow(&self) -> &OperationVc<T> {
+        &self.vc
+    }
+}
+
+/// Safety: a `GcRoot` contains exactly one [`OperationVc`] and no [`Vc`] or [`ResolvedVc`], which
+/// is what [`OperationValue`] asserts.
+unsafe impl<T: ?Sized + Send> OperationValue for GcRoot<T> {}
+
+/// Safety: mirrors the [`OperationVc`] impl — a `GcRoot` holds no task-local data beyond the
+/// operation it pins.
+unsafe impl<T: NonLocalValue + ?Sized> NonLocalValue for GcRoot<T> {}
 
 pub fn emit<T: VcValueTrait + ?Sized>(collectible: ResolvedVc<T>) {
     with_turbo_tasks(|tt| {
@@ -1947,8 +2494,20 @@ pub(crate) async fn read_task_output(
 ) -> Result<RawVc> {
     loop {
         match this.try_read_task_output(id, options)? {
-            Ok(result) => return Ok(result),
-            Err(listener) => listener.await,
+            ReadOutcome::Value(result) => return Ok(result),
+            ReadOutcome::Scheduled(listener) => {
+                // Nobody has started it yet, so take it over instead of waiting for a worker.
+                if execute_read_target_inline(this, ScheduleKey::Task(id)) {
+                    continue;
+                }
+                listener.await
+            }
+            ReadOutcome::InProgress(listener) => {
+                // A worker is on it — there is nothing to take over, so don't touch the queue.
+                #[cfg(feature = "inline_execution_stats")]
+                this.note_waited_for_in_progress_task();
+                listener.await
+            }
         }
     }
 }
@@ -1966,6 +2525,18 @@ pub struct CurrentCellRef {
 
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 
+/// What a conditional cell update returns: the new content, the key hashes that changed, and an
+/// optional hash of the value.
+type CellUpdate = (
+    SharedReference,
+    Option<SmallVec<[u64; 2]>>,
+    Option<CellHash>,
+);
+
+/// The callback [`CurrentCellRef::conditional_update_with_shared_reference`] takes. It is a `dyn`
+/// trait object so that the function's body is compiled once rather than once per cell type.
+type CellUpdateFn<'l> = dyn FnMut(Option<&SharedReference>) -> Option<CellUpdate> + 'l;
+
 impl CurrentCellRef {
     /// Updates the cell if the given `functor` returns a value.
     fn conditional_update<T>(
@@ -1974,7 +2545,11 @@ impl CurrentCellRef {
     ) where
         T: VcValueType,
     {
-        self.conditional_update_with_shared_reference(|old_shared_reference| {
+        // `FnMut` cannot move out of its captures, and the callee calls this at most once, so
+        // the `FnOnce` is handed over through an `Option`.
+        let mut functor = Some(functor);
+        self.conditional_update_with_shared_reference(&mut |old_shared_reference| {
+            let functor = functor.take().expect("functor is called at most once");
             let old_ref = old_shared_reference.and_then(|sr| sr.0.downcast_ref::<T>());
             let (new_value, updated_key_hashes, content_hash) = functor(old_ref)?;
             Some((
@@ -1986,16 +2561,12 @@ impl CurrentCellRef {
     }
 
     /// Updates the cell if the given `functor` returns a `SharedReference`.
-    fn conditional_update_with_shared_reference(
-        &self,
-        functor: impl FnOnce(
-            Option<&SharedReference>,
-        ) -> Option<(
-            SharedReference,
-            Option<SmallVec<[u64; 2]>>,
-            Option<CellHash>,
-        )>,
-    ) {
+    ///
+    /// `functor` is a `dyn` trait object rather than a generic parameter on purpose. This body is
+    /// identical for every cell type, so making it generic monomorphized it once per
+    /// `VcValueType` in the dependency graph — over a thousand copies of the same code. The
+    /// indirect call it costs instead is negligible next to the cell read and update it wraps.
+    fn conditional_update_with_shared_reference(&self, functor: &mut CellUpdateFn<'_>) {
         let tt = turbo_tasks();
         let cell_content = tt.read_own_task_cell(self.current_task, self.index).ok();
         let update = functor(cell_content.as_ref().and_then(|cc| cc.1.0.as_ref()));
@@ -2070,7 +2641,11 @@ impl CurrentCellRef {
     where
         T: VcValueType + PartialEq,
     {
-        self.conditional_update_with_shared_reference(|old_sr| {
+        let mut new_shared_reference = Some(new_shared_reference);
+        self.conditional_update_with_shared_reference(&mut |old_sr| {
+            let new_shared_reference = new_shared_reference
+                .take()
+                .expect("functor is called at most once");
             if let Some(old_sr) = old_sr {
                 let old_value = extract_sr_value::<T>(old_sr);
                 let new_value = extract_sr_value::<T>(&new_shared_reference);
@@ -2117,7 +2692,11 @@ impl CurrentCellRef {
     ) where
         T: VcValueType + PartialEq + DeterministicHash,
     {
-        self.conditional_update_with_shared_reference(move |old_sr| {
+        let mut new_shared_reference = Some(new_shared_reference);
+        self.conditional_update_with_shared_reference(&mut move |old_sr| {
+            let new_shared_reference = new_shared_reference
+                .take()
+                .expect("functor is called at most once");
             if let Some(old_sr) = old_sr {
                 let old_value = extract_sr_value::<T>(old_sr);
                 let new_value = extract_sr_value::<T>(&new_shared_reference);
@@ -2167,7 +2746,11 @@ impl CurrentCellRef {
         VcReadTarget<T>: KeyedEq,
         <VcReadTarget<T> as KeyedEq>::Key: std::hash::Hash,
     {
-        self.conditional_update_with_shared_reference(|old_sr| {
+        let mut new_shared_reference = Some(new_shared_reference);
+        self.conditional_update_with_shared_reference(&mut |old_sr| {
+            let new_shared_reference = new_shared_reference
+                .take()
+                .expect("functor is called at most once");
             let Some(old_sr) = old_sr else {
                 return Some((new_shared_reference, None, None));
             };
@@ -2284,7 +2867,83 @@ pub(crate) async fn read_local_output(
     loop {
         match this.try_read_local_output(execution_id, local_task_id)? {
             Ok(raw_vc) => return Ok(raw_vc),
-            Err(event_listener) => event_listener.await,
+            Err(event_listener) => {
+                // The local task is not done yet. If it is only scheduled, execute it right here
+                // instead of waiting for a worker to pick it up.
+                if execute_read_target_inline(
+                    this,
+                    ScheduleKey::current_local_task(execution_id, local_task_id),
+                ) {
+                    continue;
+                }
+                event_listener.await
+            }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_inline_execution_depth_guard_restores_depth() {
+        assert_eq!(INLINE_EXECUTION_DEPTH.get(), 0);
+        {
+            let _outer = InlineExecutionDepthGuard::enter();
+            {
+                let _inner = InlineExecutionDepthGuard::enter();
+                assert_eq!(INLINE_EXECUTION_DEPTH.get(), 2);
+            }
+            assert_eq!(INLINE_EXECUTION_DEPTH.get(), 1);
+        }
+        assert_eq!(INLINE_EXECUTION_DEPTH.get(), 0);
+    }
+
+    #[test]
+    fn test_inline_depth_cap() {
+        assert!(inline_execution_allowed(), "nothing is nested yet");
+        let mut guards = (0..MAX_INLINE_EXECUTION_DEPTH)
+            .map(|_| InlineExecutionDepthGuard::enter())
+            .collect::<Vec<_>>();
+        assert_eq!(INLINE_EXECUTION_DEPTH.get(), MAX_INLINE_EXECUTION_DEPTH);
+        assert!(
+            !inline_execution_allowed(),
+            "at the nesting cap reads wait for a worker instead of executing inline"
+        );
+
+        // One level below the cap inline execution is allowed again.
+        guards.pop();
+        assert!(inline_execution_allowed());
+    }
+
+    #[tokio::test]
+    async fn test_poll_once_or_spawn_completed_execution() {
+        assert!(
+            poll_once_or_spawn(async {}),
+            "a future that completes on the first poll is executed inline"
+        );
+        assert_eq!(INLINE_EXECUTION_DEPTH.get(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_poll_once_or_spawn_pending_execution() {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        let done = Arc::new(AtomicBool::new(false));
+        let done_in_task = done.clone();
+        assert!(
+            !poll_once_or_spawn(async move {
+                // Yields on the first poll, so it cannot be executed inline.
+                tokio::task::yield_now().await;
+                done_in_task.store(true, Ordering::SeqCst);
+                let _ = tx.send(());
+            }),
+            "a future that yields is not completed inline"
+        );
+        assert_eq!(INLINE_EXECUTION_DEPTH.get(), 0);
+
+        // ...but it was spawned, so it still runs to completion.
+        rx.await.unwrap();
+        assert!(done.load(Ordering::SeqCst));
     }
 }

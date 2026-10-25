@@ -9,7 +9,7 @@ import {
   recordRequestInsightFetch,
 } from './trace/request-insights'
 import { getRequestInsightsIdentity } from './trace/request-insights-identity'
-import { getTracer, SpanKind } from './trace/tracer'
+import { getTracer, SpanKind, SpanStatusCode } from './trace/tracer'
 import {
   CACHE_ONE_YEAR_SECONDS,
   INFINITE_CACHE,
@@ -20,6 +20,7 @@ import { markCurrentScopeAsDynamic } from '../app-render/dynamic-rendering'
 import { makeDynamicHangingPromise } from '../dynamic-rendering-utils'
 import type { FetchMetric } from '../base-http'
 import { createDedupeFetch } from './dedupe-fetch'
+import { NEXT_PATCH_SYMBOL } from './patch-fetch-symbol'
 import {
   getCacheSignal,
   type RevalidateStore,
@@ -37,7 +38,7 @@ import {
 import { cloneResponse } from './clone-response'
 import type { IncrementalCache } from './incremental-cache'
 import { RenderStage } from '../app-render/staged-rendering'
-import { encodeCacheTag } from './encode-cache-tag'
+import { encodeHeaderSafe } from './encode-header-safe'
 import type { Span } from './trace/tracer'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
@@ -59,7 +60,6 @@ function shouldProcessFetchConfigForWorkUnit(
   switch (workUnitStore.type) {
     case 'prerender':
     case 'prerender-client':
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':
@@ -73,7 +73,7 @@ function shouldProcessFetchConfigForWorkUnit(
       )
     case 'prerender-runtime':
     case 'validation-client':
-    case 'generate-static-params':
+    case 'build-time-generator':
       return false
     default:
       return workUnitStore satisfies never
@@ -87,8 +87,6 @@ type PatchedFetcher = Fetcher & {
   readonly __nextGetStaticStore: () => WorkAsyncStorage
   readonly _nextOriginalFetch: Fetcher
 }
-
-export const NEXT_PATCH_SYMBOL = Symbol.for('next-patch')
 
 function isFetchPatched() {
   return (globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] === true
@@ -147,7 +145,7 @@ export function validateTags(tags: any[], description: string) {
       // Encode so a non-ASCII tag can be safely serialized into the
       // `x-next-cache-tags` HTTP header without tripping Node's header
       // validation. Length is checked on the raw input above.
-      validTags.push(encodeCacheTag(tag))
+      validTags.push(encodeHeaderSafe(tag))
     }
 
     if (validTags.length > NEXT_CACHE_TAG_MAX_ITEMS) {
@@ -186,6 +184,11 @@ function trackFetchMetric(
     'next.fetch.cache_status': metric.cacheStatus,
     'next.fetch.cache_reason': metric.cacheReason,
   })
+
+  if (span && metric.status >= 400) {
+    span.setStatus({ code: SpanStatusCode.ERROR })
+    span.setAttribute('error.type', String(metric.status))
+  }
 
   if (isRequestInsightsEnabled()) {
     const requestInsightsIdentity = getRequestInsightsIdentity()
@@ -467,7 +470,6 @@ export function createPatchedFetcher(
             // TODO: Stop accumulating tags in client prerender. (fallthrough)
             case 'prerender-client':
             case 'validation-client':
-            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
             case 'private-cache':
@@ -475,7 +477,7 @@ export function createPatchedFetcher(
               break
             case 'request':
             case 'unstable-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               break
             default:
               workUnitStore satisfies never
@@ -510,12 +512,11 @@ export function createPatchedFetcher(
             case 'prerender-client':
             case 'validation-client':
             case 'prerender-runtime':
-            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'request':
             case 'cache':
             case 'private-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               break
             default:
               workUnitStore satisfies never
@@ -682,12 +683,11 @@ export function createPatchedFetcher(
                 )
               }
               break
-            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
             case 'private-cache':
             case 'unstable-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               break
             default:
               workUnitStore satisfies never
@@ -815,12 +815,11 @@ export function createPatchedFetcher(
                     )
                   }
                   break
-                case 'prerender-ppr':
                 case 'prerender-legacy':
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
-                case 'generate-static-params':
+                case 'build-time-generator':
                   break
                 default:
                   workUnitStore satisfies never
@@ -862,10 +861,9 @@ export function createPatchedFetcher(
             case 'prerender-client':
             case 'validation-client':
             case 'prerender-runtime':
-            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'unstable-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               break
             default:
               workUnitStore satisfies never
@@ -1015,12 +1013,11 @@ export function createPatchedFetcher(
                       )
                     }
                   // fallthrough
-                  case 'prerender-ppr':
                   case 'prerender-legacy':
                   case 'cache':
                   case 'private-cache':
                   case 'unstable-cache':
-                  case 'generate-static-params':
+                  case 'build-time-generator':
                   case undefined:
                     return createCachedDynamicResponse(
                       workStore,
@@ -1099,12 +1096,11 @@ export function createPatchedFetcher(
                     )
                   }
                   break
-                case 'prerender-ppr':
                 case 'prerender-legacy':
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
-                case 'generate-static-params':
+                case 'build-time-generator':
                   break
                 default:
                   workUnitStore satisfies never
@@ -1223,12 +1219,11 @@ export function createPatchedFetcher(
                     )
                   }
                   break
-                case 'prerender-ppr':
                 case 'prerender-legacy':
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
-                case 'generate-static-params':
+                case 'build-time-generator':
                   break
                 default:
                   workUnitStore satisfies never
@@ -1275,8 +1270,7 @@ export function createPatchedFetcher(
                   case 'private-cache':
                   case 'unstable-cache':
                   case 'prerender-legacy':
-                  case 'prerender-ppr':
-                  case 'generate-static-params':
+                  case 'build-time-generator':
                     break
                   default:
                     workUnitStore satisfies never

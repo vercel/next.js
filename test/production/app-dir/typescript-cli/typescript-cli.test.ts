@@ -15,17 +15,16 @@ const typeError = `export const invalidValue: number = 'not a number'
 `
 
 describe('TypeScript CLI backend', () => {
+  // This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+  // @force-gate !deploy
   describe('TypeScript 7', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
-      skipDeployment: true,
       dependencies: {
         typescript: '7.0.2',
       },
     })
-
-    if (skipped) return
 
     let originalTsConfig: string
 
@@ -122,17 +121,16 @@ describe('TypeScript CLI backend', () => {
     })
   })
 
+  // This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+  // @force-gate !deploy
   describe('TypeScript 7 with the CLI disabled', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
-      skipDeployment: true,
       dependencies: {
         typescript: '7.0.2',
       },
     })
-
-    if (skipped) return
 
     it('fails with actionable API compatibility guidance', async () => {
       await next.patchFile('next.config.js', apiConfig)
@@ -150,22 +148,43 @@ describe('TypeScript CLI backend', () => {
     })
   })
 
+  // This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+  // @force-gate !deploy
   describe('TypeScript 6', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
-      skipDeployment: true,
       dependencies: {
         typescript: '6.0.2',
       },
     })
 
-    if (skipped) return
-
     it('uses the same project-local tsc entry point', async () => {
       const result = await next.build()
 
       expect(result.exitCode).toBe(0)
+      expect(await next.hasFile('.next/cache/.tsbuildinfo')).toBe(true)
+    })
+  })
+
+  // This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+  // @force-gate !deploy
+  describe('TypeScript 6 npm alias', () => {
+    const { next } = nextTestSetup({
+      files: __dirname,
+      skipStart: true,
+      dependencies: {
+        typescript: 'npm:@typescript/typescript6@6.0.1',
+      },
+    })
+
+    it('builds with the versioned tsc6 entry point', async () => {
+      const result = await next.build()
+
+      expect(result.exitCode).toBe(0)
+      expect(result.cliOutput).not.toContain(
+        'do not have the required package(s) installed'
+      )
       expect(await next.hasFile('.next/cache/.tsbuildinfo')).toBe(true)
     })
   })

@@ -1,3 +1,0 @@
-(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/1ece_tests_snapshot_remove-unused-imports_star-import-string-key_input_index_1fhdw9l.js",{otherChunks:["output/1jsg_tests_snapshot_remove-unused-imports_star-import-string-key_input_03-1fx5._.js"],runtimeModuleIds:["[project]/turbopack/crates/turbopack-tests/tests/snapshot/remove-unused-imports/star-import-string-key/input/index.js [test] (ecmascript)"]}]);
-
-//# sourceMappingURL=1jsg_tests_snapshot_remove-unused-imports_star-import-string-key_input_index_1fhdw9l.js.map

@@ -1,0 +1,4 @@
+.tarballs/
+results/
+.env
+.env.local

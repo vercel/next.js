@@ -4,7 +4,10 @@
 const nextConfig = {
   cacheComponents: true,
   cacheHandlers: {
-    default: require.resolve('./throwing-cache-handler.js'),
+    default:
+      process.env.CACHE_HANDLER_THROW_ON === 'retry-get'
+        ? require.resolve('./retrying-cache-handler.js')
+        : require.resolve('./throwing-cache-handler.js'),
   },
 }
 

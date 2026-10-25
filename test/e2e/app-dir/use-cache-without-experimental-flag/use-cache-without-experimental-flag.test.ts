@@ -14,22 +14,27 @@ const nextConfigWithUseCache: NextConfig = {
 }
 
 describe('use-cache-without-experimental-flag', () => {
-  const { next, isNextStart, isTurbopack, skipped, isRspack } = nextTestSetup({
-    files: __dirname,
-    skipStart: process.env.NEXT_TEST_MODE !== 'dev',
-    skipDeployment: true,
-  })
+  const { next, isNextDev, isNextDeploy, isTurbopack, isRspack } =
+    nextTestSetup({
+      files: __dirname,
+      skipStart: process.env.NEXT_TEST_MODE !== 'dev',
+    })
 
-  if (skipped) {
-    return
-  }
-
-  if (isNextStart) {
+  if (!isNextDev) {
     it('should fail the build with an error', async () => {
-      const { cliOutput } = await next.build()
-      const buildOutput = getBuildOutput(cliOutput)
+      await expect(next.start()).rejects.toThrow()
+      const buildOutput = getBuildOutput(next.cliOutput)
 
-      if (isTurbopack) {
+      if (isNextDeploy) {
+        expect(next.cliOutput).toContain(
+          'To use "use cache", please enable the feature flag `cacheComponents` in your Next.js config.'
+        )
+        expect(next.cliOutput).toContain(
+          'Read more: https://nextjs.org/docs/app/api-reference/directives/use-cache#usage'
+        )
+        expect(next.cliOutput).toContain('./app/page.tsx')
+        expect(next.cliOutput).toContain("'use cache'")
+      } else if (isTurbopack) {
         expect(buildOutput).toContain(
           'To use "use cache", please enable the feature flag `cacheComponents` in your Next.js config.'
         )
@@ -39,7 +44,9 @@ describe('use-cache-without-experimental-flag', () => {
         expect(buildOutput).toContain('Ecmascript file had an error')
         expect(buildOutput).toContain('./app/page.tsx:1:1')
         expect(buildOutput).toContain("> 1 | 'use cache'")
-        expect(buildOutput).toContain('at <unknown> (./app/page.tsx:1:1)')
+        // The stack of a build error holds framework frames only, and the
+        // terminal collapses them.
+        expect(buildOutput).toContain('at ignore-listed frames')
       } else if (isRspack) {
         expect(buildOutput).toMatchInlineSnapshot(`
          "
@@ -88,7 +95,7 @@ describe('use-cache-without-experimental-flag', () => {
          "
         `)
       }
-    })
+    }, 240_000)
   } else {
     it('should show a build error', async () => {
       const browser = await next.browser('/')

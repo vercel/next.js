@@ -3,5 +3,9 @@
 
 pub(crate) mod chunking_context;
 pub mod ecmascript;
+pub mod fs;
 
 pub use chunking_context::{NodeJsChunkingContext, NodeJsChunkingContextBuilder};
+pub use ecmascript::node::{
+    chunk::EcmascriptBuildNodeChunk, entry::runtime::EcmascriptBuildNodeRuntimeChunk,
+};

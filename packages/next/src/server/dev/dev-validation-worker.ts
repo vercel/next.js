@@ -3,6 +3,7 @@ import type {
   DevValidationWorkerMessage,
   DevValidationWorkerResult,
 } from '../app-render/dev-validation-worker-globals'
+import type { NodeJsPartialHmrUpdate } from '../../build/swc/types'
 
 import '../require-hook'
 import '../node-environment'
@@ -19,6 +20,8 @@ import {
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import { serializeValidationErrorsToFlight } from '../app-render/dev-validation-error-delivery'
 import { formatValidationEvent } from '../app-render/dev-validation-events'
+import { clearManifestCache } from '../load-manifest.external'
+import { deleteCache } from './require-cache'
 import {
   getServerActionsManifest,
   setManifestsSingleton,
@@ -38,11 +41,12 @@ import type { ModernSourceMapPayload } from '../lib/source-maps'
  * `loadComponents` pulled in. Frames arriving in the transported payload can
  * point at any chunk the main render touched.
  *
- * This only helps Turbopack, which writes a `.map` beside every chunk. Webpack
- * keeps its dev source maps in the compiler rather than on disk, so its frames
- * from chunks this thread never evaluated stay unresolved, and its module URLs
- * (`webpack-internal://…`) are declined below for the same reason. Frames from
- * dependencies that are not bundled never reach this point, because
+ * Reading from disk covers the chunks, because the worker only runs under
+ * Turbopack (see `next-dev-server.ts`), which writes a `.map` beside every one
+ * of them. A module the server updated in place has no chunk of its own and is
+ * covered instead by this thread applying the same update (see
+ * `applyHmrUpdate`), which leaves its inline map in Node.js' cache here. Frames
+ * from dependencies that are not bundled never reach this point, because
  * `filterStackFrameDEV` drops `node_modules` and `node:` frames; bundled
  * dependencies appear as chunks inside `distDir` like any other code.
  */
@@ -71,7 +75,7 @@ function createDiskSourceMapLookup(
     }
 
     if (!isAbsolute(chunkPath)) {
-      // Not an emitted chunk, e.g. `webpack-internal://` or `<anonymous>`.
+      // Not an emitted chunk, e.g. `<anonymous>`.
       return undefined
     }
 
@@ -226,6 +230,70 @@ async function registerAdditionalClientReferenceManifests(
       }
     })
   )
+}
+
+declare const __turbopack_server_hmr_apply__:
+  | ((update: NodeJsPartialHmrUpdate) => void)
+  | undefined
+
+/**
+ * What this thread did with a forwarded HMR update.
+ *
+ * `no-runtime` is not a failure: no runtime the update routes to had been
+ * loaded here, so there was nothing to patch, and whatever loads that route
+ * later reads the updated chunk from disk.
+ */
+export type HmrApplyOutcome = 'applied' | 'no-runtime' | 'failed'
+
+/**
+ * Applies a server HMR update to this thread's module registry, mirroring the
+ * apply the dev server performed on its own.
+ *
+ * Turbopack's Node.js runtime registers the apply machinery per isolate (see
+ * `dev-nodejs.ts`), and `loadComponents` evaluates that runtime here, so this
+ * thread patches the same modules the dev server does. The apply also leaves
+ * the updated module's inline source map in this thread's Node.js cache, which
+ * is what makes a stack frame in that module source-mappable here.
+ */
+export async function applyHmrUpdate(
+  update: NodeJsPartialHmrUpdate
+): Promise<HmrApplyOutcome> {
+  if (typeof __turbopack_server_hmr_apply__ !== 'function') {
+    return 'no-runtime'
+  }
+
+  try {
+    __turbopack_server_hmr_apply__(update)
+  } catch {
+    // The dev server responds to the same failure by re-evaluating every
+    // module from disk. This thread cannot be repaired in place either, so the
+    // caller drops it.
+    return 'failed'
+  }
+
+  return 'applied'
+}
+
+/**
+ * Clears the same caches the dev server cleared, for the same paths.
+ *
+ * `evictModules` follows the dev server's own split: an applied update patches
+ * modules in place and clears only the manifest cache for the updated chunks,
+ * while a recompile evicts `require.cache` as well. This thread follows both,
+ * so its module state stays the dev server's module state.
+ */
+export async function invalidateCaches(
+  filePaths: string[],
+  evictModules: boolean
+): Promise<void> {
+  if (evictModules) {
+    deleteCache(filePaths)
+    return
+  }
+
+  for (const filePath of filePaths) {
+    clearManifestCache(filePath)
+  }
 }
 
 /**

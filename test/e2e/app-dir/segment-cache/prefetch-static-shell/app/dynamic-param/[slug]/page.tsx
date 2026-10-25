@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { navigation, prefetch } from 'next/cache'
 
 type Params = { slug: string }
 
@@ -24,6 +25,16 @@ export default function Page({ params }: { params: Promise<Params> }) {
       <Suspense fallback={<p id="slug-loading">Loading param content...</p>}>
         <SlugContent params={params} />
       </Suspense>
+      <Suspense
+        fallback={<p id="navigation-loading">Loading navigation content...</p>}
+      >
+        <NavigationContent />
+      </Suspense>
+      <Suspense
+        fallback={<p id="prefetch-loading">Loading prefetch content...</p>}
+      >
+        <PrefetchContent />
+      </Suspense>
     </main>
   )
 }
@@ -31,4 +42,14 @@ export default function Page({ params }: { params: Promise<Params> }) {
 async function SlugContent({ params }: { params: Promise<Params> }) {
   const { slug } = await params
   return <p id="slug-content">{`Dynamic param content: ${slug}`}</p>
+}
+
+async function NavigationContent() {
+  await navigation()
+  return <p id="navigation-content">Navigation content</p>
+}
+
+async function PrefetchContent() {
+  await prefetch()
+  return <p id="prefetch-content">Prefetch content</p>
 }

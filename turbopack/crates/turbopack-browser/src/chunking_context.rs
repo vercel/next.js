@@ -1,5 +1,6 @@
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
+use smallvec::{SmallVec, smallvec};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -10,11 +11,11 @@ use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkLoadRetry, ChunkType,
-        ChunkableModule, ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing,
-        CrossOrigin, EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets, MinifyType,
-        SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
-        WorkerConfigurationOptions,
+        AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkItemOrBatchWithAsyncModuleInfo,
+        ChunkItemWithAsyncModuleInfo, ChunkLoadRetry, ChunkType, ChunkableModule, ChunkingConfig,
+        ChunkingConfigs, ChunkingContext, ContentHashing, CrossOrigin, EntryChunkGroupResult,
+        EvaluatableAsset, EvaluatableAssets, HmrChunkListSource, MinifyType, SourceMapSourceType,
+        SourceMapsType, UnusedReferences, UrlBehavior, WorkerConfigurationOptions,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
@@ -26,13 +27,15 @@ use turbopack_core::{
     module_graph::{
         ModuleGraph,
         binding_usage_info::{BindingUsageInfo, ModuleExportUsage},
-        chunk_group_info::ChunkGroup,
+        chunk_group_info::{ChunkGroup, ChunkGroupKey},
     },
     output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
 };
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
-    chunk::{EcmascriptChunk, EcmascriptChunkContent, EcmascriptChunkType},
+    chunk::{
+        EcmascriptChunk, EcmascriptChunkContent, EcmascriptChunkPlaceable, EcmascriptChunkType,
+    },
     manifest::{chunk_asset::ManifestAsyncModule, loader_module::ManifestLoaderModule},
 };
 use turbopack_ecmascript_runtime::RuntimeType;
@@ -875,19 +878,24 @@ impl ChunkingContext for BrowserChunkingContext {
     async fn chunk_group(
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: ChunkGroup,
+        chunk_groups: SmallVec<[ChunkGroupKey; 1]>,
         module_graph: ResolvedVc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!("chunking", name = display(ident.to_string().await?));
         async move {
+            let chunk_group_info = module_graph.chunk_group_info();
+            let mut groups = SmallVec::with_capacity(chunk_groups.len());
+            for key in chunk_groups {
+                groups.push(chunk_group_info.get_chunk_group(key).await?);
+            }
             let input_availability_info = availability_info;
             let MakeChunkGroupResult {
                 chunks,
                 references,
                 availability_info,
             } = make_chunk_group(
-                chunk_group,
+                groups,
                 module_graph,
                 ResolvedVc::upcast(self),
                 input_availability_info,
@@ -919,7 +927,7 @@ impl ChunkingContext for BrowserChunkingContext {
     async fn evaluated_chunk_group(
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: ChunkGroup,
+        chunk_group: ChunkGroupKey,
         module_graph: ResolvedVc<ModuleGraph>,
         // Extra chunks to include in the HMR chunk list beyond what is reachable from this chunk
         // group. Used to cover RSC client reference chunks that are built separately.
@@ -933,12 +941,16 @@ impl ChunkingContext for BrowserChunkingContext {
         );
         async move {
             let this = self.await?;
+            let chunk_group = module_graph
+                .chunk_group_info()
+                .get_chunk_group(chunk_group)
+                .await?;
             let MakeChunkGroupResult {
                 chunks,
                 references,
                 availability_info,
             } = make_chunk_group(
-                chunk_group.clone(),
+                smallvec![chunk_group.clone()],
                 module_graph,
                 ResolvedVc::upcast(self),
                 input_availability_info,
@@ -1075,6 +1087,7 @@ impl ChunkingContext for BrowserChunkingContext {
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
         chunks: Vc<OutputAssets>,
+        source: HmrChunkListSource,
     ) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
         if !this.enable_hot_module_replacement {
@@ -1088,7 +1101,10 @@ impl ChunkingContext for BrowserChunkingContext {
                 ident,
                 EvaluatableAssets::empty(),
                 chunks,
-                EcmascriptDevChunkListSource::Entry,
+                match source {
+                    HmrChunkListSource::Entry => EcmascriptDevChunkListSource::Entry,
+                    HmrChunkListSource::Dynamic => EcmascriptDevChunkListSource::Dynamic,
+                },
             )
             .to_resolved()
             .await?,
@@ -1099,7 +1115,7 @@ impl ChunkingContext for BrowserChunkingContext {
     async fn entry_chunk_group(
         self: ResolvedVc<Self>,
         path: FileSystemPath,
-        chunk_group: ChunkGroup,
+        chunk_group: ChunkGroupKey,
         module_graph: ResolvedVc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         extra_referenced_assets: Vc<OutputAssets>,
@@ -1119,12 +1135,16 @@ impl ChunkingContext for BrowserChunkingContext {
             chunking_type = "single-chunk entry",
         );
         async move {
+            let chunk_group = module_graph
+                .chunk_group_info()
+                .get_chunk_group(chunk_group)
+                .await?;
             let MakeChunkGroupResult {
                 chunks,
                 references,
                 availability_info,
             } = make_chunk_group(
-                chunk_group.clone(),
+                smallvec![chunk_group.clone()],
                 module_graph,
                 ResolvedVc::upcast(self),
                 availability_info,
@@ -1221,7 +1241,14 @@ impl ChunkingContext for BrowserChunkingContext {
             .emit();
             return Ok(module.as_chunk_item(module_graph, *chunking_context));
         }
-        Ok(if self.await?.manifest_chunks {
+        let use_manifest = self.await?.manifest_chunks
+            // This guard is in place so that only javascript goes
+            // this path for lazy loading dynamic imports not things like css.
+            && ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(
+                module.to_resolved().await?,
+            )
+            .is_some();
+        Ok(if use_manifest {
             let manifest_asset = ManifestAsyncModule::new(
                 module,
                 module_graph,
@@ -1237,11 +1264,48 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
+    async fn standalone_chunk(
+        self: Vc<Self>,
+        chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
+    ) -> Result<Vc<Box<dyn OutputAsset>>> {
+        let chunk_type = chunk_item
+            .into_trait_ref()
+            .await?
+            .ty()
+            .to_resolved()
+            .await?;
+        let chunk = chunk_type
+            .chunk(
+                Vc::upcast(self),
+                vec![ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(
+                    ChunkItemWithAsyncModuleInfo {
+                        chunk_item,
+                        chunk_type,
+                        module: None,
+                        async_info: None,
+                    },
+                )],
+                Vec::new(),
+                Vec::new(),
+            )
+            .to_resolved()
+            .await?;
+        Ok(*self.generate_chunk(chunk).await?)
+    }
+
+    #[turbo_tasks::function]
     async fn async_loader_chunk_item_ident(
         self: Vc<Self>,
         module: Vc<Box<dyn ChunkableModule>>,
     ) -> Result<Vc<AssetIdent>> {
-        Ok(if self.await?.manifest_chunks {
+        let use_manifest = self.await?.manifest_chunks
+            // This guard is in place so that only javascript goes
+            // this path for lazy loading dynamic imports not things like css.
+            && ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(
+                module.to_resolved().await?,
+            )
+            .is_some();
+        Ok(if use_manifest {
             ManifestLoaderModule::asset_ident_for(module)
         } else {
             AsyncLoaderModule::asset_ident_for(module)
@@ -1256,7 +1320,7 @@ impl ChunkingContext for BrowserChunkingContext {
         if let Some(export_usage) = self.export_usage {
             Ok(export_usage.await?.used_exports(module).await?)
         } else {
-            Ok(ModuleExportUsage::all())
+            Ok(ModuleExportUsage::unknown())
         }
     }
 

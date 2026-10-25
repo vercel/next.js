@@ -7,4 +7,6 @@ const sideEffect = (arg) => {
   return sideEffect.callArguments
 }
 
+globalThis.__appPageSharedModuleMarker = 'APP_PAGE_SHARED_MODULE_MARKER'
+
 export default sideEffect

@@ -1,19 +1,18 @@
 import { nextTestSetup } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
 
-const expectedTimeoutErrorMessage =
-  'Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".'
+const timeoutErrorMessage =
+  'A `"use cache"` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as `params` or `searchParams`, into the cached function. Resolve the data before calling the function and pass only the values you need.\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache'
+
+function expectedTimeoutErrorMessage(route: string) {
+  return `Route "${route}": ${timeoutErrorMessage}`
+}
 
 describe('use-cache-configured-timeout', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
   })
-
-  if (skipped) {
-    return
-  }
 
   if (isNextDev) {
     describe('when a "use cache" fill is below the configured dev `useCacheTimeout`', () => {
@@ -27,7 +26,7 @@ describe('use-cache-configured-timeout', () => {
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        expect(cliOutput).not.toContain(expectedTimeoutErrorMessage)
+        expect(cliOutput).not.toContain(timeoutErrorMessage)
       })
     })
 
@@ -38,8 +37,8 @@ describe('use-cache-configured-timeout', () => {
 
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E236",
-           "description": "Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".",
+           "description": "Route "/above-dev-timeout": A \`"use cache"\` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as \`params\` or \`searchParams\`, into the cached function. Resolve the data before calling the function and pass only the values you need.
+         Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
            "environmentLabel": "Cache",
            "label": "Runtime Error",
            "source": "app/above-dev-timeout/page.tsx (4:1) @ getCachedData
@@ -55,26 +54,24 @@ describe('use-cache-configured-timeout', () => {
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        expect(cliOutput).toContain(expectedTimeoutErrorMessage)
+        expect(cliOutput).toContain(
+          expectedTimeoutErrorMessage('/above-dev-timeout')
+        )
       })
     })
   } else {
     describe('when `experimental.useCacheTimeout` exceeds `staticPageGenerationTimeout` during prerendering', () => {
       it('should clamp the build timeout and fail both pages with a timeout error', async () => {
-        try {
-          await next.start()
-        } catch {
-          // expected
-        }
+        await expect(next.start()).rejects.toThrow()
 
-        expect(next.cliOutput).toContain(expectedTimeoutErrorMessage)
+        expect(next.cliOutput).toContain(timeoutErrorMessage)
         expect(next.cliOutput).toContain(
           'Error occurred prerendering page "/below-dev-timeout"'
         )
         expect(next.cliOutput).toContain(
           'Error occurred prerendering page "/above-dev-timeout"'
         )
-      })
+      }, 240_000)
     })
   }
 })

@@ -1,0 +1,7 @@
+{
+  "kind": "nudge",
+  "policy": "latest",
+  "app": "nudge",
+  "sourceVersion": "16.5.0",
+  "targetVersion": "16.6.0"
+}

@@ -17,6 +17,32 @@ describe('Root components import order', () => {
     })
   })
 
+  it('loads modules shared by _app and the page only once', async () => {
+    const requests: Set<string> = new Set()
+    await next.browser('/', {
+      beforePageLoad(page) {
+        page.on('request', (request) => {
+          const url = new URL(request.url(), next.url)
+          if (
+            url.pathname.startsWith('/_next/static/') &&
+            url.pathname.endsWith('.js')
+          ) {
+            requests.add(url.href)
+          }
+        })
+      },
+    })
+
+    const chunks = await Promise.all(
+      [...requests].map((url) => fetch(url).then((response) => response.text()))
+    )
+    const matchingChunks = chunks.filter((chunk) =>
+      chunk.includes('APP_PAGE_SHARED_MODULE_MARKER')
+    )
+
+    expect(matchingChunks.length).toBe(1)
+  })
+
   // Test relies on webpack splitChunks overrides.
   ;(isTurbopack ? it.skip : it)(
     '_app chunks should be attached to the dom before page chunks',

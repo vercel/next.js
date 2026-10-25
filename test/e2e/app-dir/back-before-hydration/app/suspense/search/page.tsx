@@ -7,7 +7,7 @@ async function CurrentPage({
   searchParams: Promise<{ page?: string }>
 }) {
   const { page = '1' } = await searchParams
-  return <h1 id="search">Page {page}</h1>
+  return <h1 id={`page-${page}`}>Page {page}</h1>
 }
 
 export default function Search({

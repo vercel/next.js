@@ -59,6 +59,16 @@ app.prepare().then(() => {
 })
 ```
 
+> **Set your own response headers before calling `handle`**: Next.js begins sending the response inside `handle(req, res)`, so by the time its promise resolves `res.headersSent` is already `true` and any later `res.setHeader()` call is silently discarded. Set headers you own, such as `Set-Cookie`, before handing the request to Next.js:
+>
+> ```js
+> res.setHeader('Set-Cookie', 'sessionId=abc123; Max-Age=2592000')
+>
+> await handle(req, res)
+> ```
+>
+> The same ordering applies when wrapping Next.js in another framework, for example `reply.raw` in Fastify or `res` in Express.
+
 > `server.js` does not run through the Next.js Compiler or bundling process. Make sure the syntax and source code this file requires are compatible with the current Node.js version you are using. [View an example](https://github.com/vercel/next.js/tree/canary/examples/custom-server).
 
 To run the custom server, you'll need to update the `scripts` in `package.json` like so:

@@ -14,8 +14,8 @@ use turbo_tasks::{
     read_strongly_consistent_and_apply_effects, take_effects,
 };
 use turbo_tasks_backend::{
-    BackendOptions, GitVersionInfo, StartupCacheState, StorageMode, TurboTasksBackend,
-    noop_backing_storage, turbo_backing_storage,
+    BackendOptions, BackingStorageOptions, GitVersionInfo, StartupCacheState, StorageMode,
+    TurboTasksBackend, noop_backing_storage, turbo_backing_storage,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_unix_path::join_path;
@@ -36,7 +36,7 @@ use turbopack_core::{
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph,
         binding_usage_info::compute_binding_usage_info,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
+        chunk_group_info::{ChunkGroupEntry, ChunkGroupKey, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -262,27 +262,20 @@ async fn build_internal(
         source_maps_type,
     );
 
-    let entry_requests = (*entry_requests
-        .into_iter()
-        .map(|r| async move {
-            Ok(match r {
-                EntryRequest::Relative(p) => Request::relative(
-                    p.clone().into(),
-                    Default::default(),
-                    Default::default(),
-                    false,
-                ),
-                EntryRequest::Module(m, p) => Request::module(
-                    m.clone().into(),
-                    p.clone().into(),
-                    Default::default(),
-                    Default::default(),
-                ),
-            })
-        })
-        .try_join()
-        .await?)
-        .to_vec();
+    let entry_requests = entry_requests.into_iter().map(|r| match r {
+        EntryRequest::Relative(p) => Request::relative(
+            p.clone().into(),
+            Default::default(),
+            Default::default(),
+            false,
+        ),
+        EntryRequest::Module(m, p) => Request::module(
+            m.clone().into(),
+            p.clone().into(),
+            Default::default(),
+            Default::default(),
+        ),
+    });
 
     let origin =
         PlainResolveOrigin::new(asset_context, project_fs.root().await?.join("_")?).await?;
@@ -292,7 +285,6 @@ async fn build_internal(
     let project_dir = &project_dir;
     let entries = async move {
         entry_requests
-            .into_iter()
             .map(|request_vc| {
                 let origin_path = origin_path.clone();
                 async move {
@@ -465,7 +457,7 @@ async fn build_internal(
                                         .with_extension("entry.js"),
                                 )
                                 .into_vc(),
-                                ChunkGroup::Entry(
+                                ChunkGroupKey::Entry(
                                     [ResolvedVc::upcast(ecmascript)].into_iter().collect(),
                                 ),
                                 module_graph,
@@ -486,7 +478,9 @@ async fn build_internal(
                                                         .unwrap(),
                                                 )?
                                                 .with_extension("entry.js"),
-                                            ChunkGroup::Entry(vec![ResolvedVc::upcast(ecmascript)]),
+                                            ChunkGroupKey::Entry(vec![ResolvedVc::upcast(
+                                                ecmascript,
+                                            )]),
                                             module_graph,
                                             OutputAssets::empty(),
                                             OutputAssets::empty(),
@@ -524,7 +518,7 @@ async fn build_internal(
 
     all_assets
         .iter()
-        .map(|c| async move { c.content().write(c.path().owned().await?).await })
+        .map(async |c| c.content().write(c.path().owned().await?).await)
         .try_join()
         .await?;
 
@@ -551,8 +545,15 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
             .cache_dir
             .clone()
             .unwrap_or_else(|| PathBuf::from(&*project_dir).join(".turbopack/cache"));
-        let (backing_storage, cache_state) =
-            turbo_backing_storage(&cache_dir, &version_info, is_ci, is_short_session, false)?;
+        let (backing_storage, cache_state) = turbo_backing_storage(
+            &cache_dir,
+            &version_info,
+            BackingStorageOptions {
+                is_ci,
+                is_short_session,
+                skip_compaction: false,
+            },
+        )?;
         let storage_mode = if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
             StorageMode::ReadOnly
         } else if is_ci || is_short_session {

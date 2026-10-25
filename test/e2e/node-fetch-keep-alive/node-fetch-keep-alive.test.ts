@@ -1,28 +1,37 @@
 import { nextTestSetup } from 'e2e-utils'
-import { createServer, Server } from 'http'
+import { createServer, type Server } from 'http'
+import type { AddressInfo } from 'net'
 
-describe('node-fetch-keep-alive', () => {
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
+// @force-gate !deploy
+describe('fetch-keep-alive', () => {
   let mockServer: Server
 
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    // Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
-    skipDeployment: true,
   })
-  if (skipped) return
 
   beforeAll(async () => {
     mockServer = createServer((req, res) => {
       const { connection } = req.headers
       res.end(JSON.stringify({ connection }))
     })
-    await new Promise<void>((resolve) => mockServer.listen(44001, resolve))
+    await new Promise<void>((resolve, reject) => {
+      mockServer.once('error', reject)
+      mockServer.listen(0, '127.0.0.1', resolve)
+    })
+    next.env.TEST_SERVER_URL = `http://127.0.0.1:${(mockServer.address() as AddressInfo).port}`
     await next.start()
   })
 
-  afterAll(() => {
-    mockServer?.close()
+  afterAll(async () => {
+    if (mockServer) {
+      await new Promise<void>((resolve, reject) => {
+        mockServer.close((error) => (error ? reject(error) : resolve()))
+      })
+    }
   })
 
   it('should send keep-alive for json API', async () => {

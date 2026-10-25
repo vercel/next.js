@@ -1,0 +1,12 @@
+{
+  "runtime": "NodeJs",
+  "mangleExportNames": true,
+  "removeUnusedExports": true,
+  "removeUnusedImports": true,
+  "followReexports": true,
+  "minifyType": {
+    "Minify": {
+      "mangle": "optimal-size"
+    }
+  }
+}

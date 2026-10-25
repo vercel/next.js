@@ -8,7 +8,6 @@ import {
   ErrorOverlayToolbar,
   styles as toolbarStyles,
 } from '../error-overlay-toolbar/error-overlay-toolbar'
-import { ErrorOverlayFooter } from '../error-overlay-footer/error-overlay-footer'
 import {
   ErrorMessage,
   styles as errorMessageStyles,
@@ -47,7 +46,6 @@ export interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   canGoNext?: boolean
   onPrevious?: () => void
   onNext?: () => void
-  errorCode?: string
   error: ReadyRuntimeError['error']
   debugInfo?: DebugInfo
   isBuildError?: boolean
@@ -70,7 +68,6 @@ export function ErrorOverlayLayout({
   canGoNext,
   onPrevious,
   onNext,
-  errorCode,
   errorCount: _errorCount,
   error,
   debugInfo,
@@ -99,7 +96,6 @@ export function ErrorOverlayLayout({
     Boolean(transitionDurationMs)
   )
 
-  const hasFooter = Boolean(errorCode)
   const dialogRef = React.useRef<HTMLDivElement | null>(null)
   useFocusTrap(dialogRef, null, rendered)
 
@@ -132,7 +128,7 @@ export function ErrorOverlayLayout({
           versionInfo={versionInfo}
           renderTabBar={renderTabBar}
         />
-        <ErrorOverlayDialog onClose={onClose} data-has-footer={hasFooter}>
+        <ErrorOverlayDialog onClose={onClose}>
           <Resizer
             ref={dialogResizerRef}
             measure={!animating}
@@ -140,11 +136,7 @@ export function ErrorOverlayLayout({
           >
             <DialogContent>
               <ErrorOverlayDialogHeader>
-                <div
-                  className="nextjs__container_errors__error_title"
-                  // allow assertion in tests before error rating is implemented
-                  data-nextjs-error-code={errorCode}
-                >
+                <div className="nextjs__container_errors__error_title">
                   <div className="nextjs__container_errors__error_title__row">
                     <span data-nextjs-error-label-group>
                       <ErrorTypeLabel errorType={errorType} />
@@ -171,7 +163,6 @@ export function ErrorOverlayLayout({
             </DialogContent>
           </Resizer>
         </ErrorOverlayDialog>
-        {hasFooter && <ErrorOverlayFooter errorCode={errorCode} />}
       </div>
     </ErrorOverlayOverlay>
   )

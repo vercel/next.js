@@ -10,25 +10,24 @@ import stripAnsi from 'strip-ansi'
 import { createSandbox } from 'development-sandbox'
 
 describe('use-cache-unknown-cache-kind', () => {
-  const { next, isNextStart, isTurbopack, isRspack, skipped } = nextTestSetup({
-    files: __dirname,
-    skipStart: process.env.NEXT_TEST_MODE !== 'dev',
-    skipDeployment: true,
-  })
-
-  if (skipped) {
-    return
-  }
-
-  if (isNextStart) {
-    beforeAll(async () => {
-      await next.build()
+  const { next, isNextDev, isNextDeploy, isTurbopack, isRspack } =
+    nextTestSetup({
+      files: __dirname,
+      skipStart: process.env.NEXT_TEST_MODE !== 'dev',
     })
 
+  if (!isNextDev) {
     it('should fail the build with an error', async () => {
+      await expect(next.start()).rejects.toThrow()
       const buildOutput = getBuildOutput(next.cliOutput)
 
-      if (isTurbopack) {
+      if (isNextDeploy) {
+        expect(next.cliOutput).toContain(
+          'Unknown cache kind "custom". Please configure a cache handler for this kind in the `cacheHandlers` object in your Next.js config.'
+        )
+        expect(next.cliOutput).toContain('./app/page.tsx')
+        expect(next.cliOutput).toContain("'use cache: custom'")
+      } else if (isTurbopack) {
         expect(buildOutput).toMatchInlineSnapshot(`
          "Error: Turbopack build failed with 1 error:
          ./app/page.tsx:1:1
@@ -42,7 +41,7 @@ describe('use-cache-unknown-cache-kind', () => {
          Ecmascript file had an error
 
 
-             at <unknown> (./app/page.tsx:1:1)
+             at ignore-listed frames
          "
         `)
       } else if (isRspack) {
@@ -89,7 +88,7 @@ describe('use-cache-unknown-cache-kind', () => {
          "
         `)
       }
-    })
+    }, 240_000)
 
     it('should not fail the build for default cache kinds', async () => {
       expect(next.cliOutput).not.toInclude('Unknown cache kind "remote"')

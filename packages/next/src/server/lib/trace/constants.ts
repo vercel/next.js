@@ -25,6 +25,12 @@ enum BaseServerSpan {
 enum LoadComponentsSpan {
   loadDefaultErrorComponents = 'LoadComponents.loadDefaultErrorComponents',
   loadComponents = 'LoadComponents.loadComponents',
+  loadRouteModule = 'LoadComponents.loadRouteModule',
+}
+
+enum InstrumentationSpan {
+  loadModule = 'Instrumentation.loadModule',
+  register = 'Instrumentation.register',
 }
 
 enum NextServerSpan {
@@ -49,7 +55,6 @@ enum NextNodeServerSpan {
   proxyRequest = 'NextNodeServer.proxyRequest',
   runApi = 'NextNodeServer.runApi',
   render = 'NextNodeServer.render',
-  renderHTML = 'NextNodeServer.renderHTML',
   imageOptimizer = 'NextNodeServer.imageOptimizer',
   getPagePath = 'NextNodeServer.getPagePath',
   getRoutesManifest = 'NextNodeServer.getRoutesManifest',
@@ -94,6 +99,10 @@ enum AppRenderSpan {
   instantInsightsRunValidation = 'AppRender.instantInsights.runValidation',
 }
 
+enum DevBundlerServiceSpan {
+  ensurePage = 'DevBundlerService.ensurePage',
+}
+
 enum RouterSpan {
   executeRoute = 'Router.executeRoute',
 }
@@ -106,6 +115,14 @@ enum AppRouteRouteHandlersSpan {
   runHandler = 'AppRouteRouteHandlers.runHandler',
 }
 
+enum AppRouteRouteModuleSpan {
+  loadUserland = 'AppRouteRouteModule.loadUserland',
+}
+
+enum RouteModuleSpan {
+  prepare = 'RouteModule.prepare',
+  loadManifests = 'RouteModule.loadManifests',
+}
 enum ResolveMetadataSpan {
   generateMetadata = 'ResolveMetadata.generateMetadata',
   generateViewport = 'ResolveMetadata.generateViewport',
@@ -115,31 +132,49 @@ enum MiddlewareSpan {
   execute = 'Middleware.execute',
 }
 
+enum NextSpan {
+  // Root span inserted by the middleware adapter when the request has no
+  // trace context (separately invoked middleware without a parent), so the
+  // middleware and the render are siblings in one trace.
+  request = 'Next.request',
+}
+
 type SpanTypes =
   | `${BaseServerSpan}`
   | `${LoadComponentsSpan}`
+  | `${InstrumentationSpan}`
   | `${NextServerSpan}`
   | `${StartServerSpan}`
   | `${NextNodeServerSpan}`
   | `${RenderSpan}`
   | `${RouterSpan}`
   | `${AppRenderSpan}`
+  | `${DevBundlerServiceSpan}`
   | `${NodeSpan}`
   | `${AppRouteRouteHandlersSpan}`
+  | `${AppRouteRouteModuleSpan}`
+  | `${RouteModuleSpan}`
   | `${ResolveMetadataSpan}`
   | `${MiddlewareSpan}`
+  | `${NextSpan}`
 
 // This list is used to filter out spans that are not relevant to the user
 export const NextVanillaSpanAllowlist = new Set([
   MiddlewareSpan.execute,
+  NextSpan.request,
   BaseServerSpan.handleRequest,
   RenderSpan.getServerSideProps,
   RenderSpan.getStaticProps,
   AppRenderSpan.fetch,
   AppRenderSpan.getBodyResult,
+  LoadComponentsSpan.loadRouteModule,
   RenderSpan.renderDocument,
   NodeSpan.runHandler,
   AppRouteRouteHandlersSpan.runHandler,
+  AppRouteRouteModuleSpan.loadUserland,
+  RouteModuleSpan.prepare,
+  InstrumentationSpan.loadModule,
+  InstrumentationSpan.register,
   ResolveMetadataSpan.generateMetadata,
   ResolveMetadataSpan.generateViewport,
   NextNodeServerSpan.createComponentTree,
@@ -160,16 +195,21 @@ export const LogSpanAllowList = new Set([
 export {
   BaseServerSpan,
   LoadComponentsSpan,
+  InstrumentationSpan,
   NextServerSpan,
   NextNodeServerSpan,
   StartServerSpan,
   RenderSpan,
   RouterSpan,
   AppRenderSpan,
+  DevBundlerServiceSpan,
   NodeSpan,
   AppRouteRouteHandlersSpan,
+  AppRouteRouteModuleSpan,
+  RouteModuleSpan,
   ResolveMetadataSpan,
   MiddlewareSpan,
+  NextSpan,
 }
 
 export type { SpanTypes }

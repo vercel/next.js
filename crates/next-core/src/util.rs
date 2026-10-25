@@ -1,11 +1,11 @@
-use std::{borrow::Cow, fmt::Display, str::FromStr};
+use std::{fmt::Display, str::FromStr};
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use next_taskless::{expand_next_js_template, expand_next_js_template_no_imports};
 use serde::{Deserialize, de::DeserializeOwned};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, NonLocalValue, Vc, fxindexset, trace::TraceRawVcs, turbobail};
+use turbo_tasks::{FxIndexMap, NonLocalValue, Vc, fxindexset, turbobail};
 use turbo_tasks_fs::{File, FileContent, FileJsonContent, FileSystem, FileSystemPath, rope::Rope};
 use turbopack::module_options::RuleCondition;
 use turbopack_core::{
@@ -31,9 +31,7 @@ const NEXT_TEMPLATE_PATH: &str = "dist/esm/build/templates";
 /// should be replace with undefined.
 #[turbo_tasks::value(transparent)]
 pub struct OptionEnvMap(
-    #[turbo_tasks(trace_ignore)]
-    #[bincode(with = "turbo_bincode::indexmap")]
-    FxIndexMap<RcStr, Option<RcStr>>,
+    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, Option<RcStr>>,
 );
 
 pub fn defines(define_env: &FxIndexMap<RcStr, Option<RcStr>>) -> CompileTimeDefines {
@@ -204,7 +202,7 @@ pub fn free_var_references_with_vercel_system_env_warnings(
 }
 
 #[turbo_tasks::task_input]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Encode, Decode)]
 pub enum PathType {
     PagesPage,
     PagesApi,
@@ -335,19 +333,7 @@ pub fn pages_function_name(page: impl Display) -> String {
 
 #[turbo_tasks::task_input]
 #[derive(
-    Default,
-    PartialEq,
-    Eq,
-    Clone,
-    Copy,
-    Debug,
-    TraceRawVcs,
-    Deserialize,
-    Hash,
-    PartialOrd,
-    Ord,
-    Encode,
-    Decode,
+    Default, PartialEq, Eq, Clone, Copy, Debug, Deserialize, Hash, PartialOrd, Ord, Encode, Decode,
 )]
 #[serde(rename_all = "lowercase")]
 pub enum NextRuntime {
@@ -378,7 +364,7 @@ impl NextRuntime {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(PartialEq, Eq, Clone, Debug, NonLocalValue, Encode, Decode)]
 pub enum MiddlewareMatcherKind {
     Str(String),
     Matcher(ProxyMatcher),
@@ -572,198 +558,7 @@ pub fn relativize_glob<'a>(
     glob: &'a str,
     relative_to: &FileSystemPath,
 ) -> Result<(&'a str, FileSystemPath)> {
-    let mut relative_to = Cow::Borrowed(relative_to);
-    let mut processed_glob = glob;
-    loop {
-        if let Some(stripped) = processed_glob.strip_prefix("../") {
-            if relative_to.path.is_empty() {
-                bail!(
-                    "glob '{glob}' is invalid, it has a prefix that navigates out of the project \
-                     root"
-                );
-            }
-            relative_to = Cow::Owned(relative_to.parent());
-            processed_glob = stripped;
-        } else if let Some(stripped) = processed_glob.strip_prefix("./") {
-            processed_glob = stripped;
-        } else {
-            break;
-        }
-    }
-    Ok((processed_glob, relative_to.into_owned()))
-}
-
-#[cfg(test)]
-mod tests {
-    use turbo_tasks::ResolvedVc;
-    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
-    use turbo_tasks_fs::{FileSystemPath, NullFileSystem};
-
-    use super::*;
-
-    fn create_test_fs_path(path: &str) -> FileSystemPath {
-        FileSystemPath {
-            fs: ResolvedVc::upcast(NullFileSystem {}.resolved_cell()),
-            path: path.into(),
-        }
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn test_relativize_glob_normal_patterns() {
-        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
-            BackendOptions::default(),
-            noop_backing_storage(),
-        ));
-        tt.run_once(async {
-            // Test normal glob patterns without relative prefixes
-            let base_path = create_test_fs_path("project/src");
-
-            let (glob, path) = relativize_glob("*.js", &base_path).unwrap();
-            assert_eq!(glob, "*.js");
-            assert_eq!(path.path.as_str(), "project/src");
-
-            let (glob, path) = relativize_glob("components/**/*.tsx", &base_path).unwrap();
-            assert_eq!(glob, "components/**/*.tsx");
-            assert_eq!(path.path.as_str(), "project/src");
-
-            let (glob, path) = relativize_glob("lib/utils.ts", &base_path).unwrap();
-            assert_eq!(glob, "lib/utils.ts");
-            assert_eq!(path.path.as_str(), "project/src");
-            Ok(())
-        })
-        .await
-        .unwrap();
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn test_relativize_glob_current_directory_prefix() {
-        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
-            BackendOptions::default(),
-            noop_backing_storage(),
-        ));
-        tt.run_once(async {
-            let base_path = create_test_fs_path("project/src");
-
-            // Single ./ prefix
-            let (glob, path) = relativize_glob("./components/*.tsx", &base_path).unwrap();
-            assert_eq!(glob, "components/*.tsx");
-            assert_eq!(path.path.as_str(), "project/src");
-
-            // Multiple ./ prefixes
-            let (glob, path) = relativize_glob("././utils.js", &base_path).unwrap();
-            assert_eq!(glob, "utils.js");
-            assert_eq!(path.path.as_str(), "project/src");
-
-            // ./ with complex glob
-            let (glob, path) = relativize_glob("./lib/**/*.{js,ts}", &base_path).unwrap();
-            assert_eq!(glob, "lib/**/*.{js,ts}");
-            assert_eq!(path.path.as_str(), "project/src");
-            Ok(())
-        })
-        .await
-        .unwrap();
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn test_relativize_glob_parent_directory_navigation() {
-        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
-            BackendOptions::default(),
-            noop_backing_storage(),
-        ));
-        tt.run_once(async {
-            let base_path = create_test_fs_path("project/src/components");
-
-            // Single ../ prefix
-            let (glob, path) = relativize_glob("../utils/*.js", &base_path).unwrap();
-            assert_eq!(glob, "utils/*.js");
-            assert_eq!(path.path.as_str(), "project/src");
-
-            // Multiple ../ prefixes
-            let (glob, path) = relativize_glob("../../lib/*.ts", &base_path).unwrap();
-            assert_eq!(glob, "lib/*.ts");
-            assert_eq!(path.path.as_str(), "project");
-
-            // Complex navigation with glob
-            let (glob, path) = relativize_glob("../../../external/**/*.json", &base_path).unwrap();
-            assert_eq!(glob, "external/**/*.json");
-            assert_eq!(path.path.as_str(), "");
-            Ok(())
-        })
-        .await
-        .unwrap();
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn test_relativize_glob_mixed_prefixes() {
-        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
-            BackendOptions::default(),
-            noop_backing_storage(),
-        ));
-        tt.run_once(async {
-            let base_path = create_test_fs_path("project/src/components");
-
-            // ../ followed by ./
-            let (glob, path) = relativize_glob(".././utils/*.js", &base_path).unwrap();
-            assert_eq!(glob, "utils/*.js");
-            assert_eq!(path.path.as_str(), "project/src");
-
-            // ./ followed by ../
-            let (glob, path) = relativize_glob("./../lib/*.ts", &base_path).unwrap();
-            assert_eq!(glob, "lib/*.ts");
-            assert_eq!(path.path.as_str(), "project/src");
-
-            // Multiple mixed prefixes
-            let (glob, path) = relativize_glob("././../.././external/*.json", &base_path).unwrap();
-            assert_eq!(glob, "external/*.json");
-            assert_eq!(path.path.as_str(), "project");
-            Ok(())
-        })
-        .await
-        .unwrap();
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn test_relativize_glob_error_navigation_out_of_root() {
-        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
-            BackendOptions::default(),
-            noop_backing_storage(),
-        ));
-        tt.run_once(async {
-            // Test navigating out of project root with empty path
-            let empty_path = create_test_fs_path("");
-            let result = relativize_glob("../outside.js", &empty_path);
-            assert!(result.is_err());
-            assert!(
-                result
-                    .unwrap_err()
-                    .to_string()
-                    .contains("navigates out of the project root")
-            );
-
-            // Test navigating too far up from a shallow path
-            let shallow_path = create_test_fs_path("project");
-            let result = relativize_glob("../../outside.js", &shallow_path);
-            assert!(result.is_err());
-            assert!(
-                result
-                    .unwrap_err()
-                    .to_string()
-                    .contains("navigates out of the project root")
-            );
-
-            // Test multiple ../ that would go out of root
-            let base_path = create_test_fs_path("a/b");
-            let result = relativize_glob("../../../outside.js", &base_path);
-            assert!(result.is_err());
-            assert!(
-                result
-                    .unwrap_err()
-                    .to_string()
-                    .contains("navigates out of the project root")
-            );
-            Ok(())
-        })
-        .await
-        .unwrap();
-    }
+    turbo_tasks_fs::glob::relativize_glob(glob, relative_to).with_context(|| {
+        format!("glob '{glob}' is invalid, it has a prefix that navigates out of the project root")
+    })
 }
