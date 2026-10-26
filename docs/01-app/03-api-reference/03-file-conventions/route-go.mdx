@@ -3,7 +3,7 @@ title: route.go
 description: Build experimental Go API endpoints with native App Router Route Handlers.
 ---
 
-`route.go` defines a native Go Route Handler (API endpoint) in the App Router, served through the existing Next.js Node.js server.
+`route.go` defines a native Go Route Handler (API endpoint) in the App Router. Development and self-hosted deployments serve it through the existing Next.js Node.js server. Deployment adapters can package its compiled HTTP server directly.
 
 ```go filename="app/users/[id]/route.go" highlight={9}
 package main
@@ -73,7 +73,15 @@ Native routes support `app` and `src/app`, [route groups](/docs/app/api-referenc
 | `http.Flusher`                               | Flush streamed response bytes.                                                               |
 | `r.Context().Done()`                         | Observe cancellation when the client disconnects.                                            |
 
-Next.js selects the endpoint after its existing routing, rewrites and `proxy.ts` processing. The native executable receives only the selected request and does not run a second router. JS/TS handlers, React rendering, Pages Router pages and static assets continue to use Node.js.
+In development and self-hosted deployments, Next.js selects the endpoint after its existing routing, rewrites and `proxy.ts` processing. The native executable receives only the selected request and does not run a second router. JS/TS handlers, React rendering, Pages Router pages and static assets continue to use Node.js.
+
+### Deployment adapters
+
+When a deployment adapter is configured, production builds expose each Go handler as an [`APP_ROUTE` output](/docs/app/api-reference/adapters/output-types#app-routes-outputsapproutes) with `runtime: 'go'`. The existing `filePath` points to its compiled executable. Go adds no adapter output keys; `sourcePage`, `pathname`, `assets`, `assetsHashes`, and `config` retain their existing roles.
+
+The adapter must support Go outputs and provide the HTTP server's deployment infrastructure. Start the executable with `PORT` set to the assigned port. It serves the route's URL pattern, derives dynamic parameters from the URL, and does not require the private token or parent-owned stdin pipe used by the self-hosted Next.js server. It can be copied with its declared assets and run from a separate function directory without the Go compiler.
+
+The deployment platform owns routing to each function, including rewrites and proxy execution. A Go function handles only its emitted route; Node.js outputs keep their existing runtime. Grouping multiple Go routes into one function is outside the initial experiment. The HTTP response completes the request; adapters cannot pass the JavaScript `ctx.waitUntil` callback to the Go process, and post-response work has no completion guarantee.
 
 ### Development and errors
 
@@ -84,10 +92,10 @@ A compiled executable runs as a supervised process with pooled private loopback 
 ## Good to know
 
 - This experiment supports Turbopack `next dev` and self-hosted `next build` / `next start`. Webpack produces an unsupported-mode diagnostic.
-- Copy the complete `.next` output for relocation on the same OS and architecture. Keep executable permissions on native files under `.next/server/app`. Each native descriptor has a `.native.json.nft.json` trace listing its executable. Static export, standalone output and deployment adapters are unsupported.
+- Copy the complete `.next` output for self-hosted relocation on the same OS and architecture. Keep executable permissions on native files under `.next/server/app`. Each native descriptor has a `.native.json.nft.json` trace listing its executable. Static export and standalone output are unsupported. Adapter deployments require an adapter that supports `runtime: 'go'`; an adapter build's Go executable uses the `PORT` server contract instead of the private self-hosted worker contract.
 - WebSocket upgrades and HTTP trailers are not supported initially. Native handlers always execute dynamically. JS route segment config, ISR, Server Actions and React execution do not apply to Go handlers.
 - Runtime file reads are not traced. Use `go:embed` for assets shipped with native handlers. Native handlers read the process environment; `next.config` environment inlining does not apply.
-- Builds use the host platform with CGO disabled. Pure-Go dependencies must already be downloaded into the selected toolchain's module cache. Builds do not download dependencies or modify `go.mod` / `go.sum`.
-- Go workspaces, module replacements, vendoring, source symlinks and cross-compilation inherit the compiler experiment's unsupported status.
+- Self-hosted builds use the host platform with CGO disabled. Adapter builds can use a provider-supplied compilation target; the initial Vercel integration requests static Linux x86_64 executables. Pure-Go dependencies must already be downloaded into the selected toolchain's module cache. Builds do not download dependencies or modify `go.mod` / `go.sum`.
+- Go workspaces, module replacements, vendoring, source symlinks and other cross-compilation targets inherit the compiler experiment's unsupported status.
 - `experimental.goRoutes` disables Turbopack's persistent task cache for this process. Go's build cache still persists, and unchanged compiler results are memoized during the session.
 - The initial convention does not add `proxy.go`, Go Pages API routes, `page.go`, or `layout.go`. Applications without native handlers do not require a Go installation.

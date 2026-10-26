@@ -3,7 +3,10 @@ use std::{collections::BTreeMap, path::Path};
 
 use anyhow::{Context, Result, bail, ensure};
 use async_trait::async_trait;
-use next_core::{app_structure::FileSystemPathVec, next_app::AppPage};
+use next_core::{
+    app_structure::FileSystemPathVec,
+    next_app::{AppPage, AppPath},
+};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{Completion, ResolvedVc, Vc};
 use turbo_tasks_fs::{
@@ -47,6 +50,11 @@ pub struct GoRouteEndpoint {
     pub page: AppPage,
 }
 
+async fn is_adapter_build(project: ResolvedVc<Project>) -> Result<bool> {
+    Ok(project.next_mode().await?.is_production()
+        && *project.next_config().is_using_adapter().await?)
+}
+
 // Lazily resolve a session toolchain. Go-free projects never execute a Go command.
 #[turbo_tasks::function]
 async fn context(project: ResolvedVc<Project>) -> Result<Vc<GoBuildSession>> {
@@ -65,7 +73,29 @@ async fn context(project: ResolvedVc<Project>) -> Result<Vc<GoBuildSession>> {
         return Ok(GoBuildSession::new(context.clone()));
     }
     let go = std::env::var("TURBOPACK_GO").unwrap_or_else(|_| "go".into());
-    let context = GoBuildContext::host(Path::new(&go), None, "").await?;
+    let mut context = GoBuildContext::host(Path::new(&go), None, "").await?;
+    if is_adapter_build(project).await? {
+        if let Some(target) = std::env::var_os("NEXT_ADAPTER_VERCEL_GO_TARGET") {
+            let target: serde_json::Value = serde_json::from_str(
+                target
+                    .to_str()
+                    .context("NEXT_ADAPTER_VERCEL_GO_TARGET must be UTF-8 JSON")?,
+            )
+            .context("Invalid NEXT_ADAPTER_VERCEL_GO_TARGET JSON")?;
+            ensure!(
+                target.get("os").and_then(serde_json::Value::as_str) == Some("linux")
+                    && target
+                        .get("architecture")
+                        .and_then(serde_json::Value::as_str)
+                        == Some("x86_64")
+                    && target.get("linking").and_then(serde_json::Value::as_str) == Some("static"),
+                "NEXT_ADAPTER_VERCEL_GO_TARGET only supports static Linux x86_64 executables"
+            );
+            context.goos = rcstr!("linux");
+            context.goarch = rcstr!("amd64");
+            context.exe_suffix = rcstr!("");
+        }
+    }
     if *project.is_watch_enabled().await? {
         filesystem(context.module_cache.clone())
             .connect()
@@ -144,13 +174,24 @@ impl Endpoint for GoRouteEndpoint {
                 }
             }
         }
+        let wrapper = if is_adapter_build(this.project).await? {
+            let pathname = AppPath::from(this.page.clone()).to_string();
+            let base_path = this.project.next_config().base_path().await?;
+            let route_pattern = format!("{}{pathname}", base_path.as_deref().unwrap_or(""));
+            include_str!("go_route_adapter_main.go").replace(
+                "\"__NEXT_GO_ROUTE_PATTERN__\"",
+                &serde_json::to_string(&route_pattern)?,
+            )
+        } else {
+            include_str!("go_route_main.go").to_owned()
+        };
         let generated_path = directory.join("zz_next_route_main.go")?;
         let generated = BTreeMap::from([(
             module_root
                 .get_path_to(&generated_path)
                 .context("Go wrapper outside module")?
                 .into(),
-            RcStr::from(include_str!("go_route_main.go")),
+            RcStr::from(wrapper),
         )]);
         let result = go_bundle_with_session(module_root.clone(), files, session, generated).await?;
         ensure!(
