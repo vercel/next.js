@@ -3013,13 +3013,15 @@ async fn resolve_into_package(
     // Apply main field(s) or fall back to index.js for each matching package root.
     // Keep the trailing slash in the request key: `package` and `package/` may
     // resolve to the same source, but they are different requests.
-    if path.is_match("") || path.is_match("/") {
+    let matches_root = path.is_match("");
+    let matches_root_with_slash = path.is_match("/");
+    if matches_root || matches_root_with_slash {
         let root_result =
             resolve_into_folder(package_path.clone(), options.with_fully_specified(false));
-        if path.is_match("") {
+        if matches_root {
             results.push(root_result);
         }
-        if path.is_match("/") {
+        if matches_root_with_slash {
             results.push(root_result.with_request(rcstr!("./")));
         }
     }
