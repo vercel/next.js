@@ -220,7 +220,16 @@ pub async fn test_endpoint_operation(
     cohort_files: Vec<RcStr>,
     runtime_env: bool,
     route: Option<RcStr>,
-    compiler_features: (bool, bool, bool, Vec<RcStr>, bool, Option<RcStr>, bool),
+    compiler_features: (
+        bool,
+        bool,
+        bool,
+        Vec<RcStr>,
+        bool,
+        Option<RcStr>,
+        bool,
+        bool,
+    ),
 ) -> Result<Vc<OptionEndpoint>> {
     // Keep the operation within turbo-tasks' twelve-argument input tuple limit.
     let (
@@ -231,6 +240,7 @@ pub async fn test_endpoint_operation(
         import_coverage_roles,
         tsconfig_input_revision,
         browser_source_coverage,
+        preserve_coverage_sources,
     ) = compiler_features;
     let entry = TestEntryOptions {
         file,
@@ -248,6 +258,7 @@ pub async fn test_endpoint_operation(
         import_coverage_roles,
         tsconfig_input_revision,
         browser_source_coverage,
+        preserve_coverage_sources,
     }
     .resolved_cell();
     let project = container
@@ -275,6 +286,7 @@ pub(crate) struct TestEntryOptions {
     pub browser_client: bool,
     pub source_coverage: bool,
     pub browser_source_coverage: bool,
+    pub preserve_coverage_sources: bool,
     pub import_coverage_roles: bool,
     pub tsconfig_input_revision: Option<RcStr>,
     pub alias_finds: Vec<RcStr>,
@@ -298,6 +310,7 @@ pub(crate) async fn test_endpoint(
         browser_client,
         source_coverage,
         browser_source_coverage,
+        preserve_coverage_sources,
         alias_finds,
         import_coverage_roles,
         tsconfig_input_revision,
@@ -329,6 +342,21 @@ pub(crate) async fn test_endpoint(
     }
     if *import_coverage_roles && (*browser_client || &*environment != "node" || route.is_some()) {
         bail!("Native import coverage roles require an isolated Node test entry");
+    }
+    if *preserve_coverage_sources
+        && (&**environment != "node"
+            || !project.next_mode().await?.is_development()
+            || *browser_client
+            || *source_coverage
+            || *browser_source_coverage
+            || *dependency_plan
+            || route.is_some()
+            || !cohort_files.is_empty())
+    {
+        return Err(test_input_error(
+            project.project_path().owned().await?,
+            "Source preservation requires an isolated development Node entry",
+        ));
     }
     if *source_coverage
         && (&**environment != "node"

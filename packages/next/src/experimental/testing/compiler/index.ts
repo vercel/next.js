@@ -1537,6 +1537,15 @@ export async function createTestCompilerSession(
       ...(coverage && profile.mode === 'production' && !profile.browserClient
         ? { sourceCoverage: true }
         : {}),
+      ...(coverage?.kind === 'node-line' &&
+      dev &&
+      profile.environment === 'node' &&
+      !profile.browserClient &&
+      profile.route === undefined &&
+      !cohortInputs &&
+      !dependencyPlan
+        ? { preserveCoverageSources: true }
+        : {}),
       ...(profile.browserClient
         ? {
             browserClient: true,

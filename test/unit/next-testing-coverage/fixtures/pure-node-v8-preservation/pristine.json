@@ -1,0 +1,124 @@
+{
+  "entry": "import {test} from 'vitest'\nimport './subject.mjs'\n  test('settled native body assertion', async ({ expect }) => {\n    expect(Promise.resolve(1)).resolves.toBe(2)\n  })\n  test('following body', ({ expect }) => expect(true).toBe(true))\n",
+  "body": "  test('settled native body assertion', async ({ expect }) => {\n    expect(Promise.resolve(1)).resolves.toBe(2)\n  })\n  test('following body', ({ expect }) => expect(true).toBe(true))",
+  "bodySHA256": "17a3a8601623505e79769689aeff78e6c01870654d7b037acc28462e84feacf2",
+  "subject": "export const marker = 1\n",
+  "config": "export default {\"test\":{\"include\":[\"body.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":1000,\"hookTimeout\":1000,\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportOnFailure\":true}}}\n",
+  "entrySHA256": "df86f6747c1d438907aaaa522178882f5aeb3e7c05960563be3e34e3bf9bcdb6",
+  "subjectSHA256": "d16021860feb660fd0eaaf54eb994626438550ff4bd8e806fb651fb66ced40df",
+  "exitCode": 1,
+  "cases": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 0,
+    "numFailedTestSuites": 1,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 2,
+    "numPassedTests": 1,
+    "numFailedTests": 1,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "snapshot": {
+      "added": 0,
+      "failure": false,
+      "filesAdded": 0,
+      "filesRemoved": 0,
+      "filesRemovedList": [],
+      "filesUnmatched": 0,
+      "filesUpdated": 0,
+      "matched": 0,
+      "total": 0,
+      "unchecked": 0,
+      "uncheckedKeysByFile": [],
+      "unmatched": 0,
+      "updated": 0,
+      "didUpdate": false
+    },
+    "startTime": 1792960561915,
+    "success": false,
+    "testResults": [
+      {
+        "assertionResults": [
+          {
+            "ancestorTitles": [],
+            "fullName": "settled native body assertion",
+            "status": "failed",
+            "title": "settled native body assertion",
+            "duration": 3.545833000000002,
+            "failureMessages": [
+              "Error: Promise returned by `expect(actual).resolves.toBe(expected)` was not awaited. This assertion is asynchronous and must be awaited; otherwise, it is not guaranteed to complete before the test finishes:\n\nawait expect(actual).resolves.toBe(expected)\n\n    at Assertion.__VITEST_RESOLVES__ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/index.uwTEEBsB.js:2451:33)\n    at Assertion.propertyGetter (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1607:27)\n    at Reflect.get (<anonymous>)\n    at Object.proxyGetter [as get] (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1696:22)\n    at /private/tmp/next-testing-run/work-3/reference/.next-native-body-public-AFmUtv/body.test.mjs:4:31\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1632:35\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:2794:26\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3334:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3329:10)"
+            ],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          },
+          {
+            "ancestorTitles": [],
+            "fullName": "following body",
+            "status": "passed",
+            "title": "following body",
+            "duration": 0.1501659999999987,
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          }
+        ],
+        "startTime": 1792960562028,
+        "endTime": 1792960562031.546,
+        "status": "failed",
+        "message": "",
+        "name": "/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-AFmUtv/body.test.mjs"
+      }
+    ],
+    "coverageMap": {
+      "/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-AFmUtv/subject.mjs": {
+        "path": "/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-AFmUtv/subject.mjs",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 1,
+              "column": 22
+            },
+            "end": {
+              "line": 1,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {},
+        "branchMap": {},
+        "s": {
+          "0": 1
+        },
+        "f": {},
+        "b": {},
+        "meta": {
+          "lastBranch": 0,
+          "lastFunction": 0,
+          "lastStatement": 1,
+          "seen": {
+            "s:1:22:1:Infinity": 0
+          },
+          "fnNames": {}
+        }
+      }
+    }
+  },
+  "reports": {
+    "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-AFmUtv/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-AFmUtv/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":1,\"column\":22},\"end\":{\"line\":1,\"column\":null}}},\"fnMap\":{},\"branchMap\":{},\"s\":{\"0\":1},\"f\":{},\"b\":{},\"meta\":{\"lastBranch\":0,\"lastFunction\":0,\"lastStatement\":1,\"seen\":{\"s:1:22:1:Infinity\":0},\"fnNames\":{}}}\n}\n",
+    "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":1,\"covered\":1,\"skipped\":0,\"pct\":100},\"statements\":{\"total\":1,\"covered\":1,\"skipped\":0,\"pct\":100},\"functions\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":100},\"branches\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":100},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-AFmUtv/subject.mjs\": {\"lines\":{\"total\":1,\"covered\":1,\"skipped\":0,\"pct\":100},\"functions\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":100},\"statements\":{\"total\":1,\"covered\":1,\"skipped\":0,\"pct\":100},\"branches\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":100}}\n}\n",
+    "lcov.info": "TN:\nSF:subject.mjs\nFNF:0\nFNH:0\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\n"
+  },
+  "reference": {
+    "scope": "Saved genuine Vitest5.0.4 V8 complete reports with unchanged original pure constant source; raw error presentation/columns retained, separately unqualified.",
+    "rawSourceRoot": "/private/tmp/next-testing-run/work-3/istanbul-provider66/native-body-218-triage/public78/reference",
+    "SHA256": {
+      "AUTHORED.json": "1af126e681e0c7029b65f11f6f1778c4b76e86b3a2ce54cc564e16509ca76c68",
+      "cases.json": "e0648e50d4db20e21dab8279cd26460054b936c78269c5e90836f0600e4a234a",
+      "OBSERVED.json": "c48ab4f6af2b9e8f4aef8b638d9ef5c0fc7495c81794b458100a5a560034651c",
+      "coverage/coverage-final.json": "b667ee932771871dc128c59648d93f5b27336b9b476363bbefdf5a61afc4bd1d",
+      "coverage/coverage-summary.json": "2154dc98e212dd7f438911d62d8b8525cfafa1f8e2005b9a91d0ca7e1b5e6267",
+      "coverage/lcov.info": "de255328699ea02ac222c049b77b338402e23f28cb923a8ab2eb592e03971bc3"
+    }
+  }
+}

@@ -354,12 +354,11 @@ fn certify_for_callable_publication(
         }
         Expr::Fn(function)
             if function.function.body.is_some()
-                && function.function.params.iter().all(|parameter| {
-                    callable_parameter(
-                        &parameter.pat,
-                        !function.function.is_async && !function.function.is_generator,
-                    )
-                }) =>
+                && function
+                    .function
+                    .params
+                    .iter()
+                    .all(|parameter| callable_parameter(&parameter.pat, true)) =>
         {
             (
                 if function.ident.is_some() {
@@ -702,11 +701,38 @@ mod tests {
     }
 
     #[test]
-    fn keeps_object_shorthand_default_boundaries() {
+    fn accepts_terminal_async_generator_shorthand_defaults() {
         for source in [
             "module.exports = async function({value = 1}) { return value }",
             "module.exports = function*({value = 1}) { yield value }",
             "module.exports = async function*({value = 1}) { yield value }",
+        ] {
+            check(
+                source,
+                CommonJsResetExportShape::AnonymousFunctionExpression,
+            );
+        }
+        for source in [
+            "module.exports = async function named({value = 1}) { return value }",
+            "module.exports = function* named({value = 1}) { yield value }",
+            "module.exports = async function* named({value = 1}) { yield value }",
+            "module.exports = async function named({value = named}) { return value }",
+            "module.exports = function* named({value = named}) { yield value }",
+            "module.exports = async function* named({value = named}) { yield value }",
+            "module.exports = async function named({value = bodyOnly}) { const bodyOnly = 1; \
+             return value }",
+            "module.exports = function* named({value = bodyOnly}) { const bodyOnly = 1; yield \
+             value }",
+            "module.exports = async function* named({value = bodyOnly}) { const bodyOnly = 1; \
+             yield value }",
+        ] {
+            check(source, CommonJsResetExportShape::NamedFunctionExpression);
+        }
+    }
+
+    #[test]
+    fn keeps_object_shorthand_default_boundaries() {
+        for source in [
             "module.exports = ({value = 1}) => value",
             "module.exports = async ({value = 1}) => value",
             "module.exports = function({value: renamed = 1}) { return renamed }",
@@ -717,9 +743,6 @@ mod tests {
             "module.exports = function([value = 1]) { return value }",
             "module.exports = function({value = module.exports}) { return value }",
             "module.exports = function({value = exports.value}) { return value }",
-            "module.exports = async function named({value = 1}) { return value }",
-            "module.exports = function* named({value = 1}) { yield value }",
-            "module.exports = async function* named({value = 1}) { yield value }",
             "module.exports = function named({value: renamed = 1}) { return renamed }",
             "module.exports = function named({value: {nested = 1}}) { return nested }",
             "module.exports = function named({value = 1, ...rest}) { return [value, rest] }",
@@ -1268,7 +1291,7 @@ mod tests {
             for function in ["function", "async function", "function*", "async function*"] {
                 check(
                     &format!("module.exports = {function} named({parameters}) {{ return 1 }}"),
-                    if function == "function" && parameters == "{value = 1}" {
+                    if parameters == "{value = 1}" {
                         CommonJsResetExportShape::NamedFunctionExpression
                     } else {
                         CommonJsResetExportShape::Unsupported

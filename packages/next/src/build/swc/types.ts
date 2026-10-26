@@ -349,6 +349,8 @@ export interface Project {
     sourceCoverage?: boolean
     /** Explicit preserved production Browser output; separate from Node. */
     browserSourceCoverage?: boolean
+    /** Retain pure dev Node V8 sources without production coverage output. */
+    preserveCoverageSources?: boolean
     /** Private producer qualification; ordinary app/test compilation defaults off. */
     importCoverageRoles?: boolean
     /** Private parent revision; requires native config-input capability v1. */

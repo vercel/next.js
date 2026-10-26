@@ -1897,6 +1897,169 @@ describe('test compiler artifact publication', () => {
       expect(cohortRequests).toHaveLength(0)
     }
   )
+
+  it.each([
+    {
+      name: 'development Node V8',
+      environment: 'node',
+      mode: 'development',
+      coverage: 'node-line',
+      preserve: true,
+    },
+    {
+      name: 'development Node without coverage',
+      environment: 'node',
+      mode: 'development',
+      coverage: undefined,
+      preserve: false,
+    },
+    {
+      name: 'development Node Istanbul',
+      environment: 'node',
+      mode: 'development',
+      coverage: 'node-istanbul',
+      preserve: false,
+    },
+    {
+      name: 'ordinary Browser driver',
+      environment: 'browser',
+      mode: 'development',
+      coverage: undefined,
+      preserve: false,
+    },
+    {
+      name: 'ordinary RSC',
+      environment: 'rsc',
+      mode: 'development',
+      coverage: undefined,
+      preserve: false,
+    },
+    {
+      name: 'production Node V8',
+      environment: 'node',
+      mode: 'production',
+      coverage: 'node-line',
+      preserve: false,
+    },
+  ] as const)('forwards the preservation role only for $name', async (row) => {
+    if (row.coverage === 'node-istanbul') {
+      const { execFileSync } = require('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-istanbul-role-control-')
+      )
+      try {
+        const stdout = execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'preserve-node-v8-istanbul-request.mjs'),
+            join(__dirname, '../../..'),
+            output,
+          ],
+          { encoding: 'utf8', timeout: 125000, env: process.env }
+        )
+        expect(JSON.parse(stdout)).toEqual({
+          actualIstanbulCompilerRequest: true,
+          requests: 1,
+          preserveCoverageSourcesAbsent: true,
+          productionSourceCoverageAbsent: true,
+          originalSourceUnchanged: true,
+          actualCompilerOwnerDisposed: true,
+          noNativeOutputRequested: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+      return
+    }
+    const selected = {
+      ...profile,
+      environment: row.environment,
+      mode: row.mode,
+    }
+    process.env = { ...process.env, NODE_ENV: row.mode }
+    const make = jest.mocked(createDevTurbopackProject).getMockImplementation()!
+    const compilation = await make({} as never)
+    const requests: Parameters<typeof compilation.project.testEntry>[0][] = []
+    compilation.project.testEntry = async (options) => {
+      requests.push(structuredClone(options))
+      throw new Error('preservation native request observed')
+    }
+    jest.mocked(createDevTurbopackProject).mockResolvedValue(compilation)
+    const swc = require('next/dist/build/swc')
+    const previousBindings = swc.loadBindings
+    const hadDefineEnv = Object.hasOwn(swc, 'createDefineEnv')
+    const previousDefineEnv = swc.createDefineEnv
+    const fsModule = require('next/dist/server/lib/router-utils/filesystem')
+    const previousFsCheck = fsModule.setupFsCheck
+    if (row.mode === 'production') {
+      swc.createDefineEnv = () => ({ client: [], nodejs: [], edge: [] })
+      fsModule.setupFsCheck = async (...args: unknown[]) => ({
+        ...(await previousFsCheck(...args)),
+        rewrites: { beforeFiles: [], afterFiles: [], fallback: [] },
+      })
+      swc.loadBindings = async () => ({
+        isWasm: false,
+        turbo: {
+          createProject: async () => ({
+            value: compilation.project,
+            issues: [],
+          }),
+        },
+      })
+    }
+    try {
+      await writeFile(join(dir, 'package.json'), '{"type":"module"}\n')
+      const file = join(dir, 'source-role.test.mjs')
+      await writeFile(file, '// actual compiler request control\n')
+      if (row.coverage === 'node-istanbul')
+        await symlink(
+          join(__dirname, '../../..', 'node_modules'),
+          join(dir, 'node_modules')
+        )
+      session = await createTestCompilerSession(
+        dir,
+        selected,
+        row.coverage === 'node-istanbul'
+          ? {
+              istanbulInstrumentation: {
+                version: 1,
+                profile: selected,
+                transport: {
+                  version: 1,
+                  socket: join(dir, 'unused.sock'),
+                  realm: 'request-control',
+                  revision: 'request-control',
+                },
+                metadata: { version: 1, sources: [] },
+              },
+            }
+          : undefined
+      )
+      await expect(
+        session.compile(
+          { id: 'source-role.test.mjs', file, profile: selected },
+          {
+            signal: new AbortController().signal,
+            ...(row.coverage
+              ? { coverage: { version: 1, kind: row.coverage } }
+              : {}),
+          }
+        )
+      ).rejects.toThrow('preservation native request observed')
+      expect(requests).toHaveLength(1)
+      expect(Object.hasOwn(requests[0], 'preserveCoverageSources')).toBe(
+        row.preserve
+      )
+      if (row.preserve) expect(requests[0].preserveCoverageSources).toBe(true)
+      if (row.mode === 'production')
+        expect(requests[0].sourceCoverage).toBe(true)
+    } finally {
+      swc.loadBindings = previousBindings
+      if (hadDefineEnv) swc.createDefineEnv = previousDefineEnv
+      else delete swc.createDefineEnv
+      fsModule.setupFsCheck = previousFsCheck
+    }
+  })
 })
 
 describe('native route ABI negotiation', () => {
@@ -8637,4 +8800,151 @@ it.each(['development', 'production'] as const)(
     expect(actual.rows).toHaveLength(3)
   },
   140000
+)
+
+describe('private development Node V8 source-preservation native ABI', () => {
+  const {
+    withNativeNodeSourcePreservation,
+  } = require('next/dist/build/swc/test-node-source-preservation')
+  it.each([
+    [],
+    [true],
+    [false, true],
+    [false, false, true],
+    [false, false, false, ['mapped']],
+    [false, false, false, [], true],
+    [false, false, false, [], false, 'parent-revision'],
+    [false, true, false, [], false, undefined, true],
+  ])(
+    'retains exact old array identity and arity when absent (%s)',
+    (...features) => {
+      const binding = {
+        get projectTestEntryPreserveCoverageSourcesVersion() {
+          throw new Error('must not negotiate')
+        },
+      }
+      const before = [...features]
+      expect(withNativeNodeSourcePreservation(binding, features, false)).toBe(
+        features
+      )
+      expect(features).toEqual(before)
+    }
+  )
+  it.each([undefined, 0, 2, -1, 1.5, NaN])(
+    'rejects unsupported Native version %s before sending the new role',
+    (version) => {
+      const binding =
+        version === undefined
+          ? {}
+          : { projectTestEntryPreserveCoverageSourcesVersion: () => version }
+      expect(() => withNativeNodeSourcePreservation(binding, [], true)).toThrow(
+        'does not support source preservation for development Node coverage'
+      )
+    }
+  )
+  it('appends only its eighth feature and preserves every earlier value', () => {
+    const aliases = ['mapped?query']
+    const features = [false, false, false, aliases, true, 'parent-revision']
+    const getter = jest.fn(() => 1)
+    const actual = withNativeNodeSourcePreservation(
+      { projectTestEntryPreserveCoverageSourcesVersion: getter },
+      features,
+      true
+    )
+    expect(actual).toEqual([...features, false, true])
+    expect(actual[3]).toBe(aliases)
+    expect(features).toHaveLength(6)
+    expect(getter).toHaveBeenCalledTimes(1)
+  })
+  it('pads an otherwise empty tuple without shifting existing optional positions', () => {
+    expect(
+      withNativeNodeSourcePreservation(
+        { projectTestEntryPreserveCoverageSourcesVersion: () => 1 },
+        [],
+        true
+      )
+    ).toEqual([false, false, false, [], false, undefined, false, true])
+  })
+  it.each([0, 1, 2, 6])(
+    'refuses an incompatible requested feature at index %s',
+    (index) => {
+      const features = [false, false, false, [], false, undefined, false]
+      features[index] = true
+      const getter = jest.fn(() => 1)
+      expect(() =>
+        withNativeNodeSourcePreservation(
+          { projectTestEntryPreserveCoverageSourcesVersion: getter },
+          features,
+          true
+        )
+      ).toThrow('isolated development Node entry')
+      expect(getter).not.toHaveBeenCalled()
+    }
+  )
+})
+
+const asyncShorthandForms = [
+  'async-generator:anonymous',
+  'async-generator:binding',
+  'async-generator:named',
+  'async-generator:named-body-scope',
+  'async-generator:named-self',
+  'async:anonymous',
+  'async:binding',
+  'async:named',
+  'async:named-body-scope',
+  'async:named-self',
+  'generator:anonymous',
+  'generator:binding',
+  'generator:named',
+  'generator:named-body-scope',
+  'generator:named-self',
+] as const
+
+it.each(
+  asyncShorthandForms.flatMap((form) =>
+    (['development', 'production'] as const).map((mode) => ({ form, mode }))
+  )
+)(
+  'preserves actual CommonJS async shorthand defaults: $form/$mode',
+  ({ form, mode }) => {
+    const { execFileSync } = require('node:child_process')
+    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
+    const { tmpdir } = require('node:os')
+    const output = mkdtempSync(join(tmpdir(), 'next-cjs-async-defaults-'))
+    let complete = false
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'cjs-async-defaults.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          mode,
+          form,
+          'source',
+        ],
+        { encoding: 'utf8', timeout: 125000 }
+      )
+      const checks = JSON.parse(
+        readFileSync(join(output, 'CHECKS.json'), 'utf8')
+      )
+      expect(checks).toMatchObject({
+        form,
+        mode,
+        completeAuthoredCasesAndRows: true,
+        namespaceAndFunctionDescriptors: true,
+        dependencyResetAndHeldValues: true,
+        exactDefaultParameterScope: true,
+        allAuthoredBytesHeld: true,
+        allOwnersJoined: true,
+        cases: 3,
+        rows: 3,
+      })
+      complete = true
+    } finally {
+      if (complete) rmSync(output, { recursive: true, force: true })
+    }
+  },
+  130000
 )

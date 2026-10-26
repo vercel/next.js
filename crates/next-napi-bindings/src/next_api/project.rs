@@ -1901,6 +1901,12 @@ pub fn project_test_entry_browser_source_coverage_version() -> u32 {
     1
 }
 
+/// Preserve development Node coverage sources without the production coverage mode.
+#[napi]
+pub fn project_test_entry_preserve_coverage_sources_version() -> u32 {
+    1
+}
+
 /// Explicit source-preserving coverage compilation, independent of runtime mode.
 #[napi]
 pub fn project_test_entry_source_coverage_version() -> u32 {
@@ -1944,6 +1950,7 @@ pub async fn project_test_entry(
     import_coverage_roles: Option<bool>,
     tsconfig_input_revision: Option<RcStr>,
     browser_source_coverage: Option<bool>,
+    preserve_coverage_sources: Option<bool>,
 ) -> napi::Result<External<ExternalEndpoint>> {
     let ctx = project.turbopack_ctx.clone();
     let container = project.container;
@@ -1968,6 +1975,7 @@ pub async fn project_test_entry(
                     import_coverage_roles.unwrap_or(false),
                     tsconfig_input_revision,
                     browser_source_coverage.unwrap_or(false),
+                    preserve_coverage_sources.unwrap_or(false),
                 ),
             );
             // Resolve now so invalid profiles/paths fail before an endpoint is exposed.

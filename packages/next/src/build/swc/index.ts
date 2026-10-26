@@ -5,6 +5,7 @@ import {
 import { bindTestSnapshotNoReplaceMethods } from './test-snapshot-no-replace'
 import { bindTestSnapshotDirectoryDeletionMethods } from './test-snapshot-directory-deletion'
 import { withNativeTsConfigRevision } from './test-tsconfig-provenance'
+import { withNativeNodeSourcePreservation } from './test-node-source-preservation'
 import { requireImportCoverageCapability } from './test-import-coverage'
 import { requireCompilerAliasCapability } from './test-aliases'
 import {
@@ -772,6 +773,7 @@ function bindingToApi(
       browserCoverage = false,
       sourceCoverage = false,
       browserSourceCoverage = false,
+      preserveCoverageSources = false,
       importCoverageRoles = false,
       tsconfigInputRevision,
       aliasFinds = [],
@@ -791,6 +793,7 @@ function bindingToApi(
       browserCoverage?: boolean
       sourceCoverage?: boolean
       browserSourceCoverage?: boolean
+      preserveCoverageSources?: boolean
       importCoverageRoles?: boolean
       tsconfigInputRevision?: string
       aliasFinds?: readonly string[]
@@ -811,6 +814,19 @@ function bindingToApi(
       )
         throw new Error(
           'Native TypeScript config provenance requires an isolated Node entry'
+        )
+      if (
+        preserveCoverageSources &&
+        (environment !== 'node' ||
+          browserClient ||
+          sourceCoverage ||
+          browserSourceCoverage ||
+          dependencyPlan ||
+          route !== undefined ||
+          cohortFiles.length > 0)
+      )
+        throw new Error(
+          'Source preservation requires an isolated development Node entry'
         )
       requireImportCoverageCapability(binding, importCoverageRoles)
       requireCompilerAliasCapability(binding, aliasFinds.length > 0)
@@ -930,14 +946,18 @@ function bindingToApi(
                 : dependencyPlan
                   ? ([true] as const)
                   : ([] as const)
-      const nativeArgs = withNativeBrowserSourceCoverage(
+      const nativeArgs = withNativeNodeSourcePreservation(
         binding,
-        withNativeTsConfigRevision(
+        withNativeBrowserSourceCoverage(
           binding,
-          compilerArgs,
-          tsconfigInputRevision
+          withNativeTsConfigRevision(
+            binding,
+            compilerArgs,
+            tsconfigInputRevision
+          ),
+          browserSourceCoverage
         ),
-        browserSourceCoverage
+        preserveCoverageSources
       )
       return new EndpointImpl(
         await binding.projectTestEntry(

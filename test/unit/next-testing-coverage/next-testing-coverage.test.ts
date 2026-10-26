@@ -20038,3 +20038,31 @@ it('keeps actual unfinished Istanbul collection behind its process deadline and 
     await rm(output, { recursive: true, force: true })
   }
 }, 130000)
+
+it('retains unchanged pure Node V8 modules in actual emitted, loaded and complete genuine reports', async () => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  const output = await mkdtemp(join(tmpdir(), 'next-pure-node-v8-'))
+  try {
+    const { stdout } = await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'pure-node-v8-preservation.mjs'),
+        join(__dirname, '../../..'),
+        output,
+        '--source',
+      ],
+      { timeout: 250000, maxBuffer: 8 * 1024 * 1024 }
+    )
+    expect(JSON.parse(stdout)).toEqual({
+      actualCompilerDeclaration: true,
+      actualLoadedScript: true,
+      completePrivateCounterMap: true,
+      publicCompleteReports: 3,
+      sourceUnchanged: true,
+      ownersJoined: true,
+    })
+  } finally {
+    await rm(output, { recursive: true, force: true })
+  }
+}, 260000)

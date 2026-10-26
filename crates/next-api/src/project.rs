@@ -2471,13 +2471,15 @@ impl Project {
         }))
     }
 
-    /// Both explicit test modes retain denominators without changing their runtime.
+    /// Explicit test coverage modes retain sources without changing their runtime.
     #[turbo_tasks::function]
     pub(crate) async fn preserve_test_sources(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(match self.test_entry {
             Some(entry) => {
                 let entry = entry.await?;
-                entry.source_coverage || entry.browser_source_coverage
+                entry.source_coverage
+                    || entry.browser_source_coverage
+                    || entry.preserve_coverage_sources
             }
             None => false,
         }))

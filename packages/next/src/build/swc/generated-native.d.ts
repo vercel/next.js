@@ -725,7 +725,8 @@ export declare function projectTestEntry(
   aliasFinds?: Array<RcStr> | undefined | null,
   importCoverageRoles?: boolean | undefined | null,
   tsconfigInputRevision?: RcStr | undefined | null,
-  browserSourceCoverage?: boolean | undefined | null
+  browserSourceCoverage?: boolean | undefined | null,
+  preserveCoverageSources?: boolean | undefined | null
 ): Promise<{ __napiType: 'Endpoint' }>
 
 /** Raw query/fragment admission for parent-owned string alias plans. */
@@ -751,6 +752,9 @@ export declare function projectTestEntryImportCoverageVersion(): number
 
 /** Native AST substitution for the current explicit Node test entry only. */
 export declare function projectTestEntryInSourceVersion(): number
+
+/** Preserve development Node coverage sources without the production coverage mode. */
+export declare function projectTestEntryPreserveCoverageSourcesVersion(): number
 
 /** Real AppProject route/loader-tree metadata for explicit development RSC entries. */
 export declare function projectTestEntryRouteVersion(): number
