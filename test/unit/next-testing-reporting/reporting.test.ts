@@ -7673,3 +7673,38 @@ it.each([
   },
   35000
 )
+
+it.each([
+  'skip-todo',
+  'todo-skip',
+  'mixed',
+  'static',
+  'dynamic',
+  'blocked',
+  'bail',
+  'poisoned',
+  'abort',
+  'user-abort',
+  'focus',
+  'filter',
+  'absent',
+  'truthy',
+  'validation',
+] as const)(
+  'preserves actual unexecuted public case facts and callback ownership for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-public-unexecuted-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'public-unexecuted-cases.mjs'), mode, output],
+        { timeout: 30000, encoding: 'utf8' }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({ mode })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)

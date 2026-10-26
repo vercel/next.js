@@ -1,3 +1,4 @@
+import { assertUnexecutedCaseResult } from './unexecuted-cases'
 import {
   isRunErrorDiagnostic,
   isBrowserCleanupRunError,
@@ -177,6 +178,7 @@ export function createTestReporter(options: TestReporterOptions) {
   const attempts = new Map<string, CaseResult>()
   const caseNames = new Map<string, string>()
   const activeAttempts = new Set<string>()
+  const startedCases = new Set<string>()
   const activeCases = new Map<
     string,
     Extract<ResultEvent, { type: 'case-start' }>
@@ -591,12 +593,18 @@ export function createTestReporter(options: TestReporterOptions) {
         entries.set(event.entry.id, event)
         break
       case 'case-start':
+        startedCases.add(caseKey(event))
         activeAttempts.add(attemptKey(event))
         activeCases.set(attemptKey(event), event)
         caseNames.set(caseKey(event), event.name)
         break
       case 'case-end': {
         const key = attemptKey(event)
+        if (
+          assertUnexecutedCaseResult(event) &&
+          (startedCases.has(caseKey(event)) || cases.has(caseKey(event)))
+        )
+          throw new Error('Unexecuted case result follows an actual attempt.')
         if (attempts.has(key))
           throw new Error(`Duplicate attempt result: ${context(event)}`)
         activeAttempts.delete(key)

@@ -32,6 +32,39 @@ describe('next-testing-package', () => {
 
   if (isNextDev && isTurbopack) {
     it.each(['development', 'production'] as const)(
+      'preserves actual unexecuted public cases across JSON and JUnit in %s',
+      async (mode) => {
+        const temporary = await mkdtemp(
+          join(tmpdir(), 'next-public-unexecuted-')
+        )
+        try {
+          const evidence = join(temporary, 'evidence')
+          await promisify(execFile)(
+            process.execPath,
+            [
+              join(__dirname, 'verify-public-unexecuted-cases.mjs'),
+              next.testDir,
+              evidence,
+              mode,
+            ],
+            { timeout: 750000, maxBuffer: 2 * 1024 * 1024 }
+          )
+          const verified = JSON.parse(
+            await readFile(join(evidence, 'VERIFIED.json'), 'utf8')
+          )
+          expect(verified.mode).toBe(mode)
+          expect(verified.profiles).toBe(6)
+          expect(verified.allOwnersJoined).toBe(true)
+          expect(verified.allInputsRemovedAfterOwnedReadersJoined).toBe(true)
+          expect(verified.editorBlobShardProjectionsQualified).toBe(false)
+        } finally {
+          await rm(temporary, { recursive: true, force: true })
+        }
+      },
+      800000
+    )
+
+    it.each(['development', 'production'] as const)(
       'publishes actual finalized public File modes and case outcomes in %s',
       async (mode) => {
         const temporary = await mkdtemp(

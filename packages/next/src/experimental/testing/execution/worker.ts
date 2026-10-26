@@ -1,3 +1,4 @@
+import { assertUnexecutedCaseResult } from '../reporting/unexecuted-cases'
 import { createReporterTaskUpdates } from '../reporting/task-updates'
 import { captureReporterTaskTree } from '../reporting/live-tasks'
 import { captureProductionStaticMockClosure } from '../mocking/production-artifact'
@@ -1077,8 +1078,9 @@ async function run({
             : completion
         },
         onCaseResult: taskUpdates
-          ? (task, caseResult) =>
-              taskUpdates.caseResult(
+          ? (task, caseResult) => {
+              assertUnexecutedCaseResult(caseResult)
+              return taskUpdates.caseResult(
                 task,
                 structuredClone({
                   ...caseResult,
@@ -1086,6 +1088,7 @@ async function run({
                   errors: caseResult.errors.map(runnerFailure),
                 })
               )
+            }
           : undefined,
         onCaseStart(context) {
           taskUpdates?.caseStart(context.testId)
@@ -1107,6 +1110,7 @@ async function run({
           })
         },
         onCaseEnd(caseResult) {
+          assertUnexecutedCaseResult(caseResult)
           unfinishedAttempts.delete(caseResult.attempt.id)
           if (
             caseResult.status === 'cancelled' ||
@@ -1198,6 +1202,8 @@ async function run({
       }
       // A successful retry replaces its failure; an earlier failed repeat still
       // fails the logical file result.
+      for (const caseResult of result.cases)
+        assertUnexecutedCaseResult(caseResult)
       const finalCases = getFinalCaseResults(result.cases)
       status =
         result.errors.length ||

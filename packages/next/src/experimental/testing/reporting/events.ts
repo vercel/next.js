@@ -81,6 +81,8 @@ export interface CaseResult extends ResultScope {
   tags?: string[]
   annotations?: TestAnnotation[]
   pending?: boolean
+  /** Actual excluded selection whose finalized public declaration stayed run. */
+  unexecuted?: true
   /** Declared but never started because the run reached its bail threshold. */
   bail?: boolean
   note?: string

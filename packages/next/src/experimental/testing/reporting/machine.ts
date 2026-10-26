@@ -1,3 +1,4 @@
+import { assertUnexecutedCaseResult } from './unexecuted-cases'
 import { isRunErrorDiagnostic, isBrowserCleanupRunError } from './run-errors'
 import { assertReporterTaskTree, type ReporterTaskSnapshot } from './live-tasks'
 import { randomUUID } from 'node:crypto'
@@ -346,6 +347,7 @@ export function createMachineReporter(options: {
       ...current.cases,
       ...retained.flatMap((record) => record.result.cases),
     ]
+    const unexecutedCases = new Set(cases.filter(assertUnexecutedCaseResult))
     const suiteResults = [
       ...current.suites,
       ...retained.flatMap((record) => record.result.suites),
@@ -528,7 +530,10 @@ export function createMachineReporter(options: {
       numPassedTests: summary.cases.passed,
       numFailedTests: summary.cases.failed + summary.cases.cancelled,
       numPendingTests: cases.filter(
-        (test) => test.status === 'skipped' && test.mode !== 'todo'
+        (test) =>
+          test.status === 'skipped' &&
+          test.mode !== 'todo' &&
+          !unexecutedCases.has(test)
       ).length,
       numTodoTests: cases.filter((test) => test.mode === 'todo').length,
       snapshot,
@@ -588,8 +593,9 @@ export function createMachineReporter(options: {
               ...(test.ancestors?.map((suite) => suite.name) ?? []),
               test.testName ?? test.name,
             ].join(' '),
-            status:
-              test.mode === 'todo'
+            status: unexecutedCases.has(test)
+              ? 'pending'
+              : test.mode === 'todo'
                 ? 'todo'
                 : test.status === 'cancelled'
                   ? test.bail
@@ -597,7 +603,7 @@ export function createMachineReporter(options: {
                     : 'failed'
                   : test.status,
             title: test.testName ?? test.name,
-            ...(test.bail
+            ...(test.bail || unexecutedCases.has(test)
               ? {}
               : test.mode === 'skip' || test.mode === 'todo'
                 ? test.pending
@@ -1141,6 +1147,8 @@ export async function mergeResultReports(
     const localEntries = new Set<string>()
     const endedEntries = new Set<string>()
     const startedAttempts = new Set<string>()
+    const startedCases = new Set<string>()
+    const unexecutedAttempts = new Set<string>()
     const endedAttempts = new Set<string>()
     const logicalCases = new Set<string>()
     const collectedFiles = new Set<string>()
@@ -1288,6 +1296,11 @@ export async function mergeResultReports(
               result.caseId,
               result.attempt?.id,
             ])
+            const unexecuted = assertUnexecutedCaseResult(result)
+            if (unexecuted !== unexecutedAttempts.has(scope))
+              throw new Error(
+                `Logical unexecuted result differs from its case in blob: ${name}`
+              )
             if (
               result.entryId !== event.entryId ||
               typeof result.caseId !== 'string' ||
@@ -1362,7 +1375,10 @@ export async function mergeResultReports(
           event.caseId,
           event.attempt.id,
         ])
-        if (event.type === 'case-start') startedAttempts.add(scope)
+        if (event.type === 'case-start') {
+          startedAttempts.add(scope)
+          startedCases.add(JSON.stringify([event.entryId, event.caseId]))
+        }
         if (
           event.type === 'test-annotation' &&
           (!startedAttempts.has(scope) || endedAttempts.has(scope))
@@ -1375,6 +1391,16 @@ export async function mergeResultReports(
             `Artifact references an unknown attempt in blob: ${name}`
           )
         if (event.type === 'case-end') {
+          if (assertUnexecutedCaseResult(event)) {
+            if (
+              startedCases.has(JSON.stringify([event.entryId, event.caseId])) ||
+              endedCases.has(JSON.stringify([event.entryId, event.caseId]))
+            )
+              throw new Error(
+                `Unexecuted case follows an actual attempt in blob: ${name}`
+              )
+            unexecutedAttempts.add(scope)
+          }
           if (
             (event.meta !== undefined &&
               (!event.meta ||

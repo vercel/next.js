@@ -173,6 +173,8 @@ export interface RunnerCaseResult {
   ancestors?: { id: string; name: string }[]
   mode?: 'run' | 'skip' | 'todo'
   pending?: boolean
+  /** Actual excluded execution with an untouched run-mode public declaration. */
+  unexecuted?: true
   bail?: boolean
   note?: string
   status: 'passed' | 'failed' | 'skipped' | 'cancelled'
@@ -1033,7 +1035,18 @@ export async function runCollected(
     const publicTask = tasks.get(test) as Test
     const publication = getTaskContext(publicTask)
     const { controller, context: publicContext } = publication
-    publicTask.mode = mode ?? 'skip'
+    const unexecuted =
+      finalizedModes?.get(test) === 'run' &&
+      (mode === 'skip' || mode === 'todo') &&
+      !collectionBlocked &&
+      !focusFailure &&
+      inheritedErrors.length === 0 &&
+      !bailed &&
+      !publicTask.result &&
+      !poisoned &&
+      !options.signal.aborted &&
+      !options.userCancelSignal?.aborted
+    publicTask.mode = unexecuted ? 'run' : (mode ?? 'skip')
     let currentContext: AttemptContext | undefined
     let lastAttemptId: string | undefined
     const caseState = {
@@ -1595,7 +1608,7 @@ export async function runCollected(
           name,
           testName: test.name,
           ancestors: reportingAncestors,
-          mode,
+          mode: unexecuted ? 'run' : mode,
           status: 'passed',
           durationMs: 0,
           errors,
@@ -1617,8 +1630,10 @@ export async function runCollected(
           // eslint-disable-next-line no-loop-func -- Awaited scopes serialize attempts and observe shared realm poisoning.
           await asyncScope.run(async () => {
             try {
-              if (mode !== 'run') caseResult.status = 'skipped'
-              else if (errors.length) caseResult.status = 'failed'
+              if (mode !== 'run') {
+                caseResult.status = 'skipped'
+                if (unexecuted) caseResult.unexecuted = true
+              } else if (errors.length) caseResult.status = 'failed'
               else if (bailed) {
                 caseResult.status = 'cancelled'
                 caseResult.bail = true
@@ -2219,7 +2234,9 @@ export async function runCollected(
             compilerContinuations ? { compilerContinuations: true } : undefined
           )
         }
-        caseResult.durationMs = frameworkDateNow() - start
+        caseResult.durationMs = caseResult.unexecuted
+          ? 0
+          : frameworkDateNow() - start
         const expectedFailureUnexpectedlyPassed =
           mode === 'run' &&
           test.options.fails === true &&

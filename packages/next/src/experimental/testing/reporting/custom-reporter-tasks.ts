@@ -1,3 +1,4 @@
+import { assertUnexecutedCaseResult } from './unexecuted-cases'
 import {
   isRunErrorDiagnostic,
   hasOnlyBrowserCleanupFailures,
@@ -235,7 +236,8 @@ export function createCustomReporterModules(
       const parent = ancestors(test.ancestors)
       const name = test.testName ?? test.name
       const metadata = test.meta ?? {}
-      const state = test.bail ? 'pending' : stateOf(test.status)
+      const unexecuted = assertUnexecutedCaseResult(test)
+      const state = test.bail || unexecuted ? 'pending' : stateOf(test.status)
       const errors = completion.events.flatMap((event) =>
         event.type === 'case-end' &&
         event.entryId === test.entryId &&
