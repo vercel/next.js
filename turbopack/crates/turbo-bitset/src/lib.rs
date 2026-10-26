@@ -237,31 +237,35 @@ impl<const INLINE: usize> Bitset<INLINE> {
         }
     }
 
-    /// Adds all bits of `other` to the set.
-    pub fn union_with(&mut self, other: &Self) {
+    /// Adds all bits of `other` to the set. Returns whether the set changed, i.e. whether `other`
+    /// had a bit that the set didn't have.
+    ///
+    /// This takes a single pass over the blocks of `other`, so `if set.union_with(&other)` is
+    /// cheaper than checking `other.is_subset(&set)` before adding the bits.
+    pub fn union_with(&mut self, other: &Self) -> bool {
         if other.offset >= self.offset && other.end() <= self.end() {
             // The stored range of `other` lies within the set's range, so its blocks can be added
             // without trimming or growing.
             let start = other.offset - self.offset;
-            or_blocks(
+            return or_blocks(
                 &mut self.blocks[start..start + other.blocks.len()],
                 &other.blocks,
             );
-            return;
         }
         let (other_offset, other_blocks) = other.trimmed();
         if other_blocks.is_empty() {
-            return;
+            return false;
         }
         let other_end = other_offset + other_blocks.len();
         if other_offset < self.offset || other_end > self.end() {
+            // The new blocks are zero, so `or_blocks` reports the bits of `other` in them as added.
             self.ensure_blocks(other_offset, other_end);
         }
         let start = other_offset - self.offset;
         or_blocks(
             &mut self.blocks[start..start + other_blocks.len()],
             other_blocks,
-        );
+        )
     }
 
     /// Compares the set with `other`. Returns whether the set contains every bit of `other`
@@ -335,15 +339,6 @@ impl<const INLINE: usize> Bitset<INLINE> {
     /// Returns whether every bit of the set is also in `other`.
     pub fn is_subset(&self, other: &Self) -> bool {
         other.is_superset(self)
-    }
-
-    /// Returns whether the set contains at least one bit that `other` doesn't contain, i.e.
-    /// whether `other |= self` would change `other`.
-    ///
-    /// This is `!self.is_subset(other)`. Unlike [`Self::is_proper_superset`], it is also true when
-    /// neither set contains the other.
-    pub fn has_bits_not_in(&self, other: &Self) -> bool {
-        !self.is_subset(other)
     }
 
     /// Returns whether the set contains every bit of `other` and at least one bit that `other`
@@ -501,15 +496,20 @@ impl<const INLINE: usize> ShrinkToFit for Bitset<INLINE> {
 
 impl<const INLINE: usize> BitOrAssign<&Bitset<INLINE>> for Bitset<INLINE> {
     fn bitor_assign(&mut self, rhs: &Bitset<INLINE>) {
-        self.union_with(rhs)
+        self.union_with(rhs);
     }
 }
 
-/// Adds the bits of `other` to `blocks`, which has the same length.
-fn or_blocks(blocks: &mut [usize], other: &[usize]) {
+/// Adds the bits of `other` to `blocks`, which has the same length. Returns whether a bit was
+/// added that `blocks` didn't have.
+fn or_blocks(blocks: &mut [usize], other: &[usize]) -> bool {
+    // Collect the added bits instead of branching per block, so the loop stays simple to vectorize.
+    let mut added = 0;
     for (block, &other_block) in blocks.iter_mut().zip(other) {
+        added |= other_block & !*block;
         *block |= other_block;
     }
+    added != 0
 }
 
 impl<const INLINE: usize> Extend<u32> for Bitset<INLINE> {

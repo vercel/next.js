@@ -379,8 +379,12 @@ fn union() {
         // `other` is unchanged.
         check(&other, &other_expected);
 
-        let (mut set2, _) = from_bits(a);
-        set2.union_with(&other);
+        let (mut set2, expected2) = from_bits(a);
+        assert_eq!(
+            set2.union_with(&other),
+            !other_expected.is_subset(&expected2),
+            "{a:?} ∪ {b:?}"
+        );
         assert_eq!(set2, set);
     }
 }
@@ -417,16 +421,13 @@ fn superset() {
             expected.is_subset(&other_expected),
             "{a:?} ⊆ {b:?}"
         );
-        assert_eq!(
-            set.has_bits_not_in(&other),
-            !expected.is_subset(&other_expected),
-            "{a:?} ⊈ {b:?}"
-        );
     }
 }
 
+/// `union_with` returns whether `other` had a bit that the set didn't have, for any storage layout
+/// of both sets.
 #[test]
-fn has_bits_not_in() {
+fn union_with_returns_whether_changed() {
     let block = usize::BITS as usize;
     // Empty, equal, subset, superset, disjoint and incomparable sets, each with leading and
     // trailing zero blocks at different storage offsets.
@@ -441,6 +442,7 @@ fn has_bits_not_in() {
         (&[1, 300], &[70, 300]),
     ];
     for &(a, b) in cases {
+        // `b ∪= a` changes `b` iff `a` has a bit that `b` doesn't have.
         let expected = !a.iter().all(|bit| b.contains(bit));
         for (offset_a, offset_b) in [(0, 0), (0, 3), (2, 0), (1, 5)] {
             let padded = |bits: &[u32], offset: usize| {
@@ -459,13 +461,17 @@ fn has_bits_not_in() {
                 with_storage(start, blocks)
             };
             let set = padded(a, offset_a);
-            let other = padded(b, offset_b);
-            assert_eq!(set.has_bits_not_in(&other), expected, "{a:?} ⊈ {b:?}");
-            assert_eq!(set.has_bits_not_in(&other), !set.is_subset(&other));
+            let mut other = padded(b, offset_b);
+            let union = b.iter().chain(a).copied().collect::<BTreeSet<_>>();
+            assert_eq!(other.union_with(&set), expected, "{b:?} ∪ {a:?}");
+            check(&other, &union);
+            // A second union adds nothing.
+            assert!(!other.union_with(&set), "{b:?} ∪ {a:?} again");
+            check(&other, &union);
         }
     }
 
-    // Random sets, compared with `!is_subset`.
+    // Random sets, compared with `!is_subset` before the union and `|=` after it.
     let mut rng = SmallRng::seed_from_u64(7);
     for _ in 0..500 {
         let universe = rng.random_range(1..2_000);
@@ -481,7 +487,11 @@ fn has_bits_not_in() {
         if rng.random_bool(0.5) {
             other |= &set;
         }
-        assert_eq!(set.has_bits_not_in(&other), !set.is_subset(&other));
+        let changed = !set.is_subset(&other);
+        let mut expected = other.clone();
+        expected |= &set;
+        assert_eq!(other.union_with(&set), changed);
+        assert_eq!(other, expected);
     }
 }
 
