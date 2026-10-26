@@ -73,6 +73,28 @@ const linterConfigWithNestedContentRootDirDirectory = {
   },
 }
 
+const linterConfigWithPageExtensions = {
+  ...linterConfig,
+  rules: {
+    'no-html-link-for-pages': [
+      2,
+      path.join(withCustomPagesDir, 'custom-pages'),
+      { pageExtensions: ['jsx'] },
+    ],
+  },
+}
+
+const linterConfigWithMismatchedPageExtensions = {
+  ...linterConfig,
+  rules: {
+    'no-html-link-for-pages': [
+      2,
+      path.join(withCustomPagesDir, 'custom-pages'),
+      { pageExtensions: ['vue'] },
+    ],
+  },
+}
+
 for (const linter of Object.values(linters)) {
   linter.defineRules({
     'no-html-link-for-pages': NextESLintRule,
@@ -494,5 +516,52 @@ describe('no-html-link-for-pages', function () {
       report.message,
       'Do not use an `<a>` element to navigate to `/photo/1/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
+  })
+  it('should detect invalid links with custom pageExtensions matching existing files', function () {
+    const [report] = linters.withCustomPages.verify(
+      invalidStaticCode,
+      linterConfigWithPageExtensions,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('should detect nested index page via custom pages directory', function () {
+    const nestedIndexCode = `
+import Link from 'next/link';
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/profile/'>Profile</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+    const [report] = linters.withCustomPages.verify(
+      nestedIndexCode,
+      linterConfigWithCustomDirectory,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/profile/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('should NOT detect links when custom pageExtensions do not match any files', function () {
+    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
+    const report = linters.withCustomPages.verify(
+      invalidStaticCode,
+      linterConfigWithMismatchedPageExtensions,
+      { filename: 'foo.js' }
+    )
+    assert.deepEqual(report, [], 'Expected no lint errors when no pages match')
+    consoleSpy.mockRestore()
   })
 })
