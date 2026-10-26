@@ -1,5 +1,8 @@
 import { ANALYZED, late } from 'inline-values'
-import { forced } from 'inline-values' with { turbopackConstants: 'true' }
+import {
+  forced,
+  largeForced,
+} from 'inline-values' with { turbopackConstants: 'true' }
 import { annotationOff } from 'inline-values' with { turbopackConstants: 'false' }
 
 if (ANALYZED) require('./analysis-marker')
@@ -9,6 +12,10 @@ if (annotationOff !== 'off') require('./annotation-off-marker')
 
 function readAnalyzed() {
   return ANALYZED
+}
+
+function readLargeForced() {
+  return largeForced
 }
 
 function readLate() {
@@ -21,10 +28,12 @@ function readAnnotationOff() {
 
 it('preserves analyzer-aware precedence and falls back to codegen-only inlining', () => {
   expect(readAnalyzed()).toBe(false)
+  expect(readLargeForced()).toBe(1000000)
   expect(readLate()).toBe('dev')
   expect(readAnnotationOff()).toBe('off')
 
   expect(readAnalyzed.toString()).toContain('TURBOPACK compile-time value')
+  expect(readLargeForced.toString()).not.toContain('largeForced')
   expect(readLate.toString()).toContain('TURBOPACK compile-time value')
   expect(readLate.toString()).not.toContain('late')
   expect(readAnnotationOff.toString()).not.toContain('annotationOff')
