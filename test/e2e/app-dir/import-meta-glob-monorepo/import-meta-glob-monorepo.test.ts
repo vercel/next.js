@@ -2,6 +2,7 @@ import {
   nextTestSetup,
   FileRef,
   patchFileWithDeployEnvAssignments,
+  isNextDev,
 } from 'e2e-utils'
 import * as path from 'path'
 
@@ -34,7 +35,7 @@ testFn('import-meta-glob-monorepo', () => {
     },
     packageJson: require('./package.json'),
     buildCommand: 'pnpm build',
-    startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+    startCommand: isNextDev ? 'pnpm dev' : 'pnpm start',
     installCommand: 'pnpm i',
   })
 

@@ -7,8 +7,8 @@ import { nextTestSetup, isNextDev, type NextInstance } from 'e2e-utils'
 
 type BrowserOptions = Parameters<NextInstance['browser']>[1]
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely mutates files in the isolated local fixture after setup.
+// Deploy mode exclusion: This suite starts an HTTP server on a local port and
+// patches that port into next.config.js, which a deployment can't reach.
 // @force-gate !deploy
 describe('i18n Support basePath', () => {
   const { next } = nextTestSetup({
