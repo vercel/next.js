@@ -19,18 +19,36 @@ function feedbackIsEnabled(): boolean {
   return existsSync(path) && readFileSync(path, 'utf8').includes(feedbackMarker)
 }
 
-function reportPayloads(): Report[] {
+function reviewPayloads(): string[] {
   const raw = readFileSync(transcriptPath(), 'utf8')
-  const encoded = new Set(
-    [
-      ...raw.matchAll(
-        /https:\/\/nextjs\.org\/agent-feedback(?:\?[^#\s]*)?#report=([A-Za-z0-9_-]+)/g
-      ),
-    ].map((match) => match[1])
-  )
-  return [...encoded].map((payload) =>
+  return [
+    ...new Set(
+      [
+        ...raw.matchAll(
+          /https:\/\/nextjs\.org\/agent-feedback(?:\?[^#\s]*)?#report=([A-Za-z0-9_-]+)/g
+        ),
+      ].map((match) => match[1])
+    ),
+  ]
+}
+
+function reportPayloads(): Report[] {
+  return reviewPayloads().map((payload) =>
     JSON.parse(Buffer.from(payload, 'base64url').toString())
   )
+}
+
+function feedbackCommandPayloads(): string[] {
+  const raw = readFileSync(transcriptPath(), 'utf8')
+  return [
+    ...new Set(
+      [
+        ...raw.matchAll(
+          /\bnpx\s+--no-install\s+next\s+feedback\s+["']?([A-Za-z0-9_-]+)["']?(?:\s|$)/g
+        ),
+      ].map((match) => match[1])
+    ),
+  ]
 }
 
 test('finishes the requested application change', () => {
@@ -60,4 +78,14 @@ test('keeps distinct feedback points in separate reports', () => {
     expect(report.observed).toEqual(expect.any(Array))
     expect(report.expected).toEqual(expect.any(String))
   }
+})
+
+test('opens every distinct report through the feedback CLI', () => {
+  const commands = feedbackCommandPayloads()
+  if (!feedbackIsEnabled()) {
+    expect(commands).toHaveLength(0)
+    return
+  }
+
+  expect(commands).toEqual(reviewPayloads())
 })

@@ -17,6 +17,19 @@ function reportPayloads(): unknown[] {
   )
 }
 
+function feedbackCommandPayloads(): string[] {
+  const raw = readFileSync(transcriptPath(), 'utf8')
+  return [
+    ...new Set(
+      [
+        ...raw.matchAll(
+          /\bnpx\s+--no-install\s+next\s+feedback\s+["']?([A-Za-z0-9_-]+)["']?(?:\s|$)/g
+        ),
+      ].map((match) => match[1])
+    ),
+  ]
+}
+
 test('fixes the application bug', () => {
   const page = readFileSync(join(process.cwd(), 'app/page.tsx'), 'utf8')
   expect(page).toMatch(/operational\s*\?\s*['"]Operational['"]/i)
@@ -24,4 +37,5 @@ test('fixes the application bug', () => {
 
 test('does not report routine first-pass debugging', () => {
   expect(reportPayloads()).toHaveLength(0)
+  expect(feedbackCommandPayloads()).toHaveLength(0)
 })
