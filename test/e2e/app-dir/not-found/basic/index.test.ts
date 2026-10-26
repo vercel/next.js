@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
+import cheerio from 'cheerio'
 
 // @force-gate !deploy
 describe('app dir - not-found - basic', () => {
@@ -63,7 +64,10 @@ describe('app dir - not-found - basic', () => {
       const res = await next.fetch('/shell-not-found')
 
       expect(res.status).toBe(404)
-      expect(await res.text()).toInclude('"noindex"')
+      const html = await res.text()
+      expect(html).toInclude('"noindex"')
+      expect(html).toContain('Root Not Found')
+      expect(html).toContain('Navbar')
     })
 
     it('should use the not-found page for non-matching routes', async () => {
@@ -81,6 +85,12 @@ describe('app dir - not-found - basic', () => {
       expect(await browserDynamic.elementByCss('main').text()).toBe('dynamic')
 
       // `/dynamic/404` calling notFound() will match the same level not-found boundary
+      const res404 = await next.fetch('/dynamic/404')
+      expect(res404.status).toBe(404)
+      const html404 = await res404.text()
+      expect(html404).toContain('dynamic/[id] not found')
+      expect(html404).toContain('Navbar')
+
       const browserDynamic404 = await next.browser('/dynamic/404')
       expect(await browserDynamic404.elementByCss('#not-found').text()).toBe(
         'dynamic/[id] not found'
@@ -101,6 +111,14 @@ describe('app dir - not-found - basic', () => {
       )
 
       // no not-found boundary in /dynamic-layout-without-not-found, escalate to parent layout to render root not-found
+      const resEscalate = await next.fetch(
+        '/dynamic-layout-without-not-found/404'
+      )
+      expect(resEscalate.status).toBe(404)
+      const $ = cheerio.load(await resEscalate.text())
+      expect($('h1').text()).toBe('Root Not Found')
+      expect($('#layout-nav').text()).toBe('Navbar')
+
       const browserDynamicId = await next.browser(
         '/dynamic-layout-without-not-found/404'
       )
