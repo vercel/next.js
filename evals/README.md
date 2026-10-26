@@ -1,10 +1,21 @@
 # Evals
 
-Agent evals for Next.js. Each eval is a small Next.js app + a prompt + assertions. We run the prompt through a coding agent in a sandbox and check what it wrote.
+Agent evals measure how well coding agents complete Next.js work. The existing
+suite also measures whether the documentation bundled with `next` improves the
+result.
 
-The point: find places where agents get Next.js wrong because their training data is stale, then fix it by shipping better docs in the `next` package itself.
+## Choose an eval track
 
-## How it works
+This repository maintains two eval tracks:
+
+- **Existing evals** compare a baseline agent with an agent that can read the
+  bundled Next.js documentation. Use this track for documentation effects,
+  stable regression coverage, and the existing competency tasks.
+- **Harder evals** measure realistic Next.js capability gaps that the existing
+  suite no longer separates. New candidates use the workflow in
+  [`harder/README.md`](harder/README.md).
+
+## How existing evals work
 
 The runner is [`@vercel/agent-eval`](https://github.com/vercel-labs/agent-eval). It spins up a sandbox (Vercel or local Docker), copies the fixture in, runs the coding agent against `PROMPT.md`, then executes `EVAL.ts` as a vitest file against whatever the agent wrote. The `PROMPT.md` / `EVAL.ts` / fixture-dir convention you'll see below is that package's convention — see its README for the full spec.
 
@@ -22,7 +33,7 @@ vc env pull   # writes .env.local to repo root
 
 External contributors can run the same evals in local Docker with their own API key — see [Running without Vercel sandbox access](#running-without-vercel-sandbox-access).
 
-## Writing an eval
+## Write an existing eval
 
 Copy an existing fixture. Take the next free number — gaps are fine.
 
@@ -101,7 +112,7 @@ pnpm eval --suite regression
 pnpm eval --suite competency --dry
 ```
 
-- `audit` is the starting point for new or unverified evals.
+- `audit` is the starting point for new or unverified agent-eval fixtures.
 - `competency` contains verified evals that distinguish model capability.
 - `regression` contains evals that reach at least 90% valid pass@1 across
   frontier and weaker models over multiple runs or versions.
@@ -150,14 +161,21 @@ Full transcripts land in `evals/results/<variant>/<timestamp>/<eval>/run-1/`. Gr
 
 6. **Run it again.** `baseline` should still fail; `agents-md` should find the new doc and pass. Baseline staying red while agents-md flips green tells you the doc did it, not run-to-run noise.
 
-7. **Commit the eval and the doc together.** The full suite gets pulled by the external benchmark runner and published to nextjs.org/evals. Keeping the fixture alongside the doc it validates means that score tracks over time as both the docs and the models change.
+7. **Commit the eval and the doc together.** Publishable agent-eval fixtures
+   are pulled by the external benchmark runner and published to
+   nextjs.org/evals. Keeping the fixture alongside the doc it validates means
+   that score tracks over time as both the docs and the models change. Harder
+   evals follow the separate review and publication rules in
+   [`harder/README.md`](harder/README.md).
 
 ## Layout
 
 ```
 evals/
 ├── eval.config.json # optional skill and timeout settings by fixture
+├── eval.suites.json # existing eval group selections
 ├── evals/agent-*/   # fixtures
+├── harder/tasks/    # new harder-eval candidates
 ├── lib/setup.ts     # uploads tarball, writes AGENTS.md (shared by all evals)
 ├── experiments/     # generated per-run, gitignored
 ├── .tarballs/       # packed next, gitignored
