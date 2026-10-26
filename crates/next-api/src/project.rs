@@ -1804,6 +1804,7 @@ impl Project {
         supports_lazy_dynamic_imports: bool,
     ) -> Result<Vc<NodeJsChunkingContext>> {
         let css_url_suffix = self.next_config().asset_suffix_path();
+        let turbopack_chunking = self.next_config().turbopack_chunking().await?;
         let options = ServerChunkingContextOptions {
             mode: self.next_mode(),
             root_path: self.project_root_path().owned().await?,
@@ -1837,6 +1838,8 @@ impl Project {
                     .next_config()
                     .turbopack_lazy_dynamic_imports_ssr(*self.next_mode().await?)
                     .await?,
+            chunking_min_chunk_size: turbopack_chunking.min_server_chunk_size,
+            chunking_max_merge_chunk_size: turbopack_chunking.max_merge_server_chunk_size,
         };
         Ok(if client_assets {
             get_server_chunking_context_with_client_assets(options)
