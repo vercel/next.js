@@ -19,6 +19,9 @@
     "publish": false,
     "timeout": 7200
   },
+  "agent-044-uses-nextjs": {
+    "publish": false
+  },
   "agent-054-cache-components-empty-static-params": {
     "timeout": 1800
   },

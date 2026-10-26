@@ -94,6 +94,26 @@ A run takes ~2–5 min. To validate a fixture without executing:
 pnpm eval agent-042-your-thing --dry
 ```
 
+The public evals are grouped by purpose in `eval.suites.json`. Run one group
+with `--suite`:
+
+```bash
+pnpm eval --suite regression
+pnpm eval --suite competency --dry
+```
+
+- `regression` preserves behavior already saturated across frontier and weaker
+  models.
+- `competency` measures tasks that still distinguish model capability.
+- `audit` holds tasks whose grader, documentation sensitivity, or stability
+  needs review before they move into another suite.
+- `preference` measures product choice rather than Next.js competency. These
+  tasks are retained for transfer to the a0 suite and are not published by the
+  Next.js benchmark.
+
+Every public eval must belong to exactly one suite. Individual eval commands
+and `--all` continue to work as before.
+
 Use repeated runs when measuring behavior that may vary between agent runs:
 
 ```bash
