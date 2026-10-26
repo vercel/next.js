@@ -23,7 +23,12 @@ describe('experimental.turbopackChunking (edge)', () => {
           // `export const runtime = 'edge'` is not compatible with Cache
           // Components.
           cacheComponents: false,
-          experimental: { turbopackChunking },
+          experimental: {
+            // CI enables this alongside Cache Components; it requires that
+            // feature.
+            cachedNavigations: false,
+            turbopackChunking,
+          },
         },
         null,
         2
