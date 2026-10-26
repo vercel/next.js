@@ -146,6 +146,8 @@ export interface TestFileOptions {
   publicTaskSelection?: true
   /** Actual public file preparation; private standalone callers retain their semantics. */
   prepareEmptyPublicFile?: true
+  /** Actual finalized public task modes, independent of private declaration data. */
+  finalizePublicTaskModes?: true
   /** Explicit Istanbul host capture of one settled actual module-load failure. */
   captureCollectionCoverage?: true
   /** Actual Node execution omits statistics for a file that never ran. */
@@ -313,6 +315,7 @@ function initializeFile(
   {
     publicTaskSelection,
     prepareEmptyPublicFile,
+    finalizePublicTaskModes,
     onCollectionFailure,
     captureCollectionCoverage,
     omitFailedCollectionSnapshotSummary,
@@ -748,6 +751,9 @@ function initializeFile(
             ...executionOptions,
             ...(prepareEmptyPublicFile === true
               ? { prepareEmptyPublicFile: true as const }
+              : {}),
+            ...(finalizePublicTaskModes === true
+              ? { finalizePublicTaskModes: true as const }
               : {}),
             ...(publicTaskSelection
               ? {

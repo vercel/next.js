@@ -7,6 +7,7 @@ import {
 import { registerTaskArtifactRecorder } from './artifacts'
 import {
   createTaskTree,
+  finalizePublicTaskModes,
   getPublishedTaskLocation,
   getTaskContext,
   serializeTaskError,
@@ -47,6 +48,7 @@ const frameworkClearTimeout = globalThis.clearTimeout.bind(globalThis)
 const frameworkDefineProperty = Object.defineProperty
 import {
   selectedCases,
+  hasFocusedTests,
   type Cleanup,
   type TestCase,
   type TestBody,
@@ -218,6 +220,8 @@ export interface CompletedModuleResult {
 }
 
 export interface RunnerOptions {
+  /** Public finalized skip/todo modes; private standalone selection is unchanged. */
+  finalizePublicTaskModes?: true
   /** Actual empty public File failure, before authored file resources or hooks. */
   prepareEmptyPublicFile?: true
   /** Internal scheduling hint capture; never publication or baseline authority. */
@@ -506,6 +510,17 @@ export async function runCollected(
     ...options,
     testTimeout,
   })
+  const finalizedModes =
+    options.finalizePublicTaskModes === true &&
+    options.testNamePattern === undefined &&
+    !hasFocusedTests(root)
+      ? finalizePublicTaskModes(root, tasks)
+      : undefined
+  if (finalizedModes)
+    for (const test of selected.keys()) {
+      const mode = finalizedModes.get(test)
+      if (mode === 'skip' || mode === 'todo') selected.set(test, mode)
+    }
   let artifactFileOpen = true
   const isArtifactFileOpen = () => artifactFileOpen
   const artifactRecorders = new Map<Task, () => void>()
@@ -2427,16 +2442,29 @@ export async function runCollected(
   ) {
     const start = frameworkDateNow()
     const mode =
-      inheritedMode !== 'run'
-        ? inheritedMode
-        : node.mode === 'only'
-          ? 'run'
-          : node.mode
+      finalizedModes && !collectionBlocked
+        ? finalizedModes.get(node)!
+        : inheritedMode !== 'run'
+          ? inheritedMode
+          : node.mode === 'only'
+            ? 'run'
+            : node.mode
+    const excludedByAncestor =
+      finalizedModes !== undefined &&
+      !collectionBlocked &&
+      inheritedMode !== 'run' &&
+      mode === 'run'
     const publicSuite = tasks.get(node) as Suite
     options.setCurrentTask?.(publicSuite)
     publicSuite.mode = mode
     if (collectionBlocked) publicSuite.result = { state: 'skip' }
-    if (mode === 'run' && !(node === root && filePreparationFailure))
+    if (finalizedModes && mode !== 'run' && !publicSuite.result)
+      publicSuite.result = { state: mode, startTime: frameworkDateNow() }
+    if (
+      mode === 'run' &&
+      !excludedByAncestor &&
+      !(node === root && filePreparationFailure)
+    )
       publicSuite.result = { state: 'run', startTime: frameworkDateNow() }
     ancestors = [...ancestors, node]
     const errors = [...inheritedErrors]
@@ -2454,6 +2482,7 @@ export async function runCollected(
     if (blockChildren) markSkipped(node)
     if (
       mode === 'run' &&
+      !excludedByAncestor &&
       !poisoned &&
       !options.signal.aborted &&
       !(node === root && (options.passWithNoTests || filePreparationFailure)) &&
@@ -2635,7 +2664,11 @@ export async function runCollected(
                 child,
                 ancestors,
                 skipChildren ? [] : errors,
-                skipChildren ? 'skip' : mode,
+                skipChildren
+                  ? 'skip'
+                  : excludedByAncestor
+                    ? inheritedMode
+                    : mode,
                 skipChildren
               )
             : limitCase(() =>

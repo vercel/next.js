@@ -480,6 +480,46 @@ export function createTaskTree(
   return { file, tasks }
 }
 
+/** Finalized exclusions belong to the actual cached tasks and execution plan. */
+export function finalizePublicTaskModes(
+  root: TestSuite,
+  tasks: ReadonlyMap<TestCase | TestSuite, Task>
+): ReadonlyMap<TestCase | TestSuite, 'run' | 'skip' | 'todo'> {
+  const modes = new Map<TestCase | TestSuite, 'run' | 'skip' | 'todo'>()
+  for (const [node, task] of tasks)
+    modes.set(
+      node,
+      task.mode === 'skip' || task.mode === 'todo' ? task.mode : 'run'
+    )
+  const exclude = (suite: TestSuite, mode: 'skip' | 'todo') => {
+    for (const child of suite.children)
+      if (modes.get(child) === 'run') {
+        modes.set(child, mode)
+        if (child.type === 'suite') exclude(child, mode)
+      }
+  }
+  const visit = (suite: TestSuite) => {
+    for (const child of suite.children) {
+      if (child.type !== 'suite') continue
+      const mode = modes.get(child)
+      if (mode === 'skip' || mode === 'todo') exclude(child, mode)
+      else visit(child)
+    }
+    if (
+      modes.get(suite) === 'run' &&
+      suite.children.length > 0 &&
+      suite.children.every((child) => modes.get(child) !== 'run')
+    )
+      modes.set(suite, 'skip')
+  }
+  visit(root)
+  for (const [node, mode] of modes) {
+    const task = tasks.get(node)!
+    if (task.mode !== mode) task.mode = mode
+  }
+  return modes
+}
+
 /** The pinned serializer mutates diff values/causes; task views must not alter raw failures. */
 export function serializeTaskError(error: unknown): TestError {
   const seen = new Map<object, object>()

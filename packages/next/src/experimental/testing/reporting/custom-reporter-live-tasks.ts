@@ -356,12 +356,16 @@ export function createLiveReporterTaskStore(projectDir: string) {
       ]
       fileOutcomes.set(entryId, {
         state:
-          file.status === 'passed' ||
-          hasOnlyBrowserCleanupFailures(entryId, completion)
-            ? 'passed'
-            : file.status === 'failed'
-              ? 'failed'
-              : 'pending',
+          file.status === 'passed' &&
+          (tasks.get(entryId)?.value.mode === 'skip' ||
+            tasks.get(entryId)?.value.mode === 'todo')
+            ? 'skipped'
+            : file.status === 'passed' ||
+                hasOnlyBrowserCleanupFailures(entryId, completion)
+              ? 'passed'
+              : file.status === 'failed'
+                ? 'failed'
+                : 'pending',
         errors,
       })
       return module

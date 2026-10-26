@@ -7637,3 +7637,39 @@ it.each([
   },
   35000
 )
+
+it.each([
+  'skip-todo',
+  'nested',
+  'todo-suite',
+  'mixed',
+  'focus',
+  'filter',
+  'absent',
+  'truthy',
+  'cancelled',
+  'skip-todo-empty',
+  'todo-skip-empty',
+] as const)(
+  'finalizes actual public File modes without changing private declarations for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-public-modes-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'public-file-modes.mjs'), mode, output],
+        { timeout: 30000, encoding: 'utf8' }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        privateDeclarationsUnchanged: true,
+        cachedIdentitiesHeld: true,
+        actualPlanUsedByExecution: true,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)

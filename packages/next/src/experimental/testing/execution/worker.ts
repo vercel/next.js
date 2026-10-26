@@ -753,7 +753,12 @@ async function run({
       !options.customCoverage &&
       (!options.entry.executionEnvironment ||
         options.entry.executionEnvironment.name === 'node')
-        ? { prepareEmptyPublicFile: true }
+        ? {
+            prepareEmptyPublicFile: true,
+            ...(options.testNamePattern === undefined
+              ? { finalizePublicTaskModes: true }
+              : {}),
+          }
         : {}),
       ...(artifact.kind === 'node' &&
       artifact.profile.environment === 'node' &&

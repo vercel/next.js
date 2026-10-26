@@ -32,6 +32,38 @@ describe('next-testing-package', () => {
 
   if (isNextDev && isTurbopack) {
     it.each(['development', 'production'] as const)(
+      'publishes actual finalized public File modes and case outcomes in %s',
+      async (mode) => {
+        const temporary = await mkdtemp(
+          join(tmpdir(), 'next-public-file-modes-')
+        )
+        try {
+          const evidence = join(temporary, 'evidence')
+          await promisify(execFile)(
+            process.execPath,
+            [
+              join(__dirname, 'verify-public-file-modes.mjs'),
+              next.testDir,
+              evidence,
+              mode,
+            ],
+            { timeout: 500000, maxBuffer: 2 * 1024 * 1024 }
+          )
+          const verified = JSON.parse(
+            await readFile(join(evidence, 'VERIFIED.json'), 'utf8')
+          )
+          expect(verified.mode).toBe(mode)
+          expect(verified.profiles).toBe(11)
+          expect(verified.allOwnersJoined).toBe(true)
+          expect(verified.allInputsRemovedAfterOwnedReadersJoined).toBe(true)
+        } finally {
+          await rm(temporary, { recursive: true, force: true })
+        }
+      },
+      540000
+    )
+
+    it.each(['development', 'production'] as const)(
       'preserves actual empty public File preparation and passWithNoTests hooks in %s',
       async (mode) => {
         const temporary = await mkdtemp(join(tmpdir(), 'next-empty-file-'))
