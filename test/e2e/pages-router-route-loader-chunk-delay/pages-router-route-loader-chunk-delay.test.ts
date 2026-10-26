@@ -21,7 +21,9 @@ describe('pages-router-route-loader-chunk-delay', () => {
     files: __dirname,
   })
 
-  it('should not time out when /_next/static chunks load slowly', async () => {
+  async function loadTrackWithDelayedAssets(
+    pattern: string
+  ): Promise<{ ok: boolean; message?: string }> {
     const delayMs = 5000
 
     let playwrightPage: Page | undefined
@@ -36,24 +38,35 @@ describe('pages-router-route-loader-chunk-delay', () => {
     })
 
     if (!playwrightPage) throw new Error('playwrightPage was not captured')
-    await playwrightPage.route('**/_next/static/**/*.js*', async (route) => {
+    await playwrightPage.route(pattern, async (route) => {
       await new Promise((resolve) => setTimeout(resolve, delayMs))
       await route.continue()
     })
 
     // `router.push` masks this failure by falling back to a hard navigation,
     // so call the underlying page loader directly.
-    const result: { ok: boolean; message?: string } = await browser.eval<any>(
-      async () => {
-        try {
-          await (window as any).next.router.pageLoader.loadPage('/track')
-          return { ok: true }
-        } catch (err: any) {
-          return { ok: false, message: err?.message ?? String(err) }
-        }
+    return browser.eval<any>(async () => {
+      try {
+        await (window as any).next.router.pageLoader.loadPage('/track')
+        return { ok: true }
+      } catch (err: any) {
+        return { ok: false, message: err?.message ?? String(err) }
       }
-    )
+    })
+  }
 
-    expect(result).toEqual({ ok: true })
+  it('should not time out when JavaScript chunks load slowly', async () => {
+    expect(
+      await loadTrackWithDelayedAssets('**/_next/static/**/*.js*')
+    ).toEqual({ ok: true })
+  })
+
+  it('should time out when CSS chunks load slowly', async () => {
+    expect(
+      await loadTrackWithDelayedAssets('**/_next/static/**/*.css*')
+    ).toEqual({
+      ok: false,
+      message: 'Route did not complete loading: /track',
+    })
   })
 })
