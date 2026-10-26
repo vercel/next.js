@@ -791,9 +791,24 @@ export function createClientResultCollector(
         errors: result.errors.map((failure) => diagnostic(failure.error)),
       })
     } else if (message.type === 'failure') {
+      if (
+        message.origin !== undefined &&
+        message.origin !== 'worker-fixture-cleanup'
+      )
+        throw new Error('Invalid Browser Mode failure origin.')
       moduleFailures?.push(message.error)
       fileFailed = true
-      fileFailure(message.error)
+      if (message.origin === 'worker-fixture-cleanup')
+        event({
+          type: 'diagnostic',
+          entryId: artifact.entryId,
+          revision: artifact.revision,
+          diagnostic: {
+            ...diagnostic(message.error, 'cleanup'),
+            runError: 'browser-worker-fixture-cleanup',
+          },
+        })
+      else fileFailure(message.error)
     } else if (message.type === 'complete') {
       if (message.moduleCompletion !== undefined) {
         if (!options.captureCompletedModuleResult)

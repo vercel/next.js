@@ -176,7 +176,11 @@ export type ClientMessage = ClientIdentity & { sequence: number } & (
         type: 'suite-end'
         result: RunnerSuiteResult
       }
-    | { type: 'failure'; error: unknown }
+    | {
+        type: 'failure'
+        error: unknown
+        origin?: 'worker-fixture-cleanup'
+      }
     | {
         type: 'complete'
         moduleCompletion?: RuntimeModuleCompletion

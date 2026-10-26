@@ -97,6 +97,11 @@ export async function startClientTest(
     transportFailure: unknown
   const nativeReplies = new Set<Promise<void>>()
   const pendingFailures: unknown[] = []
+  const workerCleanupFailures: {
+    name: unknown
+    message: unknown
+    stack: unknown
+  }[] = []
   let moduleCompletion: RuntimeModuleCompletion | undefined
   let moduleFailurePhase: 'collection' | 'run' | undefined
   let unavailableModule:
@@ -623,8 +628,22 @@ export async function startClientTest(
       ...(taskUpdates
         ? [() => taskUpdates.finish(), () => taskUpdates.dispose()]
         : []),
-      () =>
-        file?.dispose({ beforeOwnedWorkerDispose: cleanupBrowserResources }),
+      async () => {
+        try {
+          await file?.dispose({
+            beforeOwnedWorkerDispose: cleanupBrowserResources,
+          })
+        } catch (error) {
+          if (!file?.takeOwnedWorkerDisposalFailure?.(error)) throw error
+          const value = Object(error)
+          workerCleanupFailures.push({
+            name: Reflect.get(value, 'name'),
+            message: Reflect.get(value, 'message'),
+            stack: Reflect.get(value, 'stack'),
+          })
+          status = 'failed'
+        }
+      },
       // Joined fallback for failed initialization or older file implementations.
       cleanupBrowserResources,
       () => imports?.dispose(),
@@ -674,6 +693,8 @@ export async function startClientTest(
         }
       await send({ type: 'failure', error: failure })
     }
+    for (const error of workerCleanupFailures)
+      await send({ type: 'failure', origin: 'worker-fixture-cleanup', error })
     restoreConsole()
     terminalPublished = true
     await send({

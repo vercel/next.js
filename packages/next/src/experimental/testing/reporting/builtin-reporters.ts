@@ -1,3 +1,7 @@
+import {
+  isRunErrorDiagnostic,
+  hasOnlyBrowserWorkerCleanupFailures,
+} from './run-errors'
 import { writeFile } from 'node:fs/promises'
 import { relative, sep } from 'node:path'
 import { stripVTControlCharacters } from 'node:util'
@@ -37,7 +41,10 @@ export function renderTapReport(
       id: entry.id,
       name: relative(options.projectDir, entry.file).split(sep).join('/'),
       mode: rootSuite?.mode ?? 'run',
-      passed: completed?.status === 'passed' || completed?.status === 'skipped',
+      passed:
+        completed?.status === 'passed' ||
+        completed?.status === 'skipped' ||
+        hasOnlyBrowserWorkerCleanupFailures(entry.id, { ...results, events }),
       duration: rootSuite?.durationMs ?? completed?.durationMs,
       errors: rootSuite?.errors ?? [],
       children: [],
@@ -100,7 +107,7 @@ export function renderTapReport(
       ...events.flatMap((event) =>
         event.type === 'diagnostic' &&
         event.entryId === entry.id &&
-        event.diagnostic.unhandled !== 'rejection' &&
+        !isRunErrorDiagnostic(event.diagnostic) &&
         event.diagnostic.severity === 'error'
           ? [event.diagnostic]
           : []
@@ -119,7 +126,8 @@ export function renderTapReport(
   }
   const unhandled = events.flatMap((event) =>
     event.type === 'diagnostic' &&
-    (!event.entryId || event.diagnostic.unhandled === 'rejection') &&
+    (!event.entryId || isRunErrorDiagnostic(event.diagnostic)) &&
+    event.diagnostic.runError !== 'browser-worker-fixture-cleanup' &&
     event.diagnostic.severity === 'error'
       ? [event.diagnostic]
       : []

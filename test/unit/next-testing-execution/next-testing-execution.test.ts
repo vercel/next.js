@@ -6310,7 +6310,7 @@ it.each(['chromium', 'firefox'] as const)(
 it.each([
   ['node', 'chromium'],
   ['node', 'firefox'],
-  ['browser', 'webkit'],
+  ['browser', 'invalid-browser'],
   ['browser', null],
 ])(
   'rejects engine %s/%s before runtime acquisition',
@@ -6326,7 +6326,7 @@ it.each([
         { ...process.env }
       )
     ).rejects.toThrow(
-      'Browser engine selection requires an actual Chromium or Firefox client artifact.'
+      'Browser engine selection requires an actual Chromium, Firefox, or WebKit client artifact.'
     )
     expect(onEvent).not.toHaveBeenCalled()
   }
@@ -7146,5 +7146,78 @@ describe('ordinary production Node project environment', () => {
       }
     },
     125000
+  )
+})
+
+describe('actual public Node finished assertion observation', () => {
+  it('drives the real finished failure and coverage without unrequested module metadata', () => {
+    const output = mkdtempSync(path.join(tmpdir(), 'next-node-finished-host-'))
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          path.join(__dirname, 'native-node-finished.cjs'),
+          path.join(
+            require.resolve('next/dist/experimental/testing/runner'),
+            '..',
+            '..'
+          ),
+          output,
+        ],
+        { encoding: 'utf8', timeout: 35000 }
+      )
+      expect(
+        JSON.parse(readFileSync(path.join(output, 'CHECKS.json'), 'utf8'))
+      ).toMatchObject({
+        genuineFinishedAssertionFailure: true,
+        actualNativeRunErrorPreserved: true,
+        noRequestedModuleOrNativeWireMetadata: true,
+        actualCoverageComplete: true,
+        inheritedAuditPreserved: true,
+        allOwnersJoined: true,
+      })
+    } finally {
+      rmSync(output, { recursive: true, force: true })
+    }
+  }, 40000)
+
+  it.each(['exercised', 'read-exercised', 'update'])(
+    'retains genuine case states/messages, native error, whole reports and snapshot bytes for %s',
+    (profile) => {
+      const output = mkdtempSync(
+        path.join(tmpdir(), 'next-node-finished-public-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            path.join(__dirname, 'native-node-finished-public.mjs'),
+            path.join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          {
+            encoding: 'utf8',
+            timeout: 125000,
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+          }
+        )
+        expect(
+          JSON.parse(readFileSync(path.join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          completeAuthoredMessagesAndCaseFields: true,
+          authoredFrameLinesEqual: true,
+          frameColumnsAndRawPresentationRecorded: true,
+          actualNativeErrorChannel: true,
+          wholeCoverageJSONSummaryLCOV: true,
+          exactSnapshotBytes: true,
+          allOwnersJoined: true,
+        })
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    130000
   )
 })

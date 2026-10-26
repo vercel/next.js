@@ -106,7 +106,7 @@ async function main() {
       element.remove()
       await assert.rejects(api.userEvent.click(element), /not attached/)
       await assert.rejects(
-        api.page.getByRole('button', { name: 'Missing' }).clear(),
+        api.page.getByRole('button', { name: 'Missing' }).upload([]),
         /not attached/
       )
       assert.equal(commands.length, 1)

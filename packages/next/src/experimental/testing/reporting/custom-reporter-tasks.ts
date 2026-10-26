@@ -1,3 +1,7 @@
+import {
+  isRunErrorDiagnostic,
+  hasOnlyBrowserWorkerCleanupFailures,
+} from './run-errors'
 import type { TestArtifact, TaskLocation } from '../runner/tasks'
 import { relative, sep } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
@@ -152,7 +156,7 @@ export function createCustomReporterModules(
         event.type === 'diagnostic' &&
         event.entryId === entry.id &&
         !isReportedSuiteError(event, completion.events) &&
-        event.diagnostic.unhandled !== 'rejection' &&
+        !isRunErrorDiagnostic(event.diagnostic) &&
         event.diagnostic.severity === 'error'
           ? [event.diagnostic]
           : []
@@ -165,8 +169,13 @@ export function createCustomReporterModules(
       moduleId: entry.file,
       relativeModuleId: relative(projectDir, entry.file).split(sep).join('/'),
       children: new Collection(rootChildren),
-      state: () => stateOf(file?.status),
-      ok: () => file?.status !== 'failed',
+      state: () =>
+        hasOnlyBrowserWorkerCleanupFailures(entry.id, completion)
+          ? 'passed'
+          : stateOf(file?.status),
+      ok: () =>
+        file?.status !== 'failed' ||
+        hasOnlyBrowserWorkerCleanupFailures(entry.id, completion),
       errors: () => fileErrors,
       meta: () => {
         throw new Error(

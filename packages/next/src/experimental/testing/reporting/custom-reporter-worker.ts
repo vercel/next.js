@@ -1,3 +1,8 @@
+import {
+  isRunErrorDiagnostic,
+  reportedRunError,
+  hasOnlyBrowserWorkerCleanupRunFailures,
+} from './run-errors'
 import { createCustomReporterWatchFile } from './custom-reporter-watch-tasks'
 import { createLiveReporterTaskStore } from './custom-reporter-live-tasks'
 import type { ReporterTaskSnapshot } from './live-tasks'
@@ -458,16 +463,20 @@ async function handle(message: any) {
       )
       const errors = completion.events.flatMap((event) =>
         event.type === 'diagnostic' &&
-        (!event.entryId || event.diagnostic.unhandled === 'rejection') &&
+        (!event.entryId || isRunErrorDiagnostic(event.diagnostic)) &&
         event.diagnostic.severity === 'error'
-          ? [event.diagnostic]
+          ? [reportedRunError(event.diagnostic)]
           : []
       )
       try {
         await finishCallbacks(
           modules,
           [...errors, ...(completion.recordedReporterErrors ?? [])],
-          completion.status === 'cancelled' ? 'interrupted' : completion.status
+          completion.status === 'cancelled'
+            ? 'interrupted'
+            : hasOnlyBrowserWorkerCleanupRunFailures(completion)
+              ? 'passed'
+              : completion.status
         )
       } catch (error) {
         await send({

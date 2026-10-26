@@ -458,6 +458,7 @@ function initializeFile(
   let snapshotExecutionComplete = false
   let completedCoverageFailures: readonly RunnerFailure[] | undefined
   let disposalSucceeded = false
+  let ownedWorkerDisposalFailure: { readonly error: unknown } | undefined
   let runSignal: AbortSignal | undefined
   let captureCoverageCompletion = false
   let state:
@@ -728,7 +729,8 @@ function initializeFile(
             async beginAttempt(context) {
               const assertionScope = runtime.beginAttempt(context)
               if (
-                captureCompletedModuleResult &&
+                (captureCompletedModuleResult ||
+                  (publicTaskSelection && snapshotBodyFailures)) &&
                 assertionScope.observeBodySettlement
               ) {
                 nativeBodyObservation ??= {
@@ -1077,6 +1079,7 @@ function initializeFile(
       consoleTask = undefined
       const errors: unknown[] = []
       let result
+      let workerDisposalFailure: { readonly error: unknown } | undefined
       const beforeWorkerDispose = !worker
         ? disposal?.beforeOwnedWorkerDispose
         : undefined
@@ -1088,6 +1091,7 @@ function initializeFile(
       try {
         if (!worker) await workerFixtures.dispose()
       } catch (error) {
+        workerDisposalFailure = Object.freeze({ error })
         errors.push(error)
       } finally {
         workerScope?.close()
@@ -1118,11 +1122,21 @@ function initializeFile(
         )
       )
       if (worker) for (const error of errors) worker.fail(error, fileId)
-      if (errors.length === 1) throw errors[0]
+      if (errors.length === 1) {
+        if (workerDisposalFailure?.error === errors[0])
+          ownedWorkerDisposalFailure = workerDisposalFailure
+        throw errors[0]
+      }
       if (errors.length)
         throw new AggregateError(errors, 'File disposal failed')
       disposalSucceeded = true
       return result
+    },
+    takeOwnedWorkerDisposalFailure(error: unknown) {
+      const occurrence = ownedWorkerDisposalFailure
+      if (!occurrence || occurrence.error !== error) return undefined
+      ownedWorkerDisposalFailure = undefined
+      return occurrence
     },
     getSnapshotSummary() {
       return fileAssertions?.getSnapshotSummary()

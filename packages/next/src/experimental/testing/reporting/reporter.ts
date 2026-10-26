@@ -1,3 +1,7 @@
+import {
+  isRunErrorDiagnostic,
+  hasOnlyBrowserWorkerCleanupFailures,
+} from './run-errors'
 /*!
  * Portions of the terminal formatting are adapted from Vitest.
  * https://github.com/vitest-dev/vitest/blob/0780a8e5b7967a4168173599e9c74fb79aab2483/packages/vitest/src/node/reporters/base.ts
@@ -284,7 +288,20 @@ export function createTestReporter(options: TestReporterOptions) {
     )
   }
 
-  function printFile(result: FileResult): void {
+  function displayedFile(result: FileResult): FileResult {
+    return result.status === 'failed' &&
+      hasOnlyBrowserWorkerCleanupFailures(result.entryId, {
+        events: diagnostics,
+        files: [...files.values()],
+        cases: [...cases.values()],
+        suites: [...suites.values()],
+      })
+      ? { ...result, status: 'passed' }
+      : result
+  }
+
+  function printFile(input: FileResult): void {
+    const result = displayedFile(input)
     const tests = [...cases.values()].filter(
       (test) => test.entryId === result.entryId
     )
@@ -391,12 +408,12 @@ export function createTestReporter(options: TestReporterOptions) {
       (event) =>
         event.diagnostic.severity === 'error' &&
         event.entryId &&
-        event.diagnostic.unhandled !== 'rejection'
+        !isRunErrorDiagnostic(event.diagnostic)
     )
     const unhandledErrors = diagnostics.filter(
       (event) =>
         event.diagnostic.severity === 'error' &&
-        (!event.entryId || event.diagnostic.unhandled === 'rejection')
+        (!event.entryId || isRunErrorDiagnostic(event.diagnostic))
     )
     const failedTests = [...cases.values()].filter(
       (test) => test.status === 'failed'
@@ -441,7 +458,7 @@ export function createTestReporter(options: TestReporterOptions) {
       )
       for (const event of unhandledErrors) {
         writeError(
-          `${paint(31, event.diagnostic.unhandled === 'rejection' ? 'Unhandled Rejection' : 'Unhandled Error')} ${paint(2, `[${event.diagnostic.phase}]`)}\n${formatDiagnostic(event.diagnostic, projectDir)}\n\n`
+          `${paint(31, event.diagnostic.runError === 'browser-worker-fixture-cleanup' ? 'Cleanup Error' : event.diagnostic.unhandled === 'rejection' ? 'Unhandled Rejection' : 'Unhandled Error')} ${paint(2, `[${event.diagnostic.phase}]`)}\n${formatDiagnostic(event.diagnostic, projectDir)}\n\n`
         )
       }
     }
@@ -683,7 +700,15 @@ export function createTestReporter(options: TestReporterOptions) {
           `${paint(2, label.padStart(11))}  ${value}\n`
         write(
           '\n' +
-            row('Test Files', stateText(summary.files)) +
+            row(
+              'Test Files',
+              stateText(
+                [...files.values()].reduce((result, file) => {
+                  result[displayedFile(file).status]++
+                  return result
+                }, counts())
+              )
+            ) +
             row(
               'Tests',
               stateText(
@@ -697,8 +722,7 @@ export function createTestReporter(options: TestReporterOptions) {
         const unhandledErrors = diagnostics.filter(
           (diagnostic) =>
             diagnostic.diagnostic.severity === 'error' &&
-            (!diagnostic.entryId ||
-              diagnostic.diagnostic.unhandled === 'rejection')
+            (!diagnostic.entryId || isRunErrorDiagnostic(diagnostic.diagnostic))
         ).length
         if (unhandledErrors)
           write(

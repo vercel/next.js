@@ -6577,3 +6577,137 @@ describe('standard JSON coverage with custom reporter completion and close', () 
     130000
   )
 })
+
+it.each(['worker-only', 'mixed-cleanup', 'case-failed', 'cancelled'])(
+  'retains Browser worker cleanup as a separate run origin for %s',
+  async (mode) => {
+    const {
+      reportedRunError,
+      hasOnlyBrowserWorkerCleanupFailures,
+      hasOnlyBrowserWorkerCleanupRunFailures,
+    } = await import('next/dist/experimental/testing/reporting/run-errors')
+    let output = ''
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const human = createTestReporter({
+      projectDir: '/project',
+      write: (text) => {
+        output += text
+      },
+    })
+    const events: ResultEvent[] = []
+    const emit = (event: object) => {
+      const value = { ...envelope, ...event } as ResultEvent
+      events.push(value)
+      machine.onEvent(value)
+      human.onEvent(value)
+    }
+    emit({ type: 'run-start' })
+    emit({ type: 'file-start', entry })
+    emit({
+      type: 'case-end',
+      ...result(0, mode === 'case-failed' ? 'failed' : 'passed'),
+    })
+    const error = {
+      name: 'FixtureCleanupError',
+      message: 'actual joined worker cleanup failed',
+      stack: '',
+      phase: 'cleanup' as const,
+      severity: 'error' as const,
+      runError: 'browser-worker-fixture-cleanup' as const,
+    }
+    emit({ type: 'diagnostic', entryId: entry.id, diagnostic: error })
+    if (mode === 'mixed-cleanup')
+      emit({
+        type: 'diagnostic',
+        entryId: entry.id,
+        diagnostic: {
+          phase: 'cleanup',
+          severity: 'error',
+          name: 'FixtureCleanupError',
+          message: 'same Error, ordinary file occurrence',
+          stack: '',
+        },
+      })
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      status: mode === 'cancelled' ? 'cancelled' : 'failed',
+      durationMs: 1,
+    })
+    emit({
+      type: 'run-end',
+      status: mode === 'cancelled' ? 'cancelled' : 'failed',
+      durationMs: 1,
+    })
+    expect(human.getSummary().status).toBe('failed')
+    expect(machine.getJson().success).toBe(mode === 'worker-only')
+    expect(machine.getJson().testResults[0].status).toBe(
+      mode === 'worker-only' ? 'passed' : 'failed'
+    )
+    expect(machine.getJson().testResults[0].message).not.toContain(
+      error.message
+    )
+    expect(reportedRunError(error)).toEqual({
+      name: error.name,
+      message: error.message,
+      stack: '',
+      stacks: [],
+      type: 'Cleanup Error',
+    })
+    expect(
+      hasOnlyBrowserWorkerCleanupFailures(entry.id, {
+        ...human.getResults(),
+        events,
+      })
+    ).toBe(mode === 'worker-only')
+    expect(
+      hasOnlyBrowserWorkerCleanupRunFailures({
+        ...human.getResults(),
+        events,
+        status: mode === 'cancelled' ? 'cancelled' : 'failed',
+      })
+    ).toBe(mode === 'worker-only')
+    const { renderTapReport } = await import(
+      'next/dist/experimental/testing/reporting/builtin-reporters'
+    )
+    const tap = renderTapReport(human.getResults(), events, {
+      projectDir: '/project',
+    })
+    expect(tap).not.toContain('[run errors]')
+    const junit = machine.getJUnit()
+    expect(junit).toContain(
+      '<testsuite name="vitest unhandled errors" tests="1" failures="0" errors="1" skipped="0" time="0">'
+    )
+    expect(junit).toContain(
+      'name="Cleanup Error: actual joined worker cleanup failed"'
+    )
+    expect(junit).toContain(
+      'message="actual joined worker cleanup failed" type="FixtureCleanupError"'
+    )
+    expect(
+      hasOnlyBrowserWorkerCleanupRunFailures({
+        ...human.getResults(),
+        events,
+        status: 'failed',
+        recordedReporterErrors: [
+          serializeDiagnostic(
+            new Error('independent reporter callback failed'),
+            { phase: 'reporter' }
+          ),
+        ],
+      })
+    ).toBe(false)
+    expect(output).toContain('Cleanup Error')
+    expect(events.filter((event) => event.type === 'diagnostic')).toHaveLength(
+      mode === 'mixed-cleanup' ? 2 : 1
+    )
+    expect(events.find((event) => event.type === 'diagnostic')).toMatchObject({
+      diagnostic: { runError: 'browser-worker-fixture-cleanup' },
+    })
+    machine.dispose()
+    human.dispose()
+  }
+)

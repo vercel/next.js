@@ -1,3 +1,4 @@
+import { isRunErrorDiagnostic } from './run-errors'
 import { assertReporterTaskTree, type ReporterTaskSnapshot } from './live-tasks'
 import { randomUUID } from 'node:crypto'
 import {
@@ -199,7 +200,12 @@ function validDiagnostic(value: unknown): boolean {
       (diagnostic.unhandled !== undefined &&
         (diagnostic.unhandled !== 'rejection' ||
           diagnostic.phase !== 'runtime' ||
-          diagnostic.severity !== 'error'))
+          diagnostic.severity !== 'error')) ||
+      (diagnostic.runError !== undefined &&
+        (diagnostic.runError !== 'browser-worker-fixture-cleanup' ||
+          diagnostic.phase !== 'cleanup' ||
+          diagnostic.severity !== 'error' ||
+          diagnostic.unhandled !== undefined))
     )
       return false
     if (diagnostic.cause !== undefined) pending.push(diagnostic.cause)
@@ -437,7 +443,7 @@ export function createMachineReporter(options: {
           diagnostics.every(
             (event) =>
               event.type === 'diagnostic' &&
-              event.diagnostic.unhandled === 'rejection'
+              isRunErrorDiagnostic(event.diagnostic)
           ) &&
           !cases.some(
             (test) =>
@@ -540,7 +546,7 @@ export function createMachineReporter(options: {
                 event.diagnostic.severity !== 'error' ||
                 (event.entryId !== undefined &&
                   unhandledOnlyFiles.has(event.entryId) &&
-                  event.diagnostic.unhandled === 'rejection')
+                  isRunErrorDiagnostic(event.diagnostic))
             ))),
       testResults: orderedEntries.map(({ entry, timestamp }) => {
         const file = files.find((result) => result.entryId === entry.id)
@@ -558,7 +564,7 @@ export function createMachineReporter(options: {
           ...diagnostics.flatMap((event) =>
             event.type === 'diagnostic' &&
             event.diagnostic.severity === 'error' &&
-            event.diagnostic.unhandled === undefined &&
+            !isRunErrorDiagnostic(event.diagnostic) &&
             !isReportedSuiteError(event, currentEvents) &&
             !(historical && isRetainedSuiteError(event, historical))
               ? [event.diagnostic]
@@ -664,7 +670,7 @@ export function createMachineReporter(options: {
                   .filter(
                     (event) =>
                       event.type !== 'diagnostic' ||
-                      event.diagnostic.unhandled === undefined
+                      !isRunErrorDiagnostic(event.diagnostic)
                   )
                   .map((event) =>
                     event.type === 'diagnostic'
@@ -725,6 +731,17 @@ export function createMachineReporter(options: {
       }
       return `<testsuite name="${xml(file.name)}" tests="${tests.length}" failures="${file.assertionResults.filter((test) => test.status === 'failed').length}" errors="${tests.length - file.assertionResults.length}" skipped="${file.assertionResults.filter((test) => test.status === 'skipped' || test.status === 'todo').length}" time="${(file.endTime - file.startTime) / 1000}">${tests.join('')}<system-out>${xml(output('stdout'))}</system-out><system-err>${xml(output('stderr'))}</system-err></testsuite>`
     })
+    const workerCleanupErrors = events.flatMap((event) =>
+      event.type === 'diagnostic' &&
+      event.diagnostic.runError === 'browser-worker-fixture-cleanup' &&
+      event.diagnostic.severity === 'error'
+        ? [event.diagnostic]
+        : []
+    )
+    if (workerCleanupErrors.length)
+      suites.push(
+        `<testsuite name="vitest unhandled errors" tests="${workerCleanupErrors.length}" failures="0" errors="${workerCleanupErrors.length}" skipped="0" time="0">${workerCleanupErrors.map((error) => `<testcase classname="vitest unhandled errors" name="${xml(`Cleanup Error: ${error.message}`)}" time="0"><error message="${xml(error.message)}" type="${xml(error.name ?? 'Error')}">${xml(formatDiagnostic(error, options.projectDir))}</error></testcase>`).join('')}</testsuite>`
+      )
     // Configuration/run errors can precede file-start. CI still needs an error.
     const unscoped = events.filter(
       (event) =>

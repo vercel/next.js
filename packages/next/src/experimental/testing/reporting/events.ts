@@ -21,6 +21,8 @@ export interface SerializedDiagnostic {
   severity: 'error' | 'warning'
   /** An actual process rejection, separate from a case or suite failure. */
   unhandled?: 'rejection'
+  /** An actual joined Browser worker-fixture disposal failure, not a rejection. */
+  runError?: 'browser-worker-fixture-cleanup'
   message: string
   name?: string
   stack?: string

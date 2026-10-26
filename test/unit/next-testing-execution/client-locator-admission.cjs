@@ -63,7 +63,7 @@ async function perform(method, args) {
 const command = {
   method:
     mode === 'wrong-method'
-      ? 'clear'
+      ? 'upload'
       : (family ?? (mode === 'fill' ? 'fill' : 'click')),
   element:
     mode === 'present'

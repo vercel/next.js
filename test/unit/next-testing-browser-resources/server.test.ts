@@ -5166,3 +5166,44 @@ it('joins the same Browser cleanup promise when an older file ignores or does no
     })
   }
 }, 30000)
+
+it('classifies only the actual joined isolated worker fixture disposal occurrence', () => {
+  const { execFileSync } = require('node:child_process')
+  for (const mode of [
+    'normal',
+    'worker',
+    'before',
+    'mixed-same',
+    'assertion',
+    'worker-assertion-same',
+  ]) {
+    const output = execFileSync(
+      process.execPath,
+      [join(__dirname, 'worker-fixture-failure-carrier.cjs'), mode],
+      { encoding: 'utf8', timeout: 15000 }
+    )
+    expect(JSON.parse(output)).toEqual({
+      mode,
+      actualWorkerDisposalJoined: true,
+      oneConsumption: true,
+      mixedSameIdentityNotClassified: true,
+    })
+  }
+})
+
+it('captures worker cleanup name, message and stack at the joined occurrence before other disposal mutates them', () => {
+  const { execFileSync } = require('node:child_process')
+  const value = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [join(__dirname, 'worker-fixture-failure-consumer.cjs'), 'worker'],
+      { encoding: 'utf8', timeout: 15000 }
+    )
+  )
+  expect(value).toEqual({
+    mode: 'worker',
+    actualNameMessageStackCapturedAtJoinedOccurrence: true,
+    oneReadEach: true,
+    internalFailureAndPublicationVetoHeld: true,
+  })
+})

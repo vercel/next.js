@@ -1,0 +1,736 @@
+{
+  "version": "5.0.4",
+  "scope": "Original settled Native BODY callback, saved snapshot-read and explicit update profiles; complete raw reference retained.",
+  "rows": [
+    {
+      "name": "original",
+      "entry": "import {test} from 'vitest'\nimport './subject.mjs'\n  test('settled native body assertion', async ({ expect }) => {\n    expect(Promise.resolve(1)).resolves.toBe(2)\n  })\n  test('following body', ({ expect }) => expect(true).toBe(true))\n",
+      "subject": "export const marker = 1\n",
+      "config": "export default {\"test\":{\"include\":[\"body.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":1000,\"hookTimeout\":1000,\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportOnFailure\":true}}}\n",
+      "body": "  test('settled native body assertion', async ({ expect }) => {\n    expect(Promise.resolve(1)).resolves.toBe(2)\n  })\n  test('following body', ({ expect }) => expect(true).toBe(true))",
+      "bodySHA256": "17a3a8601623505e79769689aeff78e6c01870654d7b037acc28462e84feacf2",
+      "originalBody": "  test('settled native body assertion', async ({ expect }) => {\n    expect(Promise.resolve(1)).resolves.toBe(2)\n  })\n  test('following body', ({ expect }) => expect(true).toBe(true))",
+      "snapshotsBefore": {},
+      "snapshotsAfter": {},
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 1,
+        "numFailedTests": 1,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1792961038102,
+        "success": false,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "settled native body assertion",
+                "status": "failed",
+                "title": "settled native body assertion",
+                "duration": 3.651167000000001,
+                "failureMessages": [
+                  "Error: Promise returned by `expect(actual).resolves.toBe(expected)` was not awaited. This assertion is asynchronous and must be awaited; otherwise, it is not guaranteed to complete before the test finishes:\n\nawait expect(actual).resolves.toBe(expected)\n\n    at Assertion.__VITEST_RESOLVES__ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/index.uwTEEBsB.js:2451:33)\n    at Assertion.propertyGetter (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1607:27)\n    at Reflect.get (<anonymous>)\n    at Object.proxyGetter [as get] (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1696:22)\n    at /private/tmp/next-testing-run/work-3/reference/.next-native-body-public-9o6nsB/body.test.mjs:4:31\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1632:35\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:2794:26\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3334:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3329:10)"
+                ],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "following body",
+                "status": "passed",
+                "title": "following body",
+                "duration": 0.13795799999999758,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1792961038189,
+            "endTime": 1792961038193.138,
+            "status": "failed",
+            "message": "",
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-9o6nsB/body.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-9o6nsB/subject.mjs": {
+            "path": "/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-9o6nsB/subject.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 22
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {},
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {},
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 0,
+              "lastStatement": 1,
+              "seen": {
+                "s:1:22:1:Infinity": 0
+              },
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "trace": [
+        {
+          "event": "module-end",
+          "state": "failed",
+          "errors": []
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "modules": [
+            {
+              "state": "failed",
+              "errors": []
+            }
+          ],
+          "errors": [
+            {
+              "name": "AssertionError",
+              "message": "expected 1 to be 2 // Object.is equality",
+              "stack": "Error: expected 1 to be 2 // Object.is equality\n    at Assertion.__VITEST_RESOLVES__ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/index.uwTEEBsB.js:2451:33)\n    at Assertion.propertyGetter (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1607:27)\n    at Reflect.get (<anonymous>)\n    at Object.proxyGetter [as get] (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1696:22)\n    at /private/tmp/next-testing-run/work-3/reference/.next-native-body-public-9o6nsB/body.test.mjs:4:31\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1632:35\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:2794:26\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3334:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3329:10)",
+              "type": "Unhandled Rejection"
+            }
+          ]
+        }
+      ],
+      "reports": {
+        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":1,\"covered\":1,\"skipped\":0,\"pct\":100},\"statements\":{\"total\":1,\"covered\":1,\"skipped\":0,\"pct\":100},\"functions\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":100},\"branches\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":100},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-9o6nsB/subject.mjs\": {\"lines\":{\"total\":1,\"covered\":1,\"skipped\":0,\"pct\":100},\"functions\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":100},\"statements\":{\"total\":1,\"covered\":1,\"skipped\":0,\"pct\":100},\"branches\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":100}}\n}\n",
+        "lcov.info": "TN:\nSF:subject.mjs\nFNF:0\nFNH:0\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\n",
+        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-9o6nsB/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-9o6nsB/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":1,\"column\":22},\"end\":{\"line\":1,\"column\":null}}},\"fnMap\":{},\"branchMap\":{},\"s\":{\"0\":1},\"f\":{},\"b\":{},\"meta\":{\"lastBranch\":0,\"lastFunction\":0,\"lastStatement\":1,\"seen\":{\"s:1:22:1:Infinity\":0},\"fnNames\":{}}}\n}\n"
+      },
+      "exitCode": 1
+    },
+    {
+      "name": "read",
+      "entry": "import {test} from 'vitest'\nimport './subject.mjs'\n  test('settled native body assertion', async ({ expect }) => {\n    expect(Promise.resolve(1)).resolves.toBe(2)\n  })\n  test('following body', ({ expect }) => { expect(true).toBe(true);expect('owned snapshot value').toMatchSnapshot() })\n",
+      "subject": "export const marker = 1\n",
+      "config": "export default {\"test\":{\"include\":[\"body.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":1000,\"hookTimeout\":1000,\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportOnFailure\":true}}}\n",
+      "body": "  test('settled native body assertion', async ({ expect }) => {\n    expect(Promise.resolve(1)).resolves.toBe(2)\n  })\n  test('following body', ({ expect }) => { expect(true).toBe(true);expect('owned snapshot value').toMatchSnapshot() })",
+      "bodySHA256": "c1399b0a059cdbf64b4545f5cbc1a21af64fd1e16b0ed4bfca365de2b293a561",
+      "originalBody": "  test('settled native body assertion', async ({ expect }) => {\n    expect(Promise.resolve(1)).resolves.toBe(2)\n  })\n  test('following body', ({ expect }) => expect(true).toBe(true))",
+      "snapshotsBefore": {
+        "body.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`following body 1`] = `\"owned snapshot value\"`;\n"
+      },
+      "snapshotsAfter": {
+        "body.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`following body 1`] = `\"owned snapshot value\"`;\n"
+      },
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 1,
+        "numFailedTests": 1,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 1,
+          "total": 1,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1792961038102,
+        "success": false,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "settled native body assertion",
+                "status": "failed",
+                "title": "settled native body assertion",
+                "duration": 3.6174589999999966,
+                "failureMessages": [
+                  "Error: Promise returned by `expect(actual).resolves.toBe(expected)` was not awaited. This assertion is asynchronous and must be awaited; otherwise, it is not guaranteed to complete before the test finishes:\n\nawait expect(actual).resolves.toBe(expected)\n\n    at Assertion.__VITEST_RESOLVES__ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/index.uwTEEBsB.js:2451:33)\n    at Assertion.propertyGetter (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1607:27)\n    at Reflect.get (<anonymous>)\n    at Object.proxyGetter [as get] (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1696:22)\n    at /private/tmp/next-testing-run/work-3/reference/.next-native-body-public-4EMXSM/body.test.mjs:4:31\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1632:35\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:2794:26\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3334:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3329:10)"
+                ],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "following body",
+                "status": "passed",
+                "title": "following body",
+                "duration": 0.7805409999999995,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1792961038190,
+            "endTime": 1792961038193.7805,
+            "status": "failed",
+            "message": "",
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-4EMXSM/body.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-4EMXSM/subject.mjs": {
+            "path": "/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-4EMXSM/subject.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 22
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {},
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {},
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 0,
+              "lastStatement": 1,
+              "seen": {
+                "s:1:22:1:Infinity": 0
+              },
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "trace": [
+        {
+          "event": "module-end",
+          "state": "failed",
+          "errors": []
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "modules": [
+            {
+              "state": "failed",
+              "errors": []
+            }
+          ],
+          "errors": [
+            {
+              "name": "AssertionError",
+              "message": "expected 1 to be 2 // Object.is equality",
+              "stack": "Error: expected 1 to be 2 // Object.is equality\n    at Assertion.__VITEST_RESOLVES__ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/index.uwTEEBsB.js:2451:33)\n    at Assertion.propertyGetter (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1607:27)\n    at Reflect.get (<anonymous>)\n    at Object.proxyGetter [as get] (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1696:22)\n    at /private/tmp/next-testing-run/work-3/reference/.next-native-body-public-4EMXSM/body.test.mjs:4:31\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1632:35\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:2794:26\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3334:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3329:10)",
+              "type": "Unhandled Rejection"
+            }
+          ]
+        }
+      ],
+      "reports": {
+        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":1,\"covered\":1,\"skipped\":0,\"pct\":100},\"statements\":{\"total\":1,\"covered\":1,\"skipped\":0,\"pct\":100},\"functions\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":100},\"branches\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":100},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-4EMXSM/subject.mjs\": {\"lines\":{\"total\":1,\"covered\":1,\"skipped\":0,\"pct\":100},\"functions\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":100},\"statements\":{\"total\":1,\"covered\":1,\"skipped\":0,\"pct\":100},\"branches\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":100}}\n}\n",
+        "lcov.info": "TN:\nSF:subject.mjs\nFNF:0\nFNH:0\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\n",
+        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-4EMXSM/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-4EMXSM/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":1,\"column\":22},\"end\":{\"line\":1,\"column\":null}}},\"fnMap\":{},\"branchMap\":{},\"s\":{\"0\":1},\"f\":{},\"b\":{},\"meta\":{\"lastBranch\":0,\"lastFunction\":0,\"lastStatement\":1,\"seen\":{\"s:1:22:1:Infinity\":0},\"fnNames\":{}}}\n}\n"
+      },
+      "exitCode": 1
+    },
+    {
+      "name": "update",
+      "entry": "import {test} from 'vitest'\nimport './subject.mjs'\n  test('settled native body assertion', async ({ expect }) => {\n    expect(Promise.resolve(1)).resolves.toBe(2)\n  })\n  test('following body', ({ expect }) => { expect(true).toBe(true);expect('owned snapshot value').toMatchSnapshot() })\n",
+      "subject": "export const marker = 1\n",
+      "config": "export default {\"test\":{\"include\":[\"body.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":1000,\"hookTimeout\":1000,\"coverage\":{\"enabled\":false,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportOnFailure\":true}}}\n",
+      "body": "  test('settled native body assertion', async ({ expect }) => {\n    expect(Promise.resolve(1)).resolves.toBe(2)\n  })\n  test('following body', ({ expect }) => { expect(true).toBe(true);expect('owned snapshot value').toMatchSnapshot() })",
+      "bodySHA256": "c1399b0a059cdbf64b4545f5cbc1a21af64fd1e16b0ed4bfca365de2b293a561",
+      "originalBody": "  test('settled native body assertion', async ({ expect }) => {\n    expect(Promise.resolve(1)).resolves.toBe(2)\n  })\n  test('following body', ({ expect }) => expect(true).toBe(true))",
+      "snapshotsBefore": {
+        "body.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`following body 1`] = `\"old snapshot value\"`;\n"
+      },
+      "snapshotsAfter": {
+        "body.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`following body 1`] = `\"owned snapshot value\"`;\n"
+      },
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 1,
+        "numFailedTests": 1,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 1,
+          "matched": 0,
+          "total": 1,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 1,
+          "didUpdate": true
+        },
+        "startTime": 1792961038059,
+        "success": false,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "settled native body assertion",
+                "status": "failed",
+                "title": "settled native body assertion",
+                "duration": 3.3297090000000082,
+                "failureMessages": [
+                  "Error: Promise returned by `expect(actual).resolves.toBe(expected)` was not awaited. This assertion is asynchronous and must be awaited; otherwise, it is not guaranteed to complete before the test finishes:\n\nawait expect(actual).resolves.toBe(expected)\n\n    at Assertion.__VITEST_RESOLVES__ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/index.uwTEEBsB.js:2451:33)\n    at Assertion.propertyGetter (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1607:27)\n    at Reflect.get (<anonymous>)\n    at Object.proxyGetter [as get] (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1696:22)\n    at /private/tmp/next-testing-run/work-3/reference/.next-native-body-public-tc1Odg/body.test.mjs:4:31\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1632:35\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:2794:26\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3334:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3329:10)"
+                ],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "following body",
+                "status": "passed",
+                "title": "following body",
+                "duration": 0.7454170000000033,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1792961038172,
+            "endTime": 1792961038176.7454,
+            "status": "failed",
+            "message": "",
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-tc1Odg/body.test.mjs"
+          }
+        ]
+      },
+      "trace": [
+        {
+          "event": "module-end",
+          "state": "failed",
+          "errors": []
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "modules": [
+            {
+              "state": "failed",
+              "errors": []
+            }
+          ],
+          "errors": [
+            {
+              "name": "AssertionError",
+              "message": "expected 1 to be 2 // Object.is equality",
+              "stack": "Error: expected 1 to be 2 // Object.is equality\n    at Assertion.__VITEST_RESOLVES__ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/index.uwTEEBsB.js:2451:33)\n    at Assertion.propertyGetter (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1607:27)\n    at Reflect.get (<anonymous>)\n    at Object.proxyGetter [as get] (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1696:22)\n    at /private/tmp/next-testing-run/work-3/reference/.next-native-body-public-tc1Odg/body.test.mjs:4:31\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1632:35\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:2794:26\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3334:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3329:10)",
+              "type": "Unhandled Rejection"
+            }
+          ]
+        }
+      ],
+      "reports": {},
+      "exitCode": 1
+    },
+    {
+      "name": "exercised",
+      "entry": "import {test} from 'vitest'\nimport {read} from './subject.mjs';read()\n  test('settled native body assertion', async ({ expect }) => {\n    expect(Promise.resolve(1)).resolves.toBe(2)\n  })\n  test('following body', ({ expect }) => expect(true).toBe(true))\n",
+      "subject": "export function read() { return 1 }\n",
+      "config": "export default {\"test\":{\"include\":[\"body.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":1000,\"hookTimeout\":1000,\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportOnFailure\":true}}}\n",
+      "body": "  test('settled native body assertion', async ({ expect }) => {\n    expect(Promise.resolve(1)).resolves.toBe(2)\n  })\n  test('following body', ({ expect }) => expect(true).toBe(true))",
+      "bodySHA256": "17a3a8601623505e79769689aeff78e6c01870654d7b037acc28462e84feacf2",
+      "originalBody": "  test('settled native body assertion', async ({ expect }) => {\n    expect(Promise.resolve(1)).resolves.toBe(2)\n  })\n  test('following body', ({ expect }) => expect(true).toBe(true))",
+      "snapshotsBefore": {},
+      "snapshotsAfter": {},
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 1,
+        "numFailedTests": 1,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1792961984902,
+        "success": false,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "settled native body assertion",
+                "status": "failed",
+                "title": "settled native body assertion",
+                "duration": 4.697209000000001,
+                "failureMessages": [
+                  "Error: Promise returned by `expect(actual).resolves.toBe(expected)` was not awaited. This assertion is asynchronous and must be awaited; otherwise, it is not guaranteed to complete before the test finishes:\n\nawait expect(actual).resolves.toBe(expected)\n\n    at Assertion.__VITEST_RESOLVES__ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/index.uwTEEBsB.js:2451:33)\n    at Assertion.propertyGetter (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1607:27)\n    at Reflect.get (<anonymous>)\n    at Object.proxyGetter [as get] (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1696:22)\n    at /private/tmp/next-testing-run/work-3/reference/.next-native-body-public-5Y3Dqm/body.test.mjs:4:31\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1632:35\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:2794:26\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3334:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3329:10)"
+                ],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "following body",
+                "status": "passed",
+                "title": "following body",
+                "duration": 0.20000000000000284,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1792961985049,
+            "endTime": 1792961985053.6973,
+            "status": "failed",
+            "message": "",
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-5Y3Dqm/body.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-5Y3Dqm/subject.mjs": {
+            "path": "/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-5Y3Dqm/subject.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 25
+                },
+                "end": {
+                  "line": 1,
+                  "column": 33
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "read",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 20
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 23
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": null
+                  }
+                },
+                "line": 1
+              }
+            },
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 1,
+              "lastStatement": 1,
+              "seen": {
+                "f:1:16:1:20": 0,
+                "s:1:25:1:33": 0
+              },
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "trace": [
+        {
+          "event": "module-end",
+          "state": "failed",
+          "errors": []
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "modules": [
+            {
+              "state": "failed",
+              "errors": []
+            }
+          ],
+          "errors": [
+            {
+              "name": "AssertionError",
+              "message": "expected 1 to be 2 // Object.is equality",
+              "stack": "Error: expected 1 to be 2 // Object.is equality\n    at Assertion.__VITEST_RESOLVES__ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/index.uwTEEBsB.js:2451:33)\n    at Assertion.propertyGetter (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1607:27)\n    at Reflect.get (<anonymous>)\n    at Object.proxyGetter [as get] (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1696:22)\n    at /private/tmp/next-testing-run/work-3/reference/.next-native-body-public-5Y3Dqm/body.test.mjs:4:31\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1632:35\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:2794:26\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3334:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3329:10)",
+              "type": "Unhandled Rejection"
+            }
+          ]
+        }
+      ],
+      "reports": {
+        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":1,\"covered\":1,\"skipped\":0,\"pct\":100},\"statements\":{\"total\":1,\"covered\":1,\"skipped\":0,\"pct\":100},\"functions\":{\"total\":1,\"covered\":1,\"skipped\":0,\"pct\":100},\"branches\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":100},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-5Y3Dqm/subject.mjs\": {\"lines\":{\"total\":1,\"covered\":1,\"skipped\":0,\"pct\":100},\"functions\":{\"total\":1,\"covered\":1,\"skipped\":0,\"pct\":100},\"statements\":{\"total\":1,\"covered\":1,\"skipped\":0,\"pct\":100},\"branches\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":100}}\n}\n",
+        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,read\nFNF:1\nFNH:1\nFNDA:1,read\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\n",
+        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-5Y3Dqm/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-5Y3Dqm/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":1,\"column\":25},\"end\":{\"line\":1,\"column\":33}}},\"fnMap\":{\"0\":{\"name\":\"read\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":20}},\"loc\":{\"start\":{\"line\":1,\"column\":23},\"end\":{\"line\":1,\"column\":null}},\"line\":1}},\"branchMap\":{},\"s\":{\"0\":1},\"f\":{\"0\":1},\"b\":{},\"meta\":{\"lastBranch\":0,\"lastFunction\":1,\"lastStatement\":1,\"seen\":{\"f:1:16:1:20\":0,\"s:1:25:1:33\":0},\"fnNames\":{}}}\n}\n"
+      },
+      "exitCode": 1
+    },
+    {
+      "name": "read-exercised",
+      "entry": "import {test} from 'vitest'\nimport {read} from './subject.mjs';read()\n  test('settled native body assertion', async ({ expect }) => {\n    expect(Promise.resolve(1)).resolves.toBe(2)\n  })\n  test('following body', ({ expect }) => { expect(true).toBe(true);expect('owned snapshot value').toMatchSnapshot() })\n",
+      "subject": "export function read() { return 1 }\n",
+      "config": "export default {\"test\":{\"include\":[\"body.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":1000,\"hookTimeout\":1000,\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportOnFailure\":true}}}\n",
+      "body": "  test('settled native body assertion', async ({ expect }) => {\n    expect(Promise.resolve(1)).resolves.toBe(2)\n  })\n  test('following body', ({ expect }) => { expect(true).toBe(true);expect('owned snapshot value').toMatchSnapshot() })",
+      "bodySHA256": "c1399b0a059cdbf64b4545f5cbc1a21af64fd1e16b0ed4bfca365de2b293a561",
+      "originalBody": "  test('settled native body assertion', async ({ expect }) => {\n    expect(Promise.resolve(1)).resolves.toBe(2)\n  })\n  test('following body', ({ expect }) => expect(true).toBe(true))",
+      "snapshotsBefore": {
+        "body.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`following body 1`] = `\"owned snapshot value\"`;\n"
+      },
+      "snapshotsAfter": {
+        "body.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`following body 1`] = `\"owned snapshot value\"`;\n"
+      },
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 1,
+        "numFailedTests": 1,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 1,
+          "total": 1,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1792961984902,
+        "success": false,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "settled native body assertion",
+                "status": "failed",
+                "title": "settled native body assertion",
+                "duration": 4.741375000000005,
+                "failureMessages": [
+                  "Error: Promise returned by `expect(actual).resolves.toBe(expected)` was not awaited. This assertion is asynchronous and must be awaited; otherwise, it is not guaranteed to complete before the test finishes:\n\nawait expect(actual).resolves.toBe(expected)\n\n    at Assertion.__VITEST_RESOLVES__ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/index.uwTEEBsB.js:2451:33)\n    at Assertion.propertyGetter (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1607:27)\n    at Reflect.get (<anonymous>)\n    at Object.proxyGetter [as get] (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1696:22)\n    at /private/tmp/next-testing-run/work-3/reference/.next-native-body-public-nxrzXn/body.test.mjs:4:31\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1632:35\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:2794:26\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3334:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3329:10)"
+                ],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "following body",
+                "status": "passed",
+                "title": "following body",
+                "duration": 1.0728750000000105,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1792961985049,
+            "endTime": 1792961985055.0728,
+            "status": "failed",
+            "message": "",
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-nxrzXn/body.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-nxrzXn/subject.mjs": {
+            "path": "/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-nxrzXn/subject.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 25
+                },
+                "end": {
+                  "line": 1,
+                  "column": 33
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "read",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 20
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 23
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": null
+                  }
+                },
+                "line": 1
+              }
+            },
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 1,
+              "lastStatement": 1,
+              "seen": {
+                "f:1:16:1:20": 0,
+                "s:1:25:1:33": 0
+              },
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "trace": [
+        {
+          "event": "module-end",
+          "state": "failed",
+          "errors": []
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "modules": [
+            {
+              "state": "failed",
+              "errors": []
+            }
+          ],
+          "errors": [
+            {
+              "name": "AssertionError",
+              "message": "expected 1 to be 2 // Object.is equality",
+              "stack": "Error: expected 1 to be 2 // Object.is equality\n    at Assertion.__VITEST_RESOLVES__ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/index.uwTEEBsB.js:2451:33)\n    at Assertion.propertyGetter (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1607:27)\n    at Reflect.get (<anonymous>)\n    at Object.proxyGetter [as get] (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1696:22)\n    at /private/tmp/next-testing-run/work-3/reference/.next-native-body-public-nxrzXn/body.test.mjs:4:31\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1632:35\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:2794:26\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3334:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3329:10)",
+              "type": "Unhandled Rejection"
+            }
+          ]
+        }
+      ],
+      "reports": {
+        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":1,\"covered\":1,\"skipped\":0,\"pct\":100},\"statements\":{\"total\":1,\"covered\":1,\"skipped\":0,\"pct\":100},\"functions\":{\"total\":1,\"covered\":1,\"skipped\":0,\"pct\":100},\"branches\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":100},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-nxrzXn/subject.mjs\": {\"lines\":{\"total\":1,\"covered\":1,\"skipped\":0,\"pct\":100},\"functions\":{\"total\":1,\"covered\":1,\"skipped\":0,\"pct\":100},\"statements\":{\"total\":1,\"covered\":1,\"skipped\":0,\"pct\":100},\"branches\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":100}}\n}\n",
+        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,read\nFNF:1\nFNH:1\nFNDA:1,read\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\n",
+        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-nxrzXn/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.next-native-body-public-nxrzXn/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":1,\"column\":25},\"end\":{\"line\":1,\"column\":33}}},\"fnMap\":{\"0\":{\"name\":\"read\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":20}},\"loc\":{\"start\":{\"line\":1,\"column\":23},\"end\":{\"line\":1,\"column\":null}},\"line\":1}},\"branchMap\":{},\"s\":{\"0\":1},\"f\":{\"0\":1},\"b\":{},\"meta\":{\"lastBranch\":0,\"lastFunction\":1,\"lastStatement\":1,\"seen\":{\"f:1:16:1:20\":0,\"s:1:25:1:33\":0},\"fnNames\":{}}}\n}\n"
+      },
+      "exitCode": 1
+    }
+  ],
+  "unqualifiedProfiles": {
+    "original": "Actual pure-constant subject omitted from emitted coverage closure; genuine1hit versus Next0. Full original input/reports remain unchanged.",
+    "read": "Same pure-constant omission with existing snapshot read; not whole-report qualified."
+  }
+}
