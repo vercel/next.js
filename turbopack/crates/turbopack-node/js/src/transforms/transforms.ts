@@ -14,6 +14,8 @@ export type IpcInfoMessage =
       filePaths?: string[]
       buildFilePaths?: string[]
       buildDependencyRequests?: Array<[string, boolean]>
+      buildModulePaths?: string[]
+      hasCachedBuildDependencies?: boolean
     }
   | {
       type: 'emittedError'
@@ -31,6 +33,11 @@ export type IpcInfoMessage =
     }
 
 export type IpcRequestMessage =
+  | {
+      type: 'resolveLoader'
+      lookupPaths: string[]
+      request: string
+    }
   | {
       type: 'resolve'
       options: any
