@@ -31,18 +31,14 @@ import { join, relative } from 'path'
       )
     }
 
-    // Lists the Node.js server and edge JS chunks of the last build.
+    // Lists the Node.js server JS chunks of the last build. Edge chunking is
+    // covered by `test/production/app-dir/turbopack-chunking-edge`, because
+    // edge routes are not compatible with Cache Components.
     async function listServerChunks() {
       const serverDir = join(next.testDir, '.next', 'server')
-      const files = (
-        await recursiveReadDir(serverDir, { relativePathnames: false })
-      )
+      return (await recursiveReadDir(serverDir, { relativePathnames: false }))
         .map((f) => relative(serverDir, f).replace(/\\/g, '/'))
-        .filter((name) => name.endsWith('.js'))
-      return {
-        node: files.filter((name) => name.startsWith('chunks/')),
-        edge: files.filter((name) => name.startsWith('edge/chunks/')),
-      }
+        .filter((name) => name.startsWith('chunks/') && name.endsWith('.js'))
     }
 
     // Force the chunker to merge as much as possible into as few chunks as
@@ -60,7 +56,7 @@ import { join, relative } from 'path'
       maxMergeChunkSize: 0,
     }
 
-    // Server-side (Node.js and edge) equivalent of `mergeAll`.
+    // Server-side equivalent of `mergeAll`.
     const serverMergeAll = {
       minServerChunkSize: 100_000_000,
       maxMergeServerChunkSize: 100_000_000,
@@ -87,8 +83,7 @@ import { join, relative } from 'path'
     })
 
     describe('server size thresholds', () => {
-      type ServerChunks = Awaited<ReturnType<typeof listServerChunks>>
-      let serverMergeAllChunks: ServerChunks
+      let serverMergeAllChunks: string[]
 
       beforeAll(async () => {
         await build(serverMergeAll)
@@ -96,10 +91,10 @@ import { join, relative } from 'path'
       })
 
       // Each comparison changes a single option relative to `serverMergeAll`,
-      // so it proves that specific option reaches both the Node.js server and
-      // the edge chunking contexts.
+      // so it proves that specific option reaches the Node.js server chunking
+      // context.
       describe('minServerChunkSize', () => {
-        let chunks: ServerChunks
+        let chunks: string[]
 
         beforeAll(async () => {
           // A minimum of `0` disables merging entirely.
@@ -108,20 +103,12 @@ import { join, relative } from 'path'
         })
 
         it('changes the Node.js server chunk output', () => {
-          expect(chunks.node.length).toBeGreaterThan(
-            serverMergeAllChunks.node.length
-          )
-        })
-
-        it('changes the edge chunk output', () => {
-          expect(chunks.edge.length).toBeGreaterThan(
-            serverMergeAllChunks.edge.length
-          )
+          expect(chunks.length).toBeGreaterThan(serverMergeAllChunks.length)
         })
       })
 
       describe('maxMergeServerChunkSize', () => {
-        let chunks: ServerChunks
+        let chunks: string[]
 
         beforeAll(async () => {
           // Every chunk is bigger than 1 byte, so none of them can be merged.
@@ -130,15 +117,7 @@ import { join, relative } from 'path'
         })
 
         it('changes the Node.js server chunk output', () => {
-          expect(chunks.node.length).toBeGreaterThan(
-            serverMergeAllChunks.node.length
-          )
-        })
-
-        it('changes the edge chunk output', () => {
-          expect(chunks.edge.length).toBeGreaterThan(
-            serverMergeAllChunks.edge.length
-          )
+          expect(chunks.length).toBeGreaterThan(serverMergeAllChunks.length)
         })
       })
     })
@@ -162,11 +141,6 @@ import { join, relative } from 'path'
           .click()
           .waitForElementByCss('#page-a')
         expect(await browser.elementByCss('#page-a').text()).toBe('page a')
-
-        const edgeBrowser = await next.browser('/edge')
-        expect(await edgeBrowser.elementByCss('#page-edge').text()).toBe(
-          'page edge'
-        )
       } finally {
         await next.stop()
       }
