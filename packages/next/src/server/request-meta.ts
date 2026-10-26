@@ -50,6 +50,11 @@ export type OnCacheEntryHandler = (
 
 export interface RequestMeta {
   /**
+   * The basePath configured in next.config.js.
+   */
+  basePath?: string
+
+  /**
    * The query that was used to make the request.
    */
   initQuery?: ParsedUrlQuery
