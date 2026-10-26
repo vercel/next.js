@@ -1,6 +1,7 @@
 import {
   isRunErrorDiagnostic,
-  hasOnlyBrowserWorkerCleanupFailures,
+  isBrowserCleanupRunError,
+  hasOnlyBrowserCleanupFailures,
 } from './run-errors'
 import { writeFile } from 'node:fs/promises'
 import { relative, sep } from 'node:path'
@@ -44,7 +45,7 @@ export function renderTapReport(
       passed:
         completed?.status === 'passed' ||
         completed?.status === 'skipped' ||
-        hasOnlyBrowserWorkerCleanupFailures(entry.id, { ...results, events }),
+        hasOnlyBrowserCleanupFailures(entry.id, { ...results, events }),
       duration: rootSuite?.durationMs ?? completed?.durationMs,
       errors: rootSuite?.errors ?? [],
       children: [],
@@ -127,7 +128,7 @@ export function renderTapReport(
   const unhandled = events.flatMap((event) =>
     event.type === 'diagnostic' &&
     (!event.entryId || isRunErrorDiagnostic(event.diagnostic)) &&
-    event.diagnostic.runError !== 'browser-worker-fixture-cleanup' &&
+    !isBrowserCleanupRunError(event.diagnostic) &&
     event.diagnostic.severity === 'error'
       ? [event.diagnostic]
       : []

@@ -97,11 +97,18 @@ export async function startClientTest(
     transportFailure: unknown
   const nativeReplies = new Set<Promise<void>>()
   const pendingFailures: unknown[] = []
-  const workerCleanupFailures: {
-    name: unknown
-    message: unknown
-    stack: unknown
+  const browserCleanupFailures: {
+    origin: 'worker-fixture-cleanup' | 'component-cleanup'
+    error: { name: unknown; message: unknown; stack: unknown }
   }[] = []
+  const captureCleanupError = (error: unknown) => {
+    const value = Object(error)
+    return {
+      name: Reflect.get(value, 'name'),
+      message: Reflect.get(value, 'message'),
+      stack: Reflect.get(value, 'stack'),
+    }
+  }
   let moduleCompletion: RuntimeModuleCompletion | undefined
   let moduleFailurePhase: 'collection' | 'run' | undefined
   let unavailableModule:
@@ -610,7 +617,33 @@ export async function startClientTest(
           nativePromiseResolve(),
           async () => {
             for (const cleanup of [
-              cleanupBrowserContext,
+              async () => {
+                const components: {
+                  occurrence: Readonly<{ error: unknown }>
+                  error: ReturnType<typeof captureCleanupError>
+                }[] = []
+                try {
+                  await cleanupBrowserContext({
+                    onComponentFailure(occurrence) {
+                      components.push({
+                        occurrence,
+                        error: captureCleanupError(occurrence.error),
+                      })
+                    },
+                  })
+                } catch (error) {
+                  if (
+                    components.length !== 1 ||
+                    components[0].occurrence.error !== error
+                  )
+                    throw error
+                  browserCleanupFailures.push({
+                    origin: 'component-cleanup',
+                    error: components[0].error,
+                  })
+                  status = 'failed'
+                }
+              },
               cleanupBrowserKeyboard,
             ]) {
               try {
@@ -635,11 +668,9 @@ export async function startClientTest(
           })
         } catch (error) {
           if (!file?.takeOwnedWorkerDisposalFailure?.(error)) throw error
-          const value = Object(error)
-          workerCleanupFailures.push({
-            name: Reflect.get(value, 'name'),
-            message: Reflect.get(value, 'message'),
-            stack: Reflect.get(value, 'stack'),
+          browserCleanupFailures.push({
+            origin: 'worker-fixture-cleanup',
+            error: captureCleanupError(error),
           })
           status = 'failed'
         }
@@ -693,8 +724,8 @@ export async function startClientTest(
         }
       await send({ type: 'failure', error: failure })
     }
-    for (const error of workerCleanupFailures)
-      await send({ type: 'failure', origin: 'worker-fixture-cleanup', error })
+    for (const failure of browserCleanupFailures)
+      await send({ type: 'failure', ...failure })
     restoreConsole()
     terminalPublished = true
     await send({

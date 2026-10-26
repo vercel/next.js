@@ -1,4 +1,4 @@
-import { isRunErrorDiagnostic } from './run-errors'
+import { isRunErrorDiagnostic, isBrowserCleanupRunError } from './run-errors'
 import { assertReporterTaskTree, type ReporterTaskSnapshot } from './live-tasks'
 import { randomUUID } from 'node:crypto'
 import {
@@ -202,7 +202,8 @@ function validDiagnostic(value: unknown): boolean {
           diagnostic.phase !== 'runtime' ||
           diagnostic.severity !== 'error')) ||
       (diagnostic.runError !== undefined &&
-        (diagnostic.runError !== 'browser-worker-fixture-cleanup' ||
+        ((diagnostic.runError !== 'browser-worker-fixture-cleanup' &&
+          diagnostic.runError !== 'browser-component-cleanup') ||
           diagnostic.phase !== 'cleanup' ||
           diagnostic.severity !== 'error' ||
           diagnostic.unhandled !== undefined))
@@ -731,16 +732,16 @@ export function createMachineReporter(options: {
       }
       return `<testsuite name="${xml(file.name)}" tests="${tests.length}" failures="${file.assertionResults.filter((test) => test.status === 'failed').length}" errors="${tests.length - file.assertionResults.length}" skipped="${file.assertionResults.filter((test) => test.status === 'skipped' || test.status === 'todo').length}" time="${(file.endTime - file.startTime) / 1000}">${tests.join('')}<system-out>${xml(output('stdout'))}</system-out><system-err>${xml(output('stderr'))}</system-err></testsuite>`
     })
-    const workerCleanupErrors = events.flatMap((event) =>
+    const browserCleanupErrors = events.flatMap((event) =>
       event.type === 'diagnostic' &&
-      event.diagnostic.runError === 'browser-worker-fixture-cleanup' &&
+      isBrowserCleanupRunError(event.diagnostic) &&
       event.diagnostic.severity === 'error'
         ? [event.diagnostic]
         : []
     )
-    if (workerCleanupErrors.length)
+    if (browserCleanupErrors.length)
       suites.push(
-        `<testsuite name="vitest unhandled errors" tests="${workerCleanupErrors.length}" failures="0" errors="${workerCleanupErrors.length}" skipped="0" time="0">${workerCleanupErrors.map((error) => `<testcase classname="vitest unhandled errors" name="${xml(`Cleanup Error: ${error.message}`)}" time="0"><error message="${xml(error.message)}" type="${xml(error.name ?? 'Error')}">${xml(formatDiagnostic(error, options.projectDir))}</error></testcase>`).join('')}</testsuite>`
+        `<testsuite name="vitest unhandled errors" tests="${browserCleanupErrors.length}" failures="0" errors="${browserCleanupErrors.length}" skipped="0" time="0">${browserCleanupErrors.map((error) => `<testcase classname="vitest unhandled errors" name="${xml(`Cleanup Error: ${error.message}`)}" time="0"><error message="${xml(error.message)}" type="${xml(error.name ?? 'Error')}">${xml(formatDiagnostic(error, options.projectDir))}</error></testcase>`).join('')}</testsuite>`
       )
     // Configuration/run errors can precede file-start. CI still needs an error.
     const unscoped = events.filter(

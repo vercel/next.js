@@ -179,7 +179,7 @@ export type ClientMessage = ClientIdentity & { sequence: number } & (
     | {
         type: 'failure'
         error: unknown
-        origin?: 'worker-fixture-cleanup'
+        origin?: 'worker-fixture-cleanup' | 'component-cleanup'
       }
     | {
         type: 'complete'

@@ -1,6 +1,7 @@
 import {
   isRunErrorDiagnostic,
-  hasOnlyBrowserWorkerCleanupFailures,
+  isBrowserCleanupRunError,
+  hasOnlyBrowserCleanupFailures,
 } from './run-errors'
 /*!
  * Portions of the terminal formatting are adapted from Vitest.
@@ -290,7 +291,7 @@ export function createTestReporter(options: TestReporterOptions) {
 
   function displayedFile(result: FileResult): FileResult {
     return result.status === 'failed' &&
-      hasOnlyBrowserWorkerCleanupFailures(result.entryId, {
+      hasOnlyBrowserCleanupFailures(result.entryId, {
         events: diagnostics,
         files: [...files.values()],
         cases: [...cases.values()],
@@ -458,7 +459,7 @@ export function createTestReporter(options: TestReporterOptions) {
       )
       for (const event of unhandledErrors) {
         writeError(
-          `${paint(31, event.diagnostic.runError === 'browser-worker-fixture-cleanup' ? 'Cleanup Error' : event.diagnostic.unhandled === 'rejection' ? 'Unhandled Rejection' : 'Unhandled Error')} ${paint(2, `[${event.diagnostic.phase}]`)}\n${formatDiagnostic(event.diagnostic, projectDir)}\n\n`
+          `${paint(31, isBrowserCleanupRunError(event.diagnostic) ? 'Cleanup Error' : event.diagnostic.unhandled === 'rejection' ? 'Unhandled Rejection' : 'Unhandled Error')} ${paint(2, `[${event.diagnostic.phase}]`)}\n${formatDiagnostic(event.diagnostic, projectDir)}\n\n`
         )
       }
     }

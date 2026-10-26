@@ -5207,3 +5207,58 @@ it('captures worker cleanup name, message and stack at the joined occurrence bef
     internalFailureAndPublicationVetoHeld: true,
   })
 })
+
+it('retains actual component cleanup occurrences, observer failures and legacy consumer fallback', () => {
+  const { execFileSync } = require('node:child_process')
+  for (const mode of [
+    'normal',
+    'sole',
+    'legacy',
+    'repeat',
+    'observer-error',
+    'observer-getter-error',
+    'same-keyboard',
+    'distinct-keyboard',
+    'keyboard-only',
+  ]) {
+    const value = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'component-failure-occurrence.cjs'), mode],
+        { encoding: 'utf8', timeout: 15000 }
+      )
+    )
+    expect(value).toEqual({
+      mode,
+      actualComponentCatch: true,
+      freshOccurrencePerCall: true,
+      observerReceiverHeld: true,
+      originalAndObserverFailuresRetained: true,
+      allRemainingCleanupAttempted: true,
+    })
+  }
+  for (const mode of [
+    'normal',
+    'component',
+    'component-worker',
+    'file-component-worker-same',
+    'legacy',
+    'aggregate-same',
+    'getter-values',
+  ]) {
+    const value = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'component-failure-consumer.cjs'), mode],
+        { encoding: 'utf8', timeout: 15000 }
+      )
+    )
+    expect(value).toEqual({
+      mode,
+      onlyJoinedSoleComponentClassified: true,
+      legacyAndMixedFallbackHeld: true,
+      perStageSameErrorOrderHeld: true,
+      fieldReadOrderAndSnapshotVetoHeld: true,
+    })
+  }
+})

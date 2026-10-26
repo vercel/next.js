@@ -6,16 +6,21 @@ import type {
   SuiteResult,
 } from './events'
 
+export function isBrowserCleanupRunError(diagnostic: SerializedDiagnostic) {
+  return (
+    diagnostic.runError === 'browser-worker-fixture-cleanup' ||
+    diagnostic.runError === 'browser-component-cleanup'
+  )
+}
+
 export function isRunErrorDiagnostic(diagnostic: SerializedDiagnostic) {
   return (
-    diagnostic.unhandled === 'rejection' ||
-    diagnostic.runError === 'browser-worker-fixture-cleanup'
+    diagnostic.unhandled === 'rejection' || isBrowserCleanupRunError(diagnostic)
   )
 }
 
 export function reportedRunError(diagnostic: SerializedDiagnostic) {
-  if (diagnostic.runError !== 'browser-worker-fixture-cleanup')
-    return diagnostic
+  if (!isBrowserCleanupRunError(diagnostic)) return diagnostic
   return {
     name: diagnostic.name,
     message: diagnostic.message,
@@ -25,7 +30,7 @@ export function reportedRunError(diagnostic: SerializedDiagnostic) {
   }
 }
 
-export function hasOnlyBrowserWorkerCleanupFailures(
+export function hasOnlyBrowserCleanupFailures(
   entryId: string,
   completion: {
     events: readonly ResultEvent[]
@@ -47,7 +52,7 @@ export function hasOnlyBrowserWorkerCleanupFailures(
     diagnostics.every(
       (event) =>
         event.type === 'diagnostic' &&
-        event.diagnostic.runError === 'browser-worker-fixture-cleanup'
+        isBrowserCleanupRunError(event.diagnostic)
     ) &&
     !completion.cases.some(
       (test) =>
@@ -62,8 +67,8 @@ export function hasOnlyBrowserWorkerCleanupFailures(
   )
 }
 
-export function hasOnlyBrowserWorkerCleanupRunFailures(
-  completion: Parameters<typeof hasOnlyBrowserWorkerCleanupFailures>[1] & {
+export function hasOnlyBrowserCleanupRunFailures(
+  completion: Parameters<typeof hasOnlyBrowserCleanupFailures>[1] & {
     status: 'passed' | 'failed' | 'cancelled'
     recordedReporterErrors?: readonly SerializedDiagnostic[]
     entries: readonly { entry: { id: string } }[]
@@ -81,7 +86,7 @@ export function hasOnlyBrowserWorkerCleanupRunFailures(
       (event) =>
         event.type === 'diagnostic' &&
         event.entryId !== undefined &&
-        event.diagnostic.runError === 'browser-worker-fixture-cleanup'
+        isBrowserCleanupRunError(event.diagnostic)
     ) &&
     completion.entries.length > 0 &&
     completion.files.length === completion.entries.length &&
@@ -92,7 +97,7 @@ export function hasOnlyBrowserWorkerCleanupRunFailures(
       (file) =>
         file.status === 'passed' ||
         file.status === 'skipped' ||
-        hasOnlyBrowserWorkerCleanupFailures(file.entryId, completion)
+        hasOnlyBrowserCleanupFailures(file.entryId, completion)
     ) &&
     completion.cases.every(
       (test) => test.status !== 'failed' && test.status !== 'cancelled'

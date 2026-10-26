@@ -1,6 +1,6 @@
 import {
   isRunErrorDiagnostic,
-  hasOnlyBrowserWorkerCleanupFailures,
+  hasOnlyBrowserCleanupFailures,
 } from './run-errors'
 import { relative, sep } from 'node:path'
 import { assertReporterTaskTree, type ReporterTaskSnapshot } from './live-tasks'
@@ -328,7 +328,7 @@ export function createLiveReporterTaskStore(projectDir: string) {
       fileOutcomes.set(entryId, {
         state:
           file.status === 'passed' ||
-          hasOnlyBrowserWorkerCleanupFailures(entryId, completion)
+          hasOnlyBrowserCleanupFailures(entryId, completion)
             ? 'passed'
             : file.status === 'failed'
               ? 'failed'

@@ -6583,8 +6583,8 @@ it.each(['worker-only', 'mixed-cleanup', 'case-failed', 'cancelled'])(
   async (mode) => {
     const {
       reportedRunError,
-      hasOnlyBrowserWorkerCleanupFailures,
-      hasOnlyBrowserWorkerCleanupRunFailures,
+      hasOnlyBrowserCleanupFailures,
+      hasOnlyBrowserCleanupRunFailures,
     } = await import('next/dist/experimental/testing/reporting/run-errors')
     let output = ''
     const machine = createMachineReporter({
@@ -6658,13 +6658,13 @@ it.each(['worker-only', 'mixed-cleanup', 'case-failed', 'cancelled'])(
       type: 'Cleanup Error',
     })
     expect(
-      hasOnlyBrowserWorkerCleanupFailures(entry.id, {
+      hasOnlyBrowserCleanupFailures(entry.id, {
         ...human.getResults(),
         events,
       })
     ).toBe(mode === 'worker-only')
     expect(
-      hasOnlyBrowserWorkerCleanupRunFailures({
+      hasOnlyBrowserCleanupRunFailures({
         ...human.getResults(),
         events,
         status: mode === 'cancelled' ? 'cancelled' : 'failed',
@@ -6688,7 +6688,7 @@ it.each(['worker-only', 'mixed-cleanup', 'case-failed', 'cancelled'])(
       'message="actual joined worker cleanup failed" type="FixtureCleanupError"'
     )
     expect(
-      hasOnlyBrowserWorkerCleanupRunFailures({
+      hasOnlyBrowserCleanupRunFailures({
         ...human.getResults(),
         events,
         status: 'failed',
@@ -6707,6 +6707,112 @@ it.each(['worker-only', 'mixed-cleanup', 'case-failed', 'cancelled'])(
     expect(events.find((event) => event.type === 'diagnostic')).toMatchObject({
       diagnostic: { runError: 'browser-worker-fixture-cleanup' },
     })
+    machine.dispose()
+    human.dispose()
+  }
+)
+
+it.each([
+  'component-only',
+  'component-worker-same',
+  'file-component-worker-same',
+  'recorded-reporter',
+])(
+  'keeps independently observed component cleanup errors separate for %s',
+  async (mode) => {
+    const { hasOnlyBrowserCleanupRunFailures, reportedRunError } = await import(
+      'next/dist/experimental/testing/reporting/run-errors'
+    )
+    const { renderTapReport } = await import(
+      'next/dist/experimental/testing/reporting/builtin-reporters'
+    )
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const human = createTestReporter({ projectDir: '/project', write() {} }),
+      events: ResultEvent[] = []
+    const emit = (event: object) => {
+      const value = { ...envelope, ...event } as ResultEvent
+      events.push(value)
+      machine.onEvent(value)
+      human.onEvent(value)
+    }
+    emit({ type: 'run-start' })
+    emit({ type: 'file-start', entry })
+    emit({ type: 'case-end', ...result(0, 'passed') })
+    const error = {
+      phase: 'cleanup' as const,
+      severity: 'error' as const,
+      name: 'FixtureCleanupError',
+      message: 'same actual cleanup failure',
+      stack: '',
+    }
+    if (mode === 'file-component-worker-same')
+      emit({ type: 'diagnostic', entryId: entry.id, diagnostic: error })
+    const origins = [
+      'browser-component-cleanup' as const,
+      ...(mode === 'component-worker-same' ||
+      mode === 'file-component-worker-same'
+        ? ['browser-worker-fixture-cleanup' as const]
+        : []),
+    ]
+    for (const runError of origins)
+      emit({
+        type: 'diagnostic',
+        entryId: entry.id,
+        diagnostic: { ...error, runError },
+      })
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      status: 'failed',
+      durationMs: 1,
+    })
+    emit({ type: 'run-end', status: 'failed', durationMs: 1 })
+    const recordedReporterErrors =
+      mode === 'recorded-reporter'
+        ? [
+            serializeDiagnostic(new Error('independent reporter failure'), {
+              phase: 'reporter',
+            }),
+          ]
+        : undefined
+    const completion = {
+      ...human.getResults(),
+      events,
+      status: 'failed' as const,
+      recordedReporterErrors,
+    }
+    expect(hasOnlyBrowserCleanupRunFailures(completion)).toBe(
+      mode === 'component-only' || mode === 'component-worker-same'
+    )
+    expect(machine.getJson().success).toBe(
+      mode !== 'file-component-worker-same'
+    )
+    expect(human.getSummary().status).toBe('failed')
+    expect(
+      renderTapReport(human.getResults(), events, { projectDir: '/project' })
+    ).not.toContain('[run errors]')
+    expect(machine.getJUnit()).toContain(
+      `<testsuite name="vitest unhandled errors" tests="${origins.length}" failures="0" errors="${origins.length}"`
+    )
+    const reported = events.flatMap((event) =>
+      event.type === 'diagnostic' && event.diagnostic.runError
+        ? [reportedRunError(event.diagnostic)]
+        : []
+    )
+    expect(reported).toHaveLength(origins.length)
+    expect(reported).toEqual(
+      origins.map(() => ({
+        name: error.name,
+        message: error.message,
+        stack: '',
+        stacks: [],
+        type: 'Cleanup Error',
+      }))
+    )
+    if (origins.length === 2) expect(reported[0]).not.toBe(reported[1])
     machine.dispose()
     human.dispose()
   }

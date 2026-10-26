@@ -900,13 +900,16 @@ export function initializeBrowserContext(
   }
 }
 /** The published component helper owns the real React roots and unmount logic. */
-export async function cleanupBrowserContext() {
+export async function cleanupBrowserContext(observation?: {
+  onComponentFailure?(occurrence: Readonly<{ error: unknown }>): void
+}) {
   const failures: unknown[] = []
+  const componentCleanup = () => {
+    const key = Symbol.for('vitest:component-cleanup')
+    if (key in page) return (page as Record<symbol, () => unknown>)[key]()
+  }
   for (const cleanup of [
-    () => {
-      const key = Symbol.for('vitest:component-cleanup')
-      if (key in page) return (page as Record<symbol, () => unknown>)[key]()
-    },
+    componentCleanup,
     cleanupBrowserKeyboard,
     ...(deferredCommands.size ? [cleanupDeferredLocators] : []),
   ]) {
@@ -915,6 +918,12 @@ export async function cleanupBrowserContext() {
       await cleanup()
     } catch (error) {
       failures.push(error)
+      if (cleanup === componentCleanup)
+        try {
+          observation?.onComponentFailure?.(Object.freeze({ error }))
+        } catch (observerError) {
+          failures.push(observerError)
+        }
     }
   }
   if (failures.length === 1) throw failures[0]

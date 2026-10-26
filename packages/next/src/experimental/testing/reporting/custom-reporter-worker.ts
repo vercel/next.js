@@ -1,7 +1,7 @@
 import {
   isRunErrorDiagnostic,
   reportedRunError,
-  hasOnlyBrowserWorkerCleanupRunFailures,
+  hasOnlyBrowserCleanupRunFailures,
 } from './run-errors'
 import { createCustomReporterWatchFile } from './custom-reporter-watch-tasks'
 import { createLiveReporterTaskStore } from './custom-reporter-live-tasks'
@@ -474,7 +474,7 @@ async function handle(message: any) {
           [...errors, ...(completion.recordedReporterErrors ?? [])],
           completion.status === 'cancelled'
             ? 'interrupted'
-            : hasOnlyBrowserWorkerCleanupRunFailures(completion)
+            : hasOnlyBrowserCleanupRunFailures(completion)
               ? 'passed'
               : completion.status
         )

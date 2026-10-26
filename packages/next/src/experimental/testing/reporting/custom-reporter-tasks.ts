@@ -1,6 +1,6 @@
 import {
   isRunErrorDiagnostic,
-  hasOnlyBrowserWorkerCleanupFailures,
+  hasOnlyBrowserCleanupFailures,
 } from './run-errors'
 import type { TestArtifact, TaskLocation } from '../runner/tasks'
 import { relative, sep } from 'node:path'
@@ -170,12 +170,12 @@ export function createCustomReporterModules(
       relativeModuleId: relative(projectDir, entry.file).split(sep).join('/'),
       children: new Collection(rootChildren),
       state: () =>
-        hasOnlyBrowserWorkerCleanupFailures(entry.id, completion)
+        hasOnlyBrowserCleanupFailures(entry.id, completion)
           ? 'passed'
           : stateOf(file?.status),
       ok: () =>
         file?.status !== 'failed' ||
-        hasOnlyBrowserWorkerCleanupFailures(entry.id, completion),
+        hasOnlyBrowserCleanupFailures(entry.id, completion),
       errors: () => fileErrors,
       meta: () => {
         throw new Error(
