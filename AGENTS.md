@@ -235,6 +235,15 @@ tail -5 /tmp/test-output.log             # Summary
   })
   ```
 
+- **Keep `revalidatePath`/`revalidateTag` arguments suite-unique.** In deploy
+  mode, revalidation invalidates at Vercel project scope and deploy e2e
+  suites share one project per matrix dimension, so a tag or path another
+  suite also uses lets the suites purge each other's cache. Prefix tags with
+  the suite slug (e.g. `cacheTag('app-static:thankyounext')`), and never
+  revalidate `/` from a deploy-active fixture — every app has a `/` route, so
+  move the page to a suite-unique route and revalidate that instead. See
+  `test/AGENTS.md`.
+
 ## Linting and Types
 
 ```bash
