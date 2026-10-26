@@ -14,7 +14,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    ScopeHoistingContext,
+    ModuleMergingAnalysis, ScopeHoistingContext,
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     references::esm::base::ReferencedAsset,
     utils::AstSyntaxContext,
@@ -111,6 +111,7 @@ impl AsyncModule {
         async_module_info: Vc<AsyncModuleInfo>,
         references: Vc<ModuleReferences>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        module_merging: ModuleMergingAnalysis,
     ) -> Result<Vc<AsyncModuleIdents>> {
         let async_module_info = async_module_info.await?;
 
@@ -125,7 +126,12 @@ impl AsyncModule {
                     ReferencedAsset::External(_, ExternalType::EcmaScriptModule) => {
                         if self.import_externals {
                             referenced_asset
-                                .get_ident(chunking_context, None, ScopeHoistingContext::None)
+                                .get_ident(
+                                    chunking_context,
+                                    module_merging,
+                                    None,
+                                    ScopeHoistingContext::None,
+                                )
                                 .await?
                                 .map(|i| i.into_module_namespace_ident().unwrap())
                                 .map(|(i, ctx)| (i, ctx.unwrap_or_default().into()))
@@ -139,7 +145,12 @@ impl AsyncModule {
                             .contains(&ResolvedVc::upcast(*placeable))
                         {
                             referenced_asset
-                                .get_ident(chunking_context, None, ScopeHoistingContext::None)
+                                .get_ident(
+                                    chunking_context,
+                                    module_merging,
+                                    None,
+                                    ScopeHoistingContext::None,
+                                )
                                 .await?
                                 .map(|i| i.into_module_namespace_ident().unwrap())
                                 .map(|(i, ctx)| (i, ctx.unwrap_or_default().into()))
@@ -210,10 +221,16 @@ impl AsyncModule {
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         references: Vc<ModuleReferences>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        module_merging: ModuleMergingAnalysis,
     ) -> Result<CodeGeneration> {
         if let Some(async_module_info) = async_module_info {
             let async_idents = self
-                .get_async_idents(async_module_info, references, chunking_context)
+                .get_async_idents(
+                    async_module_info,
+                    references,
+                    chunking_context,
+                    module_merging,
+                )
                 .await?;
 
             if !async_idents.is_empty() {

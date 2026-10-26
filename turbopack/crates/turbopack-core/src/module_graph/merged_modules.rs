@@ -60,9 +60,6 @@ impl MergedModuleGroup {
     }
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct OptionMergedModuleGroup(pub Option<ResolvedVc<MergedModuleGroup>>);
-
 #[turbo_tasks::value]
 pub struct MergedModuleInfo {
     pub groups: ResolvedVc<MergedModuleGroups>,
