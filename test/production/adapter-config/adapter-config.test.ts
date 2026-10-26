@@ -6,7 +6,7 @@ import { version as nextVersion } from 'next/package.json'
 import { RouteKind } from 'next/dist/server/route-kind'
 
 describe('adapter-config', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -396,6 +396,23 @@ describe('adapter-config', () => {
     expect(appPageVendoredContexts.length).toBeGreaterThan(0)
     // pages should have vendored context files traced
     expect(pagesVendoredContexts.length).toBeGreaterThan(0)
+
+    if (isTurbopack) {
+      const pagesApiOutput = outputs.pagesApi.find(
+        (output) =>
+          output.pathname === '/docs/api/node-pages' &&
+          output.runtime === 'nodejs'
+      )
+
+      expect(pagesApiOutput).toBeDefined()
+      expect(
+        Object.keys(pagesApiOutput!.assets).some((asset) =>
+          /[\\/]next[\\/]dist[\\/]compiled[\\/]next-server[\\/]pages-turbo\.runtime\.prod\.js$/.test(
+            asset
+          )
+        )
+      ).toBe(true)
+    }
 
     for (const route of edgeOutputs) {
       try {
