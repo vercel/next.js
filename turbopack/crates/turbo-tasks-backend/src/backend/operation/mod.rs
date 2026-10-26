@@ -2037,8 +2037,8 @@ mod must_exist_tests {
             .chain(data_only_ids.iter().map(|&task_id| (task_id, false)))
             .map(|(task_id, with_meta)| SnapshotItem::Put {
                 task_id,
-                data: Some(encoded_data.clone()),
-                meta: with_meta.then(|| encoded_meta.clone()),
+                data: Some(Box::from(&encoded_data[..])),
+                meta: with_meta.then(|| Box::from(&encoded_meta[..])),
                 task_type_hash: None,
                 #[cfg(feature = "print_cache_item_size")]
                 stats: Default::default(),
