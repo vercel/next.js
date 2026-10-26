@@ -73,12 +73,14 @@ Create a schema version 5 payload using only useful evidence. Always include `ne
 
 If these instructions begin with a **Dry run** section, encode each review URL but do not open a browser tab. Print the URLs for inspection, keep the feedback candidate queue, and do not mark the reporting pass complete.
 
-For each report draft, attempt to open the following URL once in a separate tab in the user's default browser. Use the browser-opening capability already available in the agent environment. Replace `<encoded-json>` with the encoded payload.
+For each report draft, run the following command once from the project directory. It prints the review URL and attempts to open it in a separate tab in the user's default browser. Replace `<encoded-json>` with the encoded payload.
 
-```text
-https://nextjs.org/agent-feedback#report=<encoded-json>
+```bash
+node node_modules/next/dist/bin/next feedback <encoded-json>
 ```
 
-Do not ask for permission before opening the review forms. Opening a form does not send feedback. If a form does not open, do not retry, investigate the failure, install tooling, or change host configuration.
+In a dry run, add `--dry-run` so the command only prints the review URL.
+
+Do not ask for permission before running the command. Opening a form does not send feedback. The command always prints the review URL as a fallback. If a form does not open, do not retry, investigate the failure, install tooling, or change host configuration.
 
 After attempting to open every review form, clear the feedback candidate queue from the context of the current user request. Include every review URL in the final response whether or not its browser tab opened, so the user can always find the form. Never submit a report or close a review form for the user.

@@ -739,6 +739,20 @@ program
   })
   .usage('[directory] [options]')
 
+program
+  .command('feedback')
+  .description('Open a Next.js agent feedback report for review.')
+  .argument(
+    '<report>',
+    'An unpadded base64url-encoded schema version 5 report.'
+  )
+  .option('--dry-run', 'Print the review URL without opening a browser.')
+  .action((report: string, options: { dryRun?: boolean }) => {
+    return import('../cli/next-feedback.js').then((mod) =>
+      mod.nextFeedback(report, options)
+    )
+  })
+
 const internal = program
   .command('internal')
   .description(
