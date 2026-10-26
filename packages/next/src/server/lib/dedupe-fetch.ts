@@ -94,6 +94,13 @@ export function createDedupeFetch(originalFetch: typeof fetch) {
     }
 
     const cacheEntries = getCacheEntries(url)
+    if (cacheEntries !== getCacheEntries(url)) {
+      // There is no cache scope (e.g. in a Route Handler), so nothing can be
+      // deduped. Don't tee the body: cancelling one branch of a tee waits for
+      // the other branch, which would make `reader.cancel()` hang until the
+      // upstream response ends.
+      return originalFetch(resource, options)
+    }
     for (let i = 0, j = cacheEntries.length; i < j; i += 1) {
       const [key, promise] = cacheEntries[i]
       if (key === cacheKey) {
