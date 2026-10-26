@@ -13,21 +13,19 @@ describe.each([
     },
   },
 ])('unused scss', ({ dependencies, nextConfig }) => {
-  describe('Body is not hidden when unused in Development ($dependencies)', () => {
-    const { next, isNextDev } = nextTestSetup({
+  describe('Body is not hidden when unused ($dependencies)', () => {
+    const { next } = nextTestSetup({
       files: __dirname,
       dependencies,
       nextConfig,
     })
 
-    ;(isNextDev ? describe : describe.skip)('development only', () => {
-      it('should have body visible', async () => {
-        const browser = await next.browser('/')
-        const currentDisplay = await browser.eval(
-          `window.getComputedStyle(document.querySelector('body')).display`
-        )
-        expect(currentDisplay).toBe('block')
-      })
+    it('should have body visible', async () => {
+      const browser = await next.browser('/')
+      const currentDisplay = await browser.eval(
+        `window.getComputedStyle(document.querySelector('body')).display`
+      )
+      expect(currentDisplay).toBe('block')
     })
   })
 

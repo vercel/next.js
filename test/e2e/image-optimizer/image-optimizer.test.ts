@@ -367,79 +367,61 @@ describe('Image Optimizer', () => {
       })
     }
   )
-  ;(isNextDev ? describe : describe.skip)(
-    'dev support next.config.js cloudinary loader',
-    () => {
-      const { next, skipped } = nextTestSetup({
-        files: join(__dirname, 'app'),
-        nextConfig: {
-          images: {
-            loader: 'cloudinary',
-            path: 'https://example.com/act123/',
-          },
+  describe('next.config.js cloudinary loader', () => {
+    const { next, skipped } = nextTestSetup({
+      files: join(__dirname, 'app'),
+      nextConfig: {
+        images: {
+          loader: 'cloudinary',
+          path: 'https://example.com/act123/',
         },
-      })
-      if (skipped) return
+      },
+    })
+    if (skipped) return
 
-      it('should 404 when loader is not default', async () => {
-        const size = 384
-        const query = { w: size, q: 90, url: '/test.svg' }
-        const opts = { headers: { accept: 'image/webp' } }
-        const res = await next.fetch(
-          `/_next/image?${toQueryString(query)}`,
-          opts
-        )
-        expect(res.status).toBe(404)
-      })
-    }
-  )
-  ;(isNextDev ? describe : describe.skip)(
-    'images.unoptimized in next.config.js',
-    () => {
-      const { next, skipped } = nextTestSetup({
-        files: join(__dirname, 'app'),
-        nextConfig: {
-          images: { unoptimized: true },
-        },
-      })
-      if (skipped) return
+    it('should 404 when loader is not default', async () => {
+      const size = 384
+      const query = { w: size, q: 90, url: '/test.svg' }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await next.fetch(`/_next/image?${toQueryString(query)}`, opts)
+      expect(res.status).toBe(404)
+    })
+  })
+  describe('images.unoptimized in next.config.js', () => {
+    const { next, skipped } = nextTestSetup({
+      files: join(__dirname, 'app'),
+      nextConfig: {
+        images: { unoptimized: true },
+      },
+    })
+    if (skipped) return
 
-      it('should 404 when unoptimized', async () => {
-        const size = 384
-        const query = { w: size, q: 75, url: '/test.jpg' }
-        const opts = { headers: { accept: 'image/webp' } }
-        const res = await next.fetch(
-          `/_next/image?${toQueryString(query)}`,
-          opts
-        )
-        expect(res.status).toBe(404)
-      })
-    }
-  )
-  ;(isNextDev ? describe : describe.skip)(
-    'experimental.imgOptMaxInputPixels in next.config.js',
-    () => {
-      const { next, skipped } = nextTestSetup({
-        files: join(__dirname, 'app'),
-        nextConfig: {
-          experimental: { imgOptMaxInputPixels: 100 },
-        },
-      })
-      if (skipped) return
+    it('should 404 when unoptimized', async () => {
+      const size = 384
+      const query = { w: size, q: 75, url: '/test.jpg' }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await next.fetch(`/_next/image?${toQueryString(query)}`, opts)
+      expect(res.status).toBe(404)
+    })
+  })
+  describe('experimental.imgOptMaxInputPixels in next.config.js', () => {
+    const { next, skipped } = nextTestSetup({
+      files: join(__dirname, 'app'),
+      nextConfig: {
+        experimental: { imgOptMaxInputPixels: 100 },
+      },
+    })
+    if (skipped) return
 
-      it('should fallback to source image when input exceeds imgOptMaxInputPixels', async () => {
-        const size = 256
-        const query = { w: size, q: 75, url: '/test.jpg' }
-        const opts = { headers: { accept: 'image/webp' } }
-        const res = await next.fetch(
-          `/_next/image?${toQueryString(query)}`,
-          opts
-        )
-        expect(res.status).toBe(200)
-        expect(res.headers.get('Content-Type')).toBe('image/jpeg')
-      })
-    }
-  )
+    it('should fallback to source image when input exceeds imgOptMaxInputPixels', async () => {
+      const size = 256
+      const query = { w: size, q: 75, url: '/test.jpg' }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await next.fetch(`/_next/image?${toQueryString(query)}`, opts)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toBe('image/jpeg')
+    })
+  })
   ;(isNextStart ? describe : describe.skip)(
     'External rewrite support with for serving static content in images',
     () => {

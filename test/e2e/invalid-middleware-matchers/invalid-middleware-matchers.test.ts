@@ -1,4 +1,4 @@
-import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
@@ -201,10 +201,5 @@ describe('Errors on invalid custom middleware matchers', () => {
     })
   }
 
-  ;(isNextDev ? describe : describe.skip)('development mode', () => {
-    runTests('dev')
-  })
-  ;(isNextStart ? describe : describe.skip)('production mode', () => {
-    runTests('start')
-  })
+  runTests(isNextDev ? 'dev' : 'start')
 })

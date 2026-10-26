@@ -60,12 +60,8 @@ describe('i18n Support basePath', () => {
   afterAll(() => {
     externalServer?.close()
   })
-  ;(isNextDev ? describe : describe.skip)('development mode', () => {
-    runTests(ctx)
-  })
-  ;(!isNextDev ? describe : describe.skip)('production mode', () => {
-    runTests(ctx)
-  })
+
+  runTests(ctx)
 
   describe('with localeDetection disabled', () => {
     if (!isNextDev) {
