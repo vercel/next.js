@@ -106,9 +106,10 @@ pnpm eval --suite competency --dry
 - `regression` contains evals that reach at least 90% valid pass@1 across
   frontier and weaker models over multiple runs or versions.
 
-Every public eval must appear in exactly one suite. A suite still runs both
-`baseline` and `agents-md`. Set `publish: false` in `eval.config.json` when an
-eval belongs in another measurement system.
+Every eval under active measurement must appear in exactly one suite. A suite
+still runs both `baseline` and `agents-md`. Set `publish: false` in
+`eval.config.json` while an eval is being audited, when its results should stay
+internal, or when it belongs in another measurement system.
 
 Use repeated runs when measuring behavior that may vary between agent runs:
 
