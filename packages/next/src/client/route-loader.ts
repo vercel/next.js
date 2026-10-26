@@ -254,7 +254,7 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
 
   // Bootstrap a client-loaded route (navigation/prefetch) so its entry registers via
   // `window.__NEXT_P`. The initial page is bootstrapped in the document.
-  function bootstrapRoute(route: string): Promise<unknown> | undefined {
+  function bootstrapRoute(route: string): void {
     // Gated for DCE
     if (!process.env.__NEXT_TURBOPACK_SHARED_RUNTIME) return
     if (process.env.NODE_ENV === 'development') return
@@ -264,7 +264,7 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
     if (params == null) return
     // `global` is always defined alongside the params map (see manifest-loader).
     bootstrappedRoutes.add(route)
-    return (self as any)[global!].push(params)
+    ;(self as any)[global!].push(params)
   }
 
   function maybeExecuteScript(
@@ -359,10 +359,10 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
           })
         }
 
-        // In Turbopack production, loading a route starts asynchronous chunk
-        // work after its loader script finishes. Delay the entrypoint timeout
-        // until that known work settles. The eagerly-created map identifies
-        // Turbopack without changing webpack production behavior.
+        // In Turbopack production, loading a route can start asynchronous
+        // JavaScript work after its loader script finishes. Delay the timeout
+        // until that known JavaScript work settles. Do not include CSS in this
+        // delay: stalled styles must still trigger the route timeout.
         const turbopackChunkPromises = self.__TURBOPACK_PAGE_CHUNK_PROMISES__
         let chunksLoaded: Promise<void> | undefined
         let chunksLoadedResolve: (() => void) | undefined
@@ -379,23 +379,16 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
                 ? Promise.resolve([])
                 : Promise.all(scripts.map(maybeExecuteScript)).then(
                     async (result) => {
-                      // Shared-runtime builds expose the chunk-loading promise
-                      // as the return value of the bootstrap registration.
-                      const bootstrapPromise = bootstrapRoute(route)
-
-                      // Stable and legacy builds load a page through a stub
-                      // that records its chunk-loading promise in this map.
+                      // The page-loader stub synchronously records its
+                      // non-CSS chunk promise before its script load event.
+                      // Shared-runtime routes also need bootstrap registration
+                      // to instantiate the entrypoint once those chunks load.
+                      bootstrapRoute(route)
                       const chunkPromise = turbopackChunkPromises?.get(route)
                       if (chunkPromise) {
                         turbopackChunkPromises?.delete(route)
+                        await chunkPromise
                       }
-
-                      // The shared-runtime stub also populates the legacy
-                      // map, but that promise only settles once the route has
-                      // been bootstrapped, so awaiting it first would
-                      // deadlock. Fall back to it when this route has no
-                      // bootstrap params.
-                      await (bootstrapPromise ?? chunkPromise)
                       return result
                     }
                   )
