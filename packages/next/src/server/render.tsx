@@ -1487,6 +1487,9 @@ export async function renderToHTMLImpl(
     locales,
   } = renderOpts
   const htmlProps: HtmlProps = {
+    initialHmrVersion: process.env.__NEXT_DEV_SERVER
+      ? getRequestMeta(req, 'initialHmrVersion')
+      : undefined,
     __NEXT_DATA__: {
       props, // The result of getInitialProps
       page: pathname, // The rendered page
