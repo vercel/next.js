@@ -30,8 +30,9 @@ The two views cross-check each other.
 
 ## requires
 
-- Next.js **16.3+** with **Turbopack** — `/_next/mcp` plus the
-  proactive compile check via `get_compilation_issues`.
+- Next.js **16.3+** with **Turbopack** — `/_next/mcp` with
+  `compile_route` listed by `tools/list` for route-scoped checks.
+  Verify this capability; do not assume every older server supports it.
 - `agent-browser` **>= 0.31.1** — React introspection, worktree-scoped
   `session id`, idempotent `--restore`, and launch flag reconciliation.
 
@@ -87,18 +88,21 @@ Once per session, confirm both views are live.
    Pause while the user drives login, then continue with the same session and
    keep it headed for the rest of the loop.
 
-2. Probe `/_next/mcp` (`tools/list`) — confirm it's reachable and
-   lists `get_compilation_issues`. First read the port off the
-   `next dev` banner; if it isn't 3000, set
-   `NEXT_MCP_URL=http://localhost:<port>/_next/mcp` before probing:
-   - Unreachable → either `next dev` isn't running, or Next.js is
-     below 16.3. Check `package.json` to disambiguate, then refuse.
-   - `get_compilation_issues` not in the list → Next.js below 16.3.
-     Refuse and tell the user to upgrade.
-3. `get_compilation_issues` doubles as a Turbopack probe. An error
-   response of `"Turbopack project is not available..."` means the
-   user is on webpack. Refuse — Turbopack is required.
-4. `get_routes` → your route map for the rest of the session.
+2. Discover `/_next/mcp` capabilities with **`tools/list` only** —
+   confirm it's reachable and lists `compile_route`. First read the
+   port off the `next dev` banner; if it isn't 3000, set
+   `NEXT_MCP_URL=http://localhost:<port>/_next/mcp` before discovery:
+   - Unreachable → check the server, port, configuration and installed
+     version. Do not infer a Next.js version from this alone.
+   - `compile_route` missing → report scoped compile verification as
+     unsupported and stop. Check the bundler/version and tell the user
+     how to enable Turbopack or upgrade as appropriate. A missing tool
+     alone does not establish either one.
+   - Never call either compilation tool just to detect the bundler.
+     In particular, do not fall back to an older server's whole-app
+     `get_compilation_issues` tool; even an empty call may compile all routes.
+3. `get_routes` → your route map for the rest of the session. This
+   filesystem scan does not compile routes.
 
 ## loop
 
@@ -113,7 +117,12 @@ search doesn't.
 
 Four failure modes. Check each:
 
-- **Compiles** — `get_compilation_issues`.
+- **Compiles** — `compile_route` with exactly one explicit selector:
+  `{ "routeSpecifier": "/blog/[slug]" }` from `get_routes`, or
+  `{ "path": "/blog/hello-world" }`. Verify the route you changed and
+  consume `{ routeSpecifier, issues }` inline; do not make a second
+  empty `get_compilation_issues` call. Its layouts, imports and shared
+  dependencies are included as applicable, not every route using them.
 - **Runs without errors** — `/_next/mcp` (server and bubbled-up
   browser errors both surface here).
 - **Behaves as intended** — `agent-browser` drives the page; assert
@@ -128,6 +137,13 @@ Pick the specific tool from `tools/list` or the agent-browser
 manual rather than from memory.
 
 ## gotchas
+
+- **Route scope is not a memory budget.** One route can still be expensive.
+  These checks do not supply hard memory limits, native cancellation or
+  graph reclamation, and do not prove that the whole app compiles. Do not
+  loop through every route as an invisible preflight. Agree on broader
+  validation explicitly and use CI or a resource-isolated process for
+  exhaustive checks on large apps.
 
 - **Preserve `.next` while the development server is running.** Moving or
   deleting it disconnects the server from its generated state and discards
@@ -166,12 +182,13 @@ manual rather than from memory.
 
 ## reference
 
-All tools below are present once preflight passes. If `tools/list`
-is missing any of them, preflight should have refused — re-check.
+Use `tools/list` as the authority for the installed server's tools.
+The surface can vary by version and configuration; scoped compilation
+requires `compile_route` to be listed.
 
 ```
 # /_next/mcp                 notes
-get_project_metadata         projectPath, devServerUrl, bundler
+get_project_metadata         projectPath, devServerUrl
 get_routes                   fs-scan; no browser session needed
 get_errors                   runtime + build; needs a browser session;
                              includes browser-side errors caught by the
@@ -181,8 +198,12 @@ get_page_metadata            segment trie + routerType; needs a browser
                              which files power a route
 get_logs                     returns logFilePath
 get_server_action_by_id      hashed id → file + functionName
-get_compilation_issues       Turbopack only; errors on webpack
-                             ("Turbopack project is not available")
+compile_route                Turbopack only; exactly one of routeSpecifier
+                             or path; returns { routeSpecifier, issues }
+get_compilation_issues       scoped alias on current servers; same selectors
+                             and response; empty call errors ROUTE_REQUIRED
+                             without compiling; older servers may instead
+                             perform whole-app work — never use as a probe
 ```
 
 ## teardown

@@ -1,5 +1,6 @@
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 async function callMcpTool(
   url: string,
@@ -57,6 +58,24 @@ async function callMcpTool(
           routeSpecifier: '/about',
         })
         expect(result).toMatchObject({ routeSpecifier: '/about', issues: [] })
+      })
+
+      it('should compile a custom Pages error route through both aliases', async () => {
+        await next.patchFile(
+          'pages/_error.tsx',
+          'export default function ErrorPage() { return <p>Error</p> }',
+          async () => {
+            await retry(async () => {
+              for (const name of ['compile_route', 'get_compilation_issues']) {
+                expect(
+                  await callMcpTool(next.url, name, {
+                    routeSpecifier: '/_error',
+                  })
+                ).toEqual({ routeSpecifier: '/_error', issues: [] })
+              }
+            })
+          }
+        )
       })
 
       it('should compile a valid app router API route', async () => {

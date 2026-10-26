@@ -57,11 +57,24 @@ Through `nextjs_call`, agents can use the tools the Next.js development server e
 - **`get_project_metadata`**: Get the project path and dev server URL.
 - **`get_routes`**: Get all routes that will become entry points by scanning the filesystem. Returns routes grouped by router type (`appRouter`, `pagesRouter`). Dynamic segments appear as `[param]` or `[...slug]` patterns.
 - **`get_server_action_by_id`**: Look up a Server Action by its ID to find its source file and export name.
-- **`get_compilation_issues`**: Build the module graph for all routes and return compilation issues such as resolve errors, missing modules, and transform errors. Doesn't require a browser session. Turbopack only.
-- **`compile_route`**: Compile a specific route without making an HTTP request to it. Accepts either a `routeSpecifier` (for example, `/blog/[slug]`, as returned by `get_routes`) or a `path` (for example, `/blog/hello-world`), which is resolved to the matching route. Returns any compilation issues for the route. Turbopack only.
+- **`get_compilation_issues`**: Compile one selected route and return compilation issues such as resolve errors, missing modules, and transform errors. Requires exactly one of `routeSpecifier` or `path` and returns `{ routeSpecifier, issues }`, matching `compile_route`. An empty call returns a `ROUTE_REQUIRED` tool error without compiling. Doesn't require a browser session. Turbopack only.
+- **`compile_route`**: Compile a specific route without making an HTTP request to it. Requires exactly one of `routeSpecifier` (for example, `/blog/[slug]`, as returned by `get_routes`) or `path` (for example, `/blog/hello-world`), which is resolved to the matching route. Returns `{ routeSpecifier, issues }` with compilation issues inline. Turbopack only.
 - **`get_request_insights`**: Get recent App Router request timelines, server fetches, and cache behavior captured by the local span recorder. Requires `experimental.requestInsights`.
 
-With the compilation tools, agents can check whether code compiles from the running dev server instead of running `next build` while they are still editing.
+With the compilation tools, agents can check a selected route from the running dev server instead of running `next build` while they are still editing. The route's applicable layouts, imports, and shared dependencies are included naturally; other routes that use those dependencies are not validated.
+
+Use MCP `tools/list` for capability discovery without compiling. Do not call a compilation tool just to detect Turbopack. On older servers, `get_compilation_issues` may perform whole-app analysis; if `compile_route` is unavailable, report scoped compile verification as unsupported rather than falling back to that tool. A missing tool alone does not identify the Next.js version or bundler.
+
+For example, after editing a blog page, call `compile_route` with an explicit route:
+
+```json filename="MCP tools/call parameters"
+{
+  "name": "compile_route",
+  "arguments": { "routeSpecifier": "/blog/[slug]" }
+}
+```
+
+Neither tool falls back to compiling all routes. Route scope reduces unwanted work, but a single route can still be expensive: these tools do not enforce hard memory limits, provide native cancellation, or guarantee graph reclamation. Checking a route is not exhaustive app validation. For large apps, make broader validation explicit and run exhaustive checks in CI or a resource-isolated process.
 
 ## Development workflow
 

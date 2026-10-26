@@ -1359,7 +1359,6 @@ export async function createHotReloaderTurbopack(
             getActiveConnectionCount: () =>
               clientsWithoutHtmlRequestId.size + clientsByHtmlRequestId.size,
             getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
-            getTurbopackProject: () => project,
             compileRoute: async ({ routeSpecifier, path }) => {
               // Resolve the caller's input to a concrete route specifier. The
               // path-mode branch reuses the dev router's own live route table
@@ -1400,8 +1399,12 @@ export async function createHotReloaderTurbopack(
               // "/blog/[slug]/page" for a dynamic page). Use normalizeAppPath to
               // strip that suffix and find the entry matching the user-facing route.
               let extraOptions: object | undefined = undefined
+              let issueEntryKeys: EntryKey[] = [
+                getEntryKey('pages', 'server', page),
+              ]
               for (const [name] of currentEntrypoints.app) {
                 if (normalizeAppPath(name) === page) {
+                  issueEntryKeys = [getEntryKey('app', 'server', name)]
                   extraOptions = {
                     // Synthesize a definition so ensurePage bypasses findPagePathData.
                     // Only page and bundlePath are used from the definition:
@@ -1416,6 +1419,26 @@ export async function createHotReloaderTurbopack(
                   break
                 }
               }
+              if (
+                !extraOptions &&
+                (currentEntrypoints.page.get(page)?.type === 'page' ||
+                  page === '/_error')
+              ) {
+                // Pages HTML compilation also writes the shared framework
+                // endpoints. API routes and App routes do not compile these.
+                issueEntryKeys.push(getEntryKey('pages', 'client', page))
+                if (currentEntrypoints.global.app) {
+                  issueEntryKeys.push(getEntryKey('pages', 'server', '_app'))
+                }
+                if (currentEntrypoints.global.document) {
+                  issueEntryKeys.push(
+                    getEntryKey('pages', 'server', '_document')
+                  )
+                }
+                if (page === '/_error') {
+                  issueEntryKeys.push(getEntryKey('pages', 'server', '_error'))
+                }
+              }
               const ensureOpts = {
                 page,
                 // Compile both server and client bundles, matching what happens
@@ -1428,12 +1451,6 @@ export async function createHotReloaderTurbopack(
                 subscribeToChanges: false,
                 ...extraOptions,
               }
-
-              // Snapshot the current issue maps before compilation so we can
-              // identify which entry keys were added or updated by this call.
-              // processIssues always creates a new Map() reference, so identity
-              // comparison detects changes even for re-compilations.
-              const snapshotBefore = new Map(currentEntryIssues)
 
               // For app-page routes, processIssues is called with throwIssue=true,
               // meaning it throws ModuleBuildError when there are compile errors—but
@@ -1451,14 +1468,17 @@ export async function createHotReloaderTurbopack(
                 }
               }
 
-              const rawIssues = []
-              for (const [key, issueMap] of currentEntryIssues) {
-                if (snapshotBefore.get(key) !== issueMap) {
-                  rawIssues.push(...issueMap.values())
-                }
+              // Read only this route's entries, not every map changed while we
+              // awaited compilation: another MCP call, browser or HMR update may
+              // have compiled an unrelated route in the meantime. Top-level
+              // project/entrypoint issues apply independently of route selection.
+              const rawIssues = [...currentTopLevelIssues.values()]
+              for (const key of issueEntryKeys) {
+                const issueMap = currentEntryIssues.get(key)
+                if (issueMap) rawIssues.push(...issueMap.values())
               }
 
-              // If ensurePage threw ModuleBuildError but we found no new issues in
+              // If ensurePage threw ModuleBuildError but we found no issues in
               // the map (shouldn't happen, but be safe), re-surface the original
               // error so its message and stack are preserved.
               if (moduleBuildError && rawIssues.length === 0) {
@@ -2132,7 +2152,9 @@ export async function createHotReloaderTurbopack(
                 productionRewrites: undefined,
                 logErrors: true,
                 hooks: {
-                  subscribeToChanges: subscribeToClientChanges,
+                  subscribeToChanges: subscribeToChanges
+                    ? subscribeToClientChanges
+                    : ((async () => {}) as StartChangeSubscription),
                   handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                     currentWrittenEntrypoints.set(id, result.value)
                     assetMapper.setPathsForKey(id, result.value.clientPaths)

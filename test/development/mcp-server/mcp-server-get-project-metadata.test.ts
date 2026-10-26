@@ -5,6 +5,31 @@ describe('mcp-server get_project_metadata tool', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
   })
+  it('advertises scoped compilation only on Turbopack without calling it', async () => {
+    const response = await fetch(`${next.url}/_next/mcp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 'list-tools',
+        method: 'tools/list',
+      }),
+    })
+    const text = await response.text()
+    const match = text.match(/data: ({.*})/s)
+    expect(match).toBeTruthy()
+    const envelope = JSON.parse(match![1])
+    const names = envelope.result.tools.map(
+      (tool: { name: string }) => tool.name
+    )
+    for (const name of ['compile_route', 'get_compilation_issues']) {
+      expect(names.includes(name)).toBe(Boolean(process.env.IS_TURBOPACK_TEST))
+    }
+  })
+
   it('should return correct project metadata via get_project_metadata tool', async () => {
     const mcpEndpoint = `${next.url}/_next/mcp`
 

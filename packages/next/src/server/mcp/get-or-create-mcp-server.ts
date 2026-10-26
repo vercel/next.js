@@ -10,8 +10,7 @@ import { registerCompileRouteTool } from './tools/compile-route'
 import { registerGetRequestInsightsTool } from './tools/get-request-insights'
 import type { HmrMessageSentToBrowser } from '../dev/hot-reloader-types'
 import type { NextConfigComplete } from '../config-shared'
-import type { Project } from '../../build/swc/types'
-import type { FormattedIssue } from './tools/utils/format-compilation-issues'
+import type { CompileRoute } from './tools/utils/compile-route'
 
 export interface McpServerOptions {
   projectPath: string
@@ -22,11 +21,7 @@ export interface McpServerOptions {
   sendHmrMessage: (message: HmrMessageSentToBrowser) => void
   getActiveConnectionCount: () => number
   getDevServerUrl: () => string | undefined
-  getTurbopackProject?: () => Project | undefined
-  compileRoute?: (opts: {
-    routeSpecifier?: string
-    path?: string
-  }) => Promise<{ routeSpecifier: string; issues: FormattedIssue[] }>
+  compileRoute?: CompileRoute
 }
 
 let mcpServer: McpServer | undefined
@@ -66,11 +61,8 @@ export const getOrCreateMcpServer = (options: McpServerOptions) => {
   })
   registerGetRequestInsightsTool(mcpServer)
 
-  if (options.getTurbopackProject) {
-    registerGetCompilationIssuesTool(mcpServer, options.getTurbopackProject)
-  }
-
   if (options.compileRoute) {
+    registerGetCompilationIssuesTool(mcpServer, options.compileRoute)
     registerCompileRouteTool(mcpServer, options.compileRoute)
   }
 
