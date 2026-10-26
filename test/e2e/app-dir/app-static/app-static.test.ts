@@ -560,7 +560,7 @@ describe('app-dir static/dynamic handling', () => {
           const newRes = await next.fetch('/variable-revalidate/revalidate-360')
           const cacheHeader = newRes.headers.get('x-nextjs-cache')
 
-          if ((global as any).isNextStart && cacheHeader) {
+          if (isNextStart && cacheHeader) {
             expect(cacheHeader).toBe('MISS')
           }
           const newHtml = await newRes.text()
@@ -596,7 +596,7 @@ describe('app-dir static/dynamic handling', () => {
 
   // On-Demand Revalidate has not effect in dev since app routes
   // aren't considered static until prerendering
-  if (!(global as any).isNextDev && !process.env.CUSTOM_CACHE_HANDLER) {
+  if (!isNextDev && !process.env.CUSTOM_CACHE_HANDLER) {
     it('should not revalidate / when revalidate is not used', async () => {
       let prevData
 
@@ -670,7 +670,7 @@ describe('app-dir static/dynamic handling', () => {
   }
 
   // On-Demand Revalidate has not effect in dev
-  if (!(global as any).isNextDev && !process.env.CUSTOM_CACHE_HANDLER) {
+  if (!isNextDev && !process.env.CUSTOM_CACHE_HANDLER) {
     it('should revalidate all fetches during on-demand revalidate', async () => {
       const initRes = await next.fetch(
         '/variable-revalidate/revalidate-360-isr'
@@ -4515,7 +4515,7 @@ describe('app-dir static/dynamic handling', () => {
 
     const firstTime = $('#now').text()
 
-    if (!(global as any).isNextDev) {
+    if (!isNextDev) {
       const res2 = await next.fetch('/force-static')
       expect(res2.status).toBe(200)
 
@@ -4613,7 +4613,7 @@ describe('app-dir static/dynamic handling', () => {
 
       const firstTime = $('#now').text()
 
-      if (!(global as any).isNextDev) {
+      if (!isNextDev) {
         const res2 = await next.fetch('/force-static/first')
         expect(res2.status).toBe(200)
 
@@ -4635,7 +4635,7 @@ describe('app-dir static/dynamic handling', () => {
 
       const firstTime = $('#now').text()
 
-      if (!(global as any).isNextDev) {
+      if (!isNextDev) {
         const res2 = await next.fetch('/force-static/random')
         expect(res2.status).toBe(200)
 
@@ -4945,7 +4945,7 @@ describe('app-dir static/dynamic handling', () => {
       })
 
       // TODO-APP: re-enable after investigating rewrite params
-      if (!(global as any).isNextDeploy) {
+      if (!isNextDeploy) {
         it('should have values from canonical url on rewrite', async () => {
           const browser = await next.browser(
             '/rewritten-use-search-params?first=a&second=b&third=c'

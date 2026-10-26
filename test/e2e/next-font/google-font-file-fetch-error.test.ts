@@ -1,4 +1,4 @@
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup, isNextDev } from 'e2e-utils'
 import { join } from 'path'
 
 const mockedGoogleFontResponses = require.resolve(
@@ -9,7 +9,7 @@ const mockedGoogleFontResponses = require.resolve(
 // Deploy mode exclusion: This suite intentionally fails the build, so there is no successful deployment to exercise.
 // @force-gate turbopack && !deploy
 describe('next/font/google font file fetch error', () => {
-  const isDev = (global as any).isNextDev
+  const isDev = isNextDev
   const fetchError =
     'Received response with status 404 when requesting https://fonts.gstatic.com/s/bitter/v42/does-not-exist.woff2'
   const missingModule =
