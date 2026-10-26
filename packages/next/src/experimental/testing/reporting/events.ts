@@ -22,7 +22,10 @@ export interface SerializedDiagnostic {
   /** An actual process rejection, separate from a case or suite failure. */
   unhandled?: 'rejection'
   /** An actual joined Browser cleanup occurrence, separate from a rejection. */
-  runError?: 'browser-worker-fixture-cleanup' | 'browser-component-cleanup'
+  runError?:
+    | 'browser-worker-fixture-cleanup'
+    | 'browser-component-cleanup'
+    | 'browser-keyboard-cleanup'
   message: string
   name?: string
   stack?: string

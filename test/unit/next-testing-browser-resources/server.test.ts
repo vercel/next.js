@@ -5262,3 +5262,64 @@ it('retains actual component cleanup occurrences, observer failures and legacy c
     })
   }
 })
+
+it('retains joined keyboard outcome authority and the legacy fallback', () => {
+  const { execFileSync } = require('node:child_process')
+  for (const mode of [
+    'normal',
+    'sole',
+    'undefined',
+    'legacy',
+    'repeat',
+    'observer-error',
+    'observer-getter-error',
+    'same-component',
+    'distinct-component',
+    'component-only',
+    'fulfilled-observer-error',
+  ]) {
+    const result = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'keyboard-failure-occurrence.cjs'), mode],
+        { encoding: 'utf8' }
+      )
+    )
+    expect(result).toMatchObject({
+      mode,
+      actualKeyboardOutcome: true,
+      undefinedRejectionDistinct: true,
+      freshOutcomePerInvocation: true,
+      originalAndObserverFailuresRetained: true,
+      componentThenKeyboardOrderHeld: true,
+    })
+  }
+  for (const mode of [
+    'normal',
+    'keyboard',
+    'keyboard-undefined',
+    'keyboard-worker',
+    'file-keyboard-worker-same',
+    'legacy',
+    'aggregate-same',
+    'getter-values',
+    'fulfilled-then-failure',
+  ]) {
+    const result = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'keyboard-failure-consumer.cjs'), mode],
+        { encoding: 'utf8' }
+      )
+    )
+    expect(result).toMatchObject({
+      mode,
+      onlyJoinedSoleKeyboardClassified: true,
+      noDuplicateAfterActualOutcome: true,
+      oldDoubleFallbackHeld: true,
+      undefinedRejectionDistinct: true,
+      mixedAndIndependentFailureVetoHeld: true,
+      originalFieldReadsAndSnapshotsHeld: true,
+    })
+  }
+})

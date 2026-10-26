@@ -203,7 +203,8 @@ function validDiagnostic(value: unknown): boolean {
           diagnostic.severity !== 'error')) ||
       (diagnostic.runError !== undefined &&
         ((diagnostic.runError !== 'browser-worker-fixture-cleanup' &&
-          diagnostic.runError !== 'browser-component-cleanup') ||
+          diagnostic.runError !== 'browser-component-cleanup' &&
+          diagnostic.runError !== 'browser-keyboard-cleanup') ||
           diagnostic.phase !== 'cleanup' ||
           diagnostic.severity !== 'error' ||
           diagnostic.unhandled !== undefined))

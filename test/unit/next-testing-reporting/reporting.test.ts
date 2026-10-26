@@ -6817,3 +6817,106 @@ it.each([
     human.dispose()
   }
 )
+
+it.each([
+  'keyboard-only',
+  'keyboard-worker-same',
+  'ordinary-and-keyboard',
+  'recorded-reporter',
+])(
+  'keeps independently observed keyboard cleanup errors separate for %s',
+  async (mode) => {
+    const { hasOnlyBrowserCleanupRunFailures, reportedRunError } = await import(
+      'next/dist/experimental/testing/reporting/run-errors'
+    )
+    const { renderTapReport } = await import(
+      'next/dist/experimental/testing/reporting/builtin-reporters'
+    )
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const human = createTestReporter({ projectDir: '/project', write() {} }),
+      events: ResultEvent[] = []
+    const emit = (event: object) => {
+      const value = { ...envelope, ...event } as ResultEvent
+      events.push(value)
+      machine.onEvent(value)
+      human.onEvent(value)
+    }
+    emit({ type: 'run-start' })
+    emit({ type: 'file-start', entry })
+    emit({ type: 'case-end', ...result(0, 'passed') })
+    const error = {
+      phase: 'cleanup' as const,
+      severity: 'error' as const,
+      name: 'FixtureCleanupError',
+      message: 'same actual cleanup failure',
+      stack: '',
+    }
+    if (mode === 'ordinary-and-keyboard')
+      emit({ type: 'diagnostic', entryId: entry.id, diagnostic: error })
+    const origins = [
+      'browser-keyboard-cleanup' as const,
+      ...(mode === 'keyboard-worker-same' || mode === 'ordinary-and-keyboard'
+        ? ['browser-worker-fixture-cleanup' as const]
+        : []),
+    ]
+    for (const runError of origins)
+      emit({
+        type: 'diagnostic',
+        entryId: entry.id,
+        diagnostic: { ...error, runError },
+      })
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      status: 'failed',
+      durationMs: 1,
+    })
+    emit({ type: 'run-end', status: 'failed', durationMs: 1 })
+    const recordedReporterErrors =
+      mode === 'recorded-reporter'
+        ? [
+            serializeDiagnostic(new Error('independent reporter failure'), {
+              phase: 'reporter',
+            }),
+          ]
+        : undefined
+    const completion = {
+      ...human.getResults(),
+      events,
+      status: 'failed' as const,
+      recordedReporterErrors,
+    }
+    expect(hasOnlyBrowserCleanupRunFailures(completion)).toBe(
+      mode === 'keyboard-only' || mode === 'keyboard-worker-same'
+    )
+    expect(machine.getJson().success).toBe(mode !== 'ordinary-and-keyboard')
+    expect(human.getSummary().status).toBe('failed')
+    expect(
+      renderTapReport(human.getResults(), events, { projectDir: '/project' })
+    ).not.toContain('[run errors]')
+    expect(machine.getJUnit()).toContain(
+      `<testsuite name="vitest unhandled errors" tests="${origins.length}" failures="0" errors="${origins.length}"`
+    )
+    const reported = events.flatMap((event) =>
+      event.type === 'diagnostic' && event.diagnostic.runError
+        ? [reportedRunError(event.diagnostic)]
+        : []
+    )
+    expect(reported).toHaveLength(origins.length)
+    expect(reported).toEqual(
+      origins.map(() => ({
+        name: error.name,
+        message: error.message,
+        stack: '',
+        stacks: [],
+        type: 'Cleanup Error',
+      }))
+    )
+    if (origins.length === 2) expect(reported[0]).not.toBe(reported[1])
+    machine.dispose()
+    human.dispose()
+  }
+)

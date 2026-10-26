@@ -794,14 +794,16 @@ export function createClientResultCollector(
       if (
         message.origin !== undefined &&
         message.origin !== 'worker-fixture-cleanup' &&
-        message.origin !== 'component-cleanup'
+        message.origin !== 'component-cleanup' &&
+        message.origin !== 'keyboard-cleanup'
       )
         throw new Error('Invalid Browser Mode failure origin.')
       moduleFailures?.push(message.error)
       fileFailed = true
       if (
         message.origin === 'worker-fixture-cleanup' ||
-        message.origin === 'component-cleanup'
+        message.origin === 'component-cleanup' ||
+        message.origin === 'keyboard-cleanup'
       )
         event({
           type: 'diagnostic',
@@ -812,7 +814,9 @@ export function createClientResultCollector(
             runError:
               message.origin === 'worker-fixture-cleanup'
                 ? 'browser-worker-fixture-cleanup'
-                : 'browser-component-cleanup',
+                : message.origin === 'component-cleanup'
+                  ? 'browser-component-cleanup'
+                  : 'browser-keyboard-cleanup',
           },
         })
       else fileFailure(message.error)

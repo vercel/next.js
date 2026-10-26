@@ -98,7 +98,7 @@ export async function startClientTest(
   const nativeReplies = new Set<Promise<void>>()
   const pendingFailures: unknown[] = []
   const browserCleanupFailures: {
-    origin: 'worker-fixture-cleanup' | 'component-cleanup'
+    origin: 'worker-fixture-cleanup' | 'component-cleanup' | 'keyboard-cleanup'
     error: { name: unknown; message: unknown; stack: unknown }
   }[] = []
   const captureCleanupError = (error: unknown) => {
@@ -616,35 +616,51 @@ export async function startClientTest(
         browserCleanup = nativePromiseThen.call(
           nativePromiseResolve(),
           async () => {
+            let keyboardObserved = false
             for (const cleanup of [
               async () => {
-                const components: {
+                const observedFailures: {
+                  origin: 'component-cleanup' | 'keyboard-cleanup'
                   occurrence: Readonly<{ error: unknown }>
                   error: ReturnType<typeof captureCleanupError>
                 }[] = []
                 try {
                   await cleanupBrowserContext({
                     onComponentFailure(occurrence) {
-                      components.push({
+                      observedFailures.push({
+                        origin: 'component-cleanup',
                         occurrence,
                         error: captureCleanupError(occurrence.error),
                       })
                     },
+                    onKeyboardCleanup(outcome) {
+                      keyboardObserved = true
+                      if (outcome.status === 'rejected')
+                        observedFailures.push({
+                          origin: 'keyboard-cleanup',
+                          occurrence: outcome,
+                          error: captureCleanupError(outcome.error),
+                        })
+                    },
                   })
                 } catch (error) {
                   if (
-                    components.length !== 1 ||
-                    components[0].occurrence.error !== error
+                    observedFailures.length !== 1 ||
+                    observedFailures[0].occurrence.error !== error
                   )
                     throw error
                   browserCleanupFailures.push({
-                    origin: 'component-cleanup',
-                    error: components[0].error,
+                    origin: observedFailures[0].origin,
+                    error: observedFailures[0].error,
                   })
                   status = 'failed'
                 }
               },
-              cleanupBrowserKeyboard,
+              // An older context may ignore observation and still need its
+              // keyboard fallback. A joined real attempt must not be retried.
+              () => {
+                if (!keyboardObserved) return cleanupBrowserKeyboard()
+              },
             ]) {
               try {
                 await cleanup()

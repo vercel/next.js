@@ -9,7 +9,8 @@ import type {
 export function isBrowserCleanupRunError(diagnostic: SerializedDiagnostic) {
   return (
     diagnostic.runError === 'browser-worker-fixture-cleanup' ||
-    diagnostic.runError === 'browser-component-cleanup'
+    diagnostic.runError === 'browser-component-cleanup' ||
+    diagnostic.runError === 'browser-keyboard-cleanup'
   )
 }
 

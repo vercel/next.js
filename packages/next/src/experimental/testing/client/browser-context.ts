@@ -902,6 +902,11 @@ export function initializeBrowserContext(
 /** The published component helper owns the real React roots and unmount logic. */
 export async function cleanupBrowserContext(observation?: {
   onComponentFailure?(occurrence: Readonly<{ error: unknown }>): void
+  onKeyboardCleanup?(
+    outcome:
+      | Readonly<{ status: 'fulfilled' }>
+      | Readonly<{ status: 'rejected'; error: unknown }>
+  ): void
 }) {
   const failures: unknown[] = []
   const componentCleanup = () => {
@@ -914,9 +919,13 @@ export async function cleanupBrowserContext(observation?: {
     ...(deferredCommands.size ? [cleanupDeferredLocators] : []),
   ]) {
     if (typeof cleanup !== 'function') continue
+    let rejected = false,
+      rejection: unknown
     try {
       await cleanup()
     } catch (error) {
+      rejected = true
+      rejection = error
       failures.push(error)
       if (cleanup === componentCleanup)
         try {
@@ -925,6 +934,18 @@ export async function cleanupBrowserContext(observation?: {
           failures.push(observerError)
         }
     }
+    if (cleanup === cleanupBrowserKeyboard)
+      try {
+        observation?.onKeyboardCleanup?.(
+          Object.freeze(
+            rejected
+              ? { status: 'rejected' as const, error: rejection }
+              : { status: 'fulfilled' as const }
+          )
+        )
+      } catch (observerError) {
+        failures.push(observerError)
+      }
   }
   if (failures.length === 1) throw failures[0]
   if (failures.length)
