@@ -175,10 +175,15 @@ impl WorkerPoolOperation {
 
     pub(crate) fn send_task_message(&self, message: TaskMessage) -> Result<()> {
         let channel = {
-            let mut map = self.task_routed_channel.lock();
-            map.entry(message.task_id)
-                .or_insert_with(|| Arc::new(MessageChannel::unbounded()))
-                .clone()
+            let map = self.task_routed_channel.lock();
+            map.get(&message.task_id).cloned()
+        };
+        let Some(channel) = channel else {
+            // The task's channels were already torn down (the task was
+            // canceled, failed, or completed early). Drop the late message:
+            // recreating the channel would leave an entry no receiver ever
+            // drains, retaining the queued bytes forever.
+            return Ok(());
         };
         channel
             .send_sync(message.data)
@@ -304,5 +309,39 @@ impl Operation for WorkerOperation {
             // Clearing the return-to-pool callback does not stop the underlying Node.js worker.
             let _ = terminate_worker(self.worker_options.clone(), self.worker_id);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A message arriving for a task whose channels were already torn down
+    /// must be discarded instead of recreating a channel that no receiver
+    /// will ever drain (which would retain the queued bytes forever).
+    #[test]
+    fn late_task_message_after_task_drop_is_discarded() {
+        let task_id = 4_000_000_001;
+        let worker_id = 4_000_000_002;
+        {
+            let _channels = TaskChannels::new(task_id, worker_id);
+        }
+        // Simulate the JS worker's late end/error message arriving after the
+        // Rust task was torn down (canceled, failed, or completed early).
+        WORKER_POOL_OPERATION
+            .send_task_message(TaskMessage {
+                task_id,
+                data: Bytes::from_static(b"late"),
+            })
+            .expect("late messages are dropped, not an error");
+        assert!(
+            !WORKER_POOL_OPERATION
+                .task_routed_channel
+                .lock()
+                .contains_key(&task_id),
+            "late message must not recreate a task channel"
+        );
+        // Clean up the worker channel created by TaskChannels::new.
+        WORKER_POOL_OPERATION.remove_worker_channel(worker_id);
     }
 }
