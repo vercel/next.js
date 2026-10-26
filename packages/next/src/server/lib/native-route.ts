@@ -220,6 +220,9 @@ export class NativeRouteManager {
       this.workers.delete(previous)
       old?.then((value) => this.retire(value)).catch(() => {})
     }
+    // Disconnects during descriptor resolution or startup predate the
+    // transport listeners below. Do not dispatch those requests to Go.
+    if (req.aborted || res.destroyed) return
     worker.active++
     // Public values cannot supply private metadata. Authentication is process scoped.
     // Use normalized headers so proxy.ts request-header mutations are respected.
